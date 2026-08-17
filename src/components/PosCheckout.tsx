@@ -22,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido } from '../types';
 import { PrintService } from '../services/printService';
+import { ModalNovoCliente } from './ModalNovoCliente';
 
 export const PosCheckout: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -59,6 +60,7 @@ export const PosCheckout: React.FC = () => {
   const [finalizandoVenda, setFinalizandoVenda] = useState<boolean>(false);
   const [pedidoConcluido, setPedidoConcluido] = useState<Pedido | null>(null);
 
+  const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -373,22 +375,32 @@ export const PosCheckout: React.FC = () => {
             )}
           </div>
 
-          <div className="relative">
-            <select
-              value={clienteSelecionado ? clienteSelecionado.id : ''}
-              onChange={(e) => {
-                const cli = clientes.find(c => c.id === e.target.value) || null;
-                setClienteSelecionado(cli);
-              }}
-              className="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <select
+                value={clienteSelecionado ? clienteSelecionado.id : ''}
+                onChange={(e) => {
+                  const cli = clientes.find(c => c.id === e.target.value) || null;
+                  setClienteSelecionado(cli);
+                }}
+                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="">👤 Cliente Avulso (Balcão)</option>
+                {clientes.map(cli => (
+                  <option key={cli.id} value={cli.id}>
+                    👤 {cli.nome} {Number(cli.saldo_devedor_fiado) > 0 ? `(Devendo R$ ${Number(cli.saldo_devedor_fiado).toFixed(2)})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalNovoCliente(true)}
+              className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition flex items-center justify-center shrink-0"
+              title="Cadastrar Novo Cliente"
             >
-              <option value="">👤 Cliente Avulso (Balcão)</option>
-              {clientes.map(cli => (
-                <option key={cli.id} value={cli.id}>
-                  👤 {cli.nome} {Number(cli.saldo_devedor_fiado) > 0 ? `(Devendo R$ ${Number(cli.saldo_devedor_fiado).toFixed(2)})` : ''}
-                </option>
-              ))}
-            </select>
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -657,6 +669,16 @@ export const PosCheckout: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Novo Cliente */}
+      <ModalNovoCliente
+        isOpen={modalNovoCliente}
+        onClose={() => setModalNovoCliente(false)}
+        onClienteCadastrado={(novoCliente) => {
+          setClientes(prev => [novoCliente, ...prev]);
+          setClienteSelecionado(novoCliente);
+        }}
+      />
     </div>
   );
 };

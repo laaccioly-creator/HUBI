@@ -15,7 +15,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 

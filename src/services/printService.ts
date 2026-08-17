@@ -6,7 +6,7 @@
  * 3. Formatação de Recibo em Texto para WhatsApp
  */
 
-import { Pedido, Loja } from '../types/database';
+import { Pedido, Loja, ItemPedido } from '../types';
 
 export class PrintService {
   /**
@@ -151,7 +151,7 @@ export class PrintService {
    */
   static generateWhatsAppMessage(pedido: Pedido, loja: Loja): string {
     const itensTexto = pedido.itens
-      ? pedido.itens.map(i => `▫️ *${i.quantidade}x* ${i.nome_produto} ${i.rotulo_variacao ? `(${i.rotulo_variacao})` : ''} - R$ ${Number(i.subtotal).toFixed(2)}`).join('\n')
+      ? pedido.itens.map((i: ItemPedido) => `▫️ *${i.quantidade}x* ${i.nome_produto} ${i.rotulo_variacao ? `(${i.rotulo_variacao})` : ''} - R$ ${Number(i.subtotal).toFixed(2)}`).join('\n')
       : '';
 
     return `🛍️ *PEDIDO #${pedido.numero_pedido} - ${loja.nome_fantasia}*
