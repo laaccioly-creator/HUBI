@@ -7,11 +7,18 @@ import {
   Star,
   Eye,
   EyeOff,
-  Trash2
+  Trash2,
+  FolderPlus,
+  PackagePlus,
+  ArrowDownLeft,
+  ArrowUpDown,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Produto, Categoria } from '../types';
+import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
+import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -21,6 +28,10 @@ export const ProdutosEstoque: React.FC = () => {
   const [busca, setBusca] = useState<string>('');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [filtroEstoque, setFiltroEstoque] = useState<string>('todos');
+
+  // Modais
+  const [modalCategorias, setModalCategorias] = useState<boolean>(false);
+  const [produtoEstoqueAlvo, setProdutoEstoqueAlvo] = useState<Produto | null>(null);
 
   const carregarProdutos = async () => {
     if (!loja?.id) return;
@@ -118,28 +129,47 @@ export const ProdutosEstoque: React.FC = () => {
   });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950">
+    <div className="flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
+      {/* Header Superior */}
       <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Package className="w-5 h-5 text-emerald-400" />
+            <h1 className="text-2xl font-black text-slate-100 flex items-center gap-2">
+              <Package className="w-6 h-6 text-emerald-400" />
               <span>Produtos & Estoque</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                {produtos.length}
+              </span>
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Gerencie seus produtos, preços de atacado/varejo, variações e controle de estoque.
+              Gerencie seus produtos, dê entrada em compras, controle custos e inventário
             </p>
           </div>
 
-          <Link
-            to="/products/create"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Cadastrar Produto</span>
-          </Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Botão Gerenciar Categorias */}
+            <button
+              type="button"
+              onClick={() => setModalCategorias(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-200 text-xs font-bold transition cursor-pointer shadow-sm"
+              title="Gerenciar Categorias de Produtos"
+            >
+              <FolderPlus className="w-4 h-4 text-indigo-400" />
+              <span>Categorias</span>
+            </button>
+
+            {/* Botão Novo Produto */}
+            <Link
+              to="/products/create"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Novo Produto</span>
+            </Link>
+          </div>
         </div>
 
+        {/* Cards de Métricas de Estoque */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
             <span className="text-xs text-slate-400 block">Total de Produtos</span>
@@ -147,7 +177,7 @@ export const ProdutosEstoque: React.FC = () => {
           </div>
 
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 block">Estoque Físico</span>
+            <span className="text-xs text-slate-400 block">Estoque Físico Total</span>
             <span className="text-lg font-bold text-emerald-400">{totalItensEstoque} un</span>
           </div>
 
@@ -164,12 +194,13 @@ export const ProdutosEstoque: React.FC = () => {
           )}
         </div>
 
+        {/* Barra de Filtros e Busca */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar por nome, código ou código de barras..."
+              placeholder="Buscar por nome, código SKU ou código de barras..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
@@ -199,13 +230,24 @@ export const ProdutosEstoque: React.FC = () => {
         </div>
       </div>
 
+      {/* Grid / Tabela de Produtos */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {carregando ? (
-          <div className="text-center py-16 text-slate-500 text-sm">Carregando catálogo...</div>
+          <div className="text-center py-16 text-slate-500 text-sm">Carregando estoque...</div>
         ) : produtosFiltrados.length === 0 ? (
-          <div className="text-center py-16 text-slate-500 text-sm">Nenhum produto cadastrado com esses filtros.</div>
+          <div className="text-center py-16 text-slate-500 text-sm space-y-3">
+            <Package className="w-12 h-12 opacity-30 mx-auto" />
+            <p>Nenhum produto cadastrado com esses filtros.</p>
+            <Link
+              to="/products/create"
+              className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold underline"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Cadastrar Primeiro Produto</span>
+            </Link>
+          </div>
         ) : (
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
@@ -214,8 +256,7 @@ export const ProdutosEstoque: React.FC = () => {
                     <th className="p-3.5">Categoria</th>
                     <th className="p-3.5">Varejo</th>
                     <th className="p-3.5">Atacado</th>
-                    <th className="p-3.5">Autoatacado</th>
-                    <th className="p-3.5">Estoque</th>
+                    <th className="p-3.5">Estoque Atual</th>
                     <th className="p-3.5 text-center">Catálogo</th>
                     <th className="p-3.5 text-right">Ações</th>
                   </tr>
@@ -223,19 +264,22 @@ export const ProdutosEstoque: React.FC = () => {
                 <tbody className="divide-y divide-slate-800/60">
                   {produtosFiltrados.map((produto) => {
                     const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-                    const estoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
+                    const estoqueQtd = Number(produto.quantidade_estoque || 0);
+                    const estoqueBaixo = estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
 
                     return (
-                      <tr key={produto.id} className="hover:bg-slate-800/40 transition">
+                      <tr key={produto.id} className="hover:bg-slate-800/40 transition group">
                         <td className="p-3.5">
                           <div className="flex items-center gap-3">
                             <img
                               src={fotoUrl}
                               alt={produto.nome}
-                              className="w-10 h-10 rounded-xl object-cover bg-slate-950 border border-slate-800"
+                              className="w-11 h-11 rounded-xl object-cover bg-slate-950 border border-slate-800 shrink-0"
                             />
                             <div>
-                              <span className="font-bold text-slate-100 block text-xs">{produto.nome}</span>
+                              <span className="font-bold text-slate-100 block text-xs group-hover:text-emerald-400 transition">
+                                {produto.nome}
+                              </span>
                               <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
                                 {produto.codigo_interno && <span>#{produto.codigo_interno}</span>}
                                 {produto.tem_variacoes && (
@@ -258,36 +302,48 @@ export const ProdutosEstoque: React.FC = () => {
 
                         <td className="p-3.5 text-slate-300">
                           {produto.preco_venda_atacado ? (
-                            <span>R$ {Number(produto.preco_venda_atacado).toFixed(2)} <span className="text-[10px] text-slate-500">({produto.qtd_minima_atacado}+ un)</span></span>
+                            <span>
+                              R$ {Number(produto.preco_venda_atacado).toFixed(2)}{' '}
+                              <span className="text-[10px] text-slate-500">({produto.qtd_minima_atacado}+ un)</span>
+                            </span>
                           ) : (
                             <span className="text-slate-600">-</span>
                           )}
                         </td>
 
-                        <td className="p-3.5 text-slate-300">
-                          {produto.preco_venda_autoatacado ? (
-                            <span>R$ {Number(produto.preco_venda_autoatacado).toFixed(2)} <span className="text-[10px] text-slate-500">({produto.qtd_minima_autoatacado}+ un)</span></span>
-                          ) : (
-                            <span className="text-slate-600">-</span>
-                          )}
-                        </td>
-
+                        {/* Estoque com Botão Rápido de Entrada */}
                         <td className="p-3.5">
-                          <span
-                            className={`px-2 py-0.5 rounded-lg text-[11px] font-bold ${
-                              estoqueBaixo
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                : 'bg-slate-800 text-slate-200'
-                            }`}
-                          >
-                            {produto.quantidade_estoque} {produto.tipo_unidade}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1 ${
+                                estoqueQtd <= 0
+                                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                  : estoqueBaixo
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
+                              }`}
+                            >
+                              {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
+                              <span>{estoqueQtd} {produto.tipo_unidade || 'un'}</span>
+                            </span>
+
+                            {/* Botão de Entrada Rápida de Estoque */}
+                            <button
+                              type="button"
+                              onClick={() => setProdutoEstoqueAlvo(produto)}
+                              className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              title="Dar entrada por compra ou ajustar estoque"
+                            >
+                              <PackagePlus className="w-3 h-3 text-emerald-400" />
+                              <span>+ Entrada</span>
+                            </button>
+                          </div>
                         </td>
 
                         <td className="p-3.5 text-center">
                           <button
                             onClick={() => toggleExibirCatalogo(produto.id, produto.exibir_catalogo)}
-                            className={`p-1.5 rounded-lg transition ${
+                            className={`p-1.5 rounded-lg transition cursor-pointer ${
                               produto.exibir_catalogo
                                 ? 'text-emerald-400 hover:bg-emerald-500/10'
                                 : 'text-slate-600 hover:bg-slate-800'
@@ -302,16 +358,18 @@ export const ProdutosEstoque: React.FC = () => {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => toggleDestaque(produto.id, produto.destaque)}
-                              className={`p-1.5 rounded-lg transition ${
+                              className={`p-1.5 rounded-lg transition cursor-pointer ${
                                 produto.destaque ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
                               }`}
+                              title={produto.destaque ? 'Produto em Destaque' : 'Destacar Produto'}
                             >
                               <Star className="w-4 h-4 fill-current" />
                             </button>
 
                             <button
                               onClick={() => excluirProduto(produto.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition cursor-pointer"
+                              title="Excluir Produto"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -326,6 +384,22 @@ export const ProdutosEstoque: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal Gerenciar Categorias */}
+      <ModalGerenciarCategorias
+        isOpen={modalCategorias}
+        onClose={() => setModalCategorias(false)}
+        categorias={categorias}
+        onCategoriasAtualizadas={carregarProdutos}
+      />
+
+      {/* Modal Entrada de Estoque */}
+      <ModalEntradaEstoque
+        isOpen={!!produtoEstoqueAlvo}
+        onClose={() => setProdutoEstoqueAlvo(null)}
+        produto={produtoEstoqueAlvo}
+        onEstoqueAtualizado={carregarProdutos}
+      />
     </div>
   );
 };
