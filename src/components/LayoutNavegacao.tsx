@@ -13,15 +13,18 @@ import {
   Store,
   Bell,
   Menu,
-  X
+  X,
+  LogOut,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { audioService } from '../services/audioService';
+import { CadastroPdv } from './CadastroPdv';
 
 export const LayoutNavegacao: React.FC = () => {
   const location = useLocation();
-  const { loja, usuario } = useAuth();
+  const { loja, usuario, carregando, desconectarPdv } = useAuth();
   const [pedidosPendentesCount, setPedidosPendentesCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
@@ -59,6 +62,26 @@ export const LayoutNavegacao: React.FC = () => {
     };
   }, [loja?.id]);
 
+  // Se estiver carregando os dados do PDV
+  if (carregando) {
+    return (
+      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-2xl">
+          <Store className="w-8 h-8 text-emerald-400 animate-pulse" />
+        </div>
+        <div className="flex items-center gap-2 text-slate-400 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+          <span>Carregando Sistema HUBI...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Se NÃO houver loja identificada, abrir tela de cadastro / login de PDV obrigatório
+  if (!loja) {
+    return <CadastroPdv />;
+  }
+
   const navItems = [
     { name: 'PDV (Vender)', path: '/pos', icon: ShoppingCart, highlight: true },
     { name: 'Pedidos', path: '/orders', icon: ShoppingBag, badge: pedidosPendentesCount },
@@ -77,17 +100,17 @@ export const LayoutNavegacao: React.FC = () => {
       {/* SIDEBAR DESKTOP */}
       <aside className="hidden md:flex flex-col w-64 border-r border-slate-800 bg-slate-900/90 backdrop-blur-xl z-20">
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-500/20 text-lg">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-500/20 text-lg shrink-0">
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
-            <div className="overflow-hidden">
+            <div className="overflow-hidden min-w-0">
               <h2 className="font-bold text-slate-100 text-sm truncate leading-tight">
                 {loja?.nome_fantasia || 'HUBI Sistema'}
               </h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[11px] text-emerald-400 font-medium">Online</span>
+                <span className="text-[11px] text-emerald-400 font-medium">PDV Conectado</span>
               </div>
             </div>
           </div>
@@ -147,9 +170,15 @@ export const LayoutNavegacao: React.FC = () => {
 
           <div className="px-2 py-1 text-xs text-slate-400 flex items-center justify-between">
             <span className="truncate">{usuario?.nome_completo || 'Operador'}</span>
-            <span className="text-[10px] uppercase font-bold bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
-              {usuario?.perfil || 'Admin'}
-            </span>
+            <button
+              type="button"
+              onClick={desconectarPdv}
+              className="text-[10px] text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 font-semibold"
+              title="Trocar de Estabelecimento / Sair"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>Trocar PDV</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -158,11 +187,11 @@ export const LayoutNavegacao: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top Header Mobile */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 z-20">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-white text-sm shadow">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-white text-sm shadow shrink-0">
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
-            <span className="font-bold text-sm text-slate-100 truncate max-w-[160px]">
+            <span className="font-bold text-sm text-slate-100 truncate max-w-[150px]">
               {loja?.nome_fantasia || 'HUBI'}
             </span>
           </div>
@@ -228,6 +257,17 @@ export const LayoutNavegacao: React.FC = () => {
               </div>
               <ExternalLink className="w-4 h-4" />
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                desconectarPdv();
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-rose-400 hover:bg-rose-500/10 text-sm font-semibold transition text-left"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Trocar de Estabelecimento / Sair</span>
+            </button>
           </div>
         )}
 
