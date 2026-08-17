@@ -12,6 +12,7 @@ interface AuthContextType {
   cadastrarPdv: (dadosLoja: Partial<Loja>, dadosUsuario: Partial<UsuarioLoja>) => Promise<Loja>;
   cadastrarMinimalista: (params: { nome: string; email: string; senha?: string }) => Promise<Loja>;
   entrarComEmail: (email: string, senha?: string) => Promise<boolean>;
+  entrarComGoogle: () => Promise<any>;
   desconectarPdv: () => void;
   recarregarDadosLoja: () => Promise<void>;
 }
@@ -143,14 +144,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCarregando(true);
       const emailTrim = emailBusca.trim().toLowerCase();
 
-      // Buscar por loja com este email
       let { data: lojasEncontradas, error } = await supabase
         .from('lojas')
         .select('*')
         .ilike('email', emailTrim)
         .limit(1);
 
-      // Se não encontrou por email na loja, buscar em usuarios_loja
       if (!lojasEncontradas || lojasEncontradas.length === 0) {
         const { data: users } = await supabase
           .from('usuarios_loja')
@@ -187,6 +186,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setCarregando(false);
     }
+  };
+
+  // Login com Google OAuth oficial do Supabase (Abre tela do Google com prompt=select_account)
+  const entrarComGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        queryParams: {
+          prompt: 'select_account',
+          access_type: 'offline'
+        },
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+    return data;
   };
 
   // Cadastro Minimalista (Estilo Kyte: Nome + Email + Senha)
@@ -295,6 +313,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     carregarLoja();
+
+    // Escutar eventos de login com OAuth (Google, etc.)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user?.email) {
+        const emailAuth = session.user.email.toLowerCase();
+        const nomeAuth = session.user.user_metadata?.full_name || session.user.user_metadata?.name || emailAuth.split('@')[0];
+
+        // Verificar se já existe uma loja para este e-mail
+        const { data: lojasExistentes } = await supabase
+          .from('lojas')
+          .select('*')
+          .ilike('email', emailAuth)
+          .limit(1);
+
+        if (lojasExistentes && lojasExistentes.length > 0) {
+          setLoja(lojasExistentes[0]);
+          localStorage.setItem(STORAGE_KEY_LOJA_ID, lojasExistentes[0].id);
+        } else {
+          try {
+            await cadastrarMinimalista({
+              nome: nomeAuth,
+              email: emailAuth
+            });
+          } catch (e) {
+            console.error('Erro ao auto-criar conta pós-OAuth:', e);
+          }
+        }
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -309,6 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cadastrarPdv,
         cadastrarMinimalista,
         entrarComEmail,
+        entrarComGoogle,
         desconectarPdv,
         recarregarDadosLoja: carregarLoja
       }}

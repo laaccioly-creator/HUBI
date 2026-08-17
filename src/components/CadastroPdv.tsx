@@ -27,7 +27,7 @@ const QUICK_DOMAINS = ['@GMAIL.COM', '@HOTMAIL.COM', '@OUTLOOK.COM', '@ICLOUD.CO
 type AuthScreen = 'welcome' | 'signup_email' | 'signin' | 'signin_email';
 
 export const CadastroPdv: React.FC = () => {
-  const { cadastrarMinimalista, entrarComEmail, selecionarLoja, lojasDisponiveis } = useAuth();
+  const { cadastrarMinimalista, entrarComEmail, entrarComGoogle, selecionarLoja, lojasDisponiveis } = useAuth();
 
   const [screen, setScreen] = useState<AuthScreen>('welcome');
   const [nome, setNome] = useState('');
@@ -133,22 +133,20 @@ export const CadastroPdv: React.FC = () => {
     }
   };
 
-  // Login com Google Rápido (Criação imediata ou OAuth)
+  // Login com Google Oficial via Supabase OAuth (Abre tela para escolher conta do Google)
   const handleGoogleAuth = async () => {
     try {
       setSalvando(true);
       setErroMsg(null);
-      const idAleatorio = Math.floor(1000 + Math.random() * 9000);
-      const nomeGoogle = nome.trim() || 'Meu Estabelecimento';
-      const emailGoogle = email.trim() || `google.usuario.${idAleatorio}@gmail.com`;
-
-      await cadastrarMinimalista({
-        nome: nomeGoogle,
-        email: emailGoogle
-      });
+      await entrarComGoogle();
     } catch (err: any) {
-      console.error('Erro ao conectar com Google:', err);
-      setErroMsg(err.message || 'Erro ao processar login com Google.');
+      console.warn('Erro ao conectar com Google:', err);
+      if (err.message && (err.message.includes('provider is not enabled') || err.message.includes('Unsupported provider'))) {
+        setErroMsg('O login OAuth do Google precisa ser ativado no painel do Supabase (Authentication > Providers > Google). Enquanto isso, você pode entrar ou criar conta digitando seu e-mail do Google!');
+        setScreen('signup_email');
+      } else {
+        setErroMsg(err.message || 'Erro ao abrir janela de autenticação do Google.');
+      }
     } finally {
       setSalvando(false);
     }

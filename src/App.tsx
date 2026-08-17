@@ -19,7 +19,7 @@ export const App: React.FC = () => {
   return (
     <AuthProvider>
       <CartProvider>
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             {/* Rota Pública do Catálogo Online do Cliente */}
             <Route path="/catalog/:slug" element={<CatalogoPublico />} />
