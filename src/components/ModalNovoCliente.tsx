@@ -23,7 +23,8 @@ import { Cliente, TabelaPreco } from '../types';
 interface ModalNovoClienteProps {
   isOpen: boolean;
   onClose: () => void;
-  onClienteCadastrado: (novoCliente: Cliente) => void;
+  onClienteCadastrado: (cliente: Cliente) => void;
+  clienteEditar?: Cliente | null;
 }
 
 const ESTADOS_BRASIL = [
@@ -59,7 +60,8 @@ const ESTADOS_BRASIL = [
 export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   isOpen,
   onClose,
-  onClienteCadastrado
+  onClienteCadastrado,
+  clienteEditar
 }) => {
   const { loja } = useAuth();
 
@@ -95,6 +97,54 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [carregandoGeoloc, setCarregandoGeoloc] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
+
+  // Sincronizar dados para Edição ou Criação
+  React.useEffect(() => {
+    if (isOpen) {
+      if (clienteEditar) {
+        setNome(clienteEditar.nome || '');
+        setCpfCnpj(clienteEditar.numero_documento || '');
+        setDataAniversario(clienteEditar.data_aniversario || '');
+        setEmail(clienteEditar.email || '');
+        setObservacoes(clienteEditar.observacoes || '');
+        setTelefone1(clienteEditar.telefone || clienteEditar.whatsapp || '');
+        setTelefone1IsWhatsapp(clienteEditar.telefone_is_whatsapp ?? true);
+        setTelefone2(clienteEditar.telefone2 || '');
+        setTelefone2IsWhatsapp(clienteEditar.telefone2_is_whatsapp ?? false);
+        setPermiteFiado(clienteEditar.permite_fiado ?? true);
+        setLimiteCredito(String(clienteEditar.limite_credito ?? '500.00'));
+        setTabelaPreco(clienteEditar.tabela_preco_padrao || 'varejo');
+        setCep(clienteEditar.endereco_cep || '');
+        setRua(clienteEditar.endereco_logradouro || '');
+        setNumero(clienteEditar.endereco_numero || '');
+        setComplemento(clienteEditar.endereco_complemento || '');
+        setBairro(clienteEditar.endereco_bairro || '');
+        setCidade(clienteEditar.endereco_cidade || '');
+        setEstado(clienteEditar.endereco_estado || '');
+      } else {
+        setNome('');
+        setCpfCnpj('');
+        setDataAniversario('');
+        setEmail('');
+        setObservacoes('');
+        setTelefone1('');
+        setTelefone1IsWhatsapp(true);
+        setTelefone2('');
+        setTelefone2IsWhatsapp(false);
+        setPermiteFiado(true);
+        setLimiteCredito('500.00');
+        setTabelaPreco('varejo');
+        setCep('');
+        setRua('');
+        setNumero('');
+        setComplemento('');
+        setBairro('');
+        setCidade('');
+        setEstado('');
+      }
+      setErroMsg(null);
+    }
+  }, [isOpen, clienteEditar]);
 
   if (!isOpen) return null;
 
@@ -296,40 +346,79 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     };
 
     try {
-      // Tentar inserção com todos os campos novos
-      let { data, error } = await supabase
-        .from('clientes')
-        .insert([payloadCompleto])
-        .select()
-        .single();
+      let data: any = null;
+      let error: any = null;
 
-      // Fallback gracioso para colunas legadas caso a tabela não tenha recebido todas as novas colunas
-      if (error && error.message && error.message.includes('column')) {
-        console.warn('Tentando fallback com payload padrão:', error.message);
-        const payloadLegado = {
-          loja_id: loja.id,
-          nome: nome.trim(),
-          numero_documento: cpfCnpj.trim() || null,
-          data_aniversario: dataAniversario || null,
-          email: email.trim() || null,
-          telefone: telefone1.trim() || null,
-          whatsapp: whatsappPrincipal || null,
-          permite_fiado: permiteFiado,
-          limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
-          saldo_devedor_fiado: 0,
-          tabela_preco_padrao: tabelaPreco,
-          observacoes: observacoes.trim() || null,
-          endereco_principal: enderecoPrincipalFormatado || null
-        };
-
-        const resFallback = await supabase
+      if (clienteEditar?.id) {
+        // ATUALIZAÇÃO (UPDATE)
+        const res = await supabase
           .from('clientes')
-          .insert([payloadLegado])
+          .update(payloadCompleto)
+          .eq('id', clienteEditar.id)
           .select()
           .single();
 
-        data = resFallback.data;
-        error = resFallback.error;
+        data = res.data;
+        error = res.error;
+
+        if (error && error.message && error.message.includes('column')) {
+          const payloadLegado = {
+            nome: nome.trim(),
+            numero_documento: cpfCnpj.trim() || null,
+            data_aniversario: dataAniversario || null,
+            email: email.trim() || null,
+            telefone: telefone1.trim() || null,
+            whatsapp: whatsappPrincipal || null,
+            permite_fiado: permiteFiado,
+            limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
+            tabela_preco_padrao: tabelaPreco,
+            observacoes: observacoes.trim() || null,
+            endereco_principal: enderecoPrincipalFormatado || null
+          };
+          const resFallback = await supabase
+            .from('clientes')
+            .update(payloadLegado)
+            .eq('id', clienteEditar.id)
+            .select()
+            .single();
+          data = resFallback.data;
+          error = resFallback.error;
+        }
+      } else {
+        // INSERÇÃO (INSERT NOVO)
+        const res = await supabase
+          .from('clientes')
+          .insert([payloadCompleto])
+          .select()
+          .single();
+
+        data = res.data;
+        error = res.error;
+
+        if (error && error.message && error.message.includes('column')) {
+          const payloadLegado = {
+            loja_id: loja.id,
+            nome: nome.trim(),
+            numero_documento: cpfCnpj.trim() || null,
+            data_aniversario: dataAniversario || null,
+            email: email.trim() || null,
+            telefone: telefone1.trim() || null,
+            whatsapp: whatsappPrincipal || null,
+            permite_fiado: permiteFiado,
+            limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
+            saldo_devedor_fiado: 0,
+            tabela_preco_padrao: tabelaPreco,
+            observacoes: observacoes.trim() || null,
+            endereco_principal: enderecoPrincipalFormatado || null
+          };
+          const resFallback = await supabase
+            .from('clientes')
+            .insert([payloadLegado])
+            .select()
+            .single();
+          data = resFallback.data;
+          error = resFallback.error;
+        }
       }
 
       if (error) throw error;
@@ -339,7 +428,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         onClose();
       }
     } catch (err: any) {
-      console.error('Erro ao cadastrar cliente:', err);
+      console.error('Erro ao salvar cliente:', err);
       setErroMsg(err.message || 'Erro inesperado ao salvar cliente.');
     } finally {
       setSalvando(false);
@@ -356,8 +445,14 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-100">Cadastrar Novo Cliente</h2>
-              <p className="text-xs text-slate-400">Preencha os dados de contato, endereço e controle de crédito</p>
+              <h2 className="text-base sm:text-lg font-bold text-slate-100">
+                {clienteEditar ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                {clienteEditar
+                  ? 'Atualize os dados de contato, endereço e condições de crédito'
+                  : 'Preencha os dados de contato, endereço e controle de crédito'}
+              </p>
             </div>
           </div>
           <button
@@ -761,12 +856,12 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             {salvando ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Cadastrando...</span>
+                <span>{clienteEditar ? 'Salvando...' : 'Cadastrando...'}</span>
               </>
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                <span>Salvar Cliente</span>
+                <span>{clienteEditar ? 'Salvar Alterações' : 'Salvar Cliente'}</span>
               </>
             )}
           </button>

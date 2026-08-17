@@ -4,7 +4,6 @@ import {
   Search,
   Plus,
   Phone,
-  Share2,
   Trash2,
   MapPin,
   Download,
@@ -16,7 +15,8 @@ import {
   FileText,
   Calendar,
   CreditCard,
-  Mail
+  Mail,
+  Pencil
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,6 +32,8 @@ export const ClientesFiado: React.FC = () => {
 
   // Modais
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
+  const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
+
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
   const [processandoQuitacao, setProcessandoQuitacao] = useState<boolean>(false);
@@ -63,8 +65,16 @@ export const ClientesFiado: React.FC = () => {
     carregarClientes();
   }, [loja?.id, ordemCrescente]);
 
-  const handleClienteCadastrado = (novoCliente: Cliente) => {
-    setClientes(prev => [novoCliente, ...prev]);
+  const handleClienteCadastrado = (clienteSalvo: Cliente) => {
+    setClientes(prev => {
+      const index = prev.findIndex(c => c.id === clienteSalvo.id);
+      if (index >= 0) {
+        const updated = [...prev];
+        updated[index] = clienteSalvo;
+        return updated;
+      }
+      return [clienteSalvo, ...prev];
+    });
   };
 
   // Excluir Cliente
@@ -252,7 +262,10 @@ export const ClientesFiado: React.FC = () => {
             {/* Botão + Cliente */}
             <button
               type="button"
-              onClick={() => setModalNovoCliente(true)}
+              onClick={() => {
+                setClienteEditar(null);
+                setModalNovoCliente(true);
+              }}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold shadow-lg shadow-emerald-500/25 transition cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
@@ -304,7 +317,10 @@ export const ClientesFiado: React.FC = () => {
                         <p className="text-sm font-medium">Nenhum cliente cadastrado.</p>
                         <button
                           type="button"
-                          onClick={() => setModalNovoCliente(true)}
+                          onClick={() => {
+                            setClienteEditar(null);
+                            setModalNovoCliente(true);
+                          }}
                           className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer"
                         >
                           Clique aqui para cadastrar seu primeiro cliente
@@ -324,7 +340,7 @@ export const ClientesFiado: React.FC = () => {
                         key={cliente.id}
                         className="hover:bg-slate-800/50 transition duration-150 group"
                       >
-                        {/* Coluna 1: Avatar + Nome */}
+                        {/* Coluna 1: Avatar + Nome Apenas (Sem documento para visual limpo) */}
                         <td className="py-3 px-4 sm:px-6">
                           <div className="flex items-center gap-3">
                             {/* Avatar com Iniciais */}
@@ -333,16 +349,15 @@ export const ClientesFiado: React.FC = () => {
                             </div>
                             <div className="min-w-0">
                               <span
-                                onClick={() => setClienteDetalhes(cliente)}
-                                className="font-bold text-slate-100 group-hover:text-emerald-300 cursor-pointer block truncate"
+                                onClick={() => {
+                                  setClienteEditar(cliente);
+                                  setModalNovoCliente(true);
+                                }}
+                                className="font-bold text-slate-100 group-hover:text-emerald-400 cursor-pointer block truncate text-xs sm:text-sm"
+                                title="Clique para editar este cliente"
                               >
                                 {cliente.nome}
                               </span>
-                              {cliente.numero_documento && (
-                                <span className="text-[10px] text-slate-500 block">
-                                  Doc: {cliente.numero_documento}
-                                </span>
-                              )}
                             </div>
                           </div>
                         </td>
@@ -382,7 +397,7 @@ export const ClientesFiado: React.FC = () => {
                                   setClienteQuitar(cliente);
                                   setValorAbatimento(Number(cliente.saldo_devedor_fiado).toFixed(2));
                                 }}
-                                className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-lg transition"
+                                className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-lg transition cursor-pointer"
                               >
                                 Quitar
                               </button>
@@ -392,26 +407,39 @@ export const ClientesFiado: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Coluna 5: Ações (Ver Endereço / Excluir) */}
+                        {/* Coluna 5: Ações (Ver Endereço / Alterar / Excluir) */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Botão Endereço / Detalhes */}
+                            {/* Botão Ver Endereço / Detalhes */}
                             {(cliente.endereco_principal || cliente.endereco_cidade) && (
                               <button
                                 type="button"
                                 onClick={() => setClienteDetalhes(cliente)}
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition"
-                                title="Ver Endereço e Dados"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+                                title="Ver Endereço e Detalhes"
                               >
                                 <MapPin className="w-4 h-4" />
                               </button>
                             )}
 
+                            {/* Botão Alterar / Editar Cliente */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClienteEditar(cliente);
+                                setModalNovoCliente(true);
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition cursor-pointer"
+                              title="Alterar / Editar Dados do Cliente"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+
                             {/* Botão Excluir */}
                             <button
                               type="button"
                               onClick={() => setClienteExcluir(cliente)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                               title="Excluir Cliente"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -514,13 +542,28 @@ export const ClientesFiado: React.FC = () => {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setClienteDetalhes(null)}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
-            >
-              Fechar
-            </button>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const c = clienteDetalhes;
+                  setClienteDetalhes(null);
+                  setClienteEditar(c);
+                  setModalNovoCliente(true);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Editar Dados</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setClienteDetalhes(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -544,7 +587,7 @@ export const ClientesFiado: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setClienteExcluir(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition"
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -552,7 +595,7 @@ export const ClientesFiado: React.FC = () => {
                 type="button"
                 disabled={excluindo}
                 onClick={handleConfirmarExclusao}
-                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold transition disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 {excluindo ? 'Removendo...' : 'Sim, Excluir'}
               </button>
@@ -562,12 +605,16 @@ export const ClientesFiado: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL NOVO CLIENTE                                                        */}
+      {/* MODAL NOVO / EDITAR CLIENTE                                               */}
       {/* ========================================================================= */}
       <ModalNovoCliente
         isOpen={modalNovoCliente}
-        onClose={() => setModalNovoCliente(false)}
+        onClose={() => {
+          setModalNovoCliente(false);
+          setClienteEditar(null);
+        }}
         onClienteCadastrado={handleClienteCadastrado}
+        clienteEditar={clienteEditar}
       />
 
       {/* ========================================================================= */}
