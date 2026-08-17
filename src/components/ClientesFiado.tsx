@@ -5,16 +5,18 @@ import {
   Plus,
   Phone,
   Share2,
-  AlertCircle,
+  Trash2,
+  MapPin,
+  Download,
   CheckCircle2,
   X,
-  Calendar,
-  MapPin,
+  AlertCircle,
+  MessageCircle,
+  ArrowUpDown,
   FileText,
-  Mail,
-  ShieldCheck,
-  ShieldAlert,
-  MessageCircle
+  Calendar,
+  CreditCard,
+  Mail
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,12 +28,17 @@ export const ClientesFiado: React.FC = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [busca, setBusca] = useState<string>('');
+  const [ordemCrescente, setOrdemCrescente] = useState<boolean>(true);
 
+  // Modais
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
-
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
   const [processandoQuitacao, setProcessandoQuitacao] = useState<boolean>(false);
+
+  const [clienteDetalhes, setClienteDetalhes] = useState<Cliente | null>(null);
+  const [clienteExcluir, setClienteExcluir] = useState<Cliente | null>(null);
+  const [excluindo, setExcluindo] = useState<boolean>(false);
 
   const carregarClientes = async () => {
     if (!loja?.id) return;
@@ -41,7 +48,7 @@ export const ClientesFiado: React.FC = () => {
         .from('clientes')
         .select('*')
         .eq('loja_id', loja.id)
-        .order('nome');
+        .order('nome', { ascending: ordemCrescente });
 
       if (error) throw error;
       if (data) setClientes(data);
@@ -54,12 +61,34 @@ export const ClientesFiado: React.FC = () => {
 
   useEffect(() => {
     carregarClientes();
-  }, [loja?.id]);
+  }, [loja?.id, ordemCrescente]);
 
   const handleClienteCadastrado = (novoCliente: Cliente) => {
     setClientes(prev => [novoCliente, ...prev]);
   };
 
+  // Excluir Cliente
+  const handleConfirmarExclusao = async () => {
+    if (!clienteExcluir) return;
+    try {
+      setExcluindo(true);
+      const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', clienteExcluir.id);
+
+      if (error) throw error;
+
+      setClientes(prev => prev.filter(c => c.id !== clienteExcluir.id));
+      setClienteExcluir(null);
+    } catch (err: any) {
+      alert(`Erro ao excluir cliente: ${err.message}`);
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
+  // Quitar Débito de Fiado
   const handleQuitarFiado = async () => {
     if (!loja?.id || !clienteQuitar || !valorAbatimento) return;
     const valor = Number(valorAbatimento);
@@ -109,9 +138,63 @@ export const ClientesFiado: React.FC = () => {
     }
   };
 
-  const totalFiadoNaRua = clientes.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0);
-  const clientesEmDebito = clientes.filter(c => Number(c.saldo_devedor_fiado) > 0);
+  // Exportar Lista de Clientes para CSV
+  const handleExportarCsv = () => {
+    if (clientes.length === 0) {
+      alert('Nenhum cliente disponível para exportação.');
+      return;
+    }
 
+    const headers = [
+      'Nome',
+      'Documento (CPF/CNPJ)',
+      'Telefone 1',
+      'Telefone 2',
+      'WhatsApp',
+      'E-mail',
+      'Saldo Devedor (R$)',
+      'Limite Crédito (R$)',
+      'Permite Fiado',
+      'Data Aniversário',
+      'Endereço Completo',
+      'Observações'
+    ];
+
+    const rows = clientes.map(c => [
+      `"${c.nome.replace(/"/g, '""')}"`,
+      `"${c.numero_documento || ''}"`,
+      `"${c.telefone || ''}"`,
+      `"${c.telefone2 || ''}"`,
+      `"${c.whatsapp || ''}"`,
+      `"${c.email || ''}"`,
+      `"${Number(c.saldo_devedor_fiado || 0).toFixed(2)}"`,
+      `"${Number(c.limite_credito || 0).toFixed(2)}"`,
+      `"${c.permite_fiado ? 'Sim' : 'Não'}"`,
+      `"${c.data_aniversario || ''}"`,
+      `"${(c.endereco_principal || '').replace(/"/g, '""')}"`,
+      `"${(c.observacoes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `clientes_hubi_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Obter Iniciais do Nome para o Avatar
+  const getIniciais = (nomeCompleto: string) => {
+    const partes = nomeCompleto.trim().split(' ').filter(Boolean);
+    if (partes.length === 0) return 'CL';
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
+  };
+
+  // Filtragem de clientes pela busca
   const clientesFiltrados = clientes.filter(c => {
     const termo = busca.toLowerCase();
     return (
@@ -120,241 +203,376 @@ export const ClientesFiado: React.FC = () => {
       (c.telefone && c.telefone.includes(termo)) ||
       (c.telefone2 && c.telefone2.includes(termo)) ||
       (c.numero_documento && c.numero_documento.includes(termo)) ||
-      (c.email && c.email.toLowerCase().includes(termo)) ||
-      (c.endereco_cidade && c.endereco_cidade.toLowerCase().includes(termo)) ||
-      (c.endereco_principal && c.endereco_principal.toLowerCase().includes(termo))
+      (c.email && c.email.toLowerCase().includes(termo))
     );
   });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* Topo / Header */}
-      <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      {/* ========================================================================= */}
+      {/* HEADER DA TELA (ESTILO EXATO DA IMAGEM DO KYTE)                           */}
+      {/* ========================================================================= */}
+      <div className="p-4 sm:p-6 lg:px-8 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Título Principal */}
           <div>
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Users className="w-5 h-5 text-emerald-400" />
-              <span>Clientes & Gestão de Fiado</span>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-100 tracking-tight flex items-center gap-2.5">
+              <span>Clientes</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                {clientes.length}
+              </span>
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Cadastro completo, controle de limite a prazo e cobrança via WhatsApp
-            </p>
           </div>
 
-          <button
-            onClick={() => setModalNovoCliente(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Cliente</span>
-          </button>
-        </div>
-
-        {/* Cards de Métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-xs text-slate-400 block">Total de Clientes</span>
-            <span className="text-xl font-bold text-slate-100">{clientes.length} cadastrados</span>
-          </div>
-
-          <div className="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-4 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-amber-400 font-semibold">Total a Receber (Fiado)</span>
-              <AlertCircle className="w-4 h-4 text-amber-400" />
+          {/* Barra de Ações: Busca + Exportar + Novo Cliente */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Input de Busca estilo Kyte */}
+            <div className="relative flex-1 sm:w-72">
+              <input
+                type="text"
+                placeholder="Procure por nome"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-full pl-4 pr-9 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition shadow-inner"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
             </div>
-            <span className="text-xl font-bold text-amber-400">R$ {totalFiadoNaRua.toFixed(2)}</span>
-          </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-1">
-            <span className="text-xs text-slate-400 block">Clientes em Débito</span>
-            <span className="text-xl font-bold text-rose-400">{clientesEmDebito.length} pessoas</span>
-          </div>
-        </div>
-
-        {/* Barra de Busca */}
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Buscar por nome, CPF/CNPJ, telefone, e-mail ou cidade..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-      </div>
-
-      {/* Grid de Clientes */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-        {carregando ? (
-          <div className="col-span-full text-center py-16 text-slate-500 text-sm">Carregando clientes...</div>
-        ) : clientesFiltrados.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-500 space-y-3">
-            <Users className="w-12 h-12 opacity-30" />
-            <p className="text-sm">Nenhum cliente cadastrado.</p>
+            {/* Botão Exportar */}
             <button
+              type="button"
+              onClick={handleExportarCsv}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer shadow-sm shrink-0"
+              title="Exportar Lista em CSV"
+            >
+              <Download className="w-4 h-4 text-slate-400" />
+              <span>Exportar</span>
+            </button>
+
+            {/* Botão + Cliente */}
+            <button
+              type="button"
               onClick={() => setModalNovoCliente(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-semibold"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold shadow-lg shadow-emerald-500/25 transition cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Cadastrar Primeiro Cliente</span>
+              <span>+ Cliente</span>
             </button>
           </div>
-        ) : (
-          clientesFiltrados.map((cliente) => {
-            const emDebito = Number(cliente.saldo_devedor_fiado) > 0;
-            const phoneWhatsapp = cliente.whatsapp || (cliente.telefone_is_whatsapp ? cliente.telefone : (cliente.telefone2_is_whatsapp ? cliente.telefone2 : null));
-
-            return (
-              <div
-                key={cliente.id}
-                className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:border-slate-700 transition"
-              >
-                <div className="space-y-2.5">
-                  {/* Topo do Card */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-sm text-slate-100 truncate">{cliente.nome}</h3>
-                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded capitalize">
-                          {cliente.tabela_preco_padrao || 'Varejo'}
-                        </span>
-                        {cliente.permite_fiado ? (
-                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" />
-                            <span>Fiado Permitido (Limite R$ {Number(cliente.limite_credito || 0).toFixed(2)})</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded flex items-center gap-1">
-                            <ShieldAlert className="w-3 h-3 text-slate-500" />
-                            <span>Sem Fiado</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {emDebito ? (
-                      <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
-                        Em Débito
-                      </span>
-                    ) : (
-                      <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
-                        Em Dia
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Informações detalhadas */}
-                  <div className="space-y-1 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-                    {cliente.numero_documento && (
-                      <p className="flex items-center gap-1.5 text-[11px]">
-                        <FileText className="w-3 h-3 text-slate-500 shrink-0" />
-                        <span>Doc: {cliente.numero_documento}</span>
-                      </p>
-                    )}
-
-                    {cliente.telefone && (
-                      <p className="flex items-center gap-1.5 text-[11px]">
-                        <Phone className="w-3 h-3 text-emerald-400 shrink-0" />
-                        <span>{cliente.telefone}</span>
-                        {cliente.telefone_is_whatsapp && (
-                          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-1 rounded">WhatsApp</span>
-                        )}
-                      </p>
-                    )}
-
-                    {cliente.telefone2 && (
-                      <p className="flex items-center gap-1.5 text-[11px]">
-                        <Phone className="w-3 h-3 text-slate-500 shrink-0" />
-                        <span>{cliente.telefone2}</span>
-                        {cliente.telefone2_is_whatsapp && (
-                          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-1 rounded">WhatsApp</span>
-                        )}
-                      </p>
-                    )}
-
-                    {cliente.email && (
-                      <p className="flex items-center gap-1.5 text-[11px] truncate">
-                        <Mail className="w-3 h-3 text-slate-500 shrink-0" />
-                        <span className="truncate">{cliente.email}</span>
-                      </p>
-                    )}
-
-                    {cliente.data_aniversario && (
-                      <p className="flex items-center gap-1.5 text-[11px]">
-                        <Calendar className="w-3 h-3 text-amber-400 shrink-0" />
-                        <span>Aniversário: {new Date(cliente.data_aniversario).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>
-                      </p>
-                    )}
-
-                    {(cliente.endereco_principal || cliente.endereco_logradouro) && (
-                      <p className="flex items-start gap-1.5 text-[11px] line-clamp-2">
-                        <MapPin className="w-3 h-3 text-slate-500 shrink-0 mt-0.5" />
-                        <span>{cliente.endereco_principal || `${cliente.endereco_logradouro}, ${cliente.endereco_numero || 'S/N'} - ${cliente.endereco_bairro || ''}, ${cliente.endereco_cidade || ''}`}</span>
-                      </p>
-                    )}
-
-                    {cliente.observacoes && (
-                      <p className="text-[10px] text-slate-500 italic line-clamp-2 pt-0.5">
-                        "{cliente.observacoes}"
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Rodapé do Card */}
-                <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">Saldo Devedor:</span>
-                    <span className={`text-sm font-bold ${emDebito ? 'text-amber-400' : 'text-slate-400'}`}>
-                      R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {emDebito && (
-                      <button
-                        onClick={() => {
-                          setClienteQuitar(cliente);
-                          setValorAbatimento(Number(cliente.saldo_devedor_fiado).toFixed(2));
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow transition"
-                      >
-                        Abater / Quitar
-                      </button>
-                    )}
-
-                    {phoneWhatsapp && (
-                      <button
-                        onClick={() => {
-                          const phone = phoneWhatsapp.replace(/\D/g, '');
-                          const msg = emDebito
-                            ? `Olá, ${cliente.nome}! Lembramos do seu saldo em aberto de R$ ${Number(cliente.saldo_devedor_fiado).toFixed(2)} na loja ${loja?.nome_fantasia}. Chave Pix: ${loja?.email || loja?.whatsapp}`
-                            : `Olá, ${cliente.nome}! Passando para desejar um ótimo dia da equipe ${loja?.nome_fantasia}! ✨`;
-                          window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${encodeURIComponent(msg)}`, '_blank');
-                        }}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-                        title="Enviar Mensagem no WhatsApp"
-                      >
-                        <Share2 className="w-4 h-4 text-emerald-400" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
+        </div>
       </div>
 
-      {/* Modal Novo Cliente */}
+      {/* ========================================================================= */}
+      {/* TABELA EM LISTA (ESTILO EXATO DO KYTE COM AVATAR, TELEFONE, SALDO, AÇÕES) */}
+      {/* ========================================================================= */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:px-8">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              {/* Cabeçalho da Tabela */}
+              <thead>
+                <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-950/40">
+                  <th
+                    className="py-3.5 px-4 sm:px-6 cursor-pointer hover:text-slate-200 transition select-none"
+                    onClick={() => setOrdemCrescente(!ordemCrescente)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>Nome</span>
+                      <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-4">Celular/WhatsApp</th>
+                  <th className="py-3.5 px-4 hidden md:table-cell">E-mail</th>
+                  <th className="py-3.5 px-4">Saldo</th>
+                  <th className="py-3.5 px-4 text-right">Ações</th>
+                </tr>
+              </thead>
+
+              {/* Corpo da Tabela */}
+              <tbody className="divide-y divide-slate-800/60 text-xs">
+                {carregando ? (
+                  <tr>
+                    <td colSpan={5} className="py-16 text-center text-slate-500">
+                      Carregando clientes...
+                    </td>
+                  </tr>
+                ) : clientesFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-16 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Users className="w-8 h-8 opacity-30" />
+                        <p className="text-sm font-medium">Nenhum cliente cadastrado.</p>
+                        <button
+                          type="button"
+                          onClick={() => setModalNovoCliente(true)}
+                          className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer"
+                        >
+                          Clique aqui para cadastrar seu primeiro cliente
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  clientesFiltrados.map((cliente) => {
+                    const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
+                    const phoneWhatsapp =
+                      cliente.whatsapp ||
+                      (cliente.telefone_is_whatsapp ? cliente.telefone : cliente.telefone);
+
+                    return (
+                      <tr
+                        key={cliente.id}
+                        className="hover:bg-slate-800/50 transition duration-150 group"
+                      >
+                        {/* Coluna 1: Avatar + Nome */}
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center gap-3">
+                            {/* Avatar com Iniciais */}
+                            <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700/80 text-slate-200 font-bold text-xs flex items-center justify-center shrink-0 shadow-sm group-hover:border-emerald-500/40 group-hover:text-emerald-400 transition">
+                              {getIniciais(cliente.nome)}
+                            </div>
+                            <div className="min-w-0">
+                              <span
+                                onClick={() => setClienteDetalhes(cliente)}
+                                className="font-bold text-slate-100 group-hover:text-emerald-300 cursor-pointer block truncate"
+                              >
+                                {cliente.nome}
+                              </span>
+                              {cliente.numero_documento && (
+                                <span className="text-[10px] text-slate-500 block">
+                                  Doc: {cliente.numero_documento}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Coluna 2: Celular/WhatsApp */}
+                        <td className="py-3 px-4">
+                          {phoneWhatsapp ? (
+                            <a
+                              href={`https://api.whatsapp.com/send?phone=55${phoneWhatsapp.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-medium hover:underline"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>+55 {phoneWhatsapp}</span>
+                            </a>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+
+                        {/* Coluna 3: E-mail */}
+                        <td className="py-3 px-4 hidden md:table-cell text-slate-400 truncate max-w-[200px]">
+                          {cliente.email || '-'}
+                        </td>
+
+                        {/* Coluna 4: Saldo */}
+                        <td className="py-3 px-4 font-bold">
+                          {emDebito ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-amber-400">
+                                R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setClienteQuitar(cliente);
+                                  setValorAbatimento(Number(cliente.saldo_devedor_fiado).toFixed(2));
+                                }}
+                                className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-lg transition"
+                              >
+                                Quitar
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">R$ 0,00</span>
+                          )}
+                        </td>
+
+                        {/* Coluna 5: Ações (Ver Endereço / Excluir) */}
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Botão Endereço / Detalhes */}
+                            {(cliente.endereco_principal || cliente.endereco_cidade) && (
+                              <button
+                                type="button"
+                                onClick={() => setClienteDetalhes(cliente)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition"
+                                title="Ver Endereço e Dados"
+                              >
+                                <MapPin className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Botão Excluir */}
+                            <button
+                              type="button"
+                              onClick={() => setClienteExcluir(cliente)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                              title="Excluir Cliente"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL DETALHES DO CLIENTE / ENDEREÇO                                      */}
+      {/* ========================================================================= */}
+      {clienteDetalhes && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
+                  {getIniciais(clienteDetalhes.nome)}
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-100">{clienteDetalhes.nome}</h3>
+                  <span className="text-xs text-slate-400 capitalize">
+                    Tabela: {clienteDetalhes.tabela_preco_padrao || 'Varejo'}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setClienteDetalhes(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-slate-300">
+              {clienteDetalhes.numero_documento && (
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-500" />
+                  <span>CPF/CNPJ: {clienteDetalhes.numero_documento}</span>
+                </div>
+              )}
+
+              {clienteDetalhes.email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  <span>{clienteDetalhes.email}</span>
+                </div>
+              )}
+
+              {clienteDetalhes.telefone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-emerald-400" />
+                  <span>Telefone 1: {clienteDetalhes.telefone}</span>
+                </div>
+              )}
+
+              {clienteDetalhes.telefone2 && (
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-slate-500" />
+                  <span>Telefone 2: {clienteDetalhes.telefone2}</span>
+                </div>
+              )}
+
+              {clienteDetalhes.data_aniversario && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-amber-400" />
+                  <span>
+                    Aniversário:{' '}
+                    {new Date(clienteDetalhes.data_aniversario).toLocaleDateString('pt-BR', {
+                      timeZone: 'UTC'
+                    })}
+                  </span>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-800 space-y-1">
+                <span className="font-bold text-slate-200 block">Endereço Completo:</span>
+                <div className="flex items-start gap-2 text-slate-400">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>
+                    {clienteDetalhes.endereco_principal ||
+                      `${clienteDetalhes.endereco_logradouro || ''}, ${clienteDetalhes.endereco_numero || 'S/N'} - ${clienteDetalhes.endereco_bairro || ''}, ${clienteDetalhes.endereco_cidade || ''} - ${clienteDetalhes.endereco_estado || ''}`}
+                  </span>
+                </div>
+              </div>
+
+              {clienteDetalhes.observacoes && (
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="font-bold text-slate-200 block mb-0.5">Observações:</span>
+                  <p className="text-slate-400 italic">"{clienteDetalhes.observacoes}"</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setClienteDetalhes(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL CONFIRMAÇÃO DE EXCLUSÃO                                            */}
+      {/* ========================================================================= */}
+      {clienteExcluir && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base text-slate-100">Excluir Cliente</h3>
+              <p className="text-xs text-slate-400">
+                Tem certeza que deseja remover o cadastro de <strong>{clienteExcluir.nome}</strong>?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setClienteExcluir(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={excluindo}
+                onClick={handleConfirmarExclusao}
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold transition disabled:opacity-50"
+              >
+                {excluindo ? 'Removendo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL NOVO CLIENTE                                                        */}
+      {/* ========================================================================= */}
       <ModalNovoCliente
         isOpen={modalNovoCliente}
         onClose={() => setModalNovoCliente(false)}
         onClienteCadastrado={handleClienteCadastrado}
       />
 
-      {/* Modal Quitar Fiado */}
+      {/* ========================================================================= */}
+      {/* MODAL QUITAR FIADO                                                        */}
+      {/* ========================================================================= */}
       {clienteQuitar && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
@@ -389,7 +607,7 @@ export const ClientesFiado: React.FC = () => {
             <button
               disabled={processandoQuitacao}
               onClick={handleQuitarFiado}
-              className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
+              className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{processandoQuitacao ? 'Gravando...' : 'Confirmar e Enviar Recibo WhatsApp'}</span>

@@ -212,6 +212,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nomeLimpo = params.nome.trim();
     const emailLimpo = params.email.trim().toLowerCase();
 
+    // 1. Verificar se já existe uma loja com este e-mail para evitar duplicatas
+    const { data: lojasExistentes } = await supabase
+      .from('lojas')
+      .select('*')
+      .ilike('email', emailLimpo)
+      .order('criado_em', { ascending: false });
+
+    if (lojasExistentes && lojasExistentes.length > 0) {
+      // Se houver mais de uma, preferir a que tiver clientes ou a mais recente
+      let lojaEscolhida = lojasExistentes[0];
+      for (const l of lojasExistentes) {
+        const { count } = await supabase
+          .from('clientes')
+          .select('*', { count: 'exact', head: true })
+          .eq('loja_id', l.id);
+        if (count && count > 0) {
+          lojaEscolhida = l;
+          break;
+        }
+      }
+
+      setLoja(lojaEscolhida);
+      localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaEscolhida.id);
+
+      const { data: usuarios } = await supabase
+        .from('usuarios_loja')
+        .select('*')
+        .eq('loja_id', lojaEscolhida.id)
+        .limit(1);
+
+      if (usuarios && usuarios.length > 0) {
+        setUsuario(usuarios[0]);
+      }
+      return lojaEscolhida;
+    }
+
     const slugBase = nomeLimpo
       .toLowerCase()
       .normalize('NFD')
