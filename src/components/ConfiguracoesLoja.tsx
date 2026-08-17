@@ -4,22 +4,17 @@ import {
   Store,
   CreditCard,
   Truck,
-  Printer,
-  CheckCircle2,
-  Share2,
-  Plus,
-  Trash2
+  Printer
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Loja, FormaPagamento, FormaEntrega } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { FormaPagamento, FormaEntrega } from '../types';
 
-export const ConfigPage: React.FC = () => {
+export const ConfiguracoesLoja: React.FC = () => {
   const { loja, recarregarDadosLoja } = useAuth();
   const [abaAtiva, setAbaAtiva] = useState<'loja' | 'pagamentos' | 'entrega' | 'recibo'>('loja');
   const [salvando, setSalvando] = useState<boolean>(false);
 
-  // Dados da Loja
   const [nomeFantasia, setNomeFantasia] = useState<string>('');
   const [razaoSocial, setRazaoSocial] = useState<string>('');
   const [whatsapp, setWhatsapp] = useState<string>('');
@@ -29,7 +24,6 @@ export const ConfigPage: React.FC = () => {
   const [sobreLoja, setSobreLoja] = useState<string>('');
   const [corPrimaria, setCorPrimaria] = useState<string>('#10B981');
 
-  // Formas de Pagamento e Entrega
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
   const [formasEntrega, setFormasEntrega] = useState<FormaEntrega[]>([]);
 
@@ -44,7 +38,6 @@ export const ConfigPage: React.FC = () => {
       setSobreLoja(loja.sobre_loja || '');
       setCorPrimaria(loja.cor_primaria || '#10B981');
 
-      // Carregar formas
       const carregarAux = async () => {
         const { data: p } = await supabase.from('formas_pagamento').select('*').eq('loja_id', loja.id);
         if (p) setFormasPagamento(p);
@@ -97,7 +90,6 @@ export const ConfigPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-950 p-4 md:p-6 space-y-6">
-      {/* Header */}
       <div className="border-b border-slate-800 pb-4">
         <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
           <Settings className="w-5 h-5 text-emerald-400" />
@@ -107,7 +99,6 @@ export const ConfigPage: React.FC = () => {
           Identificação da sua loja, taxas de cartão, formas de entrega e personalização de recibos.
         </p>
 
-        {/* Abas */}
         <div className="flex items-center gap-2 mt-4 overflow-x-auto scrollbar-none">
           {[
             { id: 'loja', label: 'Dados da Loja', icon: Store },
@@ -134,7 +125,6 @@ export const ConfigPage: React.FC = () => {
         </div>
       </div>
 
-      {/* CONTEÚDO DA ABA SELECIONADA */}
       {abaAtiva === 'loja' && (
         <form onSubmit={handleSalvarLoja} className="max-w-3xl space-y-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
@@ -209,7 +199,6 @@ export const ConfigPage: React.FC = () => {
         </form>
       )}
 
-      {/* ABA: TAXAS DE MAQUININHA */}
       {abaAtiva === 'pagamentos' && (
         <div className="max-w-3xl space-y-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
@@ -241,7 +230,6 @@ export const ConfigPage: React.FC = () => {
         </div>
       )}
 
-      {/* ABA: FRETE */}
       {abaAtiva === 'entrega' && (
         <div className="max-w-3xl space-y-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
@@ -263,7 +251,6 @@ export const ConfigPage: React.FC = () => {
         </div>
       )}
 
-      {/* ABA: RECIBO & IMPRESSÃO */}
       {abaAtiva === 'recibo' && (
         <div className="max-w-3xl space-y-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">

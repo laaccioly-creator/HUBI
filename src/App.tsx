@@ -1,19 +1,19 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
-import { AppLayout } from './components/layout/AppLayout';
+import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
+import { LayoutNavegacao } from './components/LayoutNavegacao';
 
-import { PosPage } from './pages/pos/PosPage';
-import { OrdersPage } from './pages/orders/OrdersPage';
-import { ProductsPage } from './pages/products/ProductsPage';
-import { ProductCreatePage } from './pages/products/ProductCreatePage';
-import { CustomersPage } from './pages/customers/CustomersPage';
-import { FinancesPage } from './pages/finances/FinancesPage';
-import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
-import { ConfigPage } from './pages/config/ConfigPage';
-import { KaiAssistantPage } from './pages/smart-assistant/KaiAssistantPage';
-import { OnlineCatalogPage } from './pages/catalog/OnlineCatalogPage';
+import { PosCheckout } from './components/PosCheckout';
+import { PedidosLista } from './components/PedidosLista';
+import { ProdutosEstoque } from './components/ProdutosEstoque';
+import { ProdutoCadastro } from './components/ProdutoCadastro';
+import { ClientesFiado } from './components/ClientesFiado';
+import { FinancasCaixa } from './components/FinancasCaixa';
+import { EstatisticasAnalytics } from './components/EstatisticasAnalytics';
+import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
+import { AssistenteKai } from './components/AssistenteKai';
+import { CatalogoPublico } from './components/CatalogoPublico';
 
 export const App: React.FC = () => {
   return (
@@ -22,21 +22,21 @@ export const App: React.FC = () => {
         <Router>
           <Routes>
             {/* Rota Pública do Catálogo Online do Cliente */}
-            <Route path="/catalog/:slug" element={<OnlineCatalogPage />} />
-            <Route path="/catalog" element={<OnlineCatalogPage />} />
+            <Route path="/catalog/:slug" element={<CatalogoPublico />} />
+            <Route path="/catalog" element={<CatalogoPublico />} />
 
-            {/* Rotas Internas do Sistema HUBI */}
-            <Route path="/" element={<AppLayout />}>
+            {/* Rotas Internas do HUBI */}
+            <Route path="/" element={<LayoutNavegacao />}>
               <Route index element={<Navigate to="/pos" replace />} />
-              <Route path="pos" element={<PosPage />} />
-              <Route path="orders" element={<OrdersPage />} />
-              <Route path="products" element={<ProductsPage />} />
-              <Route path="products/create" element={<ProductCreatePage />} />
-              <Route path="customers" element={<CustomersPage />} />
-              <Route path="finances" element={<FinancesPage />} />
-              <Route path="analytics" element={<AnalyticsPage />} />
-              <Route path="smart-assistant" element={<KaiAssistantPage />} />
-              <Route path="config" element={<ConfigPage />} />
+              <Route path="pos" element={<PosCheckout />} />
+              <Route path="orders" element={<PedidosLista />} />
+              <Route path="products" element={<ProdutosEstoque />} />
+              <Route path="products/create" element={<ProdutoCadastro />} />
+              <Route path="customers" element={<ClientesFiado />} />
+              <Route path="finances" element={<FinancasCaixa />} />
+              <Route path="analytics" element={<EstatisticasAnalytics />} />
+              <Route path="smart-assistant" element={<AssistenteKai />} />
+              <Route path="config" element={<ConfiguracoesLoja />} />
             </Route>
 
             {/* Fallback */}

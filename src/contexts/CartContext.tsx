@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import { Produto, VariacaoProduto, Cliente, TabelaPreco } from '../types/database';
+import { Produto, VariacaoProduto, Cliente, TabelaPreco } from '../types';
 import { audioService } from '../services/audioService';
 
 export interface CartItem {
-  id: string; // unique cart line ID (produto_id + variacao_id)
+  id: string;
   produto: Produto;
   variacao?: VariacaoProduto | null;
   quantidade: number;
@@ -41,7 +41,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [desconto, setDesconto] = useState<number>(0);
   const [taxaEntrega, setTaxaEntrega] = useState<number>(0);
 
-  // Calcula o melhor preço para um item baseado na tabela global, quantidade e promoção
   const calcularPrecoUnitario = (
     produto: Produto,
     variacao: VariacaoProduto | null | undefined,
@@ -50,7 +49,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): { preco: number; tabela: TabelaPreco } => {
     const tabelaAtiva = tabelaForcada || tabelaPrecoGlobal;
 
-    // Se a tabela global foi forçada manualmente para Atacado ou Autoatacado
     if (tabelaAtiva === 'autoatacado') {
       const precoAuto = (variacao ? variacao.preco_venda_autoatacado : produto.preco_venda_autoatacado) || 
                         (variacao ? variacao.preco_venda_atacado : produto.preco_venda_atacado) || 
@@ -64,7 +62,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { preco: Number(precoAtac), tabela: 'atacado' };
     }
 
-    // Regra Automática por Volume (Escala de Quantidade no Varejo)
     const precoAuto = variacao ? variacao.preco_venda_autoatacado : produto.preco_venda_autoatacado;
     const qtdMinAuto = Number(produto.qtd_minima_autoatacado) || 24;
     if (precoAuto && qtd >= qtdMinAuto) {
@@ -77,14 +74,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { preco: Number(precoAtac), tabela: 'atacado' };
     }
 
-    // Preço Promocional se estiver ativo
     const promoAtiva = produto.promocao_ativa;
     const precoPromo = variacao ? variacao.preco_promocional : produto.preco_promocional;
     if (promoAtiva && precoPromo && Number(precoPromo) > 0) {
       return { preco: Number(precoPromo), tabela: 'promocional' };
     }
 
-    // Preço Padrão de Varejo
     const precoVarejo = variacao ? variacao.preco_venda_varejo : produto.preco_venda_varejo;
     return { preco: Number(precoVarejo), tabela: 'varejo' };
   };
@@ -98,7 +93,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setTabelaPrecoGlobal = (tabela: TabelaPreco) => {
     setTabelaPrecoGlobalState(tabela);
-    // Recalcula os itens existentes no carrinho com a nova tabela
     setItens(prev =>
       prev.map(item => {
         const { preco, tabela: tabUtilizada } = calcularPrecoUnitario(item.produto, item.variacao, item.quantidade, tabela);

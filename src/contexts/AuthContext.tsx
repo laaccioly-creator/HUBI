@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Loja, UsuarioLoja } from '../types/database';
+import { Loja, UsuarioLoja } from '../types';
 
 interface AuthContextType {
   loja: Loja | null;
@@ -21,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const carregarLoja = async () => {
     try {
       setCarregando(true);
-      // Buscar primeira loja disponível no banco
       const { data: lojas, error } = await supabase
         .from('lojas')
         .select('*')
@@ -32,7 +31,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (lojas && lojas.length > 0) {
         setLoja(lojas[0]);
 
-        // Buscar ou vincular usuário admin padrão
         const { data: usuarios } = await supabase
           .from('usuarios_loja')
           .select('*')
@@ -43,7 +41,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUsuario(usuarios[0]);
         }
       } else {
-        // Banco novo sem registros: criar loja padrão inicial
         await criarLojaInicialSeVazio();
       }
     } catch (err) {
@@ -86,7 +83,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setLoja(lojaCriada);
 
-      // Criar usuário admin inicial
       const novoUsuario: Partial<UsuarioLoja> = {
         loja_id: lojaCriada.id,
         nome_completo: 'Administrador HUBI',
@@ -109,7 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUsuario(usuarioCriado);
       }
 
-      // Criar formas de pagamento padrão
       await supabase.from('formas_pagamento').insert([
         { loja_id: lojaCriada.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, ativo: true },
         { loja_id: lojaCriada.id, nome: 'Pix (Imediato)', tipo: 'pix', taxa_percentual: 0, ativo: true },
@@ -118,17 +113,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         { loja_id: lojaCriada.id, nome: 'Fiado / A Prazo', tipo: 'fiado', taxa_percentual: 0, ativo: true },
       ]);
 
-      // Criar formas de entrega padrão
       await supabase.from('formas_entrega').insert([
         { loja_id: lojaCriada.id, nome: 'Retirada no Balcão', tipo: 'retirada', valor_taxa: 0, tempo_estimado: 'Imediato', ativo: true },
         { loja_id: lojaCriada.id, nome: 'Entrega Motoboy Express', tipo: 'taxa_fixa', valor_taxa: 10.00, tempo_estimado: '30 a 50 min', ativo: true },
       ]);
 
-      // Criar categorias padrão
       const { data: cat1 } = await supabase.from('categorias').insert([{ loja_id: lojaCriada.id, nome: 'Geral', ordem_exibicao: 1 }]).select().single();
       const { data: cat2 } = await supabase.from('categorias').insert([{ loja_id: lojaCriada.id, nome: 'Mais Vendidos', ordem_exibicao: 2 }]).select().single();
 
-      // Criar produtos de demonstração com múltiplas tabelas de preço e variações
       if (cat1 && cat2) {
         await supabase.from('produtos').insert([
           {

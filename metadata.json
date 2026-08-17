@@ -1,0 +1,8 @@
+{
+  "name": "HUBI - Gestão e Vendas",
+  "description": "Sistema multiplataforma de ponto de vendas (PDV), controle de estoque com variações, catálogo online, controle de fiado e finanças para pequenos lojistas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -4,26 +4,23 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar,
   AlertTriangle,
-  CheckCircle2,
   Lock,
   Unlock,
   Repeat,
   X
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { TransacaoFinanceira, Caixa } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { TransacaoFinanceira, Caixa } from '../types';
 
-export const FinancesPage: React.FC = () => {
+export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
   const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
   const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [abaAtiva, setAbaAtiva] = useState<'fluxo' | 'pagar' | 'caixa'>('fluxo');
 
-  // Modal Nova Despesa
   const [modalNovaDespesa, setModalNovaDespesa] = useState<boolean>(false);
   const [descricao, setDescricao] = useState<string>('');
   const [categoria, setCategoria] = useState<string>('Fornecedor');
@@ -31,7 +28,6 @@ export const FinancesPage: React.FC = () => {
   const [dataVencimento, setDataVencimento] = useState<string>(new Date().toISOString().split('T')[0]);
   const [ehRecorrente, setEhRecorrente] = useState<boolean>(false);
 
-  // Modal Caixa (Abertura / Fechamento)
   const [modalCaixa, setModalCaixa] = useState<boolean>(false);
   const [fundoTroco, setFundoTroco] = useState<string>('100.00');
   const [valorContadoFechamento, setValorContadoFechamento] = useState<string>('');
@@ -40,7 +36,6 @@ export const FinancesPage: React.FC = () => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
-      // 1. Transações
       const { data: trData } = await supabase
         .from('transacoes_financeiras')
         .select('*')
@@ -48,7 +43,6 @@ export const FinancesPage: React.FC = () => {
         .order('data_vencimento', { ascending: false });
       if (trData) setTransacoes(trData);
 
-      // 2. Caixa Aberto
       const { data: cxData } = await supabase
         .from('caixas')
         .select('*')
@@ -73,7 +67,6 @@ export const FinancesPage: React.FC = () => {
     carregarFinanceiro();
   }, [loja?.id]);
 
-  // Salvar Despesa
   const handleCadastrarDespesa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loja?.id || !descricao.trim() || !valor) return;
@@ -104,7 +97,6 @@ export const FinancesPage: React.FC = () => {
     }
   };
 
-  // Abrir Caixa
   const handleAbrirCaixa = async () => {
     if (!loja?.id || !usuario?.id) return;
     try {
@@ -125,7 +117,6 @@ export const FinancesPage: React.FC = () => {
     }
   };
 
-  // Fechar Caixa
   const handleFecharCaixa = async () => {
     if (!caixaAberto) return;
     try {
@@ -155,7 +146,6 @@ export const FinancesPage: React.FC = () => {
     }
   };
 
-  // Métricas
   const totalReceitas = transacoes.filter(t => t.tipo === 'ENTRADA' && t.status === 'pago').reduce((acc, t) => acc + Number(t.valor), 0);
   const totalDespesasPagas = transacoes.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').reduce((acc, t) => acc + Number(t.valor), 0);
   const totalDespesasPendentes = transacoes.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').reduce((acc, t) => acc + Number(t.valor), 0);
@@ -163,7 +153,6 @@ export const FinancesPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* HEADER & MÉTRICAS */}
       <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -199,7 +188,6 @@ export const FinancesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Cards Resumo Financeiro */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
             <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -230,7 +218,6 @@ export const FinancesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Abas */}
         <div className="flex items-center gap-2 border-b border-slate-800">
           <button
             onClick={() => setAbaAtiva('fluxo')}
@@ -251,7 +238,6 @@ export const FinancesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* LISTA DE TRANSAÇÕES */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-2">
         {carregando ? (
           <div className="text-center py-16 text-slate-500 text-sm">Carregando transações...</div>
@@ -306,7 +292,6 @@ export const FinancesPage: React.FC = () => {
         )}
       </div>
 
-      {/* MODAL NOVA DESPESA */}
       {modalNovaDespesa && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
@@ -395,7 +380,6 @@ export const FinancesPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL ABERTURA / FECHAMENTO DE CAIXA */}
       {modalCaixa && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">

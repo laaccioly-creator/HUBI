@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
   TrendingUp,
-  CreditCard,
   ShoppingBag,
   DollarSign,
   Award,
   Calendar
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Pedido } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { Pedido } from '../types';
 
-export const AnalyticsPage: React.FC = () => {
+export const EstatisticasAnalytics: React.FC = () => {
   const { loja } = useAuth();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -40,18 +39,15 @@ export const AnalyticsPage: React.FC = () => {
     carregarAnalytics();
   }, [loja?.id]);
 
-  // Métricas Calculadas
   const faturamentoTotal = pedidos.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
   const totalVendas = pedidos.length;
   const ticketMedio = totalVendas > 0 ? faturamentoTotal / totalVendas : 0;
 
-  // Lucro Real (Venda - Custo)
   const lucroRealTotal = pedidos.reduce((acc, p) => {
     const custoPedido = p.itens?.reduce((accI, item) => accI + (Number(item.preco_custo_unitario) * Number(item.quantidade)), 0) || 0;
     return acc + (Number(p.valor_total) - custoPedido);
   }, 0);
 
-  // Ranking de Produtos Mais Vendidos
   const produtosMap: Record<string, { nome: string; qtd: number; total: number }> = {};
   pedidos.forEach(p => {
     p.itens?.forEach(item => {
@@ -67,7 +63,6 @@ export const AnalyticsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-950 p-4 md:p-6 space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -79,7 +74,6 @@ export const AnalyticsPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Seletor de Período */}
         <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
           <Calendar className="w-3.5 h-3.5 text-slate-400 ml-2" />
           {[
@@ -101,7 +95,6 @@ export const AnalyticsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Cards de Desempenho */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-1">
           <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -140,7 +133,6 @@ export const AnalyticsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Ranking de Mais Vendidos */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
         <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
           <Award className="w-4 h-4 text-amber-400" />

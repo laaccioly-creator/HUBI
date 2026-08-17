@@ -5,17 +5,11 @@ import {
   Search,
   Plus,
   Minus,
-  Trash2,
-  Store,
-  Phone,
-  Truck,
-  CheckCircle2,
   Share2,
-  X,
-  Tag
+  X
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega } from '../types';
 
 interface ItemCarrinhoPublico {
   produto: Produto;
@@ -25,7 +19,7 @@ interface ItemCarrinhoPublico {
   subtotal: number;
 }
 
-export const OnlineCatalogPage: React.FC = () => {
+export const CatalogoPublico: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -39,7 +33,6 @@ export const OnlineCatalogPage: React.FC = () => {
   const [drawerCarrinhoAberto, setDrawerCarrinhoAberto] = useState<boolean>(false);
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
 
-  // Form Checkout do Cliente
   const [nomeCliente, setNomeCliente] = useState<string>('');
   const [whatsappCliente, setWhatsappCliente] = useState<string>('');
   const [enderecoEntrega, setEnderecoEntrega] = useState<string>('');
@@ -51,7 +44,6 @@ export const OnlineCatalogPage: React.FC = () => {
     const carregarCatalogo = async () => {
       try {
         setCarregando(true);
-        // 1. Buscar loja pelo slug ou primeira loja
         let query = supabase.from('lojas').select('*');
         if (slug) {
           query = query.eq('slug_catalogo', slug);
@@ -62,7 +54,6 @@ export const OnlineCatalogPage: React.FC = () => {
           const l = lojas[0];
           setLoja(l);
 
-          // 2. Produtos visíveis no catálogo
           const { data: prods } = await supabase
             .from('produtos')
             .select('*, variacoes:variacoes_produto(*)')
@@ -71,7 +62,6 @@ export const OnlineCatalogPage: React.FC = () => {
             .eq('ativo', true);
           if (prods) setProdutos(prods as unknown as Produto[]);
 
-          // 3. Categorias
           const { data: cats } = await supabase
             .from('categorias')
             .select('*')
@@ -80,7 +70,6 @@ export const OnlineCatalogPage: React.FC = () => {
             .order('ordem_exibicao');
           if (cats) setCategorias(cats);
 
-          // 4. Formas de Entrega
           const { data: fretes } = await supabase
             .from('formas_entrega')
             .select('*')
@@ -101,7 +90,6 @@ export const OnlineCatalogPage: React.FC = () => {
     carregarCatalogo();
   }, [slug]);
 
-  // Adicionar ao Carrinho Público com cálculo de atacado por volume
   const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null) => {
     const key = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
     
@@ -109,7 +97,6 @@ export const OnlineCatalogPage: React.FC = () => {
       const idx = prev.findIndex(i => (i.variacao ? `${i.produto.id}-${i.variacao.id}` : `${i.produto.id}`) === key);
       const qtdAtual = idx >= 0 ? prev[idx].quantidade + 1 : 1;
 
-      // Calcular Preço com Desconto por Volume
       let preco = Number(variacao ? variacao.preco_venda_varejo : produto.preco_venda_varejo);
       const precoAtac = variacao ? variacao.preco_venda_atacado : produto.preco_venda_atacado;
       const qtdMinAtac = Number(produto.qtd_minima_atacado) || 6;
@@ -177,7 +164,6 @@ export const OnlineCatalogPage: React.FC = () => {
   const total = subtotal + valorFrete;
   const totalItens = carrinho.reduce((acc, i) => acc + i.quantidade, 0);
 
-  // Enviar Pedido para o Supabase e Redirecionar para o WhatsApp
   const handleEnviarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loja?.id || carrinho.length === 0 || !nomeCliente.trim() || !whatsappCliente.trim()) {
@@ -188,7 +174,6 @@ export const OnlineCatalogPage: React.FC = () => {
     try {
       setEnviandoPedido(true);
 
-      // 1. Inserir Pedido no Supabase com origem 'catalogo_online'
       const { data: pedidoCriado, error: erroPedido } = await supabase
         .from('pedidos')
         .insert([
@@ -210,7 +195,6 @@ export const OnlineCatalogPage: React.FC = () => {
 
       if (erroPedido || !pedidoCriado) throw erroPedido;
 
-      // 2. Inserir Itens do Pedido
       const itensFormatados = carrinho.map(item => ({
         loja_id: loja.id,
         pedido_id: pedidoCriado.id,
@@ -226,7 +210,6 @@ export const OnlineCatalogPage: React.FC = () => {
 
       await supabase.from('itens_pedido').insert(itensFormatados);
 
-      // 3. Montar Mensagem de WhatsApp
       const itensMsg = carrinho
         .map(i => `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${i.subtotal.toFixed(2)}`)
         .join('\n');
@@ -270,7 +253,6 @@ Fico no aguardo da confirmação! ✨`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
-      {/* HEADER DO CATÁLOGO PÚBLICO */}
       <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-emerald-400 flex items-center justify-center font-bold text-white shadow text-base">
@@ -286,7 +268,6 @@ Fico no aguardo da confirmação! ✨`;
           </div>
         </div>
 
-        {/* Botão Carrinho */}
         <button
           onClick={() => setDrawerCarrinhoAberto(true)}
           className="relative px-3.5 py-2 rounded-xl bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25"
@@ -301,7 +282,6 @@ Fico no aguardo da confirmação! ✨`;
         </button>
       </header>
 
-      {/* BANNER / SOBRE A LOJA */}
       {loja?.sobre_loja && (
         <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-950 p-4 border-b border-slate-800/80 text-center">
           <p className="text-xs text-slate-300 max-w-xl mx-auto italic">
@@ -310,7 +290,6 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      {/* BARRA DE PESQUISA & CATEGORIAS */}
       <div className="max-w-6xl mx-auto w-full p-4 space-y-3">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -323,7 +302,6 @@ Fico no aguardo da confirmação! ✨`;
           />
         </div>
 
-        {/* Categorias Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setCategoriaSelecionada('todas')}
@@ -350,7 +328,6 @@ Fico no aguardo da confirmação! ✨`;
           ))}
         </div>
 
-        {/* GRID DE PRODUTOS PÚBLICO */}
         {carregando ? (
           <div className="text-center py-20 text-slate-500 text-sm">Carregando catálogo...</div>
         ) : produtosFiltrados.length === 0 ? (
@@ -383,7 +360,6 @@ Fico no aguardo da confirmação! ✨`;
                       {produto.nome}
                     </h3>
 
-                    {/* Preços por Volume / Atacado */}
                     {produto.preco_venda_atacado && (
                       <span className="text-[10px] text-indigo-400 block mt-1">
                         A partir de {produto.qtd_minima_atacado} un: <b>R$ {Number(produto.preco_venda_atacado).toFixed(2)}</b>
@@ -423,7 +399,6 @@ Fico no aguardo da confirmação! ✨`;
         )}
       </div>
 
-      {/* MODAL VARIAÇÃO (CATÁLOGO) */}
       {produtoModalVariacao && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-4">
@@ -457,11 +432,9 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      {/* DRAWER DO CARRINHO (CHECKOUT DIRETO WHATSAPP) */}
       {drawerCarrinhoAberto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in">
           <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
-            {/* Header Drawer */}
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-emerald-400" />
@@ -472,7 +445,6 @@ Fico no aguardo da confirmação! ✨`;
               </button>
             </div>
 
-            {/* Itens do Carrinho */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {carrinho.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 text-sm">Seu carrinho está vazio.</div>
@@ -502,7 +474,6 @@ Fico no aguardo da confirmação! ✨`;
                 ))
               )}
 
-              {/* Formulário de Identificação do Comprador */}
               {carrinho.length > 0 && (
                 <form id="formCheckout" onSubmit={handleEnviarPedido} className="pt-4 border-t border-slate-800 space-y-3">
                   <span className="text-xs font-bold text-slate-200 block">Dados para Entrega & Contato</span>
@@ -571,7 +542,6 @@ Fico no aguardo da confirmação! ✨`;
               )}
             </div>
 
-            {/* Footer com Botão WhatsApp */}
             {carrinho.length > 0 && (
               <div className="p-4 border-t border-slate-800 bg-slate-900/90 space-y-3">
                 <div className="space-y-1 text-xs text-slate-400">

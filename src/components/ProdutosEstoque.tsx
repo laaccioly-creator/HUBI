@@ -4,20 +4,16 @@ import {
   Plus,
   Search,
   Package,
-  AlertTriangle,
-  Sparkles,
   Star,
   Eye,
   EyeOff,
-  Edit2,
-  Trash2,
-  Tag
+  Trash2
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Produto, Categoria } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { Produto, Categoria } from '../types';
 
-export const ProductsPage: React.FC = () => {
+export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -57,7 +53,6 @@ export const ProductsPage: React.FC = () => {
     carregarProdutos();
   }, [loja?.id]);
 
-  // Alternar Visibilidade no Catálogo Online
   const toggleExibirCatalogo = async (produtoId: string, valorAtual: boolean) => {
     try {
       const { error } = await supabase
@@ -74,7 +69,6 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  // Alternar Destaque / Favorito
   const toggleDestaque = async (produtoId: string, valorAtual: boolean) => {
     try {
       const { error } = await supabase
@@ -91,7 +85,6 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  // Excluir Produto
   const excluirProduto = async (produtoId: string) => {
     if (!confirm('Deseja realmente remover este produto?')) return;
     try {
@@ -103,7 +96,6 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  // Métricas do Dashboard de Estoque
   const totalItensEstoque = produtos.reduce((acc, p) => acc + Number(p.quantidade_estoque || 0), 0);
   const valorTotalEstoque = produtos.reduce((acc, p) => acc + (Number(p.quantidade_estoque || 0) * Number(p.preco_venda_varejo || 0)), 0);
   const valorCustoEstoque = produtos.reduce((acc, p) => acc + (Number(p.quantidade_estoque || 0) * Number(p.preco_custo || 0)), 0);
@@ -127,7 +119,6 @@ export const ProductsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* HEADER & DASHBOARD DE MÉTRICAS */}
       <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -149,7 +140,6 @@ export const ProductsPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* Cards de Métricas do Estoque */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
             <span className="text-xs text-slate-400 block">Total de Produtos</span>
@@ -174,7 +164,6 @@ export const ProductsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Filtros e Busca */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -210,7 +199,6 @@ export const ProductsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* TABELA DE PRODUTOS */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {carregando ? (
           <div className="text-center py-16 text-slate-500 text-sm">Carregando catálogo...</div>
@@ -239,7 +227,6 @@ export const ProductsPage: React.FC = () => {
 
                     return (
                       <tr key={produto.id} className="hover:bg-slate-800/40 transition">
-                        {/* Imagem + Nome */}
                         <td className="p-3.5">
                           <div className="flex items-center gap-3">
                             <img
@@ -261,17 +248,14 @@ export const ProductsPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Categoria */}
                         <td className="p-3.5 text-slate-400">
                           {produto.categoria?.nome || 'Geral'}
                         </td>
 
-                        {/* Preço Varejo */}
                         <td className="p-3.5 font-bold text-emerald-400">
                           R$ {Number(produto.preco_venda_varejo).toFixed(2)}
                         </td>
 
-                        {/* Preço Atacado */}
                         <td className="p-3.5 text-slate-300">
                           {produto.preco_venda_atacado ? (
                             <span>R$ {Number(produto.preco_venda_atacado).toFixed(2)} <span className="text-[10px] text-slate-500">({produto.qtd_minima_atacado}+ un)</span></span>
@@ -280,7 +264,6 @@ export const ProductsPage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Preço Autoatacado */}
                         <td className="p-3.5 text-slate-300">
                           {produto.preco_venda_autoatacado ? (
                             <span>R$ {Number(produto.preco_venda_autoatacado).toFixed(2)} <span className="text-[10px] text-slate-500">({produto.qtd_minima_autoatacado}+ un)</span></span>
@@ -289,7 +272,6 @@ export const ProductsPage: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Estoque */}
                         <td className="p-3.5">
                           <span
                             className={`px-2 py-0.5 rounded-lg text-[11px] font-bold ${
@@ -302,7 +284,6 @@ export const ProductsPage: React.FC = () => {
                           </span>
                         </td>
 
-                        {/* Switch Catálogo Online */}
                         <td className="p-3.5 text-center">
                           <button
                             onClick={() => toggleExibirCatalogo(produto.id, produto.exibir_catalogo)}
@@ -317,7 +298,6 @@ export const ProductsPage: React.FC = () => {
                           </button>
                         </td>
 
-                        {/* Ações */}
                         <td className="p-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button

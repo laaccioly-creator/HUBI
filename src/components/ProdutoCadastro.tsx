@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Sparkles,
-  Upload,
   Plus,
   Trash2,
   CheckCircle2,
@@ -11,11 +10,11 @@ import {
   Layers,
   Image as ImageIcon
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Categoria, Fornecedor } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { Categoria, Fornecedor } from '../types';
 
-export const ProductCreatePage: React.FC = () => {
+export const ProdutoCadastro: React.FC = () => {
   const navigate = useNavigate();
   const { loja } = useAuth();
 
@@ -24,7 +23,6 @@ export const ProductCreatePage: React.FC = () => {
   const [salvando, setSalvando] = useState<boolean>(false);
   const [gerandoComIA, setGerandoComIA] = useState<boolean>(false);
 
-  // Form State
   const [nome, setNome] = useState<string>('');
   const [codigoInterno, setCodigoInterno] = useState<string>('');
   const [codigoBarras, setCodigoBarras] = useState<string>('');
@@ -35,7 +33,6 @@ export const ProductCreatePage: React.FC = () => {
   const [fotosUrls, setFotosUrls] = useState<string[]>([]);
   const [novaFotoUrl, setNovaFotoUrl] = useState<string>('');
 
-  // Preços
   const [precoCusto, setPrecoCusto] = useState<string>('0.00');
   const [precoVendaVarejo, setPrecoVendaVarejo] = useState<string>('');
   const [precoVendaAtacado, setPrecoVendaAtacado] = useState<string>('');
@@ -45,14 +42,12 @@ export const ProductCreatePage: React.FC = () => {
   const [precoPromocional, setPrecoPromocional] = useState<string>('');
   const [promocaoAtiva, setPromocaoAtiva] = useState<boolean>(false);
 
-  // Estoque & Validade
   const [quantidadeEstoque, setQuantidadeEstoque] = useState<string>('0');
   const [estoqueMinimoAlerta, setEstoqueMinimoAlerta] = useState<string>('5');
   const [dataValidade, setDataValidade] = useState<string>('');
   const [exibirCatalogo, setExibirCatalogo] = useState<boolean>(true);
   const [destaque, setDestaque] = useState<boolean>(false);
 
-  // Variações (até 2 eixos)
   const [temVariacoes, setTemVariacoes] = useState<boolean>(false);
   const [rotuloVariacao1, setRotuloVariacao1] = useState<string>('Tamanho');
   const [rotuloVariacao2, setRotuloVariacao2] = useState<string>('Cor');
@@ -65,7 +60,6 @@ export const ProductCreatePage: React.FC = () => {
     barcode: string;
   }>>([]);
 
-  // Prompt IA
   const [promptIA, setPromptIA] = useState<string>('');
 
   useEffect(() => {
@@ -79,7 +73,6 @@ export const ProductCreatePage: React.FC = () => {
     carregarAux();
   }, [loja?.id]);
 
-  // Cadastro Mágico por IA (Simulado com Processamento Inteligente)
   const handleCadastroMagicoIA = () => {
     if (!promptIA.trim()) return;
     setGerandoComIA(true);
@@ -139,7 +132,6 @@ export const ProductCreatePage: React.FC = () => {
     try {
       setSalvando(true);
 
-      // 1. Inserir Produto Principal
       const novoProduto = {
         loja_id: loja.id,
         nome,
@@ -179,7 +171,6 @@ export const ProductCreatePage: React.FC = () => {
 
       if (erroProd || !prodCriado) throw erroProd;
 
-      // 2. Inserir Variações se houver
       if (temVariacoes && gradeVariacoes.length > 0) {
         const variacoesFormatadas = gradeVariacoes.map(v => ({
           loja_id: loja.id,
@@ -209,7 +200,6 @@ export const ProductCreatePage: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-950 p-4 md:p-8">
       <div className="max-w-4xl mx-auto w-full space-y-6">
-        {/* Header com Voltar */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/products')}
@@ -223,7 +213,6 @@ export const ProductCreatePage: React.FC = () => {
           </div>
         </div>
 
-        {/* CADASTRO MÁGICO POR IA */}
         <div className="bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900/60 border border-indigo-500/30 rounded-3xl p-5 space-y-3 shadow-lg">
           <div className="flex items-center gap-2 text-indigo-400">
             <Sparkles className="w-5 h-5" />
@@ -252,9 +241,7 @@ export const ProductCreatePage: React.FC = () => {
           </div>
         </div>
 
-        {/* FORMULÁRIO PRINCIPAL */}
         <form onSubmit={salvarProduto} className="space-y-6">
-          {/* Card 1: Informações Básicas */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
             <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <Tag className="w-4 h-4 text-emerald-400" />
@@ -335,7 +322,6 @@ export const ProductCreatePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: Múltiplas Faixas de Preço (Varejo, Atacado, Autoatacado e Promoção) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
             <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <Tag className="w-4 h-4 text-indigo-400" />
@@ -343,7 +329,6 @@ export const ProductCreatePage: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {/* Preço de Custo */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-400">Preço de Custo (R$)</label>
                 <input
@@ -355,7 +340,6 @@ export const ProductCreatePage: React.FC = () => {
                 />
               </div>
 
-              {/* Preço Varejo */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-emerald-400">Preço Varejo (R$) *</label>
                 <input
@@ -369,7 +353,6 @@ export const ProductCreatePage: React.FC = () => {
                 />
               </div>
 
-              {/* Preço Atacado */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-300">Preço Atacado (R$)</label>
                 <input
@@ -383,7 +366,6 @@ export const ProductCreatePage: React.FC = () => {
                 <span className="text-[10px] text-slate-500">Mín: {qtdMinimaAtacado} un</span>
               </div>
 
-              {/* Preço Autoatacado */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-300">Preço Autoatacado (R$)</label>
                 <input
@@ -399,7 +381,6 @@ export const ProductCreatePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 3: Grade de Variações (Até 2 eixos) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -444,7 +425,6 @@ export const ProductCreatePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Tabela de Variações */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-300">Linhas de Variação</span>
@@ -529,7 +509,6 @@ export const ProductCreatePage: React.FC = () => {
             )}
           </div>
 
-          {/* Fotos do Produto */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-3">
             <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-emerald-400" />
@@ -576,7 +555,6 @@ export const ProductCreatePage: React.FC = () => {
             )}
           </div>
 
-          {/* Botão de Salvar */}
           <button
             type="submit"
             disabled={salvando}

@@ -8,8 +8,8 @@ import {
   Package,
   DollarSign
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface MensagemIA {
   id: string;
@@ -18,7 +18,7 @@ interface MensagemIA {
   data: Date;
 }
 
-export const KaiAssistantPage: React.FC = () => {
+export const AssistenteKai: React.FC = () => {
   const { loja } = useAuth();
   const [mensagens, setMensagens] = useState<MensagemIA[]>([
     {
@@ -52,7 +52,6 @@ export const KaiAssistantPage: React.FC = () => {
     setPensando(true);
 
     try {
-      // 1. Coletar dados da loja em tempo real para alimentar a IA
       const { data: pedidos } = await supabase
         .from('pedidos')
         .select('*')
@@ -75,7 +74,6 @@ export const KaiAssistantPage: React.FC = () => {
       const produtosAlerta = produtos?.filter(p => Number(p.quantidade_estoque) <= Number(p.estoque_minimo_alerta)) || [];
       const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
 
-      // Resposta inteligente baseada nos dados
       let resposta = '';
       const pLower = pergunta.toLowerCase();
 
@@ -113,7 +111,6 @@ export const KaiAssistantPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
@@ -131,7 +128,6 @@ export const KaiAssistantPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-4xl mx-auto w-full">
         {mensagens.map((msg) => (
           <div
@@ -171,7 +167,6 @@ export const KaiAssistantPage: React.FC = () => {
         <div ref={endRef} />
       </div>
 
-      {/* Sugestões Rápidas & Input */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/90 max-w-4xl mx-auto w-full space-y-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
           <button

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search,
-  Filter,
-  Eye,
   Printer,
   Share2,
   CheckCircle2,
@@ -15,12 +13,12 @@ import {
   ChevronRight,
   X
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Pedido, StatusPedido } from '../../types/database';
-import { PrintService } from '../../services/printService';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { Pedido, StatusPedido } from '../types';
+import { PrintService } from '../services/printService';
 
-export const OrdersPage: React.FC = () => {
+export const PedidosLista: React.FC = () => {
   const { loja } = useAuth();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -56,10 +54,9 @@ export const OrdersPage: React.FC = () => {
   useEffect(() => {
     carregarPedidos();
 
-    // Inscrever no Realtime para atualizar pedidos na hora
     if (loja?.id) {
       const channel = supabase
-        .channel('pedidos-alteracoes')
+        .channel('pedidos-lista-realtime')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
@@ -75,7 +72,6 @@ export const OrdersPage: React.FC = () => {
     }
   }, [loja?.id]);
 
-  // Alterar Status do Pedido
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
     try {
       const { error } = await supabase
@@ -128,7 +124,6 @@ export const OrdersPage: React.FC = () => {
     <div className="flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950">
       {/* LISTAGEM DE PEDIDOS */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header e Filtros */}
         <div className="p-4 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="font-bold text-lg text-slate-100 flex items-center gap-2">
@@ -151,7 +146,6 @@ export const OrdersPage: React.FC = () => {
               />
             </div>
 
-            {/* Filtro por Status */}
             <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto scrollbar-none">
               {[
                 { id: 'todos', label: 'Todos' },
@@ -176,7 +170,7 @@ export const OrdersPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Tabela / Cards de Pedidos */}
+        {/* Cards de Pedidos */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {carregando ? (
             <div className="text-center py-12 text-slate-500 text-sm">Carregando pedidos...</div>
@@ -191,7 +185,6 @@ export const OrdersPage: React.FC = () => {
                   pedidoSelecionado?.id === pedido.id ? 'border-emerald-500 ring-1 ring-emerald-500/50' : 'border-slate-800/80'
                 }`}
               >
-                {/* Info Esquerda */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-base text-slate-100">
@@ -218,7 +211,6 @@ export const OrdersPage: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Info Direita / Valores */}
                 <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800/60">
                   <span className="font-bold text-emerald-400 text-base">
                     R$ {Number(pedido.valor_total).toFixed(2)}
@@ -238,10 +230,9 @@ export const OrdersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* DRAWER LATERAL: DETALHES DO PEDIDO SELECIONADO & AÇÕES DE IMPRESSÃO */}
+      {/* DRAWER LATERAL */}
       {pedidoSelecionado && (
         <div className="w-full lg:w-[420px] bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-200">
-          {/* Header Drawer */}
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-slate-100 text-base">Pedido #{pedidoSelecionado.numero_pedido}</h3>
@@ -255,9 +246,7 @@ export const OrdersPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Conteúdo Drawer */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Status e Mudança Rápida */}
             <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
               <label className="text-xs font-semibold text-slate-400 block">Atualizar Status:</label>
               <div className="grid grid-cols-3 gap-1.5">
@@ -277,7 +266,6 @@ export const OrdersPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Dados do Cliente */}
             {pedidoSelecionado.cliente && (
               <div className="bg-slate-800/40 p-3.5 rounded-2xl border border-slate-800 text-xs space-y-1.5">
                 <span className="font-bold text-slate-200 block">Dados do Cliente</span>
@@ -294,7 +282,6 @@ export const OrdersPage: React.FC = () => {
               </div>
             )}
 
-            {/* Itens do Pedido */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-slate-300">Itens Comprados</span>
               <div className="space-y-1.5">
@@ -319,7 +306,6 @@ export const OrdersPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Totais */}
             <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-xs space-y-1">
               <div className="flex justify-between text-slate-400">
                 <span>Subtotal:</span>
@@ -344,7 +330,6 @@ export const OrdersPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Botões de Ação do Drawer */}
           <div className="p-4 border-t border-slate-800 bg-slate-900/90 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button

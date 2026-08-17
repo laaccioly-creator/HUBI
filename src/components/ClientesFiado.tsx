@@ -5,23 +5,20 @@ import {
   Plus,
   Phone,
   Share2,
-  DollarSign,
   AlertCircle,
   CheckCircle2,
-  X,
-  CreditCard
+  X
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Cliente, TabelaPreco } from '../../types/database';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { Cliente, TabelaPreco } from '../types';
 
-export const CustomersPage: React.FC = () => {
+export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [busca, setBusca] = useState<string>('');
 
-  // Modal Novo Cliente
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [nome, setNome] = useState<string>('');
   const [whatsapp, setWhatsapp] = useState<string>('');
@@ -30,7 +27,6 @@ export const CustomersPage: React.FC = () => {
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
   const [limiteCredito, setLimiteCredito] = useState<string>('500.00');
 
-  // Modal Quitar Fiado
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
   const [processandoQuitacao, setProcessandoQuitacao] = useState<boolean>(false);
@@ -90,7 +86,6 @@ export const CustomersPage: React.FC = () => {
     }
   };
 
-  // Quitação Parcial ou Total de Fiado
   const handleQuitarFiado = async () => {
     if (!loja?.id || !clienteQuitar || !valorAbatimento) return;
     const valor = Number(valorAbatimento);
@@ -100,7 +95,6 @@ export const CustomersPage: React.FC = () => {
       setProcessandoQuitacao(true);
       const novoSaldo = Math.max(0, Number(clienteQuitar.saldo_devedor_fiado) - valor);
 
-      // Atualizar saldo do cliente
       const { error: erroCli } = await supabase
         .from('clientes')
         .update({ saldo_devedor_fiado: novoSaldo })
@@ -108,7 +102,6 @@ export const CustomersPage: React.FC = () => {
 
       if (erroCli) throw erroCli;
 
-      // Inserir registro financeiro da quitação
       await supabase.from('transacoes_financeiras').insert([
         {
           loja_id: loja.id,
@@ -126,7 +119,6 @@ export const CustomersPage: React.FC = () => {
         prev.map(c => (c.id === clienteQuitar.id ? { ...c, saldo_devedor_fiado: novoSaldo } : c))
       );
 
-      // Enviar mensagem de confirmação para o WhatsApp
       if (clienteQuitar.whatsapp) {
         const msg = `🧾 *COMPROVANTE DE PAGAMENTO DE FIADO - ${loja.nome_fantasia}*\n\nOlá, *${clienteQuitar.nome}*!\nConfirmamos o recebimento de *R$ ${valor.toFixed(2)}* referente à quitação do seu débito.\n\n💰 *Novo Saldo Devedor Restante:* R$ ${novoSaldo.toFixed(2)}\n\nAgradecemos a sua preferência! ✨`;
         const phone = clienteQuitar.whatsapp.replace(/\D/g, '');
@@ -153,7 +145,6 @@ export const CustomersPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* HEADER & DASHBOARD FIADO */}
       <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -175,7 +166,6 @@ export const CustomersPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Cards de Métricas */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-1">
             <span className="text-xs text-slate-400 block">Total de Clientes</span>
@@ -196,7 +186,6 @@ export const CustomersPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Busca */}
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -209,7 +198,6 @@ export const CustomersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* LISTA DE CLIENTES */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {carregando ? (
           <div className="col-span-full text-center py-16 text-slate-500 text-sm">Carregando clientes...</div>
@@ -251,7 +239,6 @@ export const CustomersPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Saldo devedor & Botão de Quitação */}
                 <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-slate-400 block">Saldo Devedor:</span>
@@ -296,7 +283,6 @@ export const CustomersPage: React.FC = () => {
         )}
       </div>
 
-      {/* MODAL CADASTRAR CLIENTE */}
       {modalNovoCliente && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
@@ -368,7 +354,6 @@ export const CustomersPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL QUITAR / ABATER FIADO */}
       {clienteQuitar && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
