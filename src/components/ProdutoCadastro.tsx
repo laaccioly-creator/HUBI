@@ -426,7 +426,6 @@ export const ProdutoCadastro: React.FC = () => {
         descricao,
         tipo_unidade: tipoUnidade,
         fotos_urls: todasFotos,
-        url_imagem_principal: fotoPrincipal || todasFotos[0] || null,
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
         preco_venda_atacado: precoVendaAtacado ? Number(precoVendaAtacado) : null,
