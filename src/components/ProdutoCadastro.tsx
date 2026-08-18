@@ -21,7 +21,8 @@ import {
   Boxes,
   Eye,
   Star,
-  FolderPlus
+  FolderPlus,
+  ArrowRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -108,6 +109,9 @@ const comprimirArquivoImagem = async (file: File): Promise<{ blob: Blob; dataUrl
   });
 };
 
+// Cache em memória do Base64 das fotos para análise instantânea pela IA sem precisar baixar da nuvem
+const fotoBase64Cache = new Map<string, string>();
+
 const uploadFotoParaSupabase = async (
   file: File,
   lojaId: string
@@ -115,6 +119,9 @@ const uploadFotoParaSupabase = async (
   const { blob, dataUrl } = await comprimirArquivoImagem(file);
   const ext = 'jpg';
   const nomeArquivo = `${lojaId || 'geral'}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+
+  // Salvar no cache local imediatamente
+  fotoBase64Cache.set(dataUrl, dataUrl);
 
   try {
     const { error } = await supabase.storage
@@ -126,6 +133,7 @@ const uploadFotoParaSupabase = async (
 
     if (error) {
       console.warn('Aviso: Bucket "produtos" no Supabase Storage não disponível ou sem permissão pública. Usando imagem local temporária.', error);
+      fotoBase64Cache.set(dataUrl, dataUrl);
       return { publicUrl: dataUrl, dataUrl };
     }
 
@@ -133,8 +141,11 @@ const uploadFotoParaSupabase = async (
       .from('produtos')
       .getPublicUrl(nomeArquivo);
 
+    const finalUrl = publicData?.publicUrl || dataUrl;
+    fotoBase64Cache.set(finalUrl, dataUrl);
+
     return {
-      publicUrl: publicData?.publicUrl || dataUrl,
+      publicUrl: finalUrl,
       dataUrl
     };
   } catch (err) {
@@ -144,9 +155,27 @@ const uploadFotoParaSupabase = async (
 };
 
 const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: string; mimeType: string }> => {
-  return new Promise((resolve) => {
-    if (!base64OrUrl.startsWith('data:image')) {
-      const clean = base64OrUrl.includes(',') ? base64OrUrl.split(',')[1] : base64OrUrl;
+  return new Promise(async (resolve) => {
+    // 1. Verificar se temos o Base64 no cache em memória
+    let target = fotoBase64Cache.get(base64OrUrl) || base64OrUrl;
+
+    // 2. Se for uma URL externa ou storage, baixar e converter para base64
+    if (target.startsWith('http://') || target.startsWith('https://') || target.startsWith('blob:')) {
+      try {
+        const response = await fetch(target);
+        const blob = await response.blob();
+        target = await new Promise<string>((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (err) {
+        console.warn('Erro ao converter URL para base64:', err);
+      }
+    }
+
+    if (!target.startsWith('data:image')) {
+      const clean = target.includes(',') ? target.split(',')[1] : target;
       resolve({ base64: clean, mimeType: 'image/jpeg' });
       return;
     }
@@ -173,24 +202,27 @@ const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: str
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        resolve({ base64: base64OrUrl.split(',')[1], mimeType: 'image/jpeg' });
+        const raw = target.includes(',') ? target.split(',')[1] : target;
+        resolve({ base64: raw, mimeType: 'image/jpeg' });
         return;
       }
 
       ctx.drawImage(img, 0, 0, width, height);
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.80);
+      const cleanBase64 = compressedDataUrl.includes(',') ? compressedDataUrl.split(',')[1] : compressedDataUrl;
       resolve({
-        base64: compressedDataUrl.split(',')[1],
+        base64: cleanBase64,
         mimeType: 'image/jpeg'
       });
     };
     img.onerror = () => {
+      const raw = target.includes(',') ? target.split(',')[1] : target;
       resolve({
-        base64: base64OrUrl.includes(',') ? base64OrUrl.split(',')[1] : base64OrUrl,
+        base64: raw,
         mimeType: 'image/jpeg'
       });
     };
-    img.src = base64OrUrl;
+    img.src = target;
   });
 };
 
@@ -201,7 +233,8 @@ const identificarProdutoPorFoto = async (
 
   if (apiKey) {
     try {
-      const { base64: base64Data, mimeType: detectedMime } = await comprimirImagemParaIA(imageBase64OrUrl);
+      const { base64: rawBase64, mimeType: detectedMime } = await comprimirImagemParaIA(imageBase64OrUrl);
+      const cleanBase64 = rawBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '').replace(/\s/g, '');
 
       const promptInstrucao = `
 Você é um especialista em catálogo de produtos e precificação de varejo no Brasil.
@@ -226,8 +259,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
               { text: promptInstrucao },
               {
                 inline_data: {
-                  mime_type: detectedMime,
-                  data: base64Data
+                  mime_type: detectedMime || 'image/jpeg',
+                  data: cleanBase64
                 }
               }
             ]
@@ -239,64 +272,55 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
         }
       };
 
-      let resData: any = null;
-      let ultimoErro: any = null;
-
-      // 1. Tentar descobrir dinamicamente os modelos disponíveis para esta chave de API
-      let modelosDisponiveis: string[] = [];
+      // 1. Descobrir dinamicamente quais modelos exatos esta chave possui acesso
+      let modelosValidos: string[] = [];
       try {
         const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
         if (listRes.ok) {
           const listJson = await listRes.json();
           if (Array.isArray(listJson.models)) {
-            modelosDisponiveis = listJson.models
-              .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent') && m.name?.includes('gemini'))
+            modelosValidos = listJson.models
+              .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent') && m.name?.toLowerCase().includes('gemini'))
               .map((m: any) => m.name.replace('models/', ''));
           }
         }
       } catch (e) {
-        // Silencioso se a listagem falhar
+        console.warn('Aviso ao listar modelos do Gemini:', e);
       }
 
-      // Lista prioritária com os modelos descobertos + padrões
+      // Ordenação inteligente: 2.0-flash primeiro, depois outros flash, depois demais
       const modelosParaTentar = Array.from(new Set([
-        ...modelosDisponiveis.filter(m => m.includes('flash')),
-        ...modelosDisponiveis,
-        'gemini-1.5-flash-latest',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
+        ...modelosValidos.filter(m => m.includes('2.0') && m.includes('flash')),
+        ...modelosValidos.filter(m => m.includes('flash')),
+        ...modelosValidos,
         'gemini-2.0-flash',
-        'gemini-2.0-flash-exp',
-        'gemini-1.5-pro-latest',
-        'gemini-1.5-pro'
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash-8b',
+        'gemini-2.0-flash-exp'
       ])).filter(Boolean);
+
+      let resData: any = null;
+      let ultimoErro: any = null;
 
       for (const modelo of modelosParaTentar) {
         try {
-          const endpoints = [
-            `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
-            `https://generativelanguage.googleapis.com/v1/models/${modelo}:generateContent?key=${apiKey}`
-          ];
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
 
-          for (const endpoint of endpoints) {
-            const response = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody)
-            });
-
-            if (response.ok) {
-              resData = await response.json();
-              break;
-            } else {
-              const errJson = await response.json();
-              ultimoErro = errJson?.error?.message || response.statusText;
-            }
+          if (response.ok) {
+            resData = await response.json();
+            break;
+          } else {
+            const errJson = await response.json().catch(() => ({}));
+            ultimoErro = errJson?.error?.message || response.statusText;
           }
-
-          if (resData) break;
-        } catch (e) {
-          ultimoErro = e;
+        } catch (e: any) {
+          ultimoErro = e?.message || e;
         }
       }
 
@@ -317,21 +341,22 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
         }
       } else if (ultimoErro) {
         console.warn('Aviso ao consultar Gemini API:', ultimoErro);
+        throw new Error(ultimoErro);
       }
     } catch (err: any) {
       console.warn('Erro ao chamar Gemini Vision API, usando fallback:', err);
+      throw err;
     }
+  } else {
+    throw new Error('Chave da API do Google Gemini não configurada. Clique no botão "Chave Gemini IA" no topo da página para inserir sua chave.');
   }
-
-  // Fallback Inteligente baseado em IA Heurística e Detecção Rápida
-  await new Promise(resolve => setTimeout(resolve, 800));
 
   return {
     nome: 'Novo Produto Capturado',
     categoria_sugerida: 'Geral',
     preco_venda_estimado: 29.90,
     preco_custo_estimado: 15.00,
-    descricao: 'Produto cadastrado via captura de imagem com alta qualidade e pronto para venda no catálogo online e PDV.',
+    descricao: 'Produto cadastrado via captura de imagem.',
     tipo_unidade: 'un',
     codigo_barras: ''
   };
@@ -358,12 +383,13 @@ export const ProdutoCadastro: React.FC = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  // Estados do Produto
+  // Estados do Produto (Fotos - até 7)
   const [fotosUrls, setFotosUrls] = useState<string[]>([]);
   const [fotoPrincipal, setFotoPrincipal] = useState<string>('');
   const [novaFotoUrl, setNovaFotoUrl] = useState<string>('');
   const [mostrarUrlInput, setMostrarUrlInput] = useState<boolean>(false);
   const [fazendoUploadFoto, setFazendoUploadFoto] = useState<boolean>(false);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState<string>('');
 
   const [nome, setNome] = useState<string>('');
   const [codigoInterno, setCodigoInterno] = useState<string>('');
@@ -390,18 +416,20 @@ export const ProdutoCadastro: React.FC = () => {
   const [exibirCatalogo, setExibirCatalogo] = useState<boolean>(true);
   const [destaque, setDestaque] = useState<boolean>(false);
 
-  // Variações
+  // Variações Simplificadas
   const [temVariacoes, setTemVariacoes] = useState<boolean>(false);
-  const [rotuloVariacao1, setRotuloVariacao1] = useState<string>('Tamanho');
-  const [rotuloVariacao2, setRotuloVariacao2] = useState<string>('Cor');
-  const [gradeVariacoes, setGradeVariacoes] = useState<Array<{
-    valor1: string;
-    valor2: string;
+  const [nomeTipoVariacao, setNomeTipoVariacao] = useState<string>(''); // Ex: "Cor", "Tamanho", "Sabor"
+  const [etapaVariacao, setEtapaVariacao] = useState<number>(1); // 1: Nome do Tipo, 2: Opções e Estoques
+  const [opcoesVariacao, setOpcoesVariacao] = useState<Array<{
+    id: string;
+    nome: string;
+    estoque: string;
     precoVarejo: string;
     precoAtacado: string;
-    estoque: string;
     barcode: string;
   }>>([]);
+  const [novaOpcaoNome, setNovaOpcaoNome] = useState<string>('');
+  const [novaOpcaoEstoque, setNovaOpcaoEstoque] = useState<string>('');
 
   const carregarAux = async () => {
     if (!loja?.id) return;
@@ -415,18 +443,99 @@ export const ProdutoCadastro: React.FC = () => {
     carregarAux();
   }, [loja?.id]);
 
-  // Manipular upload de imagem (câmera ou galeria) com compressão e Supabase Storage
-  const handleProcessarArquivoImagem = async (file: File) => {
-    if (!file) return;
+  // Sugerir Código Interno baseado nas iniciais da Categoria (Ex: Brinquedo Erótico -> BE0001)
+  const gerarCodigoInternoSugerido = async (catId: string, listaCategorias: Categoria[] = categorias) => {
+    if (!catId || !loja?.id) return;
+    const cat = listaCategorias.find(c => c.id === catId);
+    if (!cat) return;
+
+    // Extrair iniciais da categoria
+    const stopwords = ['DE', 'DO', 'DA', 'E', 'PARA', 'COM', 'EM', 'DOS', 'DAS', 'POR', 'O', 'A', 'OS', 'AS'];
+    const palavras = cat.nome
+      .trim()
+      .toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+      .split(/[\s-]+/)
+      .filter(p => p.length > 0 && !stopwords.includes(p));
+
+    let prefixo = '';
+    if (palavras.length >= 2) {
+      prefixo = (palavras[0][0] || '') + (palavras[1][0] || '');
+    } else if (palavras.length === 1) {
+      prefixo = palavras[0].substring(0, 2);
+    } else {
+      prefixo = 'PR';
+    }
+
+    if (prefixo.length < 2) {
+      prefixo = (prefixo + 'X').substring(0, 2);
+    }
+
+    try {
+      // Contar quantos produtos já existem nessa categoria para essa loja
+      const { count } = await supabase
+        .from('produtos')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', loja.id)
+        .eq('categoria_id', catId);
+
+      const proximoNumero = (count || 0) + 1;
+      const codigoSugerido = `${prefixo}${String(proximoNumero).padStart(4, '0')}`;
+      setCodigoInterno(codigoSugerido);
+    } catch (e) {
+      const codigoSugerido = `${prefixo}0001`;
+      setCodigoInterno(codigoSugerido);
+    }
+  };
+
+  const handleSelecionarCategoria = (catId: string) => {
+    setCategoriaId(catId);
+    if (catId) {
+      gerarCodigoInternoSugerido(catId);
+    }
+  };
+
+  // Manipular upload de imagens (Câmera ou Galeria) permitindo até 7 fotos
+  const handleProcessarArquivosImagens = async (files: FileList | File[] | null) => {
+    if (!files || files.length === 0) return;
+    const arrayFiles = Array.from(files);
+
+    const espacoDisponivel = 7 - fotosUrls.length;
+    if (espacoDisponivel <= 0) {
+      alert('Você já atingiu o limite máximo de 7 fotos para este produto.');
+      return;
+    }
+
+    const filesParaProcessar = arrayFiles.slice(0, espacoDisponivel);
+
     try {
       setFazendoUploadFoto(true);
-      const { publicUrl, dataUrl } = await uploadFotoParaSupabase(file, loja?.id || 'geral');
-      setFotoPrincipal(publicUrl);
-      setFotosUrls(prev => [publicUrl, ...prev.filter(f => f !== publicUrl && f !== dataUrl)]);
+      const novasUrls: string[] = [];
+
+      for (let i = 0; i < filesParaProcessar.length; i++) {
+        setUploadStatusMsg(`Enviando foto ${i + 1} de ${filesParaProcessar.length}...`);
+        const file = filesParaProcessar[i];
+        const { publicUrl, dataUrl } = await uploadFotoParaSupabase(file, loja?.id || 'geral');
+        const urlFinal = publicUrl || dataUrl;
+        if (urlFinal && !fotosUrls.includes(urlFinal) && !novasUrls.includes(urlFinal)) {
+          novasUrls.push(urlFinal);
+        }
+      }
+
+      if (novasUrls.length > 0) {
+        setFotosUrls(prev => {
+          const combinadas = [...novasUrls, ...prev];
+          return combinadas.slice(0, 7);
+        });
+        if (!fotoPrincipal) {
+          setFotoPrincipal(novasUrls[0]);
+        }
+      }
     } catch (err) {
-      console.error('Erro ao processar imagem:', err);
+      console.error('Erro ao processar imagens:', err);
     } finally {
       setFazendoUploadFoto(false);
+      setUploadStatusMsg('');
     }
   };
 
@@ -442,7 +551,8 @@ export const ProdutoCadastro: React.FC = () => {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
 
-      const dadosSugeridos = await identificarProdutoPorFoto(fotoAlvo);
+      const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
+      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA);
 
       if (dadosSugeridos) {
         if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
@@ -460,7 +570,7 @@ export const ProdutoCadastro: React.FC = () => {
           setCodigoBarras(dadosSugeridos.codigo_barras);
         }
 
-        // Vincular ou sugerir categoria
+        // Vincular e sugerir categoria e código interno
         if (dadosSugeridos.categoria_sugerida && categorias.length > 0) {
           const catMatch = categorias.find(c =>
             c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
@@ -468,6 +578,7 @@ export const ProdutoCadastro: React.FC = () => {
           );
           if (catMatch) {
             setCategoriaId(catMatch.id);
+            gerarCodigoInternoSugerido(catMatch.id);
           }
         }
 
@@ -481,15 +592,49 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
-  const adicionarLinhaVariacao = () => {
-    setGradeVariacoes(prev => [
-      ...prev,
-      { valor1: '', valor2: '', precoVarejo: precoVendaVarejo || '0.00', precoAtacado: precoVendaAtacado || '0.00', estoque: '0', barcode: '' }
-    ]);
+  // Gerenciamento de Opções da Variação
+  const handleAdicionarOpcao = () => {
+    if (!novaOpcaoNome.trim()) {
+      alert(`Por favor, digite o nome da opção para ${nomeTipoVariacao || 'a variação'}.`);
+      return;
+    }
+    const estoqueNum = Number(novaOpcaoEstoque) || 0;
+    if (estoqueNum < 0) {
+      alert('O estoque não pode ser negativo.');
+      return;
+    }
+
+    const novaOpcao = {
+      id: Date.now().toString(),
+      nome: novaOpcaoNome.trim(),
+      estoque: novaOpcaoEstoque || '0',
+      precoVarejo: precoVendaVarejo || '0.00',
+      precoAtacado: precoVendaAtacado || '0.00',
+      barcode: ''
+    };
+
+    const novasOpcoes = [...opcoesVariacao, novaOpcao];
+    setOpcoesVariacao(novasOpcoes);
+    setNovaOpcaoNome('');
+    setNovaOpcaoEstoque('');
+
+    // Sincroniza automaticamente a soma com o estoque total do produto
+    const somaTotal = novasOpcoes.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0);
+    setQuantidadeEstoque(somaTotal.toString());
   };
 
-  const removerLinhaVariacao = (index: number) => {
-    setGradeVariacoes(prev => prev.filter((_, i) => i !== index));
+  const handleRemoverOpcao = (id: string) => {
+    const novasOpcoes = opcoesVariacao.filter(o => o.id !== id);
+    setOpcoesVariacao(novasOpcoes);
+    const somaTotal = novasOpcoes.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0);
+    setQuantidadeEstoque(somaTotal.toString());
+  };
+
+  const handleAtualizarEstoqueOpcao = (id: string, novoEstoque: string) => {
+    const novasOpcoes = opcoesVariacao.map(o => o.id === id ? { ...o, estoque: novoEstoque } : o);
+    setOpcoesVariacao(novasOpcoes);
+    const somaTotal = novasOpcoes.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0);
+    setQuantidadeEstoque(somaTotal.toString());
   };
 
   const salvarProduto = async (e: React.FormEvent) => {
@@ -497,6 +642,19 @@ export const ProdutoCadastro: React.FC = () => {
     if (!loja?.id || !nome.trim() || !precoVendaVarejo) {
       alert('Preencha o nome do produto e o preço de venda de varejo.');
       return;
+    }
+
+    // Validação de estoque com variações
+    if (temVariacoes && opcoesVariacao.length > 0) {
+      const somaEstoqueVariacoes = opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0);
+      const estoqueInformado = Number(quantidadeEstoque) || 0;
+
+      if (somaEstoqueVariacoes !== estoqueInformado) {
+        const confirmar = confirm(
+          `A soma dos estoques das variações (${somaEstoqueVariacoes} un) está diferente do estoque total informado (${estoqueInformado} un).\n\nDeseja ajustar o estoque total para ${somaEstoqueVariacoes} un e salvar o produto?`
+        );
+        if (!confirmar) return;
+      }
     }
 
     try {
@@ -507,6 +665,10 @@ export const ProdutoCadastro: React.FC = () => {
         todasFotos.unshift(fotoPrincipal);
       }
 
+      const estoqueFinal = temVariacoes && opcoesVariacao.length > 0
+        ? opcoesVariacao.reduce((acc, v) => acc + (Number(v.estoque) || 0), 0)
+        : Number(quantidadeEstoque) || 0;
+
       const novoProduto = {
         loja_id: loja.id,
         nome,
@@ -516,7 +678,7 @@ export const ProdutoCadastro: React.FC = () => {
         fornecedor_id: fornecedorId || null,
         descricao,
         tipo_unidade: tipoUnidade,
-        fotos_urls: todasFotos,
+        fotos_urls: todasFotos.slice(0, 7),
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
         preco_venda_atacado: precoVendaAtacado ? Number(precoVendaAtacado) : null,
@@ -525,13 +687,11 @@ export const ProdutoCadastro: React.FC = () => {
         qtd_minima_autoatacado: Number(qtdMinimaAutoatacado) || 24,
         preco_promocional: precoPromocional ? Number(precoPromocional) : null,
         promocao_ativa: promocaoAtiva,
-        quantidade_estoque: temVariacoes
-          ? gradeVariacoes.reduce((acc, v) => acc + (Number(v.estoque) || 0), 0)
-          : Number(quantidadeEstoque) || 0,
+        quantidade_estoque: estoqueFinal,
         estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
-        tem_variacoes: temVariacoes,
-        rotulo_variacao_1: temVariacoes ? rotuloVariacao1 : null,
-        rotulo_variacao_2: temVariacoes ? rotuloVariacao2 : null,
+        tem_variacoes: temVariacoes && opcoesVariacao.length > 0,
+        rotulo_variacao_1: temVariacoes ? nomeTipoVariacao || 'Opção' : null,
+        rotulo_variacao_2: null,
         data_validade: dataValidade || null,
         exibir_catalogo: exibirCatalogo,
         destaque: destaque,
@@ -546,12 +706,12 @@ export const ProdutoCadastro: React.FC = () => {
 
       if (erroProd || !prodCriado) throw erroProd;
 
-      if (temVariacoes && gradeVariacoes.length > 0) {
-        const variacoesFormatadas = gradeVariacoes.map(v => ({
+      if (temVariacoes && opcoesVariacao.length > 0) {
+        const variacoesFormatadas = opcoesVariacao.map(v => ({
           loja_id: loja.id,
           produto_id: prodCriado.id,
-          valor_variacao_1: v.valor1 || 'Único',
-          valor_variacao_2: v.valor2 || null,
+          valor_variacao_1: v.nome,
+          valor_variacao_2: null,
           codigo_barras: v.barcode || null,
           preco_venda_varejo: Number(v.precoVarejo) || Number(precoVendaVarejo),
           preco_venda_atacado: v.precoAtacado ? Number(v.precoAtacado) : null,
@@ -605,7 +765,7 @@ export const ProdutoCadastro: React.FC = () => {
         </div>
 
         {/* ========================================================================= */}
-        {/* SEÇÃO 1: FOTO DO PRODUTO (PRIMEIRA INFORMAÇÃO COM CÂMERA DO CELULAR & IA) */}
+        {/* SEÇÃO 1: FOTOS DO PRODUTO (ATÉ 7 FOTOS COM CÂMERA DO CELULAR & IA)        */}
         {/* ========================================================================= */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border-2 border-indigo-500/30 rounded-3xl p-5 sm:p-6 space-y-5 shadow-2xl relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -615,13 +775,13 @@ export const ProdutoCadastro: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-                  <span>1. Foto do Produto & Preenchimento Inteligente</span>
+                  <span>1. Fotos do Produto & Preenchimento Inteligente</span>
                   <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
-                    IA VISÃO
+                    {fotosUrls.length}/7 Fotos
                   </span>
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Tire a foto direto da câmera do seu celular para a IA preencher tudo automaticamente
+                  Adicione até 7 fotos. A primeira foto será usada como capa e analisada pela IA.
                 </p>
               </div>
             </div>
@@ -657,7 +817,7 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
           )}
 
-          {/* Inputs invisíveis para Câmera Direta e Galeria */}
+          {/* Inputs invisíveis para Câmera Direta e Galeria (Múltiplas Fotos) */}
           <input
             ref={cameraInputRef}
             type="file"
@@ -665,18 +825,17 @@ export const ProdutoCadastro: React.FC = () => {
             capture="environment"
             className="hidden"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleProcessarArquivoImagem(file);
+              if (e.target.files) handleProcessarArquivosImagens(e.target.files);
             }}
           />
           <input
             ref={galleryInputRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleProcessarArquivoImagem(file);
+              if (e.target.files) handleProcessarArquivosImagens(e.target.files);
             }}
           />
 
@@ -689,7 +848,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
                   <div>
                     <span className="font-bold text-xs text-indigo-200 block">
-                      Comprimindo & Enviando...
+                      {uploadStatusMsg || 'Comprimindo & Enviando...'}
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
                       Salvando foto otimizada na nuvem
@@ -700,26 +859,32 @@ export const ProdutoCadastro: React.FC = () => {
                 <div className="relative w-full aspect-square max-w-[260px] rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-950 shadow-xl group">
                   <img
                     src={fotoPrincipal}
-                    alt="Foto do Produto"
+                    alt="Foto Principal do Produto"
                     className="w-full h-full object-cover"
                   />
+                  <div className="absolute top-2 left-2 bg-emerald-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-md">
+                    Foto Principal (Capa)
+                  </div>
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-xs">
-                    <button
-                      type="button"
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="p-2 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition cursor-pointer"
-                      title="Tirar outra foto"
-                    >
-                      <Camera className="w-5 h-5" />
-                    </button>
+                    {fotosUrls.length < 7 && (
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="p-2 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition cursor-pointer"
+                        title="Tirar outra foto"
+                      >
+                        <Camera className="w-5 h-5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
-                        setFotoPrincipal('');
-                        setFotosUrls(prev => prev.filter(f => f !== fotoPrincipal));
+                        const restantes = fotosUrls.filter(f => f !== fotoPrincipal);
+                        setFotosUrls(restantes);
+                        setFotoPrincipal(restantes[0] || '');
                       }}
                       className="p-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 transition cursor-pointer"
-                      title="Remover foto"
+                      title="Remover foto principal"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -745,41 +910,45 @@ export const ProdutoCadastro: React.FC = () => {
               )}
             </div>
 
-            {/* Botões de Ação de Captura */}
+            {/* Botões de Ação de Captura & Galeria */}
             <div className="md:col-span-7 space-y-3 flex flex-col justify-center h-full">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {/* Botão Câmera do Celular */}
                 <button
                   type="button"
+                  disabled={fotosUrls.length >= 7}
                   onClick={() => cameraInputRef.current?.click()}
-                  className="py-3 px-4 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+                  className="py-3 px-4 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-40"
                 >
                   <Camera className="w-4 h-4 text-emerald-400" />
-                  <span>Tirar Foto (Câmera)</span>
+                  <span>Tirar Foto ({fotosUrls.length}/7)</span>
                 </button>
 
                 {/* Botão Escolher da Galeria */}
                 <button
                   type="button"
+                  disabled={fotosUrls.length >= 7}
                   onClick={() => galleryInputRef.current?.click()}
-                  className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-40"
                 >
                   <Upload className="w-4 h-4 text-indigo-400" />
-                  <span>Escolher da Galeria</span>
+                  <span>Galeria (Até 7 fotos)</span>
                 </button>
               </div>
 
               {/* Opção de Link URL */}
               <div>
                 {!mostrarUrlInput ? (
-                  <button
-                    type="button"
-                    onClick={() => setMostrarUrlInput(true)}
-                    className="text-[11px] text-slate-400 hover:text-indigo-400 font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    <LinkIcon className="w-3.5 h-3.5" />
-                    <span>Ou colar o link de uma imagem da internet</span>
-                  </button>
+                  fotosUrls.length < 7 && (
+                    <button
+                      type="button"
+                      onClick={() => setMostrarUrlInput(true)}
+                      className="text-[11px] text-slate-400 hover:text-indigo-400 font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <LinkIcon className="w-3.5 h-3.5" />
+                      <span>Ou colar o link de uma imagem da internet</span>
+                    </button>
+                  )
                 ) : (
                   <div className="flex gap-2 animate-in fade-in">
                     <input
@@ -792,9 +961,10 @@ export const ProdutoCadastro: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        if (novaFotoUrl.trim()) {
-                          setFotoPrincipal(novaFotoUrl.trim());
-                          setFotosUrls(prev => [novaFotoUrl.trim(), ...prev]);
+                        if (novaFotoUrl.trim() && fotosUrls.length < 7) {
+                          const url = novaFotoUrl.trim();
+                          setFotosUrls(prev => [url, ...prev]);
+                          if (!fotoPrincipal) setFotoPrincipal(url);
                           setNovaFotoUrl('');
                           setMostrarUrlInput(false);
                         }
@@ -814,22 +984,65 @@ export const ProdutoCadastro: React.FC = () => {
                 )}
               </div>
 
-              {/* Carrossel de Miniaturas */}
-              {fotosUrls.length > 1 && (
-                <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
-                  <span className="text-[11px] text-slate-400 font-semibold block">Outras Fotos do Produto:</span>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {fotosUrls.map((url, i) => (
-                      <div
-                        key={i}
-                        onClick={() => setFotoPrincipal(url)}
-                        className={`relative w-14 h-14 rounded-xl overflow-hidden bg-slate-950 border cursor-pointer shrink-0 transition ${
-                          fotoPrincipal === url ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-slate-800 opacity-70 hover:opacity-100'
-                        }`}
+              {/* Galeria de Miniaturas (Até 7 Fotos) */}
+              {fotosUrls.length > 0 && (
+                <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                    <span>Fotos Cadastradas ({fotosUrls.length}/7):</span>
+                    <span className="text-[10px] text-slate-500">Clique para definir a foto principal</span>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                    {fotosUrls.map((url, i) => {
+                      const ehPrincipal = (fotoPrincipal === url) || (!fotoPrincipal && i === 0);
+                      return (
+                        <div
+                          key={i}
+                          className={`relative aspect-square rounded-xl overflow-hidden bg-slate-950 border transition group ${
+                            ehPrincipal ? 'border-emerald-400 ring-2 ring-emerald-500/40' : 'border-slate-800 hover:border-slate-600'
+                          }`}
+                        >
+                          <img
+                            src={url}
+                            alt={`Foto ${i + 1}`}
+                            onClick={() => setFotoPrincipal(url)}
+                            className="w-full h-full object-cover cursor-pointer"
+                          />
+                          {ehPrincipal && (
+                            <span className="absolute bottom-0 inset-x-0 bg-emerald-500/90 text-white text-[9px] font-bold text-center py-0.5">
+                              Capa
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const novas = fotosUrls.filter(f => f !== url);
+                              setFotosUrls(novas);
+                              if (fotoPrincipal === url) {
+                                setFotoPrincipal(novas[0] || '');
+                              }
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-rose-600 text-slate-300 hover:text-white rounded-md opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                            title="Remover foto"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {/* Slot para adicionar mais foto se < 7 */}
+                    {fotosUrls.length < 7 && (
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="aspect-square rounded-xl border border-dashed border-slate-700 hover:border-indigo-400 bg-slate-900/50 hover:bg-indigo-500/10 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-300 transition cursor-pointer"
+                        title="Adicionar mais foto"
                       >
-                        <img src={url} alt="Miniatura" className="w-full h-full object-cover" />
-                      </div>
-                    ))}
+                        <Plus className="w-4 h-4" />
+                        <span className="text-[9px] font-bold mt-0.5">+ Foto</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -841,7 +1054,7 @@ export const ProdutoCadastro: React.FC = () => {
         {/* FORMULÁRIO DE CADASTRO COMPLETO                                           */}
         {/* ========================================================================= */}
         <form onSubmit={salvarProduto} className="space-y-6">
-          {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO */}
+          {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO (ORDEM AJUSTADA) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
             <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <Tag className="w-4 h-4 text-emerald-400" />
@@ -849,6 +1062,7 @@ export const ProdutoCadastro: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Nome do Produto */}
               <div className="md:col-span-2 space-y-1">
                 <label className="text-xs font-semibold text-slate-300">Nome do Produto *</label>
                 <input
@@ -857,35 +1071,14 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: Coca-Cola Lata 350ml ou Camiseta Algodão Básica"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Código Interno (SKU)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: #PROD-01"
-                  value={codigoInterno}
-                  onChange={(e) => setCodigoInterno(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Código de Barras (EAN / Leitor)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: 789123456789"
-                  value={codigoBarras}
-                  onChange={(e) => setCodigoBarras(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
+              {/* LINHA 1: Categoria e Unidade de Medida (ANTES do Código) */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Categoria</label>
+                  <label className="text-xs font-semibold text-slate-300">Categoria *</label>
                   <button
                     type="button"
                     onClick={() => setModalCategorias(true)}
@@ -897,10 +1090,10 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
                 <select
                   value={categoriaId}
-                  onChange={(e) => setCategoriaId(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
+                  onChange={(e) => handleSelecionarCategoria(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="">Sem Categoria (Geral)</option>
+                  <option value="">Selecione uma Categoria...</option>
                   {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
@@ -929,6 +1122,48 @@ export const ProdutoCadastro: React.FC = () => {
                 </select>
               </div>
 
+              {/* LINHA 2: Código Interno (Sugerido após Categoria) e Código de Barras */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Código Interno (SKU)</label>
+                  {codigoInterno && (
+                    <span className="text-[10px] text-emerald-400 font-medium">Sugerido p/ Categoria</span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Ex: BE0001"
+                  value={codigoInterno}
+                  onChange={(e) => setCodigoInterno(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 uppercase font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Código de Barras (EAN / Leitor)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 789123456789"
+                  value={codigoBarras}
+                  onChange={(e) => setCodigoBarras(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none font-mono"
+                />
+              </div>
+
+              {/* Fornecedor (Opcional) */}
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-xs font-semibold text-slate-300">Fornecedor (Opcional)</label>
+                <select
+                  value={fornecedorId}
+                  onChange={(e) => setFornecedorId(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
+                >
+                  <option value="">Nenhum Fornecedor Vinculado</option>
+                  {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+              </div>
+
+              {/* Descrição Comercial */}
               <div className="md:col-span-2 space-y-1">
                 <label className="text-xs font-semibold text-slate-300">Descrição Comercial (Catálogo & WhatsApp)</label>
                 <textarea
@@ -1050,22 +1285,29 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
           </div>
 
-          {/* SEÇÃO 5: GRADE DE VARIAÇÕES */}
+          {/* SEÇÃO 5: GRADE DE VARIAÇÕES (SIMPLIFICADA E INTUITIVA) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-emerald-400" />
-                  <span>5. Grade de Variações (Tamanho / Cor / Sabor)</span>
+                  <span>5. Variações do Produto (Cor, Tamanho, Sabor...)</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">Ative caso o produto possua variações com estoques independentes.</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Ative se o produto tiver opções diferentes com controle de estoque individual.
+                </p>
               </div>
 
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={temVariacoes}
-                  onChange={(e) => setTemVariacoes(e.target.checked)}
+                  onChange={(e) => {
+                    setTemVariacoes(e.target.checked);
+                    if (e.target.checked && !nomeTipoVariacao) {
+                      setEtapaVariacao(1);
+                    }
+                  }}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
@@ -1073,108 +1315,184 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
 
             {temVariacoes && (
-              <div className="space-y-4 pt-3 border-t border-slate-800">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Rótulo Eixo 1 (ex: Tamanho)</label>
-                    <input
-                      type="text"
-                      value={rotuloVariacao1}
-                      onChange={(e) => setRotuloVariacao1(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Rótulo Eixo 2 (ex: Cor)</label>
-                    <input
-                      type="text"
-                      value={rotuloVariacao2}
-                      onChange={(e) => setRotuloVariacao2(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-300">Linhas de Variação</span>
-                    <button
-                      type="button"
-                      onClick={adicionarLinhaVariacao}
-                      className="text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Adicionar Variação
-                    </button>
-                  </div>
-
-                  {gradeVariacoes.map((gv, idx) => (
-                    <div key={idx} className="grid grid-cols-6 gap-2 items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <div className="space-y-4 pt-4 border-t border-slate-800 animate-in fade-in">
+                {/* ETAPA 1: Definir o Nome do Tipo da Variação */}
+                {etapaVariacao === 1 ? (
+                  <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+                    <label className="text-xs font-bold text-slate-200 block">
+                      Qual é o tipo de variação deste produto?
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2.5">
                       <input
                         type="text"
-                        placeholder={rotuloVariacao1}
-                        value={gv.valor1}
-                        onChange={(e) => {
-                          const cp = [...gradeVariacoes];
-                          cp[idx].valor1 = e.target.value;
-                          setGradeVariacoes(cp);
+                        placeholder="Exemplo: Cor, Tamanho ou Sabor"
+                        value={nomeTipoVariacao}
+                        onChange={(e) => setNomeTipoVariacao(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (nomeTipoVariacao.trim()) setEtapaVariacao(2);
+                          }
                         }}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100"
-                      />
-                      <input
-                        type="text"
-                        placeholder={rotuloVariacao2}
-                        value={gv.valor2}
-                        onChange={(e) => {
-                          const cp = [...gradeVariacoes];
-                          cp[idx].valor2 = e.target.value;
-                          setGradeVariacoes(cp);
-                        }}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100"
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Varejo R$"
-                        value={gv.precoVarejo}
-                        onChange={(e) => {
-                          const cp = [...gradeVariacoes];
-                          cp[idx].precoVarejo = e.target.value;
-                          setGradeVariacoes(cp);
-                        }}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Estoque"
-                        value={gv.estoque}
-                        onChange={(e) => {
-                          const cp = [...gradeVariacoes];
-                          cp[idx].estoque = e.target.value;
-                          setGradeVariacoes(cp);
-                        }}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 font-bold text-emerald-400"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Cód. Barras"
-                        value={gv.barcode}
-                        onChange={(e) => {
-                          const cp = [...gradeVariacoes];
-                          cp[idx].barcode = e.target.value;
-                          setGradeVariacoes(cp);
-                        }}
-                        className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100"
+                        className="flex-1 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none"
                       />
                       <button
                         type="button"
-                        onClick={() => removerLinhaVariacao(idx)}
-                        className="p-1.5 text-slate-500 hover:text-rose-400 flex justify-center cursor-pointer"
+                        onClick={() => {
+                          if (!nomeTipoVariacao.trim()) {
+                            alert('Por favor, informe o nome da variação (ex: Cor, Tamanho ou Sabor).');
+                            return;
+                          }
+                          setEtapaVariacao(2);
+                        }}
+                        className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 font-bold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-md shadow-emerald-500/20"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <span>Continuar</span>
+                        <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  /* ETAPA 2: Adicionar Opções e Gerenciar Estoques */
+                  <div className="space-y-4">
+                    {/* Header do Tipo Ativo */}
+                    <div className="flex items-center justify-between bg-slate-950/80 px-4 py-3 rounded-2xl border border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Tipo de variação:</span>
+                        <span className="text-xs font-black text-emerald-400 uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
+                          {nomeTipoVariacao}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEtapaVariacao(1)}
+                        className="text-[11px] text-slate-400 hover:text-slate-200 underline cursor-pointer"
+                      >
+                        Alterar tipo
+                      </button>
+                    </div>
+
+                    {/* Formulário para Inserir Nova Opção */}
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <span className="text-xs font-bold text-slate-300 block">Adicionar nova opção:</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                        <div className="sm:col-span-7 space-y-1">
+                          <label className="text-[11px] text-slate-400 block">
+                            Digite uma opção para {nomeTipoVariacao || 'a variação'}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={`Ex: ${nomeTipoVariacao.toLowerCase().includes('cor') ? 'Azul, Preto, Branco' : nomeTipoVariacao.toLowerCase().includes('tamanho') ? 'P, M, G, GG' : 'Morango, Baunilha, Chocolate'}`}
+                            value={novaOpcaoNome}
+                            onChange={(e) => setNovaOpcaoNome(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAdicionarOpcao();
+                              }
+                            }}
+                            className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-3 space-y-1">
+                          <label className="text-[11px] text-slate-400 block">Estoque da opção</label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Qtd (ex: 5)"
+                            value={novaOpcaoEstoque}
+                            onChange={(e) => setNovaOpcaoEstoque(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAdicionarOpcao();
+                              }
+                            }}
+                            className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold text-emerald-400 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <button
+                            type="button"
+                            onClick={handleAdicionarOpcao}
+                            className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-emerald-500/20"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Adicionar</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lista de Opções Cadastradas */}
+                    {opcoesVariacao.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                          <span className="font-semibold">Opções cadastradas ({opcoesVariacao.length}):</span>
+                          <span>Estoque individual</span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {opcoesVariacao.map((opc) => (
+                            <div
+                              key={opc.id}
+                              className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 gap-3"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span className="text-xs font-bold text-slate-100">{opc.nome}</span>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] text-slate-400">Estoque:</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={opc.estoque}
+                                    onChange={(e) => handleAtualizarEstoqueOpcao(opc.id, e.target.value)}
+                                    className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                                  />
+                                  <span className="text-[11px] text-slate-500">un</span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoverOpcao(opc.id)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                  title="Remover opção"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center p-4 bg-slate-950/40 rounded-xl border border-dashed border-slate-800 text-xs text-slate-400">
+                        Nenhuma opção adicionada ainda. Digite uma opção acima (ex: Azul, P, Sabor Morango) e clique em Adicionar.
+                      </div>
+                    )}
+
+                    {/* Resumo de Conferência de Estoque */}
+                    {opcoesVariacao.length > 0 && (
+                      <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 text-emerald-300">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>
+                            Soma do estoque das variações: <strong>{opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0)} un</strong>
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-emerald-400 font-medium">
+                          O estoque total do produto será sincronizado com {opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0)} un
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
