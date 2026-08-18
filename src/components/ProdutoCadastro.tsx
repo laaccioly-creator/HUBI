@@ -56,6 +56,93 @@ const setGeminiApiKey = (key: string) => {
   }
 };
 
+const comprimirArquivoImagem = async (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          fetch(dataUrl).then(res => res.blob()).then(blob => resolve({ blob, dataUrl }));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve({ blob, dataUrl: canvas.toDataURL('image/jpeg', 0.82) });
+            } else {
+              fetch(dataUrl).then(res => res.blob()).then(b => resolve({ blob: b, dataUrl }));
+            }
+          },
+          'image/jpeg',
+          0.82
+        );
+      };
+      img.onerror = () => {
+        fetch(dataUrl).then(res => res.blob()).then(blob => resolve({ blob, dataUrl }));
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const uploadFotoParaSupabase = async (
+  file: File,
+  lojaId: string
+): Promise<{ publicUrl: string; dataUrl: string }> => {
+  const { blob, dataUrl } = await comprimirArquivoImagem(file);
+  const ext = 'jpg';
+  const nomeArquivo = `${lojaId || 'geral'}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+
+  try {
+    const { error } = await supabase.storage
+      .from('produtos')
+      .upload(nomeArquivo, blob, {
+        contentType: 'image/jpeg',
+        upsert: true
+      });
+
+    if (error) {
+      console.warn('Aviso: Bucket "produtos" no Supabase Storage não disponível ou sem permissão pública. Usando imagem local temporária.', error);
+      return { publicUrl: dataUrl, dataUrl };
+    }
+
+    const { data: publicData } = supabase.storage
+      .from('produtos')
+      .getPublicUrl(nomeArquivo);
+
+    return {
+      publicUrl: publicData?.publicUrl || dataUrl,
+      dataUrl
+    };
+  } catch (err) {
+    console.warn('Erro ao salvar no Storage:', err);
+    return { publicUrl: dataUrl, dataUrl };
+  }
+};
+
 const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: string; mimeType: string }> => {
   return new Promise((resolve) => {
     if (!base64OrUrl.startsWith('data:image')) {
@@ -276,6 +363,7 @@ export const ProdutoCadastro: React.FC = () => {
   const [fotoPrincipal, setFotoPrincipal] = useState<string>('');
   const [novaFotoUrl, setNovaFotoUrl] = useState<string>('');
   const [mostrarUrlInput, setMostrarUrlInput] = useState<boolean>(false);
+  const [fazendoUploadFoto, setFazendoUploadFoto] = useState<boolean>(false);
 
   const [nome, setNome] = useState<string>('');
   const [codigoInterno, setCodigoInterno] = useState<string>('');
@@ -327,16 +415,19 @@ export const ProdutoCadastro: React.FC = () => {
     carregarAux();
   }, [loja?.id]);
 
-  // Manipular upload de imagem (câmera ou galeria)
-  const handleProcessarArquivoImagem = (file: File) => {
+  // Manipular upload de imagem (câmera ou galeria) com compressão e Supabase Storage
+  const handleProcessarArquivoImagem = async (file: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setFotoPrincipal(base64);
-      setFotosUrls(prev => [base64, ...prev.filter(f => f !== base64)]);
-    };
-    reader.readAsDataURL(file);
+    try {
+      setFazendoUploadFoto(true);
+      const { publicUrl, dataUrl } = await uploadFotoParaSupabase(file, loja?.id || 'geral');
+      setFotoPrincipal(publicUrl);
+      setFotosUrls(prev => [publicUrl, ...prev.filter(f => f !== publicUrl && f !== dataUrl)]);
+    } catch (err) {
+      console.error('Erro ao processar imagem:', err);
+    } finally {
+      setFazendoUploadFoto(false);
+    }
   };
 
   // Preenchimento com Inteligência Artificial a partir da Foto
@@ -593,7 +684,19 @@ export const ProdutoCadastro: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
             {/* Foto Principal / Preview */}
             <div className="md:col-span-5 flex flex-col items-center justify-center">
-              {fotoPrincipal ? (
+              {fazendoUploadFoto ? (
+                <div className="w-full aspect-square max-w-[260px] rounded-2xl border-2 border-indigo-500/50 bg-indigo-500/10 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-pulse">
+                  <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
+                  <div>
+                    <span className="font-bold text-xs text-indigo-200 block">
+                      Comprimindo & Enviando...
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Salvando foto otimizada na nuvem
+                    </span>
+                  </div>
+                </div>
+              ) : fotoPrincipal ? (
                 <div className="relative w-full aspect-square max-w-[260px] rounded-2xl overflow-hidden border-2 border-indigo-500/40 bg-slate-950 shadow-xl group">
                   <img
                     src={fotoPrincipal}
@@ -604,7 +707,7 @@ export const ProdutoCadastro: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => cameraInputRef.current?.click()}
-                      className="p-2 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition"
+                      className="p-2 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition cursor-pointer"
                       title="Tirar outra foto"
                     >
                       <Camera className="w-5 h-5" />
@@ -615,7 +718,7 @@ export const ProdutoCadastro: React.FC = () => {
                         setFotoPrincipal('');
                         setFotosUrls(prev => prev.filter(f => f !== fotoPrincipal));
                       }}
-                      className="p-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 transition"
+                      className="p-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 transition cursor-pointer"
                       title="Remover foto"
                     >
                       <Trash2 className="w-5 h-5" />
