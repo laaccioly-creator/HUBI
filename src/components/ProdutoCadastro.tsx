@@ -152,26 +152,62 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
         }
       };
 
-      const modelosParaTentar = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
       let resData: any = null;
       let ultimoErro: any = null;
 
+      // 1. Tentar descobrir dinamicamente os modelos disponíveis para esta chave de API
+      let modelosDisponiveis: string[] = [];
+      try {
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (listRes.ok) {
+          const listJson = await listRes.json();
+          if (Array.isArray(listJson.models)) {
+            modelosDisponiveis = listJson.models
+              .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent') && m.name?.includes('gemini'))
+              .map((m: any) => m.name.replace('models/', ''));
+          }
+        }
+      } catch (e) {
+        // Silencioso se a listagem falhar
+      }
+
+      // Lista prioritária com os modelos descobertos + padrões
+      const modelosParaTentar = Array.from(new Set([
+        ...modelosDisponiveis.filter(m => m.includes('flash')),
+        ...modelosDisponiveis,
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-8b',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-exp',
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-pro'
+      ])).filter(Boolean);
+
       for (const modelo of modelosParaTentar) {
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-          });
+          const endpoints = [
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1/models/${modelo}:generateContent?key=${apiKey}`
+          ];
 
-          if (response.ok) {
-            resData = await response.json();
-            break;
-          } else {
-            const errJson = await response.json();
-            ultimoErro = errJson?.error?.message || response.statusText;
+          for (const endpoint of endpoints) {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (response.ok) {
+              resData = await response.json();
+              break;
+            } else {
+              const errJson = await response.json();
+              ultimoErro = errJson?.error?.message || response.statusText;
+            }
           }
+
+          if (resData) break;
         } catch (e) {
           ultimoErro = e;
         }
