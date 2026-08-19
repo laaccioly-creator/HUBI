@@ -24,13 +24,39 @@ import {
   FolderPlus,
   ArrowRight,
   Calculator,
-  Percent
+  Percent,
+  Search,
+  Building2,
+  TrendingUp,
+  TrendingDown,
+  Store,
+  ShoppingBag,
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
+
+export interface PrecoConcorrente {
+  loja: string;
+  preco: number;
+  tipo?: string;
+  observacao?: string;
+}
+
+export interface DadosMercadoIA {
+  precoMedio: number;
+  menorPreco: number;
+  maiorPreco: number;
+  totalPesquisados: number;
+  concorrentes: PrecoConcorrente[];
+  menoresPrecos: PrecoConcorrente[];
+  maioresPrecos: PrecoConcorrente[];
+  dataConsulta: string;
+}
 
 export interface ProdutoSugeridoIA {
   nome: string;
@@ -40,6 +66,7 @@ export interface ProdutoSugeridoIA {
   descricao?: string;
   tipo_unidade?: string;
   codigo_barras?: string;
+  dados_mercado?: DadosMercadoIA;
 }
 
 const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
@@ -230,6 +257,120 @@ const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: str
   });
 };
 
+const processarListaConcorrentes = (rawList: any[], precoMedioFallback: number): DadosMercadoIA => {
+  const listaBruta: PrecoConcorrente[] = (Array.isArray(rawList) ? rawList : [])
+    .map((c: any) => ({
+      loja: String(c.loja || c.estabelecimento || 'Loja de Varejo'),
+      preco: Number(c.preco || c.valor) || 0,
+      tipo: String(c.tipo || 'Varejo Online'),
+      observacao: c.observacao ? String(c.observacao) : undefined
+    }))
+    .filter((c: PrecoConcorrente) => c.preco > 0);
+
+  const ordenados = [...listaBruta].sort((a, b) => a.preco - b.preco);
+  const menoresPrecos = ordenados.slice(0, 5);
+  const maioresPrecos = [...ordenados].reverse().slice(0, 5);
+
+  const soma = listaBruta.reduce((acc, c) => acc + c.preco, 0);
+  const mediaCalculada = listaBruta.length > 0
+    ? Number((soma / listaBruta.length).toFixed(2))
+    : Number(precoMedioFallback) || 0;
+
+  return {
+    precoMedio: mediaCalculada,
+    menorPreco: ordenados.length > 0 ? ordenados[0].preco : mediaCalculada,
+    maiorPreco: ordenados.length > 0 ? ordenados[ordenados.length - 1].preco : mediaCalculada,
+    totalPesquisados: listaBruta.length,
+    concorrentes: listaBruta,
+    menoresPrecos,
+    maioresPrecos,
+    dataConsulta: new Date().toLocaleDateString('pt-BR')
+  };
+};
+
+let modelosGeminiValidosCache: string[] | null = null;
+
+const obterModelosValidosGemini = async (apiKey: string): Promise<string[]> => {
+  if (modelosGeminiValidosCache && modelosGeminiValidosCache.length > 0) {
+    return modelosGeminiValidosCache;
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (res.ok) {
+      const data = await res.json();
+      const models = data?.models || [];
+      const lista = models
+        .filter((m: any) =>
+          Array.isArray(m.supportedGenerationMethods) &&
+          m.supportedGenerationMethods.includes('generateContent') &&
+          !m.name.includes('embedding') &&
+          !m.name.includes('aqa') &&
+          !m.name.includes('bison')
+        )
+        .map((m: any) => m.name.replace('models/', ''));
+
+      if (lista.length > 0) {
+        lista.sort((a: string, b: string) => {
+          const aP = a.includes('flash') ? 10 : a.includes('pro') ? 5 : 1;
+          const bP = b.includes('flash') ? 10 : b.includes('pro') ? 5 : 1;
+          return bP - aP;
+        });
+        modelosGeminiValidosCache = lista;
+        return lista;
+      }
+    }
+  } catch (e) {
+    console.warn('Erro ao consultar lista de modelos do Gemini, usando fallback:', e);
+  }
+
+  return [
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-002',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+    'gemini-pro'
+  ];
+};
+
+const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promise<any> => {
+  const modelos = await obterModelosValidosGemini(apiKey);
+  let primeiroErro: string | null = null;
+
+  for (const modelo of modelos) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        return await response.json();
+      } else {
+        const errJson = await response.json().catch(() => ({}));
+        const msg = errJson?.error?.message || response.statusText;
+        if (!primeiroErro) primeiroErro = msg;
+        console.warn(`Tentativa com modelo ${modelo} retornou erro:`, msg);
+      }
+    } catch (e: any) {
+      if (!primeiroErro) primeiroErro = e?.message || String(e);
+      console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
+    }
+  }
+
+  throw new Error(primeiroErro || 'Não foi possível se comunicar com o Google Gemini.');
+};
+
 const identificarProdutoPorFoto = async (
   imageBase64OrUrl: string
 ): Promise<ProdutoSugeridoIA> => {
@@ -241,7 +382,7 @@ const identificarProdutoPorFoto = async (
       const cleanBase64 = rawBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '').replace(/\s/g, '');
 
       const promptInstrucao = `
-Você é um especialista em catálogo de produtos e precificação de varejo no Brasil.
+Você é um especialista em catálogo de produtos e inteligência de precificação de varejo e e-commerce no Brasil.
 Analise detalhadamente a foto do produto enviada.
 
 Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional) com a seguinte estrutura:
@@ -252,7 +393,14 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "preco_custo_estimado": 0.00,
   "descricao": "Descrição comercial de alta conversão para catálogo online e WhatsApp destacando os benefícios, volume/tamanho e especificações do item.",
   "tipo_unidade": "un",
-  "codigo_barras": "Código de barras numérico se visível na foto, senão vazio"
+  "codigo_barras": "Código de barras numérico se visível na foto, senão vazio",
+  "concorrentes_mercado": [
+    { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "E-commerce" },
+    { "loja": "Shopee", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Magalu", "preco": 0.00, "tipo": "Varejista" },
+    { "loja": "Supermercados / Farmácias", "preco": 0.00, "tipo": "Varejo Físico" }
+  ]
 }
 `;
 
@@ -276,66 +424,34 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
         }
       };
 
-      // Modelos rápidos e estáveis de produção (sem modelos experimentais com 'thinking' que levam mais de 40s)
-      const modelosParaTentar = [
-        'gemini-1.5-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-2.5-flash'
-      ];
-
-      let resData: any = null;
-      let ultimoErro: any = null;
-
-      for (const modelo of modelosParaTentar) {
-        try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-          
-          // Timeout de 7 segundos por tentativa para não travar a experiência do usuário
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 7000);
-
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            resData = await response.json();
-            break;
-          } else {
-            const errJson = await response.json().catch(() => ({}));
-            ultimoErro = errJson?.error?.message || response.statusText;
-          }
-        } catch (e: any) {
-          ultimoErro = e?.message || e;
-        }
-      }
+      const resData = await executarRequisicaoGemini(apiKey, requestBody);
 
       if (resData) {
         const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (rawText) {
           const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(jsonLimpo);
+          const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
+
+          let dadosMercadoFormatados: DadosMercadoIA | undefined = undefined;
+          if (Array.isArray(parsed.concorrentes_mercado) && parsed.concorrentes_mercado.length > 0) {
+            dadosMercadoFormatados = processarListaConcorrentes(parsed.concorrentes_mercado, precoEstimado);
+          }
+
           return {
             nome: parsed.nome || 'Produto Identificado',
             categoria_sugerida: parsed.categoria_sugerida || 'Geral',
-            preco_venda_estimado: Number(parsed.preco_venda_estimado) || 0,
+            preco_venda_estimado: precoEstimado,
             preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
             descricao: parsed.descricao || '',
             tipo_unidade: parsed.tipo_unidade || 'un',
-            codigo_barras: parsed.codigo_barras || ''
+            codigo_barras: parsed.codigo_barras || '',
+            dados_mercado: dadosMercadoFormatados
           };
         }
-      } else if (ultimoErro) {
-        console.warn('Aviso ao consultar Gemini API:', ultimoErro);
-        throw new Error(ultimoErro);
       }
     } catch (err: any) {
-      console.warn('Erro ao chamar Gemini Vision API, usando fallback:', err);
+      console.warn('Erro ao chamar Gemini Vision API:', err);
       throw err;
     }
   } else {
@@ -351,6 +467,63 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
     tipo_unidade: 'un',
     codigo_barras: ''
   };
+};
+
+const pesquisarPrecosMercadoIA = async (
+  nomeProduto: string,
+  categoriaNome?: string,
+  barcode?: string
+): Promise<DadosMercadoIA> => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no topo da página.');
+  }
+
+  const promptTexto = `
+Você é um especialista em inteligência de mercado e monitoramento de preços de produtos no varejo e e-commerce brasileiro.
+Pesquise e levante os preços reais de varejo praticados no Brasil para o seguinte item:
+
+Produto: "${nomeProduto}"
+${categoriaNome ? `Categoria: "${categoriaNome}"` : ''}
+${barcode ? `Código de Barras/EAN: "${barcode}"` : ''}
+
+Identifique entre 10 a 14 estabelecimentos, lojas online, marketplaces e grandes redes que comercializam este produto ou itens similares da mesma categoria no Brasil (ex: Mercado Livre, Amazon Brasil, Magalu, Shopee, Droga Raia, Drogasil, Carrefour, Pão de Açúcar, Americanas, Farmácias Pague Menos, Petz, Cobasi, Kalunga, Casas Bahia, lojas especializadas de atacado/distribuição, etc.).
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional) no seguinte formato:
+{
+  "preco_medio": 0.00,
+  "concorrentes": [
+    { "loja": "Shopee", "preco": 32.90, "tipo": "Marketplace" },
+    { "loja": "Mercado Livre", "preco": 35.90, "tipo": "Marketplace" },
+    { "loja": "Amazon Brasil", "preco": 38.90, "tipo": "E-commerce" },
+    { "loja": "Magalu", "preco": 39.90, "tipo": "Varejista" },
+    { "loja": "Supermercado / Farmácia", "preco": 44.90, "tipo": "Varejo Físico" }
+  ]
+}
+`;
+
+  const requestBody: any = {
+    contents: [
+      {
+        parts: [{ text: promptTexto }]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      response_mime_type: 'application/json'
+    }
+  };
+
+  const resData = await executarRequisicaoGemini(apiKey, requestBody);
+
+  const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error('Resposta vazia da IA.');
+
+  const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+  const parsed = JSON.parse(jsonLimpo);
+
+  const lista = parsed.concorrentes || [];
+  return processarListaConcorrentes(lista, Number(parsed.preco_medio) || 0);
 };
 
 export const ProdutoCadastro: React.FC = () => {
@@ -435,6 +608,12 @@ export const ProdutoCadastro: React.FC = () => {
   const [unidadesLista, setUnidadesLista] = useState<Array<{ sigla: string; nome: string }>>(
     UNIDADES_PADRAO.map(u => ({ sigla: u.sigla, nome: u.nome }))
   );
+
+  // Radar de Preços de Mercado (IA)
+  const [modalRadarAberto, setModalRadarAberto] = useState<boolean>(false);
+  const [dadosMercado, setDadosMercado] = useState<DadosMercadoIA | null>(null);
+  const [buscandoMercado, setBuscandoMercado] = useState<boolean>(false);
+  const [erroMercado, setErroMercado] = useState<string | null>(null);
 
   // Regras de Precificação (Descontos padrão da loja)
   const [regrasPrecificacao, setRegrasPrecificacao] = useState<{
@@ -742,6 +921,11 @@ export const ProdutoCadastro: React.FC = () => {
           setCodigoBarras(dadosSugeridos.codigo_barras);
         }
 
+        // Salvar dados de concorrentes e mercado identificados pela IA
+        if (dadosSugeridos.dados_mercado) {
+          setDadosMercado(dadosSugeridos.dados_mercado);
+        }
+
         // Vincular e sugerir categoria e código interno
         if (dadosSugeridos.categoria_sugerida && categorias.length > 0) {
           const catMatch = categorias.find(c =>
@@ -754,7 +938,7 @@ export const ProdutoCadastro: React.FC = () => {
           }
         }
 
-        setSucessoIAMsg('✨ Informações do produto identificadas com sucesso a partir da foto!');
+        setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso!');
       }
     } catch (err: any) {
       console.error('Erro na identificação por IA:', err);
@@ -762,6 +946,44 @@ export const ProdutoCadastro: React.FC = () => {
     } finally {
       setAnalisandoIA(false);
     }
+  };
+
+  // Funções do Radar de Preços de Mercado
+  const handleAbrirRadarPrecos = async () => {
+    setModalRadarAberto(true);
+    setErroMercado(null);
+
+    // Se ainda não temos dados ou se o usuário deseja consultar
+    if (!dadosMercado) {
+      if (!nome.trim()) {
+        setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
+        return;
+      }
+      await buscarConcorrentesMercado();
+    }
+  };
+
+  const buscarConcorrentesMercado = async () => {
+    if (!nome.trim()) {
+      setErroMercado('Informe o nome do produto para realizar a pesquisa de mercado.');
+      return;
+    }
+    try {
+      setBuscandoMercado(true);
+      setErroMercado(null);
+      const catNome = categorias.find(c => c.id === categoriaId)?.nome;
+      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras);
+      setDadosMercado(resultado);
+    } catch (err: any) {
+      setErroMercado(err.message || 'Erro ao pesquisar preços de mercado.');
+    } finally {
+      setBuscandoMercado(false);
+    }
+  };
+
+  const handleAplicarPrecoMercado = (novoPreco: number) => {
+    handlePrecoVarejoChange(novoPreco.toFixed(2));
+    setModalRadarAberto(false);
   };
 
   // Gerenciamento de Opções da Variação
@@ -1413,14 +1635,18 @@ export const ProdutoCadastro: React.FC = () => {
                 <span>3. Tabelas de Preço & Custos</span>
               </h2>
 
+              {/* BOTÃO RADAR DE PREÇOS NO LUGAR DO PERCENTUAL DE DESCONTO */}
               <button
                 type="button"
-                onClick={() => navigate('/auxiliares')}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 cursor-pointer"
-                title="Configurar percentuais de atacado e autoatacado"
+                onClick={handleAbrirRadarPrecos}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 hover:from-indigo-500 hover:to-purple-600 text-indigo-300 hover:text-white border border-indigo-500/30 hover:border-indigo-500 text-xs font-bold transition shadow-sm cursor-pointer group"
+                title="Comparar preços praticados por concorrentes e marketplaces na internet"
               >
-                <Percent className="w-3.5 h-3.5" />
-                <span>Regras de Desconto ({regrasPrecificacao.descontoAtacado}% / {regrasPrecificacao.descontoAutoatacado}%)</span>
+                <Search className="w-3.5 h-3.5 text-indigo-400 group-hover:text-white transition" />
+                <span>Radar de Preços</span>
+                <span className="text-[9px] bg-indigo-500/30 group-hover:bg-white/20 text-indigo-200 group-hover:text-white px-1.5 py-0.2 rounded-full font-black">
+                  IA
+                </span>
               </button>
             </div>
 
@@ -1432,8 +1658,9 @@ export const ProdutoCadastro: React.FC = () => {
                   step="0.01"
                   value={precoCusto}
                   onChange={(e) => setPrecoCusto(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
+                <span className="text-[10px] text-slate-500 block">Custo de compra/produção</span>
               </div>
 
               <div className="space-y-1">
@@ -1447,10 +1674,10 @@ export const ProdutoCadastro: React.FC = () => {
                   onChange={(e) => handlePrecoVarejoChange(e.target.value)}
                   className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400"
                 />
-                <span className="text-[10px] text-slate-500 block">Preço base unitário</span>
+                <span className="text-[10px] text-slate-500 block">Preço base de balcão</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300">Preço Atacado (R$)</label>
                   {precoVendaVarejo && (
@@ -1465,69 +1692,12 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 39.90"
                   value={precoVendaAtacado}
                   onChange={(e) => setPrecoVendaAtacado(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
-
-                {/* Critério Mínimo de Atacado: Quantidade OU Valor (Pílulas Exclusivas) */}
-                <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-slate-400 font-semibold">Critério Mínimo:</span>
-                    <div className="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => setTipoMinimoAtacado('quantidade')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
-                          tipoMinimoAtacado === 'quantidade'
-                            ? 'bg-emerald-500 text-white'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Qtd (un)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTipoMinimoAtacado('valor')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
-                          tipoMinimoAtacado === 'valor'
-                            ? 'bg-emerald-500 text-white'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Valor (R$)
-                      </button>
-                    </div>
-                  </div>
-
-                  {tipoMinimoAtacado === 'quantidade' ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mínimo:</span>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="6"
-                        value={qtdMinimaAtacado}
-                        onChange={(e) => setQtdMinimaAtacado(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-emerald-500"
-                      />
-                      <span className="text-[10px] text-slate-400">un</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mín: R$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="300.00"
-                        value={valorMinimoAtacado}
-                        onChange={(e) => setValorMinimoAtacado(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-emerald-400 font-bold focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  )}
-                </div>
+                <span className="text-[10px] text-slate-500 block">Conforme regra da loja</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300">Preço Autoatacado (R$)</label>
                   {precoVendaVarejo && (
@@ -1542,66 +1712,9 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 32.90"
                   value={precoVendaAutoatacado}
                   onChange={(e) => setPrecoVendaAutoatacado(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
-
-                {/* Critério Mínimo de Autoatacado: Quantidade OU Valor (Pílulas Exclusivas) */}
-                <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-slate-400 font-semibold">Critério Mínimo:</span>
-                    <div className="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => setTipoMinimoAutoatacado('quantidade')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
-                          tipoMinimoAutoatacado === 'quantidade'
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Qtd (un)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTipoMinimoAutoatacado('valor')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
-                          tipoMinimoAutoatacado === 'valor'
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Valor (R$)
-                      </button>
-                    </div>
-                  </div>
-
-                  {tipoMinimoAutoatacado === 'quantidade' ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mínimo:</span>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="24"
-                        value={qtdMinimaAutoatacado}
-                        onChange={(e) => setQtdMinimaAutoatacado(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500"
-                      />
-                      <span className="text-[10px] text-slate-400">un</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mín: R$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="1000.00"
-                        value={valorMinimoAutoatacado}
-                        onChange={(e) => setValorMinimoAutoatacado(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-indigo-400 font-bold focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  )}
-                </div>
+                <span className="text-[10px] text-slate-500 block">Conforme regra da loja</span>
               </div>
             </div>
           </div>
@@ -1989,6 +2102,260 @@ export const ProdutoCadastro: React.FC = () => {
               >
                 Salvar Chave
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Radar de Preços de Mercado (IA) */}
+      {modalRadarAberto && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header do Modal */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-md">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm sm:text-base text-slate-100">
+                      Radar de Preços de Mercado
+                    </h3>
+                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold">
+                      IA Gemini
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 truncate max-w-md mt-0.5">
+                    {nome ? `Comparativo de concorrentes para: "${nome}"` : 'Pesquisa de preços na internet'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalRadarAberto(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+              {buscandoMercado ? (
+                <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+                    <Sparkles className="w-6 h-6 text-amber-400 absolute inset-0 m-auto animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-100">
+                      Consultando Mercado e Concorrentes...
+                    </h4>
+                    <p className="text-xs text-slate-400 max-w-sm mt-1">
+                      Pesquisando valores praticados no Mercado Livre, Shopee, Amazon, Magalu, farmácias e supermercados para "{nome}".
+                    </p>
+                  </div>
+                </div>
+              ) : erroMercado ? (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-3 text-center">
+                  <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
+                  <div>
+                    <h4 className="font-bold text-xs text-rose-300">Não foi possível consultar os preços</h4>
+                    <p className="text-[11px] text-slate-400 mt-1">{erroMercado}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={buscarConcorrentesMercado}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                  >
+                    Tentar Novamente
+                  </button>
+                </div>
+              ) : dadosMercado ? (
+                <>
+                  {/* CARD DE RESUMO GERAL (MÉDIA & DESTAQUES) */}
+                  <div className="bg-gradient-to-r from-indigo-950/70 via-slate-900 to-indigo-950/70 p-4 rounded-2xl border border-indigo-500/30 space-y-3 shadow-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                          Preço Médio de Mercado
+                        </span>
+                        <div className="flex items-baseline gap-2 mt-0.5">
+                          <span className="text-2xl sm:text-3xl font-black text-white">
+                            R$ {dadosMercado.precoMedio.toFixed(2)}
+                          </span>
+                          <span className="text-[11px] text-indigo-300 font-medium">
+                            (Baseado em {dadosMercado.totalPesquisados} lojas)
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                      >
+                        <Zap className="w-4 h-4 fill-white" />
+                        <span>Aplicar Preço Médio (R$ {dadosMercado.precoMedio.toFixed(2)})</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-indigo-500/20 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                        <TrendingDown className="w-4 h-4 shrink-0" />
+                        <span className="truncate">
+                          Menor: <b>R$ {dadosMercado.menorPreco.toFixed(2)}</b> ({dadosMercado.menoresPrecos[0]?.loja || 'Concorrente'})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-300 font-semibold">
+                        <TrendingUp className="w-4 h-4 shrink-0" />
+                        <span className="truncate">
+                          Maior: <b>R$ {dadosMercado.maiorPreco.toFixed(2)}</b> ({dadosMercado.maioresPrecos[0]?.loja || 'Concorrente'})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DUAS COLUNAS: 5 MENORES VS 5 MAIORES PREÇOS */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 5 MENORES PREÇOS */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-400 px-1">
+                        <span className="flex items-center gap-1.5">
+                          <TrendingDown className="w-3.5 h-3.5" />
+                          5 Menores Preços Localizados
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-normal">Mais competitivos</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {dadosMercado.menoresPrecos.length === 0 ? (
+                          <div className="text-center py-6 text-slate-500 text-xs">Nenhum registro listado.</div>
+                        ) : (
+                          dadosMercado.menoresPrecos.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <h5 className="font-bold text-xs text-slate-200 truncate">{item.loja}</h5>
+                                </div>
+                                <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                  {item.tipo || 'Varejo'}
+                                </span>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <span className="font-black text-xs sm:text-sm text-emerald-400 block">
+                                  R$ {item.preco.toFixed(2)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAplicarPrecoMercado(item.preco)}
+                                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline mt-0.5 cursor-pointer block"
+                                >
+                                  Usar este
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 5 MAIORES PREÇOS */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-indigo-300 px-1">
+                        <span className="flex items-center gap-1.5">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          5 Maiores Preços Localizados
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-normal">Teto de mercado</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {dadosMercado.maioresPrecos.length === 0 ? (
+                          <div className="text-center py-6 text-slate-500 text-xs">Nenhum registro listado.</div>
+                        ) : (
+                          dadosMercado.maioresPrecos.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <h5 className="font-bold text-xs text-slate-200 truncate">{item.loja}</h5>
+                                </div>
+                                <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                  {item.tipo || 'Varejo'}
+                                </span>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <span className="font-black text-xs sm:text-sm text-indigo-300 block">
+                                  R$ {item.preco.toFixed(2)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAplicarPrecoMercado(item.preco)}
+                                  className="text-[10px] font-bold text-indigo-300 hover:text-indigo-200 underline mt-0.5 cursor-pointer block"
+                                >
+                                  Usar este
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12 text-slate-400 space-y-2">
+                  <Search className="w-8 h-8 text-slate-500 mx-auto" />
+                  <p className="text-xs">Nenhuma pesquisa realizada ainda.</p>
+                  <button
+                    type="button"
+                    onClick={buscarConcorrentesMercado}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs"
+                  >
+                    Iniciar Pesquisa
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                {dadosMercado ? `Pesquisa atualizada em ${dadosMercado.dataConsulta}` : 'Inteligência de mercado integrada'}
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={buscarConcorrentesMercado}
+                  disabled={buscandoMercado || !nome.trim()}
+                  className="px-3 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  title="Atualizar cotações de concorrentes"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${buscandoMercado ? 'animate-spin' : ''}`} />
+                  <span>Atualizar Pesquisa</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalRadarAberto(false)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>

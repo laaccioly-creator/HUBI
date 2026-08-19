@@ -15,14 +15,22 @@ import {
   Tag,
   ArrowRight,
   Layers,
-  X
+  X,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido } from '../types';
 import { PrintService } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
+import { SyncService } from '../services/syncService';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { VendaOfflineFila } from '../services/offlineDb';
 
 export const PosCheckout: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -47,6 +55,15 @@ export const PosCheckout: React.FC = () => {
     limparCarrinho
   } = useCart();
 
+  const {
+    isOnline,
+    pendentesCount,
+    sincronizando,
+    ultimoSyncMsg,
+    atualizarContadorPendentes,
+    sincronizarAgora
+  } = useNetworkStatus(loja?.id);
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
@@ -61,6 +78,7 @@ export const PosCheckout: React.FC = () => {
   const [parcelasCartao, setParcelasCartao] = useState<number>(1);
   const [finalizandoVenda, setFinalizandoVenda] = useState<boolean>(false);
   const [pedidoConcluido, setPedidoConcluido] = useState<Pedido | null>(null);
+  const [ehVendaOfflineSalva, setEhVendaOfflineSalva] = useState<boolean>(false);
 
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -70,30 +88,15 @@ export const PosCheckout: React.FC = () => {
     const carregarDados = async () => {
       try {
         setCarregando(true);
-        const { data: prods } = await supabase
-          .from('produtos')
-          .select('*, variacoes:variacoes_produto(*)')
-          .eq('loja_id', loja.id)
-          .eq('ativo', true)
-          .order('nome');
-
-        if (prods) setProdutos(prods as unknown as Produto[]);
-
-        const { data: clis } = await supabase
-          .from('clientes')
-          .select('*')
-          .eq('loja_id', loja.id)
-          .order('nome');
-        if (clis) setClientes(clis);
-
-        const { data: fps } = await supabase
-          .from('formas_pagamento')
-          .select('*')
-          .eq('loja_id', loja.id)
-          .eq('ativo', true);
-        if (fps) {
-          setFormasPagamento(fps);
-          if (fps.length > 0) setFormaPagamentoEscolhida(fps[0]);
+        // Carregamento Híbrido: sincroniza do Supabase para o IndexedDB e traz os dados
+        const dados = await SyncService.baixarDadosParaOffline(loja.id);
+        if (dados.produtos) setProdutos(dados.produtos);
+        if (dados.clientes) setClientes(dados.clientes);
+        if (dados.formasPagamento) {
+          setFormasPagamento(dados.formasPagamento);
+          if (dados.formasPagamento.length > 0 && !formaPagamentoEscolhida) {
+            setFormaPagamentoEscolhida(dados.formasPagamento[0]);
+          }
         }
       } catch (err) {
         console.error('Erro ao carregar dados do PDV:', err);
@@ -151,8 +154,13 @@ export const PosCheckout: React.FC = () => {
 
     try {
       setFinalizandoVenda(true);
+      setEhVendaOfflineSalva(false);
 
-      const novoPedido = {
+      const taxaValor = (total * Number(formaPagamentoEscolhida.taxa_percentual || 0)) / 100;
+      const valorLiquido = total - taxaValor;
+      const dataIso = new Date().toISOString();
+
+      const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: usuario.id,
         cliente_id: clienteSelecionado ? clienteSelecionado.id : null,
@@ -166,20 +174,11 @@ export const PosCheckout: React.FC = () => {
         valor_pago: ehFiado ? 0 : total,
         saldo_devedor: ehFiado ? total : 0,
         fiado_quitado: !ehFiado,
-        data_venda: new Date().toISOString()
+        data_venda: dataIso
       };
-
-      const { data: pedidoCriado, error: erroPedido } = await supabase
-        .from('pedidos')
-        .insert([novoPedido])
-        .select()
-        .single();
-
-      if (erroPedido || !pedidoCriado) throw erroPedido;
 
       const itensFormatados = itens.map(item => ({
         loja_id: loja.id,
-        pedido_id: pedidoCriado.id,
         produto_id: item.produto.id,
         variacao_id: item.variacao ? item.variacao.id : null,
         tabela_preco_utilizada: item.tabelaPrecoUtilizada,
@@ -192,34 +191,101 @@ export const PosCheckout: React.FC = () => {
         observacoes: item.observacoes || null
       }));
 
-      const { error: erroItens } = await supabase.from('itens_pedido').insert(itensFormatados);
-      if (erroItens) throw erroItens;
-
-      const taxaValor = (total * Number(formaPagamentoEscolhida.taxa_percentual || 0)) / 100;
-      const valorLiquido = total - taxaValor;
-
-      await supabase.from('pagamentos_pedido').insert([
-        {
-          loja_id: loja.id,
-          pedido_id: pedidoCriado.id,
-          forma_pagamento_id: formaPagamentoEscolhida.id,
-          valor: total,
-          parcelas: parcelasCartao,
-          valor_taxa: taxaValor,
-          valor_liquido: valorLiquido,
-          data_pagamento: new Date().toISOString(),
-          eh_pagamento_fiado: ehFiado
-        }
-      ]);
-
-      const pedidoCompleto: Pedido = {
-        ...pedidoCriado,
-        cliente: clienteSelecionado,
-        vendedor: usuario,
-        itens: itensFormatados as any
+      const dadosPagamento = {
+        loja_id: loja.id,
+        forma_pagamento_id: formaPagamentoEscolhida.id,
+        valor: total,
+        parcelas: parcelasCartao,
+        valor_taxa: taxaValor,
+        valor_liquido: valorLiquido,
+        data_pagamento: dataIso,
+        eh_pagamento_fiado: ehFiado
       };
 
-      setPedidoConcluido(pedidoCompleto);
+      // Se estiver online, tenta enviar direto para o Supabase
+      if (navigator.onLine) {
+        try {
+          const { data: pedidoCriado, error: erroPedido } = await supabase
+            .from('pedidos')
+            .insert([dadosBasePedido])
+            .select()
+            .single();
+
+          if (erroPedido || !pedidoCriado) throw erroPedido;
+
+          const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
+          const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+          if (erroItens) throw erroItens;
+
+          await supabase.from('pagamentos_pedido').insert([{
+            ...dadosPagamento,
+            pedido_id: pedidoCriado.id
+          }]);
+
+          const pedidoCompleto: Pedido = {
+            ...pedidoCriado,
+            cliente: clienteSelecionado,
+            vendedor: usuario,
+            itens: itensComId as any
+          };
+
+          setPedidoConcluido(pedidoCompleto);
+          setModalFechamento(false);
+          limparCarrinho();
+          setValorRecebidoDinheiro('');
+          return;
+        } catch (nuvemErr) {
+          console.warn('Falha no envio para o Supabase, realizando fallback para o banco offline local:', nuvemErr);
+          // Continua para o salvamento offline abaixo
+        }
+      }
+
+      // SALVAMENTO OFFLINE RESILIENTE (IndexedDB)
+      const idLocal = 'offline_' + (typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()));
+      const numPedidoOffline = Math.floor(100000 + Math.random() * 900000);
+
+      const vendaOffline: VendaOfflineFila = {
+        id_local: idLocal,
+        ...dadosBasePedido,
+        itens: itensFormatados,
+        pagamento: dadosPagamento,
+        cliente_dados: clienteSelecionado,
+        vendedor_dados: usuario,
+        criado_em: dataIso,
+        tentativas_sync: 0
+      };
+
+      await SyncService.registrarVendaOffline(vendaOffline);
+      await atualizarContadorPendentes();
+
+      // Abater estoque local em memória para resposta instantânea
+      setProdutos(prev => prev.map(p => {
+        const itemVendido = itens.find(it => it.produto.id === p.id);
+        if (itemVendido) {
+          return {
+            ...p,
+            quantidade_estoque: Math.max(0, (p.quantidade_estoque || 0) - itemVendido.quantidade)
+          };
+        }
+        return p;
+      }));
+
+      const pedidoOfflineCompleto: Pedido = {
+        id: idLocal,
+        numero_pedido: numPedidoOffline,
+        ...dadosBasePedido,
+        cliente: clienteSelecionado,
+        vendedor: usuario,
+        itens: itensFormatados.map(it => ({
+          ...it,
+          id: idLocal + '_' + it.produto_id,
+          tabela_preco_utilizada: it.tabela_preco_utilizada as TabelaPreco
+        })) as ItemPedido[],
+        criado_em: dataIso
+      };
+
+      setEhVendaOfflineSalva(true);
+      setPedidoConcluido(pedidoOfflineCompleto);
       setModalFechamento(false);
       limparCarrinho();
       setValorRecebidoDinheiro('');
@@ -246,8 +312,51 @@ export const PosCheckout: React.FC = () => {
     <div className="flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950">
       {/* PAINEL ESQUERDO: CATÁLOGO & BUSCA */}
       <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-800/80">
-        {/* Topo do PDV: Busca e Tabela de Preço */}
+        {/* Topo do PDV: Busca, Tabela de Preço e Status de Conexão */}
         <div className="p-3.5 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-3">
+          {/* Barra de Status de Conexão e Sincronização */}
+          <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800/60">
+            <div className="flex items-center gap-2">
+              {isOnline ? (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold text-[11px] border border-emerald-500/30">
+                  <Wifi className="w-3 h-3" />
+                  <span>Online (Sincronizado)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-bold text-[11px] border border-amber-500/30">
+                  <WifiOff className="w-3 h-3 text-amber-400 animate-pulse" />
+                  <span>Modo Offline</span>
+                </span>
+              )}
+
+              {pendentesCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] font-semibold border border-indigo-500/30">
+                  <CloudOff className="w-3 h-3" />
+                  <span>{pendentesCount} venda(s) na fila</span>
+                </span>
+              )}
+
+              {ultimoSyncMsg && (
+                <span className="text-[11px] text-emerald-400 font-medium animate-in fade-in">
+                  {ultimoSyncMsg}
+                </span>
+              )}
+            </div>
+
+            {isOnline && pendentesCount > 0 && (
+              <button
+                type="button"
+                onClick={sincronizarAgora}
+                disabled={sincronizando}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition cursor-pointer disabled:opacity-50"
+                title="Enviar vendas salvas offline para o Supabase agora"
+              >
+                <RefreshCw className={`w-3 h-3 ${sincronizando ? 'animate-spin' : ''}`} />
+                <span>{sincronizando ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
+              </button>
+            )}
+          </div>
+
           <div className="flex flex-col sm:flex-row items-center gap-2">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -660,8 +769,22 @@ export const PosCheckout: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-2">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h3 className="font-extrabold text-base text-slate-100">Venda Concluída com Sucesso!</h3>
+              <h3 className="font-extrabold text-base text-slate-100">
+                {ehVendaOfflineSalva ? 'Venda Salva no Modo Offline!' : 'Venda Concluída com Sucesso!'}
+              </h3>
               <p className="text-xs text-slate-400">Pedido #{pedidoConcluido.numero_pedido} registrado no sistema.</p>
+
+              {ehVendaOfflineSalva && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 text-left space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CloudOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Armazenado com segurança localmente</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    O pedido foi gravado no dispositivo e será enviado automaticamente para a nuvem assim que a internet reconectar.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1.5 font-mono text-xs text-slate-300">
