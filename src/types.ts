@@ -39,8 +39,26 @@ export interface Loja {
   instrucoes_pos_pedido?: string | null;
   valor_minimo_pedido: number;
   tipo_plano: string;
+  desconto_padrao_atacado_percentual?: number | null;
+  tipo_minimo_padrao_atacado?: 'quantidade' | 'valor' | null;
+  qtd_minima_padrao_atacado?: number | null;
+  valor_minimo_padrao_atacado?: number | null;
+  desconto_padrao_autoatacado_percentual?: number | null;
+  tipo_minimo_padrao_autoatacado?: 'quantidade' | 'valor' | null;
+  qtd_minima_padrao_autoatacado?: number | null;
+  valor_minimo_padrao_autoatacado?: number | null;
   criado_em?: string;
   atualizado_em?: string;
+}
+
+export interface UnidadeMedida {
+  id: string;
+  loja_id: string;
+  sigla: string;
+  nome: string;
+  permite_fracionado: boolean;
+  padrao?: boolean;
+  criado_em?: string;
 }
 
 export interface UsuarioLoja {
@@ -95,9 +113,13 @@ export interface Produto {
   preco_custo: number;
   preco_venda_varejo: number;
   preco_venda_atacado?: number | null;
+  tipo_minimo_atacado?: 'quantidade' | 'valor' | null;
   qtd_minima_atacado: number;
+  valor_minimo_atacado?: number | null;
   preco_venda_autoatacado?: number | null;
+  tipo_minimo_autoatacado?: 'quantidade' | 'valor' | null;
   qtd_minima_autoatacado: number;
+  valor_minimo_autoatacado?: number | null;
   preco_promocional?: number | null;
   promocao_ativa: boolean;
   quantidade_estoque: number;

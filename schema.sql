@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS public.lojas (
     instrucoes_pos_pedido TEXT,
     valor_minimo_pedido NUMERIC(12,2) DEFAULT 0.00,
     tipo_plano VARCHAR(20) DEFAULT 'GROW',
+    desconto_padrao_atacado_percentual NUMERIC(5,2) DEFAULT 20.00,
+    tipo_minimo_padrao_atacado VARCHAR(20) DEFAULT 'quantidade',
+    qtd_minima_padrao_atacado NUMERIC(12,2) DEFAULT 6.00,
+    valor_minimo_padrao_atacado NUMERIC(12,2) DEFAULT 0.00,
+    desconto_padrao_autoatacado_percentual NUMERIC(5,2) DEFAULT 25.00,
+    tipo_minimo_padrao_autoatacado VARCHAR(20) DEFAULT 'quantidade',
+    qtd_minima_padrao_autoatacado NUMERIC(12,2) DEFAULT 24.00,
+    valor_minimo_padrao_autoatacado NUMERIC(12,2) DEFAULT 0.00,
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );
@@ -85,6 +93,18 @@ CREATE TABLE IF NOT EXISTS public.fornecedores (
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: unidades_medida (Unidades de Medida Customizadas e Padrões)
+CREATE TABLE IF NOT EXISTS public.unidades_medida (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    sigla VARCHAR(10) NOT NULL,
+    nome VARCHAR(50) NOT NULL,
+    permite_fracionado BOOLEAN DEFAULT FALSE,
+    padrao BOOLEAN DEFAULT FALSE,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(loja_id, sigla)
+);
+
 -- Tabela: produtos (Produtos Principais com Múltiplas Tabelas de Preço)
 CREATE TABLE IF NOT EXISTS public.produtos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,9 +120,13 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     preco_custo NUMERIC(12,2) DEFAULT 0.00,
     preco_venda_varejo NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     preco_venda_atacado NUMERIC(12,2),
+    tipo_minimo_atacado VARCHAR(20) DEFAULT 'quantidade',
     qtd_minima_atacado NUMERIC(12,3) DEFAULT 6,
+    valor_minimo_atacado NUMERIC(12,2),
     preco_venda_autoatacado NUMERIC(12,2),
+    tipo_minimo_autoatacado VARCHAR(20) DEFAULT 'quantidade',
     qtd_minima_autoatacado NUMERIC(12,3) DEFAULT 24,
+    valor_minimo_autoatacado NUMERIC(12,2),
     preco_promocional NUMERIC(12,2),
     promocao_ativa BOOLEAN DEFAULT FALSE,
     quantidade_estoque NUMERIC(12,3) DEFAULT 0,
@@ -508,6 +532,9 @@ CREATE POLICY "categorias_all_policy" ON public.categorias FOR ALL USING (true) 
 DROP POLICY IF EXISTS "fornecedores_loja_all" ON public.fornecedores;
 DROP POLICY IF EXISTS "fornecedores_all_policy" ON public.fornecedores;
 CREATE POLICY "fornecedores_all_policy" ON public.fornecedores FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "unidades_medida_all_policy" ON public.unidades_medida;
+CREATE POLICY "unidades_medida_all_policy" ON public.unidades_medida FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "itens_combo_loja_all" ON public.itens_combo;
 DROP POLICY IF EXISTS "itens_combo_all_policy" ON public.itens_combo;

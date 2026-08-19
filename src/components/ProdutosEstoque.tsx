@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  Edit2,
   FolderPlus,
   PackagePlus,
   ArrowDownLeft,
@@ -280,14 +281,6 @@ export const ProdutosEstoque: React.FC = () => {
                               <span className="font-bold text-slate-100 block text-xs group-hover:text-emerald-400 transition">
                                 {produto.nome}
                               </span>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
-                                {produto.codigo_interno && <span>#{produto.codigo_interno}</span>}
-                                {produto.tem_variacoes && (
-                                  <span className="text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded font-semibold">
-                                    {produto.variacoes?.length || 0} variações
-                                  </span>
-                                )}
-                              </div>
                             </div>
                           </div>
                         </td>
@@ -356,6 +349,15 @@ export const ProdutosEstoque: React.FC = () => {
 
                         <td className="p-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Botão Alterar / Editar Produto */}
+                            <Link
+                              to={`/products/edit/${produto.id}`}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                              title="Alterar Produto"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Link>
+
                             <button
                               onClick={() => toggleDestaque(produto.id, produto.destaque)}
                               className={`p-1.5 rounded-lg transition cursor-pointer ${
@@ -368,7 +370,7 @@ export const ProdutosEstoque: React.FC = () => {
 
                             <button
                               onClick={() => excluirProduto(produto.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                               title="Excluir Produto"
                             >
                               <Trash2 className="w-4 h-4" />

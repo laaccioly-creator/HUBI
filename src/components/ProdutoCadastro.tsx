@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Sparkles,
@@ -22,11 +22,14 @@ import {
   Eye,
   Star,
   FolderPlus,
-  ArrowRight
+  ArrowRight,
+  Calculator,
+  Percent
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Categoria, Fornecedor } from '../types';
+import { Categoria, Fornecedor, UnidadeMedida } from '../types';
+import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 
 export interface ProdutoSugeridoIA {
@@ -364,11 +367,14 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 
 export const ProdutoCadastro: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const ehEdicao = Boolean(id);
   const { loja } = useAuth();
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [carregandoProduto, setCarregandoProduto] = useState<boolean>(false);
   const [analisandoIA, setAnalisandoIA] = useState<boolean>(false);
   const [sucessoIAMsg, setSucessoIAMsg] = useState<string | null>(null);
 
@@ -402,10 +408,17 @@ export const ProdutoCadastro: React.FC = () => {
   // Preços
   const [precoCusto, setPrecoCusto] = useState<string>('0.00');
   const [precoVendaVarejo, setPrecoVendaVarejo] = useState<string>('');
+
   const [precoVendaAtacado, setPrecoVendaAtacado] = useState<string>('');
+  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'quantidade' | 'valor'>('quantidade');
   const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState<string>('6');
+  const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>('300.00');
+
   const [precoVendaAutoatacado, setPrecoVendaAutoatacado] = useState<string>('');
+  const [tipoMinimoAutoatacado, setTipoMinimoAutoatacado] = useState<'quantidade' | 'valor'>('quantidade');
   const [qtdMinimaAutoatacado, setQtdMinimaAutoatacado] = useState<string>('24');
+  const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('1000.00');
+
   const [precoPromocional, setPrecoPromocional] = useState<string>('');
   const [promocaoAtiva, setPromocaoAtiva] = useState<boolean>(false);
 
@@ -431,60 +444,231 @@ export const ProdutoCadastro: React.FC = () => {
   const [novaOpcaoNome, setNovaOpcaoNome] = useState<string>('');
   const [novaOpcaoEstoque, setNovaOpcaoEstoque] = useState<string>('');
 
+  const [unidadesLista, setUnidadesLista] = useState<Array<{ sigla: string; nome: string }>>(
+    UNIDADES_PADRAO.map(u => ({ sigla: u.sigla, nome: u.nome }))
+  );
+
+  // Regras de Precificação (Descontos padrão da loja)
+  const [regrasPrecificacao, setRegrasPrecificacao] = useState<{
+    descontoAtacado: number;
+    tipoMinimoAtacado: 'quantidade' | 'valor';
+    qtdMinimaAtacado: number;
+    valorMinimoAtacado: number;
+    descontoAutoatacado: number;
+    tipoMinimoAutoatacado: 'quantidade' | 'valor';
+    qtdMinimaAutoatacado: number;
+    valorMinimoAutoatacado: number;
+  }>({
+    descontoAtacado: 20,
+    tipoMinimoAtacado: 'quantidade',
+    qtdMinimaAtacado: 6,
+    valorMinimoAtacado: 300,
+    descontoAutoatacado: 25,
+    tipoMinimoAutoatacado: 'quantidade',
+    qtdMinimaAutoatacado: 24,
+    valorMinimoAutoatacado: 1000
+  });
+
   const carregarAux = async () => {
     if (!loja?.id) return;
-    const { data: c } = await supabase.from('categorias').select('*').eq('loja_id', loja.id).order('ordem_exibicao');
-    if (c) setCategorias(c);
-    const { data: f } = await supabase.from('fornecedores').select('*').eq('loja_id', loja.id);
-    if (f) setFornecedores(f);
+    try {
+      const { data: c } = await supabase.from('categorias').select('*').eq('loja_id', loja.id).order('ordem_exibicao');
+      if (c) setCategorias(c);
+      const { data: f } = await supabase.from('fornecedores').select('*').eq('loja_id', loja.id);
+      if (f) setFornecedores(f);
+
+      // Carregar unidades de medida do banco ou padrão
+      try {
+        const { data: u } = await supabase.from('unidades_medida').select('sigla, nome').eq('loja_id', loja.id).order('sigla');
+        if (u && u.length > 0) {
+          setUnidadesLista(u);
+        }
+      } catch (e) {
+        // Fallback já inicializado com UNIDADES_PADRAO
+      }
+
+      // Carregar regras de precificação
+      const keyStorage = `hubi_regras_precificacao_${loja.id}`;
+      const regrasSalvas = localStorage.getItem(keyStorage);
+      if (regrasSalvas) {
+        try {
+          const parsed = JSON.parse(regrasSalvas);
+          setRegrasPrecificacao({
+            descontoAtacado: Number(parsed.descontoAtacado) || 20,
+            tipoMinimoAtacado: parsed.tipoMinimoAtacado || 'quantidade',
+            qtdMinimaAtacado: Number(parsed.qtdMinimaAtacado) || 6,
+            valorMinimoAtacado: Number(parsed.valorMinimoAtacado) || 300,
+
+            descontoAutoatacado: Number(parsed.descontoAutoatacado) || 25,
+            tipoMinimoAutoatacado: parsed.tipoMinimoAutoatacado || 'quantidade',
+            qtdMinimaAutoatacado: Number(parsed.qtdMinimaAutoatacado) || 24,
+            valorMinimoAutoatacado: Number(parsed.valorMinimoAutoatacado) || 1000
+          });
+        } catch (err) {}
+      } else if (loja.desconto_padrao_atacado_percentual) {
+        setRegrasPrecificacao({
+          descontoAtacado: Number(loja.desconto_padrao_atacado_percentual) || 20,
+          tipoMinimoAtacado: loja.tipo_minimo_padrao_atacado || 'quantidade',
+          qtdMinimaAtacado: Number(loja.qtd_minima_padrao_atacado) || 6,
+          valorMinimoAtacado: Number(loja.valor_minimo_padrao_atacado) || 300,
+
+          descontoAutoatacado: Number(loja.desconto_padrao_autoatacado_percentual) || 25,
+          tipoMinimoAutoatacado: loja.tipo_minimo_padrao_autoatacado || 'quantidade',
+          qtdMinimaAutoatacado: Number(loja.qtd_minima_padrao_autoatacado) || 24,
+          valorMinimoAutoatacado: Number(loja.valor_minimo_padrao_autoatacado) || 1000
+        });
+      }
+    } catch (err) {
+      console.error('Erro ao carregar dados auxiliares:', err);
+    }
   };
 
   useEffect(() => {
     carregarAux();
   }, [loja?.id]);
 
+  // Sugestão Automática de Preços de Atacado e Autoatacado ao alterar o Preço de Varejo
+  const handlePrecoVarejoChange = (valor: string) => {
+    setPrecoVendaVarejo(valor);
+    const num = parseFloat(valor);
+    if (!isNaN(num) && num > 0) {
+      const descAtacado = regrasPrecificacao.descontoAtacado || 20;
+      const descAuto = regrasPrecificacao.descontoAutoatacado || 25;
+
+      const atacadoCalc = (num * (1 - descAtacado / 100)).toFixed(2);
+      const autoCalc = (num * (1 - descAuto / 100)).toFixed(2);
+
+      setPrecoVendaAtacado(atacadoCalc);
+      setTipoMinimoAtacado(regrasPrecificacao.tipoMinimoAtacado || 'quantidade');
+      setQtdMinimaAtacado(String(regrasPrecificacao.qtdMinimaAtacado || 6));
+      setValorMinimoAtacado(String(regrasPrecificacao.valorMinimoAtacado || 300));
+
+      setPrecoVendaAutoatacado(autoCalc);
+      setTipoMinimoAutoatacado(regrasPrecificacao.tipoMinimoAutoatacado || 'quantidade');
+      setQtdMinimaAutoatacado(String(regrasPrecificacao.qtdMinimaAutoatacado || 24));
+      setValorMinimoAutoatacado(String(regrasPrecificacao.valorMinimoAutoatacado || 1000));
+    }
+  };
+
+  // Carregar dados do produto para edição se houver ID na rota
+  useEffect(() => {
+    const carregarProdutoEdicao = async () => {
+      if (!id || !loja?.id) return;
+      try {
+        setCarregandoProduto(true);
+        const { data: prod, error } = await supabase
+          .from('produtos')
+          .select('*, variacoes:variacoes_produto(*)')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        if (prod) {
+          setNome(prod.nome || '');
+          setCodigoInterno(prod.codigo_interno || '');
+          setCodigoBarras(prod.codigo_barras || '');
+          setCategoriaId(prod.categoria_id || '');
+          setFornecedorId(prod.fornecedor_id || '');
+          setDescricao(prod.descricao || '');
+          setTipoUnidade(prod.tipo_unidade || 'un');
+
+          setPrecoCusto(prod.preco_custo ? Number(prod.preco_custo).toFixed(2) : '0.00');
+          setPrecoVendaVarejo(prod.preco_venda_varejo ? Number(prod.preco_venda_varejo).toFixed(2) : '');
+          
+          setPrecoVendaAtacado(prod.preco_venda_atacado ? Number(prod.preco_venda_atacado).toFixed(2) : '');
+          setTipoMinimoAtacado(prod.tipo_minimo_atacado || 'quantidade');
+          setQtdMinimaAtacado(prod.qtd_minima_atacado ? String(prod.qtd_minima_atacado) : '6');
+          setValorMinimoAtacado(prod.valor_minimo_atacado ? String(prod.valor_minimo_atacado) : '300.00');
+
+          setPrecoVendaAutoatacado(prod.preco_venda_autoatacado ? Number(prod.preco_venda_autoatacado).toFixed(2) : '');
+          setTipoMinimoAutoatacado(prod.tipo_minimo_autoatacado || 'quantidade');
+          setQtdMinimaAutoatacado(prod.qtd_minima_autoatacado ? String(prod.qtd_minima_autoatacado) : '24');
+          setValorMinimoAutoatacado(prod.valor_minimo_autoatacado ? String(prod.valor_minimo_autoatacado) : '1000.00');
+
+          setPrecoPromocional(prod.preco_promocional ? Number(prod.preco_promocional).toFixed(2) : '');
+          setPromocaoAtiva(Boolean(prod.promocao_ativa));
+
+          setQuantidadeEstoque(String(prod.quantidade_estoque || 0));
+          setEstoqueMinimoAlerta(String(prod.estoque_minimo_alerta || 5));
+          setDataValidade(prod.data_validade || '');
+          setExibirCatalogo(Boolean(prod.exibir_catalogo));
+          setDestaque(Boolean(prod.destaque));
+
+          const fotos = Array.isArray(prod.fotos_urls) ? prod.fotos_urls : [];
+          setFotosUrls(fotos);
+          setFotoPrincipal(fotos[0] || '');
+
+          if (prod.tem_variacoes && Array.isArray(prod.variacoes) && prod.variacoes.length > 0) {
+            setTemVariacoes(true);
+            setNomeTipoVariacao(prod.rotulo_variacao_1 || 'Opção');
+            setEtapaVariacao(2);
+            setOpcoesVariacao(
+              prod.variacoes.map((v: any) => ({
+                id: v.id || Date.now().toString() + Math.random(),
+                nome: v.valor_variacao_1 || '',
+                estoque: String(v.quantidade_estoque || 0),
+                precoVarejo: v.preco_venda_varejo ? Number(v.preco_venda_varejo).toFixed(2) : '',
+                precoAtacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado).toFixed(2) : '',
+                barcode: v.codigo_barras || ''
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar produto para alteração:', err);
+        alert('Não foi possível carregar os dados deste produto para edição.');
+      } finally {
+        setCarregandoProduto(false);
+      }
+    };
+
+    carregarProdutoEdicao();
+  }, [id, loja?.id]);
+
   // Sugerir Código Interno baseado nas iniciais da Categoria (Ex: Brinquedo Erótico -> BE0001)
   const gerarCodigoInternoSugerido = async (catId: string, listaCategorias: Categoria[] = categorias) => {
     if (!catId || !loja?.id) return;
     const cat = listaCategorias.find(c => c.id === catId);
-    if (!cat) return;
-
-    // Extrair iniciais da categoria
-    const stopwords = ['DE', 'DO', 'DA', 'E', 'PARA', 'COM', 'EM', 'DOS', 'DAS', 'POR', 'O', 'A', 'OS', 'AS'];
-    const palavras = cat.nome
-      .trim()
-      .toUpperCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-      .split(/[\s-]+/)
-      .filter(p => p.length > 0 && !stopwords.includes(p));
-
-    let prefixo = '';
-    if (palavras.length >= 2) {
-      prefixo = (palavras[0][0] || '') + (palavras[1][0] || '');
-    } else if (palavras.length === 1) {
-      prefixo = palavras[0].substring(0, 2);
-    } else {
-      prefixo = 'PR';
-    }
-
-    if (prefixo.length < 2) {
-      prefixo = (prefixo + 'X').substring(0, 2);
-    }
+    if (!cat || !cat.nome) return;
 
     try {
-      // Contar quantos produtos já existem nessa categoria para essa loja
-      const { count } = await supabase
+      const palavras = cat.nome.trim().split(/\s+/).filter(Boolean);
+      let prefixo = '';
+      if (palavras.length === 1) {
+        prefixo = palavras[0].slice(0, 2).toUpperCase();
+      } else {
+        prefixo = (palavras[0][0] + palavras[1][0]).toUpperCase();
+      }
+      if (!prefixo || prefixo.length < 2) prefixo = 'PR';
+
+      const { data: produtosCat } = await supabase
         .from('produtos')
-        .select('id', { count: 'exact', head: true })
+        .select('codigo_interno')
         .eq('loja_id', loja.id)
         .eq('categoria_id', catId);
 
-      const proximoNumero = (count || 0) + 1;
-      const codigoSugerido = `${prefixo}${String(proximoNumero).padStart(4, '0')}`;
-      setCodigoInterno(codigoSugerido);
-    } catch (e) {
-      const codigoSugerido = `${prefixo}0001`;
-      setCodigoInterno(codigoSugerido);
+      let maxNumero = 0;
+      if (produtosCat && produtosCat.length > 0) {
+        produtosCat.forEach(p => {
+          if (p.codigo_interno && p.codigo_interno.startsWith(prefixo)) {
+            const numeroStr = p.codigo_interno.replace(prefixo, '');
+            const num = parseInt(numeroStr, 10);
+            if (!isNaN(num) && num > maxNumero) {
+              maxNumero = num;
+            }
+          }
+        });
+      }
+
+      const proximoNumero = maxNumero + 1;
+      const numeroFormatado = String(proximoNumero).padStart(4, '0');
+      const codigoSugerido = `${prefixo}${numeroFormatado}`;
+
+      if (!codigoInterno || codigoInterno.length < 3) {
+        setCodigoInterno(codigoSugerido);
+      }
+    } catch (err) {
+      console.warn('Não foi possível sugerir o código interno automaticamente:', err);
     }
   };
 
@@ -558,7 +742,7 @@ export const ProdutoCadastro: React.FC = () => {
         if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
         if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
         if (dadosSugeridos.preco_venda_estimado) {
-          setPrecoVendaVarejo(dadosSugeridos.preco_venda_estimado.toFixed(2));
+          handlePrecoVarejoChange(dadosSugeridos.preco_venda_estimado.toFixed(2));
         }
         if (dadosSugeridos.preco_custo_estimado) {
           setPrecoCusto(dadosSugeridos.preco_custo_estimado.toFixed(2));
@@ -682,9 +866,13 @@ export const ProdutoCadastro: React.FC = () => {
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
         preco_venda_atacado: precoVendaAtacado ? Number(precoVendaAtacado) : null,
-        qtd_minima_atacado: Number(qtdMinimaAtacado) || 6,
+        tipo_minimo_atacado: tipoMinimoAtacado,
+        qtd_minima_atacado: tipoMinimoAtacado === 'quantidade' ? (Number(qtdMinimaAtacado) || 6) : 0,
+        valor_minimo_atacado: tipoMinimoAtacado === 'valor' ? (Number(valorMinimoAtacado) || 0) : null,
         preco_venda_autoatacado: precoVendaAutoatacado ? Number(precoVendaAutoatacado) : null,
-        qtd_minima_autoatacado: Number(qtdMinimaAutoatacado) || 24,
+        tipo_minimo_autoatacado: tipoMinimoAutoatacado,
+        qtd_minima_autoatacado: tipoMinimoAutoatacado === 'quantidade' ? (Number(qtdMinimaAutoatacado) || 24) : 0,
+        valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : null,
         preco_promocional: precoPromocional ? Number(precoPromocional) : null,
         promocao_ativa: promocaoAtiva,
         quantidade_estoque: estoqueFinal,
@@ -698,29 +886,57 @@ export const ProdutoCadastro: React.FC = () => {
         ativo: true
       };
 
-      const { data: prodCriado, error: erroProd } = await supabase
-        .from('produtos')
-        .insert([novoProduto])
-        .select()
-        .single();
+      if (ehEdicao) {
+        const { error: erroUpdate } = await supabase
+          .from('produtos')
+          .update(novoProduto)
+          .eq('id', id);
 
-      if (erroProd || !prodCriado) throw erroProd;
+        if (erroUpdate) throw erroUpdate;
 
-      if (temVariacoes && opcoesVariacao.length > 0) {
-        const variacoesFormatadas = opcoesVariacao.map(v => ({
-          loja_id: loja.id,
-          produto_id: prodCriado.id,
-          valor_variacao_1: v.nome,
-          valor_variacao_2: null,
-          codigo_barras: v.barcode || null,
-          preco_venda_varejo: Number(v.precoVarejo) || Number(precoVendaVarejo),
-          preco_venda_atacado: v.precoAtacado ? Number(v.precoAtacado) : null,
-          quantidade_estoque: Number(v.estoque) || 0,
-          estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
-          ativo: true
-        }));
+        if (temVariacoes && opcoesVariacao.length > 0) {
+          await supabase.from('variacoes_produto').delete().eq('produto_id', id);
+          const variacoesFormatadas = opcoesVariacao.map(v => ({
+            loja_id: loja.id,
+            produto_id: id,
+            valor_variacao_1: v.nome,
+            valor_variacao_2: null,
+            codigo_barras: v.barcode || null,
+            preco_venda_varejo: Number(v.precoVarejo) || Number(precoVendaVarejo),
+            preco_venda_atacado: v.precoAtacado ? Number(v.precoAtacado) : null,
+            quantidade_estoque: Number(v.estoque) || 0,
+            estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
+            ativo: true
+          }));
+          await supabase.from('variacoes_produto').insert(variacoesFormatadas);
+        } else {
+          await supabase.from('variacoes_produto').delete().eq('produto_id', id);
+        }
+      } else {
+        const { data: prodCriado, error: erroProd } = await supabase
+          .from('produtos')
+          .insert([novoProduto])
+          .select()
+          .single();
 
-        await supabase.from('variacoes_produto').insert(variacoesFormatadas);
+        if (erroProd || !prodCriado) throw erroProd;
+
+        if (temVariacoes && opcoesVariacao.length > 0) {
+          const variacoesFormatadas = opcoesVariacao.map(v => ({
+            loja_id: loja.id,
+            produto_id: prodCriado.id,
+            valor_variacao_1: v.nome,
+            valor_variacao_2: null,
+            codigo_barras: v.barcode || null,
+            preco_venda_varejo: Number(v.precoVarejo) || Number(precoVendaVarejo),
+            preco_venda_atacado: v.precoAtacado ? Number(v.precoAtacado) : null,
+            quantidade_estoque: Number(v.estoque) || 0,
+            estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
+            ativo: true
+          }));
+
+          await supabase.from('variacoes_produto').insert(variacoesFormatadas);
+        }
       }
 
       navigate('/products');
@@ -731,6 +947,15 @@ export const ProdutoCadastro: React.FC = () => {
       setSalvando(false);
     }
   };
+
+  if (carregandoProduto) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-slate-950 text-slate-400 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+        <p className="text-sm">Carregando dados do produto...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-950 p-3 sm:p-6 lg:p-8 font-sans">
@@ -745,8 +970,12 @@ export const ProdutoCadastro: React.FC = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-100">Cadastrar Novo Produto</h1>
-              <p className="text-xs text-slate-400">Tire uma foto para preenchimento automático por IA ou preencha manualmente</p>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-100">
+                {ehEdicao ? 'Alterar Produto' : 'Cadastrar Novo Produto'}
+              </h1>
+              <p className="text-xs text-slate-400">
+                {ehEdicao ? 'Atualize as fotos, valores, dados fiscais e estoques do item' : 'Tire uma foto para preenchimento automático por IA ou preencha manualmente'}
+              </p>
             </div>
           </div>
 
@@ -1099,26 +1328,27 @@ export const ProdutoCadastro: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Unidade de Medida</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Unidade de Medida</label>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/auxiliares')}
+                    className="text-[10px] text-slate-400 hover:text-emerald-400 font-semibold cursor-pointer"
+                    title="Gerenciar Unidades de Medida"
+                  >
+                    + Gerenciar
+                  </button>
+                </div>
                 <select
                   value={tipoUnidade}
                   onChange={(e) => setTipoUnidade(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
                 >
-                  <option value="un">Unidade (un)</option>
-                  <option value="cx">Caixa (cx)</option>
-                  <option value="pct">Pacote (pct)</option>
-                  <option value="fd">Fardo (fd)</option>
-                  <option value="dz">Dúzia (dz)</option>
-                  <option value="par">Par (par)</option>
-                  <option value="kit">Kit / Conjunto (kit)</option>
-                  <option value="kg">Quilo (kg - Balança)</option>
-                  <option value="g">Grama (g)</option>
-                  <option value="l">Litro (l)</option>
-                  <option value="ml">Mililitro (ml)</option>
-                  <option value="m">Metro linear (m)</option>
-                  <option value="m2">Metro quadrado (m²)</option>
-                  <option value="rolo">Rolo (rolo)</option>
+                  {unidadesLista.map(u => (
+                    <option key={u.sigla} value={u.sigla}>
+                      {u.sigla.toUpperCase()} - {u.nome}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1152,7 +1382,17 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Fornecedor (Opcional) */}
               <div className="space-y-1 md:col-span-2">
-                <label className="text-xs font-semibold text-slate-300">Fornecedor (Opcional)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Fornecedor (Opcional)</label>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/auxiliares')}
+                    className="text-[10px] text-slate-400 hover:text-emerald-400 font-semibold cursor-pointer"
+                    title="Gerenciar Fornecedores"
+                  >
+                    + Gerenciar
+                  </button>
+                </div>
                 <select
                   value={fornecedorId}
                   onChange={(e) => setFornecedorId(e.target.value)}
@@ -1179,10 +1419,22 @@ export const ProdutoCadastro: React.FC = () => {
 
           {/* SEÇÃO 3: PREÇOS E CUSTOS */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
-            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-indigo-400" />
-              <span>3. Tabelas de Preço & Custos</span>
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-indigo-400" />
+                <span>3. Tabelas de Preço & Custos</span>
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => navigate('/auxiliares')}
+                className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 cursor-pointer"
+                title="Configurar percentuais de atacado e autoatacado"
+              >
+                <Percent className="w-3.5 h-3.5" />
+                <span>Regras de Desconto ({regrasPrecificacao.descontoAtacado}% / {regrasPrecificacao.descontoAutoatacado}%)</span>
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
@@ -1204,13 +1456,21 @@ export const ProdutoCadastro: React.FC = () => {
                   required
                   placeholder="Ex: 49.90"
                   value={precoVendaVarejo}
-                  onChange={(e) => setPrecoVendaVarejo(e.target.value)}
-                  className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400"
+                  onChange={(e) => handlePrecoVarejoChange(e.target.value)}
+                  className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400"
                 />
+                <span className="text-[10px] text-slate-500 block">Preço base unitário</span>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Preço Atacado (R$)</label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Preço Atacado (R$)</label>
+                  {precoVendaVarejo && (
+                    <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded font-bold">
+                      -{regrasPrecificacao.descontoAtacado}%
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   step="0.01"
@@ -1219,11 +1479,75 @@ export const ProdutoCadastro: React.FC = () => {
                   onChange={(e) => setPrecoVendaAtacado(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
                 />
-                <span className="text-[10px] text-slate-500">Mín: {qtdMinimaAtacado} un</span>
+
+                {/* Critério Mínimo de Atacado: Quantidade OU Valor (Pílulas Exclusivas) */}
+                <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-slate-400 font-semibold">Critério Mínimo:</span>
+                    <div className="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setTipoMinimoAtacado('quantidade')}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          tipoMinimoAtacado === 'quantidade'
+                            ? 'bg-emerald-500 text-white'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Qtd (un)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTipoMinimoAtacado('valor')}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          tipoMinimoAtacado === 'valor'
+                            ? 'bg-emerald-500 text-white'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Valor (R$)
+                      </button>
+                    </div>
+                  </div>
+
+                  {tipoMinimoAtacado === 'quantidade' ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mínimo:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="6"
+                        value={qtdMinimaAtacado}
+                        onChange={(e) => setQtdMinimaAtacado(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-emerald-500"
+                      />
+                      <span className="text-[10px] text-slate-400">un</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mín: R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="300.00"
+                        value={valorMinimoAtacado}
+                        onChange={(e) => setValorMinimoAtacado(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-emerald-400 font-bold focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Preço Autoatacado (R$)</label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">Preço Autoatacado (R$)</label>
+                  {precoVendaVarejo && (
+                    <span className="text-[10px] bg-indigo-500/15 text-indigo-400 px-1.5 py-0.5 rounded font-bold">
+                      -{regrasPrecificacao.descontoAutoatacado}%
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   step="0.01"
@@ -1232,7 +1556,64 @@ export const ProdutoCadastro: React.FC = () => {
                   onChange={(e) => setPrecoVendaAutoatacado(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
                 />
-                <span className="text-[10px] text-slate-500">Mín: {qtdMinimaAutoatacado} un</span>
+
+                {/* Critério Mínimo de Autoatacado: Quantidade OU Valor (Pílulas Exclusivas) */}
+                <div className="bg-slate-950/60 p-2 rounded-xl border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-slate-400 font-semibold">Critério Mínimo:</span>
+                    <div className="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setTipoMinimoAutoatacado('quantidade')}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          tipoMinimoAutoatacado === 'quantidade'
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Qtd (un)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTipoMinimoAutoatacado('valor')}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition cursor-pointer ${
+                          tipoMinimoAutoatacado === 'valor'
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Valor (R$)
+                      </button>
+                    </div>
+                  </div>
+
+                  {tipoMinimoAutoatacado === 'quantidade' ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mínimo:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="24"
+                        value={qtdMinimaAutoatacado}
+                        onChange={(e) => setQtdMinimaAutoatacado(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500"
+                      />
+                      <span className="text-[10px] text-slate-400">un</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap">Mín: R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="1000.00"
+                        value={valorMinimoAutoatacado}
+                        onChange={(e) => setValorMinimoAutoatacado(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-indigo-400 font-bold focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1545,12 +1926,12 @@ export const ProdutoCadastro: React.FC = () => {
             {salvando ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Cadastrando Produto no HUBI...</span>
+                <span>{ehEdicao ? 'Salvando Alterações no HUBI...' : 'Cadastrando Produto no HUBI...'}</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Salvar Produto</span>
+                <span>{ehEdicao ? 'Salvar Alterações' : 'Salvar Produto'}</span>
               </>
             )}
           </button>
