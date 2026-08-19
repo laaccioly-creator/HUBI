@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   LogOut,
-  Loader2
+  Loader2,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -91,6 +92,7 @@ export const LayoutNavegacao: React.FC = () => {
     { name: 'Clientes & Fiado', path: '/customers', icon: Users },
     { name: 'Finanças & Caixa', path: '/finances', icon: DollarSign },
     { name: 'Estatísticas', path: '/analytics', icon: BarChart3 },
+    { name: 'Usuários', path: '/users', icon: UserCheck },
     { name: 'Assistente IA (Kai)', path: '/smart-assistant', icon: Sparkles, badgeText: 'IA' },
     { name: 'Configurações', path: '/config', icon: Settings }
   ];

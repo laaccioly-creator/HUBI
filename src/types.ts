@@ -1,5 +1,5 @@
 export type TipoDocumento = 'CPF' | 'CNPJ';
-export type PerfilUsuario = 'admin' | 'gerente' | 'vendedor';
+export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
 export type TipoUnidade = 'un' | 'kg' | 'l' | 'm';
 export type TabelaPreco = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
 export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'outro';
@@ -84,11 +84,24 @@ export interface UsuarioLoja {
   email: string;
   whatsapp_atendimento?: string | null;
   perfil: PerfilUsuario;
-  pode_ver_preco_custo: boolean;
-  pode_exportar_relatorios: boolean;
-  pode_editar_vendas_passadas: boolean;
+  pode_uso_celular_pessoal?: boolean;
+  pode_ver_transacoes_outros?: boolean;
+  pode_dar_desconto?: boolean;
+  pode_cadastrar_alterar_produtos?: boolean;
+  pode_gerenciar_estoque?: boolean;
+  pode_ativar_fiado?: boolean;
+  pode_ver_preco_custo?: boolean;
+  pode_exportar_relatorios?: boolean;
+  pode_editar_vendas_passadas?: boolean;
+  senha_hash?: string | null;
+  ultimo_login?: string | null;
   ativo: boolean;
   criado_em?: string;
+
+  // Campos calculados para estatísticas
+  faturamento_30d?: number;
+  vendas_count_30d?: number;
+  percentual_participacao_30d?: number;
 }
 
 export interface Categoria {

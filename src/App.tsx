@@ -15,6 +15,7 @@ import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
 import { AssistenteKai } from './components/AssistenteKai';
 import { CatalogoPublico } from './components/CatalogoPublico';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
+import { UsuariosGestao } from './components/UsuariosGestao';
 
 export const App: React.FC = () => {
   return (
@@ -38,6 +39,7 @@ export const App: React.FC = () => {
               <Route path="customers" element={<ClientesFiado />} />
               <Route path="finances" element={<FinancasCaixa />} />
               <Route path="analytics" element={<EstatisticasAnalytics />} />
+              <Route path="users" element={<UsuariosGestao />} />
               <Route path="smart-assistant" element={<AssistenteKai />} />
               <Route path="config" element={<ConfiguracoesLoja />} />
             </Route>
