@@ -30,6 +30,8 @@ export const PosCheckout: React.FC = () => {
     itens,
     clienteSelecionado,
     tabelaPrecoGlobal,
+    tabelaPrecoCalculada,
+    avaliacaoCarrinho,
     desconto,
     taxaEntrega,
     subtotal,
@@ -402,6 +404,37 @@ export const PosCheckout: React.FC = () => {
               <Plus className="w-4 h-4" />
             </button>
           </div>
+
+          {/* BADGE DA TABELA ATIVA & PROGRESSO NO PDV */}
+          {itens.length > 0 && (
+            <div className={`p-2.5 rounded-xl border transition text-xs font-bold space-y-1.5 ${
+              tabelaPrecoCalculada === 'autoatacado'
+                ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-300'
+                : tabelaPrecoCalculada === 'atacado'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span>
+                  {tabelaPrecoCalculada === 'autoatacado' ? '⚡ Tabela: Autoatacado' : tabelaPrecoCalculada === 'atacado' ? '🏷️ Tabela: Atacado' : '🛒 Tabela: Varejo'}
+                </span>
+                {avaliacaoCarrinho.economiaTotal > 0 && (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-black">
+                    -R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              {avaliacaoCarrinho.proximoNivel && (
+                <div className="text-[10px] font-normal text-slate-400 pt-1 border-t border-slate-700/50 flex justify-between items-center">
+                  <span>
+                    Falta R$ {avaliacaoCarrinho.faltaValorParaProximo.toFixed(2)} ou {avaliacaoCarrinho.faltaPecasParaProximo} un p/ {avaliacaoCarrinho.proximoNivel}
+                  </span>
+                  <span className="font-bold text-amber-300">{avaliacaoCarrinho.progressoGeralPercent}%</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Lista de Itens do Carrinho */}
@@ -412,44 +445,63 @@ export const PosCheckout: React.FC = () => {
               <p className="text-xs">O carrinho está vazio.<br />Adicione produtos ou bipe o código de barras.</p>
             </div>
           ) : (
-            itens.map((item) => (
-              <div
-                key={item.id}
-                className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-sm"
-              >
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-xs text-slate-200 truncate">{item.produto.nome}</h4>
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                    {item.variacao && (
-                      <span className="text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded font-medium">
-                        {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 || ''}
+            itens.map((item) => {
+              const skuFracionado = avaliacaoCarrinho.skusFracionados.find(s => s.id === item.id);
+
+              return (
+                <div
+                  key={item.id}
+                  className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-2.5 space-y-1.5 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-xs text-slate-200 truncate">{item.produto.nome}</h4>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                        {item.variacao && (
+                          <span className="text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded font-medium">
+                            {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 || ''}
+                          </span>
+                        )}
+                        <span>R$ {item.precoUnitario.toFixed(2)} / un</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
+                        <button onClick={() => atualizarQuantidade(item.id, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white">
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-2 text-xs font-bold text-slate-100">{item.quantidade}</span>
+                        <button onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white">
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <span className="font-bold text-xs text-emerald-400 w-16 text-right">
+                        R$ {item.subtotal.toFixed(2)}
                       </span>
-                    )}
-                    <span>R$ {item.precoUnitario.toFixed(2)} / un</span>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
-                    <button onClick={() => atualizarQuantidade(item.id, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white">
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="px-2 text-xs font-bold text-slate-100">{item.quantidade}</span>
-                    <button onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+                      <button onClick={() => removerItem(item.id)} className="text-slate-500 hover:text-rose-400 p-1">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <span className="font-bold text-xs text-emerald-400 w-16 text-right">
-                    R$ {item.subtotal.toFixed(2)}
-                  </span>
-
-                  <button onClick={() => removerItem(item.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {skuFracionado && (
+                    <div className="p-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between text-[10px] text-amber-300">
+                      <span>Mín. {skuFracionado.quantidadeMinimaExigida} un (faltam {skuFracionado.faltamUnidades})</span>
+                      <button
+                        type="button"
+                        onClick={() => atualizarQuantidade(item.id, item.quantidade + skuFracionado.faltamUnidades)}
+                        className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 font-bold"
+                      >
+                        +{skuFracionado.faltamUnidades}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

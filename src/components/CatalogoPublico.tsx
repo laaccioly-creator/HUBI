@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   ShoppingBag,
@@ -6,17 +6,26 @@ import {
   Plus,
   Minus,
   Share2,
-  X
+  X,
+  Tag,
+  Zap,
+  AlertTriangle,
+  CheckCircle2,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega } from '../types';
+import {
+  obterRegrasPrecificacao,
+  avaliarNivelCarrinho,
+  calcularPrecoUnitarioPorTabela
+} from '../services/pricingEngine';
 
 interface ItemCarrinhoPublico {
+  id: string;
   produto: Produto;
   variacao?: VariacaoProduto | null;
   quantidade: number;
-  precoUnitario: number;
-  subtotal: number;
 }
 
 export const CatalogoPublico: React.FC = () => {
@@ -90,41 +99,38 @@ export const CatalogoPublico: React.FC = () => {
     carregarCatalogo();
   }, [slug]);
 
-  const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null) => {
+  // Carregar e Avaliar Regras de Precificação em Tempo Real
+  const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
+
+  const avaliacaoCarrinho = useMemo(() => {
+    return avaliarNivelCarrinho(carrinho, regrasAtivas);
+  }, [carrinho, regrasAtivas]);
+
+  const totalItens = avaliacaoCarrinho.totalPecas;
+  const subtotal = avaliacaoCarrinho.totalFinal;
+  const valorFrete = Number(formaEntregaEscolhida?.valor_taxa || 0);
+  const total = subtotal + valorFrete;
+
+  const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null, quantidade: number = 1) => {
     const key = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
     
     setCarrinho(prev => {
-      const idx = prev.findIndex(i => (i.variacao ? `${i.produto.id}-${i.variacao.id}` : `${i.produto.id}`) === key);
-      const qtdAtual = idx >= 0 ? prev[idx].quantidade + 1 : 1;
-
-      let preco = Number(variacao ? variacao.preco_venda_varejo : produto.preco_venda_varejo);
-      const precoAtac = variacao ? variacao.preco_venda_atacado : produto.preco_venda_atacado;
-      const qtdMinAtac = Number(produto.qtd_minima_atacado) || 6;
-      
-      if (precoAtac && qtdAtual >= qtdMinAtac) {
-        preco = Number(precoAtac);
-      } else if (produto.promocao_ativa && produto.preco_promocional) {
-        preco = Number(produto.preco_promocional);
-      }
-
+      const idx = prev.findIndex(i => i.id === key);
       if (idx >= 0) {
         const cp = [...prev];
         cp[idx] = {
           ...cp[idx],
-          quantidade: qtdAtual,
-          precoUnitario: preco,
-          subtotal: preco * qtdAtual
+          quantidade: cp[idx].quantidade + quantidade
         };
         return cp;
       } else {
         return [
           ...prev,
           {
+            id: key,
             produto,
             variacao,
-            quantidade: 1,
-            precoUnitario: preco,
-            subtotal: preco * 1
+            quantidade
           }
         ];
       }
@@ -138,31 +144,13 @@ export const CatalogoPublico: React.FC = () => {
     }
     setCarrinho(prev => {
       const cp = [...prev];
-      const item = cp[index];
-      let preco = Number(item.variacao ? item.variacao.preco_venda_varejo : item.produto.preco_venda_varejo);
-      const precoAtac = item.variacao ? item.variacao.preco_venda_atacado : item.produto.preco_venda_atacado;
-      const qtdMinAtac = Number(item.produto.qtd_minima_atacado) || 6;
-
-      if (precoAtac && novaQtd >= qtdMinAtac) {
-        preco = Number(precoAtac);
-      } else if (item.produto.promocao_ativa && item.produto.preco_promocional) {
-        preco = Number(item.produto.preco_promocional);
-      }
-
       cp[index] = {
-        ...item,
-        quantidade: novaQtd,
-        precoUnitario: preco,
-        subtotal: preco * novaQtd
+        ...cp[index],
+        quantidade: novaQtd
       };
       return cp;
     });
   };
-
-  const subtotal = carrinho.reduce((acc, i) => acc + i.subtotal, 0);
-  const valorFrete = Number(formaEntregaEscolhida?.valor_taxa || 0);
-  const total = subtotal + valorFrete;
-  const totalItens = carrinho.reduce((acc, i) => acc + i.quantidade, 0);
 
   const handleEnviarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,6 +169,7 @@ export const CatalogoPublico: React.FC = () => {
             loja_id: loja.id,
             origem: 'catalogo_online',
             status: 'pendente',
+            tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
             subtotal,
             valor_frete: valorFrete,
             valor_total: total,
@@ -195,24 +184,49 @@ export const CatalogoPublico: React.FC = () => {
 
       if (erroPedido || !pedidoCriado) throw erroPedido;
 
-      const itensFormatados = carrinho.map(item => ({
-        loja_id: loja.id,
-        pedido_id: pedidoCriado.id,
-        produto_id: item.produto.id,
-        variacao_id: item.variacao?.id || null,
-        nome_produto: item.produto.nome,
-        rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
-        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
-        preco_venda_unitario: item.precoUnitario,
-        quantidade: item.quantidade,
-        subtotal: item.subtotal
-      }));
+      const itensFormatados = carrinho.map(item => {
+        const precoUnitario = calcularPrecoUnitarioPorTabela(
+          item.produto,
+          item.variacao,
+          avaliacaoCarrinho.tabelaAtiva,
+          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+        );
+        return {
+          loja_id: loja.id,
+          pedido_id: pedidoCriado.id,
+          produto_id: item.produto.id,
+          variacao_id: item.variacao?.id || null,
+          tabela_preco_utilizada: avaliacaoCarrinho.tabelaAtiva,
+          nome_produto: item.produto.nome,
+          rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+          preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+          preco_venda_unitario: precoUnitario,
+          quantidade: item.quantidade,
+          subtotal: precoUnitario * item.quantidade
+        };
+      });
 
       await supabase.from('itens_pedido').insert(itensFormatados);
 
       const itensMsg = carrinho
-        .map(i => `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${i.subtotal.toFixed(2)}`)
+        .map(i => {
+          const precoUnitario = calcularPrecoUnitarioPorTabela(
+            i.produto,
+            i.variacao,
+            avaliacaoCarrinho.tabelaAtiva,
+            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+          );
+          const subtotalItem = precoUnitario * i.quantidade;
+          return `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${subtotalItem.toFixed(2)}`;
+        })
         .join('\n');
+
+      const tabelaTexto =
+        avaliacaoCarrinho.tabelaAtiva === 'autoatacado'
+          ? '⚡ Autoatacado (Distribuidor)'
+          : avaliacaoCarrinho.tabelaAtiva === 'atacado'
+          ? '🏷️ Atacado'
+          : '🛒 Varejo';
 
       const msgWhatsApp = `🛍️ *NOVO PEDIDO ONLINE #${pedidoCriado.numero_pedido}*
 
@@ -221,7 +235,8 @@ Olá, ${loja.nome_fantasia}! Gostaria de confirmar meu pedido feito pelo catálo
 ${itensMsg}
 
 ━━━━━━━━━━━━━━━━━━━━
-💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
+🏷️ *Tabela Aplicada:* ${tabelaTexto}
+${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoCarrinho.economiaTotal.toFixed(2)}\n` : ''}💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
 🛵 *Entrega:* ${formaEntregaEscolhida?.nome || 'A combinar'} (+ R$ ${valorFrete.toFixed(2)})
 💵 *TOTAL A PAGAR:* R$ ${total.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━
@@ -445,33 +460,143 @@ Fico no aguardo da confirmação! ✨`;
               </button>
             </div>
 
+            {/* DESTAQUE DA TABELA ATIVA & BARRA DE PROGRESSO */}
+            {carrinho.length > 0 && (
+              <div className="p-3.5 mx-4 mt-3 rounded-2xl border transition-all space-y-2.5 bg-slate-900 shadow-lg">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-black text-xs sm:text-sm">
+                    {avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? (
+                      <div className="flex items-center gap-1.5 text-amber-300">
+                        <Zap className="w-4 h-4 fill-amber-300 text-amber-300 animate-pulse" />
+                        <span className="bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+                          ⚡ Tabela Ativa: Autoatacado
+                        </span>
+                      </div>
+                    ) : avaliacaoCarrinho.tabelaAtiva === 'atacado' ? (
+                      <div className="flex items-center gap-1.5 text-emerald-400">
+                        <Tag className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-300">
+                          🏷️ Tabela Ativa: Atacado
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-slate-300">
+                        <ShoppingBag className="w-4 h-4 text-slate-400" />
+                        <span>🛒 Tabela Ativa: Varejo</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {avaliacaoCarrinho.economiaTotal > 0 && (
+                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow shadow-emerald-500/30 whitespace-nowrap">
+                      Economia de R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+
+                {/* BARRA DE PROGRESSO DINÂMICA & MENSAGEM DE UPSELL */}
+                {avaliacaoCarrinho.proximoNivel && (
+                  <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-300 leading-tight">
+                        Faltam <b className="text-emerald-400">R$ {avaliacaoCarrinho.faltaValorParaProximo.toFixed(2)}</b> ou <b className="text-emerald-400">{avaliacaoCarrinho.faltaPecasParaProximo} peças</b> para {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado'}!
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-300 ml-2">
+                        {avaliacaoCarrinho.progressoGeralPercent}%
+                      </span>
+                    </div>
+
+                    <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 rounded-full transition-all duration-500"
+                        style={{ width: `${avaliacaoCarrinho.progressoGeralPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {avaliacaoCarrinho.tabelaAtiva === 'autoatacado' && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-300 font-semibold pt-1 border-t border-slate-800">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Nível Máximo! Você conquistou o preço de Autoatacado (Distribuidor).</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {carrinho.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 text-sm">Seu carrinho está vazio.</div>
               ) : (
-                carrinho.map((item, idx) => (
-                  <div key={idx} className="bg-slate-800/60 p-3 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-xs text-slate-100 truncate">{item.produto.nome}</h4>
-                      {item.variacao && (
-                        <span className="text-[10px] text-emerald-400 block">{item.variacao.valor_variacao_1}</span>
-                      )}
-                      <span className="text-[11px] font-bold text-emerald-400 mt-0.5 block">
-                        R$ {item.subtotal.toFixed(2)}
-                      </span>
-                    </div>
+                carrinho.map((item, idx) => {
+                  const precoVarejoItem = Number(item.variacao ? item.variacao.preco_venda_varejo : item.produto.preco_venda_varejo) || 0;
+                  const precoUnitarioAtivo = calcularPrecoUnitarioPorTabela(
+                    item.produto,
+                    item.variacao,
+                    avaliacaoCarrinho.tabelaAtiva,
+                    avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+                  );
+                  const subtotalItem = precoUnitarioAtivo * item.quantidade;
+                  const itemKey = item.variacao ? `${item.produto.id}-${item.variacao.id}` : `${item.produto.id}`;
+                  const skuFracionado = avaliacaoCarrinho.skusFracionados.find(s => s.id === itemKey);
 
-                    <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
-                      <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-400">
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="px-2 text-xs font-bold text-slate-100">{item.quantidade}</span>
-                      <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-400">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                  return (
+                    <div key={idx} className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-xs text-slate-100 truncate">{item.produto.nome}</h4>
+                          {item.variacao && (
+                            <span className="text-[10px] text-slate-400 block">
+                              {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 ? `- ${item.variacao.valor_variacao_2}` : ''}
+                            </span>
+                          )}
+                          <div className="flex items-baseline gap-1.5 mt-0.5">
+                            {precoUnitarioAtivo < precoVarejoItem && (
+                              <span className="text-[10px] text-slate-500 line-through">
+                                R$ {(precoVarejoItem * item.quantidade).toFixed(2)}
+                              </span>
+                            )}
+                            <span className="text-xs font-bold text-emerald-400">
+                              R$ {subtotalItem.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              (R$ {precoUnitarioAtivo.toFixed(2)}/un)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden shrink-0">
+                          <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white">
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="px-2 text-xs font-bold text-slate-100 min-w-[20px] text-center">{item.quantidade}</span>
+                          <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white">
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* ALERTA DE SKU FRACIONADO */}
+                      {skuFracionado && (
+                        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-2 text-[10px] text-amber-300">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span className="truncate">
+                              Aumente este item para <b>{skuFracionado.quantidadeMinimaExigida} un</b> para liberar {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'autoatacado' : 'atacado'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => atualizarQtdCarrinho(idx, item.quantidade + skuFracionado.faltamUnidades)}
+                            className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 font-black text-[10px] transition shrink-0 cursor-pointer shadow"
+                          >
+                            +{skuFracionado.faltamUnidades} un
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
 
               {carrinho.length > 0 && (
@@ -547,15 +672,21 @@ Fico no aguardo da confirmação! ✨`;
                 <div className="space-y-1 text-xs text-slate-400">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span className="text-slate-200">R$ {subtotal.toFixed(2)}</span>
+                    <span className="text-slate-200 font-semibold">R$ {subtotal.toFixed(2)}</span>
                   </div>
+                  {avaliacaoCarrinho.economiaTotal > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-semibold">
+                      <span>Desconto Aplicado ({avaliacaoCarrinho.tabelaAtiva}):</span>
+                      <span>- R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}</span>
+                    </div>
+                  )}
                   {valorFrete > 0 && (
-                    <div className="flex justify-between text-emerald-400">
+                    <div className="flex justify-between text-slate-300">
                       <span>Taxa de Entrega:</span>
                       <span>+ R$ {valorFrete.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-base font-bold text-white pt-1 border-t border-slate-800">
+                  <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
                     <span>Total do Pedido:</span>
                     <span className="text-emerald-400 text-lg">R$ {total.toFixed(2)}</span>
                   </div>
@@ -565,7 +696,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="submit"
                   form="formCheckout"
                   disabled={enviandoPedido}
-                  className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
+                  className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
                 >
                   <Share2 className="w-5 h-5" />
                   <span>{enviandoPedido ? 'Enviando...' : 'Enviar Pedido para WhatsApp'}</span>

@@ -57,16 +57,16 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [salvando, setSalvando] = useState<boolean>(false);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
-  // Regras de Precificação
+  // Regras de Precificação Dinâmicas (Modo 1: Valor OU Modo 2: Quantidade Total + Mínimo por SKU)
   const [descontoAtacado, setDescontoAtacado] = useState<string>('20');
-  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'quantidade' | 'valor'>('quantidade');
-  const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState<string>('6');
-  const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>('300.00');
+  const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>('1500.00');
+  const [qtdTotalMinimaAtacado, setQtdTotalMinimaAtacado] = useState<string>('50');
+  const [qtdMinimaSkuAtacado, setQtdMinimaSkuAtacado] = useState<string>('6');
 
   const [descontoAutoatacado, setDescontoAutoatacado] = useState<string>('25');
-  const [tipoMinimoAutoatacado, setTipoMinimoAutoatacado] = useState<'quantidade' | 'valor'>('quantidade');
-  const [qtdMinimaAutoatacado, setQtdMinimaAutoatacado] = useState<string>('24');
-  const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('1000.00');
+  const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('3000.00');
+  const [qtdTotalMinimaAutoatacado, setQtdTotalMinimaAutoatacado] = useState<string>('100');
+  const [qtdMinimaSkuAutoatacado, setQtdMinimaSkuAutoatacado] = useState<string>('6');
 
   const [precoSimulador, setPrecoSimulador] = useState<string>('100.00');
 
@@ -171,27 +171,45 @@ export const CadastrosAuxiliares: React.FC = () => {
         try {
           const parsed = JSON.parse(regrasSalvas);
           if (parsed.descontoAtacado !== undefined) setDescontoAtacado(String(parsed.descontoAtacado));
-          if (parsed.tipoMinimoAtacado !== undefined) setTipoMinimoAtacado(parsed.tipoMinimoAtacado);
-          if (parsed.qtdMinimaAtacado !== undefined) setQtdMinimaAtacado(String(parsed.qtdMinimaAtacado));
           if (parsed.valorMinimoAtacado !== undefined) setValorMinimoAtacado(String(parsed.valorMinimoAtacado));
+          if (parsed.qtdTotalMinimaAtacado !== undefined) setQtdTotalMinimaAtacado(String(parsed.qtdTotalMinimaAtacado));
+          else if (parsed.qtdMinimaAtacado !== undefined) setQtdTotalMinimaAtacado(String(parsed.qtdMinimaAtacado));
+          if (parsed.qtdMinimaSkuAtacado !== undefined) setQtdMinimaSkuAtacado(String(parsed.qtdMinimaSkuAtacado));
 
           if (parsed.descontoAutoatacado !== undefined) setDescontoAutoatacado(String(parsed.descontoAutoatacado));
-          if (parsed.tipoMinimoAutoatacado !== undefined) setTipoMinimoAutoatacado(parsed.tipoMinimoAutoatacado);
-          if (parsed.qtdMinimaAutoatacado !== undefined) setQtdMinimaAutoatacado(String(parsed.qtdMinimaAutoatacado));
           if (parsed.valorMinimoAutoatacado !== undefined) setValorMinimoAutoatacado(String(parsed.valorMinimoAutoatacado));
+          if (parsed.qtdTotalMinimaAutoatacado !== undefined) setQtdTotalMinimaAutoatacado(String(parsed.qtdTotalMinimaAutoatacado));
+          else if (parsed.qtdMinimaAutoatacado !== undefined) setQtdTotalMinimaAutoatacado(String(parsed.qtdMinimaAutoatacado));
+          if (parsed.qtdMinimaSkuAutoatacado !== undefined) setQtdMinimaSkuAutoatacado(String(parsed.qtdMinimaSkuAutoatacado));
         } catch (e) {
           // Ignora
         }
-      } else if (loja.desconto_padrao_atacado_percentual) {
-        setDescontoAtacado(String(loja.desconto_padrao_atacado_percentual));
-        setTipoMinimoAtacado(loja.tipo_minimo_padrao_atacado || 'quantidade');
-        setQtdMinimaAtacado(String(loja.qtd_minima_padrao_atacado || 6));
-        setValorMinimoAtacado(String(loja.valor_minimo_padrao_atacado || 300));
+      } else {
+        if (loja.desconto_padrao_atacado_percentual !== undefined && loja.desconto_padrao_atacado_percentual !== null) {
+          setDescontoAtacado(String(loja.desconto_padrao_atacado_percentual));
+        }
+        if (loja.valor_minimo_padrao_atacado !== undefined && loja.valor_minimo_padrao_atacado !== null) {
+          setValorMinimoAtacado(String(loja.valor_minimo_padrao_atacado));
+        }
+        if (loja.qtd_minima_padrao_atacado !== undefined && loja.qtd_minima_padrao_atacado !== null) {
+          setQtdTotalMinimaAtacado(String(loja.qtd_minima_padrao_atacado));
+        }
+        if (loja.qtd_minima_sku_padrao_atacado !== undefined && loja.qtd_minima_sku_padrao_atacado !== null) {
+          setQtdMinimaSkuAtacado(String(loja.qtd_minima_sku_padrao_atacado));
+        }
 
-        setDescontoAutoatacado(String(loja.desconto_padrao_autoatacado_percentual || 25));
-        setTipoMinimoAutoatacado(loja.tipo_minimo_padrao_autoatacado || 'quantidade');
-        setQtdMinimaAutoatacado(String(loja.qtd_minima_padrao_autoatacado || 24));
-        setValorMinimoAutoatacado(String(loja.valor_minimo_padrao_autoatacado || 1000));
+        if (loja.desconto_padrao_autoatacado_percentual !== undefined && loja.desconto_padrao_autoatacado_percentual !== null) {
+          setDescontoAutoatacado(String(loja.desconto_padrao_autoatacado_percentual));
+        }
+        if (loja.valor_minimo_padrao_autoatacado !== undefined && loja.valor_minimo_padrao_autoatacado !== null) {
+          setValorMinimoAutoatacado(String(loja.valor_minimo_padrao_autoatacado));
+        }
+        if (loja.qtd_minima_padrao_autoatacado !== undefined && loja.qtd_minima_padrao_autoatacado !== null) {
+          setQtdTotalMinimaAutoatacado(String(loja.qtd_minima_padrao_autoatacado));
+        }
+        if (loja.qtd_minima_sku_padrao_autoatacado !== undefined && loja.qtd_minima_sku_padrao_autoatacado !== null) {
+          setQtdMinimaSkuAutoatacado(String(loja.qtd_minima_sku_padrao_autoatacado));
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar cadastros auxiliares:', err);
@@ -420,51 +438,55 @@ export const CadastrosAuxiliares: React.FC = () => {
     try {
       setSalvando(true);
       const descAtacadoNum = Number(descontoAtacado) || 0;
-      const qtdAtacadoNum = tipoMinimoAtacado === 'quantidade' ? (Number(qtdMinimaAtacado) || 6) : 0;
-      const valAtacadoNum = tipoMinimoAtacado === 'valor' ? (Number(valorMinimoAtacado) || 0) : 0;
+      const valAtacadoNum = Number(valorMinimoAtacado) || 0;
+      const qtdTotAtacadoNum = Number(qtdTotalMinimaAtacado) || 50;
+      const qtdSkuAtacadoNum = Number(qtdMinimaSkuAtacado) || 6;
 
       const descAutoNum = Number(descontoAutoatacado) || 0;
-      const qtdAutoNum = tipoMinimoAutoatacado === 'quantidade' ? (Number(qtdMinimaAutoatacado) || 24) : 0;
-      const valAutoNum = tipoMinimoAutoatacado === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : 0;
+      const valAutoNum = Number(valorMinimoAutoatacado) || 0;
+      const qtdTotAutoNum = Number(qtdTotalMinimaAutoatacado) || 100;
+      const qtdSkuAutoNum = Number(qtdMinimaSkuAutoatacado) || 6;
 
-      // 1. Salvar no localStorage para uso instantâneo e offline
+      // 1. Salvar no localStorage para uso instantâneo pelo pricingEngine
       const keyStorage = `hubi_regras_precificacao_${loja.id}`;
       localStorage.setItem(
         keyStorage,
         JSON.stringify({
           descontoAtacado: descAtacadoNum,
-          tipoMinimoAtacado,
-          qtdMinimaAtacado: qtdAtacadoNum,
           valorMinimoAtacado: valAtacadoNum,
+          qtdTotalMinimaAtacado: qtdTotAtacadoNum,
+          qtdMinimaSkuAtacado: qtdSkuAtacadoNum,
 
           descontoAutoatacado: descAutoNum,
-          tipoMinimoAutoatacado,
-          qtdMinimaAutoatacado: qtdAutoNum,
-          valorMinimoAutoatacado: valAutoNum
+          valorMinimoAutoatacado: valAutoNum,
+          qtdTotalMinimaAutoatacado: qtdTotAutoNum,
+          qtdMinimaSkuAutoatacado: qtdSkuAutoNum
         })
       );
 
-      // 2. Atualizar na tabela lojas no Supabase se as colunas existirem
+      // 2. Atualizar na tabela lojas no Supabase
       try {
         await supabase
           .from('lojas')
           .update({
             desconto_padrao_atacado_percentual: descAtacadoNum,
-            tipo_minimo_padrao_atacado: tipoMinimoAtacado,
-            qtd_minima_padrao_atacado: qtdAtacadoNum,
+            tipo_minimo_padrao_atacado: 'hibrido',
             valor_minimo_padrao_atacado: valAtacadoNum,
+            qtd_minima_padrao_atacado: qtdTotAtacadoNum,
+            qtd_minima_sku_padrao_atacado: qtdSkuAtacadoNum,
 
             desconto_padrao_autoatacado_percentual: descAutoNum,
-            tipo_minimo_padrao_autoatacado: tipoMinimoAutoatacado,
-            qtd_minima_padrao_autoatacado: qtdAutoNum,
-            valor_minimo_padrao_autoatacado: valAutoNum
+            tipo_minimo_padrao_autoatacado: 'hibrido',
+            valor_minimo_padrao_autoatacado: valAutoNum,
+            qtd_minima_padrao_autoatacado: qtdTotAutoNum,
+            qtd_minima_sku_padrao_autoatacado: qtdSkuAutoNum
           })
           .eq('id', loja.id);
       } catch (e) {
         console.warn('Colunas de desconto na tabela lojas não disponíveis ainda no schema.', e);
       }
 
-      exibirAlertaSucesso('✨ Regras de precificação salvas! Ao cadastrar produtos, os preços e critérios serão sugeridos automaticamente.');
+      exibirAlertaSucesso('✨ Regras de precificação salvas com sucesso! O carrinho e o catálogo foram sincronizados.');
     } catch (err: any) {
       alert(`Erro ao salvar regras: ${err.message}`);
     } finally {
@@ -914,10 +936,15 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* 1. REGRAS DE ATACADO */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Percent className="w-5 h-5" />
-                    <h3 className="font-bold text-sm text-slate-100">1. Tabela de Preço Atacado</h3>
+                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Percent className="w-5 h-5" />
+                      <h3 className="font-bold text-sm text-slate-100">1. Tabela de Preço Atacado</h3>
+                    </div>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      Nível Intermediário
+                    </span>
                   </div>
 
                   <div className="space-y-4">
@@ -938,86 +965,81 @@ export const CadastrosAuxiliares: React.FC = () => {
                         />
                         <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">% OFF</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 mt-1 block">Ex: 20% de desconto no atacado</span>
+                      <span className="text-[11px] text-slate-500 mt-1 block">Ex: 20% de desconto para compras no atacado</span>
                     </div>
 
-                    {/* SELEÇÃO DO CRITÉRIO MÍNIMO: QUANTIDADE OU VALOR */}
-                    <div className="space-y-2 pt-2 border-t border-slate-800">
-                      <label className="text-xs font-semibold text-slate-300 block">
-                        Critério de Mínimo para Atacado:
-                        <span className="text-[10px] text-amber-400 font-normal ml-1.5">(Escolha Quantidade OU Valor Mínimo)</span>
-                      </label>
+                    {/* MODO 1: VALOR */}
+                    <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-200">Modo 1: Validação por Valor (R$)</span>
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">Total do Pedido</span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Ex: 1500.00"
+                          value={valorMinimoAtacado}
+                          onChange={(e) => setValorMinimoAtacado(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold text-emerald-400"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 block">Total do pedido $\ge$ este valor libera preço de atacado</span>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setTipoMinimoAtacado('quantidade')}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                            tipoMinimoAtacado === 'quantidade'
-                              ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10'
-                              : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          <span>Por Quantidade (un)</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setTipoMinimoAtacado('valor')}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                            tipoMinimoAtacado === 'valor'
-                              ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10'
-                              : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          <span>Por Valor Mínimo (R$)</span>
-                        </button>
+                    {/* MODO 2: QUANTIDADE */}
+                    <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-200">Modo 2: Validação por Quantidade</span>
+                        <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-bold">Peças + Mín. SKU</span>
                       </div>
 
-                      {tipoMinimoAtacado === 'quantidade' ? (
-                        <div className="pt-1">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
                           <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                            Quantidade Mínima de Peças (unidades):
+                            Qtd Total de Peças:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Ex: 50"
+                            value={qtdTotalMinimaAtacado}
+                            onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+                            Mínimo por SKU/Item:
                           </label>
                           <input
                             type="number"
                             min="1"
                             placeholder="Ex: 6"
-                            value={qtdMinimaAtacado}
-                            onChange={(e) => setQtdMinimaAtacado(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                            value={qtdMinimaSkuAtacado}
+                            onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold"
                           />
-                          <span className="text-[10px] text-slate-500 mt-1 block">Ex: A partir de 6 peças aplica este preço</span>
                         </div>
-                      ) : (
-                        <div className="pt-1">
-                          <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                            Valor Mínimo da Compra (R$):
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">R$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="Ex: 300.00"
-                              value={valorMinimoAtacado}
-                              onChange={(e) => setValorMinimoAtacado(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold text-emerald-400"
-                            />
-                          </div>
-                          <span className="text-[10px] text-slate-500 mt-1 block">Ex: Em compras a partir de R$ 300,00</span>
-                        </div>
-                      )}
+                      </div>
+                      <span className="text-[10px] text-slate-500 block">Total $\ge$ {qtdTotalMinimaAtacado || 50} peças E cada SKU $\ge$ {qtdMinimaSkuAtacado || 6} un</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 2. REGRAS DE AUTOATACADO */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-                  <div className="flex items-center gap-2 text-indigo-400">
-                    <Percent className="w-5 h-5" />
-                    <h3 className="font-bold text-sm text-slate-100">2. Tabela de Preço Autoatacado</h3>
+                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2 text-indigo-400">
+                      <Percent className="w-5 h-5" />
+                      <h3 className="font-bold text-sm text-slate-100">2. Tabela de Preço Autoatacado</h3>
+                    </div>
+                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
+                      Nível Distribuidor / Top
+                    </span>
                   </div>
 
                   <div className="space-y-4">
@@ -1038,77 +1060,67 @@ export const CadastrosAuxiliares: React.FC = () => {
                         />
                         <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">% OFF</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 mt-1 block">Ex: 25% de desconto para grandes volumes</span>
+                      <span className="text-[11px] text-slate-500 mt-1 block">Ex: 25% de desconto para grandes volumes / distribuidores</span>
                     </div>
 
-                    {/* SELEÇÃO DO CRITÉRIO MÍNIMO: QUANTIDADE OU VALOR */}
-                    <div className="space-y-2 pt-2 border-t border-slate-800">
-                      <label className="text-xs font-semibold text-slate-300 block">
-                        Critério de Mínimo para Autoatacado:
-                        <span className="text-[10px] text-amber-400 font-normal ml-1.5">(Escolha Quantidade OU Valor Mínimo)</span>
-                      </label>
+                    {/* MODO 1: VALOR */}
+                    <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-200">Modo 1: Validação por Valor (R$)</span>
+                        <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-bold">Total do Pedido</span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Ex: 3000.00"
+                          value={valorMinimoAutoatacado}
+                          onChange={(e) => setValorMinimoAutoatacado(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold text-indigo-400"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 block">Total do pedido $\ge$ este valor libera preço de autoatacado</span>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setTipoMinimoAutoatacado('quantidade')}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                            tipoMinimoAutoatacado === 'quantidade'
-                              ? 'bg-indigo-500/20 border-2 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10'
-                              : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          <span>Por Quantidade (un)</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setTipoMinimoAutoatacado('valor')}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                            tipoMinimoAutoatacado === 'valor'
-                              ? 'bg-indigo-500/20 border-2 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10'
-                              : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          <span>Por Valor Mínimo (R$)</span>
-                        </button>
+                    {/* MODO 2: QUANTIDADE */}
+                    <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-200">Modo 2: Validação por Quantidade</span>
+                        <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-bold">Peças + Mín. SKU</span>
                       </div>
 
-                      {tipoMinimoAutoatacado === 'quantidade' ? (
-                        <div className="pt-1">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
                           <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                            Quantidade Mínima de Peças (unidades):
+                            Qtd Total de Peças:
                           </label>
                           <input
                             type="number"
                             min="1"
-                            placeholder="Ex: 24"
-                            value={qtdMinimaAutoatacado}
-                            onChange={(e) => setQtdMinimaAutoatacado(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                            placeholder="Ex: 100"
+                            value={qtdTotalMinimaAutoatacado}
+                            onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold"
                           />
-                          <span className="text-[10px] text-slate-500 mt-1 block">Ex: A partir de 24 peças (fardo/caixa fechada)</span>
                         </div>
-                      ) : (
-                        <div className="pt-1">
+
+                        <div>
                           <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                            Valor Mínimo da Compra (R$):
+                            Mínimo por SKU/Item:
                           </label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">R$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="Ex: 1000.00"
-                              value={valorMinimoAutoatacado}
-                              onChange={(e) => setValorMinimoAutoatacado(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold text-indigo-400"
-                            />
-                          </div>
-                          <span className="text-[10px] text-slate-500 mt-1 block">Ex: Em compras a partir de R$ 1.000,00</span>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Ex: 6"
+                            value={qtdMinimaSkuAutoatacado}
+                            onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold"
+                          />
                         </div>
-                      )}
+                      </div>
+                      <span className="text-[10px] text-slate-500 block">Total $\ge$ {qtdTotalMinimaAutoatacado || 100} peças E cada SKU $\ge$ {qtdMinimaSkuAutoatacado || 6} un</span>
                     </div>
                   </div>
                 </div>
@@ -1141,7 +1153,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     <div className="text-xl font-black text-slate-100">
                       R$ {valorVarejoSimulado.toFixed(2)}
                     </div>
-                    <span className="text-[11px] text-slate-500 block">Preço unitário padrão</span>
+                    <span className="text-[11px] text-slate-500 block">Preço unitário base (abaixo de R$ {Number(valorMinimoAtacado || 1500).toFixed(2)})</span>
                   </div>
 
                   {/* Card Atacado */}
@@ -1154,9 +1166,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       R$ {valorAtacadoSimulado.toFixed(2)}
                     </div>
                     <span className="text-[11px] text-emerald-300/80 block">
-                      {tipoMinimoAtacado === 'quantidade'
-                        ? `A partir de ${qtdMinimaAtacado || 6} un (Economia de R$ ${economiaAtacado.toFixed(2)})`
-                        : `A partir de R$ ${Number(valorMinimoAtacado || 0).toFixed(2)} em compras (Economia de R$ ${economiaAtacado.toFixed(2)}/un)`}
+                      A partir de R$ {Number(valorMinimoAtacado || 1500).toFixed(2)} OU {qtdTotalMinimaAtacado || 50} peças ({qtdMinimaSkuAtacado || 6} un/SKU)
                     </span>
                   </div>
 
@@ -1170,9 +1180,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       R$ {valorAutoatacadoSimulado.toFixed(2)}
                     </div>
                     <span className="text-[11px] text-indigo-300/80 block">
-                      {tipoMinimoAutoatacado === 'quantidade'
-                        ? `A partir de ${qtdMinimaAutoatacado || 24} un (Economia de R$ ${economiaAutoatacado.toFixed(2)})`
-                        : `A partir de R$ ${Number(valorMinimoAutoatacado || 0).toFixed(2)} em compras (Economia de R$ ${economiaAutoatacado.toFixed(2)}/un)`}
+                      A partir de R$ {Number(valorMinimoAutoatacado || 3000).toFixed(2)} OU {qtdTotalMinimaAutoatacado || 100} peças ({qtdMinimaSkuAutoatacado || 6} un/SKU)
                     </span>
                   </div>
                 </div>

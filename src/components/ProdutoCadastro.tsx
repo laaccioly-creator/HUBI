@@ -186,7 +186,8 @@ const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: str
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const maxDim = 800;
+      // 640px é o ponto ideal: resolução excelente para OCR e reconhecimento de produto, com payload ultraleve (<40KB)
+      const maxDim = 640;
       let width = img.width;
       let height = img.height;
 
@@ -211,7 +212,7 @@ const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: str
       }
 
       ctx.drawImage(img, 0, 0, width, height);
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.80);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
       const cleanBase64 = compressedDataUrl.includes(',') ? compressedDataUrl.split(',')[1] : compressedDataUrl;
       resolve({
         base64: cleanBase64,
@@ -275,33 +276,13 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
         }
       };
 
-      // 1. Descobrir dinamicamente quais modelos exatos esta chave possui acesso
-      let modelosValidos: string[] = [];
-      try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        if (listRes.ok) {
-          const listJson = await listRes.json();
-          if (Array.isArray(listJson.models)) {
-            modelosValidos = listJson.models
-              .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent') && m.name?.toLowerCase().includes('gemini'))
-              .map((m: any) => m.name.replace('models/', ''));
-          }
-        }
-      } catch (e) {
-        console.warn('Aviso ao listar modelos do Gemini:', e);
-      }
-
-      // Ordenação inteligente: 2.0-flash primeiro, depois outros flash, depois demais
-      const modelosParaTentar = Array.from(new Set([
-        ...modelosValidos.filter(m => m.includes('2.0') && m.includes('flash')),
-        ...modelosValidos.filter(m => m.includes('flash')),
-        ...modelosValidos,
-        'gemini-2.0-flash',
+      // Modelos rápidos e estáveis de produção (sem modelos experimentais com 'thinking' que levam mais de 40s)
+      const modelosParaTentar = [
         'gemini-1.5-flash',
-        'gemini-1.5-flash-latest',
+        'gemini-2.0-flash',
         'gemini-1.5-flash-8b',
-        'gemini-2.0-flash-exp'
-      ])).filter(Boolean);
+        'gemini-2.5-flash'
+      ];
 
       let resData: any = null;
       let ultimoErro: any = null;
@@ -309,11 +290,18 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
       for (const modelo of modelosParaTentar) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+          
+          // Timeout de 7 segundos por tentativa para não travar a experiência do usuário
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 7000);
+
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
 
           if (response.ok) {
             resData = await response.json();
@@ -451,11 +439,11 @@ export const ProdutoCadastro: React.FC = () => {
   // Regras de Precificação (Descontos padrão da loja)
   const [regrasPrecificacao, setRegrasPrecificacao] = useState<{
     descontoAtacado: number;
-    tipoMinimoAtacado: 'quantidade' | 'valor';
+    tipoMinimoAtacado: 'quantidade' | 'valor' | 'hibrido';
     qtdMinimaAtacado: number;
     valorMinimoAtacado: number;
     descontoAutoatacado: number;
-    tipoMinimoAutoatacado: 'quantidade' | 'valor';
+    tipoMinimoAutoatacado: 'quantidade' | 'valor' | 'hibrido';
     qtdMinimaAutoatacado: number;
     valorMinimoAutoatacado: number;
   }>({
@@ -495,25 +483,25 @@ export const ProdutoCadastro: React.FC = () => {
           const parsed = JSON.parse(regrasSalvas);
           setRegrasPrecificacao({
             descontoAtacado: Number(parsed.descontoAtacado) || 20,
-            tipoMinimoAtacado: parsed.tipoMinimoAtacado || 'quantidade',
-            qtdMinimaAtacado: Number(parsed.qtdMinimaAtacado) || 6,
+            tipoMinimoAtacado: parsed.tipoMinimoAtacado || 'hibrido',
+            qtdMinimaAtacado: Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || 6,
             valorMinimoAtacado: Number(parsed.valorMinimoAtacado) || 300,
 
             descontoAutoatacado: Number(parsed.descontoAutoatacado) || 25,
-            tipoMinimoAutoatacado: parsed.tipoMinimoAutoatacado || 'quantidade',
-            qtdMinimaAutoatacado: Number(parsed.qtdMinimaAutoatacado) || 24,
+            tipoMinimoAutoatacado: parsed.tipoMinimoAutoatacado || 'hibrido',
+            qtdMinimaAutoatacado: Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || 24,
             valorMinimoAutoatacado: Number(parsed.valorMinimoAutoatacado) || 1000
           });
         } catch (err) {}
       } else if (loja.desconto_padrao_atacado_percentual) {
         setRegrasPrecificacao({
           descontoAtacado: Number(loja.desconto_padrao_atacado_percentual) || 20,
-          tipoMinimoAtacado: loja.tipo_minimo_padrao_atacado || 'quantidade',
+          tipoMinimoAtacado: loja.tipo_minimo_padrao_atacado || 'hibrido',
           qtdMinimaAtacado: Number(loja.qtd_minima_padrao_atacado) || 6,
           valorMinimoAtacado: Number(loja.valor_minimo_padrao_atacado) || 300,
 
           descontoAutoatacado: Number(loja.desconto_padrao_autoatacado_percentual) || 25,
-          tipoMinimoAutoatacado: loja.tipo_minimo_padrao_autoatacado || 'quantidade',
+          tipoMinimoAutoatacado: loja.tipo_minimo_padrao_autoatacado || 'hibrido',
           qtdMinimaAutoatacado: Number(loja.qtd_minima_padrao_autoatacado) || 24,
           valorMinimoAutoatacado: Number(loja.valor_minimo_padrao_autoatacado) || 1000
         });
@@ -539,12 +527,12 @@ export const ProdutoCadastro: React.FC = () => {
       const autoCalc = (num * (1 - descAuto / 100)).toFixed(2);
 
       setPrecoVendaAtacado(atacadoCalc);
-      setTipoMinimoAtacado(regrasPrecificacao.tipoMinimoAtacado || 'quantidade');
+      setTipoMinimoAtacado(regrasPrecificacao.tipoMinimoAtacado === 'valor' ? 'valor' : 'quantidade');
       setQtdMinimaAtacado(String(regrasPrecificacao.qtdMinimaAtacado || 6));
       setValorMinimoAtacado(String(regrasPrecificacao.valorMinimoAtacado || 300));
 
       setPrecoVendaAutoatacado(autoCalc);
-      setTipoMinimoAutoatacado(regrasPrecificacao.tipoMinimoAutoatacado || 'quantidade');
+      setTipoMinimoAutoatacado(regrasPrecificacao.tipoMinimoAutoatacado === 'valor' ? 'valor' : 'quantidade');
       setQtdMinimaAutoatacado(String(regrasPrecificacao.qtdMinimaAutoatacado || 24));
       setValorMinimoAutoatacado(String(regrasPrecificacao.valorMinimoAutoatacado || 1000));
     }

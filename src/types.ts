@@ -40,16 +40,31 @@ export interface Loja {
   valor_minimo_pedido: number;
   tipo_plano: string;
   desconto_padrao_atacado_percentual?: number | null;
-  tipo_minimo_padrao_atacado?: 'quantidade' | 'valor' | null;
+  tipo_minimo_padrao_atacado?: 'quantidade' | 'valor' | 'hibrido' | null;
   qtd_minima_padrao_atacado?: number | null;
+  qtd_minima_sku_padrao_atacado?: number | null;
   valor_minimo_padrao_atacado?: number | null;
   desconto_padrao_autoatacado_percentual?: number | null;
-  tipo_minimo_padrao_autoatacado?: 'quantidade' | 'valor' | null;
+  tipo_minimo_padrao_autoatacado?: 'quantidade' | 'valor' | 'hibrido' | null;
   qtd_minima_padrao_autoatacado?: number | null;
+  qtd_minima_sku_padrao_autoatacado?: number | null;
   valor_minimo_padrao_autoatacado?: number | null;
   criado_em?: string;
   atualizado_em?: string;
 }
+
+export interface RegrasPrecificacaoLoja {
+  descontoAtacado: number;
+  valorMinimoAtacado: number;
+  qtdTotalMinimaAtacado: number;
+  qtdMinimaSkuAtacado: number;
+
+  descontoAutoatacado: number;
+  valorMinimoAutoatacado: number;
+  qtdTotalMinimaAutoatacado: number;
+  qtdMinimaSkuAutoatacado: number;
+}
+
 
 export interface UnidadeMedida {
   id: string;
