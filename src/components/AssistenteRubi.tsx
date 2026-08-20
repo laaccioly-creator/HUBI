@@ -13,18 +13,18 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface MensagemIA {
   id: string;
-  remetente: 'user' | 'kai';
+  remetente: 'user' | 'rubi';
   texto: string;
   data: Date;
 }
 
-export const AssistenteKai: React.FC = () => {
+export const AssistenteRubi: React.FC = () => {
   const { loja } = useAuth();
   const [mensagens, setMensagens] = useState<MensagemIA[]>([
     {
       id: '1',
-      remetente: 'kai',
-      texto: `Olá! Sou o **Kai**, seu assistente inteligente no **HUBI**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?`,
+      remetente: 'rubi',
+      texto: `Olá! Sou a **Rubi**, sua assistente inteligente no **HUBI**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?`,
       data: new Date()
     }
   ]);
@@ -97,7 +97,7 @@ export const AssistenteKai: React.FC = () => {
           ...prev,
           {
             id: (Date.now() + 1).toString(),
-            remetente: 'kai',
+            remetente: 'rubi',
             texto: resposta,
             data: new Date()
           }
@@ -118,7 +118,7 @@ export const AssistenteKai: React.FC = () => {
           </div>
           <div>
             <h1 className="font-bold text-sm text-slate-100 flex items-center gap-2">
-              <span>Kai - Assistente de Inteligência Artificial</span>
+              <span>Rubi - Assistente de Inteligência Artificial</span>
               <span className="bg-indigo-500/20 text-indigo-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-indigo-500/30">
                 HUBI AI
               </span>
@@ -134,7 +134,7 @@ export const AssistenteKai: React.FC = () => {
             key={msg.id}
             className={`flex items-start gap-3 ${msg.remetente === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {msg.remetente === 'kai' && (
+            {msg.remetente === 'rubi' && (
               <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0 mt-1">
                 <Bot className="w-4 h-4" />
               </div>
@@ -161,7 +161,7 @@ export const AssistenteKai: React.FC = () => {
         {pensando && (
           <div className="flex items-center gap-2 text-indigo-400 text-xs p-2">
             <Sparkles className="w-4 h-4 animate-spin" />
-            <span>Kai está analisando os dados da sua loja...</span>
+            <span>Rubi está analisando os dados da sua loja...</span>
           </div>
         )}
         <div ref={endRef} />
@@ -203,7 +203,7 @@ export const AssistenteKai: React.FC = () => {
         >
           <input
             type="text"
-            placeholder="Digite uma pergunta para o Kai..."
+            placeholder="Digite uma pergunta para a Rubi..."
             value={inputTexto}
             onChange={(e) => setInputTexto(e.target.value)}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"

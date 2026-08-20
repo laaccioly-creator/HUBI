@@ -12,7 +12,7 @@ import { ClientesFiado } from './components/ClientesFiado';
 import { FinancasCaixa } from './components/FinancasCaixa';
 import { EstatisticasAnalytics } from './components/EstatisticasAnalytics';
 import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
-import { AssistenteKai } from './components/AssistenteKai';
+import { AssistenteRubi } from './components/AssistenteRubi';
 import { CatalogoPublico } from './components/CatalogoPublico';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
@@ -40,7 +40,7 @@ export const App: React.FC = () => {
               <Route path="finances" element={<FinancasCaixa />} />
               <Route path="analytics" element={<EstatisticasAnalytics />} />
               <Route path="users" element={<UsuariosGestao />} />
-              <Route path="smart-assistant" element={<AssistenteKai />} />
+              <Route path="smart-assistant" element={<AssistenteRubi />} />
               <Route path="config" element={<ConfiguracoesLoja />} />
             </Route>
 

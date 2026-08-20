@@ -27,7 +27,7 @@ O **HUBI** é uma plataforma completa de gestão e vendas multiplataforma (Mobil
    - **Térmica Bluetooth (ESC/POS 58mm e 80mm)** via Web Bluetooth API.
    - **Folhas A4 / PDF** para orçamentos e relatórios detalhados.
    - **Recibo Digital** para WhatsApp.
-8. **Assistente Inteligente Kai (IA)**: IA conversacional conectada aos dados da loja para orientar sobre vendas, produtos parados e metas.
+8. **Assistente Inteligente Rubi (IA)**: IA conversacional conectada aos dados da loja para orientar sobre vendas, produtos parados e metas.
 
 ---
 
@@ -69,7 +69,7 @@ Todas as 15 tabelas do banco de dados seguem a nomenclatura em Português do Bra
 - `/finances`: Caixa, contas a pagar com alerta de 7 dias e recorrências.
 - `/analytics`: Faturamento, ticket médio, lucro real e ranking de vendas.
 - `/catalog/:slug`: Loja virtual pública do cliente com pedido direto no WhatsApp.
-- `/smart-assistant`: Assistente inteligente Kai com IA para insights da loja.
+- `/smart-assistant`: Assistente inteligente Rubi com IA para insights da loja.
 - `/config`: Configurações gerais, taxas de maquininha e recibos.
 
 ---

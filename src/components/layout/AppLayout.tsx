@@ -69,7 +69,7 @@ export const AppLayout: React.FC = () => {
     { name: 'Clientes & Fiado', path: '/customers', icon: Users },
     { name: 'Finanças & Caixa', path: '/finances', icon: DollarSign },
     { name: 'Estatísticas', path: '/analytics', icon: BarChart3 },
-    { name: 'Assistente IA (Kai)', path: '/smart-assistant', icon: Sparkles, badgeText: 'IA' },
+    { name: 'Assistente IA (Rubi)', path: '/smart-assistant', icon: Sparkles, badgeText: 'IA' },
     { name: 'Configurações', path: '/config', icon: Settings }
   ];
 
@@ -204,7 +204,7 @@ export const AppLayout: React.FC = () => {
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800"
             >
               <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>Assistente Kai (IA)</span>
+              <span>Assistente Rubi (IA)</span>
             </Link>
             <Link
               to="/analytics"
