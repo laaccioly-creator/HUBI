@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
-import { LayoutNavegacao } from './components/LayoutNavegacao';
+import { AppLayout } from './components/layout/AppLayout';
 
 import { PosCheckout } from './components/PosCheckout';
 import { PedidosLista } from './components/PedidosLista';
@@ -28,7 +28,7 @@ export const App: React.FC = () => {
             <Route path="/catalog" element={<CatalogoPublico />} />
 
             {/* Rotas Internas do HUBI */}
-            <Route path="/" element={<LayoutNavegacao />}>
+            <Route path="/" element={<AppLayout />}>
               <Route index element={<Navigate to="/pos" replace />} />
               <Route path="pos" element={<PosCheckout />} />
               <Route path="orders" element={<PedidosLista />} />
