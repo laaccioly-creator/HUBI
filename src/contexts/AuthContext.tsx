@@ -115,9 +115,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('usuarios_loja')
           .insert([{
             loja_id: lojaBuscada.id,
-            nome_completo: 'Administrador',
+            nome_completo: 'Proprietário',
             email: lojaBuscada.email,
-            perfil: 'admin',
+            perfil: 'owner',
+            pode_uso_celular_pessoal: true,
+            pode_ver_transacoes_outros: true,
+            pode_dar_desconto: true,
+            pode_cadastrar_alterar_produtos: true,
+            pode_gerenciar_estoque: true,
+            pode_ativar_fiado: true,
             pode_ver_preco_custo: true,
             pode_exportar_relatorios: true,
             pode_editar_vendas_passadas: true,
@@ -283,12 +289,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(`Erro ao criar conta: ${erroLoja?.message || 'Falha na criação da loja'}`);
     }
 
-    // Criar Usuário Administrador
+    // Criar Usuário Proprietário (Owner) com todas as permissões ativas
     const novoUsuarioPayload: Partial<UsuarioLoja> = {
       loja_id: lojaCriada.id,
       nome_completo: nomeLimpo,
       email: emailLimpo,
-      perfil: 'admin',
+      perfil: 'owner',
+      pode_uso_celular_pessoal: true,
+      pode_ver_transacoes_outros: true,
+      pode_dar_desconto: true,
+      pode_cadastrar_alterar_produtos: true,
+      pode_gerenciar_estoque: true,
+      pode_ativar_fiado: true,
       pode_ver_preco_custo: true,
       pode_exportar_relatorios: true,
       pode_editar_vendas_passadas: true,

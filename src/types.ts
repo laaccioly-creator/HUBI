@@ -76,6 +76,20 @@ export interface UnidadeMedida {
   criado_em?: string;
 }
 
+export interface MetricasUsuario {
+  hoje_vendas: number;
+  hoje_faturamento: number;
+  ontem_vendas: number;
+  ontem_faturamento: number;
+  semana_vendas: number;
+  semana_faturamento: number;
+  mes_vendas: number;
+  mes_faturamento: number;
+  dias30_vendas: number;
+  dias30_faturamento: number;
+  percentual_participacao_30d: number;
+}
+
 export interface UsuarioLoja {
   id: string;
   loja_id: string;
@@ -102,6 +116,7 @@ export interface UsuarioLoja {
   faturamento_30d?: number;
   vendas_count_30d?: number;
   percentual_participacao_30d?: number;
+  metricas?: MetricasUsuario;
 }
 
 export interface Categoria {
