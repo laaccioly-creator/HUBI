@@ -179,7 +179,6 @@ export const PedidosLista: React.FC = () => {
       const { error } = await supabase
         .from('pedidos')
         .update({
-          status_pagamento: novoStatusPagamento,
           valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : ped?.valor_pago,
           saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : ped?.saldo_devedor,
           fiado_quitado: ehPago,
@@ -308,123 +307,139 @@ export const PedidosLista: React.FC = () => {
     return 'aguardando_pagamento';
   };
 
-  const getStatusBadge = (status: StatusPedido) => {
+  const getStatusBadge = (status: StatusPedido, showChevron = false) => {
+    let content;
     switch (status) {
       case 'pendente':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock className="w-3 h-3" /> Pendente
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <Clock className="w-3.5 h-3.5" /> <span>Pendente</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-amber-400/70" />}
           </span>
         );
+        break;
       case 'confirmado':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="w-3 h-3" /> Confirmado
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3.5 h-3.5" /> <span>Confirmado</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-emerald-400/70" />}
           </span>
         );
+        break;
       case 'em_separacao':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            <Package className="w-3 h-3" /> Em separação
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <Package className="w-3.5 h-3.5" /> <span>Em separação</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-cyan-400/70" />}
           </span>
         );
+        break;
       case 'em_producao':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <Package className="w-3 h-3" /> Em produção
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <Package className="w-3.5 h-3.5" /> <span>Em produção</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-blue-400/70" />}
           </span>
         );
+        break;
       case 'em_expedicao':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <Truck className="w-3 h-3" /> Em expedição
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <Truck className="w-3.5 h-3.5" /> <span>Em expedição</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-purple-400/70" />}
           </span>
         );
+        break;
       case 'saiu_para_entrega':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <Truck className="w-3 h-3" /> Saiu para Entrega
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <Truck className="w-3.5 h-3.5" /> <span>Saiu para Entrega</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-indigo-400/70" />}
           </span>
         );
+        break;
       case 'pronto_para_retirar':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-400 border border-teal-500/20">
-            <Store className="w-3 h-3" /> Pronto para retirar
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-400 border border-teal-500/20">
+            <Store className="w-3.5 h-3.5" /> <span>Pronto para retirar</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-teal-400/70" />}
           </span>
         );
+        break;
       case 'concluido':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Concluído
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> <span>Concluído</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-slate-400" />}
           </span>
         );
+        break;
       case 'cancelado':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400/80 border border-rose-500/20">
-            <XCircle className="w-3 h-3" /> Cancelado
+        content = (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400/80 border border-rose-500/20">
+            <XCircle className="w-3.5 h-3.5" /> <span>Cancelado</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-rose-400/70" />}
           </span>
         );
+        break;
       default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
+        content = (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
             {status}
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-slate-400" />}
           </span>
         );
     }
+    return content;
   };
 
-  const getStatusPagamentoBadge = (status: StatusPagamento) => {
+  const getStatusPagamentoBadge = (status: StatusPagamento, showChevron = false) => {
     switch (status) {
       case 'pago':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 className="w-3 h-3" /> Pago
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <CheckCircle2 className="w-3.5 h-3.5" /> <span>Pago</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-emerald-400/70" />}
           </span>
         );
       case 'parcialmente_pago':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
-            <CreditCard className="w-3 h-3" /> Parcialmente Pago
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+            <CreditCard className="w-3.5 h-3.5" /> <span>Parcialmente Pago</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-sky-400/70" />}
           </span>
         );
       case 'aguardando_pagamento':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-            <Clock className="w-3 h-3" /> Aguardando pagamento
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <Clock className="w-3.5 h-3.5" /> <span>Aguardando pagamento</span>
+            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-amber-400/70" />}
           </span>
         );
     }
   };
 
-  const getTipoVendaBadge = (tabela?: TabelaPreco | string | null) => {
-    switch (tabela) {
-      case 'atacado':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
-            Atacado
-          </span>
-        );
-      case 'autoatacado':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
-            Distribuidor
-          </span>
-        );
-      case 'promocional':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-            Promocional
-          </span>
-        );
-      case 'varejo':
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            Varejo
-          </span>
-        );
+  const getTipoVendaBadge = (tabela?: TabelaPreco | string | null, showChevron = false) => {
+    let label = 'Varejo';
+    let cls = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+    if (tabela === 'atacado') {
+      label = 'Atacado';
+      cls = 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+    } else if (tabela === 'autoatacado') {
+      label = 'Distribuidor';
+      cls = 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+    } else if (tabela === 'promocional') {
+      label = 'Promocional';
+      cls = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
     }
+
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold border ${cls}`}>
+        <span>{label}</span>
+        {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 opacity-75" />}
+      </span>
+    );
   };
 
   const formatarData = (dataStr: string) => {
@@ -689,11 +704,12 @@ export const PedidosLista: React.FC = () => {
 
                       {/* Status do Pedido (Clique para Alterar) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="relative inline-block">
+                        <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar status do pedido">
+                          {getStatusBadge(pedido.status, true)}
                           <select
                             value={pedido.status}
                             onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
-                            className="bg-transparent text-xs font-semibold cursor-pointer border-0 rounded-full focus:ring-1 focus:ring-emerald-500 appearance-none pr-5 pl-1 py-0.5 hover:opacity-80 transition"
+                            className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
                             title="Clique para alterar status do pedido"
                           >
                             {STATUS_PEDIDO_OPCOES.map((opt) => (
@@ -702,20 +718,17 @@ export const PedidosLista: React.FC = () => {
                               </option>
                             ))}
                           </select>
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
-                            {getStatusBadge(pedido.status)}
-                            <ChevronDown className="w-3 h-3 text-slate-400 ml-1 shrink-0" />
-                          </div>
                         </div>
                       </td>
 
                       {/* Status do Pagamento (Clique para Alterar) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="relative inline-block">
+                        <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar status do pagamento">
+                          {getStatusPagamentoBadge(statusPag, true)}
                           <select
                             value={statusPag}
                             onChange={(e) => atualizarStatusPagamento(pedido.id, e.target.value as StatusPagamento)}
-                            className="bg-transparent text-xs font-semibold cursor-pointer border-0 rounded-full focus:ring-1 focus:ring-emerald-500 appearance-none pr-5 pl-1 py-0.5 hover:opacity-80 transition"
+                            className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
                             title="Clique para alterar status do pagamento"
                           >
                             {STATUS_PAGAMENTO_OPCOES.map((opt) => (
@@ -724,21 +737,18 @@ export const PedidosLista: React.FC = () => {
                               </option>
                             ))}
                           </select>
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
-                            {getStatusPagamentoBadge(statusPag)}
-                            <ChevronDown className="w-3 h-3 text-slate-400 ml-1 shrink-0" />
-                          </div>
                         </div>
                       </td>
 
                       {/* Tipo da Venda (Varejo / Atacado / Distribuidor) - Alterável por Owner/Admin quando Aguardando Pagamento */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {permiteTrocarTipo ? (
-                          <div className="relative inline-block" title="Clique para alterar Tipo da Venda (Owner/Admin)">
+                          <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar Tipo da Venda (Owner/Admin)">
+                            {getTipoVendaBadge(pedido.tabela_preco_aplicada, true)}
                             <select
                               value={pedido.tabela_preco_aplicada || 'varejo'}
                               onChange={(e) => atualizarTipoVenda(pedido.id, e.target.value as TabelaPreco)}
-                              className="bg-transparent text-xs font-semibold cursor-pointer border-0 rounded-md focus:ring-1 focus:ring-emerald-500 appearance-none pr-4 pl-1 py-0.5 hover:opacity-80 transition"
+                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
                             >
                               {TIPOS_VENDA_OPCOES.map((opt) => (
                                 <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
@@ -746,14 +756,10 @@ export const PedidosLista: React.FC = () => {
                                 </option>
                               ))}
                             </select>
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1">
-                              {getTipoVendaBadge(pedido.tabela_preco_aplicada)}
-                              <ChevronDown className="w-3 h-3 text-slate-400" />
-                            </div>
                           </div>
                         ) : (
                           <div className="inline-flex items-center gap-1" title={podeAlterarTipoVenda ? 'Tipo da venda bloqueado após pagamento' : 'Apenas Owner e Admin podem alterar'}>
-                            {getTipoVendaBadge(pedido.tabela_preco_aplicada)}
+                            {getTipoVendaBadge(pedido.tabela_preco_aplicada, false)}
                             {!podeAlterarTipoVenda && <Lock className="w-3 h-3 text-slate-600" />}
                           </div>
                         )}
