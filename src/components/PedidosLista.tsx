@@ -719,7 +719,7 @@ export const PedidosLista: React.FC = () => {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
-                  if (loja && pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, '80mm');
+                  if (pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, '80mm');
                 }}
                 className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
@@ -729,7 +729,7 @@ export const PedidosLista: React.FC = () => {
 
               <button
                 onClick={() => {
-                  if (loja && pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, 'a4');
+                  if (pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, 'a4');
                 }}
                 className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
@@ -897,7 +897,12 @@ export const PedidosLista: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
-                    if (loja && pedidoReciboModal) PrintService.printReceipt(pedidoReciboModal, loja, '80mm');
+                    console.log('👆 [HUBI PedidosLista] Clique em "Imprimir 58/80mm"', { pedidoReciboModal, loja });
+                    if (pedidoReciboModal) {
+                      PrintService.printReceipt(pedidoReciboModal, loja, '80mm');
+                    } else {
+                      console.warn('⚠️ [HUBI PedidosLista] pedidoReciboModal está vazio/nulo.');
+                    }
                   }}
                   className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
                 >
@@ -907,7 +912,12 @@ export const PedidosLista: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    if (loja && pedidoReciboModal) PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
+                    console.log('👆 [HUBI PedidosLista] Clique em "Imprimir A4"', { pedidoReciboModal, loja });
+                    if (pedidoReciboModal) {
+                      PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
+                    } else {
+                      console.warn('⚠️ [HUBI PedidosLista] pedidoReciboModal está vazio/nulo.');
+                    }
                   }}
                   className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
                 >

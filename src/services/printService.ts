@@ -1,7 +1,7 @@
 /**
  * HUBI Print & Receipt Engine
  * Suporta:
- * 1. Impressão Térmica / Bobina (58mm e 80mm) e Folhas A4 / PDF via Diálogo Nativo de Impressão
+ * 1. Impressão Térmica / Bobina (58mm e 80mm) e Folhas A4 / PDF via Diálogo Nativo do Navegador
  * 2. Impressão Bluetooth ESC/POS Direta (Web Bluetooth API)
  * 3. Formatação de Recibo em Texto para WhatsApp
  */
@@ -13,167 +13,174 @@ export class PrintService {
    * Dispara a impressão do recibo formatado abrindo a janela padrão de escolha de impressora do navegador
    * (permite escolher impressora térmica bobina, A4 convencional ou Salvar como PDF).
    */
-  static printReceipt(pedido: Pedido, loja: Loja, format: '58mm' | '80mm' | 'a4' = '80mm'): void {
-    const isA4 = format === 'a4';
-    const is58 = format === '58mm';
-    const pageWidth = isA4 ? '210mm' : is58 ? '58mm' : '80mm';
+  static printReceipt(pedido: Pedido, loja?: Loja | null, format: '58mm' | '80mm' | 'a4' = '80mm'): void {
+    console.log('🖨️ [HUBI PrintService] Início da impressão de recibo:', { format, pedido, loja });
 
-    const itensHtml = (pedido.itens || []).map(item => `
-      <tr>
-        <td style="padding: 4px 0; border-bottom: 1px dashed #ccc; font-size: ${isA4 ? '13px' : '11px'};">
-          <strong>${Number(item.quantidade)}x</strong> ${item.nome_produto} ${item.rotulo_variacao ? `<br><small style="color: #666;">(${item.rotulo_variacao})</small>` : ''}
-        </td>
-        <td style="padding: 4px 0; text-align: right; border-bottom: 1px dashed #ccc; font-size: ${isA4 ? '13px' : '11px'}; white-space: nowrap;">
-          R$ ${Number(item.subtotal).toFixed(2)}
-        </td>
-      </tr>
-    `).join('');
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Recibo Pedido #${pedido.numero_pedido} - ${loja.nome_fantasia || 'HUBI'}</title>
-        <style>
-          @page {
-            size: ${pageWidth} auto;
-            margin: ${isA4 ? '10mm' : '2mm'};
-          }
-          * {
-            box-sizing: border-box;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          body {
-            font-family: ${isA4 ? "'Helvetica Neue', Helvetica, Arial, sans-serif" : "'Courier New', Courier, monospace"};
-            margin: 0;
-            padding: ${isA4 ? '15px' : '4px'};
-            color: #000;
-            background: #fff;
-            font-size: ${isA4 ? '13px' : '11px'};
-            line-height: 1.3;
-          }
-          .center { text-align: center; }
-          .right { text-align: right; }
-          .bold { font-weight: bold; }
-          .divider { border-top: 1px dashed #000; margin: 6px 0; }
-          .header { text-align: center; margin-bottom: 8px; }
-          .header h2 { margin: 0 0 4px 0; font-size: ${isA4 ? '18px' : '14px'}; text-transform: uppercase; }
-          .header p { margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; }
-          table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-          .totals-row { display: flex; justify-content: space-between; margin: 3px 0; }
-          .total-highlight { font-size: ${isA4 ? '16px' : '13px'}; font-weight: bold; margin-top: 6px; padding-top: 4px; border-top: 1px solid #000; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h2>${loja.nome_fantasia || 'HUBI'}</h2>
-          ${loja.numero_documento ? `<p>CNPJ/CPF: ${loja.numero_documento}</p>` : ''}
-          ${loja.whatsapp || loja.telefone ? `<p>Tel/WhatsApp: ${loja.whatsapp || loja.telefone}</p>` : ''}
-          ${loja.endereco_cidade ? `<p>${loja.endereco_cidade} - ${loja.endereco_estado || ''}</p>` : ''}
-          <p class="bold" style="margin-top: 4px; font-size: 10px;">*** COMPROVANTE NÃO FISCAL ***</p>
-        </div>
-
-        <div class="divider"></div>
-
-        <div style="font-size: ${isA4 ? '12px' : '10px'}; margin-bottom: 6px;">
-          <div><strong>PEDIDO:</strong> #${pedido.numero_pedido}</div>
-          <div><strong>DATA:</strong> ${new Date(pedido.data_venda || pedido.criado_em || '').toLocaleString('pt-BR')}</div>
-          ${pedido.cliente?.nome ? `<div><strong>CLIENTE:</strong> ${pedido.cliente.nome}</div>` : ''}
-          ${pedido.endereco_entrega ? `<div><strong>ENTREGA:</strong> ${pedido.endereco_entrega}</div>` : ''}
-          ${pedido.observacoes ? `<div><strong>OBS:</strong> ${pedido.observacoes}</div>` : ''}
-        </div>
-
-        <div class="divider"></div>
-
-        <table>
-          <thead>
-            <tr style="border-bottom: 1px solid #000; font-size: ${isA4 ? '11px' : '9px'}; text-transform: uppercase;">
-              <th style="text-align: left; padding: 2px 0;">Item</th>
-              <th style="text-align: right; padding: 2px 0;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itensHtml}
-          </tbody>
-        </table>
-
-        <div class="divider"></div>
-
-        <div style="margin: 6px 0;">
-          <div class="totals-row">
-            <span>Subtotal:</span>
-            <span>R$ ${Number(pedido.subtotal).toFixed(2)}</span>
-          </div>
-          ${Number(pedido.valor_desconto) > 0 ? `
-            <div class="totals-row" style="color: #c00;">
-              <span>Desconto:</span>
-              <span>- R$ ${Number(pedido.valor_desconto).toFixed(2)}</span>
-            </div>
-          ` : ''}
-          ${Number(pedido.valor_frete) > 0 ? `
-            <div class="totals-row">
-              <span>Taxa Entrega:</span>
-              <span>+ R$ ${Number(pedido.valor_frete).toFixed(2)}</span>
-            </div>
-          ` : ''}
-          <div class="totals-row total-highlight">
-            <span>TOTAL:</span>
-            <span>R$ ${Number(pedido.valor_total).toFixed(2)}</span>
-          </div>
-          ${Number(pedido.saldo_devedor) > 0 ? `
-            <div class="totals-row bold" style="margin-top: 4px; color: #b45309;">
-              <span>Saldo a Pagar (Fiado):</span>
-              <span>R$ ${Number(pedido.saldo_devedor).toFixed(2)}</span>
-            </div>
-          ` : ''}
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="center" style="margin-top: 10px; font-size: ${isA4 ? '11px' : '9px'}; color: #555;">
-          <p>Obrigado pela preferência!</p>
-          <p style="font-size: 8px; margin-top: 2px;">HUBI • Gestão & PDV</p>
-        </div>
-      </body>
-      </html>
-    `;
+    if (!pedido) {
+      console.warn('⚠️ [HUBI PrintService] Pedido inválido ou não fornecido para impressão!');
+      return;
+    }
 
     try {
-      let iframe = document.getElementById('hubi-print-iframe') as HTMLIFrameElement;
-      if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'hubi-print-iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
+      const isA4 = format === 'a4';
+      const is58 = format === '58mm';
+      const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
+      const docLoja = loja?.numero_documento ? `CNPJ/CPF: ${loja.numero_documento}` : '';
+      const telLoja = (loja?.whatsapp || loja?.telefone) ? `Tel/WhatsApp: ${loja.whatsapp || loja.telefone}` : '';
+      const cidLoja = loja?.endereco_cidade ? `${loja.endereco_cidade} - ${loja.endereco_estado || ''}` : '';
+
+      const itens = (pedido.itens || (pedido as any).itens_pedido || []) as ItemPedido[];
+      console.log(`🖨️ [HUBI PrintService] Formatando ${itens.length} itens do pedido #${pedido.numero_pedido}...`);
+
+      const itensHtml = itens.length > 0 ? itens.map(item => `
+        <tr style="border-bottom: 1px dashed #ddd;">
+          <td style="padding: 4px 0; font-size: ${isA4 ? '13px' : '11px'};">
+            <strong>${Number(item.quantidade || 1)}x</strong> ${item.nome_produto || 'Item'}
+            ${item.rotulo_variacao ? `<br><small style="color: #555;">(${item.rotulo_variacao})</small>` : ''}
+          </td>
+          <td style="padding: 4px 0; text-align: right; font-size: ${isA4 ? '13px' : '11px'}; white-space: nowrap;">
+            R$ ${Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
+          </td>
+        </tr>
+      `).join('') : `
+        <tr>
+          <td colspan="2" style="padding: 8px 0; text-align: center; font-size: 11px; color: #666;">
+            (Itens não detalhados)
+          </td>
+        </tr>
+      `;
+
+      // 1. Obter ou criar o container de impressão no DOM principal
+      let printContainer = document.getElementById('hubi-print-container');
+      if (!printContainer) {
+        printContainer = document.createElement('div');
+        printContainer.id = 'hubi-print-container';
+        document.body.appendChild(printContainer);
+        console.log('🖨️ [HUBI PrintService] Elemento #hubi-print-container criado no DOM.');
       }
 
-      const doc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(html);
-        doc.close();
+      // 2. Injetar regra @page para o tamanho do papel selecionado
+      let styleTag = document.getElementById('hubi-print-style') as HTMLStyleElement;
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'hubi-print-style';
+        document.head.appendChild(styleTag);
+      }
 
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        }, 200);
+      if (isA4) {
+        styleTag.innerHTML = `
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
+          }
+        `;
+      } else {
+        const w = is58 ? '58mm' : '80mm';
+        styleTag.innerHTML = `
+          @media print {
+            @page {
+              size: ${w} auto;
+              margin: 2mm;
+            }
+          }
+        `;
       }
-    } catch (e) {
-      console.warn('Fallback impressão em popup:', e);
-      const win = window.open('', '_blank');
-      if (win) {
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        setTimeout(() => win.print(), 250);
-      }
+
+      // 3. Montar HTML estilizado do recibo
+      printContainer.innerHTML = `
+        <div style="
+          font-family: ${isA4 ? "'Helvetica Neue', Helvetica, Arial, sans-serif" : "'Courier New', Courier, monospace"};
+          color: #000 !important;
+          background: #fff !important;
+          font-size: ${isA4 ? '13px' : '11px'};
+          line-height: 1.3;
+          width: 100%;
+          max-width: ${isA4 ? '100%' : is58 ? '58mm' : '80mm'};
+          margin: 0 auto;
+          padding: ${isA4 ? '10px' : '2px'};
+        ">
+          <div style="text-align: center; margin-bottom: 6px;">
+            <h2 style="margin: 0 0 2px 0; font-size: ${isA4 ? '18px' : '14px'}; text-transform: uppercase; font-weight: bold;">
+              ${nomeLoja}
+            </h2>
+            ${docLoja ? `<p style="margin: 1px 0; font-size: ${isA4 ? '12px' : '10px'};">${docLoja}</p>` : ''}
+            ${telLoja ? `<p style="margin: 1px 0; font-size: ${isA4 ? '12px' : '10px'};">${telLoja}</p>` : ''}
+            ${cidLoja ? `<p style="margin: 1px 0; font-size: ${isA4 ? '12px' : '10px'};">${cidLoja}</p>` : ''}
+            <p style="margin: 4px 0 0 0; font-size: 10px; font-weight: bold;">*** COMPROVANTE NÃO FISCAL ***</p>
+          </div>
+
+          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+
+          <div style="font-size: ${isA4 ? '12px' : '10px'}; margin-bottom: 6px;">
+            <div><strong>PEDIDO:</strong> #${pedido.numero_pedido}</div>
+            <div><strong>DATA:</strong> ${new Date(pedido.data_venda || pedido.criado_em || '').toLocaleString('pt-BR')}</div>
+            ${pedido.cliente?.nome ? `<div><strong>CLIENTE:</strong> ${pedido.cliente.nome}</div>` : ''}
+            ${pedido.endereco_entrega ? `<div><strong>ENTREGA:</strong> ${pedido.endereco_entrega}</div>` : ''}
+            ${pedido.observacoes ? `<div><strong>OBS:</strong> ${pedido.observacoes}</div>` : ''}
+          </div>
+
+          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+
+          <table style="width: 100%; border-collapse: collapse; margin: 6px 0;">
+            <thead>
+              <tr style="border-bottom: 1px solid #000; font-size: ${isA4 ? '11px' : '9px'}; text-transform: uppercase;">
+                <th style="text-align: left; padding: 2px 0;">Item</th>
+                <th style="text-align: right; padding: 2px 0;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itensHtml}
+            </tbody>
+          </table>
+
+          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+
+          <div style="margin: 6px 0; font-size: ${isA4 ? '13px' : '11px'};">
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+              <span>Subtotal:</span>
+              <span>R$ ${Number(pedido.subtotal || 0).toFixed(2)}</span>
+            </div>
+            ${Number(pedido.valor_desconto || 0) > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin: 2px 0; color: #000;">
+                <span>Desconto:</span>
+                <span>- R$ ${Number(pedido.valor_desconto).toFixed(2)}</span>
+              </div>
+            ` : ''}
+            ${Number(pedido.valor_frete || 0) > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                <span>Taxa Entrega:</span>
+                <span>+ R$ ${Number(pedido.valor_frete).toFixed(2)}</span>
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; font-weight: bold; font-size: ${isA4 ? '15px' : '13px'};">
+              <span>TOTAL:</span>
+              <span>R$ ${Number(pedido.valor_total || 0).toFixed(2)}</span>
+            </div>
+            ${Number(pedido.saldo_devedor || 0) > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin-top: 3px; font-weight: bold;">
+                <span>Saldo Devedor (Fiado):</span>
+                <span>R$ ${Number(pedido.saldo_devedor).toFixed(2)}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+
+          <div style="text-align: center; margin-top: 8px; font-size: ${isA4 ? '11px' : '9px'}; color: #555;">
+            <p style="margin: 2px 0;">Obrigado pela preferência!</p>
+            <p style="margin: 2px 0; font-size: 8px;">HUBI • Gestão & PDV</p>
+          </div>
+        </div>
+      `;
+
+      console.log('🖨️ [HUBI PrintService] Disparando window.print()...');
+      window.print();
+      console.log('✅ [HUBI PrintService] window.print() invocado com sucesso.');
+    } catch (err) {
+      console.error('❌ [HUBI PrintService] Erro ao executar impressão:', err);
+      alert(`Não foi possível abrir o diálogo de impressão: ${err}`);
     }
   }
 

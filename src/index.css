@@ -46,57 +46,36 @@
    PRINT ENGINE (Layout Especial para Impressão Térmica 58mm/80mm e Folhas A4)
    ========================================================================== */
 
+#hubi-print-container {
+  display: none;
+}
+
 @media print {
-  body {
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
   }
 
-  /* Ocultar elementos da interface que não devem ser impressos */
-  .no-print,
-  nav,
-  aside,
-  header,
-  button,
-  .sidebar,
-  .bottom-nav {
+  /* Ocultar a interface inteira do app */
+  #root,
+  body > *:not(#hubi-print-container):not(#hubi-print-style) {
     display: none !important;
   }
 
-  .print-only {
+  /* Exibir exclusivamente o container de impressão formatado */
+  #hubi-print-container {
     display: block !important;
-  }
-
-  /* Formato Recibo Térmico 58mm / 80mm */
-  .thermal-receipt-58mm {
-    width: 58mm !important;
-    max-width: 58mm !important;
+    position: static !important;
     margin: 0 !important;
-    padding: 2mm !important;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
     color: #000000 !important;
-  }
-
-  .thermal-receipt-80mm {
-    width: 80mm !important;
-    max-width: 80mm !important;
-    margin: 0 !important;
-    padding: 3mm !important;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 12px !important;
-    line-height: 1.25 !important;
-    color: #000000 !important;
-  }
-
-  /* Formato A4 */
-  .a4-receipt {
-    width: 210mm !important;
-    max-width: 210mm !important;
-    margin: auto !important;
-    padding: 15mm !important;
-    font-size: 13px !important;
-    color: #000000 !important;
+    width: 100% !important;
+    visibility: visible !important;
   }
 }
+
