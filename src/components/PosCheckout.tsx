@@ -220,7 +220,7 @@ export const PosCheckout: React.FC = () => {
         vendedor_id: vendedorId,
         cliente_id: clienteSelecionado ? clienteSelecionado.id : null,
         origem: 'pdv_desktop' as const,
-        tabela_preco_aplicada: tabelaPrecoGlobal,
+        tabela_preco_aplicada: tabelaPrecoCalculada,
         status: 'confirmado' as const,
         subtotal,
         valor_desconto: desconto,
@@ -483,14 +483,15 @@ export const PosCheckout: React.FC = () => {
               {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
                 <button
                   key={tab}
+                  type="button"
                   onClick={() => setTabelaPrecoGlobal(tab)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition ${
-                    tabelaPrecoGlobal === tab
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition cursor-pointer ${
+                    tabelaPrecoCalculada === tab
                       ? 'bg-emerald-500 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {tab}
+                  {tab === 'autoatacado' ? 'Distribuidor' : tab}
                 </button>
               ))}
             </div>
@@ -510,8 +511,8 @@ export const PosCheckout: React.FC = () => {
                 const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
 
                 let precoExibido = produto.preco_venda_varejo;
-                if (tabelaPrecoGlobal === 'atacado' && produto.preco_venda_atacado) precoExibido = produto.preco_venda_atacado;
-                if (tabelaPrecoGlobal === 'autoatacado' && produto.preco_venda_autoatacado) precoExibido = produto.preco_venda_autoatacado;
+                if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) precoExibido = produto.preco_venda_atacado;
+                if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) precoExibido = produto.preco_venda_autoatacado;
 
                 return (
                   <div

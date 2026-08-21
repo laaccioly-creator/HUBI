@@ -1,17 +1,18 @@
 /**
  * HUBI Print & Receipt Engine
  * Suporta:
- * 1. Impressão Térmica / Bobina (58mm e 80mm) e Folhas A4 / PDF via Diálogo Nativo do Navegador
- * 2. Impressão Bluetooth ESC/POS Direta (Web Bluetooth API)
- * 3. Formatação de Recibo em Texto para WhatsApp
+ * 1. Impressão Térmica / Bobina (58mm e 80mm) e Folhas A4 / PDF
+ * 2. Janela Dedicada de Impressão com Botão de Ação Direta (compatível com iframes e sandboxes)
+ * 3. Impressão Bluetooth ESC/POS Direta (Web Bluetooth API)
+ * 4. Formatação de Recibo em Texto para WhatsApp
  */
 
 import { Pedido, Loja, ItemPedido } from '../types';
 
 export class PrintService {
   /**
-   * Dispara a impressão do recibo formatado abrindo a janela padrão de escolha de impressora do navegador
-   * (permite escolher impressora térmica bobina, A4 convencional ou Salvar como PDF).
+   * Dispara a impressão do recibo formatado abrindo a janela de impressão nativa e/ou popup dedicado
+   * (compatível com navegadores desktop, celulares e ambientes embutidos/iframes).
    */
   static printReceipt(pedido: Pedido, loja?: Loja | null, format: '58mm' | '80mm' | 'a4' = '80mm'): void {
     console.log('🖨️ [HUBI PrintService] Início da impressão de recibo:', { format, pedido, loja });
@@ -24,6 +25,8 @@ export class PrintService {
     try {
       const isA4 = format === 'a4';
       const is58 = format === '58mm';
+      const pageWidth = isA4 ? '210mm' : is58 ? '58mm' : '80mm';
+      const maxCssWidth = isA4 ? '780px' : is58 ? '320px' : '380px';
       const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
       const docLoja = loja?.numero_documento ? `CNPJ/CPF: ${loja.numero_documento}` : '';
       const telLoja = (loja?.whatsapp || loja?.telefone) ? `Tel/WhatsApp: ${loja.whatsapp || loja.telefone}` : '';
@@ -33,101 +36,69 @@ export class PrintService {
       console.log(`🖨️ [HUBI PrintService] Formatando ${itens.length} itens do pedido #${pedido.numero_pedido}...`);
 
       const itensHtml = itens.length > 0 ? itens.map(item => `
-        <tr style="border-bottom: 1px dashed #ddd;">
-          <td style="padding: 4px 0; font-size: ${isA4 ? '13px' : '11px'};">
+        <tr style="border-bottom: 1px dashed #e2e8f0;">
+          <td style="padding: 5px 0; font-size: ${isA4 ? '13px' : '11px'}; color: #000;">
             <strong>${Number(item.quantidade || 1)}x</strong> ${item.nome_produto || 'Item'}
-            ${item.rotulo_variacao ? `<br><small style="color: #555;">(${item.rotulo_variacao})</small>` : ''}
+            ${item.rotulo_variacao ? `<br><span style="color: #64748b; font-size: 10px;">(${item.rotulo_variacao})</span>` : ''}
           </td>
-          <td style="padding: 4px 0; text-align: right; font-size: ${isA4 ? '13px' : '11px'}; white-space: nowrap;">
+          <td style="padding: 5px 0; text-align: right; font-size: ${isA4 ? '13px' : '11px'}; font-weight: bold; color: #000; white-space: nowrap;">
             R$ ${Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
           </td>
         </tr>
       `).join('') : `
         <tr>
-          <td colspan="2" style="padding: 8px 0; text-align: center; font-size: 11px; color: #666;">
+          <td colspan="2" style="padding: 8px 0; text-align: center; font-size: 11px; color: #64748b;">
             (Itens não detalhados)
           </td>
         </tr>
       `;
 
-      // 1. Obter ou criar o container de impressão no DOM principal
-      let printContainer = document.getElementById('hubi-print-container');
-      if (!printContainer) {
-        printContainer = document.createElement('div');
-        printContainer.id = 'hubi-print-container';
-        document.body.appendChild(printContainer);
-        console.log('🖨️ [HUBI PrintService] Elemento #hubi-print-container criado no DOM.');
-      }
-
-      // 2. Injetar regra @page para o tamanho do papel selecionado
-      let styleTag = document.getElementById('hubi-print-style') as HTMLStyleElement;
-      if (!styleTag) {
-        styleTag = document.createElement('style');
-        styleTag.id = 'hubi-print-style';
-        document.head.appendChild(styleTag);
-      }
-
-      if (isA4) {
-        styleTag.innerHTML = `
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 10mm;
-            }
-          }
-        `;
-      } else {
-        const w = is58 ? '58mm' : '80mm';
-        styleTag.innerHTML = `
-          @media print {
-            @page {
-              size: ${w} auto;
-              margin: 2mm;
-            }
-          }
-        `;
-      }
-
-      // 3. Montar HTML estilizado do recibo
-      printContainer.innerHTML = `
-        <div style="
+      const receiptInnerHtml = `
+        <div class="receipt-container" style="
           font-family: ${isA4 ? "'Helvetica Neue', Helvetica, Arial, sans-serif" : "'Courier New', Courier, monospace"};
           color: #000 !important;
           background: #fff !important;
           font-size: ${isA4 ? '13px' : '11px'};
-          line-height: 1.3;
+          line-height: 1.35;
           width: 100%;
-          max-width: ${isA4 ? '100%' : is58 ? '58mm' : '80mm'};
+          max-width: ${maxCssWidth};
           margin: 0 auto;
-          padding: ${isA4 ? '10px' : '2px'};
+          padding: ${isA4 ? '20px' : '8px'};
+          box-sizing: border-box;
         ">
-          <div style="text-align: center; margin-bottom: 6px;">
-            <h2 style="margin: 0 0 2px 0; font-size: ${isA4 ? '18px' : '14px'}; text-transform: uppercase; font-weight: bold;">
+          <!-- Cabeçalho -->
+          <div style="text-align: center; margin-bottom: 8px;">
+            <h2 style="margin: 0 0 3px 0; font-size: ${isA4 ? '18px' : '15px'}; text-transform: uppercase; font-weight: 800; color: #000;">
               ${nomeLoja}
             </h2>
-            ${docLoja ? `<p style="margin: 1px 0; font-size: ${isA4 ? '12px' : '10px'};">${docLoja}</p>` : ''}
-            ${telLoja ? `<p style="margin: 1px 0; font-size: ${isA4 ? '12px' : '10px'};">${telLoja}</p>` : ''}
-            ${cidLoja ? `<p style="margin: 1px 0; font-size: ${isA4 ? '12px' : '10px'};">${cidLoja}</p>` : ''}
-            <p style="margin: 4px 0 0 0; font-size: 10px; font-weight: bold;">*** COMPROVANTE NÃO FISCAL ***</p>
+            ${docLoja ? `<p style="margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; color: #334155;">${docLoja}</p>` : ''}
+            ${telLoja ? `<p style="margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; color: #334155;">${telLoja}</p>` : ''}
+            ${cidLoja ? `<p style="margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; color: #334155;">${cidLoja}</p>` : ''}
+            <p style="margin: 6px 0 0 0; font-size: 10px; font-weight: bold; color: #000; letter-spacing: 0.5px;">*** COMPROVANTE NÃO FISCAL ***</p>
           </div>
 
-          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+          <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
 
-          <div style="font-size: ${isA4 ? '12px' : '10px'}; margin-bottom: 6px;">
-            <div><strong>PEDIDO:</strong> #${pedido.numero_pedido}</div>
+          <!-- Informações do Pedido -->
+          <div style="font-size: ${isA4 ? '12px' : '11px'}; margin-bottom: 6px; color: #000;">
+            <div style="display: flex; justify-content: space-between;">
+              <span><strong>PEDIDO:</strong> #${pedido.numero_pedido}</span>
+              <span style="text-transform: capitalize;"><strong>TABELA:</strong> ${pedido.tabela_preco_aplicada || 'Varejo'}</span>
+            </div>
             <div><strong>DATA:</strong> ${new Date(pedido.data_venda || pedido.criado_em || '').toLocaleString('pt-BR')}</div>
             ${pedido.cliente?.nome ? `<div><strong>CLIENTE:</strong> ${pedido.cliente.nome}</div>` : ''}
             ${pedido.endereco_entrega ? `<div><strong>ENTREGA:</strong> ${pedido.endereco_entrega}</div>` : ''}
             ${pedido.observacoes ? `<div><strong>OBS:</strong> ${pedido.observacoes}</div>` : ''}
           </div>
 
-          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+          <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
 
+          <!-- Tabela de Itens -->
           <table style="width: 100%; border-collapse: collapse; margin: 6px 0;">
             <thead>
               <tr style="border-bottom: 1px solid #000; font-size: ${isA4 ? '11px' : '9px'}; text-transform: uppercase;">
-                <th style="text-align: left; padding: 2px 0;">Item</th>
-                <th style="text-align: right; padding: 2px 0;">Total</th>
+                <th style="text-align: left; padding: 3px 0; color: #000;">Item</th>
+                <th style="text-align: right; padding: 3px 0; color: #000;">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -135,9 +106,10 @@ export class PrintService {
             </tbody>
           </table>
 
-          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+          <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
 
-          <div style="margin: 6px 0; font-size: ${isA4 ? '13px' : '11px'};">
+          <!-- Totais -->
+          <div style="margin: 6px 0; font-size: ${isA4 ? '13px' : '11px'}; color: #000;">
             <div style="display: flex; justify-content: space-between; margin: 2px 0;">
               <span>Subtotal:</span>
               <span>R$ ${Number(pedido.subtotal || 0).toFixed(2)}</span>
@@ -154,33 +126,182 @@ export class PrintService {
                 <span>+ R$ ${Number(pedido.valor_frete).toFixed(2)}</span>
               </div>
             ` : ''}
-            <div style="display: flex; justify-content: space-between; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; font-weight: bold; font-size: ${isA4 ? '15px' : '13px'};">
+            <div style="display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid #000; font-weight: bold; font-size: ${isA4 ? '16px' : '14px'};">
               <span>TOTAL:</span>
               <span>R$ ${Number(pedido.valor_total || 0).toFixed(2)}</span>
             </div>
             ${Number(pedido.saldo_devedor || 0) > 0 ? `
-              <div style="display: flex; justify-content: space-between; margin-top: 3px; font-weight: bold;">
+              <div style="display: flex; justify-content: space-between; margin-top: 4px; font-weight: bold; color: #b45309;">
                 <span>Saldo Devedor (Fiado):</span>
                 <span>R$ ${Number(pedido.saldo_devedor).toFixed(2)}</span>
               </div>
             ` : ''}
           </div>
 
-          <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
+          <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
 
-          <div style="text-align: center; margin-top: 8px; font-size: ${isA4 ? '11px' : '9px'}; color: #555;">
-            <p style="margin: 2px 0;">Obrigado pela preferência!</p>
-            <p style="margin: 2px 0; font-size: 8px;">HUBI • Gestão & PDV</p>
+          <!-- Rodapé -->
+          <div style="text-align: center; margin-top: 10px; font-size: ${isA4 ? '11px' : '9px'}; color: #64748b;">
+            <p style="margin: 2px 0; font-weight: 500;">Obrigado pela preferência!</p>
+            <p style="margin: 2px 0; font-size: 8px;">HUBI • Sistema de Gestão & PDV</p>
           </div>
         </div>
       `;
 
-      console.log('🖨️ [HUBI PrintService] Disparando window.print()...');
+      // 1. Atualizar container local do DOM para window.print() direto
+      let printContainer = document.getElementById('hubi-print-container');
+      if (!printContainer) {
+        printContainer = document.createElement('div');
+        printContainer.id = 'hubi-print-container';
+        document.body.appendChild(printContainer);
+      }
+      printContainer.innerHTML = receiptInnerHtml;
+
+      // 2. Montar documento HTML completo para nova janela / popup
+      const fullDocHtml = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Recibo Pedido #${pedido.numero_pedido} - ${nomeLoja}</title>
+          <style>
+            @page {
+              size: ${pageWidth} auto;
+              margin: ${isA4 ? '10mm' : '2mm'};
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: #f1f5f9;
+              color: #000;
+              font-family: ${isA4 ? "'Helvetica Neue', Helvetica, Arial, sans-serif" : "'Courier New', Courier, monospace"};
+            }
+            .action-bar {
+              position: sticky;
+              top: 0;
+              left: 0;
+              right: 0;
+              background: #0f172a;
+              color: #fff;
+              padding: 12px 16px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              z-index: 1000;
+              font-family: sans-serif;
+            }
+            .btn {
+              padding: 8px 16px;
+              border-radius: 8px;
+              font-weight: bold;
+              font-size: 13px;
+              border: none;
+              cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+            }
+            .btn-primary {
+              background: #10b981;
+              color: #fff;
+            }
+            .btn-primary:hover {
+              background: #059669;
+            }
+            .btn-secondary {
+              background: #334155;
+              color: #f8fafc;
+            }
+            .btn-secondary:hover {
+              background: #475569;
+            }
+            .paper-wrapper {
+              background: #fff;
+              max-width: ${maxCssWidth};
+              margin: 20px auto;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            @media print {
+              .action-bar {
+                display: none !important;
+              }
+              body {
+                background: #fff !important;
+              }
+              .paper-wrapper {
+                box-shadow: none !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                border-radius: 0 !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="action-bar">
+            <span style="font-size: 13px; font-weight: 600;">Recibo Pedido #${pedido.numero_pedido}</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary" onclick="window.print()">
+                🖨️ Imprimir / Salvar PDF
+              </button>
+              <button class="btn btn-secondary" onclick="window.close()">
+                ✕ Fechar
+              </button>
+            </div>
+          </div>
+
+          <div class="paper-wrapper">
+            ${receiptInnerHtml}
+          </div>
+
+          <script>
+            // Disparar impressão automaticamente ao carregar
+            window.addEventListener('load', function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+              }, 300);
+            });
+          </script>
+        </body>
+        </html>
+      `;
+
+      // 3. Tentar abrir Popup dedicado (garante compatibilidade 100% mesmo dentro de iframes)
+      let popupWin: Window | null = null;
+      try {
+        const popupWidth = isA4 ? 800 : 420;
+        const popupHeight = 700;
+        const left = Math.max(0, (window.screen.width - popupWidth) / 2);
+        const top = Math.max(0, (window.screen.height - popupHeight) / 2);
+        popupWin = window.open('', '_blank', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+        
+        if (popupWin && popupWin.document) {
+          popupWin.document.open();
+          popupWin.document.write(fullDocHtml);
+          popupWin.document.close();
+          console.log('✅ [HUBI PrintService] Janela popup de recibo aberta com sucesso.');
+          return;
+        }
+      } catch (popErr) {
+        console.warn('⚠️ [HUBI PrintService] Bloqueio ao abrir popup, disparando fallback no container da página:', popErr);
+      }
+
+      // 4. Fallback caso popup seja restrito: dispara window.print() na página atual
+      console.log('🖨️ [HUBI PrintService] Disparando window.print() na janela principal...');
       window.print();
-      console.log('✅ [HUBI PrintService] window.print() invocado com sucesso.');
     } catch (err) {
       console.error('❌ [HUBI PrintService] Erro ao executar impressão:', err);
-      alert(`Não foi possível abrir o diálogo de impressão: ${err}`);
+      alert(`Não foi possível abrir a impressão: ${err}`);
     }
   }
 
