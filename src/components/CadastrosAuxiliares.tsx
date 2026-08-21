@@ -21,11 +21,15 @@ import {
   Layers,
   X,
   Loader2,
-  Check
+  Check,
+  CreditCard,
+  Banknote,
+  Zap
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Categoria, Fornecedor, UnidadeMedida } from '../types';
+import { Categoria, Fornecedor, UnidadeMedida, FormaPagamento, TipoPagamento } from '../types';
+import { SyncService } from '../services/syncService';
 
 export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fracionado: boolean; padrao?: boolean }> = [
   { sigla: 'un', nome: 'Unidade', permite_fracionado: false, padrao: true },
@@ -45,13 +49,14 @@ export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fraci
 
 export const CadastrosAuxiliares: React.FC = () => {
   const { loja } = useAuth();
-  const [abaAtiva, setAbaAtiva] = useState<'categorias' | 'unidades' | 'fornecedores' | 'precificacao'>('categorias');
+  const [abaAtiva, setAbaAtiva] = useState<'categorias' | 'unidades' | 'fornecedores' | 'pagamentos' | 'precificacao'>('categorias');
   const [busca, setBusca] = useState<string>('');
 
   // Estados de Dados
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [unidades, setUnidades] = useState<UnidadeMedida[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
   const [contagemProdutosCat, setContagemProdutosCat] = useState<Record<string, number>>({});
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -91,6 +96,16 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [fornEmail, setFornEmail] = useState<string>('');
   const [fornObs, setFornObs] = useState<string>('');
 
+  const [modalPagamentoAberta, setModalPagamentoAberta] = useState<boolean>(false);
+  const [pagEditando, setPagEditando] = useState<FormaPagamento | null>(null);
+  const [pagNome, setPagNome] = useState<string>('');
+  const [pagTipo, setPagTipo] = useState<TipoPagamento>('dinheiro');
+  const [pagTaxaPercentual, setPagTaxaPercentual] = useState<string>('0');
+  const [pagTaxaFixa, setPagTaxaFixa] = useState<string>('0');
+  const [pagMaximoParcelas, setPagMaximoParcelas] = useState<string>('1');
+  const [pagAtivo, setPagAtivo] = useState<boolean>(true);
+  const [pagExibirCatalogo, setPagExibirCatalogo] = useState<boolean>(true);
+
   // 1. Carregar Dados Iniciais
   const carregarDados = async () => {
     if (!loja?.id) return;
@@ -104,6 +119,20 @@ export const CadastrosAuxiliares: React.FC = () => {
         .eq('loja_id', loja.id)
         .order('ordem_exibicao');
       if (catData) setCategorias(catData);
+
+      // Carregar Formas de Pagamento
+      const { data: fpsData } = await supabase
+        .from('formas_pagamento')
+        .select('*')
+        .eq('loja_id', loja.id)
+        .order('criado_em', { ascending: true });
+
+      if (fpsData && fpsData.length > 0) {
+        setFormasPagamento(fpsData);
+      } else {
+        const dados = await SyncService.baixarDadosParaOffline(loja.id);
+        if (dados.formasPagamento) setFormasPagamento(dados.formasPagamento);
+      }
 
       // Contagem de produtos por categoria
       const { data: prods } = await supabase
@@ -429,6 +458,107 @@ export const CadastrosAuxiliares: React.FC = () => {
   };
 
   // ============================================================================
+  // FUNÇÕES DE FORMAS DE PAGAMENTO
+  // ============================================================================
+  const abrirModalNovoPagamento = () => {
+    setPagEditando(null);
+    setPagNome('');
+    setPagTipo('dinheiro');
+    setPagTaxaPercentual('0');
+    setPagTaxaFixa('0');
+    setPagMaximoParcelas('1');
+    setPagAtivo(true);
+    setPagExibirCatalogo(true);
+    setModalPagamentoAberta(true);
+  };
+
+  const abrirModalEditarPagamento = (fp: FormaPagamento) => {
+    setPagEditando(fp);
+    setPagNome(fp.nome);
+    setPagTipo(fp.tipo);
+    setPagTaxaPercentual(String(fp.taxa_percentual || 0));
+    setPagTaxaFixa(String(fp.taxa_fixa || 0));
+    setPagMaximoParcelas(String(fp.maximo_parcelas || 1));
+    setPagAtivo(fp.ativo ?? true);
+    setPagExibirCatalogo(fp.exibir_catalogo ?? true);
+    setModalPagamentoAberta(true);
+  };
+
+  const salvarFormaPagamento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pagNome.trim() || !loja?.id) return;
+
+    try {
+      setSalvando(true);
+      const payload = {
+        loja_id: loja.id,
+        nome: pagNome.trim(),
+        tipo: pagTipo,
+        taxa_percentual: Number(pagTaxaPercentual) || 0,
+        taxa_fixa: Number(pagTaxaFixa) || 0,
+        maximo_parcelas: Number(pagMaximoParcelas) || 1,
+        ativo: pagAtivo,
+        exibir_catalogo: pagExibirCatalogo
+      };
+
+      if (pagEditando && !pagEditando.id.startsWith('padrao_') && !pagEditando.id.startsWith('fp_')) {
+        const { error } = await supabase
+          .from('formas_pagamento')
+          .update(payload)
+          .eq('id', pagEditando.id);
+        if (error) throw error;
+        exibirAlertaSucesso('Forma de pagamento atualizada com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('formas_pagamento')
+          .insert([payload]);
+        if (error) throw error;
+        exibirAlertaSucesso('Nova forma de pagamento criada com sucesso!');
+      }
+
+      setModalPagamentoAberta(false);
+      setPagEditando(null);
+      carregarDados();
+    } catch (err: any) {
+      console.error('Erro ao salvar forma de pagamento:', err);
+      alert(`Erro ao salvar forma de pagamento: ${err.message || 'Tente novamente'}`);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const alternarStatusPagamento = async (fp: FormaPagamento) => {
+    try {
+      const novoStatus = !fp.ativo;
+      setFormasPagamento(prev => prev.map(item => item.id === fp.id ? { ...item, ativo: novoStatus } : item));
+
+      if (!fp.id.startsWith('padrao_') && !fp.id.startsWith('fp_')) {
+        await supabase
+          .from('formas_pagamento')
+          .update({ ativo: novoStatus })
+          .eq('id', fp.id);
+      }
+      exibirAlertaSucesso(`Forma de pagamento ${novoStatus ? 'ativada' : 'desativada'}.`);
+    } catch (err: any) {
+      alert(`Erro ao alterar status: ${err.message}`);
+    }
+  };
+
+  const excluirFormaPagamento = async (fp: FormaPagamento) => {
+    if (!confirm(`Deseja realmente remover a forma de pagamento "${fp.nome}"?`)) return;
+    try {
+      if (!fp.id.startsWith('padrao_') && !fp.id.startsWith('fp_')) {
+        const { error } = await supabase.from('formas_pagamento').delete().eq('id', fp.id);
+        if (error) throw error;
+      }
+      setFormasPagamento(prev => prev.filter(item => item.id !== fp.id));
+      exibirAlertaSucesso('Forma de pagamento removida com sucesso.');
+    } catch (err: any) {
+      alert(`Erro ao excluir forma de pagamento: ${err.message}`);
+    }
+  };
+
+  // ============================================================================
   // FUNÇÕES DE REGRAS DE PRECIFICAÇÃO
   // ============================================================================
   const salvarRegrasPrecificacao = async (e: React.FormEvent) => {
@@ -518,6 +648,10 @@ export const CadastrosAuxiliares: React.FC = () => {
     (f.pessoa_contato && f.pessoa_contato.toLowerCase().includes(busca.toLowerCase())) ||
     (f.whatsapp && f.whatsapp.includes(busca))
   );
+  const formasPagamentoFiltradas = formasPagamento.filter(fp =>
+    fp.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    fp.tipo.toLowerCase().includes(busca.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 font-sans">
@@ -532,7 +666,7 @@ export const CadastrosAuxiliares: React.FC = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-100">Cadastros & Tabelas</h1>
             <p className="text-xs sm:text-sm text-slate-400">
-              Gerencie categorias, unidades de medida, fornecedores e padronize regras de precificação da loja.
+              Gerencie categorias, unidades de medida, fornecedores, formas de pagamento e padronize regras da loja.
             </p>
           </div>
 
@@ -588,6 +722,21 @@ export const CadastrosAuxiliares: React.FC = () => {
             <span>Fornecedores</span>
             <span className={`px-2 py-0.5 rounded-full text-[10px] ${abaAtiva === 'fornecedores' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
               {fornecedores.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAbaAtiva('pagamentos')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              abaAtiva === 'pagamentos'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Formas de Pagamento</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] ${abaAtiva === 'pagamentos' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              {formasPagamento.length}
             </span>
           </button>
 
@@ -910,6 +1059,155 @@ export const CadastrosAuxiliares: React.FC = () => {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* ABA: FORMAS DE PAGAMENTO & TAXAS                                         */}
+        {/* ========================================================================= */}
+        {abaAtiva === 'pagamentos' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar forma de pagamento..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <button
+                onClick={abrirModalNovoPagamento}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nova Forma de Pagamento</span>
+              </button>
+            </div>
+
+            {carregando ? (
+              <div className="py-12 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin text-emerald-400" /></div>
+            ) : formasPagamentoFiltradas.length === 0 ? (
+              <div className="text-center py-12 bg-slate-900/40 rounded-3xl border border-dashed border-slate-800 text-slate-400 text-xs space-y-2">
+                <p>Nenhuma forma de pagamento encontrada.</p>
+                <button
+                  onClick={abrirModalNovoPagamento}
+                  className="text-emerald-400 font-bold hover:underline"
+                >
+                  Clique aqui para cadastrar a primeira forma de pagamento
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {formasPagamentoFiltradas.map((fp) => {
+                  const ehAtivo = fp.ativo !== false;
+
+                  return (
+                    <div
+                      key={fp.id}
+                      className={`bg-slate-900/80 border rounded-2xl p-5 space-y-4 transition shadow-md ${
+                        ehAtivo ? 'border-slate-800 hover:border-slate-700' : 'border-rose-900/30 opacity-60 bg-slate-950/60'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                            fp.tipo === 'dinheiro' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                            fp.tipo === 'pix' ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' :
+                            fp.tipo === 'cartao_credito' ? 'bg-purple-500/10 border-purple-500/30 text-purple-400' :
+                            fp.tipo === 'cartao_debito' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
+                            fp.tipo === 'fiado' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                            'bg-slate-800 border-slate-700 text-slate-300'
+                          }`}>
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-5 h-5" />}
+                            {fp.tipo === 'pix' && <Zap className="w-5 h-5" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-5 h-5" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-5 h-5" />}
+                            {fp.tipo === 'fiado' && <FileText className="w-5 h-5" />}
+                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'fiado' && (
+                              <CreditCard className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-slate-100 text-sm flex items-center gap-1.5">
+                              <span>{fp.nome}</span>
+                            </h3>
+                            <span className="text-[10px] uppercase font-bold text-slate-400">
+                              {fp.tipo === 'dinheiro' && 'Dinheiro'}
+                              {fp.tipo === 'pix' && 'PIX Instantâneo'}
+                              {fp.tipo === 'cartao_credito' && 'Cartão de Crédito'}
+                              {fp.tipo === 'cartao_debito' && 'Cartão de Débito'}
+                              {fp.tipo === 'fiado' && 'Fiado / A Prazo'}
+                              {fp.tipo === 'outro' && 'Outro Meio'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => abrirModalEditarPagamento(fp)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                            title="Editar Forma de Pagamento"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => excluirFormaPagamento(fp)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Excluir Forma de Pagamento"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Informações de Taxas e Condições */}
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-800/80">
+                        <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
+                          <span className="text-[10px] text-slate-400 block font-medium">Taxa Maquininha:</span>
+                          <span className="font-bold text-slate-200">
+                            {Number(fp.taxa_percentual || 0) > 0 ? `${fp.taxa_percentual}%` : 'Sem taxa (0%)'}
+                            {Number(fp.taxa_fixa || 0) > 0 && ` + R$ ${Number(fp.taxa_fixa).toFixed(2)}`}
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
+                          <span className="text-[10px] text-slate-400 block font-medium">Parcelamento:</span>
+                          <span className="font-bold text-slate-200">
+                            {fp.tipo === 'cartao_credito' ? `Até ${fp.maximo_parcelas || 1}x` : 'À vista (1x)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Switches de Status e Catálogo */}
+                      <div className="flex items-center justify-between pt-1 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${fp.exibir_catalogo ? 'bg-cyan-400' : 'bg-slate-600'}`} />
+                          <span className="text-[11px] text-slate-400">
+                            {fp.exibir_catalogo ? 'Visível no Catálogo' : 'Apenas PDV'}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => alternarStatusPagamento(fp)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                            ehAtivo
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
+                          }`}
+                        >
+                          {ehAtivo ? 'Ativo' : 'Inativo'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1444,6 +1742,174 @@ export const CadastrosAuxiliares: React.FC = () => {
                   className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
                 >
                   {salvando ? 'Salvando...' : 'Salvar Fornecedor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: FORMA DE PAGAMENTO                                                */}
+      {/* ========================================================================= */}
+      {modalPagamentoAberta && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-400" />
+                <span>{pagEditando ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}</span>
+              </h3>
+              <button
+                onClick={() => setModalPagamentoAberta(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={salvarFormaPagamento} className="space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  Nome de Exibição:*
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Cartão de Crédito - Maquininha Stone"
+                  value={pagNome}
+                  onChange={(e) => setPagNome(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Tipo / Modalidade:*
+                  </label>
+                  <select
+                    value={pagTipo}
+                    onChange={(e) => setPagTipo(e.target.value as TipoPagamento)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="dinheiro">Dinheiro (Espécie)</option>
+                    <option value="pix">PIX (Instantâneo)</option>
+                    <option value="cartao_debito">Cartão de Débito</option>
+                    <option value="cartao_credito">Cartão de Crédito</option>
+                    <option value="fiado">Fiado / A Prazo</option>
+                    <option value="outro">Outro Meio</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Parcelamento Máximo:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="48"
+                    placeholder="1"
+                    value={pagMaximoParcelas}
+                    onChange={(e) => setPagMaximoParcelas(e.target.value)}
+                    disabled={pagTipo !== 'cartao_credito' && pagTipo !== 'outro'}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Taxa da Maquininha (%):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0.00"
+                      value={pagTaxaPercentual}
+                      onChange={(e) => setPagTaxaPercentual(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 pr-8 font-semibold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Taxa Fixa por Venda (R$):
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={pagTaxaFixa}
+                      onChange={(e) => setPagTaxaFixa(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Switches de Comportamento */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2.5">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-200 block">Ativo para Vendas</span>
+                    <span className="text-[11px] text-slate-400 block">Disponibilizar esta opção no PDV e fechamento de vendas</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={pagAtivo}
+                    onChange={(e) => setPagAtivo(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500/20 bg-slate-800 border-slate-700 cursor-pointer"
+                  />
+                </label>
+
+                <div className="border-t border-slate-800/80 pt-2.5">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-bold text-slate-200 block">Exibir no Catálogo Online</span>
+                      <span className="text-[11px] text-slate-400 block">Mostrar este meio de pagamento aos clientes no catálogo público</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={pagExibirCatalogo}
+                      onChange={(e) => setPagExibirCatalogo(e.target.checked)}
+                      className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500/20 bg-slate-800 border-slate-700 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalPagamentoAberta(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {salvando ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <span>Salvar Meio de Pagamento</span>
+                  )}
                 </button>
               </div>
             </form>

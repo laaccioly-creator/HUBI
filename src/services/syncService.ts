@@ -16,8 +16,60 @@ import {
   VendaOfflineFila
 } from './offlineDb';
 
+export const isUuidValido = (val?: string | null): boolean => {
+  if (!val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
+
 export class SyncService {
   private static sincronizando = false;
+
+  static isUuidValido(val?: string | null): boolean {
+    return isUuidValido(val);
+  }
+
+  /**
+   * Garante que um ID de forma de pagamento seja um UUID real existente no banco
+   */
+  static async resolverFormaPagamentoId(lojaId: string, formaPagamentoId?: string, tipo?: string): Promise<string> {
+    if (isUuidValido(formaPagamentoId)) {
+      const { data } = await supabase
+        .from('formas_pagamento')
+        .select('id')
+        .eq('id', formaPagamentoId)
+        .limit(1);
+
+      if (data && data.length > 0) return data[0].id;
+    }
+
+    // Busca uma existente para a loja por tipo
+    const query = supabase.from('formas_pagamento').select('id').eq('loja_id', lojaId);
+    if (tipo) query.eq('tipo', tipo);
+    const { data: existentes } = await query.limit(1);
+
+    if (existentes && existentes.length > 0) {
+      return existentes[0].id;
+    }
+
+    // Cria nova forma de pagamento para obter UUID real
+    const { data: criada, error } = await supabase
+      .from('formas_pagamento')
+      .insert([{
+        loja_id: lojaId,
+        nome: tipo === 'pix' ? 'Pix' : tipo === 'cartao_credito' ? 'Cartão de Crédito' : tipo === 'cartao_debito' ? 'Cartão de Débito' : tipo === 'fiado' ? 'Fiado / A Prazo' : 'Dinheiro',
+        tipo: tipo || 'dinheiro',
+        ativo: true,
+        taxa_percentual: 0,
+        taxa_fixa: 0,
+        maximo_parcelas: 1
+      }])
+      .select('id')
+      .single();
+
+    if (criada && criada.id) return criada.id;
+    if (error) console.error('Erro ao resolver forma de pagamento:', error);
+    throw new Error('Não foi possível resolver uma forma de pagamento válida no banco de dados.');
+  }
 
   /**
    * Baixa catálogo completo do Supabase e salva no IndexedDB local
@@ -49,7 +101,31 @@ export class SyncService {
 
       const produtos = (resProds.data as unknown as Produto[]) || [];
       const clientes = (resClis.data as Cliente[]) || [];
-      const formasPagamento = (resFps.data as FormaPagamento[]) || [];
+      let formasPagamento = (resFps.data as FormaPagamento[]) || [];
+
+      // Se a loja não possuir formas de pagamento cadastradas, cria as padrões imediatamente
+      if (formasPagamento.length === 0) {
+        const defaults = [
+          { loja_id: lojaId, nome: 'Dinheiro', tipo: 'dinheiro' as const, taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+          { loja_id: lojaId, nome: 'Pix', tipo: 'pix' as const, taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+          { loja_id: lojaId, nome: 'Cartão de Débito', tipo: 'cartao_debito' as const, taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+          { loja_id: lojaId, nome: 'Cartão de Crédito', tipo: 'cartao_credito' as const, taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
+          { loja_id: lojaId, nome: 'Fiado / A Prazo', tipo: 'fiado' as const, taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
+        ];
+
+        try {
+          const { data: criadas } = await supabase
+            .from('formas_pagamento')
+            .insert(defaults)
+            .select();
+
+          if (criadas && criadas.length > 0) {
+            formasPagamento = criadas as FormaPagamento[];
+          }
+        } catch (e) {
+          console.warn('Erro ao inserir formas padrões no Supabase:', e);
+        }
+      }
 
       // Salvar no IndexedDB
       if (produtos.length > 0) await salvarProdutosOffline(produtos);
@@ -59,12 +135,13 @@ export class SyncService {
       return { produtos, clientes, formasPagamento };
     } catch (err) {
       console.warn('Erro ao sincronizar do Supabase, carregando cache local:', err);
-      const [produtos, clientes, formasPagamento] = await Promise.all([
+      const [produtos, clientes, fpsLocais] = await Promise.all([
         carregarProdutosOffline(),
         carregarClientesOffline(),
         carregarFormasPagamentoOffline()
       ]);
-      return { produtos, clientes, formasPagamento };
+
+      return { produtos, clientes, formasPagamento: fpsLocais || [] };
     }
   }
 
@@ -103,13 +180,30 @@ export class SyncService {
 
       for (const venda of filaDaLoja) {
         try {
+          // Resolver vendedor_id válido (deve ser UUID existente em usuarios_loja ou null)
+          let vendedorIdSanitizado: string | null = isUuidValido(venda.vendedor_id) ? venda.vendedor_id : null;
+          if (vendedorIdSanitizado) {
+            const { data: usuarioExiste } = await supabase
+              .from('usuarios_loja')
+              .select('id')
+              .eq('id', vendedorIdSanitizado)
+              .limit(1);
+
+            if (!usuarioExiste || usuarioExiste.length === 0) {
+              vendedorIdSanitizado = null;
+            }
+          }
+
+          // Resolver cliente_id
+          const clienteIdSanitizado = isUuidValido(venda.cliente_id) ? venda.cliente_id : null;
+
           // 1. Inserir Pedido no Supabase
           const { data: pedidoCriado, error: erroPedido } = await supabase
             .from('pedidos')
             .insert([{
               loja_id: venda.loja_id,
-              vendedor_id: venda.vendedor_id,
-              cliente_id: venda.cliente_id,
+              vendedor_id: vendedorIdSanitizado,
+              cliente_id: clienteIdSanitizado,
               origem: venda.origem,
               tabela_preco_aplicada: venda.tabela_preco_aplicada,
               status: venda.status,
@@ -130,15 +224,23 @@ export class SyncService {
           // 2. Inserir Itens do Pedido
           const itensFormatados = venda.itens.map(item => ({
             ...item,
+            variacao_id: isUuidValido(item.variacao_id) ? item.variacao_id : null,
             pedido_id: pedidoCriado.id
           }));
 
           const { error: erroItens } = await supabase.from('itens_pedido').insert(itensFormatados);
           if (erroItens) throw erroItens;
 
-          // 3. Inserir Pagamento
+          // 3. Resolver forma de pagamento real UUID
+          const fpIdReal = await this.resolverFormaPagamentoId(
+            venda.loja_id,
+            venda.pagamento.forma_pagamento_id,
+            venda.pagamento.eh_pagamento_fiado ? 'fiado' : undefined
+          );
+
           const { error: erroPagamento } = await supabase.from('pagamentos_pedido').insert([{
             ...venda.pagamento,
+            forma_pagamento_id: fpIdReal,
             pedido_id: pedidoCriado.id
           }]);
           if (erroPagamento) throw erroPagamento;

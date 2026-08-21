@@ -20,7 +20,11 @@ import {
   WifiOff,
   RefreshCw,
   Cloud,
-  CloudOff
+  CloudOff,
+  Banknote,
+  Zap,
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -83,6 +87,14 @@ export const PosCheckout: React.FC = () => {
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
+  const FORMAS_PADRAO: FormaPagamento[] = [
+    { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+    { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Pix (Imediato)', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+    { id: `fp_debito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+    { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
+    { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado / A Prazo', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
+  ];
+
   useEffect(() => {
     if (!loja?.id) return;
     const carregarDados = async () => {
@@ -92,14 +104,14 @@ export const PosCheckout: React.FC = () => {
         const dados = await SyncService.baixarDadosParaOffline(loja.id);
         if (dados.produtos) setProdutos(dados.produtos);
         if (dados.clientes) setClientes(dados.clientes);
-        if (dados.formasPagamento) {
-          setFormasPagamento(dados.formasPagamento);
-          if (dados.formasPagamento.length > 0 && !formaPagamentoEscolhida) {
-            setFormaPagamentoEscolhida(dados.formasPagamento[0]);
-          }
-        }
+        
+        const fps = (dados.formasPagamento && dados.formasPagamento.length > 0) ? dados.formasPagamento : FORMAS_PADRAO;
+        setFormasPagamento(fps);
+        setFormaPagamentoEscolhida(prev => prev || fps[0]);
       } catch (err) {
         console.error('Erro ao carregar dados do PDV:', err);
+        setFormasPagamento(FORMAS_PADRAO);
+        setFormaPagamentoEscolhida(prev => prev || FORMAS_PADRAO[0]);
       } finally {
         setCarregando(false);
       }
@@ -107,6 +119,18 @@ export const PosCheckout: React.FC = () => {
 
     carregarDados();
   }, [loja?.id]);
+
+  const handleAbrirFechamento = () => {
+    if (itens.length === 0) return;
+    const listaFPs = (formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO;
+    if (formasPagamento.length === 0) {
+      setFormasPagamento(listaFPs);
+    }
+    if (!formaPagamentoEscolhida) {
+      setFormaPagamentoEscolhida(listaFPs[0]);
+    }
+    setModalFechamento(true);
+  };
 
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,9 +168,24 @@ export const PosCheckout: React.FC = () => {
   };
 
   const handleFinalizarVenda = async () => {
-    if (!loja?.id || !usuario?.id || itens.length === 0 || !formaPagamentoEscolhida) return;
+    if (!loja?.id) {
+      alert('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
+      return;
+    }
+    if (itens.length === 0) {
+      alert('O carrinho está vazio. Adicione produtos antes de fechar a venda.');
+      return;
+    }
 
-    const ehFiado = formaPagamentoEscolhida.tipo === 'fiado';
+    // Garantir que haja um meio de pagamento selecionado
+    let fpFinal = formaPagamentoEscolhida;
+    if (!fpFinal) {
+      const listaFPs = (formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO;
+      fpFinal = listaFPs[0];
+      setFormaPagamentoEscolhida(fpFinal);
+    }
+
+    const ehFiado = fpFinal.tipo === 'fiado';
     if (ehFiado && !clienteSelecionado) {
       alert('Para vendas no FIADO / A PRAZO, é obrigatório selecionar um cliente cadastrado.');
       return;
@@ -156,13 +195,29 @@ export const PosCheckout: React.FC = () => {
       setFinalizandoVenda(true);
       setEhVendaOfflineSalva(false);
 
-      const taxaValor = (total * Number(formaPagamentoEscolhida.taxa_percentual || 0)) / 100;
+      // Obter ou resolver ID de operador/vendedor
+      let vendedorId: string = usuario?.id || '';
+      if (!vendedorId) {
+        const { data: u } = await supabase
+          .from('usuarios_loja')
+          .select('id')
+          .eq('loja_id', loja.id)
+          .limit(1);
+
+        if (u && u.length > 0) {
+          vendedorId = u[0].id;
+        } else {
+          vendedorId = loja.id;
+        }
+      }
+
+      const taxaValor = (total * Number(fpFinal.taxa_percentual || 0)) / 100;
       const valorLiquido = total - taxaValor;
       const dataIso = new Date().toISOString();
 
       const dadosBasePedido = {
         loja_id: loja.id,
-        vendedor_id: usuario.id,
+        vendedor_id: vendedorId,
         cliente_id: clienteSelecionado ? clienteSelecionado.id : null,
         origem: 'pdv_desktop' as const,
         tabela_preco_aplicada: tabelaPrecoGlobal,
@@ -193,7 +248,7 @@ export const PosCheckout: React.FC = () => {
 
       const dadosPagamento = {
         loja_id: loja.id,
-        forma_pagamento_id: formaPagamentoEscolhida.id,
+        forma_pagamento_id: fpFinal.id,
         valor: total,
         parcelas: parcelasCartao,
         valor_taxa: taxaValor,
@@ -205,22 +260,57 @@ export const PosCheckout: React.FC = () => {
       // Se estiver online, tenta enviar direto para o Supabase
       if (navigator.onLine) {
         try {
+          // 1. Resolver forma de pagamento UUID real existente no Supabase
+          const fpIdReal = await SyncService.resolverFormaPagamentoId(
+            loja.id,
+            fpFinal.id,
+            fpFinal.tipo
+          );
+
+          // 2. Sanitizar vendedor_id (se não for UUID existente em usuarios_loja, passar null para não violar FK)
+          let vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorId) ? vendedorId : null;
+          if (vendedorIdSanitizado) {
+            const { data: usuarioExiste } = await supabase
+              .from('usuarios_loja')
+              .select('id')
+              .eq('id', vendedorIdSanitizado)
+              .limit(1);
+
+            if (!usuarioExiste || usuarioExiste.length === 0) {
+              vendedorIdSanitizado = null;
+            }
+          }
+
+          const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
+
+          const payloadPedido = {
+            ...dadosBasePedido,
+            vendedor_id: vendedorIdSanitizado,
+            cliente_id: clienteIdSanitizado
+          };
+
           const { data: pedidoCriado, error: erroPedido } = await supabase
             .from('pedidos')
-            .insert([dadosBasePedido])
+            .insert([payloadPedido])
             .select()
             .single();
 
           if (erroPedido || !pedidoCriado) throw erroPedido;
 
-          const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
+          const itensComId = itensFormatados.map(it => ({
+            ...it,
+            variacao_id: SyncService.isUuidValido(it.variacao_id) ? it.variacao_id : null,
+            pedido_id: pedidoCriado.id
+          }));
           const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
           if (erroItens) throw erroItens;
 
-          await supabase.from('pagamentos_pedido').insert([{
+          const { error: erroPagamento } = await supabase.from('pagamentos_pedido').insert([{
             ...dadosPagamento,
+            forma_pagamento_id: fpIdReal,
             pedido_id: pedidoCriado.id
           }]);
+          if (erroPagamento) throw erroPagamento;
 
           const pedidoCompleto: Pedido = {
             ...pedidoCriado,
@@ -229,6 +319,7 @@ export const PosCheckout: React.FC = () => {
             itens: itensComId as any
           };
 
+          setEhVendaOfflineSalva(false);
           setPedidoConcluido(pedidoCompleto);
           setModalFechamento(false);
           limparCarrinho();
@@ -640,8 +731,8 @@ export const PosCheckout: React.FC = () => {
 
           <button
             disabled={itens.length === 0}
-            onClick={() => setModalFechamento(true)}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-40"
+            onClick={handleAbrirFechamento}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-40 cursor-pointer active:scale-98"
           >
             <span>Finalizar Venda</span>
             <ArrowRight className="w-4 h-4" />
@@ -671,7 +762,7 @@ export const PosCheckout: React.FC = () => {
                     adicionarItem(produtoModalVariacao, variacao);
                     setProdutoModalVariacao(null);
                   }}
-                  className="w-full p-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 flex items-center justify-between text-left transition"
+                  className="w-full p-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 flex items-center justify-between text-left transition cursor-pointer"
                 >
                   <div>
                     <span className="font-bold text-xs text-slate-100 block">
@@ -692,37 +783,52 @@ export const PosCheckout: React.FC = () => {
       {/* MODAL DE FECHAMENTO DE VENDA */}
       {modalFechamento && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">Pagamento & Fechamento</h3>
-              <button onClick={() => setModalFechamento(false)} className="text-slate-400 hover:text-white">
+              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-400" />
+                <span>Pagamento & Fechamento</span>
+              </h3>
+              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center space-y-1">
               <span className="text-xs text-slate-400 block font-medium">Valor Total da Venda</span>
-              <span className="text-3xl font-black text-emerald-400">R$ {total.toFixed(2)}</span>
+              <span className="text-3xl sm:text-4xl font-black text-emerald-400">R$ {total.toFixed(2)}</span>
             </div>
 
             {/* Formas de Pagamento */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <span className="text-xs font-semibold text-slate-300 block">Selecione o Meio de Pagamento:</span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {formasPagamento.map((fp) => (
-                  <button
-                    key={fp.id}
-                    onClick={() => setFormaPagamentoEscolhida(fp)}
-                    className={`p-3 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 ${
-                      formaPagamentoEscolhida?.id === fp.id
-                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                        : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    <span>{fp.nome}</span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {((formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO).map((fp) => {
+                  const estaSelecionado = formaPagamentoEscolhida?.id === fp.id || (!formaPagamentoEscolhida && fp.tipo === 'dinheiro');
+                  
+                  return (
+                    <button
+                      key={fp.id}
+                      type="button"
+                      onClick={() => setFormaPagamentoEscolhida(fp)}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+                        estaSelecionado
+                          ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                          : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {fp.tipo === 'dinheiro' && <Banknote className="w-5 h-5 text-emerald-400" />}
+                      {fp.tipo === 'pix' && <Zap className="w-5 h-5 text-cyan-400" />}
+                      {fp.tipo === 'cartao_debito' && <CreditCard className="w-5 h-5 text-blue-400" />}
+                      {fp.tipo === 'cartao_credito' && <CreditCard className="w-5 h-5 text-purple-400" />}
+                      {fp.tipo === 'fiado' && <FileText className="w-5 h-5 text-amber-400" />}
+                      {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && (
+                        <CreditCard className="w-5 h-5 text-slate-400" />
+                      )}
+                      <span className="truncate max-w-full">{fp.nome}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -730,18 +836,18 @@ export const PosCheckout: React.FC = () => {
             {formaPagamentoEscolhida?.tipo === 'dinheiro' && (
               <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Valor Entregue pelo Cliente:</span>
+                  <span className="text-xs text-slate-400 font-medium">Valor Entregue pelo Cliente:</span>
                   <input
                     type="number"
                     step="0.01"
                     placeholder="0.00"
                     value={valorRecebidoDinheiro}
                     onChange={(e) => setValorRecebidoDinheiro(e.target.value)}
-                    className="w-28 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-right text-xs font-bold text-slate-100"
+                    className="w-32 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-right text-xs font-bold text-slate-100 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
                 {Number(valorRecebidoDinheiro) > 0 && (
-                  <div className="flex justify-between text-xs font-bold text-amber-400 pt-1 border-t border-slate-800">
+                  <div className="flex justify-between text-xs font-bold text-amber-400 pt-1.5 border-t border-slate-800/80">
                     <span>Troco:</span>
                     <span>R$ {trocoCalculado.toFixed(2)}</span>
                   </div>
@@ -749,13 +855,38 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
+            {/* Fiado (Aviso de Cliente) */}
+            {formaPagamentoEscolhida?.tipo === 'fiado' && (
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-300">Cliente Fiado:</span>
+                  <span className="text-slate-200 font-semibold">{clienteSelecionado ? clienteSelecionado.nome : 'Nenhum cliente selecionado'}</span>
+                </div>
+                {!clienteSelecionado && (
+                  <p className="text-[11px] text-rose-400 font-medium">
+                    ⚠️ Selecione um cliente no carrinho antes de confirmar venda a prazo (fiado).
+                  </p>
+                )}
+              </div>
+            )}
+
             <button
+              type="button"
               disabled={finalizandoVenda}
               onClick={handleFinalizarVenda}
-              className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
+              className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98"
             >
-              <CheckCircle2 className="w-5 h-5" />
-              <span>{finalizandoVenda ? 'Processando Venda...' : 'Confirmar e Concluir Venda'}</span>
+              {finalizandoVenda ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Processando Venda...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Confirmar e Concluir Venda</span>
+                </>
+              )}
             </button>
           </div>
         </div>
