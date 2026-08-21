@@ -384,33 +384,72 @@ export const EstatisticasAnalytics: React.FC = () => {
     }
 
     if (agrupamentoSelecionado === 'dia') {
-      const map: Record<string, { chave: string; rotulo: string; faturamento: number; vendas: number; ticketMedio: number; lucro: number; taxaVenda: number }> = {};
-      
+      const formatKeyLocal = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dia = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dia}`;
+      };
+
+      const formatRotuloLocal = (d: Date) => {
+        const dia = String(d.getDate()).padStart(2, '0');
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dia}/${m}`;
+      };
+
+      const diasLista: { chave: string; rotulo: string; faturamento: number; vendas: number; ticketMedio: number; lucro: number; taxaVenda: number }[] = [];
+      const curr = new Date(dataInicio.getFullYear(), dataInicio.getMonth(), dataInicio.getDate());
+      const end = new Date(dataFim.getFullYear(), dataFim.getMonth(), dataFim.getDate());
+
+      let safety = 0;
+      while (curr <= end && safety < 370) {
+        diasLista.push({
+          chave: formatKeyLocal(curr),
+          rotulo: formatRotuloLocal(curr),
+          faturamento: 0,
+          vendas: 0,
+          ticketMedio: 0,
+          lucro: 0,
+          taxaVenda: 0
+        });
+        curr.setDate(curr.getDate() + 1);
+        safety++;
+      }
+
       pedidosFiltrados.forEach(p => {
         const d = new Date(p.data_venda || p.criado_em || '');
-        const chave = d.toISOString().split('T')[0];
-        const rotulo = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const chave = formatKeyLocal(d);
+        let diaItem = diasLista.find(item => item.chave === chave);
 
-        if (!map[chave]) {
-          map[chave] = { chave, rotulo, faturamento: 0, vendas: 0, ticketMedio: 0, lucro: 0, taxaVenda: 0 };
+        if (!diaItem) {
+          diaItem = {
+            chave,
+            rotulo: formatRotuloLocal(d),
+            faturamento: 0,
+            vendas: 0,
+            ticketMedio: 0,
+            lucro: 0,
+            taxaVenda: 0
+          };
+          diasLista.push(diaItem);
         }
 
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
         const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
         const val = Number(p.valor_total || 0);
 
-        map[chave].faturamento += val;
-        map[chave].vendas += 1;
-        map[chave].taxaVenda += taxas;
-        map[chave].lucro += (val - custo - taxas);
+        diaItem.faturamento += val;
+        diaItem.vendas += 1;
+        diaItem.taxaVenda += taxas;
+        diaItem.lucro += (val - custo - taxas);
       });
 
-      const lista = Object.values(map).sort((a, b) => a.chave.localeCompare(b.chave));
-      lista.forEach(d => {
+      diasLista.sort((a, b) => a.chave.localeCompare(b.chave));
+      diasLista.forEach(d => {
         d.ticketMedio = d.vendas > 0 ? d.faturamento / d.vendas : 0;
       });
 
-      return lista.length > 0 ? lista : [{ chave: 'hoje', rotulo: 'Hoje', faturamento: 0, vendas: 0, ticketMedio: 0, lucro: 0, taxaVenda: 0 }];
+      return diasLista.length > 0 ? diasLista : [{ chave: 'hoje', rotulo: 'Hoje', faturamento: 0, vendas: 0, ticketMedio: 0, lucro: 0, taxaVenda: 0 }];
     }
 
     if (agrupamentoSelecionado === 'dia_semana') {
