@@ -27,18 +27,26 @@ interface CartContextType {
   tabelaPrecoCalculada: TabelaPreco;
   avaliacaoCarrinho: ResultadoAvaliacaoCarrinho;
   desconto: number;
+  descontoPercentual: number;
+  tipoDesconto: 'valor' | 'percentual';
   taxaEntrega: number;
   subtotal: number;
   total: number;
   totalItens: number;
+  pedidoEmEdicao: any | null;
   adicionarItem: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number, observacoes?: string) => void;
   removerItem: (cartId: string) => void;
   atualizarQuantidade: (cartId: string, quantidade: number) => void;
   setClienteSelecionado: (cliente: Cliente | null) => void;
   setTabelaPrecoGlobal: (tabela: TabelaPreco) => void;
+  setDescontoValor: (valor: number) => void;
+  setDescontoPercentual: (percentual: number) => void;
+  setTipoDesconto: (tipo: 'valor' | 'percentual') => void;
   setDesconto: (valor: number) => void;
   setTaxaEntrega: (valor: number) => void;
   limparCarrinho: () => void;
+  carregarPedidoParaEdicao: (pedido: any) => void;
+  cancelarEdicaoPedido: () => void;
 }
 
 const CartContext = createContext<CartContextType>({} as CartContextType);
@@ -48,8 +56,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [itens, setItens] = useState<CartItem[]>([]);
   const [clienteSelecionado, setClienteSelecionadoState] = useState<Cliente | null>(null);
   const [tabelaPrecoGlobal, setTabelaPrecoGlobalState] = useState<TabelaPreco>('varejo');
-  const [desconto, setDesconto] = useState<number>(0);
+  const [desconto, setDescontoState] = useState<number>(0);
+  const [descontoPercentual, setDescontoPercentualState] = useState<number>(0);
+  const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [taxaEntrega, setTaxaEntrega] = useState<number>(0);
+  const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
 
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
 
@@ -162,13 +173,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const limparCarrinho = () => {
-    setItens([]);
-    setClienteSelecionadoState(null);
-    setDesconto(0);
-    setTaxaEntrega(0);
-  };
-
   // Recalcula subtotais de acordo com a tabela calculada em tempo real
   const itensComPrecoDinamico = useMemo(() => {
     return itens.map(item => {
@@ -185,6 +189,82 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const subtotal = useMemo(() => {
     return itensComPrecoDinamico.reduce((acc, item) => acc + item.subtotal, 0);
   }, [itensComPrecoDinamico]);
+
+  const setDescontoValor = (valor: number) => {
+    const val = Math.max(0, valor);
+    setDescontoState(val);
+    if (subtotal > 0) {
+      setDescontoPercentualState(Number(((val / subtotal) * 100).toFixed(2)));
+    } else {
+      setDescontoPercentualState(0);
+    }
+  };
+
+  const setDescontoPercentual = (percentual: number) => {
+    const perc = Math.max(0, Math.min(100, percentual));
+    setDescontoPercentualState(perc);
+    if (subtotal > 0) {
+      setDescontoState(Number(((perc / 100) * subtotal).toFixed(2)));
+    } else {
+      setDescontoState(0);
+    }
+  };
+
+  const setDesconto = (valor: number) => {
+    setDescontoValor(valor);
+  };
+
+  const limparCarrinho = () => {
+    setItens([]);
+    setClienteSelecionadoState(null);
+    setDescontoState(0);
+    setDescontoPercentualState(0);
+    setTipoDesconto('valor');
+    setTaxaEntrega(0);
+    setPedidoEmEdicao(null);
+  };
+
+  const carregarPedidoParaEdicao = (pedido: any) => {
+    if (!pedido) return;
+    setPedidoEmEdicao(pedido);
+    setClienteSelecionadoState(pedido.cliente || null);
+    setTabelaPrecoGlobalState(pedido.tabela_preco_aplicada || 'varejo');
+    
+    const descVal = Number(pedido.valor_desconto) || 0;
+    const descPerc = Number(pedido.desconto_percentual) || (Number(pedido.subtotal) > 0 ? (descVal / Number(pedido.subtotal)) * 100 : 0);
+    
+    setDescontoState(descVal);
+    setDescontoPercentualState(Number(descPerc.toFixed(2)));
+    setTaxaEntrega(Number(pedido.valor_frete) || 0);
+
+    const cartItens: CartItem[] = (pedido.itens || []).map((item: any) => ({
+      id: item.variacao_id ? `${item.produto_id}-${item.variacao_id}` : `${item.produto_id}`,
+      produto: {
+        id: item.produto_id,
+        nome: item.nome_produto,
+        preco_venda_varejo: item.preco_venda_unitario,
+        preco_custo: item.preco_custo_unitario
+      } as any,
+      variacao: item.variacao_id ? ({
+        id: item.variacao_id,
+        produto_id: item.produto_id,
+        valor_variacao_1: item.rotulo_variacao || '',
+        preco_venda_varejo: item.preco_venda_unitario,
+        preco_custo: item.preco_custo_unitario
+      } as any) : null,
+      quantidade: Number(item.quantidade) || 1,
+      tabelaPrecoUtilizada: item.tabela_preco_utilizada || pedido.tabela_preco_aplicada || 'varejo',
+      precoUnitario: Number(item.preco_venda_unitario) || 0,
+      subtotal: Number(item.subtotal) || (Number(item.preco_venda_unitario) * Number(item.quantidade)),
+      observacoes: item.observacoes || undefined
+    }));
+
+    setItens(cartItens);
+  };
+
+  const cancelarEdicaoPedido = () => {
+    limparCarrinho();
+  };
 
   const total = useMemo(() => {
     return Math.max(0, subtotal - desconto + taxaEntrega);
@@ -203,18 +283,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tabelaPrecoCalculada,
         avaliacaoCarrinho,
         desconto,
+        descontoPercentual,
+        tipoDesconto,
         taxaEntrega,
         subtotal,
         total,
         totalItens,
+        pedidoEmEdicao,
         adicionarItem,
         removerItem,
         atualizarQuantidade,
         setClienteSelecionado,
         setTabelaPrecoGlobal,
+        setDescontoValor,
+        setDescontoPercentual,
+        setTipoDesconto,
         setDesconto,
         setTaxaEntrega,
-        limparCarrinho
+        limparCarrinho,
+        carregarPedidoParaEdicao,
+        cancelarEdicaoPedido
       }}
     >
       {children}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Printer,
@@ -10,36 +11,76 @@ import {
   XCircle,
   Phone,
   Store,
-  ChevronRight,
   X,
   FileText,
   User,
   ArrowUpDown,
-  Filter,
   Volume2,
   VolumeX,
-  ShoppingBag,
-  ExternalLink,
-  ChevronDown,
-  Copy,
   Receipt,
   Check,
-  Tag
+  Tag,
+  Edit,
+  CreditCard,
+  ChevronDown,
+  Lock,
+  Copy
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Pedido, StatusPedido, TabelaPreco } from '../types';
+import { useCart } from '../contexts/CartContext';
+import { Pedido, StatusPedido, StatusPagamento, TabelaPreco } from '../types';
 import { PrintService } from '../services/printService';
 import { audioService } from '../services/audioService';
 
 type OrdenacaoCampo = 'data' | 'valor';
 type OrdenacaoDirecao = 'asc' | 'desc';
 
+const ABAS_STATUS: { id: string; label: string }[] = [
+  { id: 'todos', label: 'Todos os status' },
+  { id: 'pendente', label: 'Pendente' },
+  { id: 'confirmado', label: 'Confirmado' },
+  { id: 'em_separacao', label: 'Em separação' },
+  { id: 'em_producao', label: 'Em produção' },
+  { id: 'em_expedicao', label: 'Em expedição' },
+  { id: 'saiu_para_entrega', label: 'Saiu para Entrega' },
+  { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
+  { id: 'concluido', label: 'Concluído' },
+  { id: 'cancelado', label: 'Cancelado' }
+];
+
+const STATUS_PEDIDO_OPCOES: { id: StatusPedido; label: string }[] = [
+  { id: 'pendente', label: 'Pendente' },
+  { id: 'confirmado', label: 'Confirmado' },
+  { id: 'em_separacao', label: 'Em separação' },
+  { id: 'em_producao', label: 'Em produção' },
+  { id: 'em_expedicao', label: 'Em expedição' },
+  { id: 'saiu_para_entrega', label: 'Saiu para Entrega' },
+  { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
+  { id: 'concluido', label: 'Concluído' },
+  { id: 'cancelado', label: 'Cancelado' }
+];
+
+const STATUS_PAGAMENTO_OPCOES: { id: StatusPagamento; label: string }[] = [
+  { id: 'aguardando_pagamento', label: 'Aguardando pagamento' },
+  { id: 'pago', label: 'Pago' },
+  { id: 'parcialmente_pago', label: 'Parcialmente Pago' }
+];
+
+const TIPOS_VENDA_OPCOES: { id: TabelaPreco; label: string }[] = [
+  { id: 'varejo', label: 'Varejo' },
+  { id: 'atacado', label: 'Atacado' },
+  { id: 'autoatacado', label: 'Distribuidor' }
+];
+
 export const PedidosLista: React.FC = () => {
-  const { loja } = useAuth();
+  const { loja, usuario } = useAuth();
+  const { carregarPedidoParaEdicao } = useCart();
+  const navigate = useNavigate();
+
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
-  const [statusFiltro, setStatusFiltro] = useState<string>('abertos');
+  const [statusFiltro, setStatusFiltro] = useState<string>('todos');
   const [busca, setBusca] = useState<string>('');
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
@@ -47,6 +88,8 @@ export const PedidosLista: React.FC = () => {
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
+
+  const podeAlterarTipoVenda = usuario?.perfil === 'owner' || usuario?.perfil === 'admin';
 
   const carregarPedidos = async (tocarAlerta = false) => {
     if (!loja?.id) return;
@@ -127,9 +170,95 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
-  // Contagem de pedidos abertos (pendente, confirmado, em_producao, em_expedicao)
+  const atualizarStatusPagamento = async (pedidoId: string, novoStatusPagamento: StatusPagamento) => {
+    try {
+      const ehPago = novoStatusPagamento === 'pago';
+      const ped = pedidos.find(p => p.id === pedidoId);
+      const totalPed = ped ? Number(ped.valor_total) : 0;
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          status_pagamento: novoStatusPagamento,
+          valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : ped?.valor_pago,
+          saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : ped?.saldo_devedor,
+          fiado_quitado: ehPago,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', pedidoId);
+
+      if (error) throw error;
+
+      setPedidos(prev =>
+        prev.map(p => (p.id === pedidoId ? {
+          ...p,
+          status_pagamento: novoStatusPagamento,
+          valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : p.valor_pago,
+          saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : p.saldo_devedor,
+          fiado_quitado: ehPago
+        } : p))
+      );
+
+      if (pedidoSelecionado?.id === pedidoId) {
+        setPedidoSelecionado(prev => prev ? {
+          ...prev,
+          status_pagamento: novoStatusPagamento,
+          valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : prev.valor_pago,
+          saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : prev.saldo_devedor,
+          fiado_quitado: ehPago
+        } : null);
+      }
+
+      audioService.playBeep();
+    } catch (err: any) {
+      console.error('Erro ao atualizar status de pagamento:', err);
+      alert(`Erro ao atualizar status de pagamento: ${err.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const atualizarTipoVenda = async (pedidoId: string, novoTipo: TabelaPreco) => {
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          tabela_preco_aplicada: novoTipo,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', pedidoId);
+
+      if (error) throw error;
+
+      setPedidos(prev =>
+        prev.map(p => (p.id === pedidoId ? { ...p, tabela_preco_aplicada: novoTipo } : p))
+      );
+
+      if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
+        setPedidoSelecionado(prev => prev ? { ...prev, tabela_preco_aplicada: novoTipo } : null);
+      }
+
+      if (pedidoReciboModal && pedidoReciboModal.id === pedidoId) {
+        setPedidoReciboModal(prev => prev ? { ...prev, tabela_preco_aplicada: novoTipo } : null);
+      }
+
+      audioService.playBeep();
+    } catch (err: any) {
+      console.error('Erro ao atualizar tipo de venda:', err);
+      alert(`Erro ao alterar Tipo da Venda: ${err.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const handleEditarPedido = (pedido: Pedido) => {
+    if (pedido.status !== 'pendente') {
+      alert('A alteração de pedido só é permitida para pedidos com status Pendente.');
+      return;
+    }
+    carregarPedidoParaEdicao(pedido);
+    navigate('/pos');
+  };
+
+  // Contagem de pedidos abertos
   const pedidosAbertosCount = useMemo(() => {
-    return pedidos.filter(p => ['pendente', 'confirmado', 'em_producao', 'em_expedicao'].includes(p.status)).length;
+    return pedidos.filter(p => ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar'].includes(p.status)).length;
   }, [pedidos]);
 
   // Filtragem e Ordenação
@@ -137,19 +266,17 @@ export const PedidosLista: React.FC = () => {
     return pedidos
       .filter(p => {
         let matchStatus = true;
-        if (statusFiltro === 'abertos') {
-          matchStatus = ['pendente', 'confirmado', 'em_producao', 'em_expedicao'].includes(p.status);
-        } else if (statusFiltro !== 'todos') {
+        if (statusFiltro !== 'todos') {
           matchStatus = p.status === statusFiltro;
         }
 
         const termo = busca.toLowerCase().trim();
+        const nomeCli = p.cliente?.nome || 'cliente avulso (balcão)';
         const matchBusca =
           !termo ||
           p.numero_pedido.toString().includes(termo) ||
-          (p.cliente?.nome && p.cliente.nome.toLowerCase().includes(termo)) ||
+          nomeCli.toLowerCase().includes(termo) ||
           (p.vendedor?.nome_completo && p.vendedor.nome_completo.toLowerCase().includes(termo)) ||
-          (p.observacoes && p.observacoes.toLowerCase().includes(termo)) ||
           p.itens?.some(i => i.nome_produto.toLowerCase().includes(termo));
 
         return matchStatus && matchBusca;
@@ -174,6 +301,13 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
+  const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
+    if (pedido.status_pagamento) return pedido.status_pagamento;
+    if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
+    if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
+    return 'aguardando_pagamento';
+  };
+
   const getStatusBadge = (status: StatusPedido) => {
     switch (status) {
       case 'pendente':
@@ -188,16 +322,34 @@ export const PedidosLista: React.FC = () => {
             <CheckCircle2 className="w-3 h-3" /> Confirmado
           </span>
         );
+      case 'em_separacao':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <Package className="w-3 h-3" /> Em separação
+          </span>
+        );
       case 'em_producao':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <Package className="w-3 h-3" /> Produção
+            <Package className="w-3 h-3" /> Em produção
           </span>
         );
       case 'em_expedicao':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <Truck className="w-3 h-3" /> Entrega
+            <Truck className="w-3 h-3" /> Em expedição
+          </span>
+        );
+      case 'saiu_para_entrega':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <Truck className="w-3 h-3" /> Saiu para Entrega
+          </span>
+        );
+      case 'pronto_para_retirar':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-400 border border-teal-500/20">
+            <Store className="w-3 h-3" /> Pronto para retirar
           </span>
         );
       case 'concluido':
@@ -221,6 +373,30 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
+  const getStatusPagamentoBadge = (status: StatusPagamento) => {
+    switch (status) {
+      case 'pago':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <CheckCircle2 className="w-3 h-3" /> Pago
+          </span>
+        );
+      case 'parcialmente_pago':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+            <CreditCard className="w-3 h-3" /> Parcialmente Pago
+          </span>
+        );
+      case 'aguardando_pagamento':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <Clock className="w-3 h-3" /> Aguardando pagamento
+          </span>
+        );
+    }
+  };
+
   const getTipoVendaBadge = (tabela?: TabelaPreco | string | null) => {
     switch (tabela) {
       case 'atacado':
@@ -232,7 +408,7 @@ export const PedidosLista: React.FC = () => {
       case 'autoatacado':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
-            Autoatacado
+            Distribuidor
           </span>
         );
       case 'promocional':
@@ -280,7 +456,7 @@ export const PedidosLista: React.FC = () => {
 
   return (
     <div className="flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950 text-slate-100">
-      {/* CORPO PRINCIPAL: CABEÇALHO + TABELA KYTE-STYLE */}
+      {/* CORPO PRINCIPAL: CABEÇALHO + TABELA */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* CABEÇALHO SUPERIOR */}
         <div className="p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
@@ -339,18 +515,10 @@ export const PedidosLista: React.FC = () => {
               )}
             </div>
 
-            {/* Filtros de Status */}
+            {/* As 10 Abas de Status Solicitadas */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
               <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800/80">
-                {[
-                  { id: 'abertos', label: 'Abertos' },
-                  { id: 'todos', label: 'Todos os status' },
-                  { id: 'pendente', label: 'Pendente' },
-                  { id: 'confirmado', label: 'Confirmado' },
-                  { id: 'em_expedicao', label: 'Entrega' },
-                  { id: 'concluido', label: 'Concluído' },
-                  { id: 'cancelado', label: 'Cancelado' }
-                ].map((f) => (
+                {ABAS_STATUS.map((f) => (
                   <button
                     key={f.id}
                     onClick={() => setStatusFiltro(f.id)}
@@ -368,7 +536,7 @@ export const PedidosLista: React.FC = () => {
           </div>
         </div>
 
-        {/* TABELA DE ALTA DENSIDADE (ESTILO KYTE WEB) */}
+        {/* TABELA DE PEDIDOS */}
         <div className="flex-1 overflow-auto bg-slate-950">
           {carregando ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-3">
@@ -407,10 +575,10 @@ export const PedidosLista: React.FC = () => {
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
+                  <th className="py-3 px-4 font-semibold">Status Pedido</th>
+                  <th className="py-3 px-4 font-semibold">Status Pagamento</th>
                   <th className="py-3 px-4 font-semibold text-center">Tipo da Venda</th>
-                  <th className="py-3 px-4 font-semibold">Obs.</th>
-                  <th className="py-3 px-3 text-right"></th>
+                  <th className="py-3 px-4 font-semibold text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
@@ -419,12 +587,14 @@ export const PedidosLista: React.FC = () => {
                   const totalItens = calcularTotalItens(pedido);
                   const isCatalogo = pedido.origem === 'catalogo_online';
                   const isSelecionado = pedidoSelecionado?.id === pedido.id;
+                  const statusPag = resolverStatusPagamento(pedido);
+                  const permiteTrocarTipo = podeAlterarTipoVenda && (statusPag === 'aguardando_pagamento' || Number(pedido.valor_pago) === 0);
+                  const isPendente = pedido.status === 'pendente';
 
                   return (
                     <tr
                       key={pedido.id}
-                      onClick={() => setPedidoSelecionado(pedido)}
-                      className={`cursor-pointer transition group hover:bg-slate-900/80 ${
+                      className={`transition group hover:bg-slate-900/60 ${
                         isSelecionado ? 'bg-slate-900/90 ring-1 ring-inset ring-emerald-500/40' : ''
                       } ${isCancelado ? 'opacity-60' : ''}`}
                     >
@@ -447,11 +617,12 @@ export const PedidosLista: React.FC = () => {
                           {/* 2º CÓDIGO DO PEDIDO (#xxxx) */}
                           <button
                             type="button"
+                            title="Abrir Detalhes do Pedido"
                             onClick={(e) => {
                               e.stopPropagation();
                               setPedidoSelecionado(pedido);
                             }}
-                            className={`font-bold hover:underline ${
+                            className={`font-bold hover:underline cursor-pointer ${
                               isCancelado ? 'line-through text-slate-400' : 'text-slate-200 group-hover:text-emerald-400'
                             }`}
                           >
@@ -467,15 +638,11 @@ export const PedidosLista: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Cliente */}
+                      {/* Cliente (Cliente Avulso (Balcão) se não identificado) */}
                       <td className="py-3.5 px-4 max-w-[200px] truncate text-slate-200 font-medium">
-                        {pedido.cliente?.nome ? (
-                          <span className={isCancelado ? 'line-through' : ''}>
-                            {pedido.cliente.nome}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">-</span>
-                        )}
+                        <span className={isCancelado ? 'line-through' : ''}>
+                          {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
+                        </span>
                       </td>
 
                       {/* Vendedor / Canal */}
@@ -520,24 +687,94 @@ export const PedidosLista: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Status */}
+                      {/* Status do Pedido (Clique para Alterar) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        {getStatusBadge(pedido.status)}
+                        <div className="relative inline-block">
+                          <select
+                            value={pedido.status}
+                            onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
+                            className="bg-transparent text-xs font-semibold cursor-pointer border-0 rounded-full focus:ring-1 focus:ring-emerald-500 appearance-none pr-5 pl-1 py-0.5 hover:opacity-80 transition"
+                            title="Clique para alterar status do pedido"
+                          >
+                            {STATUS_PEDIDO_OPCOES.map((opt) => (
+                              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
+                            {getStatusBadge(pedido.status)}
+                            <ChevronDown className="w-3 h-3 text-slate-400 ml-1 shrink-0" />
+                          </div>
+                        </div>
                       </td>
 
-                      {/* Tipo da Venda (Varejo / Atacado / Autoatacado) */}
+                      {/* Status do Pagamento (Clique para Alterar) */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="relative inline-block">
+                          <select
+                            value={statusPag}
+                            onChange={(e) => atualizarStatusPagamento(pedido.id, e.target.value as StatusPagamento)}
+                            className="bg-transparent text-xs font-semibold cursor-pointer border-0 rounded-full focus:ring-1 focus:ring-emerald-500 appearance-none pr-5 pl-1 py-0.5 hover:opacity-80 transition"
+                            title="Clique para alterar status do pagamento"
+                          >
+                            {STATUS_PAGAMENTO_OPCOES.map((opt) => (
+                              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
+                            {getStatusPagamentoBadge(statusPag)}
+                            <ChevronDown className="w-3 h-3 text-slate-400 ml-1 shrink-0" />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Tipo da Venda (Varejo / Atacado / Distribuidor) - Alterável por Owner/Admin quando Aguardando Pagamento */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {getTipoVendaBadge(pedido.tabela_preco_aplicada)}
+                        {permiteTrocarTipo ? (
+                          <div className="relative inline-block" title="Clique para alterar Tipo da Venda (Owner/Admin)">
+                            <select
+                              value={pedido.tabela_preco_aplicada || 'varejo'}
+                              onChange={(e) => atualizarTipoVenda(pedido.id, e.target.value as TabelaPreco)}
+                              className="bg-transparent text-xs font-semibold cursor-pointer border-0 rounded-md focus:ring-1 focus:ring-emerald-500 appearance-none pr-4 pl-1 py-0.5 hover:opacity-80 transition"
+                            >
+                              {TIPOS_VENDA_OPCOES.map((opt) => (
+                                <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1">
+                              {getTipoVendaBadge(pedido.tabela_preco_aplicada)}
+                              <ChevronDown className="w-3 h-3 text-slate-400" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1" title={podeAlterarTipoVenda ? 'Tipo da venda bloqueado após pagamento' : 'Apenas Owner e Admin podem alterar'}>
+                            {getTipoVendaBadge(pedido.tabela_preco_aplicada)}
+                            {!podeAlterarTipoVenda && <Lock className="w-3 h-3 text-slate-600" />}
+                          </div>
+                        )}
                       </td>
 
-                      {/* Observações */}
-                      <td className="py-3.5 px-4 max-w-[140px] truncate text-slate-500">
-                        {pedido.observacoes ? pedido.observacoes : '-'}
-                      </td>
-
-                      {/* Seta de Detalhe */}
-                      <td className="py-3.5 px-3 text-right">
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-300 transition" />
+                      {/* Ações (Alterar Pedido se Pendente) */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          disabled={!isPendente}
+                          onClick={() => handleEditarPedido(pedido)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                            isPendente
+                              ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95'
+                              : 'bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40'
+                          }`}
+                          title={isPendente ? 'Carregar pedido no PDV para alteração' : 'Alteração permitida apenas para pedidos com status Pendente'}
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Alterar</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -564,11 +801,13 @@ export const PedidosLista: React.FC = () => {
                 <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
                 <span>•</span>
                 <span>{getTipoVendaBadge(pedidoSelecionado.tabela_preco_aplicada)}</span>
+                <span>•</span>
+                <span>{getStatusPagamentoBadge(resolverStatusPagamento(pedidoSelecionado))}</span>
               </div>
             </div>
             <button
               onClick={() => setPedidoSelecionado(null)}
-              className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition"
+              className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -576,57 +815,93 @@ export const PedidosLista: React.FC = () => {
 
           {/* Conteúdo do Drawer com Rolagem */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Atualizador Rápido de Status */}
+            {/* Opção de Alterar Pedido se Pendente */}
+            {pedidoSelecionado.status === 'pendente' && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-amber-300 block">Pedido Pendente</span>
+                  <span className="text-[11px] text-amber-400/80">Você pode alterar produtos, cliente e valores no PDV.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleEditarPedido(pedidoSelecionado)}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Alterar Pedido</span>
+                </button>
+              </div>
+            )}
+
+            {/* Atualizador Rápido de Status do Pedido (Todos os 9 Status) */}
             <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
               <label className="text-xs font-semibold text-slate-400 block">Alterar Status do Pedido:</label>
               <div className="grid grid-cols-3 gap-1.5">
-                {(['pendente', 'confirmado', 'em_producao', 'em_expedicao', 'concluido', 'cancelado'] as StatusPedido[]).map((st) => (
+                {STATUS_PEDIDO_OPCOES.map((st) => (
                   <button
-                    key={st}
-                    onClick={() => atualizarStatus(pedidoSelecionado.id, st)}
-                    className={`py-2 px-2 rounded-xl text-[11px] font-bold capitalize transition border ${
-                      pedidoSelecionado.status === st
+                    key={st.id}
+                    onClick={() => atualizarStatus(pedidoSelecionado.id, st.id)}
+                    className={`py-2 px-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold transition border cursor-pointer ${
+                      pedidoSelecionado.status === st.id
                         ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                     }`}
                   >
-                    {st === 'em_producao' ? 'Produção' : st === 'em_expedicao' ? 'Entrega' : st}
+                    {st.label}
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Atualizador Rápido de Status do Pagamento */}
+            <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+              <label className="text-xs font-semibold text-slate-400 block">Status do Pagamento:</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {STATUS_PAGAMENTO_OPCOES.map((stPag) => {
+                  const statusAtual = resolverStatusPagamento(pedidoSelecionado);
+                  return (
+                    <button
+                      key={stPag.id}
+                      onClick={() => atualizarStatusPagamento(pedidoSelecionado.id, stPag.id)}
+                      className={`py-2 px-1 rounded-xl text-[10px] sm:text-[11px] font-bold transition border cursor-pointer ${
+                        statusAtual === stPag.id
+                          ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      {stPag.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Informações do Cliente */}
-            {pedidoSelecionado.cliente ? (
-              <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                  <span className="font-bold text-slate-200 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-emerald-400" /> Dados do Cliente
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    Tabela: {pedidoSelecionado.tabela_preco_aplicada || 'Varejo'}
-                  </span>
-                </div>
-                <p className="text-slate-200 font-semibold text-sm">{pedidoSelecionado.cliente.nome}</p>
-                {pedidoSelecionado.cliente.whatsapp && (
-                  <p className="text-slate-300 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                    {pedidoSelecionado.cliente.whatsapp}
-                  </p>
-                )}
-                {pedidoSelecionado.endereco_entrega && (
-                  <p className="text-slate-400 flex items-start gap-1.5 pt-1">
-                    <Truck className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
-                    <span>{pedidoSelecionado.endereco_entrega}</span>
-                  </p>
-                )}
+            <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-emerald-400" /> Dados do Cliente
+                </span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  Tabela: {pedidoSelecionado.tabela_preco_aplicada === 'autoatacado' ? 'Distribuidor' : pedidoSelecionado.tabela_preco_aplicada || 'Varejo'}
+                </span>
               </div>
-            ) : (
-              <div className="bg-slate-950/40 p-3.5 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center gap-2">
-                <User className="w-4 h-4 text-slate-500" />
-                <span>Cliente Avulso (Venda Balcão)</span>
-              </div>
-            )}
+              <p className="text-slate-200 font-semibold text-sm">
+                {pedidoSelecionado.cliente?.nome || 'Cliente Avulso (Balcão)'}
+              </p>
+              {pedidoSelecionado.cliente?.whatsapp && (
+                <p className="text-slate-300 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                  {pedidoSelecionado.cliente.whatsapp}
+                </p>
+              )}
+              {pedidoSelecionado.endereco_entrega && (
+                <p className="text-slate-400 flex items-start gap-1.5 pt-1">
+                  <Truck className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+                  <span>{pedidoSelecionado.endereco_entrega}</span>
+                </p>
+              )}
+            </div>
 
             {/* Itens do Pedido */}
             <div className="space-y-2">
@@ -666,14 +941,6 @@ export const PedidosLista: React.FC = () => {
               </div>
             </div>
 
-            {/* Observações */}
-            {pedidoSelecionado.observacoes && (
-              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800 text-xs space-y-1">
-                <span className="font-bold text-slate-400 block text-[11px]">Observações:</span>
-                <p className="text-slate-300">{pedidoSelecionado.observacoes}</p>
-              </div>
-            )}
-
             {/* Resumo Financeiro */}
             <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-xs space-y-1.5">
               <div className="flex justify-between text-slate-400">
@@ -699,7 +966,7 @@ export const PedidosLista: React.FC = () => {
 
               {Number(pedidoSelecionado.saldo_devedor) > 0 && (
                 <div className="flex justify-between text-amber-400 font-semibold pt-1">
-                  <span>Saldo Devedor (Fiado):</span>
+                  <span>Saldo Devedor:</span>
                   <span className="font-mono">R$ {Number(pedidoSelecionado.saldo_devedor).toFixed(2)}</span>
                 </div>
               )}
@@ -710,7 +977,7 @@ export const PedidosLista: React.FC = () => {
           <div className="p-4 border-t border-slate-800 bg-slate-900 space-y-2">
             <button
               onClick={() => setPedidoReciboModal(pedidoSelecionado)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold flex items-center justify-center gap-2 border border-slate-700 transition shadow-sm"
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold flex items-center justify-center gap-2 border border-slate-700 transition shadow-sm cursor-pointer"
             >
               <Receipt className="w-4 h-4" />
               <span>Ver Apresentação do Recibo</span>
@@ -746,7 +1013,7 @@ export const PedidosLista: React.FC = () => {
                     PrintService.openWhatsApp(pedidoSelecionado.cliente.whatsapp, msg);
                   }
                 }}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
               >
                 <Share2 className="w-4 h-4" />
                 <span>Enviar Recibo por WhatsApp</span>
@@ -773,7 +1040,7 @@ export const PedidosLista: React.FC = () => {
               </div>
               <button
                 onClick={() => setPedidoReciboModal(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -813,14 +1080,20 @@ export const PedidosLista: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>TABELA:</span>
-                    <span className="capitalize">{pedidoReciboModal.tabela_preco_aplicada || 'Varejo'}</span>
+                    <span className="capitalize">{pedidoReciboModal.tabela_preco_aplicada === 'autoatacado' ? 'Distribuidor' : pedidoReciboModal.tabela_preco_aplicada || 'Varejo'}</span>
                   </div>
-                  {pedidoReciboModal.cliente?.nome && (
-                    <div className="flex justify-between">
-                      <span>CLIENTE:</span>
-                      <span className="font-bold text-slate-100">{pedidoReciboModal.cliente.nome}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span>STATUS:</span>
+                    <span className="capitalize">{pedidoReciboModal.status}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>PAGAMENTO:</span>
+                    <span className="capitalize">{STATUS_PAGAMENTO_OPCOES.find(o => o.id === resolverStatusPagamento(pedidoReciboModal))?.label || 'Aguardando pagamento'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>CLIENTE:</span>
+                    <span className="font-bold text-slate-100">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</span>
+                  </div>
                   {pedidoReciboModal.endereco_entrega && (
                     <div className="pt-1 text-[10px] text-slate-400">
                       <span>ENTREGA: {pedidoReciboModal.endereco_entrega}</span>
@@ -897,11 +1170,8 @@ export const PedidosLista: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
-                    console.log('👆 [HUBI PedidosLista] Clique em "Imprimir 58/80mm"', { pedidoReciboModal, loja });
                     if (pedidoReciboModal) {
                       PrintService.printReceipt(pedidoReciboModal, loja, '80mm');
-                    } else {
-                      console.warn('⚠️ [HUBI PedidosLista] pedidoReciboModal está vazio/nulo.');
                     }
                   }}
                   className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
@@ -912,11 +1182,8 @@ export const PedidosLista: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    console.log('👆 [HUBI PedidosLista] Clique em "Imprimir A4"', { pedidoReciboModal, loja });
                     if (pedidoReciboModal) {
                       PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
-                    } else {
-                      console.warn('⚠️ [HUBI PedidosLista] pedidoReciboModal está vazio/nulo.');
                     }
                   }}
                   className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
@@ -929,7 +1196,7 @@ export const PedidosLista: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handleCopiarReciboTexto(pedidoReciboModal)}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
                 >
                   {copiado ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
                   <span>{copiado ? 'Copiado!' : 'Copiar Texto'}</span>
@@ -943,7 +1210,7 @@ export const PedidosLista: React.FC = () => {
                         PrintService.openWhatsApp(pedidoReciboModal.cliente.whatsapp, msg);
                       }
                     }}
-                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition"
+                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
                   >
                     <Share2 className="w-4 h-4" />
                     <span>WhatsApp</span>
@@ -956,7 +1223,7 @@ export const PedidosLista: React.FC = () => {
                         PrintService.openWhatsApp('', msg);
                       }
                     }}
-                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition"
+                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
                   >
                     <Share2 className="w-4 h-4" />
                     <span>Enviar WhatsApp</span>
@@ -966,7 +1233,7 @@ export const PedidosLista: React.FC = () => {
 
               <button
                 onClick={() => setPedidoReciboModal(null)}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer"
               >
                 Fechar
               </button>
@@ -977,5 +1244,6 @@ export const PedidosLista: React.FC = () => {
     </div>
   );
 };
+
 
 

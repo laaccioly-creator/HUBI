@@ -35,6 +35,7 @@ import { ModalNovoCliente } from './ModalNovoCliente';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
+import { audioService } from '../services/audioService';
 
 export const PosCheckout: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -45,18 +46,25 @@ export const PosCheckout: React.FC = () => {
     tabelaPrecoCalculada,
     avaliacaoCarrinho,
     desconto,
+    descontoPercentual,
+    tipoDesconto,
     taxaEntrega,
     subtotal,
     total,
     totalItens,
+    pedidoEmEdicao,
     adicionarItem,
     removerItem,
     atualizarQuantidade,
     setClienteSelecionado,
     setTabelaPrecoGlobal,
+    setDescontoValor,
+    setDescontoPercentual,
+    setTipoDesconto,
     setDesconto,
     setTaxaEntrega,
-    limparCarrinho
+    limparCarrinho,
+    cancelarEdicaoPedido
   } = useCart();
 
   const {
@@ -81,6 +89,7 @@ export const PosCheckout: React.FC = () => {
   const [valorRecebidoDinheiro, setValorRecebidoDinheiro] = useState<string>('');
   const [parcelasCartao, setParcelasCartao] = useState<number>(1);
   const [finalizandoVenda, setFinalizandoVenda] = useState<boolean>(false);
+  const [salvandoPendente, setSalvandoPendente] = useState<boolean>(false);
   const [pedidoConcluido, setPedidoConcluido] = useState<Pedido | null>(null);
   const [ehVendaOfflineSalva, setEhVendaOfflineSalva] = useState<boolean>(false);
 
@@ -167,6 +176,134 @@ export const PosCheckout: React.FC = () => {
     }
   };
 
+  const handleSalvarPedidoPendente = async () => {
+    if (!loja?.id) {
+      alert('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
+      return;
+    }
+    if (itens.length === 0) {
+      alert('O carrinho está vazio. Adicione produtos antes de salvar o pedido.');
+      return;
+    }
+
+    try {
+      setSalvandoPendente(true);
+
+      let vendedorId: string = usuario?.id || '';
+      if (!vendedorId) {
+        const { data: u } = await supabase
+          .from('usuarios_loja')
+          .select('id')
+          .eq('loja_id', loja.id)
+          .limit(1);
+
+        if (u && u.length > 0) {
+          vendedorId = u[0].id;
+        } else {
+          vendedorId = loja.id;
+        }
+      }
+
+      const dataIso = new Date().toISOString();
+
+      let vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorId) ? vendedorId : null;
+      if (vendedorIdSanitizado) {
+        const { data: usuarioExiste } = await supabase
+          .from('usuarios_loja')
+          .select('id')
+          .eq('id', vendedorIdSanitizado)
+          .limit(1);
+
+        if (!usuarioExiste || usuarioExiste.length === 0) {
+          vendedorIdSanitizado = null;
+        }
+      }
+
+      const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
+
+      const dadosBasePedido = {
+        loja_id: loja.id,
+        vendedor_id: vendedorIdSanitizado,
+        cliente_id: clienteIdSanitizado,
+        origem: 'pdv_desktop' as const,
+        tabela_preco_aplicada: tabelaPrecoCalculada,
+        status: 'pendente' as const,
+        status_pagamento: 'aguardando_pagamento' as const,
+        subtotal,
+        valor_desconto: desconto,
+        desconto_percentual: descontoPercentual,
+        valor_frete: taxaEntrega,
+        valor_total: total,
+        valor_pago: 0,
+        saldo_devedor: total,
+        fiado_quitado: false,
+        data_venda: dataIso
+      };
+
+      const itensFormatados = itens.map(item => ({
+        loja_id: loja.id,
+        produto_id: item.produto.id,
+        variacao_id: item.variacao && SyncService.isUuidValido(item.variacao.id) ? item.variacao.id : null,
+        tabela_preco_utilizada: item.tabelaPrecoUtilizada,
+        nome_produto: item.produto.nome,
+        rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+        preco_venda_unitario: item.precoUnitario,
+        quantidade: item.quantidade,
+        subtotal: item.subtotal,
+        observacoes: item.observacoes || null
+      }));
+
+      if (navigator.onLine) {
+        if (pedidoEmEdicao?.id) {
+          // Atualiza pedido pendente existente
+          const { error: erroUpdate } = await supabase
+            .from('pedidos')
+            .update({
+              ...dadosBasePedido,
+              atualizado_em: dataIso
+            })
+            .eq('id', pedidoEmEdicao.id);
+
+          if (erroUpdate) throw erroUpdate;
+
+          // Deleta itens antigos e insere os novos
+          await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
+          const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
+          const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+          if (erroItens) throw erroItens;
+
+          alert(`Pedido #${pedidoEmEdicao.numero_pedido} atualizado como Pendente com sucesso!`);
+        } else {
+          // Insere novo pedido pendente
+          const { data: pedidoCriado, error: erroPedido } = await supabase
+            .from('pedidos')
+            .insert([dadosBasePedido])
+            .select()
+            .single();
+
+          if (erroPedido || !pedidoCriado) throw erroPedido;
+
+          const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
+          const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+          if (erroItens) throw erroItens;
+
+          alert(`Pedido #${pedidoCriado.numero_pedido} salvo como Pendente com sucesso!`);
+        }
+      } else {
+        alert('Pedido pendente salvo localmente no modo offline.');
+      }
+
+      audioService.playBeep();
+      limparCarrinho();
+    } catch (err: any) {
+      console.error('Erro ao salvar pedido pendente:', err);
+      alert(`Erro ao salvar pedido pendente: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSalvandoPendente(false);
+    }
+  };
+
   const handleFinalizarVenda = async () => {
     if (!loja?.id) {
       alert('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
@@ -222,8 +359,10 @@ export const PosCheckout: React.FC = () => {
         origem: 'pdv_desktop' as const,
         tabela_preco_aplicada: tabelaPrecoCalculada,
         status: 'confirmado' as const,
+        status_pagamento: (ehFiado ? 'aguardando_pagamento' : 'pago') as any,
         subtotal,
         valor_desconto: desconto,
+        desconto_percentual: descontoPercentual,
         valor_frete: taxaEntrega,
         valor_total: total,
         valor_pago: ehFiado ? 0 : total,
@@ -289,13 +428,33 @@ export const PosCheckout: React.FC = () => {
             cliente_id: clienteIdSanitizado
           };
 
-          const { data: pedidoCriado, error: erroPedido } = await supabase
-            .from('pedidos')
-            .insert([payloadPedido])
-            .select()
-            .single();
+          let pedidoCriado: any;
 
-          if (erroPedido || !pedidoCriado) throw erroPedido;
+          if (pedidoEmEdicao?.id) {
+            const { data: pedAtualizado, error: erroUpd } = await supabase
+              .from('pedidos')
+              .update({
+                ...payloadPedido,
+                atualizado_em: dataIso
+              })
+              .eq('id', pedidoEmEdicao.id)
+              .select()
+              .single();
+
+            if (erroUpd || !pedAtualizado) throw erroUpd;
+            pedidoCriado = pedAtualizado;
+
+            await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
+          } else {
+            const { data: novoPed, error: erroPedido } = await supabase
+              .from('pedidos')
+              .insert([payloadPedido])
+              .select()
+              .single();
+
+            if (erroPedido || !novoPed) throw erroPedido;
+            pedidoCriado = novoPed;
+          }
 
           const itensComId = itensFormatados.map(it => ({
             ...it,
@@ -564,6 +723,26 @@ export const PosCheckout: React.FC = () => {
       <div className="w-full lg:w-[380px] bg-slate-900 flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-800">
         {/* Header do Carrinho & Seleção de Cliente */}
         <div className="p-3.5 border-b border-slate-800 space-y-2.5">
+          {/* Banner de Edição de Pedido */}
+          {pedidoEmEdicao && (
+            <div className="p-2.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <span className="text-xs font-bold text-amber-300 block">Editando Pedido #{pedidoEmEdicao.numero_pedido}</span>
+                  <span className="text-[10px] text-amber-400/80">Status: Pendente</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={cancelarEdicaoPedido}
+                className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 text-[10px] font-bold rounded-lg transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-sm text-slate-100 flex items-center gap-2">
               <span>Carrinho de Venda</span>
@@ -617,7 +796,7 @@ export const PosCheckout: React.FC = () => {
             }`}>
               <div className="flex items-center justify-between">
                 <span>
-                  {tabelaPrecoCalculada === 'autoatacado' ? '⚡ Tabela: Autoatacado' : tabelaPrecoCalculada === 'atacado' ? '🏷️ Tabela: Atacado' : '🛒 Tabela: Varejo'}
+                  {tabelaPrecoCalculada === 'autoatacado' ? '⚡ Tabela: Distribuidor' : tabelaPrecoCalculada === 'atacado' ? '🏷️ Tabela: Atacado' : '🛒 Tabela: Varejo'}
                 </span>
                 {avaliacaoCarrinho.economiaTotal > 0 && (
                   <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-black">
@@ -627,9 +806,22 @@ export const PosCheckout: React.FC = () => {
               </div>
 
               {avaliacaoCarrinho.proximoNivel && (
-                <div className="text-[10px] font-normal text-slate-400 pt-1 border-t border-slate-700/50 flex justify-between items-center">
+                <div className="text-[10px] font-normal text-slate-300 pt-1 border-t border-slate-700/50 flex justify-between items-center">
                   <span>
-                    Falta R$ {avaliacaoCarrinho.faltaValorParaProximo.toFixed(2)} ou {avaliacaoCarrinho.faltaPecasParaProximo} un p/ {avaliacaoCarrinho.proximoNivel}
+                    {(() => {
+                      const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
+                      const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
+                      const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
+                      const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
+                      const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
+
+                      if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+                        const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
+                        return `Faltam ${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'} para ${proxNome}`;
+                      }
+                      const faltaVal = avaliacaoCarrinho.faltaValorParaProximo;
+                      return `Faltam R$ ${faltaVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} para ${proxNome}`;
+                    })()}
                   </span>
                   <span className="font-bold text-amber-300">{avaliacaoCarrinho.progressoGeralPercent}%</span>
                 </div>
@@ -706,38 +898,110 @@ export const PosCheckout: React.FC = () => {
           )}
         </div>
 
-        {/* Resumo Financeiro & Botão de Fechamento */}
+        {/* Resumo Financeiro & Dois Botões de Fechamento */}
         <div className="p-3.5 border-t border-slate-800 bg-slate-950/90 space-y-3">
           <div className="space-y-1.5 text-xs text-slate-400">
             <div className="flex justify-between">
               <span>Subtotal:</span>
               <span className="text-slate-200 font-medium">R$ {subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Desconto (R$):</span>
-              <input
-                type="number"
-                step="0.01"
-                value={desconto || ''}
-                onChange={(e) => setDesconto(Number(e.target.value) || 0)}
-                placeholder="0.00"
-                className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-semibold"
-              />
+
+            {/* Desconto R$ ou % sem setinhas de incremento */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span>Desconto:</span>
+                <div className="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setTipoDesconto('valor')}
+                    className={`px-1.5 py-0.5 rounded font-bold transition ${
+                      tipoDesconto === 'valor' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    R$
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoDesconto('percentual')}
+                    className={`px-1.5 py-0.5 rounded font-bold transition ${
+                      tipoDesconto === 'percentual' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    %
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {tipoDesconto === 'valor' ? (
+                  <div className="flex items-center">
+                    <span className="text-[11px] text-slate-500 mr-1">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={desconto > 0 ? desconto : ''}
+                      onChange={(e) => setDescontoValor(parseFloat(e.target.value) || 0)}
+                      placeholder="0,00"
+                      className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-bold focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <input
+                      type="number"
+                      step="0.1"
+                      max="100"
+                      value={descontoPercentual > 0 ? descontoPercentual : ''}
+                      onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+                      placeholder="0%"
+                      className="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-bold focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-[11px] text-slate-500 ml-1">%</span>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {desconto > 0 && (
+              <div className="text-[10px] text-rose-400 text-right font-medium">
+                -R$ {desconto.toFixed(2)} ({descontoPercentual.toFixed(1)}%)
+              </div>
+            )}
+
             <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
               <span>TOTAL A PAGAR:</span>
               <span className="text-emerald-400 text-lg">R$ {total.toFixed(2)}</span>
             </div>
           </div>
 
-          <button
-            disabled={itens.length === 0}
-            onClick={handleAbrirFechamento}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-40 cursor-pointer active:scale-98"
-          >
-            <span>Finalizar Venda</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {/* DOIS BOTÕES: SALVAR PEDIDO (PENDENTE) & FINALIZAR VENDA */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              type="button"
+              disabled={itens.length === 0 || salvandoPendente}
+              onClick={handleSalvarPedidoPendente}
+              className="py-3 px-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs shadow transition disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+              title="Salva o pedido como Pendente sem fechar pagamento"
+            >
+              {salvandoPendente ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+              ) : (
+                <FileText className="w-4 h-4 text-emerald-400" />
+              )}
+              <span className="truncate">{pedidoEmEdicao ? 'Atualizar Pedido' : 'Salvar Pedido'}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={itens.length === 0}
+              onClick={handleAbrirFechamento}
+              className="py-3 px-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-40 cursor-pointer active:scale-95"
+              title="Abrir tela de pagamento e concluir venda"
+            >
+              <span className="truncate">Finalizar Venda</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </button>
+          </div>
         </div>
       </div>
 

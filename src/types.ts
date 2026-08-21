@@ -5,7 +5,17 @@ export type TabelaPreco = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
 export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'outro';
 export type TipoEntrega = 'retirada' | 'taxa_fixa' | 'bairro' | 'distancia_km';
 export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online';
-export type StatusPedido = 'pendente' | 'confirmado' | 'em_producao' | 'em_expedicao' | 'entregue' | 'concluido' | 'cancelado';
+export type StatusPedido =
+  | 'pendente'
+  | 'confirmado'
+  | 'em_separacao'
+  | 'em_producao'
+  | 'em_expedicao'
+  | 'saiu_para_entrega'
+  | 'pronto_para_retirar'
+  | 'concluido'
+  | 'cancelado';
+export type StatusPagamento = 'aguardando_pagamento' | 'pago' | 'parcialmente_pago';
 export type TipoTransacao = 'ENTRADA' | 'SAIDA';
 export type StatusTransacao = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual';
@@ -273,8 +283,10 @@ export interface Pedido {
   origem: OrigemVenda;
   tabela_preco_aplicada: TabelaPreco;
   status: StatusPedido;
+  status_pagamento?: StatusPagamento;
   subtotal: number;
   valor_desconto: number;
+  desconto_percentual?: number | null;
   valor_frete: number;
   valor_total: number;
   valor_pago: number;
