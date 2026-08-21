@@ -18,20 +18,23 @@ import {
   LogOut,
   Loader2,
   UserCheck,
-  ChevronDown
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
+import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
-  const { loja, usuario, carregando, desconectarPdv } = useAuth();
+  const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
   const [pedidosPendentesCount, setPedidosPendentesCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
+  const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -66,6 +69,21 @@ export const AppLayout: React.FC = () => {
     };
 
     carregarPendentes();
+
+    // Carregar usuários da loja para alternador de operador
+    const carregarUsuariosLoja = async () => {
+      const { data: users } = await supabase
+        .from('usuarios_loja')
+        .select('*')
+        .eq('loja_id', loja.id)
+        .eq('ativo', true)
+        .order('criado_em', { ascending: true });
+
+      if (users) {
+        setListaUsuariosLoja(users);
+      }
+    };
+    carregarUsuariosLoja();
 
     const channel = supabase
       .channel('novos-pedidos-realtime')
@@ -350,11 +368,49 @@ export const AppLayout: React.FC = () => {
               </button>
 
               {userMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-slate-800 mb-1">
-                    <p className="text-xs font-bold text-slate-200 truncate">{usuario?.nome_completo || 'Operador'}</p>
-                    <p className="text-[10px] text-slate-400 uppercase font-semibold">{usuario?.perfil || 'Admin'}</p>
+                <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-slate-800 mb-1 bg-slate-950/50 rounded-xl">
+                    <p className="text-xs font-bold text-slate-100 truncate">{usuario?.nome_completo || 'Operador'}</p>
+                    <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Admin'}</p>
                   </div>
+
+                  {listaUsuariosLoja.length > 1 && (
+                    <div className="py-1 border-b border-slate-800 mb-1">
+                      <p className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Trocar Operador / Vendedor
+                      </p>
+                      <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                        {listaUsuariosLoja.map(u => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => {
+                              selecionarUsuario(u.id);
+                              setUserMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition text-left cursor-pointer ${
+                              usuario?.id === u.id
+                                ? 'bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30'
+                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <div className={`w-5 h-5 rounded-lg text-[10px] flex items-center justify-center font-bold ${
+                                usuario?.id === u.id ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-300'
+                              }`}>
+                                {u.nome_completo ? u.nome_completo.slice(0, 1).toUpperCase() : 'U'}
+                              </div>
+                              <div className="truncate">
+                                <span className="truncate block leading-tight">{u.nome_completo}</span>
+                                <span className="text-[9px] text-slate-500 uppercase">{u.perfil}</span>
+                              </div>
+                            </div>
+                            {usuario?.id === u.id && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <Link
                     to="/config"

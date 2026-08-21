@@ -9,6 +9,7 @@ interface AuthContextType {
   carregando: boolean;
   setLoja: (loja: Loja | null) => void;
   selecionarLoja: (lojaId: string) => Promise<boolean>;
+  selecionarUsuario: (usuarioId: string) => Promise<boolean>;
   cadastrarPdv: (dadosLoja: Partial<Loja>, dadosUsuario: Partial<UsuarioLoja>) => Promise<Loja>;
   cadastrarMinimalista: (params: { nome: string; email: string; senha?: string }) => Promise<Loja>;
   entrarComEmail: (email: string, senha?: string) => Promise<boolean>;
@@ -18,6 +19,7 @@ interface AuthContextType {
 }
 
 const STORAGE_KEY_LOJA_ID = 'hubi_active_loja_id';
+const STORAGE_KEY_USUARIO_ID = 'hubi_active_usuario_id';
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
@@ -32,6 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setCarregando(true);
       const activeLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID);
+      const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
 
       const { data: todasLojas, error: erroLojas } = await supabase
         .from('lojas')
@@ -58,14 +61,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoja(lojaParaAtivar);
           localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaParaAtivar.id);
 
-          const { data: usuarios } = await supabase
-            .from('usuarios_loja')
-            .select('*')
-            .eq('loja_id', lojaParaAtivar.id)
-            .limit(1);
+          // Buscar usuário ativo específico salvo ou o primeiro da loja
+          let usuarioAtivo: UsuarioLoja | null = null;
 
-          if (usuarios && usuarios.length > 0) {
-            setUsuario(usuarios[0]);
+          if (activeUsuarioId) {
+            const { data: userSalvo } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('id', activeUsuarioId)
+              .eq('loja_id', lojaParaAtivar.id)
+              .single();
+
+            if (userSalvo) usuarioAtivo = userSalvo;
+          }
+
+          if (!usuarioAtivo) {
+            const { data: usuarios } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('loja_id', lojaParaAtivar.id)
+              .order('criado_em', { ascending: true });
+
+            if (usuarios && usuarios.length > 0) {
+              usuarioAtivo = usuarios[0];
+            }
+          }
+
+          if (usuarioAtivo) {
+            setUsuario(usuarioAtivo);
+            localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioAtivo.id);
           }
         } else {
           setLoja(null);
@@ -76,12 +100,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoja(null);
         setUsuario(null);
         localStorage.removeItem(STORAGE_KEY_LOJA_ID);
+        localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
       }
     } catch (err) {
       console.error('Erro de inicialização do PDV:', err);
       setLoja(null);
     } finally {
       setCarregando(false);
+    }
+  };
+
+  // Selecionar um usuário/operador da loja
+  const selecionarUsuario = async (usuarioId: string): Promise<boolean> => {
+    try {
+      const { data: userBuscado, error } = await supabase
+        .from('usuarios_loja')
+        .select('*')
+        .eq('id', usuarioId)
+        .single();
+
+      if (error || !userBuscado) {
+        console.warn('Usuário não encontrado:', usuarioId);
+        return false;
+      }
+
+      setUsuario(userBuscado);
+      localStorage.setItem(STORAGE_KEY_USUARIO_ID, userBuscado.id);
+      return true;
+    } catch (e) {
+      console.error('Erro ao trocar de operador:', e);
+      return false;
     }
   };
 
@@ -106,10 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('usuarios_loja')
         .select('*')
         .eq('loja_id', lojaBuscada.id)
-        .limit(1);
+        .order('criado_em', { ascending: true });
 
       if (usuarios && usuarios.length > 0) {
         setUsuario(usuarios[0]);
+        localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarios[0].id);
       } else {
         const { data: novoUser } = await supabase
           .from('usuarios_loja')
@@ -132,7 +181,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select()
           .single();
 
-        if (novoUser) setUsuario(novoUser);
+        if (novoUser) {
+          setUsuario(novoUser);
+          localStorage.setItem(STORAGE_KEY_USUARIO_ID, novoUser.id);
+        }
       }
 
       return true;
@@ -150,23 +202,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCarregando(true);
       const emailTrim = emailBusca.trim().toLowerCase();
 
-      let { data: lojasEncontradas, error } = await supabase
+      // 1. Buscar primeiro em usuarios_loja (colaborador / admin)
+      const { data: usersFound } = await supabase
+        .from('usuarios_loja')
+        .select('*, loja:lojas(*)')
+        .ilike('email', emailTrim)
+        .limit(1);
+
+      if (usersFound && usersFound.length > 0) {
+        const u = usersFound[0];
+        const lojaAssociada = (u.loja || null) as Loja | null;
+        if (lojaAssociada) {
+          setLoja(lojaAssociada);
+          localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
+        }
+        setUsuario(u);
+        localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
+        return true;
+      }
+
+      // 2. Se não achou em usuarios_loja, buscar em lojas (proprietário)
+      const { data: lojasEncontradas } = await supabase
         .from('lojas')
         .select('*')
         .ilike('email', emailTrim)
         .limit(1);
-
-      if (!lojasEncontradas || lojasEncontradas.length === 0) {
-        const { data: users } = await supabase
-          .from('usuarios_loja')
-          .select('*, loja:lojas(*)')
-          .ilike('email', emailTrim)
-          .limit(1);
-
-        if (users && users.length > 0 && users[0].loja) {
-          lojasEncontradas = [users[0].loja as Loja];
-        }
-      }
 
       if (lojasEncontradas && lojasEncontradas.length > 0) {
         const lojaEncontrada = lojasEncontradas[0];
@@ -177,10 +237,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('usuarios_loja')
           .select('*')
           .eq('loja_id', lojaEncontrada.id)
-          .limit(1);
+          .order('criado_em', { ascending: true });
 
         if (usuarios && usuarios.length > 0) {
           setUsuario(usuarios[0]);
+          localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarios[0].id);
         }
         return true;
       }
@@ -355,6 +416,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Desconectar / Trocar de PDV
   const desconectarPdv = () => {
     localStorage.removeItem(STORAGE_KEY_LOJA_ID);
+    localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
     setLoja(null);
     setUsuario(null);
   };
@@ -405,6 +467,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         carregando,
         setLoja,
         selecionarLoja,
+        selecionarUsuario,
         cadastrarPdv,
         cadastrarMinimalista,
         entrarComEmail,
