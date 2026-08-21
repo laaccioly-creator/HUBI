@@ -250,13 +250,13 @@ export const UsuariosGestao: React.FC = () => {
                   r={radius}
                   fill="transparent"
                   stroke={item.cor}
-                  strokeWidth={isHovered ? strokeWidth + 5 : strokeWidth}
+                  strokeWidth={isHovered ? strokeWidth + 2 : strokeWidth}
                   strokeDasharray={strokeDasharray}
                   strokeDashoffset={strokeDashoffset}
-                  className="transition-all duration-300 cursor-pointer"
+                  className="transition-all duration-200 cursor-pointer"
                   style={{
-                    filter: isHovered ? `drop-shadow(0 0 8px ${item.cor})` : 'none',
-                    opacity: hoveredUserId && !isHovered ? 0.45 : 1
+                    filter: isHovered ? 'brightness(1.15)' : 'none',
+                    opacity: hoveredUserId && !isHovered ? 0.75 : 1
                   }}
                   onMouseEnter={() => setHoveredUserId(item.id)}
                   onMouseLeave={() => setHoveredUserId(null)}
@@ -288,7 +288,7 @@ export const UsuariosGestao: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
                 </span>
-                <span className="text-xs font-black text-slate-200">100%</span>
+                <span className="text-xs font-black text-slate-200">100,0%</span>
               </div>
             )}
           </div>
@@ -310,7 +310,7 @@ export const UsuariosGestao: React.FC = () => {
             >
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.cor }} />
               <span className="truncate max-w-[75px] font-semibold">{item.nome.split(' ')[0]}</span>
-              <span className="font-black text-slate-200">{item.percentual.toFixed(0)}%</span>
+              <span className="font-bold text-slate-200">{item.percentual.toFixed(1)}%</span>
             </button>
           ))}
         </div>
