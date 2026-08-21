@@ -20,11 +20,15 @@ import {
   VolumeX,
   ShoppingBag,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Copy,
+  Receipt,
+  Check,
+  Tag
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Pedido, StatusPedido } from '../types';
+import { Pedido, StatusPedido, TabelaPreco } from '../types';
 import { PrintService } from '../services/printService';
 import { audioService } from '../services/audioService';
 
@@ -38,6 +42,8 @@ export const PedidosLista: React.FC = () => {
   const [statusFiltro, setStatusFiltro] = useState<string>('abertos');
   const [busca, setBusca] = useState<string>('');
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
+  const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+  const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
@@ -109,6 +115,10 @@ export const PedidosLista: React.FC = () => {
 
       if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
         setPedidoSelecionado(prev => prev ? { ...prev, status: novoStatus } : null);
+      }
+
+      if (pedidoReciboModal && pedidoReciboModal.id === pedidoId) {
+        setPedidoReciboModal(prev => prev ? { ...prev, status: novoStatus } : null);
       }
 
       audioService.playBeep();
@@ -211,6 +221,36 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
+  const getTipoVendaBadge = (tabela?: TabelaPreco | string | null) => {
+    switch (tabela) {
+      case 'atacado':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+            Atacado
+          </span>
+        );
+      case 'autoatacado':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+            Autoatacado
+          </span>
+        );
+      case 'promocional':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+            Promocional
+          </span>
+        );
+      case 'varejo':
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            Varejo
+          </span>
+        );
+    }
+  };
+
   const formatarData = (dataStr: string) => {
     try {
       const data = new Date(dataStr);
@@ -228,6 +268,14 @@ export const PedidosLista: React.FC = () => {
   const calcularTotalItens = (pedido: Pedido) => {
     if (!pedido.itens || pedido.itens.length === 0) return 0;
     return pedido.itens.reduce((acc, item) => acc + Number(item.quantidade), 0);
+  };
+
+  const handleCopiarReciboTexto = (pedido: Pedido) => {
+    if (!loja) return;
+    const msg = PrintService.generateWhatsAppMessage(pedido, loja);
+    navigator.clipboard.writeText(msg);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   };
 
   return (
@@ -360,7 +408,7 @@ export const PedidosLista: React.FC = () => {
                     </div>
                   </th>
                   <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold text-center">Tipo</th>
+                  <th className="py-3 px-4 font-semibold text-center">Tipo da Venda</th>
                   <th className="py-3 px-4 font-semibold">Obs.</th>
                   <th className="py-3 px-3 text-right"></th>
                 </tr>
@@ -380,13 +428,35 @@ export const PedidosLista: React.FC = () => {
                         isSelecionado ? 'bg-slate-900/90 ring-1 ring-inset ring-emerald-500/40' : ''
                       } ${isCancelado ? 'opacity-60' : ''}`}
                     >
-                      {/* Código */}
+                      {/* Código com Primeiro Ícone para Recibo e Segundo para Pedido */}
                       <td className="py-3.5 px-4 whitespace-nowrap font-medium">
                         <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                          <span className={`font-bold ${isCancelado ? 'line-through text-slate-400' : 'text-slate-200'}`}>
+                          {/* 1º ÍCONE: BOTÃO DE RECIBO */}
+                          <button
+                            type="button"
+                            title="Ver Recibo do Pedido"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPedidoReciboModal(pedido);
+                            }}
+                            className="p-1 rounded-lg hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                          >
+                            <Receipt className="w-4 h-4" />
+                          </button>
+
+                          {/* 2º CÓDIGO DO PEDIDO (#xxxx) */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPedidoSelecionado(pedido);
+                            }}
+                            className={`font-bold hover:underline ${
+                              isCancelado ? 'line-through text-slate-400' : 'text-slate-200 group-hover:text-emerald-400'
+                            }`}
+                          >
                             #{isCatalogo ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
-                          </span>
+                          </button>
                         </div>
                       </td>
 
@@ -455,17 +525,9 @@ export const PedidosLista: React.FC = () => {
                         {getStatusBadge(pedido.status)}
                       </td>
 
-                      {/* Tipo / Entrega */}
+                      {/* Tipo da Venda (Varejo / Atacado / Autoatacado) */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {pedido.endereco_entrega || Number(pedido.valor_frete) > 0 ? (
-                          <span title="Entrega / Delivery" className="inline-flex p-1 rounded-md bg-purple-500/10 text-purple-400">
-                            <Truck className="w-3.5 h-3.5" />
-                          </span>
-                        ) : (
-                          <span title="Retirada / Balcão" className="inline-flex p-1 rounded-md bg-slate-800 text-slate-400">
-                            <ShoppingBag className="w-3.5 h-3.5" />
-                          </span>
-                        )}
+                        {getTipoVendaBadge(pedido.tabela_preco_aplicada)}
                       </td>
 
                       {/* Observações */}
@@ -498,9 +560,11 @@ export const PedidosLista: React.FC = () => {
                 </h3>
                 {getStatusBadge(pedidoSelecionado.status)}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
+                <span>•</span>
+                <span>{getTipoVendaBadge(pedidoSelecionado.tabela_preco_aplicada)}</span>
+              </div>
             </div>
             <button
               onClick={() => setPedidoSelecionado(null)}
@@ -644,20 +708,30 @@ export const PedidosLista: React.FC = () => {
 
           {/* Botões de Ação do Drawer */}
           <div className="p-4 border-t border-slate-800 bg-slate-900 space-y-2">
+            <button
+              onClick={() => setPedidoReciboModal(pedidoSelecionado)}
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold flex items-center justify-center gap-2 border border-slate-700 transition shadow-sm"
+            >
+              <Receipt className="w-4 h-4" />
+              <span>Ver Apresentação do Recibo</span>
+            </button>
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
-                  if (loja) PrintService.printBluetoothThermal(pedidoSelecionado, loja, '58mm');
+                  if (loja && pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, '80mm');
                 }}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
                 <Printer className="w-4 h-4 text-emerald-400" />
                 <span>Térmica 58/80mm</span>
               </button>
 
               <button
-                onClick={() => PrintService.printWindow()}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                onClick={() => {
+                  if (loja && pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, 'a4');
+                }}
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
                 <Printer className="w-4 h-4 text-indigo-400" />
                 <span>Imprimir A4</span>
@@ -681,7 +755,217 @@ export const PedidosLista: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL DE APRESENTAÇÃO DO RECIBO */}
+      {pedidoReciboModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            {/* Topo do Modal de Recibo */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-100 text-sm">Recibo do Pedido #{pedidoReciboModal.numero_pedido}</h3>
+                  <p className="text-[11px] text-slate-400">{loja?.nome_fantasia || 'HUBI PDV'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPedidoReciboModal(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Visualização do Cupom/Recibo (Estilo Cupom Fiscal / Térmica) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 font-mono text-xs space-y-3 shadow-inner">
+                {/* Cabeçalho do Recibo */}
+                <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-800">
+                  <h4 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
+                    {loja?.nome_fantasia || 'MINHA LOJA'}
+                  </h4>
+                  {loja?.numero_documento && (
+                    <p className="text-[11px] text-slate-400">CNPJ/CPF: {loja.numero_documento}</p>
+                  )}
+                  {loja?.whatsapp && (
+                    <p className="text-[11px] text-slate-400">WhatsApp: {loja.whatsapp}</p>
+                  )}
+                  {loja?.endereco_cidade && (
+                    <p className="text-[11px] text-slate-400">{loja.endereco_cidade} - {loja.endereco_estado || 'UF'}</p>
+                  )}
+                  <p className="text-[10px] text-emerald-400 pt-1 font-sans font-bold uppercase tracking-wider">
+                    *** COMPROVANTE NÃO FISCAL ***
+                  </p>
+                </div>
+
+                {/* Dados da Venda */}
+                <div className="space-y-1 text-[11px] text-slate-300 pb-2 border-b border-dashed border-slate-800">
+                  <div className="flex justify-between">
+                    <span>PEDIDO:</span>
+                    <span className="font-bold text-slate-100">#{pedidoReciboModal.numero_pedido}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>DATA:</span>
+                    <span>{formatarData(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em || '')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>TABELA:</span>
+                    <span className="capitalize">{pedidoReciboModal.tabela_preco_aplicada || 'Varejo'}</span>
+                  </div>
+                  {pedidoReciboModal.cliente?.nome && (
+                    <div className="flex justify-between">
+                      <span>CLIENTE:</span>
+                      <span className="font-bold text-slate-100">{pedidoReciboModal.cliente.nome}</span>
+                    </div>
+                  )}
+                  {pedidoReciboModal.endereco_entrega && (
+                    <div className="pt-1 text-[10px] text-slate-400">
+                      <span>ENTREGA: {pedidoReciboModal.endereco_entrega}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tabela de Itens */}
+                <div className="space-y-2 pb-3 border-b border-dashed border-slate-800">
+                  <div className="flex justify-between text-[10px] text-slate-500 uppercase font-bold">
+                    <span>Qtd / Descrição</span>
+                    <span>Total</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {pedidoReciboModal.itens?.map((item, idx) => (
+                      <div key={idx} className="space-y-0.5">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-medium text-slate-200">
+                            {Number(item.quantidade)}x {item.nome_produto} {item.rotulo_variacao ? `(${item.rotulo_variacao})` : ''}
+                          </span>
+                          <span className="font-bold text-slate-100">
+                            R$ {Number(item.subtotal).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          (R$ {Number(item.preco_venda_unitario).toFixed(2)} un)
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Totais do Recibo */}
+                <div className="space-y-1 text-[11px]">
+                  <div className="flex justify-between text-slate-400">
+                    <span>SUBTOTAL:</span>
+                    <span>R$ {Number(pedidoReciboModal.subtotal).toFixed(2)}</span>
+                  </div>
+                  {Number(pedidoReciboModal.valor_desconto) > 0 && (
+                    <div className="flex justify-between text-rose-400">
+                      <span>DESCONTO:</span>
+                      <span>- R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {Number(pedidoReciboModal.valor_frete) > 0 && (
+                    <div className="flex justify-between text-purple-400">
+                      <span>TAXA ENTREGA:</span>
+                      <span>+ R$ {Number(pedidoReciboModal.valor_frete).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-emerald-400 font-bold text-sm pt-1 border-t border-slate-800">
+                    <span>TOTAL A PAGAR:</span>
+                    <span>R$ {Number(pedidoReciboModal.valor_total).toFixed(2)}</span>
+                  </div>
+
+                  {Number(pedidoReciboModal.saldo_devedor) > 0 && (
+                    <div className="flex justify-between text-amber-400 font-bold pt-1 text-[11px]">
+                      <span>SALDO FIADO:</span>
+                      <span>R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Rodapé do Recibo */}
+                <div className="text-center pt-3 border-t border-dashed border-slate-800 text-[10px] text-slate-500">
+                  <p>Obrigado pela preferência!</p>
+                  <p className="pt-0.5">HUBI • Sistema de Gestão e PDV</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações do Modal de Recibo */}
+            <div className="p-4 border-t border-slate-800 bg-slate-900 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    if (loja && pedidoReciboModal) PrintService.printReceipt(pedidoReciboModal, loja, '80mm');
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                >
+                  <Printer className="w-4 h-4 text-emerald-400" />
+                  <span>Imprimir 58/80mm</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (loja && pedidoReciboModal) PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                >
+                  <Printer className="w-4 h-4 text-indigo-400" />
+                  <span>Imprimir A4</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleCopiarReciboTexto(pedidoReciboModal)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                >
+                  {copiado ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
+                  <span>{copiado ? 'Copiado!' : 'Copiar Texto'}</span>
+                </button>
+
+                {pedidoReciboModal.cliente?.whatsapp ? (
+                  <button
+                    onClick={() => {
+                      if (loja && pedidoReciboModal.cliente?.whatsapp) {
+                        const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
+                        PrintService.openWhatsApp(pedidoReciboModal.cliente.whatsapp, msg);
+                      }
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>WhatsApp</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (loja) {
+                        const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
+                        PrintService.openWhatsApp('', msg);
+                      }
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Enviar WhatsApp</span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => setPedidoReciboModal(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 

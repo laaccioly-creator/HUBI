@@ -934,17 +934,19 @@ export const PosCheckout: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 onClick={() => {
-                  if (loja) PrintService.printBluetoothThermal(pedidoConcluido, loja, '58mm');
+                  if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
                 }}
-                className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
                 <Printer className="w-4 h-4 text-emerald-400" />
                 <span>Imprimir 58/80mm</span>
               </button>
 
               <button
-                onClick={() => PrintService.printWindow()}
-                className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition"
+                onClick={() => {
+                  if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
+                }}
+                className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
               >
                 <Printer className="w-4 h-4 text-indigo-400" />
                 <span>Imprimir A4</span>

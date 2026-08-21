@@ -209,14 +209,14 @@ export const avaliarNivelCarrinho = (
   const todosSkusAtendemAtacado = skusAbaixoMinimoAtacado.length === 0;
   const todosSkusAtendemAuto = skusAbaixoMinimoAuto.length === 0;
 
-  // 3. Avaliar Elegibilidade Autoatacado
-  const atendeValorAuto = totalVarejo >= regras.valorMinimoAutoatacado;
-  const atendeQtdAuto = totalPecas >= regras.qtdTotalMinimaAutoatacado && todosSkusAtendemAuto;
+  // 3. Avaliar Elegibilidade Autoatacado / Distribuidor
+  const atendeValorAuto = Number(regras.valorMinimoAutoatacado) > 0 && totalVarejo >= Number(regras.valorMinimoAutoatacado);
+  const atendeQtdAuto = Number(regras.qtdTotalMinimaAutoatacado) > 0 && totalPecas >= Number(regras.qtdTotalMinimaAutoatacado) && todosSkusAtendemAuto;
   const elegivelAutoatacado = atendeValorAuto || atendeQtdAuto;
 
   // 4. Avaliar Elegibilidade Atacado
-  const atendeValorAtacado = totalVarejo >= regras.valorMinimoAtacado;
-  const atendeQtdAtacado = totalPecas >= regras.qtdTotalMinimaAtacado && todosSkusAtendemAtacado;
+  const atendeValorAtacado = Number(regras.valorMinimoAtacado) > 0 && totalVarejo >= Number(regras.valorMinimoAtacado);
+  const atendeQtdAtacado = Number(regras.qtdTotalMinimaAtacado) > 0 && totalPecas >= Number(regras.qtdTotalMinimaAtacado) && todosSkusAtendemAtacado;
   const elegivelAtacado = atendeValorAtacado || atendeQtdAtacado;
 
   // 5. Determinar Tabela Ativa
