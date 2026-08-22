@@ -32,7 +32,7 @@ export const AppLayout: React.FC = () => {
   const location = useLocation();
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
   const permissions = usePermissions();
-  const [pedidosPendentesCount, setPedidosPendentesCount] = useState<number>(0);
+  const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
@@ -60,23 +60,23 @@ export const AppLayout: React.FC = () => {
   useEffect(() => {
     if (!loja?.id) return;
 
-    const carregarPendentes = async () => {
+    const carregarConfirmados = async () => {
       let query = supabase
         .from('pedidos')
         .select('*', { count: 'exact', head: true })
         .eq('loja_id', loja.id)
-        .eq('status', 'pendente');
+        .eq('status', 'confirmado');
 
-      // Se for operador comum restrito, conta apenas seus pedidos pendentes
+      // Se for operador comum restrito, conta apenas seus pedidos confirmados
       if (usuario && !permissions.podeVerTransacoesOutros) {
         query = query.eq('vendedor_id', usuario.id);
       }
       
       const { count } = await query;
-      setPedidosPendentesCount(count || 0);
+      setPedidosConfirmadosCount(count || 0);
     };
 
-    carregarPendentes();
+    carregarConfirmados();
 
     // Carregar usuários da loja para alternador de operador
     const carregarUsuariosLoja = async () => {
@@ -94,19 +94,25 @@ export const AppLayout: React.FC = () => {
     carregarUsuariosLoja();
 
     const channel = supabase
-      .channel('novos-pedidos-realtime')
+      .channel('pedidos-confirmados-realtime')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
+        { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
         (payload) => {
-          if (payload.new.status === 'pendente') {
-            // Se o usuário só pode ver as próprias transações, checa se o pedido pertence a ele
-            if (usuario && !permissions.podeVerTransacoesOutros && payload.new.vendedor_id !== usuario.id) {
-              return;
-            }
-            audioService.playNewOrderSound();
-            setPedidosPendentesCount(prev => prev + 1);
+          const novo = payload.new as any;
+          const antigo = payload.old as any;
+
+          // Se o usuário só pode ver as próprias transações, checa se o pedido pertence a ele
+          if (usuario && !permissions.podeVerTransacoesOutros && novo?.vendedor_id && novo.vendedor_id !== usuario.id) {
+            return;
           }
+
+          // Se acabou de virar confirmado ou entrou como confirmado
+          if (novo?.status === 'confirmado' && antigo?.status !== 'confirmado') {
+            audioService.playNewOrderSound();
+          }
+
+          carregarConfirmados();
         }
       )
       .subscribe();
@@ -178,7 +184,7 @@ export const AppLayout: React.FC = () => {
       name: 'Pedidos',
       path: '/orders',
       icon: ShoppingBag,
-      badge: pedidosPendentesCount,
+      badge: pedidosConfirmadosCount,
       visivel: permissions.podeAcessarPedidos
     },
     {
@@ -400,9 +406,9 @@ export const AppLayout: React.FC = () => {
               className="md:hidden relative p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white"
             >
               <Bell className="w-4 h-4" />
-              {pedidosPendentesCount > 0 && (
+              {pedidosConfirmadosCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
-                  {pedidosPendentesCount}
+                  {pedidosConfirmadosCount}
                 </span>
               )}
             </Link>
@@ -541,9 +547,9 @@ export const AppLayout: React.FC = () => {
                   <ShoppingBag className="w-4 h-4 text-slate-400" />
                   <span>Pedidos</span>
                 </div>
-                {pedidosPendentesCount > 0 && (
+                {pedidosConfirmadosCount > 0 && (
                   <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {pedidosPendentesCount}
+                    {pedidosConfirmadosCount}
                   </span>
                 )}
               </Link>
@@ -697,9 +703,9 @@ export const AppLayout: React.FC = () => {
           >
             <div className="relative">
               <ShoppingBag className="w-5 h-5" />
-              {pedidosPendentesCount > 0 && (
+              {pedidosConfirmadosCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
-                  {pedidosPendentesCount}
+                  {pedidosConfirmadosCount}
                 </span>
               )}
             </div>

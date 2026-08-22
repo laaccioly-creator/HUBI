@@ -24,15 +24,18 @@ import {
   CreditCard,
   ChevronDown,
   Lock,
-  Copy
+  Copy,
+  Info
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
-import { Pedido, StatusPedido, StatusPagamento, TabelaPreco } from '../types';
+import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto } from '../types';
 import { PrintService } from '../services/printService';
 import { audioService } from '../services/audioService';
+import { ModalItensPedido } from './ModalItensPedido';
+import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 
 type OrdenacaoCampo = 'data' | 'valor';
 type OrdenacaoDirecao = 'asc' | 'desc';
@@ -86,6 +89,8 @@ export const PedidosLista: React.FC = () => {
   const [busca, setBusca] = useState<string>('');
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+  const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
+  const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
@@ -155,7 +160,81 @@ export const PedidosLista: React.FC = () => {
     }
   }, [loja?.id, usuario?.id, somAtivo, permissions.podeVerTransacoesOutros]);
 
+  const handleConsultarProduto = async (item: ItemPedido) => {
+    try {
+      if (item.produto_id) {
+        const { data, error } = await supabase
+          .from('produtos')
+          .select('*, categoria:categorias(*), variacoes:variacoes_produto(*)')
+          .eq('id', item.produto_id)
+          .maybeSingle();
+
+        if (data) {
+          setProdutoDetalhesModal(data as unknown as Produto);
+          return;
+        }
+      }
+      setProdutoDetalhesModal({
+        id: item.produto_id || 'temp',
+        loja_id: loja?.id || '',
+        nome: item.nome_produto,
+        preco_venda_varejo: item.preco_venda_unitario,
+        preco_custo: 0,
+        quantidade_estoque: 0,
+        estoque_minimo_alerta: 0,
+        tipo_unidade: 'un',
+        ativo: true,
+        exibir_catalogo: true,
+        destaque: false,
+        fotos_urls: [],
+        tem_variacoes: false,
+        controlar_estoque: false,
+        promocao_ativa: false,
+        qtd_minima_atacado: 1,
+        qtd_minima_autoatacado: 1,
+        criado_em: new Date().toISOString()
+      } as unknown as Produto);
+    } catch (e) {
+      console.warn('Erro ao carregar detalhes do produto:', e);
+    }
+  };
+
+  const getOpcoesStatusPermitidas = (pedido: Pedido) => {
+    if (pedido.status === 'pendente') {
+      // Quando pendente, só pode passar para confirmado
+      return [
+        { id: 'pendente' as StatusPedido, label: 'Pendente' },
+        { id: 'confirmado' as StatusPedido, label: 'Confirmado' }
+      ];
+    }
+    if (permissions.ehVendedorOuComum) {
+      // Vendedor/Comum não pode alterar depois de confirmado
+      return STATUS_PEDIDO_OPCOES.filter(opt => opt.id === pedido.status);
+    }
+    // Demais perfis (Gerente, Admin, Owner) podem alternar entre status pós-pendente
+    return STATUS_PEDIDO_OPCOES.filter(opt => opt.id !== 'pendente');
+  };
+
+  const podeAlterarStatusDoPedido = (pedido: Pedido) => {
+    if (pedido.status === 'pendente') return true;
+    if (permissions.ehVendedorOuComum) return false;
+    return true;
+  };
+
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
+    const pedidoAlvo = pedidos.find(p => p.id === pedidoId);
+    if (!pedidoAlvo) return;
+
+    // Validações de transição de status
+    if (pedidoAlvo.status === 'pendente' && novoStatus !== 'confirmado' && novoStatus !== 'pendente') {
+      alert('Pedidos com status Pendente só podem ser alterados para Confirmado.');
+      return;
+    }
+    if (permissions.ehVendedorOuComum && pedidoAlvo.status !== 'pendente') {
+      alert('Seu perfil só pode alterar pedidos de Pendente para Confirmado.');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('pedidos')
@@ -174,6 +253,10 @@ export const PedidosLista: React.FC = () => {
 
       if (pedidoReciboModal && pedidoReciboModal.id === pedidoId) {
         setPedidoReciboModal(prev => prev ? { ...prev, status: novoStatus } : null);
+      }
+
+      if (pedidoItensModal && pedidoItensModal.id === pedidoId) {
+        setPedidoItensModal(prev => prev ? { ...prev, status: novoStatus } : null);
       }
 
       audioService.playBeep();
@@ -692,69 +775,60 @@ export const PedidosLista: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Itens */}
+                      {/* Itens (Clique abre o modal de itens do pedido) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="text-emerald-400 font-medium">
-                          {totalItens} {totalItens === 1 ? 'item' : 'itens'}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPedidoItensModal(pedido);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/25 transition cursor-pointer active:scale-95 shadow-sm"
+                          title="Clique para ver os itens deste pedido"
+                        >
+                          <Package className="w-3.5 h-3.5" />
+                          <span>{totalItens} {totalItens === 1 ? 'item' : 'itens'}</span>
+                        </button>
+                      </td>
+
+                      {/* Valor Total Limpo (Sem texto de Fiado) */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`font-bold text-sm ${
+                            isCancelado
+                              ? 'line-through text-slate-400'
+                              : 'text-slate-100'
+                          }`}
+                        >
+                          R$ {Number(pedido.valor_total).toFixed(2)}
                         </span>
                       </td>
 
-                      {/* Valor */}
+                      {/* Status do Pedido (com regras de transição) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span
-                            className={`font-bold ${
-                              isCancelado
-                                ? 'line-through text-slate-400'
-                                : 'text-slate-100'
-                            }`}
-                          >
-                            R$ {Number(pedido.valor_total).toFixed(2)}
-                          </span>
-                          {Number(pedido.saldo_devedor) > 0 && !isCancelado && (
-                            <span className="text-[10px] text-amber-400 font-semibold">
-                              Fiado: R$ {Number(pedido.saldo_devedor).toFixed(2)}
-                            </span>
-                          )}
-                        </div>
+                        {podeAlterarStatusDoPedido(pedido) ? (
+                          <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar status do pedido">
+                            {getStatusBadge(pedido.status, true)}
+                            <select
+                              value={pedido.status}
+                              onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
+                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
+                            >
+                              {getOpcoesStatusPermitidas(pedido).map((opt) => (
+                                <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          getStatusBadge(pedido.status, false)
+                        )}
                       </td>
 
-                      {/* Status do Pedido (Clique para Alterar) */}
+                      {/* Status do Pagamento (Estritamente Informativo) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar status do pedido">
-                          {getStatusBadge(pedido.status, true)}
-                          <select
-                            value={pedido.status}
-                            onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
-                            className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                            title="Clique para alterar status do pedido"
-                          >
-                            {STATUS_PEDIDO_OPCOES.map((opt) => (
-                              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-
-                      {/* Status do Pagamento (Clique para Alterar) */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar status do pagamento">
-                          {getStatusPagamentoBadge(statusPag, true)}
-                          <select
-                            value={statusPag}
-                            onChange={(e) => atualizarStatusPagamento(pedido.id, e.target.value as StatusPagamento)}
-                            className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                            title="Clique para alterar status do pagamento"
-                          >
-                            {STATUS_PAGAMENTO_OPCOES.map((opt) => (
-                              <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        {getStatusPagamentoBadge(statusPag, false)}
                       </td>
 
                       {/* Tipo da Venda (Varejo / Atacado / Distribuidor) - Alterável por Owner/Admin quando Aguardando Pagamento */}
@@ -782,22 +856,33 @@ export const PedidosLista: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Ações (Alterar Pedido se Pendente) */}
+                      {/* Ações (Consultar Produtos / Alterar Pedido se Pendente) */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          disabled={!isPendente}
-                          onClick={() => handleEditarPedido(pedido)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                            isPendente
-                              ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95'
-                              : 'bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40'
-                          }`}
-                          title={isPendente ? 'Carregar pedido no PDV para alteração' : 'Alteração permitida apenas para pedidos com status Pendente'}
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                          <span>Alterar</span>
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setPedidoItensModal(pedido)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer border border-slate-700/80"
+                            title="Consultar produtos do pedido"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={!isPendente}
+                            onClick={() => handleEditarPedido(pedido)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                              isPendente
+                                ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95'
+                                : 'bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40'
+                            }`}
+                            title={isPendente ? 'Carregar pedido no PDV para alteração' : 'Alteração permitida apenas para pedidos com status Pendente'}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Alterar</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -838,66 +923,17 @@ export const PedidosLista: React.FC = () => {
 
           {/* Conteúdo do Drawer com Rolagem */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Opção de Alterar Pedido se Pendente */}
+            {/* Botão de Alterar Pedido se Pendente */}
             {pedidoSelecionado.status === 'pendente' && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-amber-300 block">Pedido Pendente</span>
-                  <span className="text-[11px] text-amber-400/80">Você pode alterar produtos, cliente e valores no PDV.</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleEditarPedido(pedidoSelecionado)}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow"
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                  <span>Alterar Pedido</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleEditarPedido(pedidoSelecionado)}
+                className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2 cursor-pointer shadow"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Alterar Produtos e Valores no PDV</span>
+              </button>
             )}
-
-            {/* Atualizador Rápido de Status do Pedido (Todos os 9 Status) */}
-            <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
-              <label className="text-xs font-semibold text-slate-400 block">Alterar Status do Pedido:</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {STATUS_PEDIDO_OPCOES.map((st) => (
-                  <button
-                    key={st.id}
-                    onClick={() => atualizarStatus(pedidoSelecionado.id, st.id)}
-                    className={`py-2 px-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold transition border cursor-pointer ${
-                      pedidoSelecionado.status === st.id
-                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    {st.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Atualizador Rápido de Status do Pagamento */}
-            <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
-              <label className="text-xs font-semibold text-slate-400 block">Status do Pagamento:</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {STATUS_PAGAMENTO_OPCOES.map((stPag) => {
-                  const statusAtual = resolverStatusPagamento(pedidoSelecionado);
-                  return (
-                    <button
-                      key={stPag.id}
-                      onClick={() => atualizarStatusPagamento(pedidoSelecionado.id, stPag.id)}
-                      className={`py-2 px-1 rounded-xl text-[10px] sm:text-[11px] font-bold transition border cursor-pointer ${
-                        statusAtual === stPag.id
-                          ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
-                      }`}
-                    >
-                      {stPag.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Informações do Cliente */}
             <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
@@ -926,7 +962,7 @@ export const PedidosLista: React.FC = () => {
               )}
             </div>
 
-            {/* Itens do Pedido */}
+            {/* Itens do Pedido com Ação de Detalhar Produto */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300">
@@ -941,10 +977,10 @@ export const PedidosLista: React.FC = () => {
                 {pedidoSelecionado.itens?.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/80 flex items-center justify-between text-xs"
+                    className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/80 flex items-center justify-between text-xs gap-2"
                   >
-                    <div className="space-y-0.5">
-                      <span className="font-semibold text-slate-200 block">
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="font-semibold text-slate-200 block truncate">
                         {Number(item.quantidade)}x {item.nome_produto}
                       </span>
                       {item.rotulo_variacao && (
@@ -956,15 +992,26 @@ export const PedidosLista: React.FC = () => {
                         Unitário: R$ {Number(item.preco_venda_unitario).toFixed(2)}
                       </span>
                     </div>
-                    <span className="font-bold text-slate-100 text-sm">
-                      R$ {Number(item.subtotal).toFixed(2)}
-                    </span>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-bold text-slate-100 text-sm">
+                        R$ {Number(item.subtotal).toFixed(2)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleConsultarProduto(item)}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer"
+                        title="Ver Detalhes do Produto"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Resumo Financeiro */}
+            {/* Resumo Financeiro Limpo */}
             <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-xs space-y-1.5">
               <div className="flex justify-between text-slate-400">
                 <span>Subtotal:</span>
@@ -986,13 +1033,6 @@ export const PedidosLista: React.FC = () => {
                 <span>VALOR TOTAL:</span>
                 <span className="font-mono">R$ {Number(pedidoSelecionado.valor_total).toFixed(2)}</span>
               </div>
-
-              {Number(pedidoSelecionado.saldo_devedor) > 0 && (
-                <div className="flex justify-between text-amber-400 font-semibold pt-1">
-                  <span>Saldo Devedor:</span>
-                  <span className="font-mono">R$ {Number(pedidoSelecionado.saldo_devedor).toFixed(2)}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1264,6 +1304,21 @@ export const PedidosLista: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL DE ITENS DO PEDIDO */}
+      <ModalItensPedido
+        isOpen={!!pedidoItensModal}
+        onClose={() => setPedidoItensModal(null)}
+        pedido={pedidoItensModal}
+        onConsultarProduto={(item) => handleConsultarProduto(item)}
+      />
+
+      {/* MODAL DE DETALHES DO PRODUTO (CONSULTA FICHA TÉCNICA) */}
+      <ModalDetalhesProduto
+        isOpen={!!produtoDetalhesModal}
+        onClose={() => setProdutoDetalhesModal(null)}
+        produto={produtoDetalhesModal}
+      />
     </div>
   );
 };

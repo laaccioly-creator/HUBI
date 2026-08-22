@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search,
   Barcode,
+  Camera,
+  ChevronDown,
+  ChevronUp,
+  Check,
   Plus,
   Minus,
   Trash2,
@@ -33,6 +37,7 @@ import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido } from '../types';
 import { PrintService } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
+import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
@@ -96,7 +101,12 @@ export const PosCheckout: React.FC = () => {
   const [ehVendaOfflineSalva, setEhVendaOfflineSalva] = useState<boolean>(false);
 
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
+  const [modalCameraBarcode, setModalCameraBarcode] = useState<boolean>(false);
+  const [clienteBuscaTexto, setClienteBuscaTexto] = useState<string>('');
+  const [clienteDropdownAberto, setClienteDropdownAberto] = useState<boolean>(false);
+
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const clienteDropdownRef = useRef<HTMLDivElement>(null);
 
   const FORMAS_PADRAO: FormaPagamento[] = [
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
@@ -105,6 +115,29 @@ export const PosCheckout: React.FC = () => {
     { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
     { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado / A Prazo', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
   ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (clienteDropdownRef.current && !clienteDropdownRef.current.contains(event.target as Node)) {
+        setClienteDropdownAberto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const clientesFiltrados = useMemo(() => {
+    if (!clienteBuscaTexto.trim()) return clientes;
+    const termo = clienteBuscaTexto.toLowerCase().trim();
+    return clientes.filter(c =>
+      c.nome.toLowerCase().includes(termo) ||
+      (c.whatsapp && c.whatsapp.includes(termo)) ||
+      (c.telefone && c.telefone.includes(termo)) ||
+      (c.numero_documento && c.numero_documento.includes(termo))
+    );
+  }, [clientes, clienteBuscaTexto]);
 
   useEffect(() => {
     if (!loja?.id) return;
@@ -143,11 +176,10 @@ export const PosCheckout: React.FC = () => {
     setModalFechamento(true);
   };
 
-  const handleBarcodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!buscaCodigoBarras.trim()) return;
+  const adicionarProdutoPorCodigo = (rawBarcode: string) => {
+    const barcode = rawBarcode.trim();
+    if (!barcode) return;
 
-    const barcode = buscaCodigoBarras.trim();
     let produtoEncontrado: Produto | null = null;
     let variacaoEncontrada: VariacaoProduto | null = null;
 
@@ -173,9 +205,16 @@ export const PosCheckout: React.FC = () => {
         adicionarItem(produtoEncontrado, variacaoEncontrada);
       }
       setBuscaCodigoBarras('');
+      audioService.playBeep();
     } else {
       alert(`Produto com código ${barcode} não foi encontrado.`);
     }
+  };
+
+  const handleBarcodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!buscaCodigoBarras.trim()) return;
+    adicionarProdutoPorCodigo(buscaCodigoBarras);
   };
 
   const handleSalvarPedidoPendente = async () => {
@@ -617,41 +656,25 @@ export const PosCheckout: React.FC = () => {
               />
             </div>
 
-            <form onSubmit={handleBarcodeSubmit} className="relative w-full sm:w-60">
+            <form onSubmit={handleBarcodeSubmit} className="relative w-full sm:w-64 flex items-center">
               <Barcode className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 ref={barcodeInputRef}
                 type="text"
-                placeholder="Código de Barras (Enter)"
+                placeholder="Cód. Barras (Enter)"
                 value={buscaCodigoBarras}
                 onChange={(e) => setBuscaCodigoBarras(e.target.value)}
-                className="w-full bg-slate-800/80 border border-emerald-500/40 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-800/80 border border-emerald-500/40 rounded-xl pl-9 pr-10 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
               />
+              <button
+                type="button"
+                onClick={() => setModalCameraBarcode(true)}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
+                title="Escanear Código de Barras pela Câmera (Mobile/Desktop)"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
             </form>
-          </div>
-
-          {/* Seletor Rápido de Tabela de Preço */}
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-emerald-400" /> Tabela de Preço Ativa:
-            </span>
-
-            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-              {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setTabelaPrecoGlobal(tab)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider transition cursor-pointer ${
-                    tabelaPrecoCalculada === tab
-                      ? 'bg-emerald-500 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {tab === 'autoatacado' ? 'Distribuidor' : tab}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -755,32 +778,149 @@ export const PosCheckout: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <div className="relative flex-1">
-              <select
-                value={clienteSelecionado ? clienteSelecionado.id : ''}
-                onChange={(e) => {
-                  const cli = clientes.find(c => c.id === e.target.value) || null;
-                  setClienteSelecionado(cli);
-                }}
-                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+          {/* SELEÇÃO E BUSCA DIGITÁVEL DE CLIENTE */}
+          <div className="relative" ref={clienteDropdownRef}>
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Buscar cliente ou avulso..."
+                  value={clienteSelecionado ? clienteSelecionado.nome : clienteBuscaTexto}
+                  onChange={(e) => {
+                    if (clienteSelecionado) {
+                      setClienteSelecionado(null);
+                    }
+                    setClienteBuscaTexto(e.target.value);
+                    setClienteDropdownAberto(true);
+                  }}
+                  onFocus={() => setClienteDropdownAberto(true)}
+                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl pl-9 pr-14 py-2 text-xs text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition font-medium"
+                />
+
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                  {clienteSelecionado && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClienteSelecionado(null);
+                        setClienteBuscaTexto('');
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-400 rounded-md transition cursor-pointer"
+                      title="Remover cliente selecionado"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setClienteDropdownAberto(prev => !prev)}
+                    className="p-1 text-slate-400 hover:text-slate-200 rounded-md transition cursor-pointer"
+                    title="Ver lista completa de clientes"
+                  >
+                    {clienteDropdownAberto ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalNovoCliente(true)}
+                className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition flex items-center justify-center shrink-0"
+                title="Cadastrar Novo Cliente"
               >
-                <option value="">👤 Cliente Avulso (Balcão)</option>
-                {clientes.map(cli => (
-                  <option key={cli.id} value={cli.id}>
-                    👤 {cli.nome} {Number(cli.saldo_devedor_fiado) > 0 ? `(Devendo R$ ${Number(cli.saldo_devedor_fiado).toFixed(2)})` : ''}
-                  </option>
-                ))}
-              </select>
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setModalNovoCliente(true)}
-              className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition flex items-center justify-center shrink-0"
-              title="Cadastrar Novo Cliente"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+
+            {/* Dropdown de Clientes com busca e seleção */}
+            {clienteDropdownAberto && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto animate-in fade-in">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClienteSelecionado(null);
+                    setClienteBuscaTexto('');
+                    setClienteDropdownAberto(false);
+                  }}
+                  className={`w-full p-2.5 text-left text-xs font-medium flex items-center justify-between border-b border-slate-800 transition cursor-pointer ${
+                    !clienteSelecionado ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span>👤 Cliente Avulso (Balcão)</span>
+                  {!clienteSelecionado && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                </button>
+
+                {clientesFiltrados.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-500">Nenhum cliente encontrado.</div>
+                ) : (
+                  clientesFiltrados.map((cli) => {
+                    const isSelected = clienteSelecionado?.id === cli.id;
+                    return (
+                      <button
+                        key={cli.id}
+                        type="button"
+                        onClick={() => {
+                          setClienteSelecionado(cli);
+                          setClienteBuscaTexto('');
+                          setClienteDropdownAberto(false);
+                        }}
+                        className={`w-full p-2.5 text-left text-xs flex items-center justify-between border-b border-slate-800/60 transition cursor-pointer ${
+                          isSelected ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-200 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <span className="block truncate font-bold">{cli.nome}</span>
+                          {(cli.whatsapp || cli.telefone) && (
+                            <span className="text-[10px] text-slate-400 block truncate">
+                              Tel: {cli.whatsapp || cli.telefone}
+                            </span>
+                          )}
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* FRAME DE ESCOLHA DO TIPO DE VENDA (ABAIXO DO CLIENTE) */}
+          <div className="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div>
+                <span className="text-[11px] text-slate-400 font-medium block">Tipo da Venda:</span>
+                <span className="text-xs font-bold text-slate-100 uppercase tracking-wide">
+                  {tabelaPrecoCalculada === 'autoatacado' ? 'Distribuidor' : tabelaPrecoCalculada === 'atacado' ? 'Atacado' : 'Varejo'}
+                </span>
+              </div>
+            </div>
+
+            {/* Se for Admin/Owner pode alterar manualmente; se for Comum/Vendedor fica bloqueado */}
+            {permissions.ehAdmin ? (
+              <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+                {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setTabelaPrecoGlobal(tab)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase transition cursor-pointer ${
+                      tabelaPrecoCalculada === tab
+                        ? 'bg-emerald-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {tab === 'autoatacado' ? 'Distr.' : tab === 'atacado' ? 'Atac.' : 'Var.'}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="text-[10px] text-slate-500 font-medium bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
+                Fixo pelo Perfil
+              </span>
+            )}
           </div>
 
           {/* BADGE DA TABELA ATIVA & PROGRESSO NO PDV */}
@@ -1259,6 +1399,16 @@ export const PosCheckout: React.FC = () => {
         onClienteCadastrado={(novoCliente) => {
           setClientes(prev => [novoCliente, ...prev]);
           setClienteSelecionado(novoCliente);
+        }}
+      />
+
+      {/* Modal Leitor de Código de Barras por Câmera */}
+      <ModalLeitorCodigoBarras
+        isOpen={modalCameraBarcode}
+        onClose={() => setModalCameraBarcode(false)}
+        onBarcodeDetected={(codigo) => {
+          setBuscaCodigoBarras(codigo);
+          adicionarProdutoPorCodigo(codigo);
         }}
       />
     </div>
