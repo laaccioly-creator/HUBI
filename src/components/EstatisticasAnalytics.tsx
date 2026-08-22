@@ -18,8 +18,10 @@ import {
   Check,
   ChevronDown
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, PagamentoPedido } from '../types';
 
 type TipoMetrica =
@@ -78,6 +80,15 @@ const CORES_PALETA = [
 
 export const EstatisticasAnalytics: React.FC = () => {
   const { loja } = useAuth();
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!permissions.podeAcessarAnalytics) {
+      navigate('/pos');
+    }
+  }, [permissions.podeAcessarAnalytics, navigate]);
+
   const [todosPedidos, setTodosPedidos] = useState<Pedido[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
 

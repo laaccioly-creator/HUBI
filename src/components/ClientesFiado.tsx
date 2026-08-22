@@ -20,11 +20,13 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
+  const permissions = usePermissions();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [busca, setBusca] = useState<string>('');
@@ -248,16 +250,18 @@ export const ClientesFiado: React.FC = () => {
               <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
             </div>
 
-            {/* Botão Exportar */}
-            <button
-              type="button"
-              onClick={handleExportarCsv}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer shadow-sm shrink-0"
-              title="Exportar Lista em CSV"
-            >
-              <Download className="w-4 h-4 text-slate-400" />
-              <span>Exportar</span>
-            </button>
+            {/* Botão Exportar (Apenas se autorizado) */}
+            {permissions.podeExportarRelatorios && (
+              <button
+                type="button"
+                onClick={handleExportarCsv}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer shadow-sm shrink-0"
+                title="Exportar Lista em CSV"
+              >
+                <Download className="w-4 h-4 text-slate-400" />
+                <span>Exportar</span>
+              </button>
+            )}
 
             {/* Botão + Cliente */}
             <button
@@ -391,16 +395,18 @@ export const ClientesFiado: React.FC = () => {
                               <span className="text-amber-400">
                                 R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setClienteQuitar(cliente);
-                                  setValorAbatimento(Number(cliente.saldo_devedor_fiado).toFixed(2));
-                                }}
-                                className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-lg transition cursor-pointer"
-                              >
-                                Quitar
-                              </button>
+                              {permissions.podeAtivarFiado && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setClienteQuitar(cliente);
+                                    setValorAbatimento(Number(cliente.saldo_devedor_fiado).toFixed(2));
+                                  }}
+                                  className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-lg transition cursor-pointer"
+                                >
+                                  Quitar
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <span className="text-slate-400">R$ 0,00</span>
@@ -435,15 +441,17 @@ export const ClientesFiado: React.FC = () => {
                               <Pencil className="w-4 h-4" />
                             </button>
 
-                            {/* Botão Excluir */}
-                            <button
-                              type="button"
-                              onClick={() => setClienteExcluir(cliente)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                              title="Excluir Cliente"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {/* Botão Excluir (Apenas Admin/Owner) */}
+                            {permissions.ehAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => setClienteExcluir(cliente)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                title="Excluir Cliente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

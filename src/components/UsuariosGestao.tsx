@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { UsuarioLoja, MetricasUsuario } from '../types';
 import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
 
@@ -29,6 +30,13 @@ const CORES_PALETA = [
 export const UsuariosGestao: React.FC = () => {
   const navigate = useNavigate();
   const { loja } = useAuth();
+  const permissions = usePermissions();
+
+  useEffect(() => {
+    if (!permissions.podeAcessarUsuarios) {
+      navigate('/pos');
+    }
+  }, [permissions.podeAcessarUsuarios, navigate]);
 
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);

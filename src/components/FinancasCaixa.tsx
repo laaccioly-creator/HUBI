@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
   Plus,
@@ -12,10 +13,19 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { TransacaoFinanceira, Caixa } from '../types';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!permissions.podeAcessarFinancas) {
+      navigate('/pos');
+    }
+  }, [permissions.podeAcessarFinancas, navigate]);
   const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
   const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);

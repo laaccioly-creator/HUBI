@@ -26,8 +26,10 @@ import {
   Banknote,
   Zap
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Categoria, Fornecedor, UnidadeMedida, FormaPagamento, TipoPagamento } from '../types';
 import { SyncService } from '../services/syncService';
 
@@ -49,6 +51,15 @@ export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fraci
 
 export const CadastrosAuxiliares: React.FC = () => {
   const { loja } = useAuth();
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!permissions.podeAcessarAuxiliares) {
+      navigate('/pos');
+    }
+  }, [permissions.podeAcessarAuxiliares, navigate]);
+
   const [abaAtiva, setAbaAtiva] = useState<'categorias' | 'unidades' | 'fornecedores' | 'pagamentos' | 'precificacao'>('categorias');
   const [busca, setBusca] = useState<string>('');
 

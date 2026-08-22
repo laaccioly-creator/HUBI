@@ -17,12 +17,14 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria } from '../types';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const permissions = usePermissions();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -149,24 +151,28 @@ export const ProdutosEstoque: React.FC = () => {
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Botão Gerenciar Categorias */}
-            <button
-              type="button"
-              onClick={() => setModalCategorias(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-200 text-xs font-bold transition cursor-pointer shadow-sm"
-              title="Gerenciar Categorias de Produtos"
-            >
-              <FolderPlus className="w-4 h-4 text-indigo-400" />
-              <span>Categorias</span>
-            </button>
+            {permissions.podeCadastrarAlterarProdutos && (
+              <button
+                type="button"
+                onClick={() => setModalCategorias(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-200 text-xs font-bold transition cursor-pointer shadow-sm"
+                title="Gerenciar Categorias de Produtos"
+              >
+                <FolderPlus className="w-4 h-4 text-indigo-400" />
+                <span>Categorias</span>
+              </button>
+            )}
 
             {/* Botão Novo Produto */}
-            <Link
-              to="/products/create"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Novo Produto</span>
-            </Link>
+            {permissions.podeCadastrarAlterarProdutos && (
+              <Link
+                to="/products/create"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Novo Produto</span>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -187,7 +193,7 @@ export const ProdutosEstoque: React.FC = () => {
             <span className="text-lg font-bold text-indigo-400">R$ {valorTotalEstoque.toFixed(2)}</span>
           </div>
 
-          {usuario?.pode_ver_preco_custo !== false && (
+          {permissions.podeVerPrecoCusto && (
             <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
               <span className="text-xs text-slate-400 block">Valor em Custo</span>
               <span className="text-lg font-bold text-slate-300">R$ {valorCustoEstoque.toFixed(2)}</span>
@@ -321,61 +327,73 @@ export const ProdutosEstoque: React.FC = () => {
                             </span>
 
                             {/* Botão de Entrada Rápida de Estoque */}
-                            <button
-                              type="button"
-                              onClick={() => setProdutoEstoqueAlvo(produto)}
-                              className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
-                              title="Dar entrada por compra ou ajustar estoque"
-                            >
-                              <PackagePlus className="w-3 h-3 text-emerald-400" />
-                              <span>+ Entrada</span>
-                            </button>
+                            {permissions.podeGerenciarEstoque && (
+                              <button
+                                type="button"
+                                onClick={() => setProdutoEstoqueAlvo(produto)}
+                                className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                title="Dar entrada por compra ou ajustar estoque"
+                              >
+                                <PackagePlus className="w-3 h-3 text-emerald-400" />
+                                <span>+ Entrada</span>
+                              </button>
+                            )}
                           </div>
                         </td>
 
                         <td className="p-3.5 text-center">
-                          <button
-                            onClick={() => toggleExibirCatalogo(produto.id, produto.exibir_catalogo)}
-                            className={`p-1.5 rounded-lg transition cursor-pointer ${
-                              produto.exibir_catalogo
-                                ? 'text-emerald-400 hover:bg-emerald-500/10'
-                                : 'text-slate-600 hover:bg-slate-800'
-                            }`}
-                            title={produto.exibir_catalogo ? 'Visível no Catálogo' : 'Oculto do Catálogo'}
-                          >
-                            {produto.exibir_catalogo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                          </button>
+                          {permissions.podeCadastrarAlterarProdutos ? (
+                            <button
+                              onClick={() => toggleExibirCatalogo(produto.id, produto.exibir_catalogo)}
+                              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                produto.exibir_catalogo
+                                  ? 'text-emerald-400 hover:bg-emerald-500/10'
+                                  : 'text-slate-600 hover:bg-slate-800'
+                              }`}
+                              title={produto.exibir_catalogo ? 'Visível no Catálogo' : 'Oculto do Catálogo'}
+                            >
+                              {produto.exibir_catalogo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                            </button>
+                          ) : (
+                            <span className={produto.exibir_catalogo ? 'text-emerald-400' : 'text-slate-600'}>
+                              {produto.exibir_catalogo ? <Eye className="w-4 h-4 inline" /> : <EyeOff className="w-4 h-4 inline" />}
+                            </span>
+                          )}
                         </td>
 
                         <td className="p-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Botão Alterar / Editar Produto */}
-                            <Link
-                              to={`/products/edit/${produto.id}`}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
-                              title="Alterar Produto"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Link>
+                          {permissions.podeCadastrarAlterarProdutos ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Botão Alterar / Editar Produto */}
+                              <Link
+                                to={`/products/edit/${produto.id}`}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                                title="Alterar Produto"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Link>
 
-                            <button
-                              onClick={() => toggleDestaque(produto.id, produto.destaque)}
-                              className={`p-1.5 rounded-lg transition cursor-pointer ${
-                                produto.destaque ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
-                              }`}
-                              title={produto.destaque ? 'Produto em Destaque' : 'Destacar Produto'}
-                            >
-                              <Star className="w-4 h-4 fill-current" />
-                            </button>
+                              <button
+                                onClick={() => toggleDestaque(produto.id, produto.destaque)}
+                                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                  produto.destaque ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
+                                }`}
+                                title={produto.destaque ? 'Produto em Destaque' : 'Destacar Produto'}
+                              >
+                                <Star className="w-4 h-4 fill-current" />
+                              </button>
 
-                            <button
-                              onClick={() => excluirProduto(produto.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                              title="Excluir Produto"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                              <button
+                                onClick={() => excluirProduto(produto.id)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                title="Excluir Produto"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-600 text-xs">-</span>
+                          )}
                         </td>
                       </tr>
                     );

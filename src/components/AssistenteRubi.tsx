@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   Send,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface MensagemIA {
   id: string;
@@ -20,6 +22,14 @@ interface MensagemIA {
 
 export const AssistenteRubi: React.FC = () => {
   const { loja } = useAuth();
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!permissions.podeAcessarRubiIA) {
+      navigate('/pos');
+    }
+  }, [permissions.podeAcessarRubiIA, navigate]);
   const [mensagens, setMensagens] = useState<MensagemIA[]>([
     {
       id: '1',

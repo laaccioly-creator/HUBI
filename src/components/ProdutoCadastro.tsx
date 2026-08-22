@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
@@ -531,6 +532,13 @@ export const ProdutoCadastro: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const ehEdicao = Boolean(id);
   const { loja } = useAuth();
+  const permissions = usePermissions();
+
+  useEffect(() => {
+    if (!permissions.podeCadastrarAlterarProdutos) {
+      navigate('/products');
+    }
+  }, [permissions.podeCadastrarAlterarProdutos, navigate]);
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);

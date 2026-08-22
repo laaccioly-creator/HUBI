@@ -22,6 +22,7 @@ import {
   Check
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
@@ -30,6 +31,7 @@ import { UsuarioLoja } from '../../types';
 export const AppLayout: React.FC = () => {
   const location = useLocation();
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
+  const permissions = usePermissions();
   const [pedidosPendentesCount, setPedidosPendentesCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
@@ -59,12 +61,18 @@ export const AppLayout: React.FC = () => {
     if (!loja?.id) return;
 
     const carregarPendentes = async () => {
-      const { count } = await supabase
+      let query = supabase
         .from('pedidos')
         .select('*', { count: 'exact', head: true })
         .eq('loja_id', loja.id)
         .eq('status', 'pendente');
+
+      // Se for operador comum restrito, conta apenas seus pedidos pendentes
+      if (usuario && !permissions.podeVerTransacoesOutros) {
+        query = query.eq('vendedor_id', usuario.id);
+      }
       
+      const { count } = await query;
       setPedidosPendentesCount(count || 0);
     };
 
@@ -92,6 +100,10 @@ export const AppLayout: React.FC = () => {
         { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
         (payload) => {
           if (payload.new.status === 'pendente') {
+            // Se o usuário só pode ver as próprias transações, checa se o pedido pertence a ele
+            if (usuario && !permissions.podeVerTransacoesOutros && payload.new.vendedor_id !== usuario.id) {
+              return;
+            }
             audioService.playNewOrderSound();
             setPedidosPendentesCount(prev => prev + 1);
           }
@@ -102,7 +114,7 @@ export const AppLayout: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loja?.id]);
+  }, [loja?.id, usuario?.id, permissions.podeVerTransacoesOutros]);
 
   // Se estiver carregando os dados do PDV
   if (carregando) {
@@ -124,69 +136,111 @@ export const AppLayout: React.FC = () => {
     return <CadastroPdv />;
   }
 
+  // Se usuário estiver bloqueado para uso em celular pessoal
+  if (permissions.bloqueadoPorDispositivoMovel) {
+    return (
+      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-5">
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shadow-2xl">
+          <X className="w-10 h-10" />
+        </div>
+        <div className="space-y-2 max-w-sm">
+          <h2 className="text-xl font-black text-slate-100">Acesso Mobile Não Autorizado</h2>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Olá, <strong className="text-slate-200">{usuario?.nome_completo || 'Operador'}</strong>. Seu usuário não possui permissão para acessar o sistema através de celular pessoal.
+          </p>
+          <p className="text-xs text-slate-500">
+            Utilize um computador autorizado da loja ou contate o administrador para solicitar a liberação do acesso móvel.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={desconectarPdv}
+          className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-2"
+        >
+          <LogOut className="w-4 h-4 text-rose-400" />
+          <span>Trocar Operador / Sair</span>
+        </button>
+      </div>
+    );
+  }
+
   const catalogUrl = loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : '/catalog';
 
-  const mainButtons = [
+  const todosBotoesPrincipais = [
     {
       name: 'Vender (PDV)',
       path: '/pos',
       icon: ShoppingCart,
-      isPrimary: true
+      isPrimary: true,
+      visivel: permissions.podeAcessarPdv
     },
     {
       name: 'Pedidos',
       path: '/orders',
       icon: ShoppingBag,
-      badge: pedidosPendentesCount
+      badge: pedidosPendentesCount,
+      visivel: permissions.podeAcessarPedidos
     },
     {
       name: 'Produtos & Estoque',
       path: '/products',
-      icon: Package
+      icon: Package,
+      visivel: permissions.podeAcessarProdutos
     },
     {
       name: 'Clientes & Fiado',
       path: '/customers',
-      icon: Users
+      icon: Users,
+      visivel: permissions.podeAcessarClientes
     },
     {
       name: 'Finanças & Caixa',
       path: '/finances',
-      icon: DollarSign
+      icon: DollarSign,
+      visivel: permissions.podeAcessarFinancas
     },
     {
       name: 'Estatísticas',
       path: '/analytics',
-      icon: BarChart3
+      icon: BarChart3,
+      visivel: permissions.podeAcessarAnalytics
     },
     {
       name: 'Rubi IA',
       path: '/smart-assistant',
       icon: Sparkles,
-      isAi: true
+      isAi: true,
+      visivel: permissions.podeAcessarRubiIA
     }
   ];
 
-  const extraButtons = [
+  const mainButtons = todosBotoesPrincipais.filter(b => b.visivel);
+
+  const todosBotoesExtras = [
     {
       name: 'Cadastros & Tabelas',
       path: '/auxiliares',
       icon: Layers,
-      description: 'Categorias, Fornecedores, Formas'
+      description: 'Categorias, Fornecedores, Formas',
+      visivel: permissions.podeAcessarAuxiliares
     },
     {
       name: 'Gestão de Usuários',
       path: '/users',
       icon: UserCheck,
-      description: 'Controle de operadores e acessos'
+      description: 'Controle de operadores e acessos',
+      visivel: permissions.podeAcessarUsuarios
     },
     {
       name: 'Configurações',
       path: '/config',
       icon: Settings,
-      description: 'Dados da loja e taxas'
+      description: 'Dados da loja e taxas',
+      visivel: permissions.podeAcessarConfig
     }
   ];
+
+  const extraButtons = todosBotoesExtras.filter(b => b.visivel);
 
   const isExtraActive = extraButtons.some(item => location.pathname.startsWith(item.path));
 
@@ -276,52 +330,54 @@ export const AppLayout: React.FC = () => {
               );
             })}
 
-            {/* BOTÃO DROPDOWN: MAIS MÓDULOS */}
-            <div className="relative" ref={maisMenuRef}>
-              <button
-                type="button"
-                onClick={() => setMaisMenuOpen(prev => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer select-none shrink-0 ${
-                  maisMenuOpen || isExtraActive
-                    ? 'bg-slate-800 text-emerald-400 border border-slate-700 font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
-                }`}
-              >
-                <span>Mais</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${maisMenuOpen ? 'rotate-180 text-emerald-400' : ''}`} />
-              </button>
+            {/* BOTÃO DROPDOWN: MAIS MÓDULOS (SÓ EXIBE SE HOUVER MÓDULOS EXTRAS PERMITIDOS) */}
+            {extraButtons.length > 0 && (
+              <div className="relative" ref={maisMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMaisMenuOpen(prev => !prev)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer select-none shrink-0 ${
+                    maisMenuOpen || isExtraActive
+                      ? 'bg-slate-800 text-emerald-400 border border-slate-700 font-semibold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                  }`}
+                >
+                  <span>Mais</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${maisMenuOpen ? 'rotate-180 text-emerald-400' : ''}`} />
+                </button>
 
-              {maisMenuOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-2 py-1 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                    Outros Módulos
+                {maisMenuOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-2 py-1 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                      Outros Módulos
+                    </div>
+                    {extraButtons.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location.pathname.startsWith(item.path);
+
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMaisMenuOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs transition ${
+                            isActive
+                              ? 'bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30'
+                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{item.name}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{item.description}</div>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
-                  {extraButtons.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location.pathname.startsWith(item.path);
-
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMaisMenuOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs transition ${
-                          isActive
-                            ? 'bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{item.name}</div>
-                          <div className="text-[10px] text-slate-400 truncate">{item.description}</div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </nav>
 
           {/* AÇÕES DA DIREITA (CATÁLOGO + USUÁRIO / SAIR) */}
@@ -371,7 +427,7 @@ export const AppLayout: React.FC = () => {
                 <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-2 border-b border-slate-800 mb-1 bg-slate-950/50 rounded-xl">
                     <p className="text-xs font-bold text-slate-100 truncate">{usuario?.nome_completo || 'Operador'}</p>
-                    <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Admin'}</p>
+                    <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
 
                   {listaUsuariosLoja.length > 1 && (
@@ -412,14 +468,16 @@ export const AppLayout: React.FC = () => {
                     </div>
                   )}
 
-                  <Link
-                    to="/config"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Configurações</span>
-                  </Link>
+                  {permissions.podeAcessarConfig && (
+                    <Link
+                      to="/config"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Configurações</span>
+                    </Link>
+                  )}
 
                   <Link
                     to={catalogUrl}
@@ -459,105 +517,125 @@ export const AppLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* MENU DROPDOWN MOBILE (TODOS OS MÓDULOS) */}
+        {/* MENU DROPDOWN MOBILE (APENAS MÓDULOS AUTORIZADOS) */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-slate-900 border-t border-slate-800 px-4 py-3 space-y-1.5 z-40 max-h-[80vh] overflow-y-auto animate-in slide-in-from-top duration-200">
-            <Link
-              to="/pos"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 font-bold text-sm border border-emerald-500/30"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              <span>Vender (Frente de Caixa)</span>
-            </Link>
+            {permissions.podeAcessarPdv && (
+              <Link
+                to="/pos"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 font-bold text-sm border border-emerald-500/30"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span>Vender (Frente de Caixa)</span>
+              </Link>
+            )}
 
-            <Link
-              to="/orders"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <div className="flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4 text-slate-400" />
-                <span>Pedidos</span>
-              </div>
-              {pedidosPendentesCount > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {pedidosPendentesCount}
-                </span>
-              )}
-            </Link>
+            {permissions.podeAcessarPedidos && (
+              <Link
+                to="/orders"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <div className="flex items-center gap-3">
+                  <ShoppingBag className="w-4 h-4 text-slate-400" />
+                  <span>Pedidos</span>
+                </div>
+                {pedidosPendentesCount > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {pedidosPendentesCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
-            <Link
-              to="/products"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <Package className="w-4 h-4 text-slate-400" />
-              <span>Produtos & Estoque</span>
-            </Link>
+            {permissions.podeAcessarProdutos && (
+              <Link
+                to="/products"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <Package className="w-4 h-4 text-slate-400" />
+                <span>Produtos & Estoque</span>
+              </Link>
+            )}
 
-            <Link
-              to="/auxiliares"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <Layers className="w-4 h-4 text-slate-400" />
-              <span>Cadastros & Tabelas Auxiliares</span>
-            </Link>
+            {permissions.podeAcessarClientes && (
+              <Link
+                to="/customers"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <Users className="w-4 h-4 text-slate-400" />
+                <span>Clientes & Fiado</span>
+              </Link>
+            )}
 
-            <Link
-              to="/customers"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <Users className="w-4 h-4 text-slate-400" />
-              <span>Clientes & Fiado</span>
-            </Link>
+            {permissions.podeAcessarFinancas && (
+              <Link
+                to="/finances"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <DollarSign className="w-4 h-4 text-slate-400" />
+                <span>Finanças & Caixa</span>
+              </Link>
+            )}
 
-            <Link
-              to="/finances"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <DollarSign className="w-4 h-4 text-slate-400" />
-              <span>Finanças & Caixa</span>
-            </Link>
+            {permissions.podeAcessarAnalytics && (
+              <Link
+                to="/analytics"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <BarChart3 className="w-4 h-4 text-slate-400" />
+                <span>Estatísticas & Relatórios</span>
+              </Link>
+            )}
 
-            <Link
-              to="/analytics"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <BarChart3 className="w-4 h-4 text-slate-400" />
-              <span>Estatísticas & Relatórios</span>
-            </Link>
+            {permissions.podeAcessarRubiIA && (
+              <Link
+                to="/smart-assistant"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-indigo-300 hover:bg-indigo-500/10 font-semibold"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <span>Assistente Rubi (IA)</span>
+              </Link>
+            )}
 
-            <Link
-              to="/smart-assistant"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-indigo-300 hover:bg-indigo-500/10 font-semibold"
-            >
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>Assistente Rubi (IA)</span>
-            </Link>
+            {permissions.podeAcessarAuxiliares && (
+              <Link
+                to="/auxiliares"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <Layers className="w-4 h-4 text-slate-400" />
+                <span>Cadastros & Tabelas Auxiliares</span>
+              </Link>
+            )}
 
-            <Link
-              to="/users"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <UserCheck className="w-4 h-4 text-slate-400" />
-              <span>Gestão de Usuários</span>
-            </Link>
+            {permissions.podeAcessarUsuarios && (
+              <Link
+                to="/users"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <UserCheck className="w-4 h-4 text-slate-400" />
+                <span>Gestão de Usuários</span>
+              </Link>
+            )}
 
-            <Link
-              to="/config"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-            >
-              <Settings className="w-4 h-4 text-slate-400" />
-              <span>Configurações</span>
-            </Link>
+            {permissions.podeAcessarConfig && (
+              <Link
+                to="/config"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <Settings className="w-4 h-4 text-slate-400" />
+                <span>Configurações</span>
+              </Link>
+            )}
 
             <Link
               to={catalogUrl}
@@ -594,66 +672,76 @@ export const AppLayout: React.FC = () => {
         <Outlet />
       </main>
 
-      {/* BOTTOM NAVIGATION BAR MOBILE (5 BOTÕES MAIS FREQUENTES) */}
+      {/* BOTTOM NAVIGATION BAR MOBILE (MÓDULOS PRINCIPAIS AUTORIZADOS) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-2 z-30">
-        <Link
-          to="/pos"
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-            location.pathname === '/pos' ? 'text-emerald-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <div className="relative">
-            <ShoppingCart className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] mt-1 font-medium">Vender</span>
-        </Link>
+        {permissions.podeAcessarPdv && (
+          <Link
+            to="/pos"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
+              location.pathname === '/pos' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            }`}
+          >
+            <div className="relative">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] mt-1 font-medium">Vender</span>
+          </Link>
+        )}
 
-        <Link
-          to="/orders"
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition relative ${
-            location.pathname === '/orders' ? 'text-emerald-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <div className="relative">
-            <ShoppingBag className="w-5 h-5" />
-            {pedidosPendentesCount > 0 && (
-              <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
-                {pedidosPendentesCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] mt-1 font-medium">Pedidos</span>
-        </Link>
+        {permissions.podeAcessarPedidos && (
+          <Link
+            to="/orders"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition relative ${
+              location.pathname === '/orders' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            }`}
+          >
+            <div className="relative">
+              <ShoppingBag className="w-5 h-5" />
+              {pedidosPendentesCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
+                  {pedidosPendentesCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] mt-1 font-medium">Pedidos</span>
+          </Link>
+        )}
 
-        <Link
-          to="/products"
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-            location.pathname.startsWith('/products') ? 'text-emerald-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <Package className="w-5 h-5" />
-          <span className="text-[10px] mt-1 font-medium">Produtos</span>
-        </Link>
+        {permissions.podeAcessarProdutos && (
+          <Link
+            to="/products"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
+              location.pathname.startsWith('/products') ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            }`}
+          >
+            <Package className="w-5 h-5" />
+            <span className="text-[10px] mt-1 font-medium">Produtos</span>
+          </Link>
+        )}
 
-        <Link
-          to="/customers"
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-            location.pathname === '/customers' ? 'text-emerald-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px] mt-1 font-medium">Clientes</span>
-        </Link>
+        {permissions.podeAcessarClientes && (
+          <Link
+            to="/customers"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
+              location.pathname === '/customers' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] mt-1 font-medium">Clientes</span>
+          </Link>
+        )}
 
-        <Link
-          to="/finances"
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-            location.pathname === '/finances' ? 'text-emerald-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <DollarSign className="w-5 h-5" />
-          <span className="text-[10px] mt-1 font-medium">Finanças</span>
-        </Link>
+        {permissions.podeAcessarFinancas && (
+          <Link
+            to="/finances"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
+              location.pathname === '/finances' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+            }`}
+          >
+            <DollarSign className="w-5 h-5" />
+            <span className="text-[10px] mt-1 font-medium">Finanças</span>
+          </Link>
+        )}
       </nav>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Settings,
   Store,
@@ -8,10 +9,19 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { FormaPagamento, FormaEntrega } from '../types';
 
 export const ConfiguracoesLoja: React.FC = () => {
   const { loja, recarregarDadosLoja } = useAuth();
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!permissions.podeAcessarConfig) {
+      navigate('/pos');
+    }
+  }, [permissions.podeAcessarConfig, navigate]);
   const [abaAtiva, setAbaAtiva] = useState<'loja' | 'pagamentos' | 'entrega' | 'recibo'>('loja');
   const [salvando, setSalvando] = useState<boolean>(false);
 

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco } from '../types';
 import { PrintService } from '../services/printService';
@@ -75,6 +76,7 @@ const TIPOS_VENDA_OPCOES: { id: TabelaPreco; label: string }[] = [
 
 export const PedidosLista: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const permissions = usePermissions();
   const { carregarPedidoParaEdicao } = useCart();
   const navigate = useNavigate();
 
@@ -89,13 +91,13 @@ export const PedidosLista: React.FC = () => {
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
 
-  const podeAlterarTipoVenda = usuario?.perfil === 'owner' || usuario?.perfil === 'admin';
+  const podeAlterarTipoVenda = permissions.ehAdmin;
 
   const carregarPedidos = async (tocarAlerta = false) => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('pedidos')
         .select(`
           *,
@@ -104,8 +106,14 @@ export const PedidosLista: React.FC = () => {
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(*)
         `)
-        .eq('loja_id', loja.id)
-        .order('criado_em', { ascending: false });
+        .eq('loja_id', loja.id);
+
+      // Se o usuário NÃO tem permissão de ver transações de outros operadores, filtra apenas os seus
+      if (usuario && !permissions.podeVerTransacoesOutros) {
+        query = query.eq('vendedor_id', usuario.id);
+      }
+
+      const { data, error } = await query.order('criado_em', { ascending: false });
 
       if (error) throw error;
       if (data) {
@@ -131,6 +139,10 @@ export const PedidosLista: React.FC = () => {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
           (payload) => {
+            // Se o usuário só pode ver suas vendas, não processa updates de outros vendedores
+            if (usuario && !permissions.podeVerTransacoesOutros && (payload.new as any)?.vendedor_id !== usuario.id) {
+              return;
+            }
             const isNovo = payload.eventType === 'INSERT';
             carregarPedidos(isNovo);
           }
@@ -141,7 +153,7 @@ export const PedidosLista: React.FC = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [loja?.id, somAtivo]);
+  }, [loja?.id, usuario?.id, somAtivo, permissions.podeVerTransacoesOutros]);
 
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
     try {
@@ -480,8 +492,13 @@ export const PedidosLista: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
                 <span>{pedidosAbertosCount} pedidos abertos</span>
               </h1>
-              <p className="text-xs text-slate-400">
-                {pedidos.length} pedidos no total • Atualizado em tempo real
+              <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap mt-0.5">
+                <span>{pedidos.length} pedidos listados • Tempo real</span>
+                {!permissions.podeVerTransacoesOutros && (
+                  <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                    👤 Seus Pedidos ({usuario?.nome_completo || 'Vendedor'})
+                  </span>
+                )}
               </p>
             </div>
 

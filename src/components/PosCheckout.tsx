@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido } from '../types';
 import { PrintService } from '../services/printService';
@@ -39,6 +40,7 @@ import { audioService } from '../services/audioService';
 
 export const PosCheckout: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const permissions = usePermissions();
   const {
     itens,
     clienteSelecionado,
@@ -902,63 +904,72 @@ export const PosCheckout: React.FC = () => {
               <span className="text-slate-200 font-medium">R$ {subtotal.toFixed(2)}</span>
             </div>
 
-            {/* Desconto R$ ou % sem setinhas de incremento */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <span>Desconto:</span>
-                <div className="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => setTipoDesconto('valor')}
-                    className={`px-1.5 py-0.5 rounded font-bold transition ${
-                      tipoDesconto === 'valor' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    R$
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTipoDesconto('percentual')}
-                    className={`px-1.5 py-0.5 rounded font-bold transition ${
-                      tipoDesconto === 'percentual' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    %
-                  </button>
+            {/* Desconto R$ ou % (se autorizado) */}
+            {permissions.podeDarDesconto ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span>Desconto:</span>
+                  <div className="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setTipoDesconto('valor')}
+                      className={`px-1.5 py-0.5 rounded font-bold transition ${
+                        tipoDesconto === 'valor' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      R$
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoDesconto('percentual')}
+                      className={`px-1.5 py-0.5 rounded font-bold transition ${
+                        tipoDesconto === 'percentual' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      %
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {tipoDesconto === 'valor' ? (
+                    <div className="flex items-center">
+                      <span className="text-[11px] text-slate-500 mr-1">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={desconto > 0 ? desconto : ''}
+                        onChange={(e) => setDescontoValor(parseFloat(e.target.value) || 0)}
+                        placeholder="0,00"
+                        className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-bold focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <input
+                        type="number"
+                        step="0.1"
+                        max="100"
+                        value={descontoPercentual > 0 ? descontoPercentual : ''}
+                        onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+                        placeholder="0%"
+                        className="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-bold focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-[11px] text-slate-500 ml-1">%</span>
+                    </div>
+                  )}
                 </div>
               </div>
+            ) : (
+              desconto > 0 ? (
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Desconto de Tabela:</span>
+                  <span className="text-rose-400 font-bold">-R$ {desconto.toFixed(2)}</span>
+                </div>
+              ) : null
+            )}
 
-              <div className="flex items-center gap-1">
-                {tipoDesconto === 'valor' ? (
-                  <div className="flex items-center">
-                    <span className="text-[11px] text-slate-500 mr-1">R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={desconto > 0 ? desconto : ''}
-                      onChange={(e) => setDescontoValor(parseFloat(e.target.value) || 0)}
-                      placeholder="0,00"
-                      className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-bold focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <input
-                      type="number"
-                      step="0.1"
-                      max="100"
-                      value={descontoPercentual > 0 ? descontoPercentual : ''}
-                      onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
-                      placeholder="0%"
-                      className="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-right text-xs text-rose-400 font-bold focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-[11px] text-slate-500 ml-1">%</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {desconto > 0 && (
+            {desconto > 0 && permissions.podeDarDesconto && (
               <div className="text-[10px] text-rose-400 text-right font-medium">
                 -R$ {desconto.toFixed(2)} ({descontoPercentual.toFixed(1)}%)
               </div>
@@ -1064,32 +1075,34 @@ export const PosCheckout: React.FC = () => {
             <div className="space-y-2.5">
               <span className="text-xs font-semibold text-slate-300 block">Selecione o Meio de Pagamento:</span>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {((formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO).map((fp) => {
-                  const estaSelecionado = formaPagamentoEscolhida?.id === fp.id || (!formaPagamentoEscolhida && fp.tipo === 'dinheiro');
-                  
-                  return (
-                    <button
-                      key={fp.id}
-                      type="button"
-                      onClick={() => setFormaPagamentoEscolhida(fp)}
-                      className={`p-3 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
-                        estaSelecionado
-                          ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
-                          : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      {fp.tipo === 'dinheiro' && <Banknote className="w-5 h-5 text-emerald-400" />}
-                      {fp.tipo === 'pix' && <Zap className="w-5 h-5 text-cyan-400" />}
-                      {fp.tipo === 'cartao_debito' && <CreditCard className="w-5 h-5 text-blue-400" />}
-                      {fp.tipo === 'cartao_credito' && <CreditCard className="w-5 h-5 text-purple-400" />}
-                      {fp.tipo === 'fiado' && <FileText className="w-5 h-5 text-amber-400" />}
-                      {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && (
-                        <CreditCard className="w-5 h-5 text-slate-400" />
-                      )}
-                      <span className="truncate max-w-full">{fp.nome}</span>
-                    </button>
-                  );
-                })}
+                {((formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO)
+                  .filter(fp => permissions.podeAtivarFiado || fp.tipo !== 'fiado')
+                  .map((fp) => {
+                    const estaSelecionado = formaPagamentoEscolhida?.id === fp.id || (!formaPagamentoEscolhida && fp.tipo === 'dinheiro');
+                    
+                    return (
+                      <button
+                        key={fp.id}
+                        type="button"
+                        onClick={() => setFormaPagamentoEscolhida(fp)}
+                        className={`p-3 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+                          estaSelecionado
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
+                            : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {fp.tipo === 'dinheiro' && <Banknote className="w-5 h-5 text-emerald-400" />}
+                        {fp.tipo === 'pix' && <Zap className="w-5 h-5 text-cyan-400" />}
+                        {fp.tipo === 'cartao_debito' && <CreditCard className="w-5 h-5 text-blue-400" />}
+                        {fp.tipo === 'cartao_credito' && <CreditCard className="w-5 h-5 text-purple-400" />}
+                        {fp.tipo === 'fiado' && <FileText className="w-5 h-5 text-amber-400" />}
+                        {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && (
+                          <CreditCard className="w-5 h-5 text-slate-400" />
+                        )}
+                        <span className="truncate max-w-full">{fp.nome}</span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 

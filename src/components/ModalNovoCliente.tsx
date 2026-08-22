@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { Cliente, TabelaPreco } from '../types';
 
 interface ModalNovoClienteProps {
@@ -64,6 +65,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   clienteEditar
 }) => {
   const { loja } = useAuth();
+  const permissions = usePermissions();
 
   // Estados dos Campos
   const [nome, setNome] = useState('');
@@ -79,7 +81,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [telefone2IsWhatsapp, setTelefone2IsWhatsapp] = useState(false);
 
   // Fiado e Tabela de Preço
-  const [permiteFiado, setPermiteFiado] = useState(true);
+  const [permiteFiado, setPermiteFiado] = useState(permissions.podeAtivarFiado);
   const [limiteCredito, setLimiteCredito] = useState('500.00');
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
 
@@ -111,7 +113,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone1IsWhatsapp(clienteEditar.telefone_is_whatsapp ?? true);
         setTelefone2(clienteEditar.telefone2 || '');
         setTelefone2IsWhatsapp(clienteEditar.telefone2_is_whatsapp ?? false);
-        setPermiteFiado(clienteEditar.permite_fiado ?? true);
+        setPermiteFiado(clienteEditar.permite_fiado ?? permissions.podeAtivarFiado);
         setLimiteCredito(String(clienteEditar.limite_credito ?? '500.00'));
         setTabelaPreco(clienteEditar.tabela_preco_padrao || 'varejo');
         setCep(clienteEditar.endereco_cep || '');
@@ -131,8 +133,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone1IsWhatsapp(true);
         setTelefone2('');
         setTelefone2IsWhatsapp(false);
-        setPermiteFiado(true);
-        setLimiteCredito('500.00');
+        setPermiteFiado(permissions.podeAtivarFiado);
+        setLimiteCredito(permissions.podeAtivarFiado ? '500.00' : '0.00');
         setTabelaPreco('varejo');
         setCep('');
         setRua('');
@@ -632,54 +634,58 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                 </select>
               </div>
 
-              {/* Indicador se Permite Fiado */}
-              <div className="sm:col-span-2 bg-slate-950/60 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${permiteFiado ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-200 block">Permite Venda no Fiado / A Prazo?</span>
-                    <span className="text-[11px] text-slate-400">
-                      {permiteFiado
-                        ? 'Cliente habilitado para compras a prazo com limite de crédito'
-                        : 'Cliente bloqueado para fiado (apenas pagamentos à vista)'}
-                    </span>
-                  </div>
-                </div>
+              {/* Indicador se Permite Fiado (Apenas se autorizado a ativar fiado) */}
+              {permissions.podeAtivarFiado && (
+                <>
+                  <div className="sm:col-span-2 bg-slate-950/60 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${permiteFiado ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-200 block">Permite Venda no Fiado / A Prazo?</span>
+                        <span className="text-[11px] text-slate-400">
+                          {permiteFiado
+                            ? 'Cliente habilitado para compras a prazo com limite de crédito'
+                            : 'Cliente bloqueado para fiado (apenas pagamentos à vista)'}
+                        </span>
+                      </div>
+                    </div>
 
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={permiteFiado}
-                    onChange={(e) => setPermiteFiado(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-
-              {/* LIMITE DE FIADO: SÓ EXIBIDO/SOLICITADO SE PERMITE FIADO FOR VERDADEIRO */}
-              {permiteFiado && (
-                <div className="sm:col-span-2 bg-emerald-500/5 border border-emerald-500/30 rounded-2xl p-3.5 space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs font-bold text-emerald-300 flex items-center justify-between">
-                    <span>Limite de Crédito / Fiado (R$) *</span>
-                    <span className="text-[10px] text-emerald-400 font-normal">Valor máximo de débito pendente</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-400">R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required={permiteFiado}
-                      placeholder="500,00"
-                      value={limiteCredito}
-                      onChange={(e) => setLimiteCredito(e.target.value)}
-                      className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl pl-10 pr-3 py-2.5 text-sm font-bold text-emerald-300 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
-                    />
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={permiteFiado}
+                        onChange={(e) => setPermiteFiado(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
                   </div>
-                </div>
+
+                  {/* LIMITE DE FIADO: SÓ EXIBIDO/SOLICITADO SE PERMITE FIADO FOR VERDADEIRO */}
+                  {permiteFiado && (
+                    <div className="sm:col-span-2 bg-emerald-500/5 border border-emerald-500/30 rounded-2xl p-3.5 space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs font-bold text-emerald-300 flex items-center justify-between">
+                        <span>Limite de Crédito / Fiado (R$) *</span>
+                        <span className="text-[10px] text-emerald-400 font-normal">Valor máximo de débito pendente</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-400">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          required={permiteFiado}
+                          placeholder="500,00"
+                          value={limiteCredito}
+                          onChange={(e) => setLimiteCredito(e.target.value)}
+                          className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl pl-10 pr-3 py-2.5 text-sm font-bold text-emerald-300 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
