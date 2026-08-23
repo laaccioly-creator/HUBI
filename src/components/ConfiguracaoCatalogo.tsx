@@ -203,34 +203,39 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
     try {
       setUploadingBanner(true);
-      const ext = file.name.split('.').pop();
-      const fileName = `banner_${loja.id}_${Date.now()}.${ext}`;
-      const filePath = `banners/${fileName}`;
+      const ext = file.name.split('.').pop() || 'jpg';
+      const fileName = `banners/${loja.id}_${Date.now()}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('fotos')
-        .upload(filePath, file, { upsert: true });
+      // Tenta upload no bucket 'produtos' (ou 'fotos')
+      let bucketEscolhido = 'produtos';
+      let uploadRes = await supabase.storage.from(bucketEscolhido).upload(fileName, file, { upsert: true });
 
-      if (uploadError) {
-        // Fallback para Base64 se storage não tiver bucket público
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setBannerUrl(reader.result);
-            setExibirBanner(true);
-          }
-        };
-        reader.readAsDataURL(file);
-      } else {
+      if (uploadRes.error) {
+        bucketEscolhido = 'fotos';
+        uploadRes = await supabase.storage.from(bucketEscolhido).upload(fileName, file, { upsert: true });
+      }
+
+      if (!uploadRes.error) {
         const { data: publicData } = supabase.storage
-          .from('fotos')
-          .getPublicUrl(filePath);
+          .from(bucketEscolhido)
+          .getPublicUrl(fileName);
 
         if (publicData?.publicUrl) {
           setBannerUrl(publicData.publicUrl);
           setExibirBanner(true);
+          return;
         }
       }
+
+      // Fallback para Base64 se storage não tiver políticas liberadas
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setBannerUrl(reader.result);
+          setExibirBanner(true);
+        }
+      };
+      reader.readAsDataURL(file);
     } catch (err) {
       console.error('Erro no upload:', err);
     } finally {

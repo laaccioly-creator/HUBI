@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Settings,
   Store,
@@ -25,24 +25,57 @@ import {
   Globe,
   Share2,
   Trash2,
-  Edit2
+  Edit2,
+  Package,
+  Layers,
+  BarChart3,
+  Mail,
+  Printer,
+  Download,
+  Copy,
+  Info,
+  Calendar,
+  Save,
+  Search,
+  ArrowLeft,
+  ShoppingBag,
+  Sliders,
+  ChevronDown,
+  Percent
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { FormaPagamento, FormaEntrega } from '../types';
+import {
+  Loja,
+  FormaPagamento,
+  FormaEntrega,
+  Categoria,
+  StatusPedidoPersonalizado,
+  ModoExibicaoCatalogo,
+  ComportamentoSemEstoque
+} from '../types';
+import { PrintService } from '../services/printService';
+import { feedExportService } from '../services/feedExportService';
+import { paymentGatewayService } from '../services/paymentGatewayService';
 
-type AbaConfig = 'geral' | 'pedidos-vendas' | 'recibo' | 'pagamentos' | 'entrega-retirada' | 'integracoes';
-
-interface MetodoPagamentoEdicao {
-  id: string;
-  nome: string;
-  tipo: string;
-  descricao: string;
-  pdvAtivo: boolean;
-  catalogoAtivo: boolean;
-  isNovo?: boolean;
-}
+type SubTelaConfig =
+  | 'menu'
+  | 'geral'
+  | 'dados-loja'
+  | 'identificacao'
+  | 'produtos'
+  | 'catalogo'
+  | 'recibo'
+  | 'pagamentos'
+  | 'pagamentos-automaticos'
+  | 'prazos-taxas'
+  | 'pedidos-vendas'
+  | 'status-pedidos'
+  | 'entrega'
+  | 'retirada'
+  | 'exportar'
+  | 'parceiros';
 
 export const ConfiguracoesLoja: React.FC = () => {
   const { loja, recarregarDadosLoja } = useAuth();
@@ -55,199 +88,382 @@ export const ConfiguracoesLoja: React.FC = () => {
     }
   }, [permissions.podeAcessarConfig, navigate]);
 
-  const [abaAtiva, setAbaAtiva] = useState<AbaConfig>('geral');
+  const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
-  const [houveAlteracao, setHouveAlteracao] = useState<boolean>(false);
+  const [mensagemToast, setMensagemToast] = useState<string>('');
+  const [copiadoTexto, setCopiadoTexto] = useState<string>('');
 
-  // ABA 1: GERAL
-  const [nomeLoja, setNomeLoja] = useState<string>('');
-  const [razaoSocial, setRazaoSocial] = useState<string>('');
-  const [documento, setDocumento] = useState<string>('');
-  const [urlLogo, setUrlLogo] = useState<string>('');
-  const [sobreLoja, setSobreLoja] = useState<string>('');
-  const [telefone, setTelefone] = useState<string>('');
-  const [whatsapp, setWhatsapp] = useState<string>('');
-  const [instagram, setInstagram] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [enderecoLogradouro, setEnderecoLogradouro] = useState<string>('');
-  const [enderecoComplemento, setEnderecoComplemento] = useState<string>('');
+  // 1. GERAL
+  const [telaInicialPadrao, setTelaInicialPadrao] = useState<string>('inicio');
+  const [modalTelaInicial, setModalTelaInicial] = useState<boolean>(false);
   const [moeda, setMoeda] = useState<string>('BR - R$');
   const [casasDecimais, setCasasDecimais] = useState<boolean>(true);
   const [transacoesCanceladas, setTransacoesCanceladas] = useState<'riscadas' | 'ocultar'>('riscadas');
+  const [ordenarProdutosPdv, setOrdenarProdutosPdv] = useState<'cadastro' | 'alfabetica'>('cadastro');
 
-  // ABA 2: PEDIDOS E VENDAS (Taxas e Status)
+  // 2. DADOS DA LOJA & IDENTIFICAÇÃO
+  const [nomeLoja, setNomeLoja] = useState<string>('');
+  const [urlLogo, setUrlLogo] = useState<string>('');
+  const [telefone, setTelefone] = useState<string>('');
+  const [whatsapp, setWhatsapp] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [instagram, setInstagram] = useState<string>('');
+  const [sobreLoja, setSobreLoja] = useState<string>('');
+  const [enderecoLogradouro, setEnderecoLogradouro] = useState<string>('');
+  const [enderecoNumero, setEnderecoNumero] = useState<string>('');
+  const [enderecoBairro, setEnderecoBairro] = useState<string>('');
+  const [enderecoComplemento, setEnderecoComplemento] = useState<string>('');
+  const [enderecoCep, setEnderecoCep] = useState<string>('');
+  const [enderecoCidade, setEnderecoCidade] = useState<string>('');
+  const [enderecoEstado, setEnderecoEstado] = useState<string>('CE');
+  const [documento, setDocumento] = useState<string>('');
+  const [razaoSocial, setRazaoSocial] = useState<string>('');
+
+  // 3. RECIBO
+  const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
+  const [reciboExibirCodigo, setReciboExibirCodigo] = useState<boolean>(false);
+  const [reciboCabecalho, setReciboCabecalho] = useState<string>('');
+  const [reciboRodape, setReciboRodape] = useState<string>('');
+  const [tipoImpressaoPadrao, setTipoImpressaoPadrao] = useState<'termica_80mm' | 'termica_58mm' | 'a4'>('termica_80mm');
+  const [modalPreviewRecibo, setModalPreviewRecibo] = useState<boolean>(false);
+
+  // 4. MEIOS DE PAGAMENTO & GATEWAYS
+  const [mpAtivo, setMpAtivo] = useState<boolean>(false);
+  const [mpPublicKey, setMpPublicKey] = useState<string>('');
+  const [mpAccessToken, setMpAccessToken] = useState<string>('');
+  const [mpTaxaCredito, setMpTaxaCredito] = useState<number>(2.99);
+  const [mpTaxaPix, setMpTaxaPix] = useState<number>(0.99);
+  const [mpPrazoDias, setMpPrazoDias] = useState<number>(2);
+  const [mpMaxParcelas, setMpMaxParcelas] = useState<number>(10);
+
+  const [pagseguroAtivo, setPagseguroAtivo] = useState<boolean>(false);
+  const [pagseguroEmail, setPagseguroEmail] = useState<string>('');
+  const [pagseguroToken, setPagseguroToken] = useState<string>('');
+  const [googlePayAtivo, setGooglePayAtivo] = useState<boolean>(false);
+  const [googlePayMerchantId, setGooglePayMerchantId] = useState<string>('');
+
+  // Meios Manuais / Presenciais
+  const [pixAtivo, setPixAtivo] = useState<boolean>(true);
+  const [pixChave, setPixChave] = useState<string>('');
+  const [pixOrientacoes, setPixOrientacoes] = useState<string>('');
+  const [dinheiroAtivo, setDinheiroAtivo] = useState<boolean>(true);
+  const [dinheiroDescricao, setDinheiroDescricao] = useState<string>('');
+  const [debitoAtivo, setDebitoAtivo] = useState<boolean>(true);
+  const [debitoDescricao, setDebitoDescricao] = useState<string>('');
+  const [creditoAtivo, setCreditoAtivo] = useState<boolean>(true);
+  const [creditoDescricao, setCreditoDescricao] = useState<string>('');
+  const [outrosAtivo, setOutrosAtivo] = useState<boolean>(false);
+  const [outrosDescricao, setOutrosDescricao] = useState<string>('');
+  const [permitirFiado, setPermitirFiado] = useState<boolean>(true);
+
+  // Prazos e Taxas Maquininha
+  const [maqCreditoAtivo, setMaqCreditoAtivo] = useState<boolean>(true);
+  const [maqCreditoDias, setMaqCreditoDias] = useState<number>(30);
+  const [maqCreditoTaxa, setMaqCreditoTaxa] = useState<number>(2.99);
+  const [maqDebitoAtivo, setMaqDebitoAtivo] = useState<boolean>(true);
+  const [maqDebitoDias, setMaqDebitoDias] = useState<number>(1);
+  const [maqDebitoTaxa, setMaqDebitoTaxa] = useState<number>(1.49);
+
+  // 5. PEDIDOS, VENDAS E TAXAS
   const [usarTaxaVenda, setUsarTaxaVenda] = useState<boolean>(false);
-  const [nomeTaxaVenda, setNomeTaxaVenda] = useState<string>('');
-  const [valorTaxaVenda, setValorTaxaVenda] = useState<string>('0,00');
+  const [nomeTaxaVenda, setNomeTaxaVenda] = useState<string>('Taxa de Serviço');
+  const [valorTaxaVenda, setValorTaxaVenda] = useState<number>(10);
   const [tipoTaxaVenda, setTipoTaxaVenda] = useState<'percentual' | 'fixo'>('percentual');
   const [aplicarTaxaVenda, setAplicarTaxaVenda] = useState<'adicionar' | 'incluida'>('adicionar');
   const [taxaVendaOpcional, setTaxaVendaOpcional] = useState<boolean>(false);
 
-  const [aplicarTaxaCatalogo, setAplicarTaxaCatalogo] = useState<boolean>(false);
-  const [nomeTaxaCatalogo, setNomeTaxaCatalogo] = useState<string>('');
-  const [valorTaxaCatalogo, setValorTaxaCatalogo] = useState<string>('0,00');
+  const [usarTaxaCatalogo, setUsarTaxaCatalogo] = useState<boolean>(false);
+  const [nomeTaxaCatalogo, setNomeTaxaCatalogo] = useState<string>('Taxa de Conveniência');
+  const [valorTaxaCatalogo, setValorTaxaCatalogo] = useState<number>(5);
   const [tipoTaxaCatalogo, setTipoTaxaCatalogo] = useState<'percentual' | 'fixo'>('percentual');
-  const [aplicarTaxaCatalogoModo, setAplicarTaxaCatalogoModo] = useState<'adicionar' | 'incluida'>('adicionar');
-  const [taxaCatalogoSomenteEntrega, setTaxaCatalogoSomenteEntrega] = useState<boolean>(false);
+  const [aplicarTaxaCatalogo, setAplicarTaxaCatalogo] = useState<'adicionar' | 'incluida'>('adicionar');
+  const [taxaCatalogoSomenteEntrega, setTaxaCatalogoSomenteEntrega] = useState<boolean>(true);
 
   // Status de Pedidos
   const [statusEmProducao, setStatusEmProducao] = useState<boolean>(true);
   const [statusEmExpedicao, setStatusEmExpedicao] = useState<boolean>(true);
   const [statusSaiuEntrega, setStatusSaiuEntrega] = useState<boolean>(true);
   const [statusProntoRetirar, setStatusProntoRetirar] = useState<boolean>(true);
+  const [statusCustomizados, setStatusCustomizados] = useState<StatusPedidoPersonalizado[]>([]);
+  const [novoStatusNome, setNovoStatusNome] = useState<string>('');
+  const [modalNovoStatus, setModalNovoStatus] = useState<boolean>(false);
 
-  // ABA 3: RECIBO
-  const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
-  const [reciboExibirCodigoProduto, setReciboExibirCodigoProduto] = useState<boolean>(false);
-  const [reciboCabecalho, setReciboCabecalho] = useState<string>('');
-  const [reciboRodape, setReciboRodape] = useState<string>('');
-
-  // ABA 4: PAGAMENTOS
-  const [permitirFiado, setPermitirFiado] = useState<boolean>(true);
-  const [drawerMetodoPagamento, setDrawerMetodoPagamento] = useState<MetodoPagamentoEdicao | null>(null);
-  const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
-
-  // ABA 5: ENTREGA E RETIRADA
+  // 6. ENTREGA E RETIRADA
   const [trabalhoComEntregas, setTrabalhoComEntregas] = useState<boolean>(true);
   const [descricaoEntregas, setDescricaoEntregas] = useState<string>(
-    'Entregas feitas via UBER envios para Fortaleza e região metropolitana. Para compras acima de R$ 250,00 o frete é grátis. Compras abaixo de R$ 250,00 faremos a cotação do envio.'
+    'Entregas feitas via UBER envios / Motoboy para Fortaleza e região metropolitana.'
   );
   const [trabalhoComRetirada, setTrabalhoComRetirada] = useState<boolean>(false);
-  const [formasEntrega, setFormasEntrega] = useState<FormaEntrega[]>([]);
-  const [modalNovaEntrega, setModalNovaEntrega] = useState<boolean>(false);
-  const [novaEntregaNome, setNovaEntregaNome] = useState<string>('');
-  const [novaEntregaValor, setNovaEntregaValor] = useState<string>('0.00');
+  const [descricaoRetirada, setDescricaoRetirada] = useState<string>(
+    'Retirada disponível no balcão da loja em horário comercial.'
+  );
+  const [listaFormasEntrega, setListaFormasEntrega] = useState<FormaEntrega[]>([]);
 
-  // Carregar dados da loja ativa
+  // 7. EXPORTAÇÃO DE RELATÓRIOS
+  const [dataInicioExport, setDataInicioExport] = useState<string>(
+    new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]
+  );
+  const [dataFimExport, setDataFimExport] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [exportarVendas, setExportarVendas] = useState<boolean>(true);
+  const [exportarProdutos, setExportarProdutos] = useState<boolean>(false);
+  const [exportarClientes, setExportarClientes] = useState<boolean>(false);
+  const [modalExportConcluido, setModalExportConcluido] = useState<boolean>(false);
+
+  // 8. INTEGRAÇÃO COM PARCEIROS
+  const [facebookPixelId, setFacebookPixelId] = useState<string>('');
+  const [tiktokPixelId, setTiktokPixelId] = useState<string>('');
+  const [modalTutorialParceiro, setModalTutorialParceiro] = useState<string | null>(null);
+
+  // Inicialização com dados da Loja
   useEffect(() => {
     if (loja) {
+      const extras = loja.configuracoes_extras || {};
+      const geral = extras.geral || {};
+      const recibo = extras.recibo || {};
+      const pagDigitais = extras.pagamentos_digitais || {};
+      const mp = pagDigitais.mercado_pago || {};
+      const pagSeg = pagDigitais.pagseguro || {};
+      const gpay = pagDigitais.google_pay || {};
+      const prazosMaq = extras.prazos_taxas_maquininhas || {};
+      const pagManuais = extras.pagamentos || {};
+      const taxas = extras.taxas_venda || {};
+      const statusAtivos = extras.status_pedidos_ativos || {};
+      const entregaRet = extras.entrega_retirada || {};
+      const parceiros = extras.integracoes_parceiros || {};
+
+      // Geral
+      setTelaInicialPadrao(geral.tela_inicial_padrao || 'inicio');
+      setMoeda(geral.moeda || 'BR - R$');
+      setCasasDecimais(geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true);
+      setTransacoesCanceladas(geral.transacoes_canceladas || extras.preferencias_gerais?.transacoes_canceladas || 'riscadas');
+      setOrdenarProdutosPdv(geral.ordenar_produtos_pdv || 'cadastro');
+
+      // Dados da Loja
       setNomeLoja(loja.nome_fantasia || '');
-      setRazaoSocial(loja.razao_social || '');
-      setDocumento(loja.numero_documento || '18.748.429/0001-27');
       setUrlLogo(loja.url_logo || '');
-      setSobreLoja(loja.sobre_loja || 'Valor minimo para compras é de R$ 50,00');
-      setTelefone(loja.telefone || '+55 (85) 98607-2144');
-      setWhatsapp(loja.whatsapp || '+55 (85) 98607-2144');
-      setInstagram(loja.instagram || '@hot.amazonoficial');
-      setEmail(loja.email || 'laaccioly@hotmail.com');
-      setEnderecoLogradouro(loja.endereco_logradouro ? `${loja.endereco_logradouro}, ${loja.endereco_numero || ''}` : 'Rua Bélgica, 945');
+      setTelefone(loja.telefone || '');
+      setWhatsapp(loja.whatsapp || '');
+      setEmail(loja.email || '');
+      setInstagram(loja.instagram || '');
+      setSobreLoja(loja.sobre_loja || '');
+      setEnderecoLogradouro(loja.endereco_logradouro || '');
+      setEnderecoNumero(loja.endereco_numero || '');
+      setEnderecoBairro(loja.endereco_bairro || '');
       setEnderecoComplemento(loja.endereco_complemento || '');
-
-      const extras = (loja.configuracoes_extras as any) || {};
-
-      // Preferências gerais
-      setMoeda(loja.moeda || 'BR - R$');
-      setCasasDecimais(extras.preferencias_gerais?.casas_decimais !== false);
-      setTransacoesCanceladas(extras.preferencias_gerais?.transacoes_canceladas || 'riscadas');
-
-      // Taxas de venda
-      setUsarTaxaVenda(Boolean(extras.taxas_venda?.usar_taxa_pdv));
-      setNomeTaxaVenda(extras.taxas_venda?.nome_taxa_pdv || '');
-      setValorTaxaVenda(extras.taxas_venda?.valor_taxa_pdv !== undefined ? String(extras.taxas_venda.valor_taxa_pdv) : '0,00');
-      setTipoTaxaVenda(extras.taxas_venda?.tipo_taxa_pdv || 'percentual');
-      setAplicarTaxaVenda(extras.taxas_venda?.aplicar_taxa_pdv || 'adicionar');
-      setTaxaVendaOpcional(Boolean(extras.taxas_venda?.taxa_pdv_opcional));
-
-      // Taxas catálogo
-      setAplicarTaxaCatalogo(Boolean(extras.taxas_venda?.usar_taxa_catalogo));
-      setNomeTaxaCatalogo(extras.taxas_venda?.nome_taxa_catalogo || '');
-      setValorTaxaCatalogo(extras.taxas_venda?.valor_taxa_catalogo !== undefined ? String(extras.taxas_venda.valor_taxa_catalogo) : '0,00');
-      setTipoTaxaCatalogo(extras.taxas_venda?.tipo_taxa_catalogo || 'percentual');
-      setAplicarTaxaCatalogoModo(extras.taxas_venda?.aplicar_taxa_catalogo || 'adicionar');
-      setTaxaCatalogoSomenteEntrega(Boolean(extras.taxas_venda?.taxa_catalogo_somente_entrega));
-
-      // Status de pedidos
-      setStatusEmProducao(extras.status_pedidos_ativos?.em_producao !== false);
-      setStatusEmExpedicao(extras.status_pedidos_ativos?.em_expedicao !== false);
-      setStatusSaiuEntrega(extras.status_pedidos_ativos?.saiu_para_entrega !== false);
-      setStatusProntoRetirar(extras.status_pedidos_ativos?.pronto_para_retirar !== false);
+      setEnderecoCep(loja.endereco_cep || '');
+      setEnderecoCidade(loja.endereco_cidade || '');
+      setEnderecoEstado(loja.endereco_estado || 'CE');
+      setDocumento(loja.numero_documento || '');
+      setRazaoSocial(loja.razao_social || '');
 
       // Recibo
-      setReciboAdicionarCliente(extras.recibo?.adicionar_cliente !== false);
-      setReciboExibirCodigoProduto(Boolean(extras.recibo?.exibir_codigo_produto));
-      setReciboCabecalho(extras.recibo?.cabecalho || '');
-      setReciboRodape(extras.recibo?.rodape || '');
+      setReciboAdicionarCliente(recibo.adicionar_cliente ?? true);
+      setReciboExibirCodigo(recibo.exibir_codigo_produto ?? false);
+      setReciboCabecalho(recibo.cabecalho || '');
+      setReciboRodape(recibo.rodape || '');
+      setTipoImpressaoPadrao(recibo.tipo_impressao_padrao || 'termica_80mm');
+
+      // Pagamentos Digitais
+      setMpAtivo(mp.ativo ?? false);
+      setMpPublicKey(mp.public_key || '');
+      setMpAccessToken(mp.access_token || '');
+      setMpTaxaCredito(Number(mp.taxa_credito_percentual ?? 2.99));
+      setMpTaxaPix(Number(mp.taxa_pix_percentual ?? 0.99));
+      setMpPrazoDias(Number(mp.prazo_dias ?? 2));
+      setMpMaxParcelas(Number(mp.max_parcelas ?? 10));
+
+      setPagseguroAtivo(pagSeg.ativo ?? false);
+      setPagseguroEmail(pagSeg.email || '');
+      setPagseguroToken(pagSeg.token || '');
+      setGooglePayAtivo(gpay.ativo ?? false);
+      setGooglePayMerchantId(gpay.merchant_id || '');
+
+      // Pagamentos Manuais
+      setPixAtivo(pagManuais.pix_ativo ?? true);
+      setPixChave(pagManuais.pix_chave || loja.whatsapp || '');
+      setPixOrientacoes(pagManuais.pix_orientacoes || '');
+      setDinheiroAtivo(pagManuais.dinheiro_ativo ?? true);
+      setDinheiroDescricao(pagManuais.dinheiro_orientacoes || '');
+      setDebitoAtivo(pagManuais.debito_ativo ?? true);
+      setDebitoDescricao(pagManuais.debito_orientacoes || '');
+      setCreditoAtivo(pagManuais.credito_ativo ?? true);
+      setCreditoDescricao(pagManuais.credito_orientacoes || '');
+      setOutrosAtivo(pagManuais.outros_ativo ?? false);
+      setOutrosDescricao(pagManuais.outros_orientacoes || '');
+      setPermitirFiado(pagManuais.permitir_fiado ?? true);
+
+      // Maquininhas Prazos
+      setMaqCreditoAtivo(prazosMaq.credito_ativo ?? true);
+      setMaqCreditoDias(Number(prazosMaq.credito_dias ?? 30));
+      setMaqCreditoTaxa(Number(prazosMaq.credito_taxa_percentual ?? 2.99));
+      setMaqDebitoAtivo(prazosMaq.debito_ativo ?? true);
+      setMaqDebitoDias(Number(prazosMaq.debito_dias ?? 1));
+      setMaqDebitoTaxa(Number(prazosMaq.debito_taxa_percentual ?? 1.49));
+
+      // Taxas
+      setUsarTaxaVenda(taxas.usar_taxa_pdv ?? false);
+      setNomeTaxaVenda(taxas.nome_taxa_pdv || 'Taxa de Serviço');
+      setValorTaxaVenda(Number(taxas.valor_taxa_pdv ?? 10));
+      setTipoTaxaVenda(taxas.tipo_taxa_pdv || 'percentual');
+      setAplicarTaxaVenda(taxas.aplicar_taxa_pdv || 'adicionar');
+      setTaxaVendaOpcional(taxas.taxa_pdv_opcional ?? false);
+
+      setUsarTaxaCatalogo(taxas.usar_taxa_catalogo ?? false);
+      setNomeTaxaCatalogo(taxas.nome_taxa_catalogo || 'Taxa de Conveniência');
+      setValorTaxaCatalogo(Number(taxas.valor_taxa_catalogo ?? 5));
+      setTipoTaxaCatalogo(taxas.tipo_taxa_catalogo || 'percentual');
+      setAplicarTaxaCatalogo(taxas.aplicar_taxa_catalogo || 'adicionar');
+      setTaxaCatalogoSomenteEntrega(taxas.taxa_catalogo_somente_entrega ?? true);
+
+      // Status
+      setStatusEmProducao(statusAtivos.em_producao ?? true);
+      setStatusEmExpedicao(statusAtivos.em_expedicao ?? true);
+      setStatusSaiuEntrega(statusAtivos.saiu_para_entrega ?? true);
+      setStatusProntoRetirar(statusAtivos.pronto_para_retirar ?? true);
+      setStatusCustomizados(statusAtivos.status_personalizados || []);
 
       // Entrega / Retirada
-      setTrabalhoComEntregas(extras.entrega_retirada?.trabalho_com_entregas !== false);
-      setDescricaoEntregas(extras.entrega_retirada?.descricao_entregas || 'Entregas feitas via UBER envios para Fortaleza e região metropolitana. Para compras acima de R$ 250,00 o frete é grátis. Compras abaixo de R$ 250,00 faremos a cotação do envio.');
-      setTrabalhoComRetirada(Boolean(extras.entrega_retirada?.trabalho_com_retirada));
+      setTrabalhoComEntregas(entregaRet.trabalho_com_entregas ?? true);
+      setDescricaoEntregas(entregaRet.descricao_entregas || '');
+      setTrabalhoComRetirada(entregaRet.trabalho_com_retirada ?? false);
+      setDescricaoRetirada(entregaRet.descricao_retirada || '');
 
-      // Pagamentos
-      setPermitirFiado(extras.pagamentos?.permitir_fiado !== false);
+      // Parceiros
+      setFacebookPixelId(parceiros.facebook_pixel_id || '');
+      setTiktokPixelId(parceiros.tiktok_pixel_id || '');
 
-      const carregarAuxiliares = async () => {
-        const { data: p } = await supabase.from('formas_pagamento').select('*').eq('loja_id', loja.id);
-        if (p && p.length > 0) {
-          setFormasPagamento(p);
-        } else {
-          // Formas padrão da loja
-          setFormasPagamento([
-            { id: 'fp_pix', loja_id: loja.id, nome: 'Pix', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true, descricao: '' },
-            { id: 'fp_dinheiro', loja_id: loja.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true, descricao: '' },
-            { id: 'fp_debito', loja_id: loja.id, nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true, descricao: '' },
-            { id: 'fp_credito', loja_id: loja.id, nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true, descricao: '' },
-            { id: 'fp_outros', loja_id: loja.id, nome: 'Outros', tipo: 'outro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false, descricao: '' }
-          ]);
-        }
-
-        const { data: e } = await supabase.from('formas_entrega').select('*').eq('loja_id', loja.id);
-        if (e && e.length > 0) {
-          setFormasEntrega(e);
-        }
-      };
-
-      carregarAuxiliares();
+      carregarFormasEntrega();
     }
   }, [loja]);
 
-  const registrarAlteracao = () => {
-    setHouveAlteracao(true);
+  const carregarFormasEntrega = async () => {
+    if (!loja?.id) return;
+    const { data } = await supabase
+      .from('formas_entrega')
+      .select('*')
+      .eq('loja_id', loja.id)
+      .order('criado_em');
+    if (data) setListaFormasEntrega(data);
   };
 
-  const handleSalvarTudo = async () => {
+  const mostrarToast = (msg: string) => {
+    setMensagemToast(msg);
+    setTimeout(() => setMensagemToast(''), 3500);
+  };
+
+  const copiarTexto = async (texto: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiadoTexto(label);
+      setTimeout(() => setCopiadoTexto(''), 2500);
+    } catch (err) {
+      console.error('Falha ao copiar:', err);
+    }
+  };
+
+  const handleSalvarTodasConfiguracoes = async () => {
     if (!loja?.id) return;
     try {
       setSalvando(true);
+      const extrasAtuais = loja.configuracoes_extras || {};
 
-      const configuracoesExtrasPayload = {
+      const novasExtras = {
+        ...extrasAtuais,
+        geral: {
+          tela_inicial_padrao: telaInicialPadrao,
+          moeda,
+          casas_decimais: casasDecimais,
+          transacoes_canceladas: transacoesCanceladas,
+          ordenar_produtos_pdv: ordenarProdutosPdv
+        },
         preferencias_gerais: {
           casas_decimais: casasDecimais,
           transacoes_canceladas: transacoesCanceladas
         },
+        recibo: {
+          ...extrasAtuais.recibo,
+          adicionar_cliente: reciboAdicionarCliente,
+          exibir_codigo_produto: reciboExibirCodigo,
+          cabecalho: reciboCabecalho,
+          rodape: reciboRodape,
+          tipo_impressao_padrao: tipoImpressaoPadrao
+        },
         taxas_venda: {
           usar_taxa_pdv: usarTaxaVenda,
           nome_taxa_pdv: nomeTaxaVenda,
-          valor_taxa_pdv: parseFloat(String(valorTaxaVenda).replace(',', '.')) || 0,
+          valor_taxa_pdv: Number(valorTaxaVenda),
           tipo_taxa_pdv: tipoTaxaVenda,
           aplicar_taxa_pdv: aplicarTaxaVenda,
           taxa_pdv_opcional: taxaVendaOpcional,
-          usar_taxa_catalogo: aplicarTaxaCatalogo,
+          usar_taxa_catalogo: usarTaxaCatalogo,
           nome_taxa_catalogo: nomeTaxaCatalogo,
-          valor_taxa_catalogo: parseFloat(String(valorTaxaCatalogo).replace(',', '.')) || 0,
+          valor_taxa_catalogo: Number(valorTaxaCatalogo),
           tipo_taxa_catalogo: tipoTaxaCatalogo,
-          aplicar_taxa_catalogo: aplicarTaxaCatalogoModo,
+          aplicar_taxa_catalogo: aplicarTaxaCatalogo,
           taxa_catalogo_somente_entrega: taxaCatalogoSomenteEntrega
         },
         status_pedidos_ativos: {
           em_producao: statusEmProducao,
           em_expedicao: statusEmExpedicao,
           saiu_para_entrega: statusSaiuEntrega,
-          pronto_para_retirar: statusProntoRetirar
-        },
-        recibo: {
-          adicionar_cliente: reciboAdicionarCliente,
-          exibir_codigo_produto: reciboExibirCodigoProduto,
-          cabecalho: reciboCabecalho,
-          rodape: reciboRodape
+          pronto_para_retirar: statusProntoRetirar,
+          status_personalizados: statusCustomizados
         },
         entrega_retirada: {
           trabalho_com_entregas: trabalhoComEntregas,
           descricao_entregas: descricaoEntregas,
-          trabalho_com_retirada: trabalhoComRetirada
+          trabalho_com_retirada: trabalhoComRetirada,
+          descricao_retirada: descricaoRetirada
         },
         pagamentos: {
-          permitir_fiado: permitirFiado
+          permitir_fiado: permitirFiado,
+          pix_ativo: pixAtivo,
+          pix_chave: pixChave,
+          pix_orientacoes: pixOrientacoes,
+          dinheiro_ativo: dinheiroAtivo,
+          dinheiro_orientacoes: dinheiroDescricao,
+          debito_ativo: debitoAtivo,
+          debito_orientacoes: debitoDescricao,
+          credito_ativo: creditoAtivo,
+          credito_orientacoes: creditoDescricao,
+          outros_ativo: outrosAtivo,
+          outros_orientacoes: outrosDescricao
+        },
+        pagamentos_digitais: {
+          provedor_ativo: mpAtivo ? 'mercado_pago' : pagseguroAtivo ? 'pagseguro' : 'todos',
+          mercado_pago: {
+            ativo: mpAtivo,
+            public_key: mpPublicKey,
+            access_token: mpAccessToken,
+            taxa_credito_percentual: mpTaxaCredito,
+            taxa_pix_percentual: mpTaxaPix,
+            prazo_dias: mpPrazoDias,
+            max_parcelas: mpMaxParcelas
+          },
+          pagseguro: {
+            ativo: pagseguroAtivo,
+            email: pagseguroEmail,
+            token: pagseguroToken
+          },
+          google_pay: {
+            ativo: googlePayAtivo,
+            merchant_id: googlePayMerchantId,
+            merchant_name: nomeLoja
+          }
+        },
+        prazos_taxas_maquininhas: {
+          credito_ativo: maqCreditoAtivo,
+          credito_dias: maqCreditoDias,
+          credito_taxa_percentual: maqCreditoTaxa,
+          debito_ativo: maqDebitoAtivo,
+          debito_dias: maqDebitoDias,
+          debito_taxa_percentual: maqDebitoTaxa
+        },
+        integracoes_parceiros: {
+          facebook_pixel_id: facebookPixelId,
+          tiktok_pixel_id: tiktokPixelId,
+          facebook_catalog_feed_ativo: true,
+          google_merchant_feed_ativo: true
         }
       };
 
@@ -257,1702 +473,1376 @@ export const ConfiguracoesLoja: React.FC = () => {
           nome_fantasia: nomeLoja,
           razao_social: razaoSocial,
           numero_documento: documento,
-          url_logo: urlLogo,
-          sobre_loja: sobreLoja,
+          tipo_documento: documento.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF',
           telefone,
           whatsapp,
-          instagram,
           email,
+          instagram,
+          sobre_loja: sobreLoja,
+          url_logo: urlLogo,
           endereco_logradouro: enderecoLogradouro,
+          endereco_numero: enderecoNumero,
+          endereco_bairro: enderecoBairro,
           endereco_complemento: enderecoComplemento,
-          configuracoes_extras: configuracoesExtrasPayload,
-          atualizado_em: new Date().toISOString()
+          endereco_cep: enderecoCep,
+          endereco_cidade: enderecoCidade,
+          endereco_estado: enderecoEstado,
+          configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
 
-      if (error) {
-        console.warn('Aviso ao atualizar lojas:', error.message);
-      }
+      if (error) throw error;
 
       await recarregarDadosLoja();
-      setHouveAlteracao(false);
-      alert('Configurações salvas com sucesso!');
+      mostrarToast('Configurações salvas com sucesso!');
     } catch (err: any) {
       console.error('Erro ao salvar:', err);
-      alert(`Erro ao salvar configurações: ${err.message || 'Tente novamente'}`);
+      alert(`Erro ao salvar: ${err.message || 'Tente novamente.'}`);
     } finally {
       setSalvando(false);
     }
   };
 
-  const handleDescartarAlteracoes = () => {
-    if (!loja) return;
-    setNomeLoja(loja.nome_fantasia || '');
-    setRazaoSocial(loja.razao_social || '');
-    setUrlLogo(loja.url_logo || '');
-    setSobreLoja(loja.sobre_loja || '');
-    setTelefone(loja.telefone || '');
-    setWhatsapp(loja.whatsapp || '');
-    setInstagram(loja.instagram || '');
-    setEmail(loja.email || '');
-    setEnderecoLogradouro(loja.endereco_logradouro || '');
-    setEnderecoComplemento(loja.endereco_complemento || '');
-
-    const extras = (loja.configuracoes_extras as any) || {};
-    setMoeda(loja.moeda || 'BR - R$');
-    setCasasDecimais(extras.preferencias_gerais?.casas_decimais !== false);
-    setTransacoesCanceladas(extras.preferencias_gerais?.transacoes_canceladas || 'riscadas');
-    setUsarTaxaVenda(Boolean(extras.taxas_venda?.usar_taxa_pdv));
-    setNomeTaxaVenda(extras.taxas_venda?.nome_taxa_pdv || '');
-    setValorTaxaVenda(extras.taxas_venda?.valor_taxa_pdv !== undefined ? String(extras.taxas_venda.valor_taxa_pdv) : '0,00');
-    setTipoTaxaVenda(extras.taxas_venda?.tipo_taxa_pdv || 'percentual');
-    setAplicarTaxaVenda(extras.taxas_venda?.aplicar_taxa_pdv || 'adicionar');
-    setTaxaVendaOpcional(Boolean(extras.taxas_venda?.taxa_pdv_opcional));
-    setAplicarTaxaCatalogo(Boolean(extras.taxas_venda?.usar_taxa_catalogo));
-    setNomeTaxaCatalogo(extras.taxas_venda?.nome_taxa_catalogo || '');
-    setValorTaxaCatalogo(extras.taxas_venda?.valor_taxa_catalogo !== undefined ? String(extras.taxas_venda.valor_taxa_catalogo) : '0,00');
-    setTipoTaxaCatalogo(extras.taxas_venda?.tipo_taxa_catalogo || 'percentual');
-    setAplicarTaxaCatalogoModo(extras.taxas_venda?.aplicar_taxa_catalogo || 'adicionar');
-    setTaxaCatalogoSomenteEntrega(Boolean(extras.taxas_venda?.taxa_catalogo_somente_entrega));
-    setStatusEmProducao(extras.status_pedidos_ativos?.em_producao !== false);
-    setStatusEmExpedicao(extras.status_pedidos_ativos?.em_expedicao !== false);
-    setStatusSaiuEntrega(extras.status_pedidos_ativos?.saiu_para_entrega !== false);
-    setStatusProntoRetirar(extras.status_pedidos_ativos?.pronto_para_retirar !== false);
-    setReciboAdicionarCliente(extras.recibo?.adicionar_cliente !== false);
-    setReciboExibirCodigoProduto(Boolean(extras.recibo?.exibir_codigo_produto));
-    setReciboCabecalho(extras.recibo?.cabecalho || '');
-    setReciboRodape(extras.recibo?.rodape || '');
-    setTrabalhoComEntregas(extras.entrega_retirada?.trabalho_com_entregas !== false);
-    setDescricaoEntregas(extras.entrega_retirada?.descricao_entregas || 'Entregas feitas via UBER envios para Fortaleza e região metropolitana. Para compras acima de R$ 250,00 o frete é grátis. Compras abaixo de R$ 250,00 faremos a cotação do envio.');
-    setTrabalhoComRetirada(Boolean(extras.entrega_retirada?.trabalho_com_retirada));
-    setPermitirFiado(extras.pagamentos?.permitir_fiado !== false);
-
-    setHouveAlteracao(false);
-  };
-
-  // Abrir Drawer de Método de Pagamento
-  const handleAbrirDrawerPagamento = (nome: string, tipo: string) => {
-    const fpExistente = formasPagamento.find(f => f.tipo === tipo || f.nome.toLowerCase() === nome.toLowerCase());
-    setDrawerMetodoPagamento({
-      id: fpExistente?.id || `fp_${tipo}_${Date.now()}`,
-      nome: fpExistente?.nome || nome,
-      tipo: fpExistente?.tipo || tipo,
-      descricao: fpExistente?.descricao || '',
-      pdvAtivo: fpExistente ? fpExistente.ativo : true,
-      catalogoAtivo: fpExistente ? fpExistente.exibir_catalogo : true
-    });
-  };
-
-  const handleSalvarMetodoPagamentoDrawer = async () => {
-    if (!drawerMetodoPagamento || !loja?.id) return;
-
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !loja?.id) return;
     try {
-      const { id, nome, tipo, descricao, pdvAtivo, catalogoAtivo } = drawerMetodoPagamento;
-      
-      const payload: Partial<FormaPagamento> = {
-        id,
-        loja_id: loja.id,
-        nome,
-        tipo: tipo as any,
-        descricao: descricao || null,
-        ativo: pdvAtivo,
-        exibir_catalogo: catalogoAtivo,
-        taxa_percentual: 0,
-        taxa_fixa: 0,
-        maximo_parcelas: 1
-      };
+      const ext = file.name.split('.').pop() || 'jpg';
+      const fileName = `logos/${loja.id}_${Date.now()}.${ext}`;
 
-      const { error } = await supabase.from('formas_pagamento').upsert(payload);
-      if (error) console.warn('Aviso ao salvar forma pagamento:', error.message);
+      let bucketEscolhido = 'produtos';
+      let uploadRes = await supabase.storage.from(bucketEscolhido).upload(fileName, file, { upsert: true });
 
-      setFormasPagamento(prev => {
-        const existe = prev.some(f => f.id === id);
-        if (existe) {
-          return prev.map(f => f.id === id ? { ...f, nome, descricao, ativo: pdvAtivo, exibir_catalogo: catalogoAtivo } : f);
+      if (uploadRes.error) {
+        bucketEscolhido = 'fotos';
+        uploadRes = await supabase.storage.from(bucketEscolhido).upload(fileName, file, { upsert: true });
+      }
+
+      if (!uploadRes.error) {
+        const { data } = supabase.storage.from(bucketEscolhido).getPublicUrl(fileName);
+        if (data?.publicUrl) {
+          setUrlLogo(data.publicUrl);
+          return;
         }
-        return [...prev, payload as FormaPagamento];
-      });
+      }
 
-      setDrawerMetodoPagamento(null);
-    } catch (err) {
-      console.error('Erro ao salvar método:', err);
-    }
-  };
-
-  const handleCriarOpcaoEntrega = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!novaEntregaNome.trim() || !loja?.id) return;
-
-    try {
-      const nova: Partial<FormaEntrega> = {
-        id: `fe_${Date.now()}`,
-        loja_id: loja.id,
-        nome: novaEntregaNome.trim(),
-        tipo: 'taxa_fixa',
-        valor_taxa: parseFloat(novaEntregaValor) || 0,
-        valor_por_km: 0,
-        ativo: true
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') setUrlLogo(reader.result);
       };
-
-      const { error } = await supabase.from('formas_entrega').insert(nova);
-      if (error) console.warn('Aviso entrega:', error.message);
-
-      setFormasEntrega(prev => [...prev, nova as FormaEntrega]);
-      setNovaEntregaNome('');
-      setNovaEntregaValor('0.00');
-      setModalNovaEntrega(false);
-    } catch (e) {
-      console.error(e);
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Erro no upload logo:', err);
     }
   };
+
+  const handleExportarRelatorios = async () => {
+    if (!loja?.id) return;
+    try {
+      setSalvando(true);
+      if (exportarVendas) {
+        const { data: vendas } = await supabase
+          .from('pedidos')
+          .select('*, cliente:clientes(*)')
+          .eq('loja_id', loja.id)
+          .gte('data_venda', `${dataInicioExport}T00:00:00`)
+          .lte('data_venda', `${dataFimExport}T23:59:59`);
+        if (vendas) feedExportService.exportarCsvRelatorio('vendas', vendas);
+      }
+
+      if (exportarProdutos) {
+        const { data: prods } = await supabase.from('produtos').select('*').eq('loja_id', loja.id);
+        if (prods) feedExportService.exportarCsvRelatorio('produtos', prods);
+      }
+
+      if (exportarClientes) {
+        const { data: clients } = await supabase.from('clientes').select('*').eq('loja_id', loja.id);
+        if (clients) feedExportService.exportarCsvRelatorio('clientes', clients);
+      }
+
+      setModalExportConcluido(true);
+    } catch (err: any) {
+      alert(`Erro na exportação: ${err.message}`);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  // Itens do Menu Principal de Configurações (Padrão Kyte)
+  const itensMenu = [
+    { id: 'geral', label: 'Geral', icon: Settings, desc: 'Moeda, casas decimais e tela inicial' },
+    { id: 'dados-loja', label: 'Dados da Loja', icon: Store, desc: 'Nome, logo, telefone e endereço' },
+    { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock, desc: 'CPF/CNPJ e Razão Social' },
+    { id: 'produtos', label: 'Produtos', icon: Package, badge: 'NOVO', desc: 'Categorias e variações de produto' },
+    { id: 'catalogo', label: 'Catálogo Online', icon: Globe, desc: 'Vitrine virtual, cores e banner' },
+    { id: 'recibo', label: 'Meu Recibo', icon: Receipt, desc: 'Cabeçalho, rodapé e impressoras' },
+    { id: 'pagamentos', label: 'Opções de pagamento', icon: CreditCard, desc: 'Mercado Pago, Pix e Maquininhas' },
+    { id: 'pedidos-vendas', label: 'Pedidos e Vendas', icon: Percent, desc: 'Status e taxas de venda' },
+    { id: 'entrega', label: 'Opções de entrega', icon: Truck, desc: 'Entregas e retirada no balcão' },
+    { id: 'exportar', label: 'Exportar relatórios', icon: Download, desc: 'Download CSV de vendas e produtos' },
+    { id: 'parceiros', label: 'Integrar com parceiros', icon: Share2, desc: 'Instagram, Facebook, Google e TikTok' }
+  ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden relative">
-      {/* CABEÇALHO COM TÍTULO E ABAS PILLS */}
-      <header className="p-4 sm:px-8 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md shrink-0">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="flex-1 flex flex-col h-full bg-slate-950 text-slate-100 overflow-y-auto">
+      {/* HEADER DA PÁGINA */}
+      <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {subTela !== 'menu' && (
+            <button
+              type="button"
+              onClick={() => setSubTela('menu')}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <h1 className="text-base sm:text-lg font-extrabold text-slate-100 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-emerald-400" />
               <span>Configurações</span>
             </h1>
           </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {[
-              { id: 'geral', label: 'GERAL' },
-              { id: 'pedidos-vendas', label: 'PEDIDOS E VENDAS' },
-              { id: 'recibo', label: 'RECIBO' },
-              { id: 'pagamentos', label: 'PAGAMENTOS' },
-              { id: 'entrega-retirada', label: 'ENTREGA E RETIRADA' },
-              { id: 'integracoes', label: 'INTEGRAÇÕES' }
-            ].map(aba => (
-              <button
-                key={aba.id}
-                type="button"
-                onClick={() => setAbaAtiva(aba.id as AbaConfig)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer uppercase tracking-wider ${
-                  abaAtiva === aba.id
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
-                }`}
-              >
-                {aba.label}
-              </button>
-            ))}
-          </div>
         </div>
-      </header>
 
-      {/* ÁREA CENTRAL COM ROLAGEM */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-28">
-        <div className="max-w-5xl mx-auto space-y-6">
-
-          {/* ========================================================================= */}
-          {/* ABA 1: GERAL                                                             */}
-          {/* ========================================================================= */}
-          {abaAtiva === 'geral' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Ilustração e Subtítulo */}
-              <div className="text-center py-2 space-y-1">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 shadow-sm">
-                  <Store className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-100">Informações gerais</h2>
-                <p className="text-xs text-slate-400">Forneça detalhes sobre seu negócio</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Coluna Esquerda: Identificação */}
-                <div className="space-y-6">
-                  {/* Card Identificação */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-200">Identificação</h3>
-
-                    {/* Nome da Loja */}
-                    <div className="relative">
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Nome da Loja</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={nomeLoja}
-                        onChange={(e) => { setNomeLoja(e.target.value); registrarAlteracao(); }}
-                        placeholder="Nome da sua loja"
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* Razão Social */}
-                    <div className="relative">
-                      <label className="text-xs font-semibold text-slate-400 flex items-center justify-between mb-1">
-                        <span>Nome do responsável ou Razão Social</span>
-                        <Lock className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={razaoSocial}
-                        onChange={(e) => { setRazaoSocial(e.target.value); registrarAlteracao(); }}
-                        placeholder="Razão Social ou Nome do Titular"
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* CPF / CNPJ */}
-                    <div className="relative">
-                      <label className="text-xs font-semibold text-slate-400 flex items-center justify-between mb-1">
-                        <span>CPF ou CNPJ</span>
-                        <Lock className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={documento}
-                        onChange={(e) => { setDocumento(e.target.value); registrarAlteracao(); }}
-                        placeholder="00.000.000/0000-00"
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* Box de Privacidade */}
-                    <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300/90 leading-relaxed">
-                      Informar o CPF ou CNPJ é uma medida para validar a sua conta, preservar sua privacidade e garantir a qualidade de todos os catálogos. <strong className="text-emerald-300">Os dados de identificação não serão exibidos no seu Catálogo Online.</strong>
-                    </div>
-                  </div>
-
-                  {/* Card Dados de Contato */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-200">Dados de contato</h3>
-
-                    {/* Telefone */}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Telefone</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="flex items-center gap-1.5 px-3 bg-slate-800 border border-slate-700/80 rounded-xl text-xs text-slate-300 shrink-0">
-                          <span>🇧🇷</span>
-                          <span>+55</span>
-                        </div>
-                        <input
-                          type="text"
-                          value={telefone}
-                          onChange={(e) => { setTelefone(e.target.value); registrarAlteracao(); }}
-                          placeholder="(85) 98607-2144"
-                          className="flex-1 bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Celular / WhatsApp */}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Celular/WhatsApp</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="flex items-center gap-1.5 px-3 bg-slate-800 border border-slate-700/80 rounded-xl text-xs text-slate-300 shrink-0">
-                          <span>🇧🇷</span>
-                          <span>+55</span>
-                        </div>
-                        <input
-                          type="text"
-                          value={whatsapp}
-                          onChange={(e) => { setWhatsapp(e.target.value); registrarAlteracao(); }}
-                          placeholder="(85) 98607-2144"
-                          className="flex-1 bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Instagram */}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Instagram</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={instagram}
-                        onChange={(e) => { setInstagram(e.target.value); registrarAlteracao(); }}
-                        placeholder="@sualoja"
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    {/* E-mail */}
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>E-mail</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => { setEmail(e.target.value); registrarAlteracao(); }}
-                        placeholder="contato@sualoja.com"
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Card Endereço */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-sm text-slate-200">Endereço</h3>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoLogradouro)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1"
-                      >
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>Ver no mapa</span>
-                      </a>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Endereço</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={enderecoLogradouro}
-                        onChange={(e) => { setEnderecoLogradouro(e.target.value); registrarAlteracao(); }}
-                        placeholder="Rua, número e bairro"
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 block mb-1">Complemento</label>
-                      <input
-                        type="text"
-                        value={enderecoComplemento}
-                        onChange={(e) => { setEnderecoComplemento(e.target.value); registrarAlteracao(); }}
-                        placeholder="Sala, bloco, ponto de referência..."
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Coluna Direita: Logo, Sobre a Loja, Moeda e Exibição */}
-                <div className="space-y-6">
-                  {/* Card Logo / Marca */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Upload da sua marca</span>
-                      <HelpCircle className="w-4 h-4 text-slate-500" />
-                    </div>
-
-                    <div className="border border-dashed border-slate-700/80 rounded-2xl p-6 text-center bg-slate-950/40 flex flex-col items-center justify-center gap-3">
-                      {urlLogo ? (
-                        <div className="relative group">
-                          <img
-                            src={urlLogo}
-                            alt="Logo da Loja"
-                            className="h-24 max-w-full object-contain rounded-xl shadow-md bg-slate-900 p-2 border border-slate-800"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => { setUrlLogo(''); registrarAlteracao(); }}
-                            className="absolute -top-2 -right-2 p-1 bg-rose-500 text-white rounded-full shadow hover:bg-rose-600 transition"
-                            title="Remover logotipo"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
-                          <Upload className="w-6 h-6" />
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-sm">
-                          <span>Escolher imagem</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  setUrlLogo(reader.result as string);
-                                  registrarAlteracao();
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
-                        <p className="text-[10px] text-slate-500">PNG, JPG ou SVG recomendado</p>
-                      </div>
-                    </div>
-
-                    {/* Sobre a Loja */}
-                    <div className="pt-2">
-                      <h4 className="text-xs font-bold text-slate-200 mb-2">Sobre a loja</h4>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Informações extras</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={sobreLoja}
-                        onChange={(e) => { setSobreLoja(e.target.value); registrarAlteracao(); }}
-                        placeholder="Neste campo você pode adicionar o endereço do seu negócio, horário de funcionamento e o que mais você precisar."
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 leading-relaxed"
-                      />
-                      <p className="text-[10px] text-slate-500 mt-1">
-                        Neste campo você pode adicionar o endereço do seu negócio, horário de funcionamento e o que mais você precisar.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Card Moeda */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-200">Moeda</h3>
-
-                    <div>
-                      <select
-                        value={moeda}
-                        onChange={(e) => { setMoeda(e.target.value); registrarAlteracao(); }}
-                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="BR - R$">BR - R$ (Real Brasileiro)</option>
-                        <option value="US - $">US - $ (Dólar Americano)</option>
-                        <option value="EUR - €">EUR - € (Euro)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                      <div>
-                        <span className="text-xs font-semibold text-slate-200 block">Casas decimais</span>
-                        <span className="text-[10px] text-slate-400">Exibir centavos em valores monetários</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setCasasDecimais(prev => !prev); registrarAlteracao(); }}
-                        className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                          casasDecimais ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Card Opções de Exibição */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-200">Opções de exibição</h3>
-
-                    <div className="space-y-2.5">
-                      <span className="text-xs font-semibold text-slate-400 block">Transações canceladas</span>
-
-                      <label className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800 cursor-pointer hover:bg-slate-950/70 transition">
-                        <input
-                          type="radio"
-                          name="transacoesCanceladas"
-                          checked={transacoesCanceladas === 'riscadas'}
-                          onChange={() => { setTransacoesCanceladas('riscadas'); registrarAlteracao(); }}
-                          className="text-emerald-500 focus:ring-emerald-500"
-                        />
-                        <span className="text-xs text-slate-200 font-medium">Exibir riscadas</span>
-                      </label>
-
-                      <label className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800 cursor-pointer hover:bg-slate-950/70 transition">
-                        <input
-                          type="radio"
-                          name="transacoesCanceladas"
-                          checked={transacoesCanceladas === 'ocultar'}
-                          onChange={() => { setTransacoesCanceladas('ocultar'); registrarAlteracao(); }}
-                          className="text-emerald-500 focus:ring-emerald-500"
-                        />
-                        <span className="text-xs text-slate-200 font-medium">Ocultar</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ABA 2: PEDIDOS E VENDAS                                                  */}
-          {/* ========================================================================= */}
-          {abaAtiva === 'pedidos-vendas' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Ilustração e Subtítulo */}
-              <div className="text-center py-2 space-y-1">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 shadow-sm">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-100">Pedidos e Vendas</h2>
-                <p className="text-xs text-slate-400">Configure suas taxas de venda e status de seus pedidos</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Coluna Esquerda: Taxas de Venda */}
-                <div className="space-y-6">
-                  {/* Taxa de Vendas no PDV */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-slate-200">Usar taxa de vendas</span>
-                      <button
-                        type="button"
-                        onClick={() => { setUsarTaxaVenda(prev => !prev); registrarAlteracao(); }}
-                        className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                          usarTaxaVenda ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                      </button>
-                    </div>
-
-                    {usarTaxaVenda && (
-                      <div className="space-y-3.5 pt-2 border-t border-slate-800 animate-in fade-in">
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">Nome da taxa</label>
-                          <input
-                            type="text"
-                            value={nomeTaxaVenda}
-                            onChange={(e) => { setNomeTaxaVenda(e.target.value); registrarAlteracao(); }}
-                            placeholder="Ex: Taxa de Serviço, Taxa de Conveniência"
-                            className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">Valor da taxa</label>
-                          <input
-                            type="text"
-                            value={valorTaxaVenda}
-                            onChange={(e) => { setValorTaxaVenda(e.target.value); registrarAlteracao(); }}
-                            placeholder="0,00"
-                            className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-
-                        <div className="space-y-2 pt-1">
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipoTaxaVenda"
-                              checked={tipoTaxaVenda === 'percentual'}
-                              onChange={() => { setTipoTaxaVenda('percentual'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Valor percentual</span>
-                          </label>
-
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipoTaxaVenda"
-                              checked={tipoTaxaVenda === 'fixo'}
-                              onChange={() => { setTipoTaxaVenda('fixo'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Valor Fixo</span>
-                          </label>
-                        </div>
-
-                        <div className="space-y-2 pt-2 border-t border-slate-800">
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="aplicarTaxaVenda"
-                              checked={aplicarTaxaVenda === 'adicionar'}
-                              onChange={() => { setAplicarTaxaVenda('adicionar'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Adicionar ao valor da venda</span>
-                          </label>
-
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="aplicarTaxaVenda"
-                              checked={aplicarTaxaVenda === 'incluida'}
-                              onChange={() => { setAplicarTaxaVenda('incluida'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Já está incluída no preço da venda</span>
-                          </label>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                          <div>
-                            <span className="text-xs font-semibold text-slate-200 block">Taxa opcional</span>
-                            <span className="text-[10px] text-slate-400">Pode ser removida na hora da venda</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => { setTaxaVendaOpcional(prev => !prev); registrarAlteracao(); }}
-                            className={`w-9 h-5 flex items-center rounded-full p-0.5 transition cursor-pointer ${
-                              taxaVendaOpcional ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                            }`}
-                          >
-                            <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Taxa do Catálogo Online */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-slate-200">Aplicar a taxa do catálogo online</span>
-                      <button
-                        type="button"
-                        onClick={() => { setAplicarTaxaCatalogo(prev => !prev); registrarAlteracao(); }}
-                        className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                          aplicarTaxaCatalogo ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                      </button>
-                    </div>
-
-                    {aplicarTaxaCatalogo && (
-                      <div className="space-y-3.5 pt-2 border-t border-slate-800 animate-in fade-in">
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">Nome da taxa</label>
-                          <input
-                            type="text"
-                            value={nomeTaxaCatalogo}
-                            onChange={(e) => { setNomeTaxaCatalogo(e.target.value); registrarAlteracao(); }}
-                            placeholder="Ex: Taxa do Cardápio / Embalagem"
-                            className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">Valor da taxa</label>
-                          <input
-                            type="text"
-                            value={valorTaxaCatalogo}
-                            onChange={(e) => { setValorTaxaCatalogo(e.target.value); registrarAlteracao(); }}
-                            placeholder="0,00"
-                            className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-
-                        <div className="space-y-2 pt-1">
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipoTaxaCatalogo"
-                              checked={tipoTaxaCatalogo === 'percentual'}
-                              onChange={() => { setTipoTaxaCatalogo('percentual'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Valor percentual</span>
-                          </label>
-
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipoTaxaCatalogo"
-                              checked={tipoTaxaCatalogo === 'fixo'}
-                              onChange={() => { setTipoTaxaCatalogo('fixo'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Valor Fixo</span>
-                          </label>
-                        </div>
-
-                        <div className="space-y-2 pt-2 border-t border-slate-800">
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="aplicarTaxaCatalogoModo"
-                              checked={aplicarTaxaCatalogoModo === 'adicionar'}
-                              onChange={() => { setAplicarTaxaCatalogoModo('adicionar'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Adicionar ao valor da venda</span>
-                          </label>
-
-                          <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="aplicarTaxaCatalogoModo"
-                              checked={aplicarTaxaCatalogoModo === 'incluida'}
-                              onChange={() => { setAplicarTaxaCatalogoModo('incluida'); registrarAlteracao(); }}
-                              className="text-emerald-500"
-                            />
-                            <span>Já está incluída no preço da venda</span>
-                          </label>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                          <div>
-                            <span className="text-xs font-semibold text-slate-200 block">Somente na entrega</span>
-                            <span className="text-[10px] text-slate-400">Não cobrar caso o cliente retire no local</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => { setTaxaCatalogoSomenteEntrega(prev => !prev); registrarAlteracao(); }}
-                            className={`w-9 h-5 flex items-center rounded-full p-0.5 transition cursor-pointer ${
-                              taxaCatalogoSomenteEntrega ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                            }`}
-                          >
-                            <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Coluna Direita: Status de Pedidos */}
-                <div className="space-y-4">
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-200">Status de Pedidos</h3>
-
-                    <div className="space-y-3.5">
-                      {/* Pendente */}
-                      <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="w-7 h-7 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-xs text-slate-200 block">Pendente</span>
-                          <span className="text-[11px] text-slate-400 leading-relaxed block">
-                            Aparece quando seu cliente realizar o pedido. Este status NÃO movimenta estoque.
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Confirmado */}
-                      <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="w-7 h-7 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                          <CheckCircle2 className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-xs text-slate-200 block">Confirmado</span>
-                          <span className="text-[11px] text-slate-400 leading-relaxed block">
-                            Aparece quando o vendedor confirmar o pedido. A partir deste status o estoque é movimentado.
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Pago */}
-                      <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="w-7 h-7 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                          <DollarSign className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-xs text-slate-200 block">Pago</span>
-                          <span className="text-[11px] text-slate-400 leading-relaxed block">
-                            Aparece após o pedido ser pago.
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Em produção */}
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full bg-rose-500" />
-                          <span className="font-bold text-xs text-slate-200">Em produção</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { setStatusEmProducao(prev => !prev); registrarAlteracao(); }}
-                          className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                            statusEmProducao ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                          }`}
-                        >
-                          <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                        </button>
-                      </div>
-
-                      {/* Em expedição */}
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full bg-orange-500" />
-                          <span className="font-bold text-xs text-slate-200">Em expedição</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { setStatusEmExpedicao(prev => !prev); registrarAlteracao(); }}
-                          className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                            statusEmExpedicao ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                          }`}
-                        >
-                          <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                        </button>
-                      </div>
-
-                      {/* Saiu para entrega */}
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full bg-amber-400" />
-                          <span className="font-bold text-xs text-slate-200">Saiu para entrega</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { setStatusSaiuEntrega(prev => !prev); registrarAlteracao(); }}
-                          className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                            statusSaiuEntrega ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                          }`}
-                        >
-                          <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                        </button>
-                      </div>
-
-                      {/* Pronto para retirar */}
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full bg-blue-400" />
-                          <span className="font-bold text-xs text-slate-200">Pronto para retirar</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { setStatusProntoRetirar(prev => !prev); registrarAlteracao(); }}
-                          className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                            statusProntoRetirar ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                          }`}
-                        >
-                          <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-[11px] text-slate-400">
-                      Você pode editar e gerenciar status ativos. Os status habilitados ficam disponíveis na listagem de pedidos para separação e despacho.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ABA 3: RECIBO                                                            */}
-          {/* ========================================================================= */}
-          {abaAtiva === 'recibo' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Ilustração e Subtítulo */}
-              <div className="text-center py-2 space-y-1">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 shadow-sm">
-                  <Receipt className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-100">Meu Recibo</h2>
-                <p className="text-xs text-slate-400">Personalize as informações impressas no recibo</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                {/* Coluna Esquerda: Opções de Customização */}
-                <div className="space-y-6">
-                  {/* Card Dados da Loja */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <div>
-                      <h3 className="font-bold text-sm text-slate-200">Dados da Loja</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Complete as informações da sua loja e deixe seu catálogo e recibo profissionais!
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-emerald-400">
-                      <div className="flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>NOME DA LOJA</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>LOGO</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>TELEFONE</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>WHATSAPP</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 col-span-2">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>ENDEREÇO</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setAbaAtiva('geral')}
-                      className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold rounded-2xl transition cursor-pointer text-center"
-                    >
-                      Editar dados da loja
-                    </button>
-                  </div>
-
-                  {/* Toggles do Recibo */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    {/* Adicionar dados do cliente */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-xs font-semibold text-slate-200 block">Adicionar dados do cliente</span>
-                        <span className="text-[11px] text-slate-400">Nome, Endereço e Telefone</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setReciboAdicionarCliente(prev => !prev); registrarAlteracao(); }}
-                        className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                          reciboAdicionarCliente ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                      </button>
-                    </div>
-
-                    {/* Exibir código do produto */}
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-800">
-                      <div>
-                        <span className="text-xs font-semibold text-slate-200 block">Exibir código do produto</span>
-                        <span className="text-[11px] text-slate-400">Abaixo do nome do item</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setReciboExibirCodigoProduto(prev => !prev); registrarAlteracao(); }}
-                        className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                          reciboExibirCodigoProduto ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Cabeçalho e Rodapé */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-200">Cabeçalho e rodapé</h3>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Texto do cabeçalho</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={reciboCabecalho}
-                        onChange={(e) => { setReciboCabecalho(e.target.value); registrarAlteracao(); }}
-                        placeholder="Mensagem de boas-vindas..."
-                        className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 flex items-center gap-1 mb-1">
-                        <span>Texto do rodapé</span>
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                      </label>
-                      <input
-                        type="text"
-                        value={reciboRodape}
-                        onChange={(e) => { setReciboRodape(e.target.value); registrarAlteracao(); }}
-                        placeholder="Agradecemos pela preferência! Volte sempre."
-                        className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Coluna Direita: Prévia Realista do Recibo Térmico */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold justify-center md:justify-start">
-                    <Receipt className="w-4 h-4 text-emerald-400" />
-                    <span>Prévia do seu recibo</span>
-                  </div>
-
-                  <div className="bg-white text-slate-900 rounded-3xl p-6 shadow-2xl font-mono text-xs max-w-sm mx-auto border-t-8 border-b-8 border-dashed border-slate-300 relative space-y-4">
-                    {/* Topo do Recibo com Logo */}
-                    <div className="text-center space-y-1 pb-3 border-b border-slate-200">
-                      {urlLogo ? (
-                        <img src={urlLogo} alt="Logo" className="h-12 mx-auto object-contain mb-1" />
-                      ) : (
-                        <div className="font-black text-sm text-slate-900 tracking-wider">
-                          {nomeLoja || 'HOTAMAZON'}
-                        </div>
-                      )}
-                      <h4 className="font-bold text-base tracking-widest text-slate-900">RECIBO</h4>
-                      <p className="text-[10px] text-slate-600 font-bold">{nomeLoja || 'HOTAMAZON'}</p>
-                      <p className="text-[9px] text-slate-500">{enderecoLogradouro} - {telefone}</p>
-                    </div>
-
-                    {/* Cabeçalho Customizado */}
-                    {reciboCabecalho && (
-                      <div className="text-center text-[10px] text-slate-600 italic pb-2 border-b border-slate-200">
-                        "{reciboCabecalho}"
-                      </div>
-                    )}
-
-                    {/* Dados do Cliente se ativado */}
-                    {reciboAdicionarCliente && (
-                      <div className="space-y-0.5 text-[10px] bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                        <div className="font-bold text-slate-800 flex items-center gap-1">
-                          <span>👤 Nome do cliente</span>
-                        </div>
-                        <p className="text-slate-600">+551199999-9999 • Endereço completo</p>
-                      </div>
-                    )}
-
-                    {/* Caixa de Observações */}
-                    <div className="p-2 border border-slate-300 rounded-xl text-[10px] text-slate-500">
-                      Observações do recibo
-                    </div>
-
-                    {/* Lista de Itens */}
-                    <div className="space-y-2 text-[11px] pt-1">
-                      <div className="text-[10px] font-bold text-slate-500 flex justify-between">
-                        <span>2 itens (Qtd.: 15)</span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="font-bold block text-slate-800">2x ÓLEO BEIJÁVEL MENTA 30ML</span>
-                            {reciboExibirCodigoProduto && (
-                              <span className="text-[9px] text-slate-500 block">Cód: #00124</span>
-                            )}
-                          </div>
-                          <span className="font-bold">R$ 11,80</span>
-                        </div>
-
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="font-bold block text-slate-800">1x ÓLEO CHOCOMENTA 30ML</span>
-                            {reciboExibirCodigoProduto && (
-                              <span className="text-[9px] text-slate-500 block">Cód: #00125</span>
-                            )}
-                          </div>
-                          <span className="font-bold">R$ 5,90</span>
-                        </div>
-
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="font-bold block text-slate-800">2x PLUG METAL M</span>
-                            {reciboExibirCodigoProduto && (
-                              <span className="text-[9px] text-slate-500 block">Cód: #00230</span>
-                            )}
-                          </div>
-                          <span className="font-bold">R$ 47,80</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Totais */}
-                    <div className="border-t border-slate-300 pt-2 space-y-1 text-[11px]">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Subtotal:</span>
-                        <span>R$ 65,50</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>Taxa de entrega:</span>
-                        <span>R$ 9,99</span>
-                      </div>
-                      <div className="flex justify-between font-black text-sm text-slate-900 pt-1 border-t border-slate-300">
-                        <span>TOTAL:</span>
-                        <span>R$ 75,49</span>
-                      </div>
-                    </div>
-
-                    {/* Rodapé Customizado */}
-                    {reciboRodape ? (
-                      <div className="text-center text-[10px] text-slate-600 pt-2 border-t border-slate-200">
-                        {reciboRodape}
-                      </div>
-                    ) : (
-                      <div className="text-center text-[9px] text-slate-400 pt-2 border-t border-slate-200">
-                        Obrigado pela preferência!
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ABA 4: PAGAMENTOS                                                        */}
-          {/* ========================================================================= */}
-          {abaAtiva === 'pagamentos' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Ilustração e Subtítulo */}
-              <div className="text-center py-2 space-y-1">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 shadow-sm">
-                  <CreditCard className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-100">Pagamentos</h2>
-                <p className="text-xs text-slate-400">Configure os meios de pagamento que seu negócio oferece</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Coluna Esquerda: Pagamentos a Combinar */}
-                <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-slate-200">Pagamentos a combinar</h3>
-
-                  <div className="space-y-2.5">
-                    {/* Pix */}
-                    <div
-                      onClick={() => handleAbrirDrawerPagamento('Pix', 'pix')}
-                      className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer flex items-center justify-between shadow-sm group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-bold">
-                          💠
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-100">Pix</span>
-                            <span className="text-[9px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.5 rounded">NOVO</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ PDV</span>
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ CATÁLOGO</span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-
-                    {/* Dinheiro */}
-                    <div
-                      onClick={() => handleAbrirDrawerPagamento('Dinheiro', 'dinheiro')}
-                      className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer flex items-center justify-between shadow-sm group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-bold">
-                          💵
-                        </div>
-                        <div>
-                          <span className="font-bold text-xs text-slate-100 block">Dinheiro</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ PDV</span>
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ CATÁLOGO</span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-
-                    {/* Cartão de Débito */}
-                    <div
-                      onClick={() => handleAbrirDrawerPagamento('Cartão de Débito', 'cartao_debito')}
-                      className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer flex items-center justify-between shadow-sm group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center font-bold">
-                          💳
-                        </div>
-                        <div>
-                          <span className="font-bold text-xs text-slate-100 block">Cartão de Débito</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ PDV</span>
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ CATÁLOGO</span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-
-                    {/* Cartão de Crédito */}
-                    <div
-                      onClick={() => handleAbrirDrawerPagamento('Cartão de Crédito', 'cartao_credito')}
-                      className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer flex items-center justify-between shadow-sm group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold">
-                          💳
-                        </div>
-                        <div>
-                          <span className="font-bold text-xs text-slate-100 block">Cartão de Crédito</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ PDV</span>
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ CATÁLOGO</span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-
-                    {/* Outros */}
-                    <div
-                      onClick={() => handleAbrirDrawerPagamento('Outros', 'outro')}
-                      className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer flex items-center justify-between shadow-sm group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center font-bold">
-                          ⋯
-                        </div>
-                        <div>
-                          <span className="font-bold text-xs text-slate-100 block">Outros</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ PDV</span>
-                            <span className="text-slate-500 flex items-center gap-0.5">✕ CATÁLOGO</span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-
-                    {/* Saldo Cliente */}
-                    <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800/60 flex items-center justify-between opacity-80">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center font-bold">
-                          👤
-                        </div>
-                        <div>
-                          <span className="font-bold text-xs text-slate-200 block">Saldo Cliente</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                            <span className="text-emerald-400 flex items-center gap-0.5">✓ PDV</span>
-                            <span className="text-slate-500 flex items-center gap-0.5">✕ CATÁLOGO</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Coluna Direita: Integrações & Fiado */}
-                <div className="space-y-6">
-                  {/* Integrações */}
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-sm text-slate-200">Integrações</h3>
-
-                    <div className="space-y-2.5">
-                      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Zap className="w-5 h-5 text-indigo-400" />
-                          <div>
-                            <span className="font-bold text-xs text-slate-200 block">Link de Pagamento</span>
-                            <span className="text-[10px] text-slate-500 block">Cobrança online com cartão</span>
-                          </div>
-                        </div>
-                        <span className="text-[9px] bg-slate-800 text-slate-400 font-bold px-2 py-0.5 rounded-full border border-slate-700">
-                          NO APP
-                        </span>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          <div>
-                            <span className="font-bold text-xs text-slate-200 block">Pagamentos automáticos</span>
-                            <span className="text-[10px] text-slate-500 block">Conciliação bancária automática</span>
-                          </div>
-                        </div>
-                        <span className="text-[9px] bg-slate-800 text-slate-400 font-bold px-2 py-0.5 rounded-full border border-slate-700">
-                          NO APP
-                        </span>
-                      </div>
-
-                      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <CreditCard className="w-5 h-5 text-amber-400" />
-                          <div>
-                            <span className="font-bold text-xs text-slate-200 block">Maquininhas de Pagamento</span>
-                            <span className="text-[10px] text-slate-500 block">TEF e maquininhas integradas</span>
-                          </div>
-                        </div>
-                        <span className="text-[9px] bg-slate-800 text-slate-400 font-bold px-2 py-0.5 rounded-full border border-slate-700">
-                          NO APP
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Fiado */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-2 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-200">Permitir vendas fiado</h4>
-                        <p className="text-xs text-slate-400 mt-0.5">Desative caso você não trabalhe com Fiado</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setPermitirFiado(prev => !prev); registrarAlteracao(); }}
-                        className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer shrink-0 ${
-                          permitirFiado ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ABA 5: ENTREGA E RETIRADA                                                */}
-          {/* ========================================================================= */}
-          {abaAtiva === 'entrega-retirada' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Ilustração e Subtítulo */}
-              <div className="text-center py-2 space-y-1">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 shadow-sm">
-                  <Truck className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-100">Entrega e Retirada</h2>
-                <p className="text-xs text-slate-400">Quais as opções você disponibiliza em seu negócio?</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Trabalho com Entregas */}
-                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-sm text-slate-200">Trabalho com entregas</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Um campo obrigatório de endereço será solicitado aos seus clientes.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setTrabalhoComEntregas(prev => !prev); registrarAlteracao(); }}
-                      className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer shrink-0 ${
-                        trabalhoComEntregas ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                      }`}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                    </button>
-                  </div>
-
-                  {trabalhoComEntregas && (
-                    <div className="space-y-4 pt-2 border-t border-slate-800 animate-in fade-in">
-                      <textarea
-                        rows={4}
-                        value={descricaoEntregas}
-                        onChange={(e) => { setDescricaoEntregas(e.target.value); registrarAlteracao(); }}
-                        placeholder="Descreva resumidamente suas opções de entrega."
-                        className="w-full bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 leading-relaxed"
-                      />
-                      <p className="text-[10px] text-slate-500">Descreva resumidamente suas opções de entrega.</p>
-
-                      {/* Lista de Formas de Entrega Cadastradas */}
-                      {formasEntrega.length > 0 && (
-                        <div className="space-y-2 pt-2">
-                          <span className="text-xs font-bold text-slate-300 block">Opções configuradas:</span>
-                          <div className="space-y-1.5">
-                            {formasEntrega.map(fe => (
-                              <div key={fe.id} className="flex justify-between items-center p-2.5 rounded-xl bg-slate-950/50 border border-slate-800 text-xs">
-                                <span className="font-semibold text-slate-200">{fe.nome}</span>
-                                <span className="font-mono text-emerald-400 font-bold">
-                                  {fe.valor_taxa > 0 ? `R$ ${Number(fe.valor_taxa).toFixed(2)}` : 'Grátis'}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setModalNovaEntrega(true)}
-                        className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-2xl transition cursor-pointer shadow-sm"
-                      >
-                        Adicionar opção de entrega
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Trabalho com Retirada no Local */}
-                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-sm text-slate-200">Trabalho com retirada no local</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Seu endereço será informado durante o fechamento do pedido.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setTrabalhoComRetirada(prev => !prev); registrarAlteracao(); }}
-                      className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer shrink-0 ${
-                        trabalhoComRetirada ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                      }`}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                    </button>
-                  </div>
-
-                  {trabalhoComRetirada && (
-                    <div className="pt-2 border-t border-slate-800 text-xs space-y-2 animate-in fade-in">
-                      <div className="p-3 bg-slate-950/50 rounded-2xl border border-slate-800 space-y-1">
-                        <span className="font-bold text-slate-300 block">Endereço de Retirada:</span>
-                        <p className="text-slate-400 text-[11px]">{enderecoLogradouro || 'Endereço não configurado'}</p>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        O cliente poderá selecionar a opção de retirar pessoalmente na finalização do pedido.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ABA 6: INTEGRAÇÕES                                                       */}
-          {/* ========================================================================= */}
-          {abaAtiva === 'integracoes' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Ilustração e Subtítulo */}
-              <div className="text-center py-2 space-y-1">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 shadow-sm">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-100">Integrações</h2>
-                <p className="text-xs text-slate-400">Configure seus canais de vendas e aumente suas vendas</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Facebook / Instagram */}
-                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                  <div className="flex items-center gap-2.5 text-xs font-bold text-slate-200">
-                    <span className="text-base">📸 📘</span>
-                    <span>Facebook / Instagram</span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-2xl bg-slate-950/50 hover:bg-slate-950 border border-slate-800 transition cursor-pointer flex items-center justify-between group">
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-100 group-hover:text-emerald-400 transition">Shopping</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Conecte seu catálogo de produtos às lojas do Facebook e Instagram
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-200">Pedidos de comida</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Receba pedidos no seu cardápio digital pelo Facebook e Instagram
-                        </p>
-                      </div>
-                      <span className="text-[9px] bg-slate-800 text-slate-400 font-bold px-2 py-0.5 rounded-full border border-slate-700">
-                        NO APP
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Google */}
-                <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm">
-                  <div className="flex items-center gap-2.5 text-xs font-bold text-slate-200">
-                    <span className="text-base">🌐</span>
-                    <span>Google</span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-2xl bg-slate-950/50 hover:bg-slate-950 border border-slate-800 transition cursor-pointer flex items-center justify-between group">
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-100 group-hover:text-emerald-400 transition">Shopping</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Alcance clientes no Google
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </main>
-
-      {/* BARRA FLUTUANTE DE SALVAR / DESCARTAR ALTERAÇÕES */}
-      <div className="fixed bottom-4 right-4 sm:right-8 z-30 flex items-center gap-2 bg-slate-900/95 border border-slate-700/90 p-2 rounded-2xl shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-2">
         <button
           type="button"
-          onClick={handleDescartarAlteracoes}
-          className="px-4 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
-        >
-          Descartar
-        </button>
-        <button
-          type="button"
+          onClick={handleSalvarTodasConfiguracoes}
           disabled={salvando}
-          onClick={handleSalvarTudo}
-          className="px-5 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 rounded-xl transition shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
         >
-          {salvando ? (
-            <>
-              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Salvando...</span>
-            </>
-          ) : (
-            <span>Salvar alterações</span>
-          )}
+          <Save className="w-4 h-4" />
+          <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
         </button>
       </div>
 
-      {/* DRAWER LATERAL DE EDIÇÃO DE MÉTODO DE PAGAMENTO (Screens 1192-1196) */}
-      {drawerMetodoPagamento && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-end animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
-            {/* Header do Drawer */}
-            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-              <h3 className="font-bold text-sm sm:text-base text-slate-100">{drawerMetodoPagamento.nome}</h3>
+      {/* TOAST FEEDBACK */}
+      {mensagemToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in slide-in-from-bottom-4">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>{mensagemToast}</span>
+        </div>
+      )}
+
+      {/* CONTAINER PRINCIPAL */}
+      <div className="max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+        {/* ========================================================================= */}
+        {/* MENU PRINCIPAL (HUB DE CONFIGURAÇÕES) */}
+        {/* ========================================================================= */}
+        {subTela === 'menu' && (
+          <div className="space-y-3 animate-in fade-in duration-150">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl divide-y divide-slate-800/80">
+              {itensMenu.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    if (item.id === 'catalogo') {
+                      navigate('/catalog-config');
+                    } else if (item.id === 'produtos') {
+                      navigate('/auxiliares');
+                    } else {
+                      setSubTela(item.id as SubTelaConfig);
+                    }
+                  }}
+                  className="p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-800/50 transition cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-800 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 text-slate-400 flex items-center justify-center transition">
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-100">{item.label}</span>
+                        {item.badge && (
+                          <span className="bg-emerald-500/20 text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-full">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 block mt-0.5">{item.desc}</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-slate-300 transition" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: GERAL */}
+        {/* ========================================================================= */}
+        {subTela === 'geral' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Geral</h2>
+
+            {/* Tela Inicial */}
+            <div
+              onClick={() => setModalTelaInicial(true)}
+              className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-slate-200">Tela inicial</span>
+                  <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full">NOVO</span>
+                </div>
+                <span className="text-xs text-emerald-400 uppercase font-extrabold block mt-0.5">
+                  {telaInicialPadrao}
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500" />
+            </div>
+
+            {/* Moeda */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Moeda</span>
+              <div className="text-sm font-bold text-slate-100">{moeda}</div>
+            </div>
+
+            {/* Casas Decimais */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800">
+              <div>
+                <span className="font-bold text-xs text-slate-100 block">Casas decimais</span>
+                <span className="text-[11px] text-slate-400">Exibir centavos em valores monetários (ex: R$ 10,00)</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={casasDecimais}
+                  onChange={(e) => setCasasDecimais(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+
+            {/* Transações Canceladas */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-300 block">Transações canceladas</span>
+              <div className="space-y-2">
+                {[
+                  { id: 'riscadas', label: 'Exibir riscada' },
+                  { id: 'ocultar', label: 'Ocultar' }
+                ].map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
+                      transacoesCanceladas === opt.id
+                        ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-100'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                    }`}
+                  >
+                    <span className="font-bold text-xs">{opt.label}</span>
+                    <input
+                      type="radio"
+                      name="transacoesCanceladas"
+                      checked={transacoesCanceladas === opt.id}
+                      onChange={() => setTransacoesCanceladas(opt.id as any)}
+                      className="text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Ordenar produtos em Vender */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-300 block">Ordenar produtos em Vender por</span>
+              <div className="space-y-2">
+                {[
+                  { id: 'cadastro', label: 'Data do cadastro' },
+                  { id: 'alfabetica', label: 'Ordem alfabética A-Z' }
+                ].map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
+                      ordenarProdutosPdv === opt.id
+                        ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-100'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                    }`}
+                  >
+                    <span className="font-bold text-xs">{opt.label}</span>
+                    <input
+                      type="radio"
+                      name="ordenarProdutosPdv"
+                      checked={ordenarProdutosPdv === opt.id}
+                      onChange={() => setOrdenarProdutosPdv(opt.id as any)}
+                      className="text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: DADOS DA LOJA */}
+        {/* ========================================================================= */}
+        {subTela === 'dados-loja' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Dados da Loja</h2>
+
+            {/* Logo */}
+            <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+              {urlLogo ? (
+                <div className="relative group w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-900">
+                  <img src={urlLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+                  <label className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px] font-bold text-white cursor-pointer">
+                    <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
+                    Trocar Logo
+                  </label>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center cursor-pointer space-y-2">
+                  <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
+                  <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-bold text-emerald-400">Upload de sua marca</span>
+                </label>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Nome da Loja</label>
+                <input
+                  type="text"
+                  value={nomeLoja}
+                  onChange={(e) => setNomeLoja(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-bold"
+                  placeholder="Nome Fantasia da sua loja"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">WhatsApp (Principal)</label>
+                  <input
+                    type="tel"
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    placeholder="5585986072144"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Telefone/Celular (Opcional)</label>
+                  <input
+                    type="tel"
+                    value={telefone}
+                    onChange={(e) => setTelefone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    placeholder="Telefone adicional"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Endereço (Rua, Número)</label>
+                <input
+                  type="text"
+                  value={enderecoLogradouro}
+                  onChange={(e) => setEnderecoLogradouro(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  placeholder="Ex: Rua Bélgica, 945"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Complemento</label>
+                  <input
+                    type="text"
+                    value={enderecoComplemento}
+                    onChange={(e) => setEnderecoComplemento(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    placeholder="Apto, Sala, Bloco..."
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Cidade</label>
+                  <input
+                    type="text"
+                    value={enderecoCidade}
+                    onChange={(e) => setEnderecoCidade(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    placeholder="Cidade"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">CEP</label>
+                  <input
+                    type="text"
+                    value={enderecoCep}
+                    onChange={(e) => setEnderecoCep(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    placeholder="60000-000"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: IDENTIFICAÇÃO FISCAL */}
+        {/* ========================================================================= */}
+        {subTela === 'identificacao' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Identificação</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">CPF ou CNPJ</label>
+                <input
+                  type="text"
+                  value={documento}
+                  onChange={(e) => setDocumento(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono"
+                  placeholder="00.000.000/0001-00"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Razão Social</label>
+                <input
+                  type="text"
+                  value={razaoSocial}
+                  onChange={(e) => setRazaoSocial(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 uppercase"
+                  placeholder="NOME DA EMPRESA LTDA"
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  <strong>Estes dados não serão exibidos no catálogo.</strong><br />
+                  Informar o CPF ou CNPJ é uma medida para validar a sua conta e preservar sua privacidade.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: MEU RECIBO */}
+        {/* ========================================================================= */}
+        {subTela === 'recibo' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <h2 className="font-extrabold text-base text-slate-100">Configurar meu recibo</h2>
               <button
                 type="button"
-                onClick={() => setDrawerMetodoPagamento(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                onClick={() => setModalPreviewRecibo(true)}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
+                <Receipt className="w-4 h-4" />
+                <span>Ver meu recibo</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Adicionar dados do cliente */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                <div>
+                  <span className="font-bold text-xs text-slate-100 block">Adicionar dados do cliente</span>
+                  <span className="text-[11px] text-slate-400">Nome, Endereço e Telefone no corpo do recibo</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reciboAdicionarCliente}
+                    onChange={(e) => setReciboAdicionarCliente(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {/* Cabeçalho */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Texto do cabeçalho (opcional)</label>
+                <textarea
+                  rows={2}
+                  value={reciboCabecalho}
+                  onChange={(e) => setReciboCabecalho(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  placeholder="Ex: Sejam muito bem-vindos à nossa loja!"
+                />
+              </div>
+
+              {/* Rodapé */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Texto do rodapé (opcional)</label>
+                <textarea
+                  rows={2}
+                  value={reciboRodape}
+                  onChange={(e) => setReciboRodape(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  placeholder="Ex: Trocas em até 7 dias com esta via. Volte sempre!"
+                />
+              </div>
+
+              {/* Impressora Padrão */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-slate-200 block">Formato de Impressão Padrão</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'termica_80mm', label: 'Térmica 80mm' },
+                    { id: 'termica_58mm', label: 'Térmica 58mm' },
+                    { id: 'a4', label: 'Folha A4' }
+                  ].map((imp) => (
+                    <button
+                      key={imp.id}
+                      type="button"
+                      onClick={() => setTipoImpressaoPadrao(imp.id as any)}
+                      className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        tipoImpressaoPadrao === imp.id
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {imp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: OPÇÕES DE PAGAMENTO & GATEWAYS */}
+        {/* ========================================================================= */}
+        {subTela === 'pagamentos' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Meios de pagamento</h2>
+
+            {/* INTEGRAÇÕES DIGITAIS (MERCADO PAGO, ETC) */}
+            <div className="space-y-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                INTEGRAÇÕES DIGITAIS (AUTOMÁTICAS)
+              </span>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+                      MP
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-slate-100">Mercado Pago</h4>
+                      <p className="text-[11px] text-slate-400">Pix dinâmico com QR Code, link de pagamento e cartão</p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={mpAtivo}
+                      onChange={(e) => setMpAtivo(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {mpAtivo && (
+                  <div className="space-y-3 pt-3 border-t border-slate-800">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Access Token de Produção</label>
+                      <input
+                        type="password"
+                        value={mpAccessToken}
+                        onChange={(e) => setMpAccessToken(e.target.value)}
+                        placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxx"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Public Key</label>
+                      <input
+                        type="text"
+                        value={mpPublicKey}
+                        onChange={(e) => setMpPublicKey(e.target.value)}
+                        placeholder="APP_USR-xxxxxxxx"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botão de Atalho para Prazos e Taxas */}
+              <div
+                onClick={() => setSubTela('prazos-taxas')}
+                className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center justify-between cursor-pointer transition"
+              >
+                <div>
+                  <span className="font-bold text-xs text-slate-200 block">Prazos e taxas das Maquininhas</span>
+                  <span className="text-[11px] text-slate-400">Configure os prazos de recebimento para previsão no financeiro</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </div>
+            </div>
+
+            {/* OPÇÕES DE PAGAMENTO PRESENCIAIS / MANUAIS */}
+            <div className="space-y-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                OPÇÕES DE PAGAMENTO (CATÁLOGO E PDV)
+              </span>
+
+              {/* PIX */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-5 h-5 text-emerald-400" />
+                    <div>
+                      <span className="font-bold text-xs text-slate-100 block">Pix Manual / Chave</span>
+                      <span className="text-[11px] text-slate-400">Chave Pix para transferências diretas</span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pixAtivo}
+                      onChange={(e) => setPixAtivo(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+                {pixAtivo && (
+                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                    <input
+                      type="text"
+                      value={pixChave}
+                      onChange={(e) => setPixChave(e.target.value)}
+                      placeholder="Sua chave Pix (CPF, CNPJ, E-mail ou Telefone)"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                    />
+                    <input
+                      type="text"
+                      value={pixOrientacoes}
+                      onChange={(e) => setPixOrientacoes(e.target.value)}
+                      placeholder="Orientações adicionais (ex: Enviar comprovante no WhatsApp)"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* DINHEIRO */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="w-5 h-5 text-emerald-400" />
+                  <span className="font-bold text-xs text-slate-100">Dinheiro</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={dinheiroAtivo}
+                    onChange={(e) => setDinheiroAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {/* CARTÃO DE DÉBITO */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5 text-indigo-400" />
+                  <span className="font-bold text-xs text-slate-100">Cartão de Débito</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={debitoAtivo}
+                    onChange={(e) => setDebitoAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {/* CARTÃO DE CRÉDITO */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5 text-amber-400" />
+                  <span className="font-bold text-xs text-slate-100">Cartão de Crédito</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={creditoAtivo}
+                    onChange={(e) => setCreditoAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {/* FIADO */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-rose-400" />
+                  <div>
+                    <span className="font-bold text-xs text-slate-100 block">Fiado / Venda a Prazo</span>
+                    <span className="text-[11px] text-slate-400">Controle de saldo pendente por cliente</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={permitirFiado}
+                    onChange={(e) => setPermitirFiado(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: PRAZOS E TAXAS (MAQUININHAS) */}
+        {/* ========================================================================= */}
+        {subTela === 'prazos-taxas' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Prazos e taxas</h2>
+
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-400 flex items-start gap-3">
+              <Info className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <p>
+                Configure os prazos e taxas da sua maquininha para calcular os valores líquidos exatos e acompanhar a previsão de entradas no módulo financeiro.
+              </p>
+            </div>
+
+            {/* Crédito */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-100">Cartões de crédito</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={maqCreditoAtivo}
+                    onChange={(e) => setMaqCreditoAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {maqCreditoAtivo && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Prazo de Recebimento</label>
+                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                      <input
+                        type="number"
+                        value={maqCreditoDias}
+                        onChange={(e) => setMaqCreditoDias(Number(e.target.value))}
+                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                      />
+                      <span className="text-slate-400 text-[11px]">dias corridos</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Taxa da Maquininha (%)</label>
+                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={maqCreditoTaxa}
+                        onChange={(e) => setMaqCreditoTaxa(Number(e.target.value))}
+                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                      />
+                      <span className="text-slate-400 text-[11px]">%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Débito */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-100">Cartões de débito</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={maqDebitoAtivo}
+                    onChange={(e) => setMaqDebitoAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {maqDebitoAtivo && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Prazo de Recebimento</label>
+                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                      <input
+                        type="number"
+                        value={maqDebitoDias}
+                        onChange={(e) => setMaqDebitoDias(Number(e.target.value))}
+                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                      />
+                      <span className="text-slate-400 text-[11px]">dias corridos</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Taxa da Maquininha (%)</label>
+                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={maqDebitoTaxa}
+                        onChange={(e) => setMaqDebitoTaxa(Number(e.target.value))}
+                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                      />
+                      <span className="text-slate-400 text-[11px]">%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: PEDIDOS E VENDAS (TAXAS & STATUS) */}
+        {/* ========================================================================= */}
+        {subTela === 'pedidos-vendas' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Pedidos e Vendas</h2>
+
+            {/* Atalho para Status de Pedidos */}
+            <div
+              onClick={() => setSubTela('status-pedidos')}
+              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center justify-between cursor-pointer transition"
+            >
+              <div>
+                <span className="font-bold text-xs text-slate-200 block">Status de Pedidos</span>
+                <span className="text-[11px] text-slate-400">Ative ou crie novas etapas do fluxo operacional</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500" />
+            </div>
+
+            {/* TAXA DE VENDA PDV */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-xs text-slate-100 block">Usar taxa de vendas no PDV</span>
+                  <span className="text-[11px] text-slate-400">Taxa de serviço ou acréscimo automático</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={usarTaxaVenda}
+                    onChange={(e) => setUsarTaxaVenda(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {usarTaxaVenda && (
+                <div className="space-y-3 pt-3 border-t border-slate-800">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Nome da Taxa</label>
+                      <input
+                        type="text"
+                        value={nomeTaxaVenda}
+                        onChange={(e) => setNomeTaxaVenda(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                        placeholder="Ex: Taxa de Serviço"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Valor da Taxa</label>
+                      <input
+                        type="number"
+                        value={valorTaxaVenda}
+                        onChange={(e) => setValorTaxaVenda(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-slate-300 font-semibold">Taxa opcional (removível no PDV)</span>
+                    <input
+                      type="checkbox"
+                      checked={taxaVendaOpcional}
+                      onChange={(e) => setTaxaVendaOpcional(e.target.checked)}
+                      className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700 w-4 h-4"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: STATUS DE PEDIDOS */}
+        {/* ========================================================================= */}
+        {subTela === 'status-pedidos' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Status de Pedidos</h2>
+
+            <div className="space-y-3">
+              {/* Fixos */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <div>
+                    <span className="font-bold text-slate-200 block">Pendente</span>
+                    <span className="text-[10px] text-slate-500">Aparece quando o cliente faz o pedido (Não baixa estoque)</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold">PADRÃO</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <span className="font-bold text-slate-200 block">Confirmado</span>
+                    <span className="text-[10px] text-slate-500">Vendedor confirma o pedido (Movimenta estoque)</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold">PADRÃO</span>
+              </div>
+
+              {/* Toggles Customizáveis */}
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                  <span className="font-bold text-slate-200">Em produção</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={statusEmProducao}
+                  onChange={(e) => setStatusEmProducao(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                  <span className="font-bold text-slate-200">Em expedição</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={statusEmExpedicao}
+                  onChange={(e) => setStatusEmExpedicao(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+                  <span className="font-bold text-slate-200">Saiu para entrega</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={statusSaiuEntrega}
+                  onChange={(e) => setStatusSaiuEntrega(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-sky-400"></div>
+                  <span className="font-bold text-slate-200">Pronto para retirar</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={statusProntoRetirar}
+                  onChange={(e) => setStatusProntoRetirar(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: EXPORTAR RELATÓRIOS */}
+        {/* ========================================================================= */}
+        {subTela === 'exportar' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Exportar relatórios</h2>
+
+            {/* Período */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-400" />
+                <span>Informe o período</span>
+              </span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Data Inicial</label>
+                  <input
+                    type="date"
+                    value={dataInicioExport}
+                    onChange={(e) => setDataInicioExport(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Data Final</label>
+                  <input
+                    type="date"
+                    value={dataFimExport}
+                    onChange={(e) => setDataFimExport(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Seleção de Relatórios */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-300 block">Quais relatórios deseja exportar?</span>
+              <div className="grid grid-cols-3 gap-3">
+                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exportarVendas}
+                    onChange={(e) => setExportarVendas(e.target.checked)}
+                    className="rounded text-emerald-500"
+                  />
+                  <span className="text-xs font-bold text-slate-200">Vendas</span>
+                </label>
+                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exportarProdutos}
+                    onChange={(e) => setExportarProdutos(e.target.checked)}
+                    className="rounded text-emerald-500"
+                  />
+                  <span className="text-xs font-bold text-slate-200">Produtos</span>
+                </label>
+                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exportarClientes}
+                    onChange={(e) => setExportarClientes(e.target.checked)}
+                    className="rounded text-emerald-500"
+                  />
+                  <span className="text-xs font-bold text-slate-200">Clientes</span>
+                </label>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportarRelatorios}
+              disabled={salvando || (!exportarVendas && !exportarProdutos && !exportarClientes)}
+              className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-40"
+            >
+              <Download className="w-5 h-5" />
+              <span>{salvando ? 'Gerando arquivo...' : 'Exportar Arquivos (CSV / Excel)'}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: INTEGRAR COM PARCEIROS (INSTAGRAM, FACEBOOK, GOOGLE, TIKTOK) */}
+        {/* ========================================================================= */}
+        {subTela === 'parceiros' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <h2 className="font-extrabold text-base text-slate-100">Integrar com parceiros</h2>
+
+            {/* FACEBOOK & INSTAGRAM */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
+                <Share2 className="w-4 h-4 text-pink-400" /> Facebook & Instagram
+              </span>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-100">Instagram Shopping & Loja do Facebook</h4>
+                    <p className="text-[11px] text-slate-400">Feed de produtos para etiquetar itens nos posts e stories</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copiarTexto(`${window.location.origin}/feed/facebook/${loja?.slug_catalogo || loja?.id}`, 'fb_feed')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{copiadoTexto === 'fb_feed' ? 'Copiado!' : 'Copiar Link XML'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <span className="font-bold text-xs text-slate-100 block">Facebook Pixel</span>
+                <input
+                  type="text"
+                  value={facebookPixelId}
+                  onChange={(e) => setFacebookPixelId(e.target.value)}
+                  placeholder="ID do Pixel (Ex: 123456789012345)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* GOOGLE SHOPPING */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
+                <Globe className="w-4 h-4 text-sky-400" /> Google Shopping (Merchant Center)
+              </span>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-100">Feed Google Merchant Center</h4>
+                    <p className="text-[11px] text-slate-400">Alcance clientes nas pesquisas do Google Shopping</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copiarTexto(`${window.location.origin}/feed/google/${loja?.slug_catalogo || loja?.id}`, 'google_feed')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{copiadoTexto === 'google_feed' ? 'Copiado!' : 'Copiar Link XML'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* TIKTOK BUSINESS */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
+                <Smartphone className="w-4 h-4 text-rose-400" /> TikTok Business
+              </span>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <span className="font-bold text-xs text-slate-100 block">TikTok Pixel ID</span>
+                <input
+                  type="text"
+                  value={tiktokPixelId}
+                  onChange={(e) => setTiktokPixelId(e.target.value)}
+                  placeholder="ID do TikTok Pixel"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL: SELETOR DE TELA INICIAL */}
+      {/* ========================================================================= */}
+      {modalTelaInicial && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-slate-100">Tela inicial</h3>
+              <button onClick={() => setModalTelaInicial(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Conteúdo do Drawer */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {/* Textarea de Instruções */}
-              <div>
-                <textarea
-                  rows={4}
-                  maxLength={140}
-                  value={drawerMetodoPagamento.descricao}
-                  onChange={(e) => setDrawerMetodoPagamento(prev => prev ? { ...prev, descricao: e.target.value } : null)}
-                  placeholder={
-                    drawerMetodoPagamento.tipo === 'pix'
-                      ? 'Informe a sua chave PIX, oriente por onde enviar o comprovante de pagamento e o que mais você precisar.'
-                      : drawerMetodoPagamento.tipo === 'dinheiro'
-                      ? 'Descrição e orientações de troco.'
-                      : drawerMetodoPagamento.tipo.includes('cartao')
-                      ? 'Informe as bandeiras aceitas (Visa, Mastercard, etc) e o que mais você precisar.'
-                      : 'Informe os outros meios de pagamento aceitos.'
-                  }
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-2xl p-3.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 leading-relaxed"
-                />
-                <div className="text-right text-[10px] text-slate-500 mt-1">
-                  {drawerMetodoPagamento.descricao.length}/140
-                </div>
-              </div>
-
-              {/* Toggle PDV */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950/50 border border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <Store className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-slate-200">PDV</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDrawerMetodoPagamento(prev => prev ? { ...prev, pdvAtivo: !prev.pdvAtivo } : null)}
-                  className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                    drawerMetodoPagamento.pdvAtivo ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
+            <div className="space-y-2">
+              {[
+                { id: 'inicio', title: 'Início', desc: 'Resumo das informações mais importantes' },
+                { id: 'pdv', title: 'Vender (PDV)', desc: 'Abertura direta na tela de vendas' },
+                { id: 'pedidos', title: 'Pedidos em aberto', desc: 'Fluxo de pedidos operacionais' },
+                { id: 'products', title: 'Produtos', desc: 'Estoque e catálogo de produtos' },
+                { id: 'customers', title: 'Clientes', desc: 'Gestão de contatos e fiado' },
+                { id: 'analytics', title: 'Estatísticas', desc: 'Relatórios de faturamento' }
+              ].map((opt) => (
+                <label
+                  key={opt.id}
+                  onClick={() => {
+                    setTelaInicialPadrao(opt.id);
+                    setModalTelaInicial(false);
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${
+                    telaInicialPadrao === opt.id
+                      ? 'bg-emerald-500/10 border-emerald-500 text-slate-100'
+                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
                   }`}
                 >
-                  <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                </button>
-              </div>
+                  <div>
+                    <span className="font-bold text-xs block">{opt.title}</span>
+                    <span className="text-[10px] text-slate-500 block">{opt.desc}</span>
+                  </div>
+                  {telaInicialPadrao === opt.id && <Check className="w-4 h-4 text-emerald-400" />}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Toggle Catálogo Online */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950/50 border border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <Globe className="w-4 h-4 text-indigo-400" />
-                  <span className="text-xs font-bold text-slate-200">Catálogo Online</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDrawerMetodoPagamento(prev => prev ? { ...prev, catalogoAtivo: !prev.catalogoAtivo } : null)}
-                  className={`w-11 h-6 flex items-center rounded-full p-1 transition cursor-pointer ${
-                    drawerMetodoPagamento.catalogoAtivo ? 'bg-emerald-500 justify-end' : 'bg-slate-700 justify-start'
-                  }`}
-                >
-                  <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                </button>
-              </div>
+      {/* ========================================================================= */}
+      {/* MODAL: PREVIEW DO RECIBO */}
+      {/* ========================================================================= */}
+      {modalPreviewRecibo && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-slate-100">Recibo da Loja (Preview)</h3>
+              <button onClick={() => setModalPreviewRecibo(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Rodapé do Drawer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-end gap-2">
+            <div className="bg-white text-slate-900 rounded-2xl p-4 font-mono text-xs shadow-inner space-y-3">
+              {urlLogo && (
+                <img src={urlLogo} alt="Logo" className="w-16 h-16 object-contain mx-auto" />
+              )}
+              <div className="text-center">
+                <h4 className="font-extrabold text-sm">{nomeLoja || 'SUA LOJA'}</h4>
+                <p className="text-[10px] text-slate-600">{enderecoLogradouro} • {whatsapp}</p>
+              </div>
+
+              {reciboCabecalho && (
+                <p className="text-center italic text-[11px] border-b pb-2">{reciboCabecalho}</p>
+              )}
+
+              <div className="border-t border-b py-2 space-y-1">
+                <div className="flex justify-between font-bold">
+                  <span>1x Camiseta Exemplo</span>
+                  <span>R$ 89,90</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between font-black text-sm pt-1">
+                <span>TOTAL:</span>
+                <span>R$ 89,90</span>
+              </div>
+
+              {reciboRodape && (
+                <p className="text-center italic text-[10px] pt-2 text-slate-600">{reciboRodape}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setDrawerMetodoPagamento(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition cursor-pointer"
+                onClick={() => PrintService.printReceipt(
+                  {
+                    id: 'preview',
+                    loja_id: loja?.id || '',
+                    numero_pedido: 1,
+                    valor_total: 89.9,
+                    subtotal: 89.9,
+                    status: 'concluido',
+                    itens: [{ nome_produto: 'Camiseta Exemplo', quantidade: 1, preco_venda_unitario: 89.9, subtotal: 89.9 }]
+                  } as any,
+                  {
+                    nome_fantasia: nomeLoja,
+                    whatsapp,
+                    endereco_logradouro: enderecoLogradouro,
+                    url_logo: urlLogo,
+                    configuracoes_extras: {
+                      recibo: {
+                        cabecalho: reciboCabecalho,
+                        rodape: reciboRodape,
+                        adicionar_cliente: reciboAdicionarCliente
+                      }
+                    }
+                  } as any,
+                  '80mm'
+                )}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Descartar
+                <Printer className="w-3.5 h-3.5" />
+                <span>Imprimir</span>
               </button>
+
               <button
                 type="button"
-                onClick={handleSalvarMetodoPagamentoDrawer}
-                className="px-5 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-400 rounded-xl transition shadow-md cursor-pointer"
+                onClick={() => PrintService.printReceipt(
+                  {
+                    id: 'preview',
+                    loja_id: loja?.id || '',
+                    numero_pedido: 1,
+                    valor_total: 89.9,
+                    subtotal: 89.9,
+                    status: 'concluido',
+                    itens: [{ nome_produto: 'Camiseta Exemplo', quantidade: 1, preco_venda_unitario: 89.9, subtotal: 89.9 }]
+                  } as any,
+                  {
+                    nome_fantasia: nomeLoja,
+                    whatsapp,
+                    endereco_logradouro: enderecoLogradouro,
+                    url_logo: urlLogo,
+                    configuracoes_extras: {
+                      recibo: {
+                        cabecalho: reciboCabecalho,
+                        rodape: reciboRodape,
+                        adicionar_cliente: reciboAdicionarCliente
+                      }
+                    }
+                  } as any,
+                  'a4'
+                )}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Salvar alterações
+                <FileText className="w-3.5 h-3.5" />
+                <span>Folha A4</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalPreviewRecibo(false)}
+                className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+              >
+                <span>Fechar</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL ADICIONAR OPÇÃO DE ENTREGA */}
-      {modalNovaEntrega && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-5 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="font-bold text-sm text-slate-100">Nova Opção de Entrega</h3>
-              <button
-                type="button"
-                onClick={() => setModalNovaEntrega(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* ========================================================================= */}
+      {/* MODAL: EXPORTAÇÃO CONCLUÍDA */}
+      {/* ========================================================================= */}
+      {modalExportConcluido && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+              <Download className="w-7 h-7" />
             </div>
-
-            <form onSubmit={handleCriarOpcaoEntrega} className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Nome da Opção</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Motoboy / Fortaleza"
-                  value={novaEntregaNome}
-                  onChange={(e) => setNovaEntregaNome(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Valor da Taxa (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={novaEntregaValor}
-                  onChange={(e) => setNovaEntregaValor(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalNovaEntrega(false)}
-                  className="px-4 py-2 text-xs text-slate-400 hover:text-white font-bold rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs text-white bg-emerald-500 hover:bg-emerald-400 font-bold rounded-xl shadow"
-                >
-                  Salvar
-                </button>
-              </div>
-            </form>
+            <div>
+              <h3 className="font-bold text-base text-slate-100">Seus relatórios estão prontos! 🎉</h3>
+              <p className="text-xs text-slate-400 mt-1">O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalExportConcluido(false)}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer"
+            >
+              Voltar
+            </button>
           </div>
         </div>
       )}
+
     </div>
   );
 };

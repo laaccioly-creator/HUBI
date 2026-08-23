@@ -24,7 +24,85 @@ export type StatusCaixa = 'ABERTO' | 'FECHADO';
 export type ModoExibicaoCatalogo = 'lista' | 'grade' | 'instaview';
 export type ComportamentoSemEstoque = 'ocultar' | 'indisponivel' | 'exibir';
 
+export interface StatusPedidoPersonalizado {
+  id: string;
+  nome: string;
+  cor: string;
+  ativo: boolean;
+}
+
+export interface ConfiguracaoGeralLoja {
+  tela_inicial_padrao?: 'inicio' | 'pdv' | 'pedidos' | 'produtos' | 'clientes' | 'historico' | 'estatisticas';
+  moeda?: string;
+  casas_decimais?: boolean;
+  transacoes_canceladas?: 'riscadas' | 'ocultar';
+  ordenar_produtos_pdv?: 'cadastro' | 'alfabetica';
+}
+
+export interface PagamentosDigitaisConfig {
+  provedor_ativo?: 'mercado_pago' | 'pagseguro' | 'google_pay' | 'todos';
+  mercado_pago?: {
+    ativo?: boolean;
+    public_key?: string;
+    access_token?: string;
+    taxa_credito_percentual?: number;
+    taxa_pix_percentual?: number;
+    prazo_dias?: number;
+    max_parcelas?: number;
+    repasse_juros?: boolean;
+    client_id?: string;
+    client_secret?: string;
+  };
+  pagseguro?: {
+    ativo?: boolean;
+    email?: string;
+    token?: string;
+    public_key?: string;
+    taxa_credito_percentual?: number;
+    taxa_pix_percentual?: number;
+    prazo_dias?: number;
+  };
+  google_pay?: {
+    ativo?: boolean;
+    merchant_id?: string;
+    merchant_name?: string;
+  };
+}
+
+export interface PrazosTaxasMaquininha {
+  credito_ativo?: boolean;
+  credito_dias?: number;
+  credito_taxa_percentual?: number;
+  debito_ativo?: boolean;
+  debito_dias?: number;
+  debito_taxa_percentual?: number;
+}
+
+export interface OpcoesPagamentoDetalhes {
+  permitir_fiado?: boolean;
+  pix_ativo?: boolean;
+  pix_chave?: string;
+  pix_orientacoes?: string;
+  dinheiro_ativo?: boolean;
+  dinheiro_orientacoes?: string;
+  debito_ativo?: boolean;
+  debito_orientacoes?: string;
+  credito_ativo?: boolean;
+  credito_orientacoes?: string;
+  outros_ativo?: boolean;
+  outros_orientacoes?: string;
+}
+
+export interface IntegracoesParceiros {
+  facebook_pixel_id?: string;
+  facebook_catalog_feed_ativo?: boolean;
+  google_merchant_feed_ativo?: boolean;
+  tiktok_pixel_id?: string;
+  tiktok_catalog_feed_ativo?: boolean;
+}
+
 export interface ConfiguracoesExtrasLoja {
+  geral?: ConfiguracaoGeralLoja;
   preferencias_gerais?: {
     casas_decimais?: boolean;
     transacoes_canceladas?: 'riscadas' | 'ocultar';
@@ -55,21 +133,25 @@ export interface ConfiguracoesExtrasLoja {
     em_expedicao?: boolean;
     saiu_para_entrega?: boolean;
     pronto_para_retirar?: boolean;
+    status_personalizados?: StatusPedidoPersonalizado[];
   };
   recibo?: {
     adicionar_cliente?: boolean;
     exibir_codigo_produto?: boolean;
     cabecalho?: string;
     rodape?: string;
+    tipo_impressao_padrao?: 'termica_80mm' | 'termica_58mm' | 'a4';
   };
   entrega_retirada?: {
     trabalho_com_entregas?: boolean;
     descricao_entregas?: string;
     trabalho_com_retirada?: boolean;
+    descricao_retirada?: string;
   };
-  pagamentos?: {
-    permitir_fiado?: boolean;
-  };
+  pagamentos?: OpcoesPagamentoDetalhes;
+  pagamentos_digitais?: PagamentosDigitaisConfig;
+  prazos_taxas_maquininhas?: PrazosTaxasMaquininha;
+  integracoes_parceiros?: IntegracoesParceiros;
 }
 
 export interface Loja {

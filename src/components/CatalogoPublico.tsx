@@ -20,13 +20,21 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink } from 'lucide-react';
+import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 
 interface ItemCarrinhoPublico {
   id: string;
   produto: Produto;
   variacao?: VariacaoProduto | null;
   quantidade: number;
+}
+
+interface PedidoConcluidoInfo {
+  numeroPedido: number;
+  whatsAppUrl: string;
+  pixInfo?: PixDinamicoResponse | null;
+  linkPagamento?: string | null;
 }
 
 export const CatalogoPublico: React.FC = () => {
@@ -45,7 +53,8 @@ export const CatalogoPublico: React.FC = () => {
 
   // Modo de exibição
   const [modoExibicaoPublico, setModoExibicaoPublico] = useState<ModoExibicaoCatalogo>('grade');
-  const [pedidoConcluidoModal, setPedidoConcluidoModal] = useState<{ numeroPedido: number; whatsAppUrl: string } | null>(null);
+  const [pedidoConcluidoModal, setPedidoConcluidoModal] = useState<PedidoConcluidoInfo | null>(null);
+  const [pixCopiado, setPixCopiado] = useState<boolean>(false);
 
   const [nomeCliente, setNomeCliente] = useState<string>('');
   const [whatsappCliente, setWhatsappCliente] = useState<string>('');
@@ -262,21 +271,44 @@ Fico no aguardo da confirmação! ✨`;
       const lojaPhone = loja.whatsapp.replace(/\D/g, '');
       const urlWhats = `https://api.whatsapp.com/send?phone=55${lojaPhone}&text=${encodeURIComponent(msgWhatsApp)}`;
       
+      let pixInfoRes: PixDinamicoResponse | null = null;
+      let linkPagamentoUrl: string | null = null;
+
+      // Gerar cobrança Mercado Pago se ativado
+      if (loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
+        pixInfoRes = await paymentGatewayService.gerarPixMercadoPago({
+          loja,
+          valor: total,
+          descricao: `Pedido #${pedidoCriado.numero_pedido} - ${loja.nome_fantasia}`,
+          pedidoNumero: pedidoCriado.numero_pedido,
+          emailCliente: 'cliente@hubi.app',
+          nomeCliente: nomeCliente
+        });
+
+        const linkRes = await paymentGatewayService.gerarLinkMercadoPago({
+          loja,
+          itens: carrinho.map(c => ({
+            titulo: c.produto.nome,
+            quantidade: c.quantidade,
+            precoUnitario: c.produto.preco_venda_varejo
+          })),
+          pedidoNumero: pedidoCriado.numero_pedido
+        });
+
+        if (linkRes.sucesso && linkRes.linkPagamento) {
+          linkPagamentoUrl = linkRes.linkPagamento;
+        }
+      }
+
       setCarrinho([]);
       setDrawerCarrinhoAberto(false);
 
-      // Se configurado para enviar resumo via WhatsApp diretamente
-      if (loja.resumo_whatsapp ?? true) {
-        setPedidoConcluidoModal({
-          numeroPedido: pedidoCriado.numero_pedido,
-          whatsAppUrl: urlWhats
-        });
-      } else {
-        setPedidoConcluidoModal({
-          numeroPedido: pedidoCriado.numero_pedido,
-          whatsAppUrl: ''
-        });
-      }
+      setPedidoConcluidoModal({
+        numeroPedido: pedidoCriado.numero_pedido,
+        whatsAppUrl: (loja.resumo_whatsapp ?? true) ? urlWhats : '',
+        pixInfo: pixInfoRes?.sucesso ? pixInfoRes : null,
+        linkPagamento: linkPagamentoUrl
+      });
     } catch (err: any) {
       console.error('Erro ao enviar pedido:', err);
       alert(`Erro ao finalizar pedido: ${err.message || 'Tente novamente.'}`);
@@ -990,6 +1022,54 @@ Fico no aguardo da confirmação! ✨`;
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 text-left whitespace-pre-wrap leading-relaxed">
               {loja?.instrucoes_pos_pedido || 'Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!'}
             </div>
+
+            {/* SE HOUVER PIX DINÂMICO MERCADO PAGO GERADO */}
+            {pedidoConcluidoModal.pixInfo && (
+              <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-center space-y-3">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-400">
+                  <QrCode className="w-4 h-4" />
+                  <span>Pague agora com Pix Instantâneo</span>
+                </div>
+
+                {pedidoConcluidoModal.pixInfo.qrCodeBase64 ? (
+                  <img
+                    src={`data:image/png;base64,${pedidoConcluidoModal.pixInfo.qrCodeBase64}`}
+                    alt="QR Code Pix"
+                    className="w-44 h-44 mx-auto rounded-xl bg-white p-2 border border-emerald-500/40 shadow-lg"
+                  />
+                ) : null}
+
+                {pedidoConcluidoModal.pixInfo.qrCode && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pedidoConcluidoModal.pixInfo?.qrCode) {
+                        await navigator.clipboard.writeText(pedidoConcluidoModal.pixInfo.qrCode);
+                        setPixCopiado(true);
+                        setTimeout(() => setPixCopiado(false), 2500);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix (Copia e Cola)'}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* LINK DE PAGAMENTO EXTERNO MERCADO PAGO / CARTÃO */}
+            {pedidoConcluidoModal.linkPagamento && (
+              <a
+                href={pedidoConcluidoModal.linkPagamento}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 transition cursor-pointer"
+              >
+                <span>Pagar com Cartão / Mercado Pago</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
 
             <div className="space-y-2 pt-2">
               {pedidoConcluidoModal.whatsAppUrl && (
