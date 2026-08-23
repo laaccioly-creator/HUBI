@@ -32,6 +32,12 @@ export class PrintService {
       const telLoja = (loja?.whatsapp || loja?.telefone) ? `Tel/WhatsApp: ${loja.whatsapp || loja.telefone}` : '';
       const cidLoja = loja?.endereco_cidade ? `${loja.endereco_cidade} - ${loja.endereco_estado || ''}` : '';
 
+      const extras = (loja?.configuracoes_extras as any) || {};
+      const configRecibo = extras.recibo || {};
+      const cabecalhoCustom = configRecibo.cabecalho ? `<p style="margin: 4px 0; font-size: ${isA4 ? '12px' : '10px'}; font-style: italic; color: #475569;">"${configRecibo.cabecalho}"</p>` : '';
+      const rodapeCustom = configRecibo.rodape || 'Obrigado pela preferência!';
+      const incluirCliente = configRecibo.adicionar_cliente !== false;
+
       const itens = (pedido.itens || (pedido as any).itens_pedido || []) as ItemPedido[];
       console.log(`🖨️ [HUBI PrintService] Formatando ${itens.length} itens do pedido #${pedido.numero_pedido}...`);
 
@@ -39,6 +45,7 @@ export class PrintService {
         <tr style="border-bottom: 1px dashed #e2e8f0;">
           <td style="padding: 5px 0; font-size: ${isA4 ? '13px' : '11px'}; color: #000;">
             <strong>${Number(item.quantidade || 1)}x</strong> ${item.nome_produto || 'Item'}
+            ${configRecibo.exibir_codigo_produto && (item as any).codigo_interno ? `<br><span style="color: #64748b; font-size: 9px;">Cód: ${(item as any).codigo_interno}</span>` : ''}
             ${item.rotulo_variacao ? `<br><span style="color: #64748b; font-size: 10px;">(${item.rotulo_variacao})</span>` : ''}
           </td>
           <td style="padding: 5px 0; text-align: right; font-size: ${isA4 ? '13px' : '11px'}; font-weight: bold; color: #000; white-space: nowrap;">
@@ -74,6 +81,7 @@ export class PrintService {
             ${docLoja ? `<p style="margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; color: #334155;">${docLoja}</p>` : ''}
             ${telLoja ? `<p style="margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; color: #334155;">${telLoja}</p>` : ''}
             ${cidLoja ? `<p style="margin: 2px 0; font-size: ${isA4 ? '12px' : '10px'}; color: #334155;">${cidLoja}</p>` : ''}
+            ${cabecalhoCustom}
             <p style="margin: 6px 0 0 0; font-size: 10px; font-weight: bold; color: #000; letter-spacing: 0.5px;">*** COMPROVANTE NÃO FISCAL ***</p>
           </div>
 
@@ -86,8 +94,8 @@ export class PrintService {
               <span style="text-transform: capitalize;"><strong>TABELA:</strong> ${pedido.tabela_preco_aplicada || 'Varejo'}</span>
             </div>
             <div><strong>DATA:</strong> ${new Date(pedido.data_venda || pedido.criado_em || '').toLocaleString('pt-BR')}</div>
-            ${pedido.cliente?.nome ? `<div><strong>CLIENTE:</strong> ${pedido.cliente.nome}</div>` : ''}
-            ${pedido.endereco_entrega ? `<div><strong>ENTREGA:</strong> ${pedido.endereco_entrega}</div>` : ''}
+            ${incluirCliente && pedido.cliente?.nome ? `<div><strong>CLIENTE:</strong> ${pedido.cliente.nome}</div>` : ''}
+            ${incluirCliente && pedido.endereco_entrega ? `<div><strong>ENTREGA:</strong> ${pedido.endereco_entrega}</div>` : ''}
             ${pedido.observacoes ? `<div><strong>OBS:</strong> ${pedido.observacoes}</div>` : ''}
           </div>
 
@@ -142,7 +150,7 @@ export class PrintService {
 
           <!-- Rodapé -->
           <div style="text-align: center; margin-top: 10px; font-size: ${isA4 ? '11px' : '9px'}; color: #64748b;">
-            <p style="margin: 2px 0; font-weight: 500;">Obrigado pela preferência!</p>
+            <p style="margin: 2px 0; font-weight: 500;">${rodapeCustom}</p>
             <p style="margin: 2px 0; font-size: 8px;">HUBI • Sistema de Gestão & PDV</p>
           </div>
         </div>

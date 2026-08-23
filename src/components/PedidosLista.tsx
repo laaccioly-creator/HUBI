@@ -199,6 +199,15 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
+  const statusConfig = (loja?.configuracoes_extras as any)?.status_pedidos_ativos || {};
+  const isStatusHabilitado = (statusId: string) => {
+    if (statusId === 'em_producao') return statusConfig.em_producao !== false;
+    if (statusId === 'em_expedicao') return statusConfig.em_expedicao !== false;
+    if (statusId === 'saiu_para_entrega') return statusConfig.saiu_para_entrega !== false;
+    if (statusId === 'pronto_para_retirar') return statusConfig.pronto_para_retirar !== false;
+    return true;
+  };
+
   const getOpcoesStatusPermitidas = (pedido: Pedido) => {
     if (pedido.status === 'pendente') {
       // Quando pendente, só pode passar para confirmado
@@ -207,12 +216,14 @@ export const PedidosLista: React.FC = () => {
         { id: 'confirmado' as StatusPedido, label: 'Confirmado' }
       ];
     }
+    const opcoesDisponiveis = STATUS_PEDIDO_OPCOES.filter(opt => isStatusHabilitado(opt.id));
+
     if (permissions.ehVendedorOuComum) {
       // Vendedor/Comum não pode alterar depois de confirmado
-      return STATUS_PEDIDO_OPCOES.filter(opt => opt.id === pedido.status);
+      return opcoesDisponiveis.filter(opt => opt.id === pedido.status);
     }
     // Demais perfis (Gerente, Admin, Owner) podem alternar entre status pós-pendente
-    return STATUS_PEDIDO_OPCOES.filter(opt => opt.id !== 'pendente');
+    return opcoesDisponiveis.filter(opt => opt.id !== 'pendente');
   };
 
   const podeAlterarStatusDoPedido = (pedido: Pedido) => {
@@ -630,10 +641,10 @@ export const PedidosLista: React.FC = () => {
               )}
             </div>
 
-            {/* As 10 Abas de Status Solicitadas */}
+            {/* Abas de Status Filtradas conforme Configuração */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
               <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800/80">
-                {ABAS_STATUS.map((f) => (
+                {ABAS_STATUS.filter(f => isStatusHabilitado(f.id)).map((f) => (
                   <button
                     key={f.id}
                     onClick={() => setStatusFiltro(f.id)}

@@ -390,6 +390,7 @@ BEGIN
         UPDATE public.variacoes_produto
         SET quantidade_estoque = quantidade_estoque - NEW.quantidade
         WHERE id = NEW.variacao_id;
+        -- A trigger trg_sincronizar_estoque_pai atualizará public.produtos automaticamente
     ELSE
         -- Produto simples sem variação
         UPDATE public.produtos
@@ -422,6 +423,32 @@ CREATE TRIGGER trg_atualizar_estoque_ao_inserir_item
 AFTER INSERT ON public.itens_pedido
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_atualizar_estoque_pedido();
+
+-- A.1) Sincronização Automática de Estoque entre Variações e Produto Pai
+CREATE OR REPLACE FUNCTION public.fn_sincronizar_estoque_produto_pai()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_produto_id UUID;
+BEGIN
+    v_produto_id := COALESCE(NEW.produto_id, OLD.produto_id);
+    
+    UPDATE public.produtos
+    SET quantidade_estoque = COALESCE((
+        SELECT SUM(quantidade_estoque)
+        FROM public.variacoes_produto
+        WHERE produto_id = v_produto_id AND ativo = TRUE
+    ), 0)
+    WHERE id = v_produto_id AND tem_variacoes = TRUE;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sincronizar_estoque_pai ON public.variacoes_produto;
+CREATE TRIGGER trg_sincronizar_estoque_pai
+AFTER INSERT OR UPDATE OF quantidade_estoque, ativo OR DELETE ON public.variacoes_produto
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_sincronizar_estoque_produto_pai();
 
 -- B) Atualização de Saldo Devedor do Cliente (Fiado)
 CREATE OR REPLACE FUNCTION public.fn_atualizar_saldo_fiado_cliente()

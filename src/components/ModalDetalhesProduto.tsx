@@ -30,12 +30,17 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
   if (!isOpen || !produto) return null;
 
+  const temVariacoes = Boolean(produto.tem_variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0);
+  const estoqueReal = temVariacoes
+    ? produto.variacoes!.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
+    : Number(produto.quantidade_estoque || 0);
+
   const fotos = produto.fotos_urls && produto.fotos_urls.length > 0
     ? produto.fotos_urls
     : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=60'];
 
   const fotoPrincipal = fotos[fotoSelecionadaIdx] || fotos[0];
-  const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
+  const temEstoqueBaixo = estoqueReal <= Number(produto.estoque_minimo_alerta || 0);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
@@ -158,10 +163,14 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
               {/* Estoque e Unidade */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="p-3 bg-slate-950/70 rounded-2xl border border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 font-medium block">Estoque Atual</span>
+                  <span className="text-[10px] text-slate-400 font-medium block">
+                    {temVariacoes ? 'Estoque Total (Grade)' : 'Estoque Atual'}
+                  </span>
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-sm font-black ${temEstoqueBaixo ? 'text-amber-400' : 'text-emerald-400'}`}>
-                      {produto.quantidade_estoque} {produto.tipo_unidade || 'un'}
+                    <span className={`text-sm font-black ${
+                      estoqueReal <= 0 ? 'text-rose-400' : temEstoqueBaixo ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      {estoqueReal} {produto.tipo_unidade || 'un'}
                     </span>
                     {temEstoqueBaixo && <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
                   </div>
@@ -170,28 +179,40 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                 <div className="p-3 bg-slate-950/70 rounded-2xl border border-slate-800 space-y-1">
                   <span className="text-[10px] text-slate-400 font-medium block">Código de Barras</span>
                   <span className="text-xs font-mono font-bold text-slate-300 truncate block">
-                    {produto.codigo_barras || 'Não cadastrado'}
+                    {produto.codigo_barras || (produto.codigo_interno ? `Cód: ${produto.codigo_interno}` : 'Não cadastrado')}
                   </span>
                 </div>
               </div>
 
               {/* Variações do Produto se houver */}
-              {produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0 && (
+              {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
                 <div className="p-3 bg-slate-950/70 rounded-2xl border border-slate-800 space-y-1.5">
                   <span className="text-[11px] font-bold text-slate-400 block">
-                    Variações ({produto.variacoes.length})
+                    Variações & Estoque por Grade ({produto.variacoes.length})
                   </span>
-                  <div className="max-h-28 overflow-y-auto space-y-1">
-                    {produto.variacoes.map((v) => (
-                      <div key={v.id} className="flex justify-between items-center text-xs py-1 border-b border-slate-800/50">
-                        <span className="text-slate-200">
-                          {v.valor_variacao_1} {v.valor_variacao_2 ? `- ${v.valor_variacao_2}` : ''}
-                        </span>
-                        <span className="text-slate-400 font-mono text-[11px]">
-                          {v.quantidade_estoque} un • R$ {Number(v.preco_venda_varejo).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pt-1">
+                    {produto.variacoes.map((v) => {
+                      const vEstoque = Number(v.quantidade_estoque || 0);
+                      return (
+                        <div key={v.id} className="flex justify-between items-center text-xs p-1.5 rounded-lg bg-slate-900/60 border border-slate-800/60">
+                          <span className="text-slate-200 font-medium">
+                            {v.valor_variacao_1} {v.valor_variacao_2 ? `- ${v.valor_variacao_2}` : ''}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 font-mono text-[11px]">
+                              R$ {Number(v.preco_venda_varejo || produto.preco_venda_varejo).toFixed(2)}
+                            </span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                              vEstoque <= 0
+                                ? 'bg-rose-950/60 text-rose-300 border border-rose-800/50'
+                                : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/50'
+                            }`}>
+                              {vEstoque} un
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

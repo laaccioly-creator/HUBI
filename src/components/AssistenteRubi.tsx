@@ -70,7 +70,7 @@ export const AssistenteRubi: React.FC = () => {
 
       const { data: produtos } = await supabase
         .from('produtos')
-        .select('*')
+        .select('*, variacoes:variacoes_produto(*)')
         .eq('loja_id', loja.id)
         .eq('ativo', true);
 
@@ -79,9 +79,16 @@ export const AssistenteRubi: React.FC = () => {
         .select('*')
         .eq('loja_id', loja.id);
 
+      const getEstoqueReal = (p: any) => {
+        if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
+          return p.variacoes.reduce((acc: number, v: any) => acc + Number(v.quantidade_estoque || 0), 0);
+        }
+        return Number(p.quantidade_estoque || 0);
+      };
+
       const faturamento = pedidos?.reduce((acc, p) => acc + Number(p.valor_total || 0), 0) || 0;
       const totalPedidos = pedidos?.length || 0;
-      const produtosAlerta = produtos?.filter(p => Number(p.quantidade_estoque) <= Number(p.estoque_minimo_alerta)) || [];
+      const produtosAlerta = produtos?.filter(p => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
       const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
 
       let resposta = '';
@@ -91,7 +98,7 @@ export const AssistenteRubi: React.FC = () => {
         resposta = `📊 **Resumo de Vendas & Faturamento:**\n\n• **Faturamento Total:** R$ ${faturamento.toFixed(2)}\n• **Volume de Vendas:** ${totalPedidos} pedidos confirmados\n• **Ticket Médio:** R$ ${(totalPedidos > 0 ? faturamento / totalPedidos : 0).toFixed(2)}\n\nSuas vendas estão com bom desempenho! Quer uma dica para aumentar o ticket médio oferecendo combos?`;
       } else if (pLower.includes('estoque') || pLower.includes('baixo') || pLower.includes('acabando')) {
         if (produtosAlerta.length > 0) {
-          const listaAlerta = produtosAlerta.slice(0, 3).map(p => `• **${p.nome}**: restam apenas ${p.quantidade_estoque} un`).join('\n');
+          const listaAlerta = produtosAlerta.slice(0, 3).map(p => `• **${p.nome}**: restam apenas ${getEstoqueReal(p)} un`).join('\n');
           resposta = `⚠️ **Atenção ao Estoque:**\n\nVocê possui **${produtosAlerta.length} produto(s)** com estoque no limite:\n\n${listaAlerta}\n\nRecomendo fazer um pedido aos fornecedores para não perder vendas!`;
         } else {
           resposta = `✅ **Estoque Regularizado!**\n\nTodos os seus ${produtos?.length || 0} produtos cadastrados estão com quantidades acima do nível mínimo de alerta.`;

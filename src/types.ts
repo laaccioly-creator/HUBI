@@ -21,6 +21,47 @@ export type StatusTransacao = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual';
 export type StatusCaixa = 'ABERTO' | 'FECHADO';
 
+export interface ConfiguracoesExtrasLoja {
+  preferencias_gerais?: {
+    casas_decimais?: boolean;
+    transacoes_canceladas?: 'riscadas' | 'ocultar';
+  };
+  taxas_venda?: {
+    usar_taxa_pdv?: boolean;
+    nome_taxa_pdv?: string;
+    valor_taxa_pdv?: number;
+    tipo_taxa_pdv?: 'percentual' | 'fixo';
+    aplicar_taxa_pdv?: 'adicionar' | 'incluida';
+    taxa_pdv_opcional?: boolean;
+    usar_taxa_catalogo?: boolean;
+    nome_taxa_catalogo?: string;
+    valor_taxa_catalogo?: number;
+    tipo_taxa_catalogo?: 'percentual' | 'fixo';
+    aplicar_taxa_catalogo?: 'adicionar' | 'incluida';
+    taxa_catalogo_somente_entrega?: boolean;
+  };
+  status_pedidos_ativos?: {
+    em_producao?: boolean;
+    em_expedicao?: boolean;
+    saiu_para_entrega?: boolean;
+    pronto_para_retirar?: boolean;
+  };
+  recibo?: {
+    adicionar_cliente?: boolean;
+    exibir_codigo_produto?: boolean;
+    cabecalho?: string;
+    rodape?: string;
+  };
+  entrega_retirada?: {
+    trabalho_com_entregas?: boolean;
+    descricao_entregas?: string;
+    trabalho_com_retirada?: boolean;
+  };
+  pagamentos?: {
+    permitir_fiado?: boolean;
+  };
+}
+
 export interface Loja {
   id: string;
   nome_fantasia: string;
@@ -59,6 +100,7 @@ export interface Loja {
   qtd_minima_padrao_autoatacado?: number | null;
   qtd_minima_sku_padrao_autoatacado?: number | null;
   valor_minimo_padrao_autoatacado?: number | null;
+  configuracoes_extras?: ConfiguracoesExtrasLoja | null;
   criado_em?: string;
   atualizado_em?: string;
 }
@@ -259,6 +301,7 @@ export interface FormaPagamento {
   maximo_parcelas: number;
   ativo: boolean;
   exibir_catalogo: boolean;
+  descricao?: string | null;
   criado_em?: string;
 }
 

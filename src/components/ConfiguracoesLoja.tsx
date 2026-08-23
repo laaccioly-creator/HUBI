@@ -133,6 +133,49 @@ export const ConfiguracoesLoja: React.FC = () => {
       setEnderecoLogradouro(loja.endereco_logradouro ? `${loja.endereco_logradouro}, ${loja.endereco_numero || ''}` : 'Rua Bélgica, 945');
       setEnderecoComplemento(loja.endereco_complemento || '');
 
+      const extras = (loja.configuracoes_extras as any) || {};
+
+      // Preferências gerais
+      setMoeda(loja.moeda || 'BR - R$');
+      setCasasDecimais(extras.preferencias_gerais?.casas_decimais !== false);
+      setTransacoesCanceladas(extras.preferencias_gerais?.transacoes_canceladas || 'riscadas');
+
+      // Taxas de venda
+      setUsarTaxaVenda(Boolean(extras.taxas_venda?.usar_taxa_pdv));
+      setNomeTaxaVenda(extras.taxas_venda?.nome_taxa_pdv || '');
+      setValorTaxaVenda(extras.taxas_venda?.valor_taxa_pdv !== undefined ? String(extras.taxas_venda.valor_taxa_pdv) : '0,00');
+      setTipoTaxaVenda(extras.taxas_venda?.tipo_taxa_pdv || 'percentual');
+      setAplicarTaxaVenda(extras.taxas_venda?.aplicar_taxa_pdv || 'adicionar');
+      setTaxaVendaOpcional(Boolean(extras.taxas_venda?.taxa_pdv_opcional));
+
+      // Taxas catálogo
+      setAplicarTaxaCatalogo(Boolean(extras.taxas_venda?.usar_taxa_catalogo));
+      setNomeTaxaCatalogo(extras.taxas_venda?.nome_taxa_catalogo || '');
+      setValorTaxaCatalogo(extras.taxas_venda?.valor_taxa_catalogo !== undefined ? String(extras.taxas_venda.valor_taxa_catalogo) : '0,00');
+      setTipoTaxaCatalogo(extras.taxas_venda?.tipo_taxa_catalogo || 'percentual');
+      setAplicarTaxaCatalogoModo(extras.taxas_venda?.aplicar_taxa_catalogo || 'adicionar');
+      setTaxaCatalogoSomenteEntrega(Boolean(extras.taxas_venda?.taxa_catalogo_somente_entrega));
+
+      // Status de pedidos
+      setStatusEmProducao(extras.status_pedidos_ativos?.em_producao !== false);
+      setStatusEmExpedicao(extras.status_pedidos_ativos?.em_expedicao !== false);
+      setStatusSaiuEntrega(extras.status_pedidos_ativos?.saiu_para_entrega !== false);
+      setStatusProntoRetirar(extras.status_pedidos_ativos?.pronto_para_retirar !== false);
+
+      // Recibo
+      setReciboAdicionarCliente(extras.recibo?.adicionar_cliente !== false);
+      setReciboExibirCodigoProduto(Boolean(extras.recibo?.exibir_codigo_produto));
+      setReciboCabecalho(extras.recibo?.cabecalho || '');
+      setReciboRodape(extras.recibo?.rodape || '');
+
+      // Entrega / Retirada
+      setTrabalhoComEntregas(extras.entrega_retirada?.trabalho_com_entregas !== false);
+      setDescricaoEntregas(extras.entrega_retirada?.descricao_entregas || 'Entregas feitas via UBER envios para Fortaleza e região metropolitana. Para compras acima de R$ 250,00 o frete é grátis. Compras abaixo de R$ 250,00 faremos a cotação do envio.');
+      setTrabalhoComRetirada(Boolean(extras.entrega_retirada?.trabalho_com_retirada));
+
+      // Pagamentos
+      setPermitirFiado(extras.pagamentos?.permitir_fiado !== false);
+
       const carregarAuxiliares = async () => {
         const { data: p } = await supabase.from('formas_pagamento').select('*').eq('loja_id', loja.id);
         if (p && p.length > 0) {
@@ -140,11 +183,11 @@ export const ConfiguracoesLoja: React.FC = () => {
         } else {
           // Formas padrão da loja
           setFormasPagamento([
-            { id: 'fp_pix', loja_id: loja.id, nome: 'Pix', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-            { id: 'fp_dinheiro', loja_id: loja.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-            { id: 'fp_debito', loja_id: loja.id, nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-            { id: 'fp_credito', loja_id: loja.id, nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
-            { id: 'fp_outros', loja_id: loja.id, nome: 'Outros', tipo: 'outro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
+            { id: 'fp_pix', loja_id: loja.id, nome: 'Pix', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true, descricao: '' },
+            { id: 'fp_dinheiro', loja_id: loja.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true, descricao: '' },
+            { id: 'fp_debito', loja_id: loja.id, nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true, descricao: '' },
+            { id: 'fp_credito', loja_id: loja.id, nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true, descricao: '' },
+            { id: 'fp_outros', loja_id: loja.id, nome: 'Outros', tipo: 'outro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false, descricao: '' }
           ]);
         }
 
@@ -167,6 +210,47 @@ export const ConfiguracoesLoja: React.FC = () => {
     try {
       setSalvando(true);
 
+      const configuracoesExtrasPayload = {
+        preferencias_gerais: {
+          casas_decimais: casasDecimais,
+          transacoes_canceladas: transacoesCanceladas
+        },
+        taxas_venda: {
+          usar_taxa_pdv: usarTaxaVenda,
+          nome_taxa_pdv: nomeTaxaVenda,
+          valor_taxa_pdv: parseFloat(String(valorTaxaVenda).replace(',', '.')) || 0,
+          tipo_taxa_pdv: tipoTaxaVenda,
+          aplicar_taxa_pdv: aplicarTaxaVenda,
+          taxa_pdv_opcional: taxaVendaOpcional,
+          usar_taxa_catalogo: aplicarTaxaCatalogo,
+          nome_taxa_catalogo: nomeTaxaCatalogo,
+          valor_taxa_catalogo: parseFloat(String(valorTaxaCatalogo).replace(',', '.')) || 0,
+          tipo_taxa_catalogo: tipoTaxaCatalogo,
+          aplicar_taxa_catalogo: aplicarTaxaCatalogoModo,
+          taxa_catalogo_somente_entrega: taxaCatalogoSomenteEntrega
+        },
+        status_pedidos_ativos: {
+          em_producao: statusEmProducao,
+          em_expedicao: statusEmExpedicao,
+          saiu_para_entrega: statusSaiuEntrega,
+          pronto_para_retirar: statusProntoRetirar
+        },
+        recibo: {
+          adicionar_cliente: reciboAdicionarCliente,
+          exibir_codigo_produto: reciboExibirCodigoProduto,
+          cabecalho: reciboCabecalho,
+          rodape: reciboRodape
+        },
+        entrega_retirada: {
+          trabalho_com_entregas: trabalhoComEntregas,
+          descricao_entregas: descricaoEntregas,
+          trabalho_com_retirada: trabalhoComRetirada
+        },
+        pagamentos: {
+          permitir_fiado: permitirFiado
+        }
+      };
+
       const { error } = await supabase
         .from('lojas')
         .update({
@@ -181,6 +265,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           email,
           endereco_logradouro: enderecoLogradouro,
           endereco_complemento: enderecoComplemento,
+          configuracoes_extras: configuracoesExtrasPayload,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', loja.id);
@@ -212,6 +297,36 @@ export const ConfiguracoesLoja: React.FC = () => {
     setEmail(loja.email || '');
     setEnderecoLogradouro(loja.endereco_logradouro || '');
     setEnderecoComplemento(loja.endereco_complemento || '');
+
+    const extras = (loja.configuracoes_extras as any) || {};
+    setMoeda(loja.moeda || 'BR - R$');
+    setCasasDecimais(extras.preferencias_gerais?.casas_decimais !== false);
+    setTransacoesCanceladas(extras.preferencias_gerais?.transacoes_canceladas || 'riscadas');
+    setUsarTaxaVenda(Boolean(extras.taxas_venda?.usar_taxa_pdv));
+    setNomeTaxaVenda(extras.taxas_venda?.nome_taxa_pdv || '');
+    setValorTaxaVenda(extras.taxas_venda?.valor_taxa_pdv !== undefined ? String(extras.taxas_venda.valor_taxa_pdv) : '0,00');
+    setTipoTaxaVenda(extras.taxas_venda?.tipo_taxa_pdv || 'percentual');
+    setAplicarTaxaVenda(extras.taxas_venda?.aplicar_taxa_pdv || 'adicionar');
+    setTaxaVendaOpcional(Boolean(extras.taxas_venda?.taxa_pdv_opcional));
+    setAplicarTaxaCatalogo(Boolean(extras.taxas_venda?.usar_taxa_catalogo));
+    setNomeTaxaCatalogo(extras.taxas_venda?.nome_taxa_catalogo || '');
+    setValorTaxaCatalogo(extras.taxas_venda?.valor_taxa_catalogo !== undefined ? String(extras.taxas_venda.valor_taxa_catalogo) : '0,00');
+    setTipoTaxaCatalogo(extras.taxas_venda?.tipo_taxa_catalogo || 'percentual');
+    setAplicarTaxaCatalogoModo(extras.taxas_venda?.aplicar_taxa_catalogo || 'adicionar');
+    setTaxaCatalogoSomenteEntrega(Boolean(extras.taxas_venda?.taxa_catalogo_somente_entrega));
+    setStatusEmProducao(extras.status_pedidos_ativos?.em_producao !== false);
+    setStatusEmExpedicao(extras.status_pedidos_ativos?.em_expedicao !== false);
+    setStatusSaiuEntrega(extras.status_pedidos_ativos?.saiu_para_entrega !== false);
+    setStatusProntoRetirar(extras.status_pedidos_ativos?.pronto_para_retirar !== false);
+    setReciboAdicionarCliente(extras.recibo?.adicionar_cliente !== false);
+    setReciboExibirCodigoProduto(Boolean(extras.recibo?.exibir_codigo_produto));
+    setReciboCabecalho(extras.recibo?.cabecalho || '');
+    setReciboRodape(extras.recibo?.rodape || '');
+    setTrabalhoComEntregas(extras.entrega_retirada?.trabalho_com_entregas !== false);
+    setDescricaoEntregas(extras.entrega_retirada?.descricao_entregas || 'Entregas feitas via UBER envios para Fortaleza e região metropolitana. Para compras acima de R$ 250,00 o frete é grátis. Compras abaixo de R$ 250,00 faremos a cotação do envio.');
+    setTrabalhoComRetirada(Boolean(extras.entrega_retirada?.trabalho_com_retirada));
+    setPermitirFiado(extras.pagamentos?.permitir_fiado !== false);
+
     setHouveAlteracao(false);
   };
 
@@ -222,7 +337,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       id: fpExistente?.id || `fp_${tipo}_${Date.now()}`,
       nome: fpExistente?.nome || nome,
       tipo: fpExistente?.tipo || tipo,
-      descricao: '',
+      descricao: fpExistente?.descricao || '',
       pdvAtivo: fpExistente ? fpExistente.ativo : true,
       catalogoAtivo: fpExistente ? fpExistente.exibir_catalogo : true
     });
@@ -232,13 +347,14 @@ export const ConfiguracoesLoja: React.FC = () => {
     if (!drawerMetodoPagamento || !loja?.id) return;
 
     try {
-      const { id, nome, tipo, pdvAtivo, catalogoAtivo } = drawerMetodoPagamento;
+      const { id, nome, tipo, descricao, pdvAtivo, catalogoAtivo } = drawerMetodoPagamento;
       
       const payload: Partial<FormaPagamento> = {
         id,
         loja_id: loja.id,
         nome,
         tipo: tipo as any,
+        descricao: descricao || null,
         ativo: pdvAtivo,
         exibir_catalogo: catalogoAtivo,
         taxa_percentual: 0,
@@ -252,7 +368,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       setFormasPagamento(prev => {
         const existe = prev.some(f => f.id === id);
         if (existe) {
-          return prev.map(f => f.id === id ? { ...f, nome, ativo: pdvAtivo, exibir_catalogo: catalogoAtivo } : f);
+          return prev.map(f => f.id === id ? { ...f, nome, descricao, ativo: pdvAtivo, exibir_catalogo: catalogoAtivo } : f);
         }
         return [...prev, payload as FormaPagamento];
       });

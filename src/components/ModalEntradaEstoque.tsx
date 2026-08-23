@@ -32,6 +32,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 }) => {
   const { loja } = useAuth();
   const [tipoMovimento, setTipoMovimento] = useState<TipoMovimento>('entrada_compra');
+  const [variacaoSelecionadaId, setVariacaoSelecionadaId] = useState<string>('');
   const [quantidade, setQuantidade] = useState<string>('10');
   const [novoPrecoCusto, setNovoPrecoCusto] = useState<string>('');
   const [novoPrecoVenda, setNovoPrecoVenda] = useState<string>('');
@@ -41,19 +42,42 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
   const [salvando, setSalvando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
+  const temVariacoes = Boolean(produto?.tem_variacoes && Array.isArray(produto?.variacoes) && produto.variacoes.length > 0);
+  const variacaoAtual = temVariacoes ? produto?.variacoes?.find(v => v.id === variacaoSelecionadaId) || produto?.variacoes?.[0] : null;
+
   useEffect(() => {
     if (produto) {
-      setNovoPrecoCusto(produto.preco_custo ? String(produto.preco_custo) : '0.00');
-      setNovoPrecoVenda(produto.preco_venda_varejo ? String(produto.preco_venda_varejo) : '');
+      if (temVariacoes && produto.variacoes && produto.variacoes.length > 0) {
+        setVariacaoSelecionadaId(produto.variacoes[0].id);
+        setNovoPrecoCusto(produto.variacoes[0].preco_custo ? String(produto.variacoes[0].preco_custo) : (produto.preco_custo ? String(produto.preco_custo) : '0.00'));
+        setNovoPrecoVenda(produto.variacoes[0].preco_venda_varejo ? String(produto.variacoes[0].preco_venda_varejo) : (produto.preco_venda_varejo ? String(produto.preco_venda_varejo) : ''));
+      } else {
+        setVariacaoSelecionadaId('');
+        setNovoPrecoCusto(produto.preco_custo ? String(produto.preco_custo) : '0.00');
+        setNovoPrecoVenda(produto.preco_venda_varejo ? String(produto.preco_venda_varejo) : '');
+      }
       setQuantidade('10');
       setObservacao('');
       setErroMsg(null);
     }
   }, [produto, isOpen]);
 
+  // Atualiza preços ao trocar de variação
+  const handleSelecionarVariacao = (varId: string) => {
+    setVariacaoSelecionadaId(varId);
+    const v = produto?.variacoes?.find(item => item.id === varId);
+    if (v) {
+      setNovoPrecoCusto(v.preco_custo ? String(v.preco_custo) : (produto?.preco_custo ? String(produto.preco_custo) : '0.00'));
+      setNovoPrecoVenda(v.preco_venda_varejo ? String(v.preco_venda_varejo) : (produto?.preco_venda_varejo ? String(produto.preco_venda_varejo) : ''));
+    }
+  };
+
   if (!isOpen || !produto) return null;
 
-  const estoqueAtual = Number(produto.quantidade_estoque || 0);
+  const estoqueAtual = temVariacoes && variacaoAtual
+    ? Number(variacaoAtual.quantidade_estoque || 0)
+    : Number(produto.quantidade_estoque || 0);
+
   const qtdInformada = Number(quantidade) || 0;
 
   // Cálculo do novo estoque estimado
@@ -82,34 +106,70 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
       setSalvando(true);
       setErroMsg(null);
 
-      // 1. Atualizar estoque e preços no produto
-      const payloadUpdate: Partial<Produto> = {
-        quantidade_estoque: novoEstoqueCalculado
-      };
+      if (temVariacoes && variacaoAtual) {
+        // 1. Atualizar estoque da variação específica
+        const payloadVar: any = {
+          quantidade_estoque: novoEstoqueCalculado
+        };
+        if (tipoMovimento === 'entrada_compra' && custoUnit > 0) {
+          payloadVar.preco_custo = custoUnit;
+        }
+        if (novoPrecoVenda && Number(novoPrecoVenda) > 0) {
+          payloadVar.preco_venda_varejo = Number(novoPrecoVenda);
+        }
 
-      if (tipoMovimento === 'entrada_compra' && custoUnit > 0) {
-        payloadUpdate.preco_custo = custoUnit;
+        const { error: erroVar } = await supabase
+          .from('variacoes_produto')
+          .update(payloadVar)
+          .eq('id', variacaoAtual.id);
+
+        if (erroVar) throw erroVar;
+
+        // 2. Recalcular a soma total de estoque no produto pai
+        const outrasVariacoesSoma = (produto.variacoes || [])
+          .filter(v => v.id !== variacaoAtual.id)
+          .reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0);
+        const novoTotalPai = outrasVariacoesSoma + novoEstoqueCalculado;
+
+        await supabase
+          .from('produtos')
+          .update({ quantidade_estoque: novoTotalPai })
+          .eq('id', produto.id);
+
+      } else {
+        // 1. Atualizar produto simples sem variação
+        const payloadUpdate: Partial<Produto> = {
+          quantidade_estoque: novoEstoqueCalculado
+        };
+
+        if (tipoMovimento === 'entrada_compra' && custoUnit > 0) {
+          payloadUpdate.preco_custo = custoUnit;
+        }
+        if (novoPrecoVenda && Number(novoPrecoVenda) > 0) {
+          payloadUpdate.preco_venda_varejo = Number(novoPrecoVenda);
+        }
+
+        const { error: erroProd } = await supabase
+          .from('produtos')
+          .update(payloadUpdate)
+          .eq('id', produto.id);
+
+        if (erroProd) throw erroProd;
       }
-      if (novoPrecoVenda && Number(novoPrecoVenda) > 0) {
-        payloadUpdate.preco_venda_varejo = Number(novoPrecoVenda);
-      }
 
-      const { error: erroProd } = await supabase
-        .from('produtos')
-        .update(payloadUpdate)
-        .eq('id', produto.id);
-
-      if (erroProd) throw erroProd;
-
-      // 2. Se for entrada por compra e o lojista marcou para lançar a despesa no financeiro
+      // 3. Se for entrada por compra e o lojista marcou para lançar a despesa no financeiro
       if (tipoMovimento === 'entrada_compra' && lancarDespesaFinanceira && valorTotalCompra > 0) {
         try {
+          const descricaoMov = temVariacoes && variacaoAtual
+            ? `Compra de Estoque: ${qtdInformada}x ${produto.nome} (${variacaoAtual.valor_variacao_1})`
+            : `Compra de Estoque: ${qtdInformada}x ${produto.nome}`;
+
           await supabase.from('transacoes_financeiras').insert([
             {
               loja_id: loja.id,
               tipo: 'SAIDA',
               categoria: 'Compra de Mercadorias (Estoque)',
-              descricao: `Compra de Estoque: ${qtdInformada}x ${produto.nome} (${observacao || 'Entrada manual'})`,
+              descricao: `${descricaoMov} - ${observacao || 'Entrada manual'}`,
               valor: valorTotalCompra,
               data_vencimento: new Date().toISOString().split('T')[0],
               data_pagamento: new Date().toISOString(),
@@ -203,9 +263,46 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 
         {/* Formulário de Quantidade e Custos */}
         <form onSubmit={handleConfirmarMovimentacao} className="space-y-4">
+          {/* Seletor de Variação se o produto possuir grade */}
+          {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
+            <div className="space-y-1.5 p-3 bg-slate-950/70 rounded-2xl border border-slate-800">
+              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span>Selecione a Opção / Variação:</span>
+                <span className="text-[10px] text-slate-500 font-normal">Controle individual por grade</span>
+              </label>
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                {produto.variacoes.map((v) => {
+                  const isSel = (variacaoAtual?.id === v.id);
+                  const estVar = Number(v.quantidade_estoque || 0);
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => handleSelecionarVariacao(v.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                        isSel
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>{v.valor_variacao_1} {v.valor_variacao_2 ? `- ${v.valor_variacao_2}` : ''}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                        estVar <= 0 ? 'bg-rose-950 text-rose-300 border border-rose-800/60' : 'bg-slate-950 text-slate-300'
+                      }`}>
+                        {estVar} un
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-[11px] text-slate-400 block">Estoque Atual em Loja:</span>
+              <span className="text-[11px] text-slate-400 block">
+                {temVariacoes && variacaoAtual ? `Estoque Atual (${variacaoAtual.valor_variacao_1}):` : 'Estoque Atual em Loja:'}
+              </span>
               <span className="text-xl font-black text-slate-200">{estoqueAtual} {produto.tipo_unidade || 'un'}</span>
             </div>
             <div className="text-right space-y-0.5">
