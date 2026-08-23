@@ -21,10 +21,20 @@ export type StatusTransacao = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual';
 export type StatusCaixa = 'ABERTO' | 'FECHADO';
 
+export type ModoExibicaoCatalogo = 'lista' | 'grade' | 'instaview';
+export type ComportamentoSemEstoque = 'ocultar' | 'indisponivel' | 'exibir';
+
 export interface ConfiguracoesExtrasLoja {
   preferencias_gerais?: {
     casas_decimais?: boolean;
     transacoes_canceladas?: 'riscadas' | 'ocultar';
+  };
+  catalogo?: {
+    publicar_catalogo?: boolean;
+    modo_exibicao?: ModoExibicaoCatalogo;
+    produtos_sem_estoque?: ComportamentoSemEstoque;
+    exibir_banner?: boolean;
+    titulo_banner?: string;
   };
   taxas_venda?: {
     usar_taxa_pdv?: boolean;

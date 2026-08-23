@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.lojas (
     qtd_minima_padrao_autoatacado NUMERIC(12,2) DEFAULT 100.00,
     qtd_minima_sku_padrao_autoatacado NUMERIC(12,2) DEFAULT 6.00,
     valor_minimo_padrao_autoatacado NUMERIC(12,2) DEFAULT 3000.00,
+    configuracoes_extras JSONB DEFAULT '{}'::jsonb,
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );

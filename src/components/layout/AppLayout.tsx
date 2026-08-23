@@ -19,7 +19,8 @@ import {
   Loader2,
   UserCheck,
   ChevronDown,
-  Check
+  Check,
+  Globe
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -223,6 +224,13 @@ export const AppLayout: React.FC = () => {
   const mainButtons = todosBotoesPrincipais.filter(b => b.visivel);
 
   const todosBotoesExtras = [
+    {
+      name: 'Catálogo Online',
+      path: '/catalog-config',
+      icon: Globe,
+      description: 'Vitrine, cores e pedidos online',
+      visivel: permissions.podeAcessarCatalogo
+    },
     {
       name: 'Cadastros & Tabelas',
       path: '/auxiliares',
@@ -569,6 +577,17 @@ export const AppLayout: React.FC = () => {
               >
                 <Sparkles className="w-4 h-4 text-indigo-400" />
                 <span>Assistente Rubi (IA)</span>
+              </Link>
+            )}
+
+            {permissions.podeAcessarCatalogo && (
+              <Link
+                to="/catalog-config"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-emerald-300 hover:bg-emerald-500/10 font-semibold"
+              >
+                <Globe className="w-4 h-4 text-emerald-400" />
+                <span>Catálogo Online</span>
               </Link>
             )}
 

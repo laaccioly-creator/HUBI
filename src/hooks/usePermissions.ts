@@ -25,6 +25,7 @@ export interface PermissionsState {
   podeAcessarFinancas: boolean;
   podeAcessarAnalytics: boolean;
   podeAcessarRubiIA: boolean;
+  podeAcessarCatalogo: boolean;
   podeAcessarAuxiliares: boolean;
   podeAcessarUsuarios: boolean;
   podeAcessarConfig: boolean;
@@ -61,6 +62,7 @@ export const usePermissions = (): PermissionsState => {
   const podeAcessarFinancas = ehGerente; // Somente Owner, Admin e Gerente
   const podeAcessarAnalytics = ehGerente || podeExportarRelatorios; // Gestores ou com permissão explícita
   const podeAcessarRubiIA = ehGerente; // Assistente IA estratégica para gestores
+  const podeAcessarCatalogo = ehGerente; // Gestores, Admin e Owner podem gerenciar o catálogo
   const podeAcessarAuxiliares = ehAdmin; // Somente Owner e Admin
   const podeAcessarUsuarios = ehAdmin; // Somente Owner e Admin
   const podeAcessarConfig = ehAdmin; // Somente Owner e Admin
@@ -94,6 +96,7 @@ export const usePermissions = (): PermissionsState => {
     podeAcessarFinancas,
     podeAcessarAnalytics,
     podeAcessarRubiIA,
+    podeAcessarCatalogo,
     podeAcessarAuxiliares,
     podeAcessarUsuarios,
     podeAcessarConfig,

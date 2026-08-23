@@ -15,6 +15,7 @@ import { EstatisticasAnalytics } from './components/EstatisticasAnalytics';
 import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
 import { AssistenteRubi } from './components/AssistenteRubi';
 import { CatalogoPublico } from './components/CatalogoPublico';
+import { ConfiguracaoCatalogo } from './components/ConfiguracaoCatalogo';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
 
@@ -114,6 +115,24 @@ const AppRotasInternas: React.FC = () => {
           element={
             <RotaProtegida permitido={permissions.podeAcessarRubiIA}>
               <AssistenteRubi />
+            </RotaProtegida>
+          }
+        />
+
+        {/* Catálogo Online (Gestão e Personalização) */}
+        <Route
+          path="catalog-config"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarCatalogo}>
+              <ConfiguracaoCatalogo />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="catalog-admin"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarCatalogo}>
+              <ConfiguracaoCatalogo />
             </RotaProtegida>
           }
         />
