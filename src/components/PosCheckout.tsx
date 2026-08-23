@@ -28,14 +28,17 @@ import {
   Banknote,
   Zap,
   FileText,
-  Loader2
+  Loader2,
+  Mail,
+  Download,
+  Copy
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido } from '../types';
-import { PrintService } from '../services/printService';
+import { PrintService, formatarDataRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { SyncService } from '../services/syncService';
@@ -685,7 +688,7 @@ export const PosCheckout: React.FC = () => {
           ) : produtosFiltrados.length === 0 ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">Nenhum produto encontrado.</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
               {produtosFiltrados.map((produto) => {
                 const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
                 const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
@@ -704,32 +707,32 @@ export const PosCheckout: React.FC = () => {
                         adicionarItem(produto);
                       }
                     }}
-                    className="bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-2.5 cursor-pointer transition-all duration-150 flex flex-col justify-between group shadow-sm active:scale-[0.98]"
+                    className="bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 rounded-xl p-2 cursor-pointer transition-all duration-150 flex flex-col justify-between group shadow-sm active:scale-[0.98]"
                   >
                     <div>
-                      <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-950 mb-2">
+                      <div className="relative aspect-square rounded-lg overflow-hidden bg-slate-950 mb-1.5">
                         <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                         {temEstoqueBaixo && (
-                          <span className="absolute top-1.5 right-1.5 bg-amber-500/90 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded shadow">
-                            Estoque {produto.quantidade_estoque}
+                          <span className="absolute top-1 right-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
+                            Est: {produto.quantidade_estoque}
                           </span>
                         )}
                       </div>
 
-                      <h3 className="font-bold text-xs text-slate-100 line-clamp-2 leading-tight">
+                      <h3 className="font-bold text-[11px] sm:text-xs text-slate-100 line-clamp-2 leading-tight">
                         {produto.nome}
                       </h3>
                       {produto.codigo_interno && (
-                        <span className="text-[10px] text-slate-500 block mt-0.5">#{produto.codigo_interno}</span>
+                        <span className="text-[9px] text-slate-500 block mt-0.5 font-mono">#{produto.codigo_interno}</span>
                       )}
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                      <span className="font-black text-emerald-400 text-xs sm:text-sm">
+                    <div className="mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between">
+                      <span className="font-black text-emerald-400 text-xs">
                         R$ {Number(precoExibido).toFixed(2)}
                       </span>
-                      <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white flex items-center justify-center transition">
-                        <Plus className="w-3.5 h-3.5" />
+                      <span className="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white flex items-center justify-center transition">
+                        <Plus className="w-3 h-3" />
                       </span>
                     </div>
                   </div>
@@ -1306,88 +1309,216 @@ export const PosCheckout: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE RECIBO & IMPRESSÃO BLUETOOTH */}
+      {/* MODAL DE RECIBO & FINALIZAÇÃO */}
       {pedidoConcluido && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-2">
-                <CheckCircle2 className="w-7 h-7" />
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            {/* Topo do Modal */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-100 text-sm">
+                    {ehVendaOfflineSalva ? 'Venda Salva (Modo Offline)!' : 'Venda Concluída com Sucesso!'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Recibo do Pedido #{pedidoConcluido.numero_pedido}</p>
+                </div>
               </div>
-              <h3 className="font-extrabold text-base text-slate-100">
-                {ehVendaOfflineSalva ? 'Venda Salva no Modo Offline!' : 'Venda Concluída com Sucesso!'}
-              </h3>
-              <p className="text-xs text-slate-400">Pedido #{pedidoConcluido.numero_pedido} registrado no sistema.</p>
+              <button
+                onClick={() => setPedidoConcluido(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
+            {/* Visualização do Cupom/Recibo Conforme Modelo dos Logs */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {ehVendaOfflineSalva && (
-                <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 text-left space-y-1">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold">
                     <CloudOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span>Armazenado com segurança localmente</span>
                   </div>
                   <p className="text-[10px] text-slate-400 leading-relaxed">
-                    O pedido foi gravado no dispositivo e será enviado automaticamente para a nuvem assim que a internet reconectar.
+                    O pedido foi gravado no dispositivo e será sincronizado com a nuvem assim que houver conexão.
                   </p>
                 </div>
               )}
-            </div>
 
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1.5 font-mono text-xs text-slate-300">
-              <div className="flex justify-between">
-                <span>Total da Venda:</span>
-                <span className="font-bold text-emerald-400">R$ {Number(pedidoConcluido.valor_total).toFixed(2)}</span>
-              </div>
-              {pedidoConcluido.cliente && (
-                <div className="flex justify-between text-slate-400">
-                  <span>Cliente:</span>
-                  <span>{pedidoConcluido.cliente.nome}</span>
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 text-xs space-y-3 shadow-inner">
+                {/* Logo da Loja se houver */}
+                {loja?.url_logo && (
+                  <div className="text-center pb-1">
+                    <img src={loja.url_logo} alt={loja.nome_fantasia} className="max-h-12 max-w-[160px] mx-auto object-contain" />
+                  </div>
+                )}
+
+                {/* Título RECIBO # */}
+                <div className="text-center">
+                  <h4 className="font-bold text-slate-100 text-base tracking-wide">
+                    RECIBO #{pedidoConcluido.numero_pedido}
+                  </h4>
                 </div>
-              )}
+
+                {/* Dados da Loja */}
+                <div className="space-y-0.5 text-xs text-slate-300">
+                  <p className="font-bold uppercase text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</p>
+                  <p className="text-slate-400">
+                    {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
+                    {loja?.whatsapp ? ` - +55 ${loja.whatsapp}` : (loja?.telefone ? ` - +55 ${loja.telefone}` : '')}
+                  </p>
+                </div>
+
+                {/* Dados do Cliente */}
+                <div className="space-y-0.5 text-xs text-slate-300">
+                  <p className="font-semibold text-slate-100">{pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
+                  {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
+                    <p className="text-slate-400">
+                      +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
+                    </p>
+                  )}
+                  {pedidoConcluido.endereco_entrega && (
+                    <p className="text-[11px] text-slate-400">Entrega: {pedidoConcluido.endereco_entrega}</p>
+                  )}
+                </div>
+
+                {/* Resumo de itens */}
+                <div className="font-semibold text-slate-300 text-xs pt-1">
+                  {pedidoConcluido.itens?.length || 0} itens (Qtd.: {pedidoConcluido.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
+                </div>
+
+                {/* Linha Divisória */}
+                <div className="border-t border-slate-700 my-2"></div>
+
+                {/* Tabela de Itens */}
+                <div className="space-y-1.5">
+                  {pedidoConcluido.itens?.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-xs">
+                      <span className="text-slate-200">
+                        <strong>{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+                      </span>
+                      <span className="font-semibold text-slate-100 whitespace-nowrap pl-3">
+                        R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Linha Divisória */}
+                <div className="border-t border-slate-700 my-2"></div>
+
+                {/* Acréscimos/Descontos se houver */}
+                {(Number(pedidoConcluido.valor_desconto) > 0 || Number(pedidoConcluido.valor_frete) > 0) && (
+                  <div className="space-y-1 text-xs text-slate-400">
+                    {Number(pedidoConcluido.subtotal) > 0 && (
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>R$ {Number(pedidoConcluido.subtotal).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {Number(pedidoConcluido.valor_desconto) > 0 && (
+                      <div className="flex justify-between text-rose-400">
+                        <span>Desconto:</span>
+                        <span>- R$ {Number(pedidoConcluido.valor_desconto).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {Number(pedidoConcluido.valor_frete) > 0 && (
+                      <div className="flex justify-between text-purple-400">
+                        <span>Taxa de Entrega:</span>
+                        <span>+ R$ {Number(pedidoConcluido.valor_frete).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Total */}
+                <div className="text-right text-sm font-bold text-slate-100">
+                  Total: R$ {Number(pedidoConcluido.valor_total).toFixed(2)}
+                </div>
+
+                {Number(pedidoConcluido.saldo_devedor) > 0 && (
+                  <div className="text-right text-xs font-semibold text-amber-400">
+                    Saldo Devedor (Fiado): R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}
+                  </div>
+                )}
+
+                {/* Linha Divisória */}
+                <div className="border-t border-slate-700 my-2"></div>
+
+                {/* Data Formatada por Extenso */}
+                <div className="text-center text-[11px] text-slate-400">
+                  {formatarDataRecibo(pedidoConcluido.data_venda || pedidoConcluido.criado_em)}
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button
-                onClick={() => {
-                  if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
-                }}
-                className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-emerald-400" />
-                <span>Imprimir 58/80mm</span>
-              </button>
+            {/* Ações do Modal de Recibo com Botões Compactos */}
+            <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2">
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
+                  }}
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Imprimir Cupom Térmico (58mm/80mm)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Imprimir</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
-                }}
-                className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-indigo-400" />
-                <span>Imprimir A4</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
+                  }}
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Baixar e Salvar em PDF"
+                >
+                  <Download className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Baixar PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pedidoConcluido) PrintService.openEmail(pedidoConcluido, loja);
+                  }}
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Enviar Recibo por E-mail"
+                >
+                  <Mail className="w-3.5 h-3.5 text-sky-400" />
+                  <span>E-mail</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (loja && pedidoConcluido) {
+                      const msg = PrintService.generateWhatsAppMessage(pedidoConcluido, loja);
+                      PrintService.openWhatsApp(pedidoConcluido.cliente?.whatsapp || '', msg);
+                    }
+                  }}
+                  className="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPedidoConcluido(null)}
+                  className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Nova Venda
+                </button>
+              </div>
             </div>
-
-            {pedidoConcluido.cliente?.whatsapp && (
-              <button
-                onClick={() => {
-                  if (loja && pedidoConcluido.cliente?.whatsapp) {
-                    const msg = PrintService.generateWhatsAppMessage(pedidoConcluido, loja);
-                    PrintService.openWhatsApp(pedidoConcluido.cliente.whatsapp, msg);
-                  }
-                }}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow transition"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Enviar Recibo por WhatsApp</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setPedidoConcluido(null)}
-              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition mt-1"
-            >
-              Nova Venda
-            </button>
           </div>
         </div>
       )}

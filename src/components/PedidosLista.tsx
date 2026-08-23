@@ -25,14 +25,16 @@ import {
   ChevronDown,
   Lock,
   Copy,
-  Info
+  Info,
+  Mail,
+  Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto } from '../types';
-import { PrintService } from '../services/printService';
+import { PrintService, formatarDataRecibo } from '../services/printService';
 import { audioService } from '../services/audioService';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
@@ -1100,7 +1102,7 @@ export const PedidosLista: React.FC = () => {
       {/* MODAL DE APRESENTAÇÃO DO RECIBO */}
       {pedidoReciboModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
             {/* Topo do Modal de Recibo */}
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
               <div className="flex items-center gap-2">
@@ -1120,197 +1122,193 @@ export const PedidosLista: React.FC = () => {
               </button>
             </div>
 
-            {/* Visualização do Cupom/Recibo (Estilo Cupom Fiscal / Térmica) */}
+            {/* Visualização do Cupom/Recibo Conforme Modelo dos Logs */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 font-mono text-xs space-y-3 shadow-inner">
-                {/* Cabeçalho do Recibo */}
-                <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-800">
-                  <h4 className="font-bold text-slate-100 text-sm tracking-wide uppercase">
-                    {loja?.nome_fantasia || 'MINHA LOJA'}
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 text-xs space-y-3 shadow-inner">
+                {/* Logo da Loja se houver */}
+                {loja?.url_logo && (
+                  <div className="text-center pb-1">
+                    <img src={loja.url_logo} alt={loja.nome_fantasia} className="max-h-12 max-w-[160px] mx-auto object-contain" />
+                  </div>
+                )}
+
+                {/* Título RECIBO # */}
+                <div className="text-center">
+                  <h4 className="font-bold text-slate-100 text-base tracking-wide">
+                    RECIBO #{pedidoReciboModal.numero_pedido}
                   </h4>
-                  {loja?.numero_documento && (
-                    <p className="text-[11px] text-slate-400">CNPJ/CPF: {loja.numero_documento}</p>
-                  )}
-                  {loja?.whatsapp && (
-                    <p className="text-[11px] text-slate-400">WhatsApp: {loja.whatsapp}</p>
-                  )}
-                  {loja?.endereco_cidade && (
-                    <p className="text-[11px] text-slate-400">{loja.endereco_cidade} - {loja.endereco_estado || 'UF'}</p>
-                  )}
-                  <p className="text-[10px] text-emerald-400 pt-1 font-sans font-bold uppercase tracking-wider">
-                    *** COMPROVANTE NÃO FISCAL ***
+                </div>
+
+                {/* Dados da Loja */}
+                <div className="space-y-0.5 text-xs text-slate-300">
+                  <p className="font-bold uppercase text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</p>
+                  <p className="text-slate-400">
+                    {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
+                    {loja?.whatsapp ? ` - +55 ${loja.whatsapp}` : (loja?.telefone ? ` - +55 ${loja.telefone}` : '')}
                   </p>
                 </div>
 
-                {/* Dados da Venda */}
-                <div className="space-y-1 text-[11px] text-slate-300 pb-2 border-b border-dashed border-slate-800">
-                  <div className="flex justify-between">
-                    <span>PEDIDO:</span>
-                    <span className="font-bold text-slate-100">#{pedidoReciboModal.numero_pedido}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>DATA:</span>
-                    <span>{formatarData(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em || '')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>TABELA:</span>
-                    <span className="capitalize">{pedidoReciboModal.tabela_preco_aplicada === 'autoatacado' ? 'Distribuidor' : pedidoReciboModal.tabela_preco_aplicada || 'Varejo'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>STATUS:</span>
-                    <span className="capitalize">{pedidoReciboModal.status}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>PAGAMENTO:</span>
-                    <span className="capitalize">{STATUS_PAGAMENTO_OPCOES.find(o => o.id === resolverStatusPagamento(pedidoReciboModal))?.label || 'Aguardando pagamento'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>CLIENTE:</span>
-                    <span className="font-bold text-slate-100">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</span>
-                  </div>
+                {/* Dados do Cliente */}
+                <div className="space-y-0.5 text-xs text-slate-300">
+                  <p className="font-semibold text-slate-100">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
+                  {(pedidoReciboModal.cliente?.whatsapp || pedidoReciboModal.cliente?.telefone) && (
+                    <p className="text-slate-400">
+                      +55 {pedidoReciboModal.cliente.whatsapp || pedidoReciboModal.cliente.telefone}
+                    </p>
+                  )}
                   {pedidoReciboModal.endereco_entrega && (
-                    <div className="pt-1 text-[10px] text-slate-400">
-                      <span>ENTREGA: {pedidoReciboModal.endereco_entrega}</span>
-                    </div>
+                    <p className="text-[11px] text-slate-400">Entrega: {pedidoReciboModal.endereco_entrega}</p>
                   )}
                 </div>
+
+                {/* Resumo de itens */}
+                <div className="font-semibold text-slate-300 text-xs pt-1">
+                  {pedidoReciboModal.itens?.length || 0} itens (Qtd.: {pedidoReciboModal.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
+                </div>
+
+                {/* Linha Divisória */}
+                <div className="border-t border-slate-700 my-2"></div>
 
                 {/* Tabela de Itens */}
-                <div className="space-y-2 pb-3 border-b border-dashed border-slate-800">
-                  <div className="flex justify-between text-[10px] text-slate-500 uppercase font-bold">
-                    <span>Qtd / Descrição</span>
-                    <span>Total</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {pedidoReciboModal.itens?.map((item, idx) => (
-                      <div key={idx} className="space-y-0.5">
-                        <div className="flex justify-between text-[11px]">
-                          <span className="font-medium text-slate-200">
-                            {Number(item.quantidade)}x {item.nome_produto} {item.rotulo_variacao ? `(${item.rotulo_variacao})` : ''}
-                          </span>
-                          <span className="font-bold text-slate-100">
-                            R$ {Number(item.subtotal).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-500">
-                          (R$ {Number(item.preco_venda_unitario).toFixed(2)} un)
-                        </div>
+                <div className="space-y-1.5">
+                  {pedidoReciboModal.itens?.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-xs">
+                      <span className="text-slate-200">
+                        <strong>{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+                      </span>
+                      <span className="font-semibold text-slate-100 whitespace-nowrap pl-3">
+                        R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Linha Divisória */}
+                <div className="border-t border-slate-700 my-2"></div>
+
+                {/* Acréscimos/Descontos se houver */}
+                {(Number(pedidoReciboModal.valor_desconto) > 0 || Number(pedidoReciboModal.valor_frete) > 0) && (
+                  <div className="space-y-1 text-xs text-slate-400">
+                    {Number(pedidoReciboModal.subtotal) > 0 && (
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>R$ {Number(pedidoReciboModal.subtotal).toFixed(2)}</span>
                       </div>
-                    ))}
+                    )}
+                    {Number(pedidoReciboModal.valor_desconto) > 0 && (
+                      <div className="flex justify-between text-rose-400">
+                        <span>Desconto:</span>
+                        <span>- R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {Number(pedidoReciboModal.valor_frete) > 0 && (
+                      <div className="flex justify-between text-purple-400">
+                        <span>Taxa de Entrega:</span>
+                        <span>+ R$ {Number(pedidoReciboModal.valor_frete).toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* Total */}
+                <div className="text-right text-sm font-bold text-slate-100">
+                  Total: R$ {Number(pedidoReciboModal.valor_total).toFixed(2)}
                 </div>
 
-                {/* Totais do Recibo */}
-                <div className="space-y-1 text-[11px]">
-                  <div className="flex justify-between text-slate-400">
-                    <span>SUBTOTAL:</span>
-                    <span>R$ {Number(pedidoReciboModal.subtotal).toFixed(2)}</span>
+                {Number(pedidoReciboModal.saldo_devedor) > 0 && (
+                  <div className="text-right text-xs font-semibold text-amber-400">
+                    Saldo Devedor (Fiado): R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}
                   </div>
-                  {Number(pedidoReciboModal.valor_desconto) > 0 && (
-                    <div className="flex justify-between text-rose-400">
-                      <span>DESCONTO:</span>
-                      <span>- R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {Number(pedidoReciboModal.valor_frete) > 0 && (
-                    <div className="flex justify-between text-purple-400">
-                      <span>TAXA ENTREGA:</span>
-                      <span>+ R$ {Number(pedidoReciboModal.valor_frete).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-emerald-400 font-bold text-sm pt-1 border-t border-slate-800">
-                    <span>TOTAL A PAGAR:</span>
-                    <span>R$ {Number(pedidoReciboModal.valor_total).toFixed(2)}</span>
-                  </div>
+                )}
 
-                  {Number(pedidoReciboModal.saldo_devedor) > 0 && (
-                    <div className="flex justify-between text-amber-400 font-bold pt-1 text-[11px]">
-                      <span>SALDO FIADO:</span>
-                      <span>R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
+                {/* Linha Divisória */}
+                <div className="border-t border-slate-700 my-2"></div>
 
-                {/* Rodapé do Recibo */}
-                <div className="text-center pt-3 border-t border-dashed border-slate-800 text-[10px] text-slate-500">
-                  <p>Obrigado pela preferência!</p>
-                  <p className="pt-0.5">HUBI • Sistema de Gestão e PDV</p>
+                {/* Data Formatada por Extenso */}
+                <div className="text-center text-[11px] text-slate-400">
+                  {formatarDataRecibo(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em)}
                 </div>
               </div>
             </div>
 
-            {/* Ações do Modal de Recibo */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+            {/* Ações do Modal de Recibo com Botões Compactos */}
+            <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
+                  type="button"
                   onClick={() => {
                     if (pedidoReciboModal) {
                       PrintService.printReceipt(pedidoReciboModal, loja, '80mm');
                     }
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Imprimir Cupom Térmico (58mm/80mm)"
                 >
-                  <Printer className="w-4 h-4 text-emerald-400" />
-                  <span>Imprimir 58/80mm</span>
+                  <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Imprimir</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (pedidoReciboModal) {
                       PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
                     }
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Baixar e Salvar em PDF"
                 >
-                  <Printer className="w-4 h-4 text-indigo-400" />
-                  <span>Imprimir A4</span>
+                  <Download className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Baixar PDF</span>
                 </button>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleCopiarReciboTexto(pedidoReciboModal)}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    if (pedidoReciboModal) {
+                      PrintService.openEmail(pedidoReciboModal, loja);
+                    }
+                  }}
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Enviar Recibo por E-mail"
                 >
-                  {copiado ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
-                  <span>{copiado ? 'Copiado!' : 'Copiar Texto'}</span>
+                  <Mail className="w-3.5 h-3.5 text-sky-400" />
+                  <span>E-mail</span>
                 </button>
-
-                {pedidoReciboModal.cliente?.whatsapp ? (
-                  <button
-                    onClick={() => {
-                      if (loja && pedidoReciboModal.cliente?.whatsapp) {
-                        const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
-                        PrintService.openWhatsApp(pedidoReciboModal.cliente.whatsapp, msg);
-                      }
-                    }}
-                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>WhatsApp</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (loja) {
-                        const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
-                        PrintService.openWhatsApp('', msg);
-                      }
-                    }}
-                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Enviar WhatsApp</span>
-                  </button>
-                )}
               </div>
 
-              <button
-                onClick={() => setPedidoReciboModal(null)}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer"
-              >
-                Fechar
-              </button>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (loja && pedidoReciboModal) {
+                      const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
+                      PrintService.openWhatsApp(pedidoReciboModal.cliente?.whatsapp || '', msg);
+                    }
+                  }}
+                  className="py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopiarReciboTexto(pedidoReciboModal)}
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                >
+                  {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                  <span>{copiado ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPedidoReciboModal(null)}
+                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -300,7 +300,7 @@ export const ClientesFiado: React.FC = () => {
                   </th>
                   <th className="py-3.5 px-4">Celular/WhatsApp</th>
                   <th className="py-3.5 px-4 hidden md:table-cell">E-mail</th>
-                  <th className="py-3.5 px-4">Saldo</th>
+                  <th className="py-3.5 px-4">Valor Total Pendente</th>
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>

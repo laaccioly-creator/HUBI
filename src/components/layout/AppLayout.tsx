@@ -194,7 +194,7 @@ export const AppLayout: React.FC = () => {
       visivel: permissions.podeAcessarProdutos
     },
     {
-      name: 'Clientes & Fiado',
+      name: 'Clientes',
       path: '/customers',
       icon: Users,
       visivel: permissions.podeAcessarClientes
@@ -436,44 +436,6 @@ export const AppLayout: React.FC = () => {
                     <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
 
-                  {listaUsuariosLoja.length > 1 && (
-                    <div className="py-1 border-b border-slate-800 mb-1">
-                      <p className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Trocar Operador / Vendedor
-                      </p>
-                      <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                        {listaUsuariosLoja.map(u => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => {
-                              selecionarUsuario(u.id);
-                              setUserMenuOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition text-left cursor-pointer ${
-                              usuario?.id === u.id
-                                ? 'bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30'
-                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <div className={`w-5 h-5 rounded-lg text-[10px] flex items-center justify-center font-bold ${
-                                usuario?.id === u.id ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-300'
-                              }`}>
-                                {u.nome_completo ? u.nome_completo.slice(0, 1).toUpperCase() : 'U'}
-                              </div>
-                              <div className="truncate">
-                                <span className="truncate block leading-tight">{u.nome_completo}</span>
-                                <span className="text-[9px] text-slate-500 uppercase">{u.perfil}</span>
-                              </div>
-                            </div>
-                            {usuario?.id === u.id && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {permissions.podeAcessarConfig && (
                     <Link
                       to="/config"
@@ -573,7 +535,7 @@ export const AppLayout: React.FC = () => {
                 className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
               >
                 <Users className="w-4 h-4 text-slate-400" />
-                <span>Clientes & Fiado</span>
+                <span>Clientes</span>
               </Link>
             )}
 

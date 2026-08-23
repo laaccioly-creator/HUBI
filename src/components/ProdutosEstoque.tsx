@@ -13,7 +13,9 @@ import {
   PackagePlus,
   ArrowDownLeft,
   ArrowUpDown,
-  AlertTriangle
+  AlertTriangle,
+  Layers,
+  Info
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +23,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria } from '../types';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
+import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -35,6 +38,7 @@ export const ProdutosEstoque: React.FC = () => {
   // Modais
   const [modalCategorias, setModalCategorias] = useState<boolean>(false);
   const [produtoEstoqueAlvo, setProdutoEstoqueAlvo] = useState<Produto | null>(null);
+  const [produtoDetalhes, setProdutoDetalhes] = useState<Produto | null>(null);
 
   const carregarProdutos = async () => {
     if (!loja?.id) return;
@@ -345,57 +349,44 @@ export const ProdutosEstoque: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Estoque com Detalhamento por Variação e Botão Rápido de Entrada */}
+                        {/* Estoque Atual sem variações com Botão Detalhar e Entrada */}
                         <td className="p-3.5">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1 ${
-                                  estoqueQtd <= 0
-                                    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                                    : estoqueBaixo
-                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                    : 'bg-slate-800 text-slate-200 border border-slate-700'
-                                }`}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1 ${
+                                estoqueQtd <= 0
+                                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                  : estoqueBaixo
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
+                              }`}
+                            >
+                              {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
+                              <span>{estoqueQtd} {produto.tipo_unidade || 'un'}</span>
+                            </span>
+
+                            {/* Botão Detalhar ao lado do estoque atual */}
+                            <button
+                              type="button"
+                              onClick={() => setProdutoDetalhes(produto)}
+                              className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              title="Detalhar variações e ficha do produto"
+                            >
+                              <Layers className="w-3 h-3 text-indigo-400" />
+                              <span>Detalhar</span>
+                            </button>
+
+                            {/* Botão de Entrada Rápida de Estoque */}
+                            {permissions.podeGerenciarEstoque && (
+                              <button
+                                type="button"
+                                onClick={() => setProdutoEstoqueAlvo(produto)}
+                                className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                title="Dar entrada por compra ou ajustar estoque"
                               >
-                                {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
-                                <span>{estoqueQtd} {produto.tipo_unidade || 'un'}</span>
-                              </span>
-
-                              {/* Botão de Entrada Rápida de Estoque */}
-                              {permissions.podeGerenciarEstoque && (
-                                <button
-                                  type="button"
-                                  onClick={() => setProdutoEstoqueAlvo(produto)}
-                                  className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
-                                  title="Dar entrada por compra ou ajustar estoque"
-                                >
-                                  <PackagePlus className="w-3 h-3 text-emerald-400" />
-                                  <span>+ Entrada</span>
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Tags de cada variação individual */}
-                            {temVariacoesGrade && (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {produto.variacoes!.map((v) => {
-                                  const vEstoque = Number(v.quantidade_estoque || 0);
-                                  return (
-                                    <span
-                                      key={v.id}
-                                      className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono border ${
-                                        vEstoque <= 0
-                                          ? 'bg-rose-950/40 text-rose-300 border-rose-800/40'
-                                          : 'bg-slate-950/60 text-slate-300 border-slate-800'
-                                      }`}
-                                      title={`Estoque da variação ${v.valor_variacao_1}`}
-                                    >
-                                      <strong className="font-sans text-slate-400">{v.valor_variacao_1}:</strong> {vEstoque}
-                                    </span>
-                                  );
-                                })}
-                              </div>
+                                <PackagePlus className="w-3 h-3 text-emerald-400" />
+                                <span>+ Entrada</span>
+                              </button>
                             )}
                           </div>
                         </td>
@@ -421,38 +412,48 @@ export const ProdutosEstoque: React.FC = () => {
                         </td>
 
                         <td className="p-3.5 text-right">
-                          {permissions.podeCadastrarAlterarProdutos ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              {/* Botão Alterar / Editar Produto */}
-                              <Link
-                                to={`/products/edit/${produto.id}`}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
-                                title="Alterar Produto"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Link>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Botão Detalhar / Ver Ficha */}
+                            <button
+                              type="button"
+                              onClick={() => setProdutoDetalhes(produto)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                              title="Ver Detalhes do Produto"
+                            >
+                              <Info className="w-4 h-4" />
+                            </button>
 
-                              <button
-                                onClick={() => toggleDestaque(produto.id, produto.destaque)}
-                                className={`p-1.5 rounded-lg transition cursor-pointer ${
-                                  produto.destaque ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
-                                }`}
-                                title={produto.destaque ? 'Produto em Destaque' : 'Destacar Produto'}
-                              >
-                                <Star className="w-4 h-4 fill-current" />
-                              </button>
+                            {permissions.podeCadastrarAlterarProdutos && (
+                              <>
+                                {/* Botão Alterar / Editar Produto */}
+                                <Link
+                                  to={`/products/edit/${produto.id}`}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                                  title="Alterar Produto"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Link>
 
-                              <button
-                                onClick={() => excluirProduto(produto.id)}
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                                title="Excluir Produto"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-slate-600 text-xs">-</span>
-                          )}
+                                <button
+                                  onClick={() => toggleDestaque(produto.id, produto.destaque)}
+                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                    produto.destaque ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
+                                  }`}
+                                  title={produto.destaque ? 'Produto em Destaque' : 'Destacar Produto'}
+                                >
+                                  <Star className="w-4 h-4 fill-current" />
+                                </button>
+
+                                <button
+                                  onClick={() => excluirProduto(produto.id)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                  title="Excluir Produto"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -478,6 +479,13 @@ export const ProdutosEstoque: React.FC = () => {
         onClose={() => setProdutoEstoqueAlvo(null)}
         produto={produtoEstoqueAlvo}
         onEstoqueAtualizado={carregarProdutos}
+      />
+
+      {/* Modal Detalhes do Produto & Variações */}
+      <ModalDetalhesProduto
+        isOpen={!!produtoDetalhes}
+        onClose={() => setProdutoDetalhes(null)}
+        produto={produtoDetalhes}
       />
     </div>
   );
