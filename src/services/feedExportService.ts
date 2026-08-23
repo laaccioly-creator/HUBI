@@ -1,9 +1,9 @@
 /**
  * HUBI - Serviço de Exportação de Feeds de Parceiros & Relatórios
- * Facebook/Instagram Shopping XML, Google Merchant Center Feed e Exportador CSV/Excel
+ * Padrão fiel aos relatórios oficiais Kyte (Sales, Products, Customers) e Feeds XML
  */
 
-import { Loja, Produto, Pedido, Cliente } from '../types';
+import { Loja, Produto, Pedido, Cliente, ItemPedido } from '../types';
 
 class FeedExportService {
   /**
@@ -51,69 +51,216 @@ ${itemsXml}
    * Gera Feed XML no padrão Facebook & Instagram Shopping
    */
   gerarFacebookCatalogXml(loja: Loja, produtos: Produto[]): string {
-    return this.gerarGoogleMerchantXml(loja, produtos); // Padrão RSS 2.0 Google é 100% suportado pelo Meta Commerce Manager
+    return this.gerarGoogleMerchantXml(loja, produtos);
   }
 
   /**
-   * Exporta Relatórios para arquivo CSV formatado em UTF-8 com BOM (compatível com Excel)
+   * Formata Data/Hora no padrão DD/MM/YYYY HH:mm
    */
-  exportarCsvRelatorio(tipo: 'vendas' | 'produtos' | 'clientes', dados: any[]): void {
+  private formatarDataHora(dataIso?: string | null): string {
+    if (!dataIso) return '';
+    try {
+      const d = new Date(dataIso);
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const ano = d.getFullYear();
+      const hora = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${dia}/${mes}/${ano} ${hora}:${min}`;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Formata Data simples DD/MM/YYYY
+   */
+  private formatarDataSimples(dataIso?: string | null): string {
+    if (!dataIso) return '';
+    try {
+      const d = new Date(dataIso);
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const ano = d.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Exporta Relatórios para arquivo CSV formatado exatamente no padrão dos relatórios Kyte
+   */
+  exportarCsvRelatorio(tipo: 'vendas' | 'produtos' | 'clientes', dados: any[], dataInicio?: string, dataFim?: string): void {
     let colunas: string[] = [];
     let linhas: string[] = [];
+    let nomeArquivo = '';
+
+    const dInicioStr = dataInicio ? dataInicio.replace(/-/g, '') : '20260101';
+    const dFimStr = dataFim ? dataFim.replace(/-/g, '') : new Date().toISOString().split('T')[0].replace(/-/g, '');
 
     if (tipo === 'vendas') {
-      colunas = ['Nº Pedido', 'Data', 'Origem', 'Status', 'Cliente', 'Subtotal', 'Frete', 'Desconto', 'Total (R$)', 'Saldo Devedor (Fiado)'];
-      linhas = dados.map((p: Pedido) => [
-        p.numero_pedido,
-        p.data_venda ? new Date(p.data_venda).toLocaleDateString('pt-BR') : '',
-        p.origem,
-        p.status,
-        p.cliente?.nome || 'Cliente Balcão',
-        Number(p.subtotal || 0).toFixed(2),
-        Number(p.valor_frete || 0).toFixed(2),
-        Number(p.valor_desconto || 0).toFixed(2),
-        Number(p.valor_total || 0).toFixed(2),
-        Number(p.saldo_devedor || 0).toFixed(2)
-      ].map(this.formatarCampoCsv).join(';'));
+      nomeArquivo = `Sales_${dInicioStr}_${dFimStr}.csv`;
+      colunas = [
+        'Número',
+        'Status',
+        'Data/Hora',
+        'Quantidade',
+        'Total de itens',
+        'Descri. itens',
+        'Subtotal',
+        'Desconto',
+        'Taxa',
+        'Entrega',
+        'Total',
+        'Lucro',
+        'Meios de Pagamento',
+        'Cliente',
+        'Vendedor',
+        'Observação'
+      ];
+
+      linhas = dados.map((p: any) => {
+        const itens = Array.isArray(p.itens) ? p.itens : [];
+        const qtdDistintos = itens.length;
+        const totalQtdItens = itens.reduce((acc: number, i: any) => acc + Number(i.quantidade || 0), 0);
+        
+        const descriItens = itens
+          .map((i: any) => `${i.quantidade}x${i.nome_produto || i.produto?.nome || 'Item'}`)
+          .join(', ');
+
+        const subtotal = Number(p.subtotal || p.valor_total || 0);
+        const desconto = Number(p.valor_desconto || 0);
+        const taxa = Number(p.taxa_servico || 0);
+        const entrega = Number(p.valor_frete || 0);
+        const total = Number(p.valor_total || 0);
+        
+        // Lucro estimado = Total de Venda - Custo Total dos Itens
+        const custoTotalItens = itens.reduce(
+          (acc: number, i: any) => acc + (Number(i.preco_custo_unitario || i.produto?.preco_custo || 0) * Number(i.quantidade || 1)),
+          0
+        );
+        const lucro = Math.max(0, total - custoTotalItens);
+
+        const statusTexto = p.status === 'pendente'
+          ? (String(p.origem).includes('catalogo') ? 'Pedido Pendente' : 'pendente')
+          : p.status === 'pago' || p.status === 'concluido'
+          ? 'Pago'
+          : p.status;
+
+        const numFormatado = `${p.numero_pedido}-${String(p.origem).includes('catalogo') ? 'c' : '1'}`;
+        const meioPag = p.forma_pagamento?.nome || (p.pagamentos?.[0]?.forma_pagamento?.nome) || 'Pix';
+        const vendedor = String(p.origem).includes('catalogo') ? 'catalog' : 'Luiz Augusto';
+
+        return [
+          this.formatarCampoCsv(numFormatado),
+          this.formatarCampoCsv(statusTexto),
+          this.formatarCampoCsv(this.formatarDataHora(p.data_venda || p.criado_em)),
+          qtdDistintos,
+          totalQtdItens,
+          this.formatarCampoCsv(descriItens),
+          this.formatarCampoCsv(subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
+          desconto,
+          taxa,
+          entrega,
+          this.formatarCampoCsv(total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
+          this.formatarCampoCsv(lucro.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
+          this.formatarCampoCsv(meioPag),
+          this.formatarCampoCsv(p.cliente?.nome || ''),
+          this.formatarCampoCsv(vendedor),
+          this.formatarCampoCsv(p.observacoes || '')
+        ].join(',');
+      });
     } else if (tipo === 'produtos') {
-      colunas = ['Código', 'Nome', 'Unidade', 'Preço Custo', 'Preço Varejo', 'Preço Atacado', 'Estoque Atual', 'Status'];
-      linhas = dados.map((p: Produto) => [
-        p.codigo_interno || p.codigo_barras || '',
-        p.nome,
-        p.tipo_unidade || 'un',
-        Number(p.preco_custo || 0).toFixed(2),
-        Number(p.preco_venda_varejo || 0).toFixed(2),
-        p.preco_venda_atacado ? Number(p.preco_venda_atacado).toFixed(2) : '',
-        Number(p.quantidade_estoque || 0),
-        p.ativo ? 'Ativo' : 'Inativo'
-      ].map(this.formatarCampoCsv).join(';'));
+      nomeArquivo = `Products_${dInicioStr}_${dFimStr}.csv`;
+      colunas = [
+        'Código',
+        'Nome',
+        'Categoria',
+        'Unit / Frac.',
+        'Estoque Atual',
+        'Estoque Minimo',
+        'Preço de Custo',
+        'Preço de Venda',
+        'Valor Estoque Atual',
+        'Custo Estoque Atual',
+        'Valor vendido',
+        'Quantidade vendida',
+        'Lucro'
+      ];
+
+      linhas = dados.map((p: any) => {
+        const estAtual = p.quantidade_estoque !== null && p.quantidade_estoque !== undefined ? String(p.quantidade_estoque) : '';
+        const estMin = p.estoque_minimo ? String(p.estoque_minimo) : '0';
+        const pCusto = Number(p.preco_custo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const pVenda = Number(p.preco_venda_varejo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+        
+        const valorEstoque = p.quantidade_estoque ? (Number(p.quantidade_estoque) * Number(p.preco_venda_varejo || 0)).toLocaleString('pt-BR') : '';
+        const custoEstoque = p.quantidade_estoque ? (Number(p.quantidade_estoque) * Number(p.preco_custo || 0)).toLocaleString('pt-BR') : '';
+
+        return [
+          this.formatarCampoCsv(p.codigo_interno || p.codigo_barras || ''),
+          this.formatarCampoCsv(p.nome),
+          this.formatarCampoCsv(p.categoria?.nome || 'COSMETICOS'),
+          this.formatarCampoCsv(p.tipo_unidade === 'kg' ? 'fracao' : 'unidade'),
+          this.formatarCampoCsv(estAtual),
+          this.formatarCampoCsv(estMin),
+          this.formatarCampoCsv(pCusto),
+          this.formatarCampoCsv(pVenda),
+          this.formatarCampoCsv(valorEstoque),
+          this.formatarCampoCsv(custoEstoque),
+          0,
+          0,
+          0
+        ].join(',');
+      });
     } else if (tipo === 'clientes') {
-      colunas = ['Nome', 'WhatsApp', 'Telefone', 'Email', 'Documento', 'Cidade', 'Saldo Devedor Fiado (R$)', 'Limite de Crédito'];
-      linhas = dados.map((c: Cliente) => [
-        c.nome,
-        c.whatsapp || '',
-        c.telefone || c.telefone2 || '',
-        c.email || '',
-        c.numero_documento || '',
-        c.endereco_cidade || '',
-        Number(c.saldo_devedor_fiado || 0).toFixed(2),
-        Number(c.limite_credito || 0).toFixed(2)
-      ].map(this.formatarCampoCsv).join(';'));
+      nomeArquivo = `Customers_${dInicioStr}_${dFimStr}.csv`;
+      colunas = [
+        'Nome',
+        'Telefone',
+        'Endereço',
+        'Complemento',
+        'Email',
+        'Telefone 2',
+        'N° Doc.',
+        'Observações',
+        'Valor de Vendas',
+        'Quantidade vendas',
+        'Data Criação'
+      ];
+
+      linhas = dados.map((c: any) => {
+        return [
+          this.formatarCampoCsv(c.nome),
+          this.formatarCampoCsv(c.whatsapp || c.telefone || ''),
+          this.formatarCampoCsv(c.endereco_logradouro ? `${c.endereco_logradouro}${c.endereco_numero ? `, ${c.endereco_numero}` : ''}` : ''),
+          this.formatarCampoCsv(c.endereco_complemento || c.endereco_bairro || ''),
+          this.formatarCampoCsv(c.email || ''),
+          this.formatarCampoCsv(c.telefone2 || c.telefone || ''),
+          this.formatarCampoCsv(c.numero_documento || ''),
+          this.formatarCampoCsv(c.observacoes || ''),
+          this.formatarCampoCsv(Number(c.saldo_devedor_fiado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
+          c.total_pedidos ? c.total_pedidos : '',
+          this.formatarCampoCsv(this.formatarDataSimples(c.criado_em))
+        ].join(',');
+      });
     }
 
-    const csvContent = '\uFEFF' + [colunas.join(';'), ...linhas].join('\r\n');
+    const csvHeader = colunas.map(c => `"${c}"`).join(',');
+    const csvContent = '\uFEFF' + [csvHeader, ...linhas].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `relatorio_${tipo}_${Date.now()}.csv`);
+    link.setAttribute('download', nomeArquivo);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 
   private formatarCampoCsv(valor: any): string {
-    if (valor === null || valor === undefined) return '""';
+    if (valor === null || valor === undefined || valor === '') return '""';
     const str = String(valor).replace(/"/g, '""');
     return `"${str}"`;
   }

@@ -40,7 +40,7 @@ export interface ConfiguracaoGeralLoja {
 }
 
 export interface PagamentosDigitaisConfig {
-  provedor_ativo?: 'mercado_pago' | 'pagseguro' | 'google_pay' | 'todos';
+  provedor_ativo?: 'mercado_pago' | 'pagseguro' | 'google_pay' | 'asaas' | 'stripe' | 'picpay' | 'todos';
   mercado_pago?: {
     ativo?: boolean;
     public_key?: string;
@@ -66,6 +66,21 @@ export interface PagamentosDigitaisConfig {
     ativo?: boolean;
     merchant_id?: string;
     merchant_name?: string;
+  };
+  asaas?: {
+    ativo?: boolean;
+    api_key?: string;
+    ambiente?: 'producao' | 'sandbox';
+  };
+  stripe?: {
+    ativo?: boolean;
+    publishable_key?: string;
+    secret_key?: string;
+  };
+  picpay?: {
+    ativo?: boolean;
+    token?: string;
+    seller_token?: string;
   };
 }
 
