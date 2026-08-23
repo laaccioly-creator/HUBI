@@ -1463,11 +1463,11 @@ export const PosCheckout: React.FC = () => {
                   onClick={() => {
                     if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
                   }}
-                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Imprimir Cupom Térmico (58mm/80mm)"
+                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Imprimir Cupom em Bobina Térmica (58mm/80mm)"
                 >
                   <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Imprimir</span>
+                  <span className="truncate">Térmica 58/80mm</span>
                 </button>
 
                 <button
@@ -1475,27 +1475,39 @@ export const PosCheckout: React.FC = () => {
                   onClick={() => {
                     if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
                   }}
-                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Baixar e Salvar em PDF"
+                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Imprimir Recibo em Folha A4"
                 >
-                  <Download className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Baixar PDF</span>
+                  <Printer className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="truncate">Imprimir A4</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    if (pedidoConcluido) PrintService.openEmail(pedidoConcluido, loja);
+                    if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
                   }}
-                  className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Enviar Recibo por E-mail"
+                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Baixar e Salvar Recibo em PDF"
                 >
-                  <Mail className="w-3.5 h-3.5 text-sky-400" />
-                  <span>E-mail</span>
+                  <Download className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="truncate">Baixar PDF</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pedidoConcluido) PrintService.openEmail(pedidoConcluido, loja);
+                  }}
+                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  title="Enviar Recibo por E-mail"
+                >
+                  <Mail className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="truncate">E-mail</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -1504,16 +1516,16 @@ export const PosCheckout: React.FC = () => {
                       PrintService.openWhatsApp(pedidoConcluido.cliente?.whatsapp || '', msg);
                     }
                   }}
-                  className="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                  className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
                 >
                   <Share2 className="w-3.5 h-3.5" />
-                  <span>WhatsApp</span>
+                  <span className="truncate">WhatsApp</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPedidoConcluido(null)}
-                  className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Nova Venda
                 </button>

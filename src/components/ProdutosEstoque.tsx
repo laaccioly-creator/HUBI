@@ -311,14 +311,18 @@ export const ProdutosEstoque: React.FC = () => {
                     return (
                       <tr key={produto.id} className="hover:bg-slate-800/40 transition group">
                         <td className="p-3.5">
-                          <div className="flex items-center gap-3">
+                          <div
+                            onClick={() => setProdutoDetalhes(produto)}
+                            className="flex items-center gap-3 cursor-pointer group/prod select-none"
+                            title="Clique para ver ficha completa e detalhes do produto"
+                          >
                             <img
                               src={fotoUrl}
                               alt={produto.nome}
-                              className="w-11 h-11 rounded-xl object-cover bg-slate-950 border border-slate-800 shrink-0"
+                              className="w-11 h-11 rounded-xl object-cover bg-slate-950 border border-slate-800 shrink-0 group-hover/prod:scale-105 group-hover/prod:border-emerald-500/50 transition duration-150"
                             />
-                            <div>
-                              <span className="font-bold text-slate-100 block text-xs group-hover:text-emerald-400 transition">
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-100 block text-xs group-hover/prod:text-emerald-400 group-hover/prod:underline transition truncate">
                                 {produto.nome}
                               </span>
                               {produto.codigo_interno && (
@@ -349,7 +353,7 @@ export const ProdutosEstoque: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Estoque Atual sem variações com Botão Detalhar e Entrada */}
+                        {/* Estoque Atual sem variações soltas, com Botão Detalhar apenas se tem_variacoes */}
                         <td className="p-3.5">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span
@@ -365,16 +369,18 @@ export const ProdutosEstoque: React.FC = () => {
                               <span>{estoqueQtd} {produto.tipo_unidade || 'un'}</span>
                             </span>
 
-                            {/* Botão Detalhar ao lado do estoque atual */}
-                            <button
-                              type="button"
-                              onClick={() => setProdutoDetalhes(produto)}
-                              className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
-                              title="Detalhar variações e ficha do produto"
-                            >
-                              <Layers className="w-3 h-3 text-indigo-400" />
-                              <span>Detalhar</span>
-                            </button>
+                            {/* Botão Detalhar ao lado do estoque atual (EXIBIDO APENAS SE HOUVER VARIÁVEIS/GRADE) */}
+                            {temVariacoesGrade && (
+                              <button
+                                type="button"
+                                onClick={() => setProdutoDetalhes(produto)}
+                                className="px-2 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
+                                title="Ver estoque detalhado por cor, tamanho ou variação"
+                              >
+                                <Layers className="w-3 h-3 text-indigo-400" />
+                                <span>Detalhar Grade ({produto.variacoes?.length})</span>
+                              </button>
+                            )}
 
                             {/* Botão de Entrada Rápida de Estoque */}
                             {permissions.podeGerenciarEstoque && (

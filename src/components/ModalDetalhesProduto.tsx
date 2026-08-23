@@ -68,35 +68,35 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
         {/* Conteúdo com Rolagem */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* Galeria de Fotos */}
-            <div className="space-y-2.5">
-              <div className="relative aspect-square w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+            {/* Galeria de Fotos (Reduzida em ~20% para proporção ideal) */}
+            <div className="space-y-2.5 flex flex-col items-center">
+              <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
                 <img
                   src={fotoPrincipal}
                   alt={produto.nome}
                   className="w-full h-full object-cover"
                 />
                 {produto.destaque && (
-                  <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
-                    <Star className="w-3 h-3 fill-current" /> Destaque
+                  <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                    <Star className="w-2.5 h-2.5 fill-current" /> Destaque
                   </span>
                 )}
                 {produto.exibir_catalogo && (
-                  <span className="absolute top-2 right-2 bg-emerald-500/90 text-white font-bold text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
-                    <Eye className="w-3 h-3" /> No Catálogo
+                  <span className="absolute top-2 right-2 bg-emerald-500/90 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                    <Eye className="w-2.5 h-2.5" /> No Catálogo
                   </span>
                 )}
               </div>
 
               {/* Thumbnails se houver mais de 1 foto */}
               {fotos.length > 1 && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-[240px]">
                   {fotos.map((f, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setFotoSelecionadaIdx(idx)}
-                      className={`relative w-14 h-14 rounded-xl overflow-hidden border shrink-0 transition ${
+                      className={`relative w-11 h-11 rounded-lg overflow-hidden border shrink-0 transition ${
                         fotoSelecionadaIdx === idx
                           ? 'border-emerald-500 ring-2 ring-emerald-500/30'
                           : 'border-slate-800 opacity-60 hover:opacity-100'
@@ -186,28 +186,48 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Variações do Produto se houver */}
               {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
-                <div className="p-3 bg-slate-950/70 rounded-2xl border border-slate-800 space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 block">
-                    Variações & Estoque por Grade ({produto.variacoes.length})
-                  </span>
-                  <div className="max-h-36 overflow-y-auto space-y-1.5 pt-1">
+                <div className="p-3.5 bg-slate-950/70 rounded-2xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Estoque por Variação / Grade ({produto.variacoes.length})
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold">
+                      Total: {estoqueReal} {produto.tipo_unidade || 'un'}
+                    </span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 pt-1">
                     {produto.variacoes.map((v) => {
                       const vEstoque = Number(v.quantidade_estoque || 0);
+                      const rotulo1 = produto.rotulo_variacao_1 || 'Variação';
+                      const rotulo2 = produto.rotulo_variacao_2;
                       return (
-                        <div key={v.id} className="flex justify-between items-center text-xs p-1.5 rounded-lg bg-slate-900/60 border border-slate-800/60">
-                          <span className="text-slate-200 font-medium">
-                            {v.valor_variacao_1} {v.valor_variacao_2 ? `- ${v.valor_variacao_2}` : ''}
-                          </span>
-                          <div className="flex items-center gap-2">
+                        <div key={v.id} className="flex justify-between items-center text-xs p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition">
+                          <div className="min-w-0 pr-2">
+                            <span className="text-slate-200 font-bold block truncate">
+                              {rotulo1 ? <span className="text-slate-400 font-normal text-[11px]">{rotulo1}: </span> : null}
+                              {v.valor_variacao_1}
+                              {v.valor_variacao_2 && (
+                                <span className="text-slate-300">
+                                  {' '}/ {rotulo2 ? <span className="text-slate-400 font-normal text-[11px]">{rotulo2}: </span> : null}{v.valor_variacao_2}
+                                </span>
+                              )}
+                            </span>
+                            {v.sku && (
+                              <span className="text-[10px] text-slate-500 font-mono">SKU: {v.sku}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2.5 shrink-0">
                             <span className="text-slate-400 font-mono text-[11px]">
                               R$ {Number(v.preco_venda_varejo || produto.preco_venda_varejo).toFixed(2)}
                             </span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                            <span className={`text-[11px] px-2 py-0.5 rounded-lg font-mono font-bold ${
                               vEstoque <= 0
                                 ? 'bg-rose-950/60 text-rose-300 border border-rose-800/50'
+                                : vEstoque <= Number(v.estoque_minimo_alerta || produto.estoque_minimo_alerta || 0)
+                                ? 'bg-amber-950/60 text-amber-300 border border-amber-800/50'
                                 : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/50'
                             }`}>
-                              {vEstoque} un
+                              {vEstoque} {produto.tipo_unidade || 'un'}
                             </span>
                           </div>
                         </div>
