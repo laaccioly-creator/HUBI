@@ -39,7 +39,8 @@ import {
   Smartphone,
   X,
   Check,
-  FileText
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -56,6 +57,7 @@ import {
 import { PrintService } from '../services/printService';
 import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
+import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 
 type SubTelaConfig =
   | 'menu'
@@ -73,6 +75,7 @@ type SubTelaConfig =
   | 'entrega'
   | 'retirada'
   | 'exportar'
+  | 'importar-exportar-produtos'
   | 'parceiros';
 
 export const ConfiguracoesLoja: React.FC = () => {
@@ -931,6 +934,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   // Itens do Menu Principal de Configurações em Botões
   const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'geral', label: 'Geral', icon: Settings },
+    { id: 'importar-exportar-produtos', label: 'Importar / Exportar Produtos', icon: FileSpreadsheet, badge: 'Excel / CSV' },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
     { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock },
     { id: 'catalogo', label: 'Catálogo Online', icon: Globe },
@@ -2247,6 +2251,13 @@ export const ConfiguracoesLoja: React.FC = () => {
               <span>{salvando ? 'Gerando arquivo...' : 'Exportar Arquivos (CSV / Excel)'}</span>
             </button>
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: IMPORTAR E EXPORTAR PRODUTOS */}
+        {/* ========================================================================= */}
+        {subTela === 'importar-exportar-produtos' && (
+          <ImportarExportarProdutos onVoltar={() => setSubTela('menu')} />
         )}
 
         {/* ========================================================================= */}
