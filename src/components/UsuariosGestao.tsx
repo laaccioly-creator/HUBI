@@ -6,7 +6,8 @@ import {
   BarChart3,
   Loader2,
   Shield,
-  Crown
+  Crown,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -331,13 +332,23 @@ export const UsuariosGestao: React.FC = () => {
       
       {/* CABEÇALHO SUPERIOR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-100 flex items-center gap-3">
-            <span>Usuários</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Gerencie sua equipe, permissões de acesso e acompanhe o faturamento por colaborador.
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-100 flex items-center gap-3">
+              <span>Usuários</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Gerencie sua equipe, permissões de acesso e acompanhe o faturamento por colaborador.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

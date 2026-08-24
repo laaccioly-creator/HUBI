@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Globe,
@@ -28,7 +28,8 @@ import {
   X,
   HelpCircle,
   CheckCircle2,
-  Save
+  Save,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,6 +55,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   const [salvando, setSalvando] = useState<boolean>(false);
   const [copiado, setCopiado] = useState<boolean>(false);
   const [mensagemSucesso, setMensagemSucesso] = useState<string>('');
+  const [snapshotInicial, setSnapshotInicial] = useState<string>('');
 
   // Configurações
   const [publicarCatalogo, setPublicarCatalogo] = useState<boolean>(true);
@@ -84,22 +86,45 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       const extras = loja.configuracoes_extras || {};
       const catConfig = extras.catalogo || {};
 
-      setPublicarCatalogo(catConfig.publicar_catalogo ?? true);
-      setSlugCatalogo(loja.slug_catalogo || loja.id);
-      setNovoSlug(loja.slug_catalogo || loja.id);
-      setCorPrimaria(loja.cor_primaria || '#10B981');
-      setCorPersonalizada(loja.cor_primaria || '#10B981');
+      const pub = catConfig.publicar_catalogo ?? true;
+      const slug = loja.slug_catalogo || loja.id;
+      const cor = loja.cor_primaria || '#10B981';
+      const pedOnline = loja.aceita_pedidos_online ?? true;
+      const zap = loja.resumo_whatsapp ?? true;
+      const instr = loja.instrucoes_pos_pedido !== undefined && loja.instrucoes_pos_pedido !== null
+        ? loja.instrucoes_pos_pedido
+        : 'Em breve entraremos em contato para confirmar os detalhes da sua compra.\nAgradecemos pela preferência!';
+      const modo = catConfig.modo_exibicao || 'grade';
+      const banUrl = loja.url_banner || '';
+      const exBan = catConfig.exibir_banner ?? Boolean(loja.url_banner);
+      const semEst = catConfig.produtos_sem_estoque || 'exibir';
 
-      setAceitaPedidosOnline(loja.aceita_pedidos_online ?? true);
-      setResumoWhatsapp(loja.resumo_whatsapp ?? true);
-      if (loja.instrucoes_pos_pedido !== undefined && loja.instrucoes_pos_pedido !== null) {
-        setInstrucoesPosPedido(loja.instrucoes_pos_pedido);
-      }
+      setPublicarCatalogo(pub);
+      setSlugCatalogo(slug);
+      setNovoSlug(slug);
+      setCorPrimaria(cor);
+      setCorPersonalizada(cor);
+      setAceitaPedidosOnline(pedOnline);
+      setResumoWhatsapp(zap);
+      setInstrucoesPosPedido(instr);
+      setModoExibicao(modo);
+      setExibirBanner(exBan);
+      setBannerUrl(banUrl);
+      setComportamentoSemEstoque(semEst);
 
-      setModoExibicao(catConfig.modo_exibicao || 'grade');
-      setExibirBanner(catConfig.exibir_banner ?? Boolean(loja.url_banner));
-      setBannerUrl(loja.url_banner || '');
-      setComportamentoSemEstoque(catConfig.produtos_sem_estoque || 'exibir');
+      setSnapshotInicial(
+        JSON.stringify({
+          publicarCatalogo: pub,
+          corPrimaria: cor,
+          aceitaPedidosOnline: pedOnline,
+          resumoWhatsapp: zap,
+          instrucoesPosPedido: instr,
+          modoExibicao: modo,
+          exibirBanner: exBan,
+          bannerUrl: banUrl,
+          comportamentoSemEstoque: semEst
+        })
+      );
     }
   }, [loja]);
 
@@ -188,6 +213,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
       if (error) throw error;
 
+      setSnapshotInicial(snapshotAtual);
       mostrarFeedback('Configurações do Catálogo salvas com sucesso!');
     } catch (err) {
       console.error('Erro ao salvar catálogo:', err);
@@ -243,6 +269,47 @@ export const ConfiguracaoCatalogo: React.FC = () => {
     }
   };
 
+  const snapshotAtual = useMemo(() => {
+    return JSON.stringify({
+      publicarCatalogo,
+      corPrimaria,
+      aceitaPedidosOnline,
+      resumoWhatsapp,
+      instrucoesPosPedido,
+      modoExibicao,
+      exibirBanner,
+      bannerUrl,
+      comportamentoSemEstoque
+    });
+  }, [
+    publicarCatalogo,
+    corPrimaria,
+    aceitaPedidosOnline,
+    resumoWhatsapp,
+    instrucoesPosPedido,
+    modoExibicao,
+    exibirBanner,
+    bannerUrl,
+    comportamentoSemEstoque
+  ]);
+
+  const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+
+  // Tecla ESC para voltar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (modalEditarSlug) {
+          setModalEditarSlug(false);
+          return;
+        }
+        navigate(-1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalEditarSlug, navigate]);
+
   // Checklist de Perfil da Loja
   const checklist = [
     { label: 'NOME DA LOJA', preenchido: Boolean(loja?.nome_fantasia) },
@@ -259,6 +326,14 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       {/* HEADER DA PÁGINA */}
       <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shadow-inner">
             <Globe className="w-5 h-5" />
           </div>
@@ -271,15 +346,17 @@ export const ConfiguracaoCatalogo: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSalvarConfiguracoes}
-            disabled={salvando}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            <span>{salvando ? 'Salvando...' : 'Salvar Alterações'}</span>
-          </button>
+          {isDirty && (
+            <button
+              type="button"
+              onClick={handleSalvarConfiguracoes}
+              disabled={salvando}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+            >
+              <Save className="w-4 h-4" />
+              <span>{salvando ? 'Salvando...' : 'Salvar Alterações'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -671,7 +748,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               </div>
 
               <Link
-                to="/config"
+                to="/config?tab=dados-loja"
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer pt-2"
               >
                 <span>Editar dados da loja</span>
@@ -768,7 +845,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
               <div className="space-y-2">
                 <Link
-                  to="/config"
+                  to="/config?tab=pagamentos"
                   className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 transition"
                 >
                   <div className="flex items-center gap-2.5">
@@ -782,7 +859,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/auxiliares"
+                  to="/config?tab=entrega"
                   className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 transition"
                 >
                   <div className="flex items-center gap-2.5">
@@ -796,7 +873,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/config"
+                  to="/config?tab=parceiros"
                   className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 transition"
                 >
                   <div className="flex items-center gap-2.5">

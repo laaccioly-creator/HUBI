@@ -16,7 +16,8 @@ import {
   PieChart as PieChartIcon,
   Percent,
   Check,
-  ChevronDown
+  ChevronDown,
+  ArrowLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -763,14 +764,24 @@ export const EstatisticasAnalytics: React.FC = () => {
     <div className="flex flex-col h-full overflow-hidden bg-slate-950">
       {/* CABEÇALHO SUPERIOR */}
       <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-800 bg-slate-900/50 shrink-0">
-        <div>
-          <h1 className="text-lg md:text-xl font-extrabold text-slate-100 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-emerald-400" />
-            <span>Estatísticas & Analytics</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Relatórios completos de vendas, lucro real, clientes e performance da loja.
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <h1 className="text-lg md:text-xl font-extrabold text-slate-100 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-emerald-400" />
+              <span>Estatísticas & Analytics</span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Relatórios completos de vendas, lucro real, clientes e performance da loja.
+            </p>
+          </div>
         </div>
       </div>
 

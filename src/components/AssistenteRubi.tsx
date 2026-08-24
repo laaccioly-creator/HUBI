@@ -7,7 +7,8 @@ import {
   User,
   TrendingUp,
   Package,
-  DollarSign
+  DollarSign,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -130,6 +131,14 @@ export const AssistenteRubi: React.FC = () => {
     <div className="flex flex-col h-full overflow-hidden bg-slate-950">
       <div className="p-4 border-b border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
             <Sparkles className="w-5 h-5" />
           </div>

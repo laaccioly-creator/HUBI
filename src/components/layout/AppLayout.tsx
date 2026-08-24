@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   ShoppingCart,
@@ -31,6 +31,7 @@ import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
   const permissions = usePermissions();
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
@@ -41,6 +42,37 @@ export const AppLayout: React.FC = () => {
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Manipulador global da tecla ESC em todo o sistema
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (mobileMenuOpen) {
+          setMobileMenuOpen(false);
+          return;
+        }
+        if (maisMenuOpen) {
+          setMaisMenuOpen(false);
+          return;
+        }
+        if (userMenuOpen) {
+          setUserMenuOpen(false);
+          return;
+        }
+
+        // Se houver algum modal fixo no DOM, deixa o modal tratar
+        const openModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
+        if (!openModal) {
+          if (location.pathname !== '/pos' && location.pathname !== '/') {
+            navigate(-1);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, location.pathname, navigate]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

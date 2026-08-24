@@ -1,47 +1,45 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Settings,
   Store,
-  FileText,
-  Receipt,
+  Settings,
   CreditCard,
   Truck,
-  Zap,
+  Receipt,
+  Download,
+  Share2,
   Lock,
-  HelpCircle,
-  Upload,
-  X,
-  MapPin,
-  ExternalLink,
-  Check,
-  ChevronRight,
-  Plus,
+  Package,
+  Globe,
+  Sliders,
+  DollarSign,
+  Info,
   Clock,
   CheckCircle2,
-  DollarSign,
   AlertCircle,
-  Smartphone,
-  Globe,
-  Share2,
+  HelpCircle,
+  Plus,
   Trash2,
   Edit2,
-  Package,
   Layers,
   BarChart3,
   Mail,
   Printer,
-  Download,
   Copy,
-  Info,
   Calendar,
   Save,
   Search,
   ArrowLeft,
   ShoppingBag,
-  Sliders,
   ChevronDown,
-  Percent
+  ChevronRight,
+  Percent,
+  Upload,
+  Zap,
+  Smartphone,
+  X,
+  Check,
+  FileText
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -81,6 +79,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const { loja, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (!permissions.podeAcessarConfig) {
@@ -92,6 +91,14 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [salvando, setSalvando] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
+  const [snapshotInicial, setSnapshotInicial] = useState<string>('');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setSubTela(tabParam as SubTelaConfig);
+    }
+  }, [searchParams]);
 
   // 1. GERAL
   const [telaInicialPadrao, setTelaInicialPadrao] = useState<string>('inicio');
@@ -373,6 +380,94 @@ export const ConfiguracoesLoja: React.FC = () => {
       setFacebookPixelId(parceiros.facebook_pixel_id || '');
       setTiktokPixelId(parceiros.tiktok_pixel_id || '');
 
+      setSnapshotInicial(
+        JSON.stringify({
+          telaInicialPadrao: geral.tela_inicial_padrao || 'inicio',
+          moeda: geral.moeda || 'BR - R$',
+          casasDecimais: geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true,
+          transacoesCanceladas: geral.transacoes_canceladas || extras.preferencias_gerais?.transacoes_canceladas || 'riscadas',
+          ordenarProdutosPdv: geral.ordenar_produtos_pdv || 'cadastro',
+          nomeLoja: loja.nome_fantasia || '',
+          urlLogo: loja.url_logo || '',
+          telefone: loja.telefone || '',
+          whatsapp: loja.whatsapp || '',
+          email: loja.email || '',
+          instagram: loja.instagram || '',
+          sobreLoja: loja.sobre_loja || '',
+          enderecoLogradouro: loja.endereco_logradouro || '',
+          enderecoNumero: loja.endereco_numero || '',
+          enderecoBairro: loja.endereco_bairro || '',
+          enderecoComplemento: loja.endereco_complemento || '',
+          enderecoCep: loja.endereco_cep || '',
+          enderecoCidade: loja.endereco_cidade || '',
+          enderecoEstado: loja.endereco_estado || 'CE',
+          documento: loja.numero_documento || '',
+          razaoSocial: loja.razao_social || '',
+          reciboAdicionarCliente: recibo.adicionar_cliente ?? true,
+          reciboExibirCodigo: recibo.exibir_codigo_produto ?? false,
+          reciboCabecalho: recibo.cabecalho || '',
+          reciboRodape: recibo.rodape || '',
+          tipoImpressaoPadrao: recibo.tipo_impressao_padrao || 'termica_80mm',
+          provedorDigital: provAtivo,
+          mpPublicKey: mp.public_key || '',
+          mpAccessToken: mp.access_token || '',
+          mpTaxaCredito: Number(mp.taxa_credito_percentual ?? 2.99),
+          mpTaxaPix: Number(mp.taxa_pix_percentual ?? 0.99),
+          mpPrazoDias: Number(mp.prazo_dias ?? 2),
+          mpMaxParcelas: Number(mp.max_parcelas ?? 10),
+          pagseguroEmail: pagSeg.email || '',
+          pagseguroToken: pagSeg.token || '',
+          pagseguroPublicKey: pagSeg.public_key || '',
+          googlePayMerchantId: gpay.merchant_id || '',
+          asaasApiKey: asaas.api_key || '',
+          asaasAmbiente: asaas.ambiente || 'producao',
+          stripePublishableKey: stripe.publishable_key || '',
+          stripeSecretKey: stripe.secret_key || '',
+          picpayToken: picpay.token || '',
+          picpaySellerToken: picpay.seller_token || '',
+          pixAtivo: pagManuais.pix_ativo ?? true,
+          pixChave: pagManuais.pix_chave || loja.whatsapp || '',
+          pixOrientacoes: pagManuais.pix_orientacoes || '',
+          dinheiroAtivo: pagManuais.dinheiro_ativo ?? true,
+          dinheiroDescricao: pagManuais.dinheiro_orientacoes || '',
+          debitoAtivo: pagManuais.debito_ativo ?? true,
+          debitoDescricao: pagManuais.debito_orientacoes || '',
+          creditoAtivo: pagManuais.credito_ativo ?? true,
+          creditoDescricao: pagManuais.credito_orientacoes || '',
+          outrosAtivo: pagManuais.outros_ativo ?? false,
+          outrosDescricao: pagManuais.outros_orientacoes || '',
+          permitirFiado: pagManuais.permitir_fiado ?? true,
+          maqCreditoAtivo: prazosMaq.credito_ativo ?? true,
+          maqCreditoDias: Number(prazosMaq.credito_dias ?? 30),
+          maqCreditoTaxa: Number(prazosMaq.credito_taxa_percentual ?? 2.99),
+          maqDebitoAtivo: prazosMaq.debito_ativo ?? true,
+          maqDebitoDias: Number(prazosMaq.debito_dias ?? 1),
+          maqDebitoTaxa: Number(prazosMaq.debito_taxa_percentual ?? 1.49),
+          usarTaxaVenda: taxas.usar_taxa_pdv ?? false,
+          nomeTaxaVenda: taxas.nome_taxa_pdv || 'Taxa de Serviço',
+          valorTaxaVenda: Number(taxas.valor_taxa_pdv ?? 10),
+          tipoTaxaVenda: taxas.tipo_taxa_pdv || 'percentual',
+          aplicarTaxaVenda: taxas.aplicar_taxa_pdv || 'adicionar',
+          taxaVendaOpcional: taxas.taxa_pdv_opcional ?? false,
+          usarTaxaCatalogo: taxas.usar_taxa_catalogo ?? false,
+          nomeTaxaCatalogo: taxas.nome_taxa_catalogo || 'Taxa de Conveniência',
+          valorTaxaCatalogo: Number(taxas.valor_taxa_catalogo ?? 5),
+          tipoTaxaCatalogo: taxas.tipo_taxa_catalogo || 'percentual',
+          aplicarTaxaCatalogo: taxas.aplicar_taxa_catalogo || 'adicionar',
+          taxaCatalogoSomenteEntrega: taxas.taxa_catalogo_somente_entrega ?? true,
+          statusEmProducao: statusAtivos.em_producao ?? true,
+          statusEmExpedicao: statusAtivos.em_expedicao ?? true,
+          statusSaiuEntrega: statusAtivos.saiu_para_entrega ?? true,
+          statusProntoRetirar: statusAtivos.pronto_para_retirar ?? true,
+          trabalhoComEntregas: entregaRet.trabalho_com_entregas ?? true,
+          descricaoEntregas: entregaRet.descricao_entregas || '',
+          trabalhoComRetirada: entregaRet.trabalho_com_retirada ?? false,
+          descricaoRetirada: entregaRet.descricao_retirada || '',
+          facebookPixelId: parceiros.facebook_pixel_id || '',
+          tiktokPixelId: parceiros.tiktok_pixel_id || ''
+        })
+      );
+
       carregarFormasEntrega();
     }
   }, [loja]);
@@ -550,6 +645,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       if (error) throw error;
 
+      setSnapshotInicial(snapshotAtual);
       await recarregarDadosLoja();
       mostrarToast('Configurações salvas com sucesso!');
     } catch (err: any) {
@@ -631,12 +727,206 @@ export const ConfiguracoesLoja: React.FC = () => {
     }
   };
 
+  const snapshotAtual = useMemo(() => {
+    return JSON.stringify({
+      telaInicialPadrao,
+      moeda,
+      casasDecimais,
+      transacoesCanceladas,
+      ordenarProdutosPdv,
+      nomeLoja,
+      urlLogo,
+      telefone,
+      whatsapp,
+      email,
+      instagram,
+      sobreLoja,
+      enderecoLogradouro,
+      enderecoNumero,
+      enderecoBairro,
+      enderecoComplemento,
+      enderecoCep,
+      enderecoCidade,
+      enderecoEstado,
+      documento,
+      razaoSocial,
+      reciboAdicionarCliente,
+      reciboExibirCodigo,
+      reciboCabecalho,
+      reciboRodape,
+      tipoImpressaoPadrao,
+      provedorDigital,
+      mpPublicKey,
+      mpAccessToken,
+      mpTaxaCredito,
+      mpTaxaPix,
+      mpPrazoDias,
+      mpMaxParcelas,
+      pagseguroEmail,
+      pagseguroToken,
+      pagseguroPublicKey,
+      googlePayMerchantId,
+      asaasApiKey,
+      asaasAmbiente,
+      stripePublishableKey,
+      stripeSecretKey,
+      picpayToken,
+      picpaySellerToken,
+      pixAtivo,
+      pixChave,
+      pixOrientacoes,
+      dinheiroAtivo,
+      dinheiroDescricao,
+      debitoAtivo,
+      debitoDescricao,
+      creditoAtivo,
+      creditoDescricao,
+      outrosAtivo,
+      outrosDescricao,
+      permitirFiado,
+      maqCreditoAtivo,
+      maqCreditoDias,
+      maqCreditoTaxa,
+      maqDebitoAtivo,
+      maqDebitoDias,
+      maqDebitoTaxa,
+      usarTaxaVenda,
+      nomeTaxaVenda,
+      valorTaxaVenda,
+      tipoTaxaVenda,
+      aplicarTaxaVenda,
+      taxaVendaOpcional,
+      usarTaxaCatalogo,
+      nomeTaxaCatalogo,
+      valorTaxaCatalogo,
+      tipoTaxaCatalogo,
+      aplicarTaxaCatalogo,
+      taxaCatalogoSomenteEntrega,
+      statusEmProducao,
+      statusEmExpedicao,
+      statusSaiuEntrega,
+      statusProntoRetirar,
+      trabalhoComEntregas,
+      descricaoEntregas,
+      trabalhoComRetirada,
+      descricaoRetirada,
+      facebookPixelId,
+      tiktokPixelId
+    });
+  }, [
+    telaInicialPadrao,
+    moeda,
+    casasDecimais,
+    transacoesCanceladas,
+    ordenarProdutosPdv,
+    nomeLoja,
+    urlLogo,
+    telefone,
+    whatsapp,
+    email,
+    instagram,
+    sobreLoja,
+    enderecoLogradouro,
+    enderecoNumero,
+    enderecoBairro,
+    enderecoComplemento,
+    enderecoCep,
+    enderecoCidade,
+    enderecoEstado,
+    documento,
+    razaoSocial,
+    reciboAdicionarCliente,
+    reciboExibirCodigo,
+    reciboCabecalho,
+    reciboRodape,
+    tipoImpressaoPadrao,
+    provedorDigital,
+    mpPublicKey,
+    mpAccessToken,
+    mpTaxaCredito,
+    mpTaxaPix,
+    mpPrazoDias,
+    mpMaxParcelas,
+    pagseguroEmail,
+    pagseguroToken,
+    pagseguroPublicKey,
+    googlePayMerchantId,
+    asaasApiKey,
+    asaasAmbiente,
+    stripePublishableKey,
+    stripeSecretKey,
+    picpayToken,
+    picpaySellerToken,
+    pixAtivo,
+    pixChave,
+    pixOrientacoes,
+    dinheiroAtivo,
+    dinheiroDescricao,
+    debitoAtivo,
+    debitoDescricao,
+    creditoAtivo,
+    creditoDescricao,
+    outrosAtivo,
+    outrosDescricao,
+    permitirFiado,
+    maqCreditoAtivo,
+    maqCreditoDias,
+    maqCreditoTaxa,
+    maqDebitoAtivo,
+    maqDebitoDias,
+    maqDebitoTaxa,
+    usarTaxaVenda,
+    nomeTaxaVenda,
+    valorTaxaVenda,
+    tipoTaxaVenda,
+    aplicarTaxaVenda,
+    taxaVendaOpcional,
+    usarTaxaCatalogo,
+    nomeTaxaCatalogo,
+    valorTaxaCatalogo,
+    tipoTaxaCatalogo,
+    aplicarTaxaCatalogo,
+    taxaCatalogoSomenteEntrega,
+    statusEmProducao,
+    statusEmExpedicao,
+    statusSaiuEntrega,
+    statusProntoRetirar,
+    trabalhoComEntregas,
+    descricaoEntregas,
+    trabalhoComRetirada,
+    descricaoRetirada,
+    facebookPixelId,
+    tiktokPixelId
+  ]);
+
+  const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+
+  // Tecla ESC para voltar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (modalProvedor) { setModalProvedor(false); return; }
+        if (modalTelaInicial) { setModalTelaInicial(false); return; }
+        if (modalPreviewRecibo) { setModalPreviewRecibo(false); return; }
+        if (modalExportConcluido) { setModalExportConcluido(false); return; }
+        if (modalNovoStatus) { setModalNovoStatus(false); return; }
+        if (subTela !== 'menu') {
+          setSubTela('menu');
+        } else {
+          navigate(-1);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalProvedor, modalTelaInicial, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate]);
+
   // Itens do Menu Principal de Configurações em Botões
-  const itensMenu = [
+  const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'geral', label: 'Geral', icon: Settings },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
     { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock },
-    { id: 'produtos', label: 'Produtos & Variações', icon: Package, badge: 'NOVO' },
+    { id: 'produtos', label: 'Produtos & Variações', icon: Package },
     { id: 'catalogo', label: 'Catálogo Online', icon: Globe },
     { id: 'recibo', label: 'Meu Recibo', icon: Receipt },
     { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard },
@@ -651,15 +941,20 @@ export const ConfiguracoesLoja: React.FC = () => {
       {/* HEADER DA PÁGINA */}
       <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {subTela !== 'menu' && (
-            <button
-              type="button"
-              onClick={() => setSubTela('menu')}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (subTela !== 'menu') {
+                setSubTela('menu');
+              } else {
+                navigate(-1);
+              }
+            }}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
           <div>
             <h1 className="text-base sm:text-lg font-extrabold text-slate-100 flex items-center gap-2">
               <Settings className="w-5 h-5 text-emerald-400" />
@@ -668,15 +963,17 @@ export const ConfiguracoesLoja: React.FC = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSalvarTodasConfiguracoes}
-          disabled={salvando}
-          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
-        >
-          <Save className="w-4 h-4" />
-          <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
-        </button>
+        {isDirty && (
+          <button
+            type="button"
+            onClick={handleSalvarTodasConfiguracoes}
+            disabled={salvando}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+          >
+            <Save className="w-4 h-4" />
+            <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
+          </button>
+        )}
       </div>
 
       {/* TOAST FEEDBACK */}

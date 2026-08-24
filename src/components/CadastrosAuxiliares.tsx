@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   FolderTree,
   Ruler,
@@ -24,7 +24,8 @@ import {
   Check,
   CreditCard,
   Banknote,
-  Zap
+  Zap,
+  ArrowLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -85,6 +86,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('3000.00');
   const [qtdTotalMinimaAutoatacado, setQtdTotalMinimaAutoatacado] = useState<string>('100');
   const [qtdMinimaSkuAutoatacado, setQtdMinimaSkuAutoatacado] = useState<string>('6');
+  const [snapshotPrecificacaoInicial, setSnapshotPrecificacaoInicial] = useState<string>('');
 
   // Modais de Cadastro / Edição
   const [modalCategoriaAberta, setModalCategoriaAberta] = useState<boolean>(false);
@@ -656,12 +658,56 @@ export const CadastrosAuxiliares: React.FC = () => {
       }
 
       exibirAlertaSucesso('Regras de precificação salvas com sucesso!');
+      setSnapshotPrecificacaoInicial(snapshotPrecificacaoAtual);
     } catch (err: any) {
       alert(`Erro ao salvar regras: ${err.message}`);
     } finally {
       setSalvando(false);
     }
   };
+
+  const snapshotPrecificacaoAtual = useMemo(() => {
+    return JSON.stringify({
+      descontoAtacado,
+      tipoMinimoAtacado,
+      valorMinimoAtacado,
+      qtdTotalMinimaAtacado,
+      qtdMinimaSkuAtacado,
+      descontoAutoatacado,
+      tipoMinimoDistribuidor,
+      valorMinimoAutoatacado,
+      qtdTotalMinimaAutoatacado,
+      qtdMinimaSkuAutoatacado
+    });
+  }, [
+    descontoAtacado,
+    tipoMinimoAtacado,
+    valorMinimoAtacado,
+    qtdTotalMinimaAtacado,
+    qtdMinimaSkuAtacado,
+    descontoAutoatacado,
+    tipoMinimoDistribuidor,
+    valorMinimoAutoatacado,
+    qtdTotalMinimaAutoatacado,
+    qtdMinimaSkuAutoatacado
+  ]);
+
+  const isDirtyPrecificacao = Boolean(snapshotPrecificacaoInicial && snapshotPrecificacaoAtual !== snapshotPrecificacaoInicial);
+
+  // Esc key listener para voltar ou fechar modais
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (modalCategoriaAberta) { setModalCategoriaAberta(false); return; }
+        if (modalUnidadeAberta) { setModalUnidadeAberta(false); return; }
+        if (modalFornecedorAberta) { setModalFornecedorAberta(false); return; }
+        if (modalPagamentoAberta) { setModalPagamentoAberta(false); return; }
+        navigate(-1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalCategoriaAberta, modalUnidadeAberta, modalFornecedorAberta, modalPagamentoAberta, navigate]);
 
   // Filtros de busca
   const categoriasFiltradas = categorias.filter(c =>
@@ -687,15 +733,25 @@ export const CadastrosAuxiliares: React.FC = () => {
 
         {/* HEADER DA PÁGINA */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
-              <Layers className="w-4 h-4" />
-              <span>Cadastros Base & Parâmetros</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+              title="Voltar"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
+                <Layers className="w-4 h-4" />
+                <span>Cadastros Base & Parâmetros</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-100">Cadastros & Tabelas</h1>
+              <p className="text-xs sm:text-sm text-slate-400">
+                Gerencie categorias, unidades de medida, fornecedores, formas de pagamento e padronize regras da loja.
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-100">Cadastros & Tabelas</h1>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Gerencie categorias, unidades de medida, fornecedores, formas de pagamento e padronize regras da loja.
-            </p>
           </div>
 
           {mensagemSucesso && (
@@ -1583,24 +1639,26 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
               </div>
 
-              {/* Botão Salvar Regras */}
-              <button
-                type="submit"
-                disabled={salvando}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 font-bold text-white shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer"
-              >
-                {salvando ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5" />
-                    <span>Salvar</span>
-                  </>
-                )}
-              </button>
+              {/* Botão Salvar Regras (Apenas quando houver alterações) */}
+              {isDirtyPrecificacao && (
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 font-bold text-white shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer animate-in fade-in"
+                >
+                  {salvando ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      <span>Salvar Regras de Precificação</span>
+                    </>
+                  )}
+                </button>
+              )}
             </form>
           </div>
         )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -15,7 +15,8 @@ import {
   ArrowUpDown,
   AlertTriangle,
   Layers,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +29,7 @@ import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
+  const navigate = useNavigate();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -169,17 +171,27 @@ export const ProdutosEstoque: React.FC = () => {
       {/* Header Superior */}
       <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-slate-100 flex items-center gap-2">
-              <Package className="w-6 h-6 text-emerald-400" />
-              <span>Produtos & Estoque</span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                {produtos.length}
-              </span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Gerencie seus produtos, dê entrada em compras, controle custos e inventário
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+              title="Voltar"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-black text-slate-100 flex items-center gap-2">
+                <Package className="w-6 h-6 text-emerald-400" />
+                <span>Produtos & Estoque</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                  {produtos.length}
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Gerencie seus produtos, dê entrada em compras, controle custos e inventário
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
