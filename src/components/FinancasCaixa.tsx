@@ -106,56 +106,96 @@ export const FinancasCaixa: React.FC = () => {
       if (pedData) setPedidos(pedData as unknown as Pedido[]);
 
       // 3. Carregar Caixa Aberto
-      const { data: cxData } = await supabase
-        .from('caixas')
-        .select('*, usuario:usuarios_loja(*)')
-        .eq('loja_id', loja.id)
-        .eq('status', 'ABERTO')
-        .order('data_abertura', { ascending: false })
-        .limit(1);
-
       let caixaAtivo: Caixa | null = null;
-      if (cxData && cxData.length > 0) {
-        const cx = cxData[0];
-        const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
-        if (metaLocal) {
-          try {
-            const parsed = JSON.parse(metaLocal);
-            cx.turno = parsed.turno || 'Integral';
-            cx.numero_caixa = parsed.numero_caixa || '01';
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        caixaAtivo = cx;
-        setCaixaAberto(caixaAtivo);
-      } else {
-        setCaixaAberto(null);
-      }
+      try {
+        const { data: cxData } = await supabase
+          .from('caixas')
+          .select('*, usuario:usuarios_loja(*)')
+          .eq('loja_id', loja.id)
+          .eq('status', 'ABERTO')
+          .order('data_abertura', { ascending: false })
+          .limit(1);
 
-      // 4. Carregar histórico de caixas
-      const { data: histData } = await supabase
-        .from('caixas')
-        .select('*, usuario:usuarios_loja(*)')
-        .eq('loja_id', loja.id)
-        .order('data_abertura', { ascending: false })
-        .limit(30);
-
-      if (histData) {
-        const histComMeta = histData.map(cx => {
+        if (cxData && cxData.length > 0) {
+          const cx = cxData[0];
           const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
           if (metaLocal) {
             try {
               const parsed = JSON.parse(metaLocal);
-              return { ...cx, turno: parsed.turno || cx.turno || 'Integral', numero_caixa: parsed.numero_caixa || cx.numero_caixa || '01' };
+              cx.turno = parsed.turno || 'Integral';
+              cx.numero_caixa = parsed.numero_caixa || '01';
             } catch (e) {
               console.error(e);
             }
           }
-          return cx;
-        });
-        setHistoricoCaixas(histComMeta);
+          caixaAtivo = cx;
+        }
+      } catch (e) {
+        console.warn('Aviso ao consultar caixas no Supabase:', e);
       }
+
+      // Se não encontrou no Supabase, verificar fallback local ativo
+      if (!caixaAtivo) {
+        const localAtivo = localStorage.getItem('hubi_caixa_ativo');
+        if (localAtivo) {
+          try {
+            const parsed = JSON.parse(localAtivo);
+            if (parsed.status === 'ABERTO' && parsed.loja_id === loja.id) {
+              caixaAtivo = parsed;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      setCaixaAberto(caixaAtivo);
+
+      // 4. Carregar histórico de caixas
+      let histCaixasLista: Caixa[] = [];
+      try {
+        const { data: histData } = await supabase
+          .from('caixas')
+          .select('*, usuario:usuarios_loja(*)')
+          .eq('loja_id', loja.id)
+          .order('data_abertura', { ascending: false })
+          .limit(30);
+
+        if (histData) {
+          histCaixasLista = histData.map(cx => {
+            const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
+            if (metaLocal) {
+              try {
+                const parsed = JSON.parse(metaLocal);
+                return { ...cx, turno: parsed.turno || cx.turno || 'Integral', numero_caixa: parsed.numero_caixa || cx.numero_caixa || '01' };
+              } catch (e) {
+                console.error(e);
+              }
+            }
+            return cx;
+          });
+        }
+      } catch (e) {
+        console.warn('Aviso ao consultar historico de caixas no Supabase:', e);
+      }
+
+      // Conciliar com histórico local caso exista
+      const localHist = localStorage.getItem(`hubi_historico_caixas_${loja.id}`);
+      if (localHist) {
+        try {
+          const parsedHist: Caixa[] = JSON.parse(localHist);
+          const idsExistentes = new Set(histCaixasLista.map(c => c.id));
+          parsedHist.forEach(c => {
+            if (!idsExistentes.has(c.id)) {
+              histCaixasLista.push(c);
+            }
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      setHistoricoCaixas(histCaixasLista);
 
       // 5. Carregar movimentações do caixa atual (do Supabase ou localStorage fallback)
       if (caixaAtivo?.id) {
@@ -210,6 +250,10 @@ export const FinancasCaixa: React.FC = () => {
   // 1. Cadastrar Nova Despesa (Item 7)
   const handleCadastrarDespesa = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!permissions.ehAdmin) {
+      alert('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem lançar despesas.');
+      return;
+    }
     if (!loja?.id || !descricao.trim() || !valor) return;
 
     try {
@@ -263,6 +307,8 @@ export const FinancasCaixa: React.FC = () => {
     if (!loja?.id || !usuario?.id) return;
     try {
       const valInicial = Number(fundoTroco) || 0;
+      const idGerado = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `cx_${Date.now()}`;
+      
       const payloadCaixa = {
         loja_id: loja.id,
         usuario_id: usuario.id,
@@ -270,27 +316,48 @@ export const FinancasCaixa: React.FC = () => {
         status: 'ABERTO' as const
       };
 
-      const { data, error } = await supabase.from('caixas').insert([payloadCaixa]).select().single();
-      if (error) throw error;
+      let caixaSalvo: any = null;
 
-      // Salvar metadados do turno e número do caixa no localStorage
-      localStorage.setItem(`hubi_caixa_meta_${data.id}`, JSON.stringify({
-        turno: turnoAbertura,
-        numero_caixa: numeroCaixaAbertura
-      }));
+      try {
+        const { data, error } = await supabase.from('caixas').insert([payloadCaixa]).select().single();
+        if (!error && data) {
+          caixaSalvo = data;
+        } else if (error) {
+          console.warn('Aviso ao inserir no Supabase (RLS ou offline):', error.message);
+        }
+      } catch (errDb: any) {
+        console.warn('Falha DB caixas:', errDb.message);
+      }
 
-      const novoCaixa = {
-        ...data,
+      // Se o Supabase retornou sucesso ou se usamos o fallback local:
+      const idFinal = caixaSalvo?.id || idGerado;
+      const dataAberturaFinal = caixaSalvo?.data_abertura || new Date().toISOString();
+
+      const novoCaixa: Caixa = {
+        id: idFinal,
+        loja_id: loja.id,
+        usuario_id: usuario.id,
+        saldo_inicial: valInicial,
+        data_abertura: dataAberturaFinal,
+        status: 'ABERTO',
         turno: turnoAbertura,
         numero_caixa: numeroCaixaAbertura,
         usuario
       };
+
+      // Salvar metadados e caixa ativo localmente
+      localStorage.setItem(`hubi_caixa_meta_${idFinal}`, JSON.stringify({
+        turno: turnoAbertura,
+        numero_caixa: numeroCaixaAbertura
+      }));
+      localStorage.setItem('hubi_caixa_ativo', JSON.stringify(novoCaixa));
+
       setCaixaAberto(novoCaixa);
       setModalAberturaCaixa(false);
 
       await registrarMovimentacaoLocal({
         id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()),
-        caixa_id: novoCaixa.id,
+        caixa_id: idFinal,
         loja_id: loja.id,
         usuario_id: usuario.id,
         tipo: 'abertura',
@@ -309,6 +376,10 @@ export const FinancasCaixa: React.FC = () => {
   // 3. Registrar Sangria (Retirada)
   const handleRegistrarSangria = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!permissions.ehAdmin) {
+      alert('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar sangria.');
+      return;
+    }
     if (!caixaAberto || !valorSangria) return;
 
     try {
@@ -343,6 +414,10 @@ export const FinancasCaixa: React.FC = () => {
   // 4. Registrar Suprimento (Troco Extra)
   const handleRegistrarSuprimento = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!permissions.ehAdmin) {
+      alert('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar suprimento.');
+      return;
+    }
     if (!caixaAberto || !valorSuprimento) return;
 
     try {
@@ -520,7 +595,11 @@ export const FinancasCaixa: React.FC = () => {
         status: 'FECHADO' as const
       };
 
-      await supabase.from('caixas').update(payloadFechamento).eq('id', caixaAberto.id);
+      try {
+        await supabase.from('caixas').update(payloadFechamento).eq('id', caixaAberto.id);
+      } catch (errDb: any) {
+        console.warn('Aviso fechamento Supabase:', errDb.message);
+      }
 
       // Montar objeto completo do relatório
       const relatorioCompleto = {
@@ -556,6 +635,28 @@ export const FinancasCaixa: React.FC = () => {
         localStorage.setItem(`hubi_caixa_rel_${caixaAberto.id}`, JSON.stringify(relatorioCompleto));
       } catch (e) {
         console.error(e);
+      }
+
+      // Remover caixa ativo local e salvar no histórico local
+      localStorage.removeItem('hubi_caixa_ativo');
+      if (loja?.id) {
+        try {
+          const histKey = `hubi_historico_caixas_${loja.id}`;
+          const prevHist = localStorage.getItem(histKey);
+          const listaHist: Caixa[] = prevHist ? JSON.parse(prevHist) : [];
+          const caixaFechadoObj: Caixa = {
+            ...caixaAberto,
+            data_fechamento: dataFechamento,
+            saldo_final_declarado: valorContado,
+            saldo_final_calculado: saldoEsperadoGaveta,
+            diferenca_quebra: diferenca,
+            status: 'FECHADO'
+          };
+          listaHist.unshift(caixaFechadoObj);
+          localStorage.setItem(histKey, JSON.stringify(listaHist.slice(0, 50)));
+        } catch (e) {
+          console.error(e);
+        }
       }
 
       setRelatorioDados(relatorioCompleto);
@@ -778,25 +879,29 @@ Assinatura do Supervisor: ___________________________________________
           <div className="flex items-center gap-2 flex-wrap">
             {caixaAberto ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => setModalSuprimento(true)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                  title="Adicionar Troco Extra"
-                >
-                  <ArrowDown className="w-4 h-4 text-emerald-400" />
-                  <span>Suprimento</span>
-                </button>
+                {permissions.ehAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setModalSuprimento(true)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      title="Adicionar Troco Extra"
+                    >
+                      <ArrowDown className="w-4 h-4 text-emerald-400" />
+                      <span>Suprimento</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => setModalSangria(true)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                  title="Retirar Dinheiro para o Cofre"
-                >
-                  <ArrowUp className="w-4 h-4 text-rose-400" />
-                  <span>Sangria</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalSangria(true)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      title="Retirar Dinheiro para o Cofre"
+                    >
+                      <ArrowUp className="w-4 h-4 text-rose-400" />
+                      <span>Sangria</span>
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"
@@ -818,14 +923,16 @@ Assinatura do Supervisor: ___________________________________________
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => setModalNovaDespesa(true)}
-              className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nova Despesa</span>
-            </button>
+            {permissions.ehAdmin && (
+              <button
+                type="button"
+                onClick={() => setModalNovaDespesa(true)}
+                className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nova Despesa</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1037,22 +1144,26 @@ Assinatura do Supervisor: ___________________________________________
                     <div className="border-t border-slate-800 pt-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Movimentações de Dinheiro (Gaveta)</h4>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setModalSuprimento(true)}
-                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
-                          >
-                            + Suprimento
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setModalSangria(true)}
-                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
-                          >
-                            - Sangria
-                          </button>
-                        </div>
+                        {permissions.ehAdmin ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setModalSuprimento(true)}
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                            >
+                              + Suprimento
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setModalSangria(true)}
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                            >
+                              - Sangria
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 italic">Movimentações restritas a administradores</span>
+                        )}
                       </div>
 
                       <div className="space-y-2">

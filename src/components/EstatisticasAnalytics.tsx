@@ -95,8 +95,8 @@ export const EstatisticasAnalytics: React.FC = () => {
 
   // Estados de navegação e filtros
   const [metricaSelecionada, setMetricaSelecionada] = useState<TipoMetrica>('faturamento');
-  const [agrupamentoSelecionado, setAgrupamentoSelecionado] = useState<TipoAgrupamento>('hora');
-  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('esta_semana');
+  const [agrupamentoSelecionado, setAgrupamentoSelecionado] = useState<TipoAgrupamento>('dia');
+  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('este_mes');
   const [periodoOffset, setPeriodoOffset] = useState<number>(0);
   const [dropdownPeriodoAberto, setDropdownPeriodoAberto] = useState<boolean>(false);
   const [dataInicioCustom, setDataInicioCustom] = useState<string>('');
@@ -119,6 +119,7 @@ export const EstatisticasAnalytics: React.FC = () => {
           `)
           .eq('loja_id', loja.id)
           .neq('status', 'cancelado')
+          .neq('status', 'pendente')
           .order('data_venda', { ascending: false });
 
         if (error) throw error;
@@ -177,27 +178,18 @@ export const EstatisticasAnalytics: React.FC = () => {
 
       const inicio = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - diffToMonday, 0, 0, 0);
       const fim = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + 6, 23, 59, 59, 999);
-      
-      const label = periodoOffset === 0 && tipoPeriodo === 'esta_semana' 
-        ? 'Esta semana' 
-        : `Semana ${inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} a ${fim.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
-
-      return { dataInicio: inicio, dataFim: fim, labelExibicaoPeriodo: label };
+      return { dataInicio: inicio, dataFim: fim, labelExibicaoPeriodo: tipoPeriodo === 'semana_passada' ? 'Semana Passada' : 'Esta Semana' };
     }
 
     if (tipoPeriodo === 'este_mes' || tipoPeriodo === 'mes_passado') {
       const ref = new Date();
-      const baseMonthOffset = tipoPeriodo === 'mes_passado' ? -1 : 0;
-      const totalMonthOffset = baseMonthOffset + periodoOffset;
-      ref.setMonth(ref.getMonth() + totalMonthOffset);
+      const baseOffset = tipoPeriodo === 'mes_passado' ? -1 : 0;
+      const totalMonthsOffset = baseOffset + periodoOffset;
+      ref.setMonth(ref.getMonth() + totalMonthsOffset);
 
       const inicio = new Date(ref.getFullYear(), ref.getMonth(), 1, 0, 0, 0);
       const fim = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
-
-      const label = periodoOffset === 0 && tipoPeriodo === 'este_mes' 
-        ? 'Este mês' 
-        : `${MESES_COMPLETOS[ref.getMonth()]} de ${ref.getFullYear()}`;
-
+      const label = MESES_NOMES[ref.getMonth()] || 'Mês Selecionado';
       return { dataInicio: inicio, dataFim: fim, labelExibicaoPeriodo: label };
     }
 
@@ -215,9 +207,11 @@ export const EstatisticasAnalytics: React.FC = () => {
     return { dataInicio: padraoInicio, dataFim: padraoFim, labelExibicaoPeriodo: 'Este mês' };
   }, [tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
 
-  // 3. Filtrar pedidos dentro do intervalo selecionado
+  // 3. Filtrar pedidos dentro do intervalo selecionado desconsiderando pendentes e cancelados
   const pedidosFiltrados = useMemo(() => {
     return todosPedidos.filter(p => {
+      const st = String(p.status || '').toLowerCase();
+      if (st === 'cancelado' || st === 'pendente') return false;
       const dataVenda = new Date(p.data_venda || p.criado_em || '');
       return dataVenda >= dataInicio && dataVenda <= dataFim;
     });
