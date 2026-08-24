@@ -640,7 +640,7 @@ Assinatura do Supervisor: ___________________________________________
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
   };
 
-  // 7. Lista unificada de transações com descrições limpas (Item 8)
+  // 7. Lista unificada de transações com descrições limpas e sem duplicações (Item 8)
   const listaTransacoesUnificada = useMemo(() => {
     const resultado: Array<{
       id: string;
@@ -654,39 +654,79 @@ Assinatura do Supervisor: ___________________________________________
       formaPagamento?: string;
     }> = [];
 
-    // Adicionar vendas do sistema
+    // Mapeamento de pedidos por id para enriquecer transações de vendas
+    const pedidosMap = new Map<string, Pedido>();
+    pedidos.forEach(p => pedidosMap.set(p.id, p));
+
+    // Rastrear quais pedidos já possuem transação financeira registrada
+    const pedidosContabilizados = new Set<string>();
+
+    // 1. Processar todas as transações financeiras reais da tabela transacoes_financeiras
+    transacoes.forEach(t => {
+      const tipo = String(t.tipo || '').toUpperCase() === 'SAIDA' || String(t.tipo || '').toLowerCase() === 'despesa'
+        ? 'SAIDA'
+        : 'ENTRADA';
+
+      let descFormatada = t.descricao || (tipo === 'ENTRADA' ? 'Recebimento Venda' : 'Despesa');
+      let fpNome = t.forma_pagamento || undefined;
+      let categoria = t.categoria || (tipo === 'ENTRADA' ? 'Venda Balcão / PDV' : 'Despesas Gerais');
+
+      // Se a transação estiver atrelada a um pedido
+      let pedId = t.pedido_id;
+      if (!pedId && descFormatada.toLowerCase().includes('recebimento pedido #')) {
+        const match = descFormatada.match(/recebimento pedido #([a-f0-9-]+)/i);
+        if (match && match[1]) pedId = match[1];
+      }
+
+      if (pedId) {
+        pedidosContabilizados.add(pedId);
+        const ped = pedidosMap.get(pedId);
+        if (ped) {
+          const nomeCli = ped.cliente?.nome || 'Cliente Balcão';
+          descFormatada = `Recebimento Venda #${ped.numero_pedido} - ${nomeCli}`;
+          if (!fpNome && ped.pagamentos && ped.pagamentos.length > 0) {
+            fpNome = ped.pagamentos[0].forma_pagamento?.nome;
+          }
+        } else {
+          descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
+        }
+      }
+
+      const status = String(t.status || 'pago').toLowerCase();
+
+      resultado.push({
+        id: t.id,
+        tipo,
+        categoria,
+        descricao: descFormatada,
+        valor: Number(t.valor || 0),
+        data: t.data_pagamento || t.data_vencimento || t.criado_em || new Date().toISOString(),
+        status: status === 'pago' ? 'pago' : status === 'pendente' ? 'pendente' : status,
+        ehRecorrente: t.eh_recorrente,
+        formaPagamento: fpNome
+      });
+    });
+
+    // 2. Fallback: Se houver pedidos que porventura não tenham registro em transacoes_financeiras
     pedidos.forEach(p => {
       if (p.status === 'cancelado') return;
+      if (pedidosContabilizados.has(p.id)) return; // Já incluído via transacoes_financeiras
+
+      const valPago = Number(p.valor_pago || 0);
+      if (valPago <= 0) return; // Pedidos pendentes sem pagamento realizado não entram no fluxo de caixa
+
       const nomeCliente = p.cliente?.nome || 'Cliente Balcão';
       const fpNome = p.pagamentos?.[0]?.forma_pagamento?.nome || 'Dinheiro';
+
       resultado.push({
         id: `ped_${p.id}`,
         tipo: 'ENTRADA',
         categoria: 'Venda Balcão / PDV',
         descricao: `Recebimento Venda #${p.numero_pedido} - ${nomeCliente}`,
-        valor: Number(p.valor_pago || p.valor_total || 0),
+        valor: valPago,
         data: p.data_venda || p.criado_em || new Date().toISOString(),
-        status: p.status_pagamento === 'pago' ? 'pago' : 'concluído',
+        status: p.status_pagamento === 'pago' || p.status === 'concluido' ? 'pago' : 'concluído',
         formaPagamento: fpNome
-      });
-    });
-
-    // Adicionar transações avulsas / despesas
-    transacoes.forEach(t => {
-      let descFormatada = t.descricao;
-      if (descFormatada.toLowerCase().includes('recebimento pedido')) {
-        descFormatada = descFormatada.replace(/recebimento pedido [a-f0-9-]+/gi, 'Recebimento Venda');
-      }
-      resultado.push({
-        id: t.id,
-        tipo: t.tipo as 'ENTRADA' | 'SAIDA',
-        categoria: t.categoria,
-        descricao: descFormatada,
-        valor: Number(t.valor),
-        data: t.data_vencimento || t.criado_em || new Date().toISOString(),
-        status: t.status,
-        ehRecorrente: t.eh_recorrente,
-        formaPagamento: t.forma_pagamento || undefined
       });
     });
 
@@ -694,9 +734,18 @@ Assinatura do Supervisor: ___________________________________________
     return resultado.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
   }, [pedidos, transacoes]);
 
-  const totalReceitas = listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').reduce((acc, t) => acc + t.valor, 0);
-  const totalDespesasPagas = listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').reduce((acc, t) => acc + t.valor, 0);
-  const totalDespesasPendentes = listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').reduce((acc, t) => acc + t.valor, 0);
+  const totalReceitas = listaTransacoesUnificada
+    .filter(t => t.tipo === 'ENTRADA' && (t.status === 'pago' || t.status === 'concluido' || t.status === 'concluído'))
+    .reduce((acc, t) => acc + t.valor, 0);
+
+  const totalDespesasPagas = listaTransacoesUnificada
+    .filter(t => t.tipo === 'SAIDA' && (t.status === 'pago' || t.status === 'concluido' || t.status === 'concluído'))
+    .reduce((acc, t) => acc + t.valor, 0);
+
+  const totalDespesasPendentes = listaTransacoesUnificada
+    .filter(t => t.tipo === 'SAIDA' && t.status === 'pendente')
+    .reduce((acc, t) => acc + t.valor, 0);
+
   const lucroLiquido = totalReceitas - totalDespesasPagas;
 
   return (
