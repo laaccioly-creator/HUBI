@@ -14,7 +14,8 @@ import {
   Loader2,
   ShieldCheck,
   AlertTriangle,
-  MessageCircle
+  MessageCircle,
+  Lock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -68,6 +69,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const permissions = usePermissions();
 
   // Estados dos Campos
+  const [ativo, setAtivo] = useState(true);
   const [nome, setNome] = useState('');
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [dataAniversario, setDataAniversario] = useState('');
@@ -104,6 +106,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       if (clienteEditar) {
+        setAtivo((clienteEditar as any).ativo !== false);
         setNome(clienteEditar.nome || '');
         setCpfCnpj(clienteEditar.numero_documento || '');
         setDataAniversario(clienteEditar.data_aniversario || '');
@@ -124,6 +127,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setCidade(clienteEditar.endereco_cidade || '');
         setEstado(clienteEditar.endereco_estado || '');
       } else {
+        setAtivo(true);
         setNome('');
         setCpfCnpj('');
         setDataAniversario('');
@@ -334,7 +338,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       whatsapp: whatsappPrincipal || null,
       permite_fiado: permiteFiado,
       limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
-      saldo_devedor_fiado: 0,
+      saldo_devedor_fiado: clienteEditar ? (Number(clienteEditar.saldo_devedor_fiado) || 0) : 0,
       tabela_preco_padrao: tabelaPreco,
       observacoes: observacoes.trim() || null,
       endereco_cep: cep.trim() || null,
@@ -344,7 +348,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       endereco_bairro: bairro.trim() || null,
       endereco_cidade: cidade.trim() || null,
       endereco_estado: estado.trim() || null,
-      endereco_principal: enderecoPrincipalFormatado || null
+      endereco_principal: enderecoPrincipalFormatado || null,
+      ativo: ativo
     };
 
     try {
@@ -375,7 +380,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
             tabela_preco_padrao: tabelaPreco,
             observacoes: observacoes.trim() || null,
-            endereco_principal: enderecoPrincipalFormatado || null
+            endereco_principal: enderecoPrincipalFormatado || null,
+            ativo: ativo
           };
           const resFallback = await supabase
             .from('clientes')
@@ -476,6 +482,44 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
         {/* Formulário com Scroll */}
         <form onSubmit={handleSubmeter} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          {/* Status do Cliente (Ativo / Inativo) - Apenas em Edição e Restrito a Owner / Admin */}
+          {clienteEditar && (
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 shadow-inner">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-200">Status do Cadastro:</span>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                    ativo ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  }`}>
+                    {ativo ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  {ativo ? 'Cliente ativo e disponível para vendas e emissão de fiado.' : 'Cliente inativado no sistema.'}
+                </span>
+              </div>
+
+              {permissions.ehAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setAtivo(!ativo)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                    ativo
+                      ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40'
+                      : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                  }`}
+                >
+                  <span>{ativo ? 'Inativar Cliente' : 'Ativar Cliente'}</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1 text-[11px] text-slate-500 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Apenas Owner / Admin</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* SEÇÃO 1: DADOS BÁSICOS */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">

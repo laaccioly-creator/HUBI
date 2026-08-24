@@ -452,7 +452,7 @@ export const FinancasCaixa: React.FC = () => {
     }
   };
 
-  // 5. Cálculos do Turno Atual (Item 9)
+  // 5. Cálculos do Turno Atual (Item 9 e 4a)
   const apuracaoTurnoAtual = useMemo(() => {
     if (!caixaAberto) {
       return {
@@ -475,12 +475,6 @@ export const FinancasCaixa: React.FC = () => {
 
     const dataInicio = new Date(caixaAberto.data_abertura).getTime();
 
-    const pedidosDoTurno = pedidos.filter(p => {
-      if (p.status === 'cancelado') return false;
-      const dataPed = new Date(p.data_venda || p.criado_em || '').getTime();
-      return dataPed >= dataInicio;
-    });
-
     let vendasDinheiro = 0;
     let qtdDinheiro = 0;
     let vendasPix = 0;
@@ -490,30 +484,35 @@ export const FinancasCaixa: React.FC = () => {
     let vendasCredito = 0;
     let qtdCredito = 0;
 
-    pedidosDoTurno.forEach(p => {
+    pedidos.forEach(p => {
+      if (p.status === 'cancelado') return;
+      const dataPed = new Date(p.data_venda || p.criado_em || '').getTime();
+      const pedidoNoTurno = dataPed >= dataInicio;
+
       if (p.pagamentos && p.pagamentos.length > 0) {
         p.pagamentos.forEach(pag => {
-          const tipo = pag.forma_pagamento?.tipo || 'dinheiro';
+          const dataPag = new Date(pag.criado_em || pag.data_pagamento || p.data_venda || p.criado_em || '').getTime();
+          if (dataPag < dataInicio && !pedidoNoTurno) return;
+
+          const tipoRaw = String(pag.forma_pagamento?.tipo || pag.forma_pagamento?.nome || (pag as any).tipo_pagamento || '').toLowerCase();
           const val = Number(pag.valor) || 0;
-          if (tipo === 'dinheiro') {
-            vendasDinheiro += val;
-            qtdDinheiro += 1;
-          } else if (tipo === 'pix') {
-            vendasPix += val;
-            qtdPix += 1;
-          } else if (tipo === 'cartao_debito') {
+
+          if (tipoRaw.includes('debito') || tipoRaw.includes('débito')) {
             vendasDebito += val;
             qtdDebito += 1;
-          } else if (tipo === 'cartao_credito') {
+          } else if (tipoRaw.includes('credito') || tipoRaw.includes('crédito')) {
             vendasCredito += val;
             qtdCredito += 1;
-          } else {
+          } else if (tipoRaw.includes('pix')) {
             vendasPix += val;
             qtdPix += 1;
+          } else {
+            vendasDinheiro += val;
+            qtdDinheiro += 1;
           }
         });
-      } else {
-        const val = Number(p.valor_total) || 0;
+      } else if (pedidoNoTurno) {
+        const val = Number(p.valor_pago || p.valor_total) || 0;
         vendasDinheiro += val;
         qtdDinheiro += 1;
       }
@@ -554,47 +553,87 @@ export const FinancasCaixa: React.FC = () => {
     };
   }, [caixaAberto, pedidos, movimentacoesCaixa]);
 
-  // 6. Fechamento de Caixa Cego & Geração de Relatório Oficial (Item 9)
-  const handleFecharCaixaCego = async (e: React.FormEvent) => {
+  // 6. Etapa 1: Conferir e Gerar Relatório de Fechamento (SEM fechar o caixa automaticamente)
+  const handleConferirFechamentoCego = (e: React.FormEvent) => {
     e.preventDefault();
     if (!caixaAberto || valorContadoFechamento === '') return;
 
+    const valorContado = Number(valorContadoFechamento) || 0;
+    const {
+      vendasDinheiro,
+      qtdDinheiro,
+      vendasPix,
+      qtdPix,
+      vendasDebito,
+      qtdDebito,
+      vendasCredito,
+      qtdCredito,
+      totalBruto,
+      totalQtdVendas,
+      suprimentos,
+      sangrias,
+      despesasCaixa,
+      saldoEsperadoGaveta
+    } = apuracaoTurnoAtual;
+
+    const diferenca = valorContado - saldoEsperadoGaveta;
+    const dataFechamento = new Date().toISOString();
+
+    let situacaoTexto = 'CAIXA CORRETO (Sem divergência)';
+    if (diferenca > 0.01) {
+      situacaoTexto = `SOBRA DE CAIXA (+R$ ${diferenca.toFixed(2)})`;
+    } else if (diferenca < -0.01) {
+      situacaoTexto = `FALTA DE CAIXA (-R$ ${Math.abs(diferenca).toFixed(2)})`;
+    }
+
+    const relatorioCompleto = {
+      isPendenteFechamento: true,
+      caixaId: caixaAberto.id,
+      caixaNumero: caixaAberto.numero_caixa || '01',
+      turno: caixaAberto.turno || 'Integral',
+      operadorNome: caixaAberto.usuario?.nome_completo || usuario?.nome_completo || 'Operador',
+      dataAbertura: caixaAberto.data_abertura,
+      dataFechamento: dataFechamento,
+      qtdDinheiro,
+      vendasDinheiro,
+      qtdPix,
+      vendasPix,
+      qtdDebito,
+      vendasDebito,
+      qtdCredito,
+      vendasCredito,
+      totalQtdVendas,
+      totalBruto,
+      fundoInicial: Number(caixaAberto.saldo_inicial),
+      suprimentos,
+      sangrias,
+      despesasCaixa,
+      saldoEsperadoGaveta,
+      valorContado,
+      diferenca,
+      situacaoTexto,
+      observacoes: observacaoFechamento,
+      movimentacoes: movimentacoesCaixa
+    };
+
+    setRelatorioDados(relatorioCompleto);
+    setModalFechamentoCego(false);
+    setModalRelatorioFechamento(true);
+  };
+
+  // 6b. Etapa 2: Confirmar e Fechar Caixa Definitivamente (Acionado dentro do Relatório)
+  const handleConfirmarFechamentoDefinitivo = async () => {
+    if (!relatorioDados || !caixaAberto) return;
+
     try {
       setProcessandoFechamento(true);
-      const valorContado = Number(valorContadoFechamento) || 0;
-      const {
-        vendasDinheiro,
-        qtdDinheiro,
-        vendasPix,
-        qtdPix,
-        vendasDebito,
-        qtdDebito,
-        vendasCredito,
-        qtdCredito,
-        totalBruto,
-        totalQtdVendas,
-        suprimentos,
-        sangrias,
-        despesasCaixa,
-        saldoEsperadoGaveta
-      } = apuracaoTurnoAtual;
-
-      const diferenca = valorContado - saldoEsperadoGaveta;
       const dataFechamento = new Date().toISOString();
 
-      let situacaoTexto = 'CAIXA CORRETO (Sem divergência)';
-      if (diferenca > 0.01) {
-        situacaoTexto = `SOBRA DE CAIXA (+R$ ${diferenca.toFixed(2)})`;
-      } else if (diferenca < -0.01) {
-        situacaoTexto = `FALTA DE CAIXA (-R$ ${Math.abs(diferenca).toFixed(2)})`;
-      }
-
-      // Atualizar no Supabase apenas as colunas nativas existentes
       const payloadFechamento = {
         data_fechamento: dataFechamento,
-        saldo_final_declarado: valorContado,
-        saldo_final_calculado: saldoEsperadoGaveta,
-        diferenca_quebra: diferenca,
+        saldo_final_declarado: relatorioDados.valorContado,
+        saldo_final_calculado: relatorioDados.saldoEsperadoGaveta,
+        diferenca_quebra: relatorioDados.diferenca,
         status: 'FECHADO' as const
       };
 
@@ -604,38 +643,13 @@ export const FinancasCaixa: React.FC = () => {
         console.warn('Aviso fechamento Supabase:', errDb.message);
       }
 
-      // Montar objeto completo do relatório
-      const relatorioCompleto = {
-        caixaNumero: caixaAberto.numero_caixa || '01',
-        turno: caixaAberto.turno || 'Integral',
-        operadorNome: caixaAberto.usuario?.nome_completo || usuario?.nome_completo || 'Operador',
-        dataAbertura: caixaAberto.data_abertura,
-        dataFechamento: dataFechamento,
-        qtdDinheiro,
-        vendasDinheiro,
-        qtdPix,
-        vendasPix,
-        qtdDebito,
-        vendasDebito,
-        qtdCredito,
-        vendasCredito,
-        totalQtdVendas,
-        totalBruto,
-        fundoInicial: Number(caixaAberto.saldo_inicial),
-        suprimentos,
-        sangrias,
-        despesasCaixa,
-        saldoEsperadoGaveta,
-        valorContado,
-        diferenca,
-        situacaoTexto,
-        observacoes: observacaoFechamento,
-        movimentacoes: movimentacoesCaixa
-      };
-
-      // Salvar relatório completo no storage para histórico instantâneo
+      // Salvar relatório completo no storage
       try {
-        localStorage.setItem(`hubi_caixa_rel_${caixaAberto.id}`, JSON.stringify(relatorioCompleto));
+        localStorage.setItem(`hubi_caixa_rel_${caixaAberto.id}`, JSON.stringify({
+          ...relatorioDados,
+          isPendenteFechamento: false,
+          dataFechamento
+        }));
       } catch (e) {
         console.error(e);
       }
@@ -650,9 +664,9 @@ export const FinancasCaixa: React.FC = () => {
           const caixaFechadoObj: Caixa = {
             ...caixaAberto,
             data_fechamento: dataFechamento,
-            saldo_final_declarado: valorContado,
-            saldo_final_calculado: saldoEsperadoGaveta,
-            diferenca_quebra: diferenca,
+            saldo_final_declarado: relatorioDados.valorContado,
+            saldo_final_calculado: relatorioDados.saldoEsperadoGaveta,
+            diferenca_quebra: relatorioDados.diferenca,
             status: 'FECHADO'
           };
           listaHist.unshift(caixaFechadoObj);
@@ -662,14 +676,13 @@ export const FinancasCaixa: React.FC = () => {
         }
       }
 
-      setRelatorioDados(relatorioCompleto);
-      setModalFechamentoCego(false);
-      setModalRelatorioFechamento(true);
+      setRelatorioDados((prev: any) => prev ? { ...prev, isPendenteFechamento: false, dataFechamento } : null);
       setCaixaAberto(null);
       setValorContadoFechamento('');
       setObservacaoFechamento('');
 
       await carregarFinanceiro();
+      alert('Caixa encerrado com sucesso!');
     } catch (err: any) {
       alert(`Erro ao fechar caixa: ${err.message || 'Tente novamente.'}`);
     } finally {
@@ -746,7 +759,7 @@ Assinatura do Supervisor: ___________________________________________
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
   };
 
-  // 7. Lista unificada de transações com descrições limpas e sem duplicações (Item 8)
+  // 7. Lista unificada de transações com descrições limpas e sem duplicações (Item 8 e 4b)
   const listaTransacoesUnificada = useMemo(() => {
     const resultado: Array<{
       id: string;
@@ -760,9 +773,15 @@ Assinatura do Supervisor: ___________________________________________
       formaPagamento?: string;
     }> = [];
 
-    // Mapeamento de pedidos por id para enriquecer transações de vendas
+    // Mapeamento de pedidos por id e por numero_pedido para enriquecer transações de vendas
     const pedidosMap = new Map<string, Pedido>();
-    pedidos.forEach(p => pedidosMap.set(p.id, p));
+    const pedidosNumMap = new Map<number, Pedido>();
+    pedidos.forEach(p => {
+      pedidosMap.set(p.id, p);
+      if (p.numero_pedido != null) {
+        pedidosNumMap.set(Number(p.numero_pedido), p);
+      }
+    });
 
     // Rastrear quais pedidos já possuem transação financeira registrada
     const pedidosContabilizados = new Set<string>();
@@ -778,24 +797,36 @@ Assinatura do Supervisor: ___________________________________________
       let categoria = t.categoria || (tipo === 'ENTRADA' ? 'Venda Balcão / PDV' : 'Despesas Gerais');
 
       // Se a transação estiver atrelada a um pedido
-      let pedId = t.pedido_id;
-      if (!pedId && descFormatada.toLowerCase().includes('recebimento pedido #')) {
-        const match = descFormatada.match(/recebimento pedido #([a-f0-9-]+)/i);
-        if (match && match[1]) pedId = match[1];
+      let ped: Pedido | undefined = undefined;
+      if (t.pedido_id) {
+        ped = pedidosMap.get(t.pedido_id);
+        pedidosContabilizados.add(t.pedido_id);
+        if (ped && ped.numero_pedido != null) {
+          pedidosContabilizados.add(String(ped.numero_pedido));
+        }
       }
 
-      if (pedId) {
-        pedidosContabilizados.add(pedId);
-        const ped = pedidosMap.get(pedId);
-        if (ped) {
-          const nomeCli = ped.cliente?.nome || 'Cliente Balcão';
-          descFormatada = `Recebimento Venda #${ped.numero_pedido} - ${nomeCli}`;
-          if (!fpNome && ped.pagamentos && ped.pagamentos.length > 0) {
-            fpNome = ped.pagamentos[0].forma_pagamento?.nome;
-          }
-        } else {
-          descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
+      // Procurar por menção ao número do pedido ou venda na descrição
+      const numMatch = descFormatada.match(/(?:recebimento\s+)?(?:pedido|venda)\s*#\s*(\d+)/i);
+      if (numMatch && numMatch[1]) {
+        const numPed = Number(numMatch[1]);
+        pedidosContabilizados.add(String(numPed));
+        if (!ped) {
+          ped = pedidosNumMap.get(numPed);
+          if (ped) pedidosContabilizados.add(ped.id);
         }
+      }
+
+      if (ped) {
+        pedidosContabilizados.add(ped.id);
+        if (ped.numero_pedido != null) pedidosContabilizados.add(String(ped.numero_pedido));
+        const nomeCli = ped.cliente?.nome || 'Cliente Balcão';
+        descFormatada = `Recebimento Venda #${ped.numero_pedido} - ${nomeCli}`;
+        if (!fpNome && ped.pagamentos && ped.pagamentos.length > 0) {
+          fpNome = ped.pagamentos[0].forma_pagamento?.nome;
+        }
+      } else {
+        descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
       }
 
       const status = String(t.status || 'pago').toLowerCase();
@@ -816,7 +847,8 @@ Assinatura do Supervisor: ___________________________________________
     // 2. Fallback: Se houver pedidos que porventura não tenham registro em transacoes_financeiras
     pedidos.forEach(p => {
       if (p.status === 'cancelado') return;
-      if (pedidosContabilizados.has(p.id)) return; // Já incluído via transacoes_financeiras
+      if (pedidosContabilizados.has(p.id)) return;
+      if (p.numero_pedido != null && pedidosContabilizados.has(String(p.numero_pedido))) return;
 
       const valPago = Number(p.valor_pago || 0);
       if (valPago <= 0) return; // Pedidos pendentes sem pagamento realizado não entram no fluxo de caixa
@@ -961,17 +993,17 @@ Assinatura do Supervisor: ___________________________________________
             <span className="text-base font-black text-emerald-400 block truncate">R$ {totalReceitas.toFixed(2)}</span>
           </div>
 
-          {/* Saídas Pagas */}
+          {/* Despesas */}
           <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
-                <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Saídas Pagas
+                <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Despesas
               </span>
               <button
                 type="button"
                 onClick={() => setModalDetalhesMetrica('saidas')}
                 className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20"
-                title="Detalhar Saídas Pagas"
+                title="Detalhar Despesas"
               >
                 Detalhar
               </button>
@@ -997,15 +1029,15 @@ Assinatura do Supervisor: ___________________________________________
             <span className="text-base font-black text-amber-400 block truncate">R$ {totalDespesasPendentes.toFixed(2)}</span>
           </div>
 
-          {/* Lucro Líquido Real */}
+          {/* Resultado Acumulado */}
           <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 font-semibold truncate block">Lucro Real</span>
+              <span className="text-[11px] text-slate-400 font-semibold truncate block">Resultado Acumulado</span>
               <button
                 type="button"
                 onClick={() => setModalDetalhesMetrica('lucro')}
                 className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-[10px] font-bold transition cursor-pointer border border-indigo-500/20 shrink-0"
-                title="Detalhar Lucro Líquido"
+                title="Detalhar Resultado Acumulado"
               >
                 Detalhar
               </button>
@@ -1666,11 +1698,11 @@ Assinatura do Supervisor: ___________________________________________
               </button>
             </div>
 
-            <form onSubmit={handleFecharCaixaCego} className="space-y-4">
+            <form onSubmit={handleConferirFechamentoCego} className="space-y-4">
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-300 space-y-1">
                 <span className="font-bold block">🔒 Procedimento de Conferência Cega:</span>
                 <p className="text-[11px] leading-tight text-amber-200/80">
-                  Conte todo o dinheiro físico presente na gaveta e digite o total abaixo. O sistema apurará as vendas, sangrias e suprimentos automaticamente para gerar o relatório final.
+                  Conte todo o dinheiro físico presente na gaveta e digite o total abaixo. O sistema apurará as vendas, sangrias e suprimentos automaticamente para gerar o relatório final para conferência.
                 </p>
               </div>
 
@@ -1702,10 +1734,9 @@ Assinatura do Supervisor: ___________________________________________
 
               <button
                 type="submit"
-                disabled={processandoFechamento}
-                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition cursor-pointer disabled:opacity-50"
+                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition cursor-pointer"
               >
-                {processandoFechamento ? 'Processando Fechamento...' : 'Conferir e Gerar Relatório de Fechamento'}
+                Conferir e Gerar Relatório de Fechamento
               </button>
             </form>
           </div>
@@ -1713,7 +1744,7 @@ Assinatura do Supervisor: ___________________________________________
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO DE CAIXA (ITEM 5)                  */}
+      {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO DE CAIXA (ITEM 5 e 4c)              */}
       {/* ========================================================================= */}
       {modalRelatorioFechamento && relatorioDados && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
@@ -1830,8 +1861,8 @@ Assinatura do Supervisor: ___________________________________________
               </div>
             )}
 
-            {/* Ações de Impressão e Compartilhamento */}
-            <div className="flex items-center justify-between gap-2 pt-2 flex-wrap">
+            {/* Ações de Fechamento, Impressão e Compartilhamento */}
+            <div className="flex items-center justify-between gap-2 pt-2 flex-wrap border-t border-slate-800">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1856,18 +1887,30 @@ Assinatura do Supervisor: ___________________________________________
                 <button
                   type="button"
                   onClick={handleImprimirRelatorio}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95"
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 transition cursor-pointer"
                 >
-                  <Printer className="w-4 h-4" />
-                  <span>Imprimir Relatório</span>
+                  <Printer className="w-4 h-4 text-slate-400" />
+                  <span>Imprimir</span>
                 </button>
+
+                {relatorioDados.isPendenteFechamento && caixaAberto && (
+                  <button
+                    type="button"
+                    disabled={processandoFechamento}
+                    onClick={handleConfirmarFechamentoDefinitivo}
+                    className="px-5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-black flex items-center gap-2 transition cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95 disabled:opacity-50"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>{processandoFechamento ? 'Fechando Caixa...' : 'Fechar Caixa'}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
                   onClick={() => setModalRelatorioFechamento(false)}
                   className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
-                  Fechar
+                  Fechar Janela
                 </button>
               </div>
             </div>
@@ -1876,7 +1919,7 @@ Assinatura do Supervisor: ___________________________________________
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: DETALHAMENTO DE MÉTRICAS FINANCEIRAS (ITEM 7)                      */}
+      {/* MODAL: DETALHAMENTO DE MÉTRICAS FINANCEIRAS (ITEM 7, 4d, 4e)                */}
       {/* ========================================================================= */}
       {modalDetalhesMetrica && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
@@ -1890,9 +1933,9 @@ Assinatura do Supervisor: ___________________________________________
                 <div>
                   <h3 className="font-bold text-base text-slate-100">
                     {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
-                    {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Saídas Pagas (Despesas)'}
+                    {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Despesas'}
                     {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
-                    {modalDetalhesMetrica === 'lucro' && 'Composição do Lucro Líquido Real'}
+                    {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
                   </h3>
                   <span className="text-xs text-slate-400">Composição detalhada dos valores apurados</span>
                 </div>
@@ -1933,21 +1976,32 @@ Assinatura do Supervisor: ___________________________________________
               {modalDetalhesMetrica === 'saidas' && (
                 <div className="space-y-3">
                   <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                    <span className="text-xs text-slate-400 font-semibold">Total de Saídas Pagas:</span>
+                    <span className="text-xs text-slate-400 font-semibold">Total de Despesas:</span>
                     <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
                   </div>
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-300 block">Últimas Saídas Pagas:</span>
-                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
-                      {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 20).map((t) => (
-                        <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
-                            <span className="text-[10px] text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-xs font-bold text-slate-300 block">Últimas Despesas Registradas:</span>
+                    <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                      {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
+                        const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
+                        return (
+                          <div key={t.id} className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 flex items-start justify-between gap-4 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-bold text-slate-200 block line-clamp-2 leading-tight">
+                                {descLimpa}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-1">
+                                {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-black text-rose-400 text-xs block">
+                                - R$ {t.valor.toFixed(2)}
+                              </span>
+                            </div>
                           </div>
-                          <span className="font-bold text-rose-400 text-xs shrink-0">- R$ {t.valor.toFixed(2)}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1994,7 +2048,7 @@ Assinatura do Supervisor: ___________________________________________
                     </div>
 
                     <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
-                      <span className="font-bold text-slate-100 text-sm">(=) Lucro Líquido Real em Caixa:</span>
+                      <span className="font-bold text-slate-100 text-sm">(=) Resultado Acumulado em Caixa:</span>
                       <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
                         R$ {lucroLiquido.toFixed(2)}
                       </span>
@@ -2002,7 +2056,7 @@ Assinatura do Supervisor: ___________________________________________
                   </div>
 
                   <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-                    💡 O lucro líquido real considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
+                    💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
                   </div>
                 </div>
               )}

@@ -269,12 +269,15 @@ export const EstatisticasAnalytics: React.FC = () => {
     }, 0);
   }, [pedidosFiltrados]);
 
+  const usarTaxaPdv = Boolean(loja?.configuracoes_extras?.taxas_venda?.usar_taxa_pdv);
+
   const taxasVendaTotal = useMemo(() => {
+    if (!usarTaxaPdv) return 0;
     return pedidosFiltrados.reduce((acc, p) => {
       const taxas = (p.pagamentos || []).reduce((accP, pag) => accP + Number(pag.valor_taxa || 0), 0);
       return acc + taxas;
     }, 0);
-  }, [pedidosFiltrados]);
+  }, [pedidosFiltrados, usarTaxaPdv]);
 
   const lucroTotal = useMemo(() => {
     return faturamentoTotal - custoTotal - taxasVendaTotal;
@@ -401,7 +404,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         const d = obterDataPagamentoPedido(p);
         const hora = d.getHours();
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
-        const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
+        const taxas = usarTaxaPdv ? (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0) : 0;
         const val = obterValorEfetivoPagoPedido(p);
 
         if (horas[hora]) {
@@ -471,7 +474,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         }
 
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
-        const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
+        const taxas = usarTaxaPdv ? (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0) : 0;
         const val = obterValorEfetivoPagoPedido(p);
 
         diaItem.faturamento += val;
@@ -503,7 +506,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         const d = obterDataPagamentoPedido(p);
         const diaSemanaIdx = d.getDay();
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
-        const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
+        const taxas = usarTaxaPdv ? (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0) : 0;
         const val = obterValorEfetivoPagoPedido(p);
 
         if (dias[diaSemanaIdx]) {
@@ -536,7 +539,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         const d = obterDataPagamentoPedido(p);
         const mesIdx = d.getMonth();
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
-        const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
+        const taxas = usarTaxaPdv ? (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0) : 0;
         const val = obterValorEfetivoPagoPedido(p);
 
         if (meses[mesIdx]) {
@@ -555,14 +558,14 @@ export const EstatisticasAnalytics: React.FC = () => {
     }
 
     return [];
-  }, [pedidosFiltrados, agrupamentoSelecionado]);
+  }, [pedidosFiltrados, agrupamentoSelecionado, usarTaxaPdv, dataInicio, dataFim]);
 
   // Identificar melhor e pior hora/dia
   const { melhorItem, piorItem } = useMemo(() => {
     if (dadosAgrupadosTemporais.length === 0) return { melhorItem: null, piorItem: null };
     
     const itensComValores = dadosAgrupadosTemporais.filter(i => {
-      if (metricaSelecionada === 'faturamento') return i.faturamento > 0;
+      if (metricaSelecionada === 'faturamento' || metricaSelecionada === 'meio_pagamento') return i.faturamento > 0;
       if (metricaSelecionada === 'vendas') return i.vendas > 0;
       if (metricaSelecionada === 'ticket_medio') return i.ticketMedio > 0;
       if (metricaSelecionada === 'lucro') return i.lucro > 0;
@@ -573,7 +576,7 @@ export const EstatisticasAnalytics: React.FC = () => {
     if (itensComValores.length === 0) return { melhorItem: null, piorItem: null };
 
     const getValor = (item: typeof dadosAgrupadosTemporais[0]) => {
-      if (metricaSelecionada === 'faturamento') return item.faturamento;
+      if (metricaSelecionada === 'faturamento' || metricaSelecionada === 'meio_pagamento') return item.faturamento;
       if (metricaSelecionada === 'vendas') return item.vendas;
       if (metricaSelecionada === 'ticket_medio') return item.ticketMedio;
       if (metricaSelecionada === 'lucro') return item.lucro;
@@ -662,7 +665,7 @@ export const EstatisticasAnalytics: React.FC = () => {
     }
 
     const getValor = (item: typeof dados[0]) => {
-      if (metricaSelecionada === 'faturamento') return item.faturamento;
+      if (metricaSelecionada === 'faturamento' || metricaSelecionada === 'meio_pagamento') return item.faturamento;
       if (metricaSelecionada === 'vendas') return item.vendas;
       if (metricaSelecionada === 'ticket_medio') return item.ticketMedio;
       if (metricaSelecionada === 'lucro') return item.lucro;
@@ -1106,12 +1109,13 @@ export const EstatisticasAnalytics: React.FC = () => {
         {/* COLUNA DIREITA: DETALHE / GRÁFICOS / TABELAS */}
         <div className="flex-1 bg-slate-950 p-4 md:p-6 overflow-y-auto space-y-6">
           
-          {/* PAINEL PARA FATURAMENTO, VENDAS, TICKET MÉDIO, LUCRO, TAXA DE VENDA */}
+          {/* PAINEL PARA FATURAMENTO, VENDAS, TICKET MÉDIO, LUCRO, TAXA DE VENDA, MEIO DE PAGAMENTO */}
           {(metricaSelecionada === 'faturamento' ||
             metricaSelecionada === 'vendas' ||
             metricaSelecionada === 'ticket_medio' ||
             metricaSelecionada === 'lucro' ||
-            metricaSelecionada === 'taxa_venda') && (
+            metricaSelecionada === 'taxa_venda' ||
+            metricaSelecionada === 'meio_pagamento') && (
             <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 space-y-6">
               
               {/* Título & Abas de Agrupamento Temporal */}
@@ -1122,6 +1126,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   {metricaSelecionada === 'ticket_medio' && 'Ticket Médio'}
                   {metricaSelecionada === 'lucro' && 'Lucro Real'}
                   {metricaSelecionada === 'taxa_venda' && 'Taxa de Venda'}
+                  {metricaSelecionada === 'meio_pagamento' && 'Meio de Pagamento'}
                 </h2>
 
                 <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -1142,10 +1147,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                 </div>
               </div>
 
-              {/* Gráfico de Linha e Área */}
+              {/* Gráfico de Linha e Área Padrão */}
               {renderLineAreaChart()}
 
-              {/* Tabela Detalhada dos Dados */}
+              {/* Tabela Detalhada dos Dados Temporais */}
               <div className="overflow-x-auto border-t border-slate-800 pt-4">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -1156,8 +1161,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                         {agrupamentoSelecionado === 'dia_semana' && 'Dia da Semana'}
                         {agrupamentoSelecionado === 'mes' && 'Mês'}
                       </th>
-                      <th className="py-2 px-3 text-right">Faturamento</th>
-                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
+                      <th className="py-2 px-3 text-right">
+                        {metricaSelecionada === 'meio_pagamento' ? 'Faturamento Total' : 'Faturamento'}
+                      </th>
+                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
                         <>
                           <th className="py-2 px-3 text-right">Vendas</th>
                           <th className="py-2 px-3 text-right">Ticket Médio</th>
@@ -1187,7 +1194,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                           <td className="py-2.5 px-3 text-right font-medium text-slate-200">
                             R$ {linha.faturamento.toFixed(2)}
                           </td>
-                          {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
+                          {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
                             <>
                               <td className="py-2.5 px-3 text-right text-slate-300">
                                 {linha.vendas}
@@ -1213,70 +1220,71 @@ export const EstatisticasAnalytics: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
 
-          {/* PAINEL PARA MEIO DE PAGAMENTO */}
-          {metricaSelecionada === 'meio_pagamento' && (
-            <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 space-y-6">
-              <div className="border-b border-slate-800 pb-3">
-                <h2 className="text-base font-extrabold text-slate-100">Meio de Pagamento</h2>
-                <p className="text-xs text-slate-400">Distribuição dos valores por forma de pagamento no período.</p>
-              </div>
+              {/* Se Meio de Pagamento estiver selecionado, exibir também a distribuição por forma de pagamento */}
+              {metricaSelecionada === 'meio_pagamento' && (
+                <div className="border-t border-slate-800 pt-6 space-y-6">
+                  <div className="border-b border-slate-800 pb-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                      Distribuição Consolidada por Forma de Pagamento
+                    </h3>
+                  </div>
 
-              {/* Gráfico Donut */}
-              {renderDonutChart(dadosMeiosPagamento)}
+                  {/* Gráfico Donut */}
+                  {renderDonutChart(dadosMeiosPagamento)}
 
-              {/* Tabela de Meios de Pagamento */}
-              <div className="overflow-x-auto border-t border-slate-800 pt-4">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
-                      <th className="py-2 px-3">Tipo</th>
-                      <th className="py-2 px-3 text-center">Qtd.</th>
-                      <th className="py-2 px-3 text-right">Valor</th>
-                      <th className="py-2 px-3 text-right">%</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {dadosMeiosPagamento.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="text-center py-6 text-slate-500">
-                          Nenhum pagamento registrado no período.
-                        </td>
-                      </tr>
-                    ) : (
-                      dadosMeiosPagamento.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-800/40 transition">
-                          <td className="py-2.5 px-3 font-semibold text-slate-200 flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
-                            <span>{item.nome}</span>
-                          </td>
-                          <td className="py-2.5 px-3 text-center text-slate-300">
-                            {item.qtd}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-medium text-slate-200">
-                            R$ {item.valor.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-slate-300">
-                            {item.percentual.toFixed(2)}%
-                          </td>
+                  {/* Tabela de Meios de Pagamento */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                          <th className="py-2 px-3">Forma de Pagamento</th>
+                          <th className="py-2 px-3 text-center">Qtd. Transações</th>
+                          <th className="py-2 px-3 text-right">Valor Total</th>
+                          <th className="py-2 px-3 text-right">Participação (%)</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-slate-700 font-bold text-slate-100 bg-slate-900/60">
-                      <td className="py-3 px-3">Total</td>
-                      <td className="py-3 px-3 text-center">{dadosMeiosPagamento.reduce((acc, i) => acc + i.qtd, 0)}</td>
-                      <td className="py-3 px-3 text-right text-emerald-400">
-                        R$ {dadosMeiosPagamento.reduce((acc, i) => acc + i.valor, 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-3 text-right">100%</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {dadosMeiosPagamento.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="text-center py-6 text-slate-500">
+                              Nenhum pagamento registrado no período.
+                            </td>
+                          </tr>
+                        ) : (
+                          dadosMeiosPagamento.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-800/40 transition">
+                              <td className="py-2.5 px-3 font-semibold text-slate-200 flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
+                                <span>{item.nome}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center text-slate-300">
+                                {item.qtd}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-medium text-slate-200">
+                                R$ {item.valor.toFixed(2)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-slate-300">
+                                {item.percentual.toFixed(2)}%
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-slate-700 font-bold text-slate-100 bg-slate-900/60">
+                          <td className="py-3 px-3">Total</td>
+                          <td className="py-3 px-3 text-center">{dadosMeiosPagamento.reduce((acc, i) => acc + i.qtd, 0)}</td>
+                          <td className="py-3 px-3 text-right text-emerald-400">
+                            R$ {dadosMeiosPagamento.reduce((acc, i) => acc + i.valor, 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right">100%</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

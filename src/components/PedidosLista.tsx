@@ -29,7 +29,9 @@ import {
   Mail,
   Download,
   ArrowLeft,
-  DollarSign
+  DollarSign,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,7 +44,7 @@ import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
 
-type OrdenacaoCampo = 'data' | 'valor';
+type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
 type OrdenacaoDirecao = 'asc' | 'desc';
 
 const ABAS_STATUS: { id: string; label: string }[] = [
@@ -152,17 +154,23 @@ export const PedidosLista: React.FC = () => {
 
     if (loja?.id) {
       const channel = supabase
-        .channel('pedidos-lista-realtime')
+        .channel(`pedidos-lista-realtime-${loja.id}`)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
           (payload) => {
-            // Se o usuário só pode ver suas vendas, não processa updates de outros vendedores
             if (usuario && !permissions.podeVerTransacoesOutros && (payload.new as any)?.vendedor_id !== usuario.id) {
               return;
             }
             const isNovo = payload.eventType === 'INSERT';
             carregarPedidos(isNovo);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'pagamentos_pedido', filter: `loja_id=eq.${loja.id}` },
+          () => {
+            carregarPedidos(false);
           }
         )
         .subscribe();
@@ -420,6 +428,8 @@ export const PedidosLista: React.FC = () => {
           comparacao = new Date(a.data_venda || a.criado_em || '').getTime() - new Date(b.data_venda || b.criado_em || '').getTime();
         } else if (campoOrdenacao === 'valor') {
           comparacao = Number(a.valor_total) - Number(b.valor_total);
+        } else if (campoOrdenacao === 'codigo') {
+          comparacao = (Number(a.numero_pedido) || 0) - (Number(b.numero_pedido) || 0);
         }
         return direcaoOrdenacao === 'asc' ? comparacao : -comparacao;
       });
@@ -722,19 +732,10 @@ export const PedidosLista: React.FC = () => {
                 {somAtivo ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 <span className="hidden md:inline">{somAtivo ? 'Som Ativo' : 'Mudo'}</span>
               </button>
-
-              <button
-                onClick={() => carregarPedidos()}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition flex items-center gap-1.5 cursor-pointer"
-              >
-                Atualizar
-              </button>
             </div>
           </div>
 
-          {/* BARRA DE BUSCA E FILTROS */}
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-            {/* Input de Busca */}
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -747,54 +748,65 @@ export const PedidosLista: React.FC = () => {
               {busca && (
                 <button
                   onClick={() => setBusca('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            {/* Abas de Status Filtradas conforme Configuração */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-              <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800/80">
-                {ABAS_STATUS.filter(f => isStatusHabilitado(f.id)).map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setStatusFiltro(f.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
-                      statusFiltro === f.id
-                        ? 'bg-emerald-500 text-white shadow-sm font-semibold'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'pendente', label: 'Pendentes' },
+                { id: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
+                { id: 'parcialmente_pago', label: 'Parcial' },
+                { id: 'pago', label: 'Pagos' },
+                { id: 'concluido', label: 'Concluídos' },
+                { id: 'cancelado', label: 'Cancelados' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setStatusFiltro(f.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    statusFiltro === f.id
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* TABELA DE PEDIDOS */}
-        <div className="flex-1 overflow-auto bg-slate-950">
+        <div className="flex-1 overflow-auto p-4 md:p-6">
           {carregando ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-3">
-              <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm font-medium">Carregando pedidos...</p>
+            <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+              <p className="text-sm">Carregando pedidos...</p>
             </div>
           ) : pedidosFiltrados.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
-              <FileText className="w-10 h-10 text-slate-600 mb-1" />
-              <p className="text-sm font-semibold text-slate-300">Nenhum pedido encontrado</p>
-              <p className="text-xs text-slate-500">Tente ajustar a busca ou os filtros selecionados.</p>
+            <div className="flex flex-col items-center justify-center h-64 text-slate-500 space-y-2">
+              <Package className="w-10 h-10 stroke-1" />
+              <p className="text-sm font-medium">Nenhum pedido encontrado com os filtros selecionados.</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Código</th>
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold text-[11px] tracking-wider bg-slate-900/60 sticky top-0 z-10 backdrop-blur">
                   <th
-                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition"
+                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[120px]"
+                    onClick={() => toggleOrdenacao('codigo')}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Código</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th
+                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[140px]"
                     onClick={() => toggleOrdenacao('data')}
                   >
                     <div className="flex items-center gap-1">
@@ -802,11 +814,11 @@ export const PedidosLista: React.FC = () => {
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </th>
-                  <th className="py-3 px-4 font-semibold">Cliente</th>
-                  <th className="py-3 px-4 font-semibold">Vendedor</th>
-                  <th className="py-3 px-4 font-semibold">Itens</th>
+                  <th className="py-3 px-4 font-semibold min-w-[160px]">Cliente</th>
+                  <th className="py-3 px-4 font-semibold min-w-[130px]">Vendedor</th>
+                  <th className="py-3 px-4 font-semibold text-center min-w-[90px]">Itens</th>
                   <th
-                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition"
+                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[110px]"
                     onClick={() => toggleOrdenacao('valor')}
                   >
                     <div className="flex items-center gap-1">
@@ -814,10 +826,10 @@ export const PedidosLista: React.FC = () => {
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </th>
-                  <th className="py-3 px-4 font-semibold">Status Pedido</th>
-                  <th className="py-3 px-4 font-semibold">Status Pagamento</th>
-                  <th className="py-3 px-4 font-semibold text-center">Tipo da Venda</th>
-                  <th className="py-3 px-4 font-semibold text-center">Ações</th>
+                  <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Status Pedido</th>
+                  <th className="py-3 px-4 font-semibold text-center min-w-[160px]">Status Pagamento</th>
+                  <th className="py-3 px-4 font-semibold text-center min-w-[130px]">Tipo da Venda</th>
+                  <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
@@ -837,10 +849,8 @@ export const PedidosLista: React.FC = () => {
                         isSelecionado ? 'bg-slate-900/90 ring-1 ring-inset ring-emerald-500/40' : ''
                       } ${isCancelado ? 'opacity-60' : ''}`}
                     >
-                      {/* Código com Primeiro Ícone para Recibo e Segundo para Pedido */}
                       <td className="py-3.5 px-4 whitespace-nowrap font-medium">
                         <div className="flex items-center gap-2">
-                          {/* 1º ÍCONE: BOTÃO DE RECIBO */}
                           <button
                             type="button"
                             title="Ver Recibo do Pedido"
@@ -852,8 +862,6 @@ export const PedidosLista: React.FC = () => {
                           >
                             <Receipt className="w-4 h-4" />
                           </button>
-
-                          {/* 2º CÓDIGO DO PEDIDO (#xxxx) */}
                           <button
                             type="button"
                             title="Abrir Detalhes do Pedido"
@@ -870,21 +878,18 @@ export const PedidosLista: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Data */}
                       <td className="py-3.5 px-4 whitespace-nowrap text-slate-300">
                         <span className={isCancelado ? 'line-through' : ''}>
                           {formatarData(pedido.data_venda || pedido.criado_em || '')}
                         </span>
                       </td>
 
-                      {/* Cliente (Cliente Avulso (Balcão) se não identificado) */}
                       <td className="py-3.5 px-4 max-w-[200px] truncate text-slate-200 font-medium">
                         <span className={isCancelado ? 'line-through' : ''}>
                           {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
                         </span>
                       </td>
 
-                      {/* Vendedor / Canal */}
                       <td className="py-3.5 px-4 whitespace-nowrap text-slate-300">
                         {isCatalogo ? (
                           <div className="flex items-center gap-1.5 text-indigo-400 font-medium">
@@ -899,15 +904,14 @@ export const PedidosLista: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Itens (Clique abre o modal de itens do pedido) */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setPedidoItensModal(pedido);
                           }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/25 transition cursor-pointer active:scale-95 shadow-sm"
+                          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/25 transition cursor-pointer active:scale-95 shadow-sm"
                           title="Clique para ver os itens deste pedido"
                         >
                           <Package className="w-3.5 h-3.5" />
@@ -915,7 +919,6 @@ export const PedidosLista: React.FC = () => {
                         </button>
                       </td>
 
-                      {/* Valor Total Limpo (Sem texto de Fiado) */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <span
                           className={`font-bold text-sm ${
@@ -928,65 +931,67 @@ export const PedidosLista: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Status do Pedido (com regras de transição) */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        {podeAlterarStatusDoPedido(pedido) ? (
-                          <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar status do pedido">
-                            {getStatusBadge(pedido.status, true)}
-                            <select
-                              value={pedido.status}
-                              onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                            >
-                              {getOpcoesStatusPermitidas(pedido).map((opt) => (
-                                <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : (
-                          getStatusBadge(pedido.status, false)
-                        )}
-                      </td>
-
-                      {/* Status do Pagamento (Estritamente Informativo) */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        {getStatusPagamentoBadge(statusPag, false)}
-                      </td>
-
-                      {/* Tipo da Venda (Varejo / Atacado / Distribuidor) - Alterável por Owner/Admin quando Aguardando Pagamento */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {permiteTrocarTipo ? (
-                          <div className="relative inline-flex items-center cursor-pointer group" title="Clique para alterar Tipo da Venda (Owner/Admin)">
-                            {getTipoVendaBadge(pedido.tabela_preco_aplicada, true)}
-                            <select
-                              value={pedido.tabela_preco_aplicada || 'varejo'}
-                              onChange={(e) => atualizarTipoVenda(pedido.id, e.target.value as TabelaPreco)}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                            >
-                              {TIPOS_VENDA_OPCOES.map((opt) => (
-                                <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-1" title={podeAlterarTipoVenda ? 'Tipo da venda bloqueado após pagamento' : 'Apenas Owner e Admin podem alterar'}>
-                            {getTipoVendaBadge(pedido.tabela_preco_aplicada, false)}
-                            {!podeAlterarTipoVenda && <Lock className="w-3 h-3 text-slate-600" />}
-                          </div>
-                        )}
+                        <div className="flex items-center justify-center">
+                          {podeAlterarStatusDoPedido(pedido) ? (
+                            <div className="relative inline-flex items-center justify-center cursor-pointer group" title="Clique para alterar status do pedido">
+                              {getStatusBadge(pedido.status, true)}
+                              <select
+                                value={pedido.status}
+                                onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
+                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
+                              >
+                                {getOpcoesStatusPermitidas(pedido).map((opt) => (
+                                  <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : (
+                            getStatusBadge(pedido.status, false)
+                          )}
+                        </div>
                       </td>
 
-                      {/* Ações (Consultar Produtos / Alterar se Pendente / Receber se Não Pendente e Não Pago) */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center">
+                          {getStatusPagamentoBadge(statusPag, false)}
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center">
+                          {permiteTrocarTipo ? (
+                            <div className="relative inline-flex items-center justify-center cursor-pointer group" title="Clique para alterar Tipo da Venda (Owner/Admin)">
+                              {getTipoVendaBadge(pedido.tabela_preco_aplicada, true)}
+                              <select
+                                value={pedido.tabela_preco_aplicada || 'varejo'}
+                                onChange={(e) => atualizarTipoVenda(pedido.id, e.target.value as TabelaPreco)}
+                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
+                              >
+                                {TIPOS_VENDA_OPCOES.map((opt) => (
+                                  <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center justify-center gap-1" title={podeAlterarTipoVenda ? 'Tipo da venda bloqueado após pagamento' : 'Apenas Owner e Admin podem alterar'}>
+                              {getTipoVendaBadge(pedido.tabela_preco_aplicada, false)}
+                              {!podeAlterarTipoVenda && <Lock className="w-3 h-3 text-slate-600" />}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => setPedidoItensModal(pedido)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer border border-slate-700/80"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer border border-slate-700/80 shrink-0"
                             title="Consultar produtos do pedido"
                           >
                             <Info className="w-3.5 h-3.5" />
@@ -996,7 +1001,7 @@ export const PedidosLista: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleEditarPedido(pedido)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95"
+                              className="inline-flex items-center justify-center gap-1 min-w-[76px] px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95"
                               title="Carregar pedido no PDV para alteração"
                             >
                               <Edit className="w-3.5 h-3.5" />
@@ -1006,7 +1011,7 @@ export const PedidosLista: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPedidoReceberModal(pedido)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer shadow-sm active:scale-95"
+                              className="inline-flex items-center justify-center gap-1 min-w-[76px] px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer shadow-sm active:scale-95"
                               title="Receber pagamento deste pedido"
                             >
                               <DollarSign className="w-3.5 h-3.5" />
@@ -1016,7 +1021,7 @@ export const PedidosLista: React.FC = () => {
                             <button
                               type="button"
                               disabled
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40"
+                              className="inline-flex items-center justify-center gap-1 min-w-[76px] px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40"
                               title="Pedido pago e consolidado"
                             >
                               <Check className="w-3.5 h-3.5" />
@@ -1034,7 +1039,6 @@ export const PedidosLista: React.FC = () => {
         </div>
       </div>
 
-      {/* DRAWER LATERAL DE DETALHES DO PEDIDO */}
       {pedidoSelecionado && (
         <div className="w-full lg:w-[450px] bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-full overflow-hidden shadow-2xl z-20 animate-in slide-in-from-right duration-200">
           {/* Topo do Drawer */}

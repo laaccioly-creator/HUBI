@@ -32,7 +32,8 @@ import {
   Store,
   ShoppingBag,
   Zap,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -527,6 +528,86 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   return processarListaConcorrentes(lista, Number(parsed.preco_medio) || 0);
 };
 
+const identificarProdutoPorTextoOuEan = async (
+  tipo: 'descricao' | 'barcode',
+  valor: string
+): Promise<ProdutoSugeridoIA> => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no topo da página.');
+  }
+
+  const prompt = tipo === 'barcode' ? `
+Você é um especialista em catálogo de produtos, banco de dados EAN/GS1 e precificação no Brasil.
+Identifique o produto com o seguinte Código de Barras / EAN: "${valor}".
+Se não encontrar o código exato, deduza a categoria e o item mais provável com base no padrão e mercado brasileiro.
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
+{
+  "nome": "Nome comercial completo do produto em português (ex: Desodorante Aerosol Rexona Men Invisible 150ml)",
+  "categoria_sugerida": "Nome da categoria mais adequada (ex: Higiene, Bebidas, Alimentos, etc.)",
+  "preco_venda_estimado": 0.00,
+  "preco_custo_estimado": 0.00,
+  "descricao": "Descrição comercial de alta conversão destacando benefícios e especificações",
+  "tipo_unidade": "un",
+  "codigo_barras": "${valor}",
+  "concorrentes_mercado": [
+    { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "E-commerce" },
+    { "loja": "Magalu", "preco": 0.00, "tipo": "Varejista" },
+    { "loja": "Shopee", "preco": 0.00, "tipo": "Marketplace" }
+  ]
+}
+` : `
+Você é um especialista em catálogo de produtos e precificação de varejo e e-commerce no Brasil.
+Com base no nome ou descrição informada: "${valor}", estruture a ficha completa do produto com inteligência de mercado.
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
+{
+  "nome": "Nome comercial completo e padronizado do produto em português",
+  "categoria_sugerida": "Nome da categoria mais adequada",
+  "preco_venda_estimado": 0.00,
+  "preco_custo_estimado": 0.00,
+  "descricao": "Descrição comercial completa de alta conversão para catálogo online e WhatsApp",
+  "tipo_unidade": "un",
+  "codigo_barras": "",
+  "concorrentes_mercado": [
+    { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "E-commerce" },
+    { "loja": "Shopee", "preco": 0.00, "tipo": "Marketplace" }
+  ]
+}
+`;
+
+  const requestBody = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
+  };
+
+  const resData = await executarRequisicaoGemini(apiKey, requestBody);
+  const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error('Resposta vazia da IA.');
+  const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+  const parsed = JSON.parse(jsonLimpo);
+  const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
+
+  let dadosMercadoFormatados: DadosMercadoIA | undefined = undefined;
+  if (Array.isArray(parsed.concorrentes_mercado) && parsed.concorrentes_mercado.length > 0) {
+    dadosMercadoFormatados = processarListaConcorrentes(parsed.concorrentes_mercado, precoEstimado);
+  }
+
+  return {
+    nome: parsed.nome || 'Produto Identificado',
+    categoria_sugerida: parsed.categoria_sugerida || 'Geral',
+    preco_venda_estimado: precoEstimado,
+    preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
+    descricao: parsed.descricao || '',
+    tipo_unidade: parsed.tipo_unidade || 'un',
+    codigo_barras: parsed.codigo_barras || (tipo === 'barcode' ? valor : ''),
+    dados_mercado: dadosMercadoFormatados
+  };
+};
+
 export const ProdutoCadastro: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -554,6 +635,11 @@ export const ProdutoCadastro: React.FC = () => {
   const [modalKeyGemini, setModalKeyGemini] = useState<boolean>(false);
   const [tempApiKey, setTempApiKey] = useState<string>(getGeminiApiKey());
 
+  // Modal / Aba de Modo de Preenchimento Inteligente
+  const [modoPreenchimentoIA, setModoPreenchimentoIA] = useState<'foto' | 'descricao' | 'barcode'>('foto');
+  const [textoDescricaoIA, setTextoDescricaoIA] = useState<string>('');
+  const [codigoBarrasIA, setCodigoBarrasIA] = useState<string>('');
+
   // Refs de Câmera e Arquivo
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -566,6 +652,7 @@ export const ProdutoCadastro: React.FC = () => {
   const [fazendoUploadFoto, setFazendoUploadFoto] = useState<boolean>(false);
   const [uploadStatusMsg, setUploadStatusMsg] = useState<string>('');
 
+  const [ativo, setAtivo] = useState<boolean>(true);
   const [nome, setNome] = useState<string>('');
   const [codigoInterno, setCodigoInterno] = useState<string>('');
   const [codigoBarras, setCodigoBarras] = useState<string>('');
@@ -768,6 +855,7 @@ export const ProdutoCadastro: React.FC = () => {
           setDataValidade(prod.data_validade || '');
           setExibirCatalogo(Boolean(prod.exibir_catalogo));
           setDestaque(Boolean(prod.destaque));
+          setAtivo(prod.ativo !== false);
 
           const fotos = Array.isArray(prod.fotos_urls) ? prod.fotos_urls : [];
           setFotosUrls(fotos);
@@ -898,6 +986,41 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
+  // Aplicar dados retornados pela IA nos estados do produto
+  const aplicarDadosSugeridosIA = (dadosSugeridos: ProdutoSugeridoIA) => {
+    if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
+    if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
+    if (dadosSugeridos.preco_venda_estimado) {
+      handlePrecoVarejoChange(dadosSugeridos.preco_venda_estimado.toFixed(2));
+    }
+    if (dadosSugeridos.preco_custo_estimado) {
+      setPrecoCusto(dadosSugeridos.preco_custo_estimado.toFixed(2));
+    }
+    if (dadosSugeridos.tipo_unidade) {
+      setTipoUnidade(dadosSugeridos.tipo_unidade.toLowerCase());
+    }
+    if (dadosSugeridos.codigo_barras) {
+      setCodigoBarras(dadosSugeridos.codigo_barras);
+    }
+
+    // Salvar dados de concorrentes e mercado identificados pela IA
+    if (dadosSugeridos.dados_mercado) {
+      setDadosMercado(dadosSugeridos.dados_mercado);
+    }
+
+    // Vincular e sugerir categoria e código interno
+    if (dadosSugeridos.categoria_sugerida && categorias.length > 0) {
+      const catMatch = categorias.find(c =>
+        c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
+        dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
+      );
+      if (catMatch) {
+        setCategoriaId(catMatch.id);
+        gerarCodigoInternoSugerido(catMatch.id);
+      }
+    }
+  };
+
   // Preenchimento com Inteligência Artificial a partir da Foto
   const handlePreencherComIA = async () => {
     const fotoAlvo = fotoPrincipal || fotosUrls[0];
@@ -914,43 +1037,60 @@ export const ProdutoCadastro: React.FC = () => {
       const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA);
 
       if (dadosSugeridos) {
-        if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
-        if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
-        if (dadosSugeridos.preco_venda_estimado) {
-          handlePrecoVarejoChange(dadosSugeridos.preco_venda_estimado.toFixed(2));
-        }
-        if (dadosSugeridos.preco_custo_estimado) {
-          setPrecoCusto(dadosSugeridos.preco_custo_estimado.toFixed(2));
-        }
-        if (dadosSugeridos.tipo_unidade) {
-          setTipoUnidade(dadosSugeridos.tipo_unidade.toLowerCase());
-        }
-        if (dadosSugeridos.codigo_barras) {
-          setCodigoBarras(dadosSugeridos.codigo_barras);
-        }
+        aplicarDadosSugeridosIA(dadosSugeridos);
+        setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+      }
+    } catch (err: any) {
+      console.error('Erro na identificação por IA:', err);
+      alert(`Não foi possível identificar o produto pela foto: ${err.message || 'Tente novamente'}`);
+    } finally {
+      setAnalisandoIA(false);
+    }
+  };
 
-        // Salvar dados de concorrentes e mercado identificados pela IA
-        if (dadosSugeridos.dados_mercado) {
-          setDadosMercado(dadosSugeridos.dados_mercado);
-        }
+  // Preenchimento com Inteligência Artificial a partir da Descrição / Nome
+  const handlePreencherPorDescricaoIA = async () => {
+    const texto = textoDescricaoIA.trim() || nome.trim() || descricao.trim();
+    if (!texto) {
+      alert('Por favor, digite o nome ou uma descrição do produto para preenchimento inteligente.');
+      return;
+    }
 
-        // Vincular e sugerir categoria e código interno
-        if (dadosSugeridos.categoria_sugerida && categorias.length > 0) {
-          const catMatch = categorias.find(c =>
-            c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
-            dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
-          );
-          if (catMatch) {
-            setCategoriaId(catMatch.id);
-            gerarCodigoInternoSugerido(catMatch.id);
-          }
-        }
-
-        setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso!');
+    try {
+      setAnalisandoIA(true);
+      setSucessoIAMsg(null);
+      const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto);
+      if (dadosSugeridos) {
+        aplicarDadosSugeridosIA(dadosSugeridos);
+        setSucessoIAMsg('✨ Informações e ficha técnica preenchidas com sucesso a partir da descrição!');
       }
     } catch (err: any) {
       console.error('Erro na identificação por IA:', err);
       alert(`Não foi possível identificar o produto: ${err.message || 'Tente novamente'}`);
+    } finally {
+      setAnalisandoIA(false);
+    }
+  };
+
+  // Preenchimento com Inteligência Artificial a partir do Código de Barras / EAN
+  const handlePreencherPorCodigoBarrasIA = async () => {
+    const ean = codigoBarrasIA.trim() || codigoBarras.trim();
+    if (!ean) {
+      alert('Por favor, informe o Código de Barras / EAN do produto.');
+      return;
+    }
+
+    try {
+      setAnalisandoIA(true);
+      setSucessoIAMsg(null);
+      const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean);
+      if (dadosSugeridos) {
+        aplicarDadosSugeridosIA(dadosSugeridos);
+        setSucessoIAMsg('✨ Informações do produto identificadas com sucesso pelo código de barras!');
+      }
+    } catch (err: any) {
+      console.error('Erro na identificação por IA:', err);
+      alert(`Não foi possível identificar o produto pelo código de barras: ${err.message || 'Tente novamente'}`);
     } finally {
       setAnalisandoIA(false);
     }
@@ -1101,7 +1241,7 @@ export const ProdutoCadastro: React.FC = () => {
         data_validade: dataValidade || null,
         exibir_catalogo: exibirCatalogo,
         destaque: destaque,
-        ativo: true
+        ativo: ativo
       };
 
       if (ehEdicao) {
@@ -1211,30 +1351,188 @@ export const ProdutoCadastro: React.FC = () => {
           </button>
         </div>
 
+        {/* CARD DE STATUS DO PRODUTO (ATIVO / INATIVO) - APENAS OWNER/ADMIN */}
+        {ehEdicao && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold ${
+                ativo ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'
+              }`}>
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm sm:text-base text-slate-100">Status do Produto</h3>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                    ativo ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  }`}>
+                    {ativo ? 'Ativo no Sistema' : 'Inativo / Oculto'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {ativo ? 'O produto está disponível para venda no PDV e visualização no catálogo.' : 'O produto está inativado e não poderá ser vendido no PDV nem exibido no catálogo.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {permissions.ehAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setAtivo(!ativo)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-md ${
+                    ativo
+                      ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40'
+                      : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                  }`}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>{ativo ? 'Inativar Produto' : 'Ativar Produto'}</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-500 text-xs">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Apenas Owner ou Admin podem ativar/inativar</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ========================================================================= */}
-        {/* SEÇÃO 1: FOTOS DO PRODUTO (ATÉ 7 FOTOS COM CÂMERA DO CELULAR & IA)        */}
+        {/* SEÇÃO 1: FOTOS DO PRODUTO & PREENCHIMENTO INTELIGENTE (FOTO / DESCRIÇÃO / EAN) */}
         {/* ========================================================================= */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border-2 border-indigo-500/30 rounded-3xl p-5 sm:p-6 space-y-5 shadow-2xl relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-indigo-500/20 pb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
-                <Camera className="w-5 h-5" />
+                <Sparkles className="w-5 h-5 text-amber-400" />
               </div>
               <div>
                 <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-                  <span>1. Fotos do Produto & Preenchimento Inteligente</span>
+                  <span>1. Preenchimento Inteligente com IA & Fotos</span>
                   <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
                     {fotosUrls.length}/7 Fotos
                   </span>
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Adicione até 7 fotos. A primeira foto será usada como capa e analisada pela IA.
+                  Preencha automaticamente os dados e preços pela Foto, pela Descrição/Nome ou pelo Código de Barras.
                 </p>
               </div>
             </div>
 
-            {/* Botão de Preencher com IA (Destaque) */}
-            {(fotoPrincipal || fotosUrls.length > 0) && (
+            {/* SELETOR DE MODALIDADE DE IA */}
+            <div className="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setModoPreenchimentoIA('foto')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  modoPreenchimentoIA === 'foto'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Pela Foto</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModoPreenchimentoIA('descricao')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  modoPreenchimentoIA === 'descricao'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Pela Descrição</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModoPreenchimentoIA('barcode')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  modoPreenchimentoIA === 'barcode'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Pelo Código de Barras</span>
+              </button>
+            </div>
+          </div>
+
+          {/* PAINEL DE PREENCHIMENTO POR DESCRIÇÃO */}
+          {modoPreenchimentoIA === 'descricao' && (
+            <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 space-y-3 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  placeholder="Digite o nome ou cole a descrição do produto (ex: Garrafa Térmica Inox 500ml Kouda)"
+                  value={textoDescricaoIA}
+                  onChange={(e) => setTextoDescricaoIA(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handlePreencherPorDescricaoIA();
+                    }
+                  }}
+                  className="flex-1 bg-slate-900 border border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-400"
+                />
+                <button
+                  type="button"
+                  disabled={analisandoIA}
+                  onClick={handlePreencherPorDescricaoIA}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-300" />}
+                  <span>Preencher com IA</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-indigo-300/80">
+                A IA estruturará o nome comercial, categoria, ficha técnica, unidade e sugestão de preços de venda e custo.
+              </p>
+            </div>
+          )}
+
+          {/* PAINEL DE PREENCHIMENTO POR CÓDIGO DE BARRAS / EAN */}
+          {modoPreenchimentoIA === 'barcode' && (
+            <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 space-y-3 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  placeholder="Digite ou bipe o Código de Barras / EAN (ex: 7891234567890)"
+                  value={codigoBarrasIA}
+                  onChange={(e) => setCodigoBarrasIA(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handlePreencherPorCodigoBarrasIA();
+                    }
+                  }}
+                  className="flex-1 bg-slate-900 border border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 font-mono"
+                />
+                <button
+                  type="button"
+                  disabled={analisandoIA}
+                  onClick={handlePreencherPorCodigoBarrasIA}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-300" />}
+                  <span>Identificar por Código</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-indigo-300/80">
+                A IA consultará o código no catálogo de produtos e preencherá a ficha e o radar de preços de mercado.
+              </p>
+            </div>
+          )}
+
+          {/* PAINEL POR FOTO (BOTÃO PREENCHER PELA FOTO QUANDO FOTO ESTÁ SELECIONADA) */}
+          {modoPreenchimentoIA === 'foto' && (fotoPrincipal || fotosUrls.length > 0) && (
+            <div className="flex items-center justify-end">
               <button
                 type="button"
                 disabled={analisandoIA}
@@ -1244,17 +1542,17 @@ export const ProdutoCadastro: React.FC = () => {
                 {analisandoIA ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analisando Produto com IA...</span>
+                    <span>Analisando Foto com IA...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                    <span>Preencher Dados com IA a partir da Foto</span>
+                    <span>Preencher Ficha a partir da Foto</span>
                   </>
                 )}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Mensagem de Sucesso da IA */}
           {sucessoIAMsg && (
