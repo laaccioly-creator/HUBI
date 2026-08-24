@@ -116,7 +116,18 @@ export const FinancasCaixa: React.FC = () => {
 
       let caixaAtivo: Caixa | null = null;
       if (cxData && cxData.length > 0) {
-        caixaAtivo = cxData[0];
+        const cx = cxData[0];
+        const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
+        if (metaLocal) {
+          try {
+            const parsed = JSON.parse(metaLocal);
+            cx.turno = parsed.turno || 'Integral';
+            cx.numero_caixa = parsed.numero_caixa || '01';
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        caixaAtivo = cx;
         setCaixaAberto(caixaAtivo);
       } else {
         setCaixaAberto(null);
@@ -130,7 +141,21 @@ export const FinancasCaixa: React.FC = () => {
         .order('data_abertura', { ascending: false })
         .limit(30);
 
-      if (histData) setHistoricoCaixas(histData);
+      if (histData) {
+        const histComMeta = histData.map(cx => {
+          const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
+          if (metaLocal) {
+            try {
+              const parsed = JSON.parse(metaLocal);
+              return { ...cx, turno: parsed.turno || cx.turno || 'Integral', numero_caixa: parsed.numero_caixa || cx.numero_caixa || '01' };
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          return cx;
+        });
+        setHistoricoCaixas(histComMeta);
+      }
 
       // 5. Carregar movimentações do caixa atual (do Supabase ou localStorage fallback)
       if (caixaAtivo?.id) {
@@ -242,15 +267,24 @@ export const FinancasCaixa: React.FC = () => {
         loja_id: loja.id,
         usuario_id: usuario.id,
         saldo_inicial: valInicial,
-        turno: turnoAbertura,
-        numero_caixa: numeroCaixaAbertura,
         status: 'ABERTO' as const
       };
 
       const { data, error } = await supabase.from('caixas').insert([payloadCaixa]).select().single();
       if (error) throw error;
 
-      const novoCaixa = { ...data, usuario };
+      // Salvar metadados do turno e número do caixa no localStorage
+      localStorage.setItem(`hubi_caixa_meta_${data.id}`, JSON.stringify({
+        turno: turnoAbertura,
+        numero_caixa: numeroCaixaAbertura
+      }));
+
+      const novoCaixa = {
+        ...data,
+        turno: turnoAbertura,
+        numero_caixa: numeroCaixaAbertura,
+        usuario
+      };
       setCaixaAberto(novoCaixa);
       setModalAberturaCaixa(false);
 
@@ -477,20 +511,12 @@ export const FinancasCaixa: React.FC = () => {
         situacaoTexto = `FALTA DE CAIXA (-R$ ${Math.abs(diferenca).toFixed(2)})`;
       }
 
-      // Atualizar no Supabase
+      // Atualizar no Supabase apenas as colunas nativas existentes
       const payloadFechamento = {
         data_fechamento: dataFechamento,
         saldo_final_declarado: valorContado,
         saldo_final_calculado: saldoEsperadoGaveta,
         diferenca_quebra: diferenca,
-        total_vendas_dinheiro: vendasDinheiro,
-        total_vendas_pix: vendasPix,
-        total_vendas_debito: vendasDebito,
-        total_vendas_credito: vendasCredito,
-        total_suprimentos: suprimentos,
-        total_sangrias: sangrias,
-        total_despesas_caixa: despesasCaixa,
-        observacoes: observacaoFechamento || null,
         status: 'FECHADO' as const
       };
 
@@ -524,6 +550,13 @@ export const FinancasCaixa: React.FC = () => {
         observacoes: observacaoFechamento,
         movimentacoes: movimentacoesCaixa
       };
+
+      // Salvar relatório completo no storage para histórico instantâneo
+      try {
+        localStorage.setItem(`hubi_caixa_rel_${caixaAberto.id}`, JSON.stringify(relatorioCompleto));
+      } catch (e) {
+        console.error(e);
+      }
 
       setRelatorioDados(relatorioCompleto);
       setModalFechamentoCego(false);
@@ -1066,6 +1099,17 @@ Assinatura do Supervisor: ___________________________________________
                           <button
                             type="button"
                             onClick={() => {
+                              const relCached = localStorage.getItem(`hubi_caixa_rel_${cx.id}`);
+                              if (relCached) {
+                                try {
+                                  setRelatorioDados(JSON.parse(relCached));
+                                  setModalRelatorioFechamento(true);
+                                  return;
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }
+
                               const rel = {
                                 caixaNumero: cx.numero_caixa || '01',
                                 turno: cx.turno || 'Integral',

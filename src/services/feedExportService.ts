@@ -159,17 +159,17 @@ ${itemsXml}
           qtdDistintos,
           totalQtdItens,
           this.formatarCampoCsv(descriItens),
-          this.formatarCampoCsv(subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
-          desconto,
-          taxa,
-          entrega,
-          this.formatarCampoCsv(total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
-          this.formatarCampoCsv(lucro.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
+          this.formatarCampoCsv(Number(subtotal).toFixed(2).replace('.', ',')),
+          this.formatarCampoCsv(Number(desconto).toFixed(2).replace('.', ',')),
+          this.formatarCampoCsv(Number(taxa).toFixed(2).replace('.', ',')),
+          this.formatarCampoCsv(Number(entrega).toFixed(2).replace('.', ',')),
+          this.formatarCampoCsv(Number(total).toFixed(2).replace('.', ',')),
+          this.formatarCampoCsv(Number(lucro).toFixed(2).replace('.', ',')),
           this.formatarCampoCsv(meioPag),
           this.formatarCampoCsv(p.cliente?.nome || ''),
           this.formatarCampoCsv(vendedor),
           this.formatarCampoCsv(p.observacoes || '')
-        ].join(',');
+        ].join(';');
       });
     } else if (tipo === 'produtos') {
       nomeArquivo = `Products_${dInicioStr}_${dFimStr}.csv`;
@@ -190,13 +190,13 @@ ${itemsXml}
       ];
 
       linhas = dados.map((p: any) => {
-        const estAtual = p.quantidade_estoque !== null && p.quantidade_estoque !== undefined ? String(p.quantidade_estoque) : '';
-        const estMin = p.estoque_minimo ? String(p.estoque_minimo) : '0';
-        const pCusto = Number(p.preco_custo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const pVenda = Number(p.preco_venda_varejo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+        const estAtual = p.quantidade_estoque !== null && p.quantidade_estoque !== undefined ? String(p.quantidade_estoque).replace('.', ',') : '';
+        const estMin = p.estoque_minimo ? String(p.estoque_minimo).replace('.', ',') : '0';
+        const pCusto = Number(p.preco_custo || 0).toFixed(2).replace('.', ',');
+        const pVenda = Number(p.preco_venda_varejo || 0).toFixed(2).replace('.', ',');
         
-        const valorEstoque = p.quantidade_estoque ? (Number(p.quantidade_estoque) * Number(p.preco_venda_varejo || 0)).toLocaleString('pt-BR') : '';
-        const custoEstoque = p.quantidade_estoque ? (Number(p.quantidade_estoque) * Number(p.preco_custo || 0)).toLocaleString('pt-BR') : '';
+        const valorEstoque = p.quantidade_estoque ? (Number(p.quantidade_estoque) * Number(p.preco_venda_varejo || 0)).toFixed(2).replace('.', ',') : '';
+        const custoEstoque = p.quantidade_estoque ? (Number(p.quantidade_estoque) * Number(p.preco_custo || 0)).toFixed(2).replace('.', ',') : '';
 
         return [
           this.formatarCampoCsv(p.codigo_interno || p.codigo_barras || ''),
@@ -209,10 +209,10 @@ ${itemsXml}
           this.formatarCampoCsv(pVenda),
           this.formatarCampoCsv(valorEstoque),
           this.formatarCampoCsv(custoEstoque),
+          '0,00',
           0,
-          0,
-          0
-        ].join(',');
+          '0,00'
+        ].join(';');
       });
     } else if (tipo === 'clientes') {
       nomeArquivo = `Customers_${dInicioStr}_${dFimStr}.csv`;
@@ -240,14 +240,14 @@ ${itemsXml}
           this.formatarCampoCsv(c.telefone2 || c.telefone || ''),
           this.formatarCampoCsv(c.numero_documento || ''),
           this.formatarCampoCsv(c.observacoes || ''),
-          this.formatarCampoCsv(Number(c.saldo_devedor_fiado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })),
+          this.formatarCampoCsv(Number(c.saldo_devedor_fiado || 0).toFixed(2).replace('.', ',')),
           c.total_pedidos ? c.total_pedidos : '',
           this.formatarCampoCsv(this.formatarDataSimples(c.criado_em))
-        ].join(',');
+        ].join(';');
       });
     }
 
-    const csvHeader = colunas.map(c => `"${c}"`).join(',');
+    const csvHeader = colunas.map(c => `"${c}"`).join(';');
     const csvContent = '\uFEFF' + [csvHeader, ...linhas].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

@@ -601,6 +601,10 @@ export const PedidosLista: React.FC = () => {
       'Itens do Pedido'
     ];
 
+    const formatMoedaCsv = (val: number | string | null | undefined) => {
+      return Number(val || 0).toFixed(2).replace('.', ',');
+    };
+
     const rows = pedidosFiltrados.map(p => {
       const dataVendaFormatada = p.data_venda || p.criado_em ? new Date(p.data_venda || p.criado_em || '').toLocaleString('pt-BR') : '';
       const nomeCli = p.cliente?.nome || 'Cliente Balcão';
@@ -611,10 +615,10 @@ export const PedidosLista: React.FC = () => {
       const statusPag = (p.status_pagamento || resolverStatusPagamento(p)).toUpperCase();
       const tipoVenda = (p.tabela_preco_aplicada || 'varejo').toUpperCase();
       const totalItens = calcularTotalItens(p);
-      const valTotal = Number(p.valor_total || 0).toFixed(2);
-      const valPago = Number(p.valor_pago || 0).toFixed(2);
-      const saldoDev = Number(p.saldo_devedor || 0).toFixed(2);
-      const itensResumo = (p.itens || []).map(i => `${i.quantidade}x ${i.nome_produto} (R$ ${Number(i.preco_venda_unitario).toFixed(2)})`).join('; ');
+      const valTotal = formatMoedaCsv(p.valor_total);
+      const valPago = formatMoedaCsv(p.valor_pago);
+      const saldoDev = formatMoedaCsv(p.saldo_devedor);
+      const itensResumo = (p.itens || []).map(i => `${i.quantidade}x ${i.nome_produto} (R$ ${formatMoedaCsv(i.preco_venda_unitario)})`).join('; ');
 
       return [
         `"${p.numero_pedido}"`,

@@ -175,6 +175,10 @@ export const ClientesFiado: React.FC = () => {
       'Observações'
     ];
 
+    const formatMoedaCsv = (val: number | string | null | undefined) => {
+      return Number(val || 0).toFixed(2).replace('.', ',');
+    };
+
     const rows = clientes.map(c => [
       `"${c.nome.replace(/"/g, '""')}"`,
       `"${c.numero_documento || ''}"`,
@@ -182,8 +186,8 @@ export const ClientesFiado: React.FC = () => {
       `"${c.telefone2 || ''}"`,
       `"${c.whatsapp || ''}"`,
       `"${c.email || ''}"`,
-      `"${Number(c.saldo_devedor_fiado || 0).toFixed(2)}"`,
-      `"${Number(c.limite_credito || 0).toFixed(2)}"`,
+      `"${formatMoedaCsv(c.saldo_devedor_fiado)}"`,
+      `"${formatMoedaCsv(c.limite_credito)}"`,
       `"${c.permite_fiado ? 'Sim' : 'Não'}"`,
       `"${c.data_aniversario || ''}"`,
       `"${(c.endereco_principal || '').replace(/"/g, '""')}"`,
