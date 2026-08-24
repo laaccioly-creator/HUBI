@@ -313,7 +313,7 @@ export const ClientesFiado: React.FC = () => {
                   </th>
                   <th className="py-3.5 px-4">Celular/WhatsApp</th>
                   <th className="py-3.5 px-4 hidden md:table-cell">E-mail</th>
-                  <th className="py-3.5 px-4">Valor Total Pendente</th>
+                  <th className="py-3.5 px-4">Valor Pendente</th>
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>
@@ -404,23 +404,9 @@ export const ClientesFiado: React.FC = () => {
                         {/* Coluna 4: Saldo */}
                         <td className="py-3 px-4 font-bold">
                           {emDebito ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-amber-400">
-                                R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
-                              </span>
-                              {permissions.podeAtivarFiado && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setClienteQuitar(cliente);
-                                    setValorAbatimento(Number(cliente.saldo_devedor_fiado).toFixed(2));
-                                  }}
-                                  className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-lg transition cursor-pointer"
-                                >
-                                  Quitar
-                                </button>
-                              )}
-                            </div>
+                            <span className="text-amber-400">
+                              R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
+                            </span>
                           ) : (
                             <span className="text-slate-400">R$ 0,00</span>
                           )}

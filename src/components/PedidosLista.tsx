@@ -578,6 +578,74 @@ export const PedidosLista: React.FC = () => {
     setTimeout(() => setCopiado(false), 2000);
   };
 
+  const handleExportarCsv = () => {
+    if (pedidosFiltrados.length === 0) {
+      alert('Nenhum pedido disponível para exportação.');
+      return;
+    }
+
+    const headers = [
+      'Nº Pedido',
+      'Data/Hora',
+      'Cliente',
+      'Documento Cliente',
+      'Telefone Cliente',
+      'Vendedor',
+      'Status Pedido',
+      'Status Pagamento',
+      'Tipo de Venda',
+      'Total Itens',
+      'Valor Total (R$)',
+      'Valor Pago (R$)',
+      'Saldo Devedor (R$)',
+      'Itens do Pedido'
+    ];
+
+    const rows = pedidosFiltrados.map(p => {
+      const dataVendaFormatada = p.data_venda || p.criado_em ? new Date(p.data_venda || p.criado_em || '').toLocaleString('pt-BR') : '';
+      const nomeCli = p.cliente?.nome || 'Cliente Balcão';
+      const docCli = p.cliente?.numero_documento || '';
+      const telCli = p.cliente?.whatsapp || p.cliente?.telefone || '';
+      const vendedor = p.vendedor?.nome_completo || 'Não informado';
+      const statusPed = p.status.toUpperCase();
+      const statusPag = (p.status_pagamento || resolverStatusPagamento(p)).toUpperCase();
+      const tipoVenda = (p.tabela_preco_aplicada || 'varejo').toUpperCase();
+      const totalItens = calcularTotalItens(p);
+      const valTotal = Number(p.valor_total || 0).toFixed(2);
+      const valPago = Number(p.valor_pago || 0).toFixed(2);
+      const saldoDev = Number(p.saldo_devedor || 0).toFixed(2);
+      const itensResumo = (p.itens || []).map(i => `${i.quantidade}x ${i.nome_produto} (R$ ${Number(i.preco_venda_unitario).toFixed(2)})`).join('; ');
+
+      return [
+        `"${p.numero_pedido}"`,
+        `"${dataVendaFormatada}"`,
+        `"${nomeCli.replace(/"/g, '""')}"`,
+        `"${docCli}"`,
+        `"${telCli}"`,
+        `"${vendedor.replace(/"/g, '""')}"`,
+        `"${statusPed}"`,
+        `"${statusPag}"`,
+        `"${tipoVenda}"`,
+        `"${totalItens}"`,
+        `"${valTotal}"`,
+        `"${valPago}"`,
+        `"${saldoDev}"`,
+        `"${itensResumo.replace(/"/g, '""')}"`
+      ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `pedidos_hubi_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950 text-slate-100">
       {/* CORPO PRINCIPAL: CABEÇALHO + TABELA */}
@@ -611,6 +679,16 @@ export const PedidosLista: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
+                onClick={handleExportarCsv}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer shadow-sm shrink-0"
+                title="Exportar Pedidos em Excel / CSV"
+              >
+                <Download className="w-4 h-4 text-slate-400" />
+                <span>Exportar</span>
+              </button>
+
+              <button
                 onClick={() => setSomAtivo(!somAtivo)}
                 title={somAtivo ? 'Notificação sonora ativada' : 'Notificação sonora desativada'}
                 className={`p-2 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition ${
@@ -625,7 +703,7 @@ export const PedidosLista: React.FC = () => {
 
               <button
                 onClick={() => carregarPedidos()}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition flex items-center gap-1.5"
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition flex items-center gap-1.5 cursor-pointer"
               >
                 Atualizar
               </button>

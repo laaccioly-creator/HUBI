@@ -105,6 +105,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [modalTelaInicial, setModalTelaInicial] = useState<boolean>(false);
   const [moeda, setMoeda] = useState<string>('BR - R$');
   const [casasDecimais, setCasasDecimais] = useState<boolean>(true);
+  const [controlarEstoque, setControlarEstoque] = useState<boolean>(true);
   const [transacoesCanceladas, setTransacoesCanceladas] = useState<'riscadas' | 'ocultar'>('riscadas');
   const [ordenarProdutosPdv, setOrdenarProdutosPdv] = useState<'cadastro' | 'alfabetica'>('cadastro');
 
@@ -258,6 +259,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       setTelaInicialPadrao(geral.tela_inicial_padrao || 'inicio');
       setMoeda(geral.moeda || 'BR - R$');
       setCasasDecimais(geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true);
+      setControlarEstoque(extras.controlar_estoque ?? geral.controlar_estoque ?? true);
       setTransacoesCanceladas(geral.transacoes_canceladas || extras.preferencias_gerais?.transacoes_canceladas || 'riscadas');
       setOrdenarProdutosPdv(geral.ordenar_produtos_pdv || 'cadastro');
 
@@ -505,15 +507,18 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       const novasExtras = {
         ...extrasAtuais,
+        controlar_estoque: controlarEstoque,
         geral: {
           tela_inicial_padrao: telaInicialPadrao,
           moeda,
           casas_decimais: casasDecimais,
+          controlar_estoque: controlarEstoque,
           transacoes_canceladas: transacoesCanceladas,
           ordenar_produtos_pdv: ordenarProdutosPdv
         },
         preferencias_gerais: {
           casas_decimais: casasDecimais,
+          controlar_estoque: controlarEstoque,
           transacoes_canceladas: transacoesCanceladas
         },
         recibo: {
@@ -732,6 +737,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       telaInicialPadrao,
       moeda,
       casasDecimais,
+      controlarEstoque,
       transacoesCanceladas,
       ordenarProdutosPdv,
       nomeLoja,
@@ -817,6 +823,7 @@ export const ConfiguracoesLoja: React.FC = () => {
     telaInicialPadrao,
     moeda,
     casasDecimais,
+    controlarEstoque,
     transacoesCanceladas,
     ordenarProdutosPdv,
     nomeLoja,
@@ -926,10 +933,8 @@ export const ConfiguracoesLoja: React.FC = () => {
     { id: 'geral', label: 'Geral', icon: Settings },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
     { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock },
-    { id: 'produtos', label: 'Produtos & Variações', icon: Package },
     { id: 'catalogo', label: 'Catálogo Online', icon: Globe },
     { id: 'recibo', label: 'Meu Recibo', icon: Receipt },
-    { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard },
     { id: 'pedidos-vendas', label: 'Pedidos e Vendas', icon: Percent },
     { id: 'entrega', label: 'Opções de Entrega', icon: Truck },
     { id: 'exportar', label: 'Exportar Relatórios', icon: Download },
@@ -1030,7 +1035,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
               <h2 className="font-extrabold text-base text-slate-100">Geral</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Moeda, casas decimais e tela inicial padrão</p>
+              <p className="text-xs text-slate-400 mt-0.5">Tela inicial padrão e preferências da loja</p>
             </div>
 
             {/* Tela Inicial */}
@@ -1041,32 +1046,30 @@ export const ConfiguracoesLoja: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-xs text-slate-200">Tela inicial</span>
-                  <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full">NOVO</span>
+                  <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-500/30 uppercase">
+                    {telaInicialPadrao === 'pos' ? 'Vender (PDV)' : telaInicialPadrao === 'pedidos' ? 'Pedidos' : 'Início'}
+                  </span>
                 </div>
-                <span className="text-xs text-emerald-400 uppercase font-extrabold block mt-0.5">
-                  {telaInicialPadrao}
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  Tela carregada automaticamente ao abrir o aplicativo
                 </span>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-500" />
             </div>
 
-            {/* Moeda */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">Moeda</span>
-              <div className="text-sm font-bold text-slate-100">{moeda}</div>
-            </div>
-
-            {/* Casas Decimais */}
+            {/* Controlar Estoque */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800">
-              <div>
-                <span className="font-bold text-xs text-slate-100 block">Casas decimais</span>
-                <span className="text-[11px] text-slate-400">Exibir centavos em valores monetários (ex: R$ 10,00)</span>
+              <div className="space-y-0.5 max-w-[80%]">
+                <span className="font-bold text-xs text-slate-100 block">Controlar estoque</span>
+                <span className="text-[11px] text-slate-400 block leading-tight">
+                  Quando ligado, bloqueia vendas que excedam o estoque disponível no PDV e Catálogo. Quando desligado, permite vendas livres.
+                </span>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
                 <input
                   type="checkbox"
-                  checked={casasDecimais}
-                  onChange={(e) => setCasasDecimais(e.target.checked)}
+                  checked={controlarEstoque}
+                  onChange={(e) => setControlarEstoque(e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>

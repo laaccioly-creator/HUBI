@@ -222,29 +222,46 @@ export const ProdutosEstoque: React.FC = () => {
         </div>
 
         {/* Cards de Métricas de Estoque */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 block">Total de Produtos</span>
-            <span className="text-lg font-bold text-slate-100">{produtos.length} itens</span>
-          </div>
+        {(() => {
+          const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                <span className="text-xs text-slate-400 block">Total de Produtos</span>
+                <span className="text-lg font-bold text-slate-100">{produtos.length} itens</span>
+              </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 block">Estoque Físico Total</span>
-            <span className="text-lg font-bold text-emerald-400">{totalItensEstoque} un</span>
-          </div>
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                <span className="text-xs text-slate-400 block">Estoque Físico Total</span>
+                {controlaEstoque ? (
+                  <span className="text-lg font-bold text-emerald-400">{totalItensEstoque} un</span>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400 block pt-1">Sem controle de estoque</span>
+                )}
+              </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 block">Valor em Venda (Varejo)</span>
-            <span className="text-lg font-bold text-indigo-400">R$ {valorTotalEstoque.toFixed(2)}</span>
-          </div>
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                <span className="text-xs text-slate-400 block">Valor em Venda (Varejo)</span>
+                {controlaEstoque ? (
+                  <span className="text-lg font-bold text-indigo-400">R$ {valorTotalEstoque.toFixed(2)}</span>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400 block pt-1">Sem controle de estoque</span>
+                )}
+              </div>
 
-          {permissions.podeVerPrecoCusto && (
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-              <span className="text-xs text-slate-400 block">Valor em Custo</span>
-              <span className="text-lg font-bold text-slate-300">R$ {valorCustoEstoque.toFixed(2)}</span>
+              {permissions.podeVerPrecoCusto && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-xs text-slate-400 block">Valor em Custo</span>
+                  {controlaEstoque ? (
+                    <span className="text-lg font-bold text-slate-300">R$ {valorCustoEstoque.toFixed(2)}</span>
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400 block pt-1">Sem controle de estoque</span>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Barra de Filtros e Busca */}
         <div className="flex flex-col sm:flex-row items-center gap-3">

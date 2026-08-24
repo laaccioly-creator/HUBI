@@ -109,8 +109,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantidade: number = 1,
     observacoes?: string
   ) => {
-    audioService.playBeep();
+    const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
+    const estoqueDisponivel = variacao
+      ? Number(variacao.quantidade_estoque ?? 0)
+      : Number(produto.quantidade_estoque ?? 0);
+
     const cartId = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
+    const itemExistente = itens.find(i => i.id === cartId);
+    const qtdTotalDesejada = (itemExistente ? itemExistente.quantidade : 0) + quantidade;
+
+    if (controlaEstoque && qtdTotalDesejada > estoqueDisponivel) {
+      alert(`⚠️ Estoque insuficiente para "${produto.nome}${variacao ? ` - ${variacao.valor_variacao_1}` : ''}".\nEstoque disponível: ${estoqueDisponivel} un.`);
+      return;
+    }
+
+    audioService.playBeep();
 
     setItens(prev => {
       const index = prev.findIndex(i => i.id === cartId);
@@ -154,6 +167,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (quantidade <= 0) {
       removerItem(cartId);
       return;
+    }
+
+    const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
+    const itemAlvo = itens.find(i => i.id === cartId);
+    if (itemAlvo && controlaEstoque) {
+      const estoqueDisponivel = itemAlvo.variacao
+        ? Number(itemAlvo.variacao.quantidade_estoque ?? 0)
+        : Number(itemAlvo.produto.quantidade_estoque ?? 0);
+      if (quantidade > estoqueDisponivel) {
+        alert(`⚠️ Quantidade solicitada (${quantidade} un) excede o estoque disponível (${estoqueDisponivel} un) de "${itemAlvo.produto.nome}".`);
+        return;
+      }
     }
 
     setItens(prev =>

@@ -35,6 +35,7 @@ export interface ConfiguracaoGeralLoja {
   tela_inicial_padrao?: 'inicio' | 'pdv' | 'pedidos' | 'produtos' | 'clientes' | 'historico' | 'estatisticas';
   moeda?: string;
   casas_decimais?: boolean;
+  controlar_estoque?: boolean;
   transacoes_canceladas?: 'riscadas' | 'ocultar';
   ordenar_produtos_pdv?: 'cadastro' | 'alfabetica';
 }
@@ -163,6 +164,7 @@ export interface ConfiguracoesExtrasLoja {
     trabalho_com_retirada?: boolean;
     descricao_retirada?: string;
   };
+  controlar_estoque?: boolean;
   pagamentos?: OpcoesPagamentoDetalhes;
   pagamentos_digitais?: PagamentosDigitaisConfig;
   prazos_taxas_maquininhas?: PrazosTaxasMaquininha;
@@ -502,6 +504,8 @@ export interface TransacaoFinanceira {
   dia_vencimento_recorrencia?: number | null;
   pedido_id?: string | null;
   fornecedor_id?: string | null;
+  forma_pagamento?: string | null;
+  caixa_id?: string | null;
   criado_em?: string;
   atualizado_em?: string;
   fornecedor?: Fornecedor | null;
@@ -519,5 +523,28 @@ export interface Caixa {
   diferenca_quebra?: number | null;
   status: StatusCaixa;
   observacoes?: string | null;
+  turno?: string | null;
+  numero_caixa?: string | number | null;
+  total_vendas_dinheiro?: number | null;
+  total_vendas_pix?: number | null;
+  total_vendas_debito?: number | null;
+  total_vendas_credito?: number | null;
+  total_suprimentos?: number | null;
+  total_sangrias?: number | null;
+  total_despesas_caixa?: number | null;
+  usuario?: UsuarioLoja | null;
+}
+
+export interface CaixaMovimentacao {
+  id: string;
+  caixa_id: string;
+  loja_id: string;
+  usuario_id?: string | null;
+  tipo: 'abertura' | 'venda' | 'sangria' | 'suprimento' | 'despesa' | 'fechamento';
+  forma_pagamento?: string | null;
+  valor: number;
+  descricao?: string | null;
+  observacao?: string | null;
+  criado_em?: string;
   usuario?: UsuarioLoja | null;
 }
