@@ -84,14 +84,14 @@ export const UsuariosGestao: React.FC = () => {
       // 3. Buscar pedidos relevantes para calcular estatísticas (Apenas pagos/parcialmente pagos - Item 9)
       const { data: pedidosData } = await supabase
         .from('pedidos')
-        .select('id, vendedor_id, valor_total, valor_pago, saldo_devedor, status_pagamento, data_venda, criado_em, status')
+        .select('id, vendedor_id, valor_total, valor_pago, saldo_devedor, data_venda, criado_em, status')
         .eq('loja_id', loja.id)
         .gte('data_venda', trintaDiasAtras.toISOString())
         .neq('status', 'cancelado')
         .neq('status', 'pendente');
 
       const obterValorEfetivo = (p: any): number => {
-        const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+        const statusPag = (p as any).status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
         if (statusPag === 'pago') return Number(p.valor_pago || p.valor_total || 0);
         if (statusPag === 'parcialmente_pago') return Number(p.valor_pago || 0);
         return 0;
@@ -101,7 +101,7 @@ export const UsuariosGestao: React.FC = () => {
         const st = String(p.status || '').toLowerCase();
         if (st === 'cancelado' || st === 'pendente') return false;
 
-        const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+        const statusPag = (p as any).status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
         if (statusPag !== 'pago' && statusPag !== 'parcialmente_pago') return false;
 
         return obterValorEfetivo(p) > 0;
