@@ -41,6 +41,7 @@ export const ProdutosEstoque: React.FC = () => {
   const [modalCategorias, setModalCategorias] = useState<boolean>(false);
   const [produtoEstoqueAlvo, setProdutoEstoqueAlvo] = useState<Produto | null>(null);
   const [produtoDetalhes, setProdutoDetalhes] = useState<Produto | null>(null);
+  const [produtoGradeModal, setProdutoGradeModal] = useState<Produto | null>(null);
 
   const carregarProdutos = async () => {
     if (!loja?.id) return;
@@ -402,7 +403,7 @@ export const ProdutosEstoque: React.FC = () => {
                             {temVariacoesGrade && (
                               <button
                                 type="button"
-                                onClick={() => setProdutoDetalhes(produto)}
+                                onClick={() => setProdutoGradeModal(produto)}
                                 className="px-2 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
                                 title="Ver estoque detalhado por cor, tamanho ou variação"
                               >
@@ -448,12 +449,12 @@ export const ProdutosEstoque: React.FC = () => {
 
                         <td className="p-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Botão Detalhar / Ver Ficha */}
+                            {/* Botão Detalhar / Ver Ficha Técnica Completa */}
                             <button
                               type="button"
                               onClick={() => setProdutoDetalhes(produto)}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
-                              title="Ver Detalhes do Produto"
+                              title="Ver Ficha Completa do Produto"
                             >
                               <Info className="w-4 h-4" />
                             </button>
@@ -516,11 +517,20 @@ export const ProdutosEstoque: React.FC = () => {
         onEstoqueAtualizado={carregarProdutos}
       />
 
-      {/* Modal Detalhes do Produto & Variações */}
+      {/* Modal Detalhes do Produto (Ficha Técnica Completa) */}
       <ModalDetalhesProduto
         isOpen={!!produtoDetalhes}
         onClose={() => setProdutoDetalhes(null)}
         produto={produtoDetalhes}
+        apenasGrade={false}
+      />
+
+      {/* Modal Exclusivo de Detalhar Grade (Item 4) */}
+      <ModalDetalhesProduto
+        isOpen={!!produtoGradeModal}
+        onClose={() => setProdutoGradeModal(null)}
+        produto={produtoGradeModal}
+        apenasGrade={true}
       />
     </div>
   );

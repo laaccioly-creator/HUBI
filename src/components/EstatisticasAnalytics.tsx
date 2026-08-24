@@ -207,19 +207,49 @@ export const EstatisticasAnalytics: React.FC = () => {
     return { dataInicio: padraoInicio, dataFim: padraoFim, labelExibicaoPeriodo: 'Este mês' };
   }, [tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
 
-  // 3. Filtrar pedidos dentro do intervalo selecionado desconsiderando pendentes e cancelados
+  // Funções utilitárias para resolver data e valor efetivo de pagamento (Item 8)
+  const obterDataPagamentoPedido = (p: Pedido): Date => {
+    if (p.pagamentos && p.pagamentos.length > 0 && p.pagamentos[0].data_pagamento) {
+      return new Date(p.pagamentos[0].data_pagamento);
+    }
+    return new Date(p.data_venda || p.criado_em || '');
+  };
+
+  const obterValorEfetivoPagoPedido = (p: Pedido): number => {
+    const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+    
+    if (statusPag === 'pago') {
+      return Number(p.valor_pago || p.valor_total || 0);
+    }
+    if (statusPag === 'parcialmente_pago') {
+      return Number(p.valor_pago || 0);
+    }
+    return 0;
+  };
+
+  // 3. Filtrar pedidos dentro do intervalo selecionado considerando estritamente pedidos pagos/parciais e data de pagamento
   const pedidosFiltrados = useMemo(() => {
     return todosPedidos.filter(p => {
       const st = String(p.status || '').toLowerCase();
       if (st === 'cancelado' || st === 'pendente') return false;
-      const dataVenda = new Date(p.data_venda || p.criado_em || '');
-      return dataVenda >= dataInicio && dataVenda <= dataFim;
+
+      // Status do pagamento deve ser 'pago' ou 'parcialmente_pago'
+      const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+      if (statusPag !== 'pago' && statusPag !== 'parcialmente_pago') return false;
+
+      // Se for parcialmente pago, deve ter valor efetivamente pago > 0
+      const valorEfetivo = obterValorEfetivoPagoPedido(p);
+      if (valorEfetivo <= 0) return false;
+
+      // Considerar data do pagamento, não a data do pedido
+      const dataPagamento = obterDataPagamentoPedido(p);
+      return dataPagamento >= dataInicio && dataPagamento <= dataFim;
     });
   }, [todosPedidos, dataInicio, dataFim]);
 
-  // 4. Calcular Métricas Gerais do Período
+  // 4. Calcular Métricas Gerais do Período (Considerando apenas o valor pago)
   const faturamentoTotal = useMemo(() => {
-    return pedidosFiltrados.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
+    return pedidosFiltrados.reduce((acc, p) => acc + obterValorEfetivoPagoPedido(p), 0);
   }, [pedidosFiltrados]);
 
   const totalVendas = useMemo(() => {
@@ -268,7 +298,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         const nomeFp = 'Dinheiro / Balcão';
         if (!map[nomeFp]) map[nomeFp] = { nome: nomeFp, qtd: 0, valor: 0, tipo: 'dinheiro' };
         map[nomeFp].qtd += 1;
-        map[nomeFp].valor += Number(p.valor_total || 0);
+        map[nomeFp].valor += obterValorEfetivoPagoPedido(p);
       }
     });
 
@@ -304,7 +334,7 @@ export const EstatisticasAnalytics: React.FC = () => {
 
   const principalProduto = rankingProdutos[0] || null;
 
-  // 7. Agrupamento Ranking de Clientes
+  // 7. Agrupamento Ranking de Clientes (considerando valor pago)
   const rankingClientes = useMemo(() => {
     const map: Record<string, { id: string; nome: string; valor: number; compras: number }> = {};
 
@@ -316,7 +346,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         map[idCli] = { id: idCli, nome: nomeCli, valor: 0, compras: 0 };
       }
       map[idCli].compras += 1;
-      map[idCli].valor += Number(p.valor_total || 0);
+      map[idCli].valor += obterValorEfetivoPagoPedido(p);
     });
 
     return Object.values(map).sort((a, b) => b.valor - a.valor);
@@ -324,7 +354,7 @@ export const EstatisticasAnalytics: React.FC = () => {
 
   const principalCliente = rankingClientes[0] || null;
 
-  // 8. Agrupamento Vendas por Usuário / Colaborador
+  // 8. Agrupamento Vendas por Usuário / Colaborador (considerando valor pago)
   const vendasPorUsuario = useMemo(() => {
     const map: Record<string, { id: string; nome: string; qtd: number; valor: number }> = {};
 
@@ -336,7 +366,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         map[idVendedor] = { id: idVendedor, nome: nomeVendedor, qtd: 0, valor: 0 };
       }
       map[idVendedor].qtd += 1;
-      map[idVendedor].valor += Number(p.valor_total || 0);
+      map[idVendedor].valor += obterValorEfetivoPagoPedido(p);
     });
 
     const lista = Object.values(map).sort((a, b) => b.valor - a.valor);
@@ -351,7 +381,7 @@ export const EstatisticasAnalytics: React.FC = () => {
 
   const principalUsuario = vendasPorUsuario[0] || null;
 
-  // 9. Agrupamento Temporal dos Dados para Gráficos e Tabelas
+  // 9. Agrupamento Temporal dos Dados para Gráficos e Tabelas (Baseado na Data do Pagamento)
   const dadosAgrupadosTemporais = useMemo(() => {
     if (agrupamentoSelecionado === 'hora') {
       const horas: { chave: string; rotulo: string; faturamento: number; vendas: number; ticketMedio: number; lucro: number; taxaVenda: number }[] = [];
@@ -368,11 +398,11 @@ export const EstatisticasAnalytics: React.FC = () => {
       }
 
       pedidosFiltrados.forEach(p => {
-        const d = new Date(p.data_venda || p.criado_em || '');
+        const d = obterDataPagamentoPedido(p);
         const hora = d.getHours();
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
         const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
-        const val = Number(p.valor_total || 0);
+        const val = obterValorEfetivoPagoPedido(p);
 
         if (horas[hora]) {
           horas[hora].faturamento += val;
@@ -423,7 +453,7 @@ export const EstatisticasAnalytics: React.FC = () => {
       }
 
       pedidosFiltrados.forEach(p => {
-        const d = new Date(p.data_venda || p.criado_em || '');
+        const d = obterDataPagamentoPedido(p);
         const chave = formatKeyLocal(d);
         let diaItem = diasLista.find(item => item.chave === chave);
 
@@ -442,7 +472,7 @@ export const EstatisticasAnalytics: React.FC = () => {
 
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
         const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
-        const val = Number(p.valor_total || 0);
+        const val = obterValorEfetivoPagoPedido(p);
 
         diaItem.faturamento += val;
         diaItem.vendas += 1;
@@ -470,11 +500,11 @@ export const EstatisticasAnalytics: React.FC = () => {
       }));
 
       pedidosFiltrados.forEach(p => {
-        const d = new Date(p.data_venda || p.criado_em || '');
+        const d = obterDataPagamentoPedido(p);
         const diaSemanaIdx = d.getDay();
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
         const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
-        const val = Number(p.valor_total || 0);
+        const val = obterValorEfetivoPagoPedido(p);
 
         if (dias[diaSemanaIdx]) {
           dias[diaSemanaIdx].faturamento += val;
@@ -503,11 +533,11 @@ export const EstatisticasAnalytics: React.FC = () => {
       }));
 
       pedidosFiltrados.forEach(p => {
-        const d = new Date(p.data_venda || p.criado_em || '');
+        const d = obterDataPagamentoPedido(p);
         const mesIdx = d.getMonth();
         const custo = (p.itens || []).reduce((acc, it) => acc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1)), 0);
         const taxas = (p.pagamentos || []).reduce((acc, pag) => acc + Number(pag.valor_taxa || 0), 0);
-        const val = Number(p.valor_total || 0);
+        const val = obterValorEfetivoPagoPedido(p);
 
         if (meses[mesIdx]) {
           meses[mesIdx].faturamento += val;

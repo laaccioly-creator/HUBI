@@ -9,11 +9,12 @@ import {
   Loader2,
   AlertCircle,
   DollarSign,
-  Truck
+  Truck,
+  Layers
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Produto } from '../types';
+import { Produto, VariacaoProduto } from '../types';
 
 interface ModalEntradaEstoqueProps {
   isOpen: boolean;
@@ -24,6 +25,15 @@ interface ModalEntradaEstoqueProps {
 
 type TipoMovimento = 'entrada_compra' | 'ajuste_inventario' | 'baixa_perda';
 
+interface LinhaVariacaoEstoque {
+  id: string;
+  nome: string;
+  sku?: string | null;
+  estoqueAtual: number;
+  quantidade: string;
+  precoCusto: string;
+}
+
 export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
   isOpen,
   onClose,
@@ -32,73 +42,97 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 }) => {
   const { loja } = useAuth();
   const [tipoMovimento, setTipoMovimento] = useState<TipoMovimento>('entrada_compra');
-  const [variacaoSelecionadaId, setVariacaoSelecionadaId] = useState<string>('');
-  const [quantidade, setQuantidade] = useState<string>('10');
-  const [novoPrecoCusto, setNovoPrecoCusto] = useState<string>('');
-  const [novoPrecoVenda, setNovoPrecoVenda] = useState<string>('');
+  
+  // Para produto com variações
+  const [linhasVariacoes, setLinhasVariacoes] = useState<LinhaVariacaoEstoque[]>([]);
+
+  // Para produto simples sem variação
+  const [quantidadeSimples, setQuantidadeSimples] = useState<string>('10');
+  const [custoSimples, setCustoSimples] = useState<string>('0.00');
+
   const [lancarDespesaFinanceira, setLancarDespesaFinanceira] = useState<boolean>(true);
   const [observacao, setObservacao] = useState<string>('');
-
   const [salvando, setSalvando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
   const temVariacoes = Boolean(produto?.tem_variacoes && Array.isArray(produto?.variacoes) && produto.variacoes.length > 0);
-  const variacaoAtual = temVariacoes ? produto?.variacoes?.find(v => v.id === variacaoSelecionadaId) || produto?.variacoes?.[0] : null;
 
   useEffect(() => {
-    if (produto) {
+    if (produto && isOpen) {
       if (temVariacoes && produto.variacoes && produto.variacoes.length > 0) {
-        setVariacaoSelecionadaId(produto.variacoes[0].id);
-        setNovoPrecoCusto(produto.variacoes[0].preco_custo ? String(produto.variacoes[0].preco_custo) : (produto.preco_custo ? String(produto.preco_custo) : '0.00'));
-        setNovoPrecoVenda(produto.variacoes[0].preco_venda_varejo ? String(produto.variacoes[0].preco_venda_varejo) : (produto.preco_venda_varejo ? String(produto.preco_venda_varejo) : ''));
+        const linhasIniciais: LinhaVariacaoEstoque[] = produto.variacoes.map(v => ({
+          id: v.id,
+          nome: [v.valor_variacao_1, v.valor_variacao_2].filter(Boolean).join(' - ') || 'Variação',
+          sku: v.sku,
+          estoqueAtual: Number(v.quantidade_estoque || 0),
+          quantidade: '',
+          precoCusto: v.preco_custo ? Number(v.preco_custo).toFixed(2) : (produto.preco_custo ? Number(produto.preco_custo).toFixed(2) : '0.00')
+        }));
+        setLinhasVariacoes(linhasIniciais);
       } else {
-        setVariacaoSelecionadaId('');
-        setNovoPrecoCusto(produto.preco_custo ? String(produto.preco_custo) : '0.00');
-        setNovoPrecoVenda(produto.preco_venda_varejo ? String(produto.preco_venda_varejo) : '');
+        setQuantidadeSimples('10');
+        setCustoSimples(produto.preco_custo ? Number(produto.preco_custo).toFixed(2) : '0.00');
       }
-      setQuantidade('10');
       setObservacao('');
       setErroMsg(null);
     }
-  }, [produto, isOpen]);
-
-  // Atualiza preços ao trocar de variação
-  const handleSelecionarVariacao = (varId: string) => {
-    setVariacaoSelecionadaId(varId);
-    const v = produto?.variacoes?.find(item => item.id === varId);
-    if (v) {
-      setNovoPrecoCusto(v.preco_custo ? String(v.preco_custo) : (produto?.preco_custo ? String(produto.preco_custo) : '0.00'));
-      setNovoPrecoVenda(v.preco_venda_varejo ? String(v.preco_venda_varejo) : (produto?.preco_venda_varejo ? String(produto.preco_venda_varejo) : ''));
-    }
-  };
+  }, [produto, isOpen, temVariacoes]);
 
   if (!isOpen || !produto) return null;
 
-  const estoqueAtual = temVariacoes && variacaoAtual
-    ? Number(variacaoAtual.quantidade_estoque || 0)
+  const handleAtualizarQtdVariacao = (id: string, valor: string) => {
+    setLinhasVariacoes(prev =>
+      prev.map(l => (l.id === id ? { ...l, quantidade: valor } : l))
+    );
+  };
+
+  const handleAtualizarCustoVariacao = (id: string, valor: string) => {
+    setLinhasVariacoes(prev =>
+      prev.map(l => (l.id === id ? { ...l, precoCusto: valor } : l))
+    );
+  };
+
+  const calcularNovoEstoqueLinha = (estoqueAtual: number, qtdStr: string): number => {
+    const qtdNum = Number(qtdStr) || 0;
+    if (tipoMovimento === 'entrada_compra') {
+      return estoqueAtual + qtdNum;
+    }
+    if (tipoMovimento === 'baixa_perda') {
+      return Math.max(0, estoqueAtual - qtdNum);
+    }
+    if (tipoMovimento === 'ajuste_inventario') {
+      return qtdStr === '' ? estoqueAtual : Math.max(0, qtdNum);
+    }
+    return estoqueAtual;
+  };
+
+  // Cálculos consolidados para produtos com variações
+  const totalQtdMovimentada = temVariacoes
+    ? linhasVariacoes.reduce((acc, l) => acc + (Number(l.quantidade) || 0), 0)
+    : Number(quantidadeSimples) || 0;
+
+  const totalEstoqueAtual = temVariacoes
+    ? linhasVariacoes.reduce((acc, l) => acc + l.estoqueAtual, 0)
     : Number(produto.quantidade_estoque || 0);
 
-  const qtdInformada = Number(quantidade) || 0;
+  const totalNovoEstoque = temVariacoes
+    ? linhasVariacoes.reduce((acc, l) => acc + calcularNovoEstoqueLinha(l.estoqueAtual, l.quantidade), 0)
+    : calcularNovoEstoqueLinha(totalEstoqueAtual, quantidadeSimples);
 
-  // Cálculo do novo estoque estimado
-  let novoEstoqueCalculado = estoqueAtual;
-  if (tipoMovimento === 'entrada_compra') {
-    novoEstoqueCalculado = estoqueAtual + qtdInformada;
-  } else if (tipoMovimento === 'baixa_perda') {
-    novoEstoqueCalculado = Math.max(0, estoqueAtual - qtdInformada);
-  } else if (tipoMovimento === 'ajuste_inventario') {
-    novoEstoqueCalculado = Math.max(0, qtdInformada);
-  }
-
-  const custoUnit = Number(novoPrecoCusto) || 0;
-  const valorTotalCompra = qtdInformada * custoUnit;
+  const valorTotalCompra = temVariacoes
+    ? linhasVariacoes.reduce((acc, l) => {
+        const qtd = Number(l.quantidade) || 0;
+        const custo = Number(l.precoCusto) || 0;
+        return acc + (qtd * custo);
+      }, 0)
+    : (Number(quantidadeSimples) || 0) * (Number(custoSimples) || 0);
 
   const handleConfirmarMovimentacao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loja?.id || !produto.id) return;
 
-    if (qtdInformada <= 0 && tipoMovimento !== 'ajuste_inventario') {
-      setErroMsg('Por favor, informe uma quantidade maior que zero.');
+    if (totalQtdMovimentada <= 0 && tipoMovimento !== 'ajuste_inventario') {
+      setErroMsg('Por favor, informe ao menos uma quantidade a movimentar maior que zero.');
       return;
     }
 
@@ -106,47 +140,59 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
       setSalvando(true);
       setErroMsg(null);
 
-      if (temVariacoes && variacaoAtual) {
-        // 1. Atualizar estoque da variação específica
-        const payloadVar: any = {
-          quantidade_estoque: novoEstoqueCalculado
-        };
-        if (tipoMovimento === 'entrada_compra' && custoUnit > 0) {
-          payloadVar.preco_custo = custoUnit;
-        }
-        if (novoPrecoVenda && Number(novoPrecoVenda) > 0) {
-          payloadVar.preco_venda_varejo = Number(novoPrecoVenda);
-        }
+      if (temVariacoes && produto.variacoes && produto.variacoes.length > 0) {
+        // 1. Atualizar cada variação que teve alteração
+        const promises = linhasVariacoes.map(async (linha) => {
+          const qtdNum = Number(linha.quantidade) || 0;
+          if (qtdNum === 0 && tipoMovimento !== 'ajuste_inventario') return;
+          if (linha.quantidade === '' && tipoMovimento === 'ajuste_inventario') return;
 
-        const { error: erroVar } = await supabase
-          .from('variacoes_produto')
-          .update(payloadVar)
-          .eq('id', variacaoAtual.id);
+          const novoEst = calcularNovoEstoqueLinha(linha.estoqueAtual, linha.quantidade);
+          const payloadVar: any = {
+            quantidade_estoque: novoEst
+          };
 
-        if (erroVar) throw erroVar;
+          const custoNum = Number(linha.precoCusto) || 0;
+          if (tipoMovimento === 'entrada_compra' && custoNum > 0) {
+            payloadVar.preco_custo = custoNum;
+          }
 
-        // 2. Recalcular a soma total de estoque no produto pai
-        const outrasVariacoesSoma = (produto.variacoes || [])
-          .filter(v => v.id !== variacaoAtual.id)
-          .reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0);
-        const novoTotalPai = outrasVariacoesSoma + novoEstoqueCalculado;
+          const { error: errV } = await supabase
+            .from('variacoes_produto')
+            .update(payloadVar)
+            .eq('id', linha.id);
 
-        await supabase
+          if (errV) throw errV;
+        });
+
+        await Promise.all(promises);
+
+        // 2. Atualizar soma de estoque consolidada no produto pai
+        const { error: errPai } = await supabase
           .from('produtos')
-          .update({ quantidade_estoque: novoTotalPai })
+          .update({
+            quantidade_estoque: totalNovoEstoque,
+            atualizado_em: new Date().toISOString()
+          })
           .eq('id', produto.id);
 
+        if (errPai) throw errPai;
+
       } else {
-        // 1. Atualizar produto simples sem variação
+        // Produto simples sem variações
+        const novoEstoqueSimples = calcularNovoEstoqueLinha(
+          Number(produto.quantidade_estoque || 0),
+          quantidadeSimples
+        );
+
         const payloadUpdate: Partial<Produto> = {
-          quantidade_estoque: novoEstoqueCalculado
+          quantidade_estoque: novoEstoqueSimples,
+          atualizado_em: new Date().toISOString()
         };
 
-        if (tipoMovimento === 'entrada_compra' && custoUnit > 0) {
-          payloadUpdate.preco_custo = custoUnit;
-        }
-        if (novoPrecoVenda && Number(novoPrecoVenda) > 0) {
-          payloadUpdate.preco_venda_varejo = Number(novoPrecoVenda);
+        const custoNum = Number(custoSimples) || 0;
+        if (tipoMovimento === 'entrada_compra' && custoNum > 0) {
+          payloadUpdate.preco_custo = custoNum;
         }
 
         const { error: erroProd } = await supabase
@@ -157,13 +203,10 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
         if (erroProd) throw erroProd;
       }
 
-      // 3. Se for entrada por compra e o lojista marcou para lançar a despesa no financeiro
+      // 3. Registrar saída no financeiro se for compra e checkbox estiver ativo
       if (tipoMovimento === 'entrada_compra' && lancarDespesaFinanceira && valorTotalCompra > 0) {
         try {
-          const descricaoMov = temVariacoes && variacaoAtual
-            ? `Compra de Estoque: ${qtdInformada}x ${produto.nome} (${variacaoAtual.valor_variacao_1})`
-            : `Compra de Estoque: ${qtdInformada}x ${produto.nome}`;
-
+          const descricaoMov = `Compra de Estoque: ${totalQtdMovimentada}x ${produto.nome}`;
           await supabase.from('transacoes_financeiras').insert([
             {
               loja_id: loja.id,
@@ -184,6 +227,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
       onEstoqueAtualizado();
       onClose();
     } catch (err: any) {
+      console.error('Erro ao atualizar estoque:', err);
       setErroMsg(err.message || 'Erro ao registrar movimentação de estoque.');
     } finally {
       setSalvando(false);
@@ -191,8 +235,8 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+      <div className={`bg-slate-900 border border-slate-800 rounded-3xl w-full ${temVariacoes ? 'max-w-2xl' : 'max-w-lg'} p-6 space-y-5 shadow-2xl my-8 animate-in zoom-in-95 duration-150`}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
@@ -201,19 +245,19 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-base text-slate-100">Entrada / Ajuste de Estoque</h3>
-              <p className="text-xs text-slate-400 truncate max-w-xs">{produto.nome}</p>
+              <p className="text-xs text-slate-400 truncate max-w-md">{produto.nome}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+            className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {erroMsg && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2 text-xs text-rose-300">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-2 text-xs text-rose-300">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{erroMsg}</span>
           </div>
@@ -236,6 +280,19 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 
           <button
             type="button"
+            onClick={() => setTipoMovimento('baixa_perda')}
+            className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+              tipoMovimento === 'baixa_perda'
+                ? 'bg-rose-500/20 border-rose-500 text-rose-300 shadow-md shadow-rose-500/15'
+                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+            }`}
+          >
+            <ArrowUpRight className="w-4 h-4 text-rose-400" />
+            <span>- Baixa / Avaria</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setTipoMovimento('ajuste_inventario')}
             className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
               tipoMovimento === 'ajuste_inventario'
@@ -246,103 +303,174 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
             <Sliders className="w-4 h-4 text-indigo-400" />
             <span>Balanço Real</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setTipoMovimento('baixa_perda')}
-            className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
-              tipoMovimento === 'baixa_perda'
-                ? 'bg-rose-500/20 border-rose-500 text-rose-300 shadow-md shadow-rose-500/15'
-                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-            }`}
-          >
-            <ArrowUpRight className="w-4 h-4 text-rose-400" />
-            <span>- Baixa/Avaria</span>
-          </button>
         </div>
 
-        {/* Formulário de Quantidade e Custos */}
+        {/* Formulário */}
         <form onSubmit={handleConfirmarMovimentacao} className="space-y-4">
-          {/* Seletor de Variação se o produto possuir grade */}
-          {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
-            <div className="space-y-1.5 p-3 bg-slate-950/70 rounded-2xl border border-slate-800">
-              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>Selecione a Opção / Variação:</span>
-                <span className="text-[10px] text-slate-500 font-normal">Controle individual por grade</span>
-              </label>
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                {produto.variacoes.map((v) => {
-                  const isSel = (variacaoAtual?.id === v.id);
-                  const estVar = Number(v.quantidade_estoque || 0);
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => handleSelecionarVariacao(v.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
-                        isSel
-                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      <span>{v.valor_variacao_1} {v.valor_variacao_2 ? `- ${v.valor_variacao_2}` : ''}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
-                        estVar <= 0 ? 'bg-rose-950 text-rose-300 border border-rose-800/60' : 'bg-slate-950 text-slate-300'
-                      }`}>
-                        {estVar} un
-                      </span>
-                    </button>
-                  );
-                })}
+          {temVariacoes ? (
+            /* TABELA DE GRADE / TODAS AS VARIAÇÕES DE UMA SÓ VEZ */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                  Variações do Produto ({linhasVariacoes.length})
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Informe as quantidades para cada variação:
+                </span>
+              </div>
+
+              <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950/80 shadow-inner">
+                <div className="overflow-x-auto max-h-72">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 sticky top-0 z-10 text-[11px] uppercase tracking-wider font-semibold">
+                      <tr>
+                        <th className="p-3">Variação</th>
+                        <th className="p-3 text-center">Estoque Atual</th>
+                        <th className="p-3 text-center">
+                          {tipoMovimento === 'entrada_compra'
+                            ? 'Qtd. Adicionar'
+                            : tipoMovimento === 'baixa_perda'
+                            ? 'Qtd. Remover'
+                            : 'Qtd. Contada'}
+                        </th>
+                        {tipoMovimento === 'entrada_compra' && (
+                          <th className="p-3 text-center">Custo Unitário (R$)</th>
+                        )}
+                        <th className="p-3 text-center font-bold text-emerald-400">Novo Estoque</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {linhasVariacoes.map((linha) => {
+                        const novoEstoque = calcularNovoEstoqueLinha(linha.estoqueAtual, linha.quantidade);
+                        return (
+                          <tr key={linha.id} className="hover:bg-slate-800/30 transition">
+                            <td className="p-3">
+                              <span className="font-bold text-slate-100 block">{linha.nome}</span>
+                              {linha.sku && <span className="text-[10px] text-slate-500 font-mono">SKU: {linha.sku}</span>}
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-lg font-mono font-bold text-xs ${
+                                linha.estoqueAtual <= 0
+                                  ? 'bg-rose-950/60 text-rose-300 border border-rose-800/50'
+                                  : 'bg-slate-900 text-slate-300 border border-slate-800'
+                              }`}>
+                                {linha.estoqueAtual}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                value={linha.quantidade}
+                                onChange={(e) => handleAtualizarQtdVariacao(linha.id, e.target.value)}
+                                className="w-20 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-2.5 py-1.5 text-center text-xs font-bold text-slate-100 focus:outline-none"
+                              />
+                            </td>
+
+                            {tipoMovimento === 'entrada_compra' && (
+                              <td className="p-3 text-center">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={linha.precoCusto}
+                                  onChange={(e) => handleAtualizarCustoVariacao(linha.id, e.target.value)}
+                                  className="w-24 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-2.5 py-1.5 text-center text-xs font-bold text-slate-100 focus:outline-none"
+                                />
+                              </td>
+                            )}
+
+                            <td className="p-3 text-center">
+                              <span className={`px-2.5 py-1 rounded-xl font-mono font-black text-xs ${
+                                novoEstoque > linha.estoqueAtual
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                  : novoEstoque < linha.estoqueAtual
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                  : 'bg-slate-900 text-slate-400'
+                              }`}>
+                                {novoEstoque}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Resumo da Grade */}
+                <div className="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">
+                    Total em Grade: <strong className="text-slate-200">{totalEstoqueAtual} un</strong>
+                  </span>
+                  <span className="text-slate-300">
+                    Novo Total Consolidado:{' '}
+                    <strong className="text-emerald-400 text-sm font-black">{totalNovoEstoque} un</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* PRODUTO SIMPLES SEM VARIAÇÃO */
+            <div className="space-y-4">
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] text-slate-400 block">Estoque Atual em Loja:</span>
+                  <span className="text-xl font-black text-slate-200">
+                    {totalEstoqueAtual} {produto.tipo_unidade || 'un'}
+                  </span>
+                </div>
+                <div className="text-right space-y-0.5">
+                  <span className="text-[11px] text-emerald-400 block font-semibold">Novo Estoque Previsto:</span>
+                  <span className="text-2xl font-black text-emerald-400">
+                    {totalNovoEstoque} {produto.tipo_unidade || 'un'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-200">
+                    {tipoMovimento === 'entrada_compra'
+                      ? 'Quantidade a Adicionar:'
+                      : tipoMovimento === 'baixa_perda'
+                      ? 'Quantidade a Remover:'
+                      : 'Quantidade Contada na Loja:'}
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={quantidadeSimples}
+                    onChange={(e) => setQuantidadeSimples(e.target.value)}
+                    className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-base font-bold text-emerald-400 focus:outline-none"
+                  />
+                </div>
+
+                {tipoMovimento === 'entrada_compra' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Custo Unitário da Compra (R$):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={custoSimples}
+                      onChange={(e) => setCustoSimples(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-slate-400 block">
-                {temVariacoes && variacaoAtual ? `Estoque Atual (${variacaoAtual.valor_variacao_1}):` : 'Estoque Atual em Loja:'}
-              </span>
-              <span className="text-xl font-black text-slate-200">{estoqueAtual} {produto.tipo_unidade || 'un'}</span>
-            </div>
-            <div className="text-right space-y-0.5">
-              <span className="text-[11px] text-emerald-400 block font-semibold">Novo Estoque Previsto:</span>
-              <span className="text-2xl font-black text-emerald-400">{novoEstoqueCalculado} {produto.tipo_unidade || 'un'}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-200">
-                {tipoMovimento === 'ajuste_inventario' ? 'Quantidade Contada na Loja:' : 'Quantidade a Adicionar / Remover:'}
-              </label>
-              <input
-                type="number"
-                required
-                min="0"
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-base font-bold text-emerald-400 focus:outline-none"
-              />
-            </div>
-
-            {tipoMovimento === 'entrada_compra' && (
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Custo Unitário da Compra (R$):</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={novoPrecoCusto}
-                  onChange={(e) => setNovoPrecoCusto(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Lançamento financeiro opcional */}
+          {/* Lançamento financeiro de compra */}
           {tipoMovimento === 'entrada_compra' && valorTotalCompra > 0 && (
-            <label className="flex items-start gap-2.5 p-3 bg-slate-950/60 border border-slate-800 rounded-xl cursor-pointer hover:border-slate-700 transition">
+            <label className="flex items-start gap-2.5 p-3 bg-slate-950/60 border border-slate-800 rounded-2xl cursor-pointer hover:border-slate-700 transition">
               <input
                 type="checkbox"
                 checked={lancarDespesaFinanceira}
@@ -382,7 +510,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
             <button
               type="submit"
               disabled={salvando}
-              className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+              className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
             >
               {salvando ? (
                 <>

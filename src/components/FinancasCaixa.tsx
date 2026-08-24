@@ -19,12 +19,14 @@ import {
   Zap,
   CreditCard,
   ArrowDown,
-  ArrowUp
+  ArrowUp,
+  Info
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { TransacaoFinanceira, Caixa, CaixaMovimentacao, Pedido } from '../types';
+import { PrintService } from '../services/printService';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -43,7 +45,8 @@ export const FinancasCaixa: React.FC = () => {
   const [movimentacoesCaixa, setMovimentacoesCaixa] = useState<CaixaMovimentacao[]>([]);
   const [historicoCaixas, setHistoricoCaixas] = useState<Caixa[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
-  const [abaAtiva, setAbaAtiva] = useState<'fluxo' | 'pagar' | 'caixa_atual' | 'historico_caixas'>('fluxo');
+  const [abaAtiva, setAbaAtiva] = useState<'caixa_atual' | 'fluxo' | 'pagar' | 'historico_caixas'>('caixa_atual');
+  const [modalDetalhesMetrica, setModalDetalhesMetrica] = useState<'entradas' | 'saidas' | 'pagar' | 'lucro' | null>(null);
 
   // Modais de Operação
   const [modalNovaDespesa, setModalNovaDespesa] = useState<boolean>(false);
@@ -733,7 +736,9 @@ Assinatura do Supervisor: ___________________________________________
   };
 
   const handleImprimirRelatorio = () => {
-    window.print();
+    if (relatorioDados) {
+      PrintService.printFechamentoCaixa(relatorioDados, loja, '80mm');
+    }
   };
 
   const handleEnviarWhatsappRelatorio = () => {
@@ -936,39 +941,92 @@ Assinatura do Supervisor: ___________________________________________
           </div>
         </div>
 
-        {/* CARDS DE RESUMO FINANCEIRO GERAL */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 flex items-center gap-1">
-              <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> Entradas Totais
-            </span>
-            <span className="text-lg font-bold text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
+        {/* CARDS DE RESUMO FINANCEIRO GERAL COMPACTOS COM BOTÃO DETALHAR */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          {/* Entradas Totais */}
+          <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
+                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> Entradas
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalDetalhesMetrica('entradas')}
+                className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-500/20"
+                title="Detalhar Entradas"
+              >
+                Detalhar
+              </button>
+            </div>
+            <span className="text-base font-black text-emerald-400 block truncate">R$ {totalReceitas.toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 flex items-center gap-1">
-              <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Saídas Pagas
-            </span>
-            <span className="text-lg font-bold text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
+          {/* Saídas Pagas */}
+          <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
+                <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Saídas Pagas
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalDetalhesMetrica('saidas')}
+                className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20"
+                title="Detalhar Saídas Pagas"
+              >
+                Detalhar
+              </button>
+            </div>
+            <span className="text-base font-black text-rose-400 block truncate">R$ {totalDespesasPagas.toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-amber-400 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> Contas a Pagar
-            </span>
-            <span className="text-lg font-bold text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
+          {/* Contas a Pagar */}
+          <div className="bg-slate-900/90 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-amber-400 flex items-center gap-1 font-semibold">
+                <AlertTriangle className="w-3.5 h-3.5" /> A Pagar
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalDetalhesMetrica('pagar')}
+                className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/20"
+                title="Detalhar Contas a Pagar"
+              >
+                Detalhar
+              </button>
+            </div>
+            <span className="text-base font-black text-amber-400 block truncate">R$ {totalDespesasPendentes.toFixed(2)}</span>
           </div>
 
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-            <span className="text-xs text-slate-400 block">Lucro Líquido Real</span>
-            <span className={`text-lg font-bold ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
+          {/* Lucro Líquido Real */}
+          <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 font-semibold truncate block">Lucro Real</span>
+              <button
+                type="button"
+                onClick={() => setModalDetalhesMetrica('lucro')}
+                className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-[10px] font-bold transition cursor-pointer border border-indigo-500/20 shrink-0"
+                title="Detalhar Lucro Líquido"
+              >
+                Detalhar
+              </button>
+            </div>
+            <span className={`text-base font-black block truncate ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
               R$ {lucroLiquido.toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS */}
+        {/* NAVEGAÇÃO DE ABAS (ORDEM: TURNO/GAVETA ATUAL, FLUXO GERAL, CONTAS A PAGAR, HISTÓRICO) */}
         <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('caixa_atual')}
+            className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
+              abaAtiva === 'caixa_atual' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Turno / Gaveta Atual {caixaAberto ? '🟢' : '⚪'}
+          </button>
           <button
             type="button"
             onClick={() => setAbaAtiva('fluxo')}
@@ -986,15 +1044,6 @@ Assinatura do Supervisor: ___________________________________________
             }`}
           >
             Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setAbaAtiva('caixa_atual')}
-            className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'caixa_atual' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Turno / Gaveta Atual {caixaAberto ? '🟢' : '⚪'}
           </button>
           <button
             type="button"
@@ -1664,27 +1713,122 @@ Assinatura do Supervisor: ___________________________________________
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO DE CAIXA (ITEM 9)                  */}
+      {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO DE CAIXA (ITEM 5)                  */}
       {/* ========================================================================= */}
       {modalRelatorioFechamento && relatorioDados && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-4 shadow-2xl my-8">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
+            {/* Topo do Modal */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-bold text-base text-slate-100">Relatório de Fechamento de Caixa</h3>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-100">Relatório de Fechamento de Caixa</h3>
+                  <p className="text-xs text-slate-400">
+                    Caixa Nº <span className="text-slate-200 font-bold">{relatorioDados.caixaNumero}</span> • Turno: <span className="text-slate-200 font-bold">{relatorioDados.turno}</span>
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setModalRelatorioFechamento(false)} className="text-slate-400 hover:text-white">
+              <button
+                onClick={() => setModalRelatorioFechamento(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Pré-visualização do Relatório Oficial Formatado */}
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 overflow-x-auto shadow-inner">
-              <pre className="text-slate-200 font-mono text-[11px] sm:text-xs leading-relaxed whitespace-pre">
-                {gerarTextoRelatorioPlain(relatorioDados)}
-              </pre>
+            {/* Metadados do Turno */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-500 font-semibold block">Operador Responsável</span>
+                <span className="text-slate-200 font-bold truncate block">{relatorioDados.operadorNome}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-semibold block">Data / Hora Abertura</span>
+                <span className="text-slate-300 font-medium">{new Date(relatorioDados.dataAbertura).toLocaleString('pt-BR')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-semibold block">Data / Hora Fechamento</span>
+                <span className="text-slate-300 font-medium">{new Date(relatorioDados.dataFechamento).toLocaleString('pt-BR')}</span>
+              </div>
             </div>
+
+            {/* Cards de Resumo Executivo */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[11px] text-slate-400 font-semibold block">Total Faturado</span>
+                <span className="text-lg font-black text-emerald-400 block">R$ {Number(relatorioDados.totalBruto).toFixed(2)}</span>
+                <span className="text-[10px] text-slate-500">{relatorioDados.totalQtdVendas} vendas registradas</span>
+              </div>
+
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[11px] text-slate-400 font-semibold block">Esperado em Gaveta</span>
+                <span className="text-lg font-black text-slate-100 block">R$ {Number(relatorioDados.saldoEsperadoGaveta).toFixed(2)}</span>
+                <span className="text-[10px] text-slate-500">Fundo + Dinheiro - Sangrias</span>
+              </div>
+
+              <div className={`rounded-2xl p-3.5 space-y-1 border ${
+                relatorioDados.diferenca === 0
+                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                  : relatorioDados.diferenca > 0
+                  ? 'bg-blue-950/30 border-blue-500/40 text-blue-300'
+                  : 'bg-rose-950/30 border-rose-500/40 text-rose-300'
+              }`}>
+                <span className="text-[11px] font-semibold block">Contado / Diferença</span>
+                <span className="text-lg font-black block">R$ {Number(relatorioDados.valorContado).toFixed(2)}</span>
+                <span className="text-[10px] font-bold block">
+                  {relatorioDados.diferenca === 0 ? '✓ Caixa Conferido' : relatorioDados.diferenca > 0 ? `+ R$ ${relatorioDados.diferenca.toFixed(2)} (Sobra)` : `- R$ ${Math.abs(relatorioDados.diferenca).toFixed(2)} (Falta)`}
+                </span>
+              </div>
+            </div>
+
+            {/* Tabela de Vendas por Meio de Pagamento */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-300 block">Vendas por Meio de Pagamento:</span>
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden text-xs">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[11px] uppercase font-semibold">
+                    <tr>
+                      <th className="p-2.5">Forma</th>
+                      <th className="p-2.5 text-center">Qtd</th>
+                      <th className="p-2.5 text-right">Total (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    <tr>
+                      <td className="p-2.5 font-medium text-slate-200">Dinheiro</td>
+                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdDinheiro || 0}</td>
+                      <td className="p-2.5 text-right font-bold text-slate-100">R$ {Number(relatorioDados.vendasDinheiro || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-medium text-slate-200">Pix</td>
+                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdPix || 0}</td>
+                      <td className="p-2.5 text-right font-bold text-cyan-400">R$ {Number(relatorioDados.vendasPix || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-medium text-slate-200">Cartão de Débito</td>
+                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdDebito || 0}</td>
+                      <td className="p-2.5 text-right font-bold text-blue-400">R$ {Number(relatorioDados.vendasDebito || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-medium text-slate-200">Cartão de Crédito</td>
+                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdCredito || 0}</td>
+                      <td className="p-2.5 text-right font-bold text-purple-400">R$ {Number(relatorioDados.vendasCredito || 0).toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Observações se houver */}
+            {relatorioDados.observacoes && (
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-2xl text-xs space-y-1">
+                <span className="text-slate-400 font-semibold block">Observações do Fechamento:</span>
+                <p className="text-slate-200">{relatorioDados.observacoes}</p>
+              </div>
+            )}
 
             {/* Ações de Impressão e Compartilhamento */}
             <div className="flex items-center justify-between gap-2 pt-2 flex-wrap">
@@ -1712,7 +1856,7 @@ Assinatura do Supervisor: ___________________________________________
                 <button
                   type="button"
                   onClick={handleImprimirRelatorio}
-                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-white text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-lg"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Imprimir Relatório</span>
@@ -1726,6 +1870,153 @@ Assinatura do Supervisor: ___________________________________________
                   Fechar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: DETALHAMENTO DE MÉTRICAS FINANCEIRAS (ITEM 7)                      */}
+      {/* ========================================================================= */}
+      {modalDetalhesMetrica && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 font-bold flex items-center justify-center">
+                  <Info className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-100">
+                    {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
+                    {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Saídas Pagas (Despesas)'}
+                    {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
+                    {modalDetalhesMetrica === 'lucro' && 'Composição do Lucro Líquido Real'}
+                  </h3>
+                  <span className="text-xs text-slate-400">Composição detalhada dos valores apurados</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalDetalhesMetrica(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Conteúdo específico para cada métrica */}
+            <div className="space-y-4">
+              {modalDetalhesMetrica === 'entradas' && (
+                <div className="space-y-3">
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                    <span className="text-xs text-slate-400 font-semibold">Total de Entradas Recebidas:</span>
+                    <span className="text-xl font-black text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-300 block">Últimas Transações de Entrada:</span>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                      {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
+                        <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
+                            <span className="text-[10px] text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <span className="font-bold text-emerald-400 text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modalDetalhesMetrica === 'saidas' && (
+                <div className="space-y-3">
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                    <span className="text-xs text-slate-400 font-semibold">Total de Saídas Pagas:</span>
+                    <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-300 block">Últimas Saídas Pagas:</span>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                      {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 20).map((t) => (
+                        <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
+                            <span className="text-[10px] text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <span className="font-bold text-rose-400 text-xs shrink-0">- R$ {t.valor.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modalDetalhesMetrica === 'pagar' && (
+                <div className="space-y-3">
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                    <span className="text-xs text-amber-400 font-semibold">Total de Contas Pendentes a Pagar:</span>
+                    <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar:</span>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                      {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
+                        <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
+                            <span className="text-[10px] text-amber-400">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <span className="font-bold text-amber-400 text-xs shrink-0">R$ {t.valor.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {modalDetalhesMetrica === 'lucro' && (
+                <div className="space-y-3">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
+                    <div className="flex justify-between items-center text-slate-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ArrowUpRight className="w-4 h-4 text-emerald-400" /> (+) Entradas / Receitas Totais:
+                      </span>
+                      <span className="font-bold text-emerald-400 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ArrowDownRight className="w-4 h-4 text-rose-400" /> (-) Saídas / Despesas Pagas:
+                      </span>
+                      <span className="font-bold text-rose-400 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
+                      <span className="font-bold text-slate-100 text-sm">(=) Lucro Líquido Real em Caixa:</span>
+                      <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
+                        R$ {lucroLiquido.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                    💡 O lucro líquido real considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé */}
+            <div className="p-2 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModalDetalhesMetrica(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

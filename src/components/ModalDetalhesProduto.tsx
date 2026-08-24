@@ -19,12 +19,14 @@ interface ModalDetalhesProdutoProps {
   isOpen: boolean;
   onClose: () => void;
   produto: Produto | null;
+  apenasGrade?: boolean;
 }
 
 export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   isOpen,
   onClose,
-  produto
+  produto,
+  apenasGrade = false
 }) => {
   const [fotoSelecionadaIdx, setFotoSelecionadaIdx] = useState<number>(0);
 
@@ -42,6 +44,107 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   const fotoPrincipal = fotos[fotoSelecionadaIdx] || fotos[0];
   const temEstoqueBaixo = estoqueReal <= Number(produto.estoque_minimo_alerta || 0);
 
+  // MODO EXCLUSIVO DE DETALHAMENTO DE GRADE (ITEM 4)
+  if (apenasGrade) {
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150">
+          {/* Header */}
+          <div className="p-4 sm:px-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-100 line-clamp-1">{produto.nome}</h3>
+                <span className="text-[11px] text-slate-400">Estoque por Variação / Grade</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Conteúdo com Tabela de Variações */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+            {temVariacoes && produto.variacoes && produto.variacoes.length > 0 ? (
+              <div className="space-y-2">
+                {produto.variacoes.map((v) => {
+                  const vEstoque = Number(v.quantidade_estoque || 0);
+                  const rotulo1 = produto.rotulo_variacao_1 || 'Variação';
+                  const rotulo2 = produto.rotulo_variacao_2;
+                  const isBaixo = vEstoque <= Number(v.estoque_minimo_alerta || produto.estoque_minimo_alerta || 0);
+
+                  return (
+                    <div
+                      key={v.id}
+                      className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700/80 transition flex items-center justify-between gap-3 shadow-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-slate-100 font-bold text-xs block truncate">
+                          {rotulo1 ? <span className="text-slate-400 font-normal text-[11px]">{rotulo1}: </span> : null}
+                          {v.valor_variacao_1}
+                          {v.valor_variacao_2 && (
+                            <span className="text-slate-300">
+                              {' '}• {rotulo2 ? <span className="text-slate-400 font-normal text-[11px]">{rotulo2}: </span> : null}{v.valor_variacao_2}
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                          {v.sku && <span className="font-mono">SKU: {v.sku}</span>}
+                          {v.codigo_barras && <span>• Cód: {v.codigo_barras}</span>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-xs font-mono font-bold text-slate-300">
+                          R$ {Number(v.preco_venda_varejo || produto.preco_venda_varejo).toFixed(2)}
+                        </span>
+                        <span className={`px-2.5 py-1 rounded-xl font-mono font-black text-xs ${
+                          vEstoque <= 0
+                            ? 'bg-rose-950/70 text-rose-300 border border-rose-800/60'
+                            : isBaixo
+                            ? 'bg-amber-950/70 text-amber-300 border border-amber-800/60'
+                            : 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60'
+                        }`}>
+                          {vEstoque} {produto.tipo_unidade || 'un'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-xs text-slate-500">
+                Este produto não possui variações/grade cadastradas.
+              </div>
+            )}
+          </div>
+
+          {/* Rodapé com Resumo Total */}
+          <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between">
+            <div className="text-xs text-slate-400">
+              Total em Grade:{' '}
+              <strong className="text-emerald-400 font-black text-sm">{estoqueReal} {produto.tipo_unidade || 'un'}</strong>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // MODO COMPLETO (FICHA TÉCNICA E DETALHES GERAIS)
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150">
@@ -68,7 +171,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
         {/* Conteúdo com Rolagem */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* Galeria de Fotos (Reduzida em ~20% para proporção ideal) */}
+            {/* Galeria de Fotos */}
             <div className="space-y-2.5 flex flex-col items-center">
               <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
                 <img

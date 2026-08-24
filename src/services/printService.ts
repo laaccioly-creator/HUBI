@@ -559,7 +559,185 @@ Agradecemos a sua preferência! ✨`;
   }
 
   /**
-   * Abre o WhatsApp com a mensagem formatada
+   * Dispara a impressão do Relatório de Fechamento de Caixa
+   */
+  static printFechamentoCaixa(dados: any, loja?: Loja | null, format: '58mm' | '80mm' | 'a4' = '80mm'): void {
+    if (!dados) return;
+
+    try {
+      const isA4 = format === 'a4';
+      const is58 = format === '58mm';
+      const pageWidth = isA4 ? '210mm' : is58 ? '58mm' : '80mm';
+      const maxCssWidth = isA4 ? '680px' : is58 ? '320px' : '380px';
+      const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
+      const formatMoeda = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const dtAbertura = dados.dataAbertura ? new Date(dados.dataAbertura).toLocaleString('pt-BR') : '-';
+      const dtFechamento = dados.dataFechamento ? new Date(dados.dataFechamento).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+
+      const htmlContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #ffffff; font-size: ${isA4 ? '13px' : '11px'}; line-height: 1.4; padding: ${isA4 ? '30px' : '10px 6px'}; max-width: ${maxCssWidth}; margin: 0 auto;">
+          <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">
+            <h2 style="margin: 0; font-size: ${isA4 ? '18px' : '14px'}; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">${nomeLoja}</h2>
+            <h3 style="margin: 3px 0 0 0; font-size: ${isA4 ? '14px' : '12px'}; font-weight: 700; color: #334155;">FECHAMENTO DE CAIXA</h3>
+          </div>
+
+          <table style="width: 100%; font-size: ${isA4 ? '12px' : '10px'}; margin-bottom: 10px; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 2px 0;"><strong>Caixa Nº:</strong> ${dados.caixaNumero}</td>
+              <td style="padding: 2px 0; text-align: right;"><strong>Turno:</strong> ${dados.turno}</td>
+            </tr>
+            <tr>
+              <td style="padding: 2px 0;" colspan="2"><strong>Operador:</strong> ${dados.operadorNome}</td>
+            </tr>
+            <tr>
+              <td style="padding: 2px 0;" colspan="2"><strong>Abertura:</strong> ${dtAbertura}</td>
+            </tr>
+            <tr>
+              <td style="padding: 2px 0;" colspan="2"><strong>Fechamento:</strong> ${dtFechamento}</td>
+            </tr>
+          </table>
+
+          <div style="border-top: 1px dashed #64748b; margin: 8px 0;"></div>
+          <div style="font-weight: 700; font-size: ${isA4 ? '13px' : '11px'}; text-transform: uppercase; margin-bottom: 6px;">Vendas por Meio de Pagamento</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '12px' : '10px'};">
+            <thead>
+              <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #475569;">
+                <th style="padding: 4px 0;">Forma</th>
+                <th style="padding: 4px 0; text-align: center;">Qtd</th>
+                <th style="padding: 4px 0; text-align: right;">Total (R$)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding: 3px 0;">Dinheiro</td><td style="text-align: center;">${dados.qtdDinheiro || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasDinheiro)}</td></tr>
+              <tr><td style="padding: 3px 0;">Pix</td><td style="text-align: center;">${dados.qtdPix || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasPix)}</td></tr>
+              <tr><td style="padding: 3px 0;">Cartão de Débito</td><td style="text-align: center;">${dados.qtdDebito || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasDebito)}</td></tr>
+              <tr><td style="padding: 3px 0;">Cartão de Crédito</td><td style="text-align: center;">${dados.qtdCredito || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasCredito)}</td></tr>
+              <tr style="border-top: 1.5px solid #0f172a; font-weight: 800;">
+                <td style="padding: 4px 0;">TOTAL FATURADO</td>
+                <td style="text-align: center;">${dados.totalQtdVendas || 0}</td>
+                <td style="text-align: right;">R$ ${formatMoeda(dados.totalBruto)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="border-top: 1px dashed #64748b; margin: 8px 0;"></div>
+          <div style="font-weight: 700; font-size: ${isA4 ? '13px' : '11px'}; text-transform: uppercase; margin-bottom: 6px;">Movimentação da Gaveta (Dinheiro)</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '12px' : '10px'};">
+            <tr><td style="padding: 2px 0;">(+) Fundo de Troco Inicial:</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.fundoInicial)}</td></tr>
+            <tr><td style="padding: 2px 0;">(+) Vendas em Dinheiro:</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasDinheiro)}</td></tr>
+            <tr><td style="padding: 2px 0;">(+) Suprimentos Extras:</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.suprimentos)}</td></tr>
+            <tr><td style="padding: 2px 0;">(-) Sangrias (Retiradas):</td><td style="text-align: right; font-weight: 600; color: #b91c1c;">- R$ ${formatMoeda(dados.sangrias)}</td></tr>
+            <tr><td style="padding: 2px 0;">(-) Despesas Pagas no Caixa:</td><td style="text-align: right; font-weight: 600; color: #b91c1c;">- R$ ${formatMoeda(dados.despesasCaixa)}</td></tr>
+            <tr style="border-top: 1px solid #cbd5e1; font-weight: 700;">
+              <td style="padding: 4px 0;">(=) Saldo Esperado em Gaveta:</td>
+              <td style="text-align: right;">R$ ${formatMoeda(dados.saldoEsperadoGaveta)}</td>
+            </tr>
+            <tr style="font-weight: 700;">
+              <td style="padding: 2px 0;">Valor Declarado / Contado:</td>
+              <td style="text-align: right;">R$ ${formatMoeda(dados.valorContado)}</td>
+            </tr>
+            <tr style="border-top: 1.5px solid #0f172a; font-weight: 800;">
+              <td style="padding: 4px 0;">DIFERENÇA (QUEBRA/SOBRA):</td>
+              <td style="text-align: right; color: ${dados.diferenca < 0 ? '#b91c1c' : dados.diferenca > 0 ? '#047857' : '#0f172a'};">
+                R$ ${formatMoeda(dados.diferenca)} (${dados.situacaoTexto || (dados.diferenca === 0 ? 'Conferido' : dados.diferenca > 0 ? 'Sobra' : 'Falta')})
+              </td>
+            </tr>
+          </table>
+
+          ${dados.observacoes ? `
+            <div style="border-top: 1px dashed #64748b; margin: 8px 0;"></div>
+            <div style="font-size: ${isA4 ? '11px' : '9.5px'}; color: #475569;">
+              <strong>Obs:</strong> ${dados.observacoes}
+            </div>
+          ` : ''}
+
+          <div style="border-top: 1px dashed #64748b; margin: 16px 0 10px 0;"></div>
+          <div style="text-align: center; margin-top: 24px; font-size: ${isA4 ? '11px' : '9px'}; color: #475569;">
+            <div style="margin-bottom: 20px;">_________________________________________<br/>Assinatura do Operador</div>
+            <div>_________________________________________<br/>Assinatura do Supervisor</div>
+          </div>
+        </div>
+      `;
+
+      const fullDocHtml = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Fechamento de Caixa #${dados.caixaNumero} - ${nomeLoja}</title>
+          <style>
+            @page { size: ${pageWidth} auto; margin: ${isA4 ? '10mm' : '2mm'}; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { margin: 0; padding: 0; background: #f1f5f9; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            .action-bar { position: sticky; top: 0; left: 0; right: 0; background: #0f172a; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; }
+            .btn { padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+            .btn-primary { background: #10b981; color: #fff; }
+            .btn-primary:hover { background: #059669; }
+            .btn-secondary { background: #334155; color: #f8fafc; }
+            .paper-wrapper { background: #fff; max-width: ${maxCssWidth}; margin: 20px auto; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
+            @media print {
+              .action-bar { display: none !important; }
+              body { background: #fff !important; }
+              .paper-wrapper { box-shadow: none !important; margin: 0 !important; max-width: 100% !important; border-radius: 0 !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="action-bar">
+            <span style="font-size: 13px; font-weight: 600;">Fechamento de Caixa #${dados.caixaNumero}</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+              <button class="btn btn-secondary" onclick="window.close()">✕ Fechar</button>
+            </div>
+          </div>
+          <div class="paper-wrapper">${htmlContent}</div>
+          <script>
+            window.addEventListener('load', function() {
+              setTimeout(function() { window.focus(); window.print(); }, 300);
+            });
+          </script>
+        </body>
+        </html>
+      `;
+
+      const printWindow = window.open('', '_blank', 'width=600,height=750');
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(fullDocHtml);
+        printWindow.document.close();
+      } else {
+        // Fallback para iframe invisível se popup for bloqueado
+        let iframe = document.getElementById('hubi-print-iframe') as HTMLIFrameElement;
+        if (!iframe) {
+          iframe = document.createElement('iframe');
+          iframe.id = 'hubi-print-iframe';
+          iframe.style.position = 'fixed';
+          iframe.style.right = '0';
+          iframe.style.bottom = '0';
+          iframe.style.width = '0';
+          iframe.style.height = '0';
+          iframe.style.border = '0';
+          document.body.appendChild(iframe);
+        }
+        const doc = iframe.contentWindow?.document || iframe.contentDocument;
+        if (doc) {
+          doc.open();
+          doc.write(fullDocHtml);
+          doc.close();
+          setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          }, 400);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao imprimir fechamento de caixa:', err);
+    }
+  }
+
+  /**
+   * Formata uma mensagem completa para envio direto ao WhatsApp do cliente
    */
   static openWhatsApp(phone: string, message: string): void {
     const cleanPhone = phone ? phone.replace(/\D/g, '') : '';

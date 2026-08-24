@@ -81,17 +81,33 @@ export const UsuariosGestao: React.FC = () => {
       const trintaDiasAtras = new Date();
       trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
 
-      // 3. Buscar pedidos relevantes para calcular estatísticas
+      // 3. Buscar pedidos relevantes para calcular estatísticas (Apenas pagos/parcialmente pagos - Item 9)
       const { data: pedidosData } = await supabase
         .from('pedidos')
-        .select('id, vendedor_id, valor_total, data_venda, status')
+        .select('id, vendedor_id, valor_total, valor_pago, saldo_devedor, status_pagamento, data_venda, criado_em, status')
         .eq('loja_id', loja.id)
         .gte('data_venda', trintaDiasAtras.toISOString())
-        .neq('status', 'cancelado');
+        .neq('status', 'cancelado')
+        .neq('status', 'pendente');
 
-      const pedidosValidos = pedidosData || [];
+      const obterValorEfetivo = (p: any): number => {
+        const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+        if (statusPag === 'pago') return Number(p.valor_pago || p.valor_total || 0);
+        if (statusPag === 'parcialmente_pago') return Number(p.valor_pago || 0);
+        return 0;
+      };
+
+      const pedidosValidos = (pedidosData || []).filter(p => {
+        const st = String(p.status || '').toLowerCase();
+        if (st === 'cancelado' || st === 'pendente') return false;
+
+        const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+        if (statusPag !== 'pago' && statusPag !== 'parcialmente_pago') return false;
+
+        return obterValorEfetivo(p) > 0;
+      });
       
-      const faturamentoTotalGeral = pedidosValidos.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
+      const faturamentoTotalGeral = pedidosValidos.reduce((acc, p) => acc + obterValorEfetivo(p), 0);
       const totalQtdVendas = pedidosValidos.length;
 
       setTotalFaturamento30d(faturamentoTotalGeral);
@@ -101,19 +117,19 @@ export const UsuariosGestao: React.FC = () => {
       const listaComEstatisticas: UsuarioLoja[] = (usersData || []).map((u: any) => {
         const pedidosDoUsuario = pedidosValidos.filter(p => p.vendedor_id === u.id);
 
-        const pedidosHoje = pedidosDoUsuario.filter(p => new Date(p.data_venda) >= inicioHoje);
+        const pedidosHoje = pedidosDoUsuario.filter(p => new Date(p.data_venda || p.criado_em) >= inicioHoje);
         const pedidosOntem = pedidosDoUsuario.filter(p => {
-          const d = new Date(p.data_venda);
+          const d = new Date(p.data_venda || p.criado_em);
           return d >= inicioOntem && d < fimOntem;
         });
-        const pedidosSemana = pedidosDoUsuario.filter(p => new Date(p.data_venda) >= inicioSemana);
-        const pedidosMes = pedidosDoUsuario.filter(p => new Date(p.data_venda) >= inicioMes);
+        const pedidosSemana = pedidosDoUsuario.filter(p => new Date(p.data_venda || p.criado_em) >= inicioSemana);
+        const pedidosMes = pedidosDoUsuario.filter(p => new Date(p.data_venda || p.criado_em) >= inicioMes);
 
-        const fatHoje = pedidosHoje.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-        const fatOntem = pedidosOntem.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-        const fatSemana = pedidosSemana.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-        const fatMes = pedidosMes.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-        const fat30d = pedidosDoUsuario.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
+        const fatHoje = pedidosHoje.reduce((acc, p) => acc + obterValorEfetivo(p), 0);
+        const fatOntem = pedidosOntem.reduce((acc, p) => acc + obterValorEfetivo(p), 0);
+        const fatSemana = pedidosSemana.reduce((acc, p) => acc + obterValorEfetivo(p), 0);
+        const fatMes = pedidosMes.reduce((acc, p) => acc + obterValorEfetivo(p), 0);
+        const fat30d = pedidosDoUsuario.reduce((acc, p) => acc + obterValorEfetivo(p), 0);
         
         const count30d = pedidosDoUsuario.length;
         const percUser = faturamentoTotalGeral > 0 ? (fat30d / faturamentoTotalGeral) * 100 : 0;

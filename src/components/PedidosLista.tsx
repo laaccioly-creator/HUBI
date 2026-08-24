@@ -28,7 +28,8 @@ import {
   Info,
   Mail,
   Download,
-  ArrowLeft
+  ArrowLeft,
+  DollarSign
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +40,7 @@ import { PrintService, formatarDataRecibo } from '../services/printService';
 import { audioService } from '../services/audioService';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
+import { ModalReceberPagamento } from './ModalReceberPagamento';
 
 type OrdenacaoCampo = 'data' | 'valor';
 type OrdenacaoDirecao = 'asc' | 'desc';
@@ -93,6 +95,7 @@ export const PedidosLista: React.FC = () => {
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
+  const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
@@ -100,6 +103,13 @@ export const PedidosLista: React.FC = () => {
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
 
   const podeAlterarTipoVenda = permissions.ehAdmin;
+
+  const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
+    if (pedido.status_pagamento) return pedido.status_pagamento;
+    if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
+    if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
+    return 'aguardando_pagamento';
+  };
 
   const carregarPedidos = async (tocarAlerta = false) => {
     if (!loja?.id) return;
@@ -212,6 +222,9 @@ export const PedidosLista: React.FC = () => {
   };
 
   const getOpcoesStatusPermitidas = (pedido: Pedido) => {
+    const statusPag = resolverStatusPagamento(pedido);
+    const ehPago = statusPag === 'pago';
+
     if (pedido.status === 'pendente') {
       // Quando pendente, só pode passar para confirmado
       return [
@@ -219,7 +232,12 @@ export const PedidosLista: React.FC = () => {
         { id: 'confirmado' as StatusPedido, label: 'Confirmado' }
       ];
     }
-    const opcoesDisponiveis = STATUS_PEDIDO_OPCOES.filter(opt => isStatusHabilitado(opt.id));
+    let opcoesDisponiveis = STATUS_PEDIDO_OPCOES.filter(opt => isStatusHabilitado(opt.id));
+
+    // Regra de Negócio: Pedido só pode passar para Concluído se o pagamento estiver quitado (Pago)
+    if (!ehPago) {
+      opcoesDisponiveis = opcoesDisponiveis.filter(opt => opt.id !== 'concluido');
+    }
 
     if (permissions.ehVendedorOuComum) {
       // Vendedor/Comum não pode alterar depois de confirmado
@@ -246,6 +264,13 @@ export const PedidosLista: React.FC = () => {
     }
     if (permissions.ehVendedorOuComum && pedidoAlvo.status !== 'pendente') {
       alert('Seu perfil só pode alterar pedidos de Pendente para Confirmado.');
+      return;
+    }
+
+    // Validação: Só pode concluir se estiver Pago
+    const statusPag = resolverStatusPagamento(pedidoAlvo);
+    if (novoStatus === 'concluido' && statusPag !== 'pago') {
+      alert('O status do pedido só pode ser alterado para Concluído se o status do pagamento estiver Pago. Por favor, utilize o botão "Receber" para registrar o pagamento antes de concluir o pedido.');
       return;
     }
 
@@ -407,13 +432,6 @@ export const PedidosLista: React.FC = () => {
       setCampoOrdenacao(campo);
       setDirecaoOrdenacao('desc');
     }
-  };
-
-  const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
-    if (pedido.status_pagamento) return pedido.status_pagamento;
-    if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
-    if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
-    return 'aguardando_pagamento';
   };
 
   const getStatusBadge = (status: StatusPedido, showChevron = false) => {
@@ -962,7 +980,7 @@ export const PedidosLista: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Ações (Consultar Produtos / Alterar Pedido se Pendente) */}
+                      {/* Ações (Consultar Produtos / Alterar se Pendente / Receber se Não Pendente e Não Pago) */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
@@ -974,20 +992,37 @@ export const PedidosLista: React.FC = () => {
                             <Info className="w-3.5 h-3.5" />
                           </button>
 
-                          <button
-                            type="button"
-                            disabled={!isPendente}
-                            onClick={() => handleEditarPedido(pedido)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                              isPendente
-                                ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95'
-                                : 'bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40'
-                            }`}
-                            title={isPendente ? 'Carregar pedido no PDV para alteração' : 'Alteração permitida apenas para pedidos com status Pendente'}
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                            <span>Alterar</span>
-                          </button>
+                          {isPendente ? (
+                            <button
+                              type="button"
+                              onClick={() => handleEditarPedido(pedido)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95"
+                              title="Carregar pedido no PDV para alteração"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Alterar</span>
+                            </button>
+                          ) : statusPag !== 'pago' ? (
+                            <button
+                              type="button"
+                              onClick={() => setPedidoReceberModal(pedido)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer shadow-sm active:scale-95"
+                              title="Receber pagamento deste pedido"
+                            >
+                              <DollarSign className="w-3.5 h-3.5" />
+                              <span>Receber</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40"
+                              title="Pedido pago e consolidado"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Pago</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1029,8 +1064,8 @@ export const PedidosLista: React.FC = () => {
 
           {/* Conteúdo do Drawer com Rolagem */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Botão de Alterar Pedido se Pendente */}
-            {pedidoSelecionado.status === 'pendente' && (
+            {/* Botão de Alterar se Pendente / Receber se Não Pendente e Não Pago */}
+            {pedidoSelecionado.status === 'pendente' ? (
               <button
                 type="button"
                 onClick={() => handleEditarPedido(pedidoSelecionado)}
@@ -1039,7 +1074,16 @@ export const PedidosLista: React.FC = () => {
                 <Edit className="w-4 h-4" />
                 <span>Alterar Produtos e Valores no PDV</span>
               </button>
-            )}
+            ) : resolverStatusPagamento(pedidoSelecionado) !== 'pago' ? (
+              <button
+                type="button"
+                onClick={() => setPedidoReceberModal(pedidoSelecionado)}
+                className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-[0.99]"
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Receber Pagamento do Pedido</span>
+              </button>
+            ) : null}
 
             {/* Informações do Cliente */}
             <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
@@ -1434,6 +1478,19 @@ export const PedidosLista: React.FC = () => {
         isOpen={!!produtoDetalhesModal}
         onClose={() => setProdutoDetalhesModal(null)}
         produto={produtoDetalhesModal}
+      />
+
+      {/* MODAL DE RECEBER PAGAMENTO */}
+      <ModalReceberPagamento
+        isOpen={!!pedidoReceberModal}
+        onClose={() => setPedidoReceberModal(null)}
+        pedido={pedidoReceberModal}
+        onPagamentoConcluido={() => {
+          carregarPedidos();
+          if (pedidoSelecionado && pedidoReceberModal && pedidoSelecionado.id === pedidoReceberModal.id) {
+            setPedidoSelecionado(null);
+          }
+        }}
       />
     </div>
   );
