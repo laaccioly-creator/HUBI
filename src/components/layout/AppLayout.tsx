@@ -289,11 +289,12 @@ export const AppLayout: React.FC = () => {
   const extraButtons = todosBotoesExtras.filter(b => b.visivel);
   const isExtraActive = extraButtons.some(item => location.pathname.startsWith(item.path));
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
+  const isCustomMobileRoute = isPosRoute || location.pathname.startsWith('/products') || location.pathname.startsWith('/orders');
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
       {/* TOP HEADER / BARRA SUPERIOR DE BOTÕES (PADRÃO TSB) */}
-      <header className={`bg-slate-900/95 border-b border-slate-800/80 backdrop-blur-xl z-30 shrink-0 ${isPosRoute ? 'hidden md:block' : ''}`}>
+      <header className={`bg-slate-900/95 border-b border-slate-800/80 backdrop-blur-xl z-30 shrink-0 ${isCustomMobileRoute ? 'hidden md:block' : ''}`}>
         <div className="px-3 md:px-4 py-2.5 flex items-center justify-between gap-2">
           {/* IDENTIFICAÇÃO DA LOJA (ESQUERDA) */}
           <div className="flex items-center gap-3 shrink-0">
@@ -687,12 +688,12 @@ export const AppLayout: React.FC = () => {
       </header>
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (OCUPA 100% DA LARGURA) */}
-      <main className={`flex-1 overflow-y-auto bg-slate-950 ${isPosRoute ? 'pb-0' : 'pb-20 md:pb-0'}`}>
+      <main className={`flex-1 overflow-y-auto bg-slate-950 ${isCustomMobileRoute ? 'pb-0' : 'pb-20 md:pb-0'}`}>
         <Outlet />
       </main>
 
       {/* BOTTOM NAVIGATION BAR MOBILE (MÓDULOS PRINCIPAIS AUTORIZADOS) */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-2 z-30 ${isPosRoute ? 'hidden' : ''}`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-2 z-30 ${isCustomMobileRoute ? 'hidden' : ''}`}>
         {permissions.podeAcessarPdv && (
           <Link
             to="/pos"

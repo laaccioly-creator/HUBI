@@ -25,6 +25,7 @@ import { Produto, Categoria } from '../types';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
+import { ProdutosMobile } from './ProdutosMobile';
 
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -168,10 +169,22 @@ export const ProdutosEstoque: React.FC = () => {
   });
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
-      {/* Header Superior */}
-      <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
+      {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 020) */}
+      <div className="block lg:hidden h-full overflow-hidden">
+        <ProdutosMobile
+          produtos={produtos}
+          categorias={categorias}
+          carregando={carregando}
+          onRecarregar={carregarProdutos}
+        />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
+      <div className="hidden lg:flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
+        {/* Header Superior */}
+        <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -491,6 +504,8 @@ export const ProdutosEstoque: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+      {/* Fim da visualização desktop */}
       </div>
 
       {/* Modal Gerenciar Categorias */}
