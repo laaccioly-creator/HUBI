@@ -169,6 +169,8 @@ export interface ConfiguracoesExtrasLoja {
   pagamentos_digitais?: PagamentosDigitaisConfig;
   prazos_taxas_maquininhas?: PrazosTaxasMaquininha;
   integracoes_parceiros?: IntegracoesParceiros;
+  cores_produtos?: { [produto_id: string]: string };
+  cor_padrao_etiqueta_produtos?: string;
 }
 
 export interface Loja {
@@ -335,6 +337,7 @@ export interface Produto {
   data_validade?: string | null;
   exibir_catalogo: boolean;
   destaque: boolean;
+  cor_etiqueta?: string | null;
   ativo: boolean;
   criado_em?: string;
   atualizado_em?: string;

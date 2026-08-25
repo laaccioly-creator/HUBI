@@ -134,3 +134,129 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
     codigo_barras: ''
   };
 };
+
+/**
+ * Analisa produto a partir de texto (nome, descrição ou código de barras) usando Gemini
+ */
+export const identificarProdutoPorTextoOuEan = async (
+  tipo: 'texto' | 'barcode',
+  valor: string
+): Promise<ProdutoSugeridoIA> => {
+  const apiKey = getGeminiApiKey();
+
+  if (apiKey && valor.trim()) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+      const promptInstrucao = `
+Você é um especialista em catálogo de produtos e precificação de varejo e e-commerce no Brasil.
+O usuário informou o seguinte ${tipo === 'barcode' ? 'código de barras / EAN' : 'termo / nome do produto'}: "${valor}".
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional) com a seguinte estrutura:
+{
+  "nome": "Nome comercial preciso, completo e oficial do produto em português (ex: Shampoo Seda Ceramidas 325ml, etc.)",
+  "categoria_sugerida": "Nome da categoria mais adequada (ex: Cosméticos, Alimentos, Bebidas, Limpeza, Vestuário, etc.)",
+  "preco_venda_estimado": 0.00,
+  "preco_custo_estimado": 0.00,
+  "descricao": "Descrição comercial de alta conversão para catálogo online e WhatsApp destacando os benefícios, volume/tamanho e diferenciais do item.",
+  "tipo_unidade": "un",
+  "codigo_barras": "${tipo === 'barcode' ? valor : ''}"
+}
+`;
+
+      const requestBody = {
+        contents: [{ parts: [{ text: promptInstrucao }] }],
+        generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(jsonLimpo);
+          return {
+            nome: parsed.nome || valor,
+            categoria_sugerida: parsed.categoria_sugerida || 'Geral',
+            preco_venda_estimado: Number(parsed.preco_venda_estimado) || 0,
+            preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
+            descricao: parsed.descricao || '',
+            tipo_unidade: parsed.tipo_unidade || 'un',
+            codigo_barras: parsed.codigo_barras || (tipo === 'barcode' ? valor : '')
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao identificar produto por texto/EAN:', err);
+    }
+  }
+
+  return {
+    nome: valor.toUpperCase(),
+    categoria_sugerida: 'Geral',
+    preco_venda_estimado: 0,
+    preco_custo_estimado: 0,
+    descricao: `Produto: ${valor}. Alta qualidade e procedência garantida.`,
+    tipo_unidade: 'un',
+    codigo_barras: tipo === 'barcode' ? valor : ''
+  };
+};
+
+/**
+ * Gera uma descrição aprimorada, rica, qualitativa, detalhada e exclusiva para o produto
+ */
+export const gerarDescricaoExclusivaIA = async (
+  nomeProduto: string,
+  categoria?: string,
+  descricaoAtual?: string
+): Promise<string> => {
+  const apiKey = getGeminiApiKey();
+
+  if (apiKey && nomeProduto.trim()) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+      const prompt = `
+Você é um copywriter de elite especializado em e-commerce, catálogo online e varejo no Brasil.
+Escreva uma descrição completa, envolvente, rica e exclusiva para o produto "${nomeProduto}"${categoria ? ` (Categoria: ${categoria})` : ''}.
+${descricaoAtual ? `Informações ou rascunho fornecido pelo lojista: "${descricaoAtual}"` : ''}
+
+Diretrizes obrigatórias:
+1. NÃO faça apenas um resumo genérico. Produza um texto detalhado, persuasivo e rico em benefícios reais e diferenciais.
+2. Destaque modo de uso, textura/sensação/formato/tamanho (quando aplicável) e a experiência de compra do cliente.
+3. Não use chavões repetitivos ou frases prontas padronizadas como "excelente qualidade e melhor custo-benefício".
+4. O texto deve ser formatado em CAIXA ALTA (letras maiúsculas), fluído e perfeito para catálogo do WhatsApp ou vitrine online.
+5. Retorne APENAS o texto da descrição gerada, sem aspas, sem títulos ou notas adicionais.
+`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 600 }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (texto && texto.trim()) {
+          return texto.trim().toUpperCase();
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao gerar descrição exclusiva:', err);
+    }
+  }
+
+  // Fallback inteligente customizado por nome
+  return `${nomeProduto.toUpperCase()}. DESENVOLVIDO PARA ENTREGAR MÁXIMO DESEMPENHO, CONFORTO E PRATICIDADE NO SEU DIA A DIA. ACABAMENTO IMPECÁVEL, COMPOSIÇÃO DE ALTO PADRÃO E EXCELENTE RENDIMENTO. PRODUTO ORIGINAL COM TOTAL GARANTIA.`;
+};
+

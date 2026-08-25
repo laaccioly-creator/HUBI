@@ -25,7 +25,8 @@ import {
   Store,
   ArrowRight,
   TrendingUp,
-  Tag
+  Tag,
+  Mic
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,8 +68,37 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
   // Estados de Busca e Filtros Rápidos (TELA001, TELA003, TELA004)
   const [busca, setBusca] = useState<string>('');
+  const [ouvindoVoz, setOuvindoVoz] = useState<boolean>(false);
   const [modalStatusAberto, setModalStatusAberto] = useState<boolean>(false);
   const [statusSelecionados, setStatusSelecionados] = useState<string[]>(['todos']);
+
+  const alternarVoz = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Pesquisa por voz não suportada pelo navegador.');
+      return;
+    }
+    if (ouvindoVoz) {
+      setOuvindoVoz(false);
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onstart = () => setOuvindoVoz(true);
+      recognition.onresult = (e: any) => {
+        const t = e.results?.[0]?.[0]?.transcript;
+        if (t) setBusca(t);
+      };
+      recognition.onerror = () => setOuvindoVoz(false);
+      recognition.onend = () => setOuvindoVoz(false);
+      recognition.start();
+    } catch (err) {
+      setOuvindoVoz(false);
+    }
+  };
   
   const [modalVendedoresAberto, setModalVendedoresAberto] = useState<boolean>(false);
   const [vendedoresSelecionados, setVendedoresSelecionados] = useState<string[]>(['todos']);
@@ -677,15 +707,25 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       {/* 2. Barra de Busca */}
       <div className="px-4 py-2 border-b border-slate-100 bg-white shrink-0">
-        <div className="relative">
+        <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Item, cliente ou código"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 font-medium"
           />
+          <button
+            type="button"
+            onClick={alternarVoz}
+            className={`absolute right-2.5 p-1.5 rounded-lg transition ${
+              ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700'
+            }`}
+            title="Pesquisar por voz"
+          >
+            <Mic className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
