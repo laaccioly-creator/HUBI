@@ -37,7 +37,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria } from '../types';
 import { PrintService, formatarDataRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
@@ -45,6 +45,7 @@ import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
 import { audioService } from '../services/audioService';
+import { PosCheckoutMobile } from './PosCheckoutMobile';
 
 export const PosCheckout: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -87,6 +88,7 @@ export const PosCheckout: React.FC = () => {
   } = useNetworkStatus(loja?.id);
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -151,6 +153,18 @@ export const PosCheckout: React.FC = () => {
         const dados = await SyncService.baixarDadosParaOffline(loja.id);
         if (dados.produtos) setProdutos(dados.produtos);
         if (dados.clientes) setClientes(dados.clientes);
+
+        // Buscar categorias da loja
+        try {
+          const { data: cats } = await supabase
+            .from('categorias')
+            .select('*')
+            .eq('loja_id', loja.id)
+            .order('ordem_exibicao', { ascending: true });
+          if (cats) setCategorias(cats);
+        } catch (e) {
+          console.warn('Categorias não puderam ser carregadas:', e);
+        }
         
         const fps = (dados.formasPagamento && dados.formasPagamento.length > 0) ? dados.formasPagamento : FORMAS_PADRAO;
         setFormasPagamento(fps);
@@ -599,9 +613,25 @@ export const PosCheckout: React.FC = () => {
   const trocoCalculado = Math.max(0, (Number(valorRecebidoDinheiro) || 0) - total);
 
   return (
-    <div className="flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950">
-      {/* PAINEL ESQUERDO: CATÁLOGO & BUSCA */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-800/80">
+    <div className="h-full w-full overflow-hidden bg-slate-950">
+      {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 008) */}
+      <div className="block lg:hidden h-full overflow-hidden">
+        <PosCheckoutMobile
+          produtos={produtos}
+          categorias={categorias}
+          clientes={clientes}
+          formasPagamento={formasPagamento}
+          pedidosConfirmadosCount={0}
+          onAbrirFechamento={handleAbrirFechamento}
+          onAbrirNovoCliente={() => setModalNovoCliente(true)}
+          onAbrirVariacoesModal={(produto) => setProdutoModalVariacao(produto)}
+        />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
+      <div className="hidden lg:flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950">
+        {/* PAINEL ESQUERDO: CATÁLOGO & BUSCA */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-800/80">
         {/* Topo do PDV: Busca, Tabela de Preço e Status de Conexão */}
         <div className="p-3.5 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-3">
           {/* Barra de Status de Conexão e Sincronização */}
@@ -1153,6 +1183,7 @@ export const PosCheckout: React.FC = () => {
             </button>
           </div>
         </div>
+      </div>
       </div>
 
       {/* MODAL VARIAÇÕES */}
