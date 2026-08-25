@@ -17,7 +17,8 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
 }) => {
   if (!isOpen || !pedido) return null;
 
-  const totalQuantidade = pedido.itens?.reduce((acc, item) => acc + Number(item.quantidade), 0) || 0;
+  const itens = pedido.itens || pedido.itens_pedido || [];
+  const totalQuantidade = itens.reduce((acc, item) => acc + Number(item.quantidade), 0);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
@@ -33,7 +34,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                 Itens do Pedido #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
               </h3>
               <span className="text-[11px] text-slate-400">
-                {pedido.itens?.length || 0} produtos • {totalQuantidade} unidades no total
+                {itens.length} produtos • {totalQuantidade} unidades no total
               </span>
             </div>
           </div>
@@ -48,12 +49,12 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
 
         {/* Lista de Itens */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5">
-          {(!pedido.itens || pedido.itens.length === 0) ? (
+          {itens.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-xs">
               Nenhum item registrado neste pedido.
             </div>
           ) : (
-            pedido.itens.map((item) => (
+            itens.map((item) => (
               <div
                 key={item.id}
                 className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-700 transition"

@@ -106,7 +106,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         const numStr = String(p.numero_pedido);
         const cli = p.cliente_id ? mapaClientes.get(p.cliente_id) : null;
         const cliNome = cli?.nome.toLowerCase() || '';
-        const temItem = p.itens_pedido && p.itens_pedido.some((i: any) => i.nome_produto.toLowerCase().includes(t));
+        const itensList = p.itens || p.itens_pedido || [];
+        const temItem = itensList.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
         if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return false;
       }
 
@@ -225,9 +226,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       ? 'Catálogo Online'
       : (pedidoSelecionado.vendedor_id ? mapaUsuarios.get(pedidoSelecionado.vendedor_id) : 'Operador');
 
-    const totalCustoEstimado = pedidoSelecionado.itens_pedido?.reduce((acc: number, item: any) => {
+    const itensPedido = pedidoSelecionado.itens || pedidoSelecionado.itens_pedido || [];
+
+    const totalCustoEstimado = itensPedido.reduce((acc: number, item: any) => {
       return acc + (Number(item.preco_custo_unitario || 0) * Number(item.quantidade || 1));
-    }, 0) || 0;
+    }, 0);
 
     const lucroEstimado = Math.max(0, Number(pedidoSelecionado.valor_total || 0) - totalCustoEstimado);
 
@@ -353,22 +356,28 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         <div className="flex-1 overflow-y-auto p-4">
           {abaDetalhe === 'itens' && (
             <div className="space-y-3 divide-y divide-slate-100">
-              {pedidoSelecionado.itens_pedido?.map((item: any) => (
-                <div key={item.id} className="pt-2 first:pt-0 flex items-center justify-between">
-                  <div className="space-y-0.5 max-w-[220px]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-slate-700 text-xs">{item.quantidade} x</span>
-                      <span className="font-bold text-xs uppercase text-slate-800 truncate">{item.nome_produto}</span>
-                    </div>
-                    {item.rotulo_variacao && (
-                      <span className="text-[10px] text-slate-400 block">Var: {item.rotulo_variacao}</span>
-                    )}
-                  </div>
-                  <span className="font-black text-xs text-slate-900">
-                    R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade).toFixed(2)}
-                  </span>
+              {itensPedido.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs font-medium">
+                  Nenhum item encontrado neste pedido.
                 </div>
-              ))}
+              ) : (
+                itensPedido.map((item: any, idx: number) => (
+                  <div key={item.id || idx} className="pt-2 first:pt-0 flex items-center justify-between">
+                    <div className="space-y-0.5 max-w-[220px]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-700 text-xs">{item.quantidade} x</span>
+                        <span className="font-bold text-xs uppercase text-slate-800 truncate">{item.nome_produto}</span>
+                      </div>
+                      {item.rotulo_variacao && (
+                        <span className="text-[10px] text-slate-400 block">Var: {item.rotulo_variacao}</span>
+                      )}
+                    </div>
+                    <span className="font-black text-xs text-slate-900">
+                      R$ {Number(item.subtotal || (Number(item.preco_venda_unitario || 0) * Number(item.quantidade || 1))).toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
@@ -755,7 +764,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
                       <div className="flex items-center justify-between text-[10px] text-slate-500">
                         <span className="truncate max-w-[230px]">
-                          {ped.itens_pedido?.length || 0} itens: {ped.itens_pedido?.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
+                          {(() => {
+                            const its = ped.itens || ped.itens_pedido || [];
+                            return `${its.length} itens: ${its.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}`;
+                          })()}
                         </span>
                         <span className="text-slate-400 font-mono">#{ped.numero_pedido}</span>
                       </div>

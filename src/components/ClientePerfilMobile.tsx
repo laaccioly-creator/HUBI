@@ -235,10 +235,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     const concluidos = pedidosCliente.filter(p => p.status === 'concluido' || p.status === 'confirmado');
     if (!buscaVendas.trim()) return concluidos;
     const t = buscaVendas.toLowerCase().trim();
-    return concluidos.filter(p =>
-      String(p.numero_pedido).includes(t) ||
-      (p.itens_pedido && p.itens_pedido.some((i: any) => i.nome_produto.toLowerCase().includes(t)))
-    );
+    return concluidos.filter(p => {
+      const its = p.itens || p.itens_pedido || [];
+      return String(p.numero_pedido).includes(t) || its.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
+    });
   }, [pedidosCliente, buscaVendas]);
 
   const totalVendasPeriodo = useMemo(() => {
@@ -516,7 +516,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 truncate">
-                      {pedido.itens_pedido?.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
+                      {(pedido.itens || pedido.itens_pedido)?.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                     </p>
                   </div>
                 ))
@@ -557,24 +557,27 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   Nenhum pedido encontrado para este cliente.
                 </div>
               ) : (
-                pedidosCliente.map((pedido) => (
-                  <div key={pedido.id} className="p-3.5 rounded-2xl border border-slate-200 space-y-1 bg-white">
-                    <div className="flex items-center justify-between text-xs font-black text-slate-900">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>R$ {Number(pedido.valor_total).toFixed(2)}</span>
+                pedidosCliente.map((pedido) => {
+                  const its = pedido.itens || pedido.itens_pedido || [];
+                  return (
+                    <div key={pedido.id} className="p-3.5 rounded-2xl border border-slate-200 space-y-1 bg-white">
+                      <div className="flex items-center justify-between text-xs font-black text-slate-900">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>R$ {Number(pedido.valor_total).toFixed(2)}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal">
+                          {new Date(pedido.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-normal">
-                        {new Date(pedido.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
 
-                    <p className="text-[10px] text-slate-500 truncate">
-                      {pedido.itens_pedido?.length || 0} itens: {pedido.itens_pedido?.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
-                    </p>
-                    <span className="text-[9px] text-slate-400 block">#{pedido.numero_pedido}</span>
-                  </div>
-                ))
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {its.length} itens: {its.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
+                      </p>
+                      <span className="text-[9px] text-slate-400 block">#{pedido.numero_pedido}</span>
+                    </div>
+                  );
+                })
               )}
             </div>
 
