@@ -394,9 +394,23 @@ export interface Cliente {
   endereco_secundario?: string | null;
   saldo_devedor_fiado: number;
   limite_credito: number;
+  saldo_credito?: number;
   permite_fiado: boolean;
   data_aniversario?: string | null;
   observacoes?: string | null;
+  criado_em?: string;
+}
+
+export interface MovimentacaoSaldoCliente {
+  id: string;
+  loja_id: string;
+  cliente_id: string;
+  tipo: 'adicionar' | 'subtrair';
+  valor: number;
+  saldo_anterior: number;
+  saldo_posterior: number;
+  observacao?: string | null;
+  usuario_id?: string | null;
   criado_em?: string;
 }
 
@@ -454,6 +468,7 @@ export interface Pedido {
   cliente?: Cliente | null;
   vendedor?: UsuarioLoja | null;
   itens?: ItemPedido[];
+  itens_pedido?: ItemPedido[];
   pagamentos?: PagamentoPedido[];
 }
 

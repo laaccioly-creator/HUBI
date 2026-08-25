@@ -37,12 +37,13 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
-import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto } from '../types';
+import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo } from '../services/printService';
 import { audioService } from '../services/audioService';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
+import { PedidosListaMobile } from './PedidosListaMobile';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
 type OrdenacaoDirecao = 'asc' | 'desc';
@@ -91,6 +92,8 @@ export const PedidosLista: React.FC = () => {
   const navigate = useNavigate();
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [statusFiltro, setStatusFiltro] = useState<string>('todos');
   const [busca, setBusca] = useState<string>('');
@@ -117,6 +120,15 @@ export const PedidosLista: React.FC = () => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
+
+      // Buscar clientes e usuários da loja em paralelo
+      supabase.from('clientes').select('*').eq('loja_id', loja.id).then(({ data }) => {
+        if (data) setClientes(data);
+      });
+      supabase.from('usuarios_loja').select('*').eq('loja_id', loja.id).then(({ data }) => {
+        if (data) setUsuarios(data);
+      });
+
       let query = supabase
         .from('pedidos')
         .select(`
@@ -395,6 +407,12 @@ export const PedidosLista: React.FC = () => {
     }
     carregarPedidoParaEdicao(pedido);
     navigate('/pos');
+  };
+
+  const handleCancelarPedido = async (pedido: Pedido) => {
+    if (window.confirm(`Deseja realmente cancelar o pedido #${pedido.numero_pedido}?`)) {
+      await atualizarStatus(pedido.id, 'cancelado');
+    }
   };
 
   // Contagem de pedidos abertos
@@ -679,9 +697,28 @@ export const PedidosLista: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950 text-slate-100">
-      {/* CORPO PRINCIPAL: CABEÇALHO + TABELA */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
+      {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 009) */}
+      <div className="block lg:hidden h-full overflow-hidden">
+        <PedidosListaMobile
+          pedidos={pedidos}
+          clientes={clientes}
+          usuarios={usuarios}
+          carregando={carregando}
+          onAlterarStatus={atualizarStatus}
+          onCancelarPedido={handleCancelarPedido}
+          onAbrirReceberPagamento={(p) => setPedidoReceberModal(p)}
+          onAbrirDrawerMenu={() => navigate('/pos')}
+          onClienteAtualizado={(cliAtualizado) => {
+            setClientes(prev => prev.map(c => c.id === cliAtualizado.id ? cliAtualizado : c));
+          }}
+        />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
+      <div className="hidden lg:flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950 text-slate-100">
+        {/* CORPO PRINCIPAL: CABEÇALHO + TABELA */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* CABEÇALHO SUPERIOR */}
         <div className="p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1468,6 +1505,7 @@ export const PedidosLista: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* MODAL DE ITENS DO PEDIDO */}
       <ModalItensPedido

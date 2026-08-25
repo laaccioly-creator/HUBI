@@ -25,6 +25,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
+import { ClientePerfilMobile } from './ClientePerfilMobile';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -35,7 +36,8 @@ export const ClientesFiado: React.FC = () => {
   const [busca, setBusca] = useState<string>('');
   const [ordemCrescente, setOrdemCrescente] = useState<boolean>(true);
 
-  // Modais
+  // Modais e Perfil Mobile
+  const [clientePerfilMobile, setClientePerfilMobile] = useState<Cliente | null>(null);
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
 
@@ -226,6 +228,23 @@ export const ClientesFiado: React.FC = () => {
     );
   });
 
+  if (clientePerfilMobile) {
+    return (
+      <ClientePerfilMobile
+        cliente={clientePerfilMobile}
+        onVoltar={() => setClientePerfilMobile(null)}
+        onClienteAtualizado={(c) => {
+          setClientePerfilMobile(c);
+          handleClienteCadastrado(c);
+        }}
+        onClienteExcluido={(id) => {
+          setClientes(prev => prev.filter(c => c.id !== id));
+          setClientePerfilMobile(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
       {/* ========================================================================= */}
@@ -371,11 +390,15 @@ export const ClientesFiado: React.FC = () => {
                             <div className="min-w-0">
                               <span
                                 onClick={() => {
-                                  setClienteEditar(cliente);
-                                  setModalNovoCliente(true);
+                                  if (window.innerWidth < 1024) {
+                                    setClientePerfilMobile(cliente);
+                                  } else {
+                                    setClienteEditar(cliente);
+                                    setModalNovoCliente(true);
+                                  }
                                 }}
                                 className="font-bold text-slate-100 group-hover:text-emerald-400 cursor-pointer block truncate text-xs sm:text-sm"
-                                title="Clique para editar este cliente"
+                                title="Clique para ver perfil e créditos deste cliente"
                               >
                                 {cliente.nome}
                               </span>

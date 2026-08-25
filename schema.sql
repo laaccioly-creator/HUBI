@@ -209,9 +209,24 @@ CREATE TABLE IF NOT EXISTS public.clientes (
     endereco_secundario TEXT,
     saldo_devedor_fiado NUMERIC(12,2) DEFAULT 0.00,
     limite_credito NUMERIC(12,2) DEFAULT 0.00,
+    saldo_credito NUMERIC(12,2) DEFAULT 0.00,
     permite_fiado BOOLEAN DEFAULT TRUE,
     data_aniversario DATE,
     observacoes TEXT,
+    criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela: movimentacoes_saldo_cliente (Histórico e Extrato de Créditos / Ajustes)
+CREATE TABLE IF NOT EXISTS public.movimentacoes_saldo_cliente (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    cliente_id UUID NOT NULL REFERENCES public.clientes(id) ON DELETE CASCADE,
+    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('adicionar', 'subtrair')),
+    valor NUMERIC(12,2) NOT NULL CHECK (valor > 0),
+    saldo_anterior NUMERIC(12,2) DEFAULT 0.00,
+    saldo_posterior NUMERIC(12,2) DEFAULT 0.00,
+    observacao TEXT,
+    usuario_id UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
