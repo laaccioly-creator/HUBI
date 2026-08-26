@@ -41,7 +41,9 @@ import {
   MicOff,
   Image as ImageIcon,
   FileText,
-  Barcode
+  Barcode,
+  RefreshCw,
+  Key
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,7 +53,9 @@ import { audioService } from '../services/audioService';
 import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
-  gerarDescricaoExclusivaIA
+  gerarDescricaoExclusivaIA,
+  getGeminiApiKey,
+  setGeminiApiKey
 } from '../services/geminiService';
 
 interface ProdutosMobileProps {
@@ -73,6 +77,47 @@ const CORES_ETIQUETA = [
   '#1F2937', // Preto / Grafite
   '#84CC16'  // Verde Limão
 ];
+
+// Utilitário de compressão segura via HTML5 Canvas (evita OOM no Android)
+const comprimirArquivoImagem = (file: File, maxDim = 1024, quality = 0.82): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve('');
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) {
+        resolve('');
+        return;
+      }
+      const img = new Image();
+      img.onerror = () => resolve(dataUrl);
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+};
 
 export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   produtos,
@@ -175,6 +220,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [abaModalIA, setAbaModalIA] = useState<'foto' | 'texto' | 'codigo'>('foto');
   const [promptTextoIA, setPromptTextoIA] = useState<string>('');
   const [promptCodigoIA, setPromptCodigoIA] = useState<string>('');
+  const [modalKeyGemini, setModalKeyGemini] = useState<boolean>(false);
+  const [tempApiKey, setTempApiKey] = useState<string>(getGeminiApiKey());
 
   // Estados para Teclado Numérico (TELA012)
   const [tecladoValorEstoqueMin, setTecladoValorEstoqueMin] = useState<string>('0');
@@ -188,6 +235,17 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [somScannerMudo, setSomScannerMudo] = useState<boolean>(false);
   const [scannerErro, setScannerErro] = useState<string | null>(null);
   const animFrameScannerRef = useRef<number | null>(null);
+
+  // Estados para Câmera In-App de Foto (Ultra-leve, sem abrir app externo que estoura RAM no Android)
+  const [modalCameraFotoAberto, setModalCameraFotoAberto] = useState<boolean>(false);
+  const [streamCameraFoto, setStreamCameraFoto] = useState<MediaStream | null>(null);
+  const [cameraFotoFacingMode, setCameraFotoFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameraFotoFlash, setCameraFotoFlash] = useState<boolean>(false);
+  const [cameraFotoCarregando, setCameraFotoCarregando] = useState<boolean>(false);
+  const [cameraFotoErro, setCameraFotoErro] = useState<string | null>(null);
+  const [origemCameraParaIA, setOrigemCameraParaIA] = useState<boolean>(false);
+  const [origemScannerParaIA, setOrigemScannerParaIA] = useState<boolean>(false);
+  const videoFotoRef = useRef<HTMLVideoElement | null>(null);
 
   // Estados de IA para Descrição (TELA017)
   const [gerandoDescricaoIA, setGerandoDescricaoIA] = useState<boolean>(false);
@@ -723,8 +781,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             const raw = barcodes[0].rawValue;
             if (raw) {
               if (!somScannerMudo) audioService.playBeep();
-              setFormData(prev => ({ ...prev, codigoBarras: raw }));
-              encerrarScannerCamera();
+              if (origemScannerParaIA) {
+                setOrigemScannerParaIA(false);
+                setPromptCodigoIA(raw);
+                encerrarScannerCamera();
+                processarPreenchimentoIA('codigo', raw);
+              } else {
+                setFormData(prev => ({ ...prev, codigoBarras: raw }));
+                encerrarScannerCamera();
+              }
               return;
             }
           }
@@ -758,6 +823,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // MELHORAR DESCRIÇÃO COM IA (TELA017)
   // =========================================================================
   const melhorarDescricaoComIA = async () => {
+    if (!getGeminiApiKey()) {
+      setTempApiKey('');
+      setModalKeyGemini(true);
+      setMensagemFeedback({ texto: 'Configure sua Chave do Google Gemini para usar a IA.', tipo: 'erro' });
+      return;
+    }
     setGerandoDescricaoIA(true);
     try {
       const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
@@ -779,6 +850,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // PREENCHIMENTO AUTOMÁTICO VIA IA (FOTO, TEXTO, CÓDIGO DE BARRAS)
   // =========================================================================
   const processarPreenchimentoIA = async (tipo: 'foto' | 'texto' | 'codigo', valor?: string) => {
+    if (!getGeminiApiKey()) {
+      setTempApiKey('');
+      setModalKeyGemini(true);
+      setMensagemFeedback({ texto: 'Configure sua Chave do Google Gemini para usar a IA.', tipo: 'erro' });
+      return;
+    }
     try {
       setProcessandoIA(true);
       let sugestao: any = null;
@@ -806,20 +883,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           ...prev,
           nome: sugestao.nome ? sugestao.nome.toUpperCase() : prev.nome,
           categoriaId: categoriaMatchId || prev.categoriaId,
-          precoVenda: sugestao.preco_venda_estimado ? String(sugestao.preco_venda_estimado) : prev.precoVenda,
-          precoCusto: sugestao.preco_custo_estimado ? String(sugestao.preco_custo_estimado) : prev.precoCusto,
-          descricao: sugestao.descricao ? sugestao.descricao.toUpperCase() : prev.descricao,
+          precoVenda: sugestao.preco_venda_estimado ? String(sugestao.preco_venda_estimado).replace('.', ',') : prev.precoVenda,
+          precoCusto: sugestao.preco_custo_estimado ? String(sugestao.preco_custo_estimado).replace('.', ',') : prev.precoCusto,
+          descricao: sugestao.descricao || prev.descricao,
           codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
           tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
-          fotos: tipo === 'foto' && valor ? [valor, ...prev.fotos] : prev.fotos
+          fotos: tipo === 'foto' && valor ? [valor, ...prev.fotos.filter((f: string) => f !== valor)].slice(0, 6) : prev.fotos
         }));
 
         setModalCriarComIAAberto(false);
-        setMensagemFeedback({ texto: 'Dados preenchidos pela IA com sucesso!', tipo: 'sucesso' });
+        setMensagemFeedback({ texto: 'Dados e descrição preenchidos com sucesso pela IA!', tipo: 'sucesso' });
       }
     } catch (err: any) {
       console.warn('Erro ao processar IA:', err);
-      setMensagemFeedback({ texto: 'Não foi possível identificar todos os dados. Preencha manualmente.', tipo: 'erro' });
+      setMensagemFeedback({ texto: err?.message || 'Não foi possível identificar todos os dados. Preencha manualmente.', tipo: 'erro' });
     } finally {
       setProcessandoIA(false);
     }
@@ -856,21 +933,142 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     }
   };
 
-  // Upload / Captura de Foto
-  const handleProcessarArquivoFoto = (file?: File) => {
+  // =========================================================================
+  // CÂMERA AO VIVO IN-APP DE FOTOS (SEM ESTOURAR MEMÓRIA NO ANDROID)
+  // =========================================================================
+  const iniciarCameraFoto = async (facingModeParam?: 'environment' | 'user') => {
+    try {
+      setCameraFotoCarregando(true);
+      setCameraFotoErro(null);
+      setModalOpcoesFotoAberto(false);
+      setModalCameraFotoAberto(true);
+
+      if (streamCameraFoto) {
+        streamCameraFoto.getTracks().forEach(t => t.stop());
+        setStreamCameraFoto(null);
+      }
+
+      const targetFacing = facingModeParam || cameraFotoFacingMode;
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: targetFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 1280 }
+        },
+        audio: false
+      });
+
+      setStreamCameraFoto(mediaStream);
+      if (videoFotoRef.current) {
+        videoFotoRef.current.srcObject = mediaStream;
+        await videoFotoRef.current.play();
+      }
+    } catch (err: any) {
+      console.warn('Erro ao abrir câmera interna:', err);
+      setCameraFotoErro('Não foi possível acessar a câmera diretamente. Tente selecionar da galeria.');
+      // Fallback para input simples
+      setTimeout(() => {
+        fileInputGaleriaRef.current?.click();
+      }, 500);
+    } finally {
+      setCameraFotoCarregando(false);
+    }
+  };
+
+  const alternarCameraFoto = async () => {
+    const novoFacing = cameraFotoFacingMode === 'environment' ? 'user' : 'environment';
+    setCameraFotoFacingMode(novoFacing);
+    await iniciarCameraFoto(novoFacing);
+  };
+
+  const alternarFlashCameraFoto = async () => {
+    if (!streamCameraFoto) return;
+    const track = streamCameraFoto.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      const novoEstado = !cameraFotoFlash;
+      await (track as any).applyConstraints({
+        advanced: [{ torch: novoEstado }]
+      });
+      setCameraFotoFlash(novoEstado);
+    } catch (err) {
+      console.warn('Lanterna não suportada neste dispositivo', err);
+    }
+  };
+
+  const capturarFotoCanvas = () => {
+    const video = videoFotoRef.current;
+    if (!video || video.readyState < 2) return;
+
+    try {
+      const maxDim = 1024;
+      let width = video.videoWidth || 800;
+      let height = video.videoHeight || 800;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+      audioService.playBeep();
+      encerrarCameraFoto();
+
+      if (origemCameraParaIA) {
+        setOrigemCameraParaIA(false);
+        processarPreenchimentoIA('foto', dataUrl);
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          fotos: [dataUrl, ...prev.fotos.filter(f => f !== dataUrl)].slice(0, 6)
+        }));
+        setMensagemFeedback({ texto: 'Foto capturada e otimizada com sucesso!', tipo: 'sucesso' });
+      }
+    } catch (e: any) {
+      console.error('Erro ao capturar foto:', e);
+      setMensagemFeedback({ texto: 'Erro ao capturar foto.', tipo: 'erro' });
+    }
+  };
+
+  const encerrarCameraFoto = () => {
+    if (streamCameraFoto) {
+      streamCameraFoto.getTracks().forEach(t => t.stop());
+      setStreamCameraFoto(null);
+    }
+    setCameraFotoFlash(false);
+    setModalCameraFotoAberto(false);
+  };
+
+  // Upload / Captura de Foto com Compressão Automática no Cliente
+  const handleProcessarArquivoFoto = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
+    try {
+      const dataUrl = await comprimirArquivoImagem(file, 1024, 0.82);
       if (dataUrl) {
         setFormData(prev => ({
           ...prev,
           fotos: [dataUrl, ...prev.fotos.filter(f => f !== dataUrl)].slice(0, 6)
         }));
         setModalOpcoesFotoAberto(false);
+        setMensagemFeedback({ texto: 'Foto adicionada e otimizada!', tipo: 'sucesso' });
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+      console.error('Erro ao processar arquivo de foto:', e);
+      setMensagemFeedback({ texto: 'Erro ao carregar a foto.', tipo: 'erro' });
+    }
   };
 
   // Compartilhar Catálogo / Produto (TELA005 / TELA009)
@@ -2259,10 +2457,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <div className="space-y-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    fileInputCameraRef.current?.click();
-                  }}
-                  className="w-full p-4 rounded-2xl bg-teal-50 text-teal-800 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-teal-100 transition shadow-sm"
+                  onClick={() => iniciarCameraFoto('environment')}
+                  className="w-full p-4 rounded-2xl bg-teal-50 text-teal-800 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-teal-100 transition shadow-sm cursor-pointer active:scale-98"
                 >
                   <Camera className="w-5 h-5 text-teal-600" />
                   <span>Tirar Foto com a Câmera</span>
@@ -2273,7 +2469,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   onClick={() => {
                     fileInputGaleriaRef.current?.click();
                   }}
-                  className="w-full p-4 rounded-2xl bg-slate-50 text-slate-800 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-slate-100 transition shadow-sm"
+                  className="w-full p-4 rounded-2xl bg-slate-50 text-slate-800 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-slate-100 transition shadow-sm cursor-pointer active:scale-98"
                 >
                   <ImageIcon className="w-5 h-5 text-slate-600" />
                   <span>Escolher da Galeria do Celular</span>
@@ -2285,12 +2481,91 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setModalOpcoesFotoAberto(false);
                     setModalGaleriaFotosAberto(true);
                   }}
-                  className="w-full p-4 rounded-2xl border border-slate-200 text-slate-700 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-slate-50 transition"
+                  className="w-full p-4 rounded-2xl border border-slate-200 text-slate-700 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer"
                 >
                   <Tag className="w-5 h-5 text-slate-500" />
-                  <span>Gerenciar Múltiplas Fotos (Slots)</span>
+                  <span>Gerenciar Fotos do Produto ({formData.fotos.length}/6)</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CÂMERA AO VIVO IN-APP (TIRAR FOTO SEM ESTOURAR MEMÓRIA DO ANDROID) */}
+        {modalCameraFotoAberto && (
+          <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none">
+            {/* Header com controles da Câmera */}
+            <div className="p-4 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
+              <button
+                type="button"
+                onClick={encerrarCameraFoto}
+                className="p-2.5 rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition cursor-pointer"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={alternarFlashCameraFoto}
+                  className={`p-2.5 rounded-full backdrop-blur-md transition cursor-pointer ${
+                    cameraFotoFlash ? 'bg-amber-400 text-slate-900' : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                  title="Lanterna"
+                >
+                  {cameraFotoFlash ? <Flashlight className="w-5 h-5" /> : <FlashlightOff className="w-5 h-5" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={alternarCameraFoto}
+                  className="p-2.5 rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition cursor-pointer"
+                  title="Alternar Câmera"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewfinder da Câmera */}
+            <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+              <video
+                ref={videoFotoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+
+              {cameraFotoCarregando && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
+                  <p className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</p>
+                </div>
+              )}
+
+              {/* Guia visual de enquadramento do produto */}
+              <div className="absolute w-64 h-64 border-2 border-white/40 rounded-3xl pointer-events-none shadow-2xl flex items-center justify-center">
+                <div className="w-4 h-4 border-t-2 border-l-2 border-teal-400 absolute top-2 left-2 rounded-tl" />
+                <div className="w-4 h-4 border-t-2 border-r-2 border-teal-400 absolute top-2 right-2 rounded-tr" />
+                <div className="w-4 h-4 border-b-2 border-l-2 border-teal-400 absolute bottom-2 left-2 rounded-bl" />
+                <div className="w-4 h-4 border-b-2 border-r-2 border-teal-400 absolute bottom-2 right-2 rounded-br" />
+              </div>
+            </div>
+
+            {/* Footer com Botão de Disparo / Shutter */}
+            <div className="p-6 pb-10 flex flex-col items-center justify-center z-10 bg-gradient-to-t from-black/90 to-transparent gap-2">
+              <button
+                type="button"
+                onClick={capturarFotoCanvas}
+                disabled={cameraFotoCarregando}
+                className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/20 active:scale-95 transition shadow-2xl disabled:opacity-50 cursor-pointer"
+              >
+                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner hover:bg-slate-100">
+                  <Camera className="w-7 h-7 text-slate-800" />
+                </div>
+              </button>
+              <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Toque para fotografar</span>
             </div>
           </div>
         )}
@@ -2505,13 +2780,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     <p className="text-[11px] text-teal-600 font-bold uppercase">Google Gemini Multimodal</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setModalCriarComIAAberto(false)}
-                  className="p-1 text-slate-400 hover:text-slate-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempApiKey(getGeminiApiKey());
+                      setModalKeyGemini(true);
+                    }}
+                    className="px-2 py-1 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 flex items-center gap-1 text-[11px] font-bold transition border border-teal-200"
+                    title="Configurar Chave Gemini"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>Chave IA</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalCriarComIAAberto(false)}
+                    className="p-1 text-slate-400 hover:text-slate-700"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Abas do Modal IA: Foto | Texto/Nome | Código de Barras */}
@@ -2552,47 +2841,36 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {abaModalIA === 'foto' && (
                 <div className="space-y-4">
                   <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                    Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição automaticamente.
+                    Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição comercial completa automaticamente.
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="p-4 rounded-2xl border-2 border-dashed border-teal-400 bg-teal-50/50 flex flex-col items-center justify-center text-teal-700 hover:bg-teal-100 transition cursor-pointer text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrigemCameraParaIA(true);
+                        setModalCriarComIAAberto(false);
+                        iniciarCameraFoto('environment');
+                      }}
+                      className="p-4 rounded-2xl border-2 border-dashed border-teal-400 bg-teal-50/50 flex flex-col items-center justify-center text-teal-700 hover:bg-teal-100 transition cursor-pointer text-center active:scale-95"
+                    >
                       <Camera className="w-8 h-8 mb-1.5" />
                       <span className="text-xs font-extrabold">Tirar Foto</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const r = new FileReader();
-                            r.onload = (ev) => {
-                              const d = ev.target?.result as string;
-                              if (d) processarPreenchimentoIA('foto', d);
-                            };
-                            r.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
+                    </button>
 
-                    <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-700 hover:bg-slate-100 transition cursor-pointer text-center">
+                    <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-700 hover:bg-slate-100 transition cursor-pointer text-center active:scale-95">
                       <Upload className="w-8 h-8 mb-1.5 text-slate-500" />
                       <span className="text-xs font-extrabold">Enviar Imagem</span>
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const r = new FileReader();
-                            r.onload = (ev) => {
-                              const d = ev.target?.result as string;
-                              if (d) processarPreenchimentoIA('foto', d);
-                            };
-                            r.readAsDataURL(file);
+                            const compressed = await comprimirArquivoImagem(file, 640, 0.85);
+                            if (compressed) {
+                              processarPreenchimentoIA('foto', compressed);
+                            }
                           }
                         }}
                         className="hidden"
@@ -2642,14 +2920,33 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {abaModalIA === 'codigo' && (
                 <div className="space-y-4">
                   <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                    Informe o código de barras (EAN/GTIN) para buscar as informações oficiais do produto.
+                    Aponte a câmera para ler o código ou digite o código de barras (EAN/GTIN) para buscar as informações oficiais do produto.
                   </p>
+
+                  {/* Botão para Ler com a Câmera Ao Vivo */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigemScannerParaIA(true);
+                      setModalCriarComIAAberto(false);
+                      iniciarScannerCamera();
+                    }}
+                    className="w-full py-3.5 rounded-2xl bg-teal-50 border border-teal-300 text-teal-800 font-black text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-teal-100 transition cursor-pointer shadow-sm active:scale-98"
+                  >
+                    <Camera className="w-5 h-5 text-teal-600" />
+                    <span>Ler Código com a Câmera</span>
+                  </button>
+
+                  <div className="relative flex items-center justify-center my-2">
+                    <div className="border-t border-slate-200 w-full" />
+                    <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider absolute">OU</span>
+                  </div>
 
                   <input
                     type="text"
                     value={promptCodigoIA}
                     onChange={(e) => setPromptCodigoIA(e.target.value)}
-                    placeholder="Ex: 7891000100103"
+                    placeholder="Digite o código (ex: 7891000100103)"
                     className="w-full px-3.5 py-3 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-800"
                   />
 
@@ -2668,9 +2965,88 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {processandoIA && (
                 <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-800 flex items-center gap-3">
                   <Loader2 className="w-5 h-5 animate-spin text-teal-600 shrink-0" />
-                  <span className="text-xs font-bold leading-snug">Consultando inteligência artificial e precificação de mercado...</span>
+                  <span className="text-xs font-bold leading-snug">Consultando inteligência artificial e gerando descrição comercial...</span>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CONFIGURAR CHAVE GEMINI */}
+        {modalKeyGemini && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-white">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-white">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-sm text-slate-100">Chave Google Gemini IA</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalKeyGemini(false)}
+                  className="p-1 text-slate-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-2 text-xs text-slate-300">
+                <p>
+                  Para habilitar o preenchimento por foto e geração de descrições, insira sua chave gratuita do <strong className="text-white">Google Gemini</strong>.
+                </p>
+                <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 space-y-1.5">
+                  <p className="text-[11px] text-amber-400 font-bold">Como obter sua chave gratuita (1 min):</p>
+                  <p className="text-[11px] text-slate-300">
+                    1. Acesse o <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-400 underline font-bold"
+                    >
+                      Google AI Studio (clique aqui)
+                    </a>
+                  </p>
+                  <p className="text-[11px] text-slate-300">2. Faça login com sua conta Google</p>
+                  <p className="text-[11px] text-slate-300">3. Clique em <strong>"Create API key"</strong> e copie o código</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Chave da API (Gemini API Key):</label>
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={tempApiKey}
+                  onChange={(e) => setTempApiKey(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-teal-400"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setModalKeyGemini(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGeminiApiKey(tempApiKey);
+                    setModalKeyGemini(false);
+                    setMensagemFeedback({
+                      texto: tempApiKey.trim() ? 'Chave do Gemini salva com sucesso!' : 'Chave removida.',
+                      tipo: 'sucesso'
+                    });
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  Salvar Chave
+                </button>
+              </div>
             </div>
           </div>
         )}

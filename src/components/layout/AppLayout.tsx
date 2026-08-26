@@ -289,7 +289,7 @@ export const AppLayout: React.FC = () => {
   const extraButtons = todosBotoesExtras.filter(b => b.visivel);
   const isExtraActive = extraButtons.some(item => location.pathname.startsWith(item.path));
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
-  const isCustomMobileRoute = isPosRoute || location.pathname.startsWith('/products') || location.pathname.startsWith('/orders');
+  const isCustomMobileRoute = isPosRoute || location.pathname.startsWith('/products') || location.pathname.startsWith('/orders') || location.pathname.startsWith('/catalog-config');
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">

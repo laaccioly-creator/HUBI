@@ -34,6 +34,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Loja, ModoExibicaoCatalogo, ComportamentoSemEstoque } from '../types';
+import { ConfiguracaoCatalogoMobile } from './ConfiguracaoCatalogoMobile';
 
 const CORES_PALETA = [
   { hex: '#F59E0B', nome: 'Amarelo Ouro' },
@@ -322,8 +323,15 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-y-auto">
-      {/* HEADER DA PÁGINA */}
+    <>
+      {/* 1. VISUALIZAÇÃO MOBILE DEDICADA */}
+      <div className="block md:hidden h-full w-full">
+        <ConfiguracaoCatalogoMobile />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP */}
+      <div className="hidden md:flex flex-1 flex-col h-full bg-slate-950 overflow-y-auto">
+        {/* HEADER DA PÁGINA */}
       <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -952,6 +960,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
