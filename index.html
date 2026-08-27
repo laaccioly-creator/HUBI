@@ -2,10 +2,21 @@
 <html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>HUBI - Gestão e Vendas Multiplataforma</title>
     <meta name="description" content="Sistema completo de gestão e vendas para pequenos lojistas: PDV móvel, controle de estoque com variações, catálogo online e fluxo de caixa." />
+
+    <!-- Ocultar barra do navegador e ativar modo App / Fullscreen no Mobile (Android e iOS) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HUBI" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <!-- Manifesto PWA para instalação como Aplicativo Standalone / WebAPK (sem barra do Chrome) -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +24,15 @@
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased font-sans selection:bg-emerald-500 selection:text-white">
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function(err) {
+            console.log('SW registration error:', err);
+          });
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

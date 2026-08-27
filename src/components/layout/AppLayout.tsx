@@ -91,6 +91,36 @@ export const AppLayout: React.FC = () => {
     };
   }, []);
 
+  // Ocultar barra do navegador no Mobile em todas as telas
+  useEffect(() => {
+    const isMobile = typeof window !== 'undefined' && (
+      window.innerWidth < 768 ||
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    );
+    if (!isMobile) return;
+
+    // Rolagem suave para colapsar barra de URL
+    const hideAddressBar = () => {
+      if (window.scrollY === 0) {
+        window.scrollTo(0, 1);
+      }
+    };
+    setTimeout(hideAddressBar, 300);
+
+    const handleFirstTouch = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+      if (!isStandalone && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+      window.removeEventListener('touchstart', handleFirstTouch);
+    };
+
+    window.addEventListener('touchstart', handleFirstTouch, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleFirstTouch);
+    };
+  }, []);
+
   useEffect(() => {
     if (!loja?.id) return;
 
