@@ -20,7 +20,8 @@ import {
   UserCheck,
   ChevronDown,
   Check,
-  Globe
+  Globe,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -219,6 +220,12 @@ export const AppLayout: React.FC = () => {
       icon: ShoppingBag,
       badge: pedidosConfirmadosCount,
       visivel: permissions.podeAcessarPedidos
+    },
+    {
+      name: 'Vendas',
+      path: '/sales',
+      icon: Receipt,
+      visivel: permissions.podeAcessarVendas
     },
     {
       name: 'Produtos & Estoque',
@@ -555,6 +562,17 @@ export const AppLayout: React.FC = () => {
                     {pedidosConfirmadosCount}
                   </span>
                 )}
+              </Link>
+            )}
+
+            {permissions.podeAcessarVendas && (
+              <Link
+                to="/sales"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
+              >
+                <Receipt className="w-4 h-4 text-slate-400" />
+                <span>Vendas</span>
               </Link>
             )}
 

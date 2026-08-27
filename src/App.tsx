@@ -7,6 +7,7 @@ import { AppLayout } from './components/layout/AppLayout';
 
 import { PosCheckout } from './components/PosCheckout';
 import { PedidosLista } from './components/PedidosLista';
+import { VendasHistorico } from './components/VendasHistorico';
 import { ProdutosEstoque } from './components/ProdutosEstoque';
 import { ProdutoCadastro } from './components/ProdutoCadastro';
 import { ClientesFiado } from './components/ClientesFiado';
@@ -46,6 +47,14 @@ const AppRotasInternas: React.FC = () => {
         <Route index element={<Navigate to="/pos" replace />} />
         <Route path="pos" element={<PosCheckout />} />
         <Route path="orders" element={<PedidosLista />} />
+        <Route
+          path="sales"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarVendas}>
+              <VendasHistorico />
+            </RotaProtegida>
+          }
+        />
         
         {/* Produtos & Estoque */}
         <Route path="products" element={<ProdutosEstoque />} />

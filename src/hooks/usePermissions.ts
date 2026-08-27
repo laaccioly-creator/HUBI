@@ -20,6 +20,7 @@ export interface PermissionsState {
   // Acessos aos módulos do sistema
   podeAcessarPdv: boolean;
   podeAcessarPedidos: boolean;
+  podeAcessarVendas: boolean;
   podeAcessarProdutos: boolean;
   podeAcessarClientes: boolean;
   podeAcessarFinancas: boolean;
@@ -57,6 +58,7 @@ export const usePermissions = (): PermissionsState => {
   // Módulos
   const podeAcessarPdv = true; // Todos os operadores autorizados podem vender no PDV
   const podeAcessarPedidos = true; // Todos os operadores podem acessar tela de pedidos (com escopo filtrado)
+  const podeAcessarVendas = true; // Todos os operadores podem acessar histórico de vendas
   const podeAcessarProdutos = true; // Usuários comuns podem consultar produtos e preços
   const podeAcessarClientes = true; // Usuários comuns podem consultar e cadastrar clientes
   const podeAcessarFinancas = ehGerente; // Somente Owner, Admin e Gerente
@@ -91,6 +93,7 @@ export const usePermissions = (): PermissionsState => {
     podeEditarVendasPassadas,
     podeAcessarPdv,
     podeAcessarPedidos,
+    podeAcessarVendas,
     podeAcessarProdutos,
     podeAcessarClientes,
     podeAcessarFinancas,

@@ -57,7 +57,6 @@ const ABAS_STATUS: { id: string; label: string }[] = [
   { id: 'em_expedicao', label: 'Em expedição' },
   { id: 'saiu_para_entrega', label: 'Saiu para Entrega' },
   { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
-  { id: 'concluido', label: 'Concluído' },
   { id: 'cancelado', label: 'Cancelado' }
 ];
 
@@ -306,8 +305,14 @@ export const PedidosLista: React.FC = () => {
         prev.map(p => (p.id === pedidoId ? { ...p, status: novoStatus } : p))
       );
 
-      if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
-        setPedidoSelecionado(prev => prev ? { ...prev, status: novoStatus } : null);
+      if (novoStatus === 'concluido') {
+        if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
+          setPedidoSelecionado(null);
+        }
+      } else {
+        if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
+          setPedidoSelecionado(prev => prev ? { ...prev, status: novoStatus } : null);
+        }
       }
 
       if (pedidoReciboModal && pedidoReciboModal.id === pedidoId) {
@@ -424,6 +429,9 @@ export const PedidosLista: React.FC = () => {
   const pedidosFiltrados = useMemo(() => {
     return pedidos
       .filter(p => {
+        // Pedidos concluídos tornam-se vendas e pertencem exclusivamente à tela de Vendas
+        if (p.status === 'concluido') return false;
+
         let matchStatus = true;
         if (statusFiltro !== 'todos') {
           matchStatus = p.status === statusFiltro;
@@ -799,7 +807,6 @@ export const PedidosLista: React.FC = () => {
                 { id: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
                 { id: 'parcialmente_pago', label: 'Parcial' },
                 { id: 'pago', label: 'Pagos' },
-                { id: 'concluido', label: 'Concluídos' },
                 { id: 'cancelado', label: 'Cancelados' }
               ].map((f) => (
                 <button
