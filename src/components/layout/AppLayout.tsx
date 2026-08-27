@@ -29,7 +29,7 @@ import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
 import { ChatAjudaIA } from '../ChatAjudaIA';
-import { DesktopAppPrompt } from '../DesktopAppPrompt';
+import { DesktopAppPrompt, DesktopInstallButton } from '../DesktopAppPrompt';
 import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
@@ -469,8 +469,11 @@ export const AppLayout: React.FC = () => {
             )}
           </nav>
 
-          {/* AÇÕES DA DIREITA (CATÁLOGO + USUÁRIO / SAIR) */}
+          {/* AÇÕES DA DIREITA (INSTALAR APP + CATÁLOGO + USUÁRIO / SAIR) */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* BOTÃO FIXO DE INSTALAÇÃO DO APP NO DESKTOP */}
+            <DesktopInstallButton />
+
             <Link
               to={catalogUrl}
               target="_blank"

@@ -4,7 +4,7 @@ import { Loja, UsuarioLoja } from '../types';
 export interface ArtigoTutorial {
   id: string;
   titulo: string;
-  categoria: 'impressao' | 'vendas' | 'pedidos' | 'relatorios' | 'usuarios' | 'estoque' | 'catalogo' | 'financas' | 'fiado' | 'geral';
+  categoria: 'impressao' | 'vendas' | 'pedidos' | 'relatorios' | 'usuarios' | 'estoque' | 'catalogo' | 'financas' | 'fiado' | 'geral' | 'ia';
   resumo: string;
   conteudo: string;
   passos: string[];
@@ -12,15 +12,76 @@ export interface ArtigoTutorial {
 }
 
 export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
-  // 1. IMPRESSÃO & RECIBOS
+  // 1. PRODUTOS & CADASTRO INTELIGENTE COM IA (DESTAQUE HUBI)
+  {
+    id: 'cadastro-produtos-ia',
+    titulo: 'Como cadastrar produtos usando Inteligência Artificial (Foto, Código de Barras e Descrição)',
+    categoria: 'ia',
+    resumo: 'Cadastre produtos em segundos usando a IA do HUBI: por foto do produto, leitor de código de barras ou gerador automático de descrições.',
+    conteudo: `O HUBI possui o cadastro de produtos mais rápido e inteligente do mercado com 3 recursos de IA:
+1. 📸 Cadastro por Foto / Imagem com IA:
+   Tire uma foto do produto com a câmera do celular ou envie uma imagem no computador. A IA reconhece o produto, identifica a embalagem e preenche automaticamente o Nome, Categoria sugerida e Descrição de vendas.
+2. 🏷️ Gerador de Descrições Comerciais com IA:
+   Basta digitar o nome básico do produto e clicar no botão 'Gerar com IA ✨'. A IA cria uma descrição atrativa, vendedora e profissional, ideal para o Catálogo Online e vitrine do WhatsApp.
+3. 📦 Leitor de Código de Barras (EAN):
+   Aponte a câmera do celular ou o leitor de código de barras. O HUBI consulta a base de produtos e preenche os dados cadastrais instantaneamente.
+4. 🎨 Grade e Variações:
+   Adicione variações de cores, tamanhos, voltagens ou sabores com controle de estoque e código individual.`,
+    passos: [
+      'Acesse a aba Produtos & Estoque e clique em "Novo Produto"',
+      'Para cadastrar por Foto: Toque em "Escanear Produto com IA" ou envie a foto',
+      'Para cadastrar por Código de Barras: Aponte o leitor de código de barras',
+      'Para gerar a Descrição: Digite o nome do item e clique em "Gerar Descrição com IA ✨"',
+      'Informe o preço de custo e preço de venda e clique em "Salvar Produto"'
+    ],
+    tags: ['produto', 'cadastrar produto', 'ia', 'foto', 'codigo de barras', 'descricao ia', 'camera', 'inteligencia artificial', 'novo produto', 'estoque', 'grade', 'variacoes']
+  },
+  {
+    id: 'cadastrar-produtos-grade',
+    titulo: 'Como cadastrar produtos com variações (Cores, Tamanhos, Sabores)',
+    categoria: 'estoque',
+    resumo: 'Crie grades de produtos com controle de estoque individual por variação.',
+    conteudo: `Para produtos que possuem tamanhos, cores ou modelos diferentes:
+1. Acesse Produtos & Estoque > Novo Produto.
+2. Preencha Nome, Categoria e Preço base.
+3. Ative a opção 'Tem variações'.
+4. Defina os atributos (ex: Tamanho: P, M, G, GG | Cor: Preto, Branco, Azul).
+5. O HUBI gera a matriz de variações com controle de estoque, código de barras e foto individual para cada combinação.`,
+    passos: [
+      'Acesse Produtos & Estoque > Cadastrar Produto',
+      'Ative a opção "Tem variações"',
+      'Adicione as opções de tamanho, cor ou sabor',
+      'Informe a quantidade em estoque de cada variação e clique em Salvar'
+    ],
+    tags: ['produto', 'variacao', 'grade', 'tamanho', 'cor', 'estoque', 'matriz']
+  },
+  {
+    id: 'tabelas-preco-atacado',
+    titulo: 'Como configurar preços de Atacado e Distribuidor (Autoatacado)',
+    categoria: 'estoque',
+    resumo: 'Defina preços escalonados por quantidade para compras em volume e atacado.',
+    conteudo: `No HUBI, cada produto pode ter faixas de preços automáticas:
+• Varejo: Preço padrão para compras individuais no balcão e no catálogo.
+• Atacado: Aplicado automaticamente quando o cliente compra acima da quantidade mínima de atacado (ex: 5 peças).
+• Distribuidor (Autoatacado): Preço especial para revendedores em grandes volumes (ex: 20 peças).`,
+    passos: [
+      'No cadastro ou edição do produto, vá na seção Precificação',
+      'Preencha o Preço Atacado e a Quantidade Mínima',
+      'Preencha o Preço Distribuidor e a Quantidade Mínima',
+      'No PDV e no Catálogo Online, o desconto por quantidade será aplicado automaticamente'
+    ],
+    tags: ['atacado', 'distribuidor', 'autoatacado', 'tabela de preco', 'desconto volume', 'preco']
+  },
+
+  // 2. IMPRESSÃO & RECIBOS
   {
     id: 'impressoras-recibo',
-    titulo: 'Como instalar impressoras de recibo no HUBI / Kyte',
+    titulo: 'Como instalar impressoras de recibo no HUBI',
     categoria: 'impressao',
     resumo: 'Passo a passo para conectar impressoras térmicas (58mm/80mm), Bluetooth e impressoras comuns A4.',
     conteudo: `O HUBI possui um motor de impressão universal compatível com qualquer impressora instalada no Windows/Mac ou conectada via Bluetooth no celular:
-1. Impressoras Térmicas USB/Rede (58mm ou 80mm): Instale o driver oficial do fabricante (ex: Elgin, Bematech, Epson, Pos-58/80). Ao clicar em 'Térmica 58/80mm' no recibo, selecione sua impressora no diálogo do sistema.
-2. Impressoras Bluetooth no Celular/Tablet: Pareie a mini-impressora nas configurações Bluetooth do Android/iOS e selecione imprimir recibo.
+1. Impressoras Térmicas USB/Rede (58mm ou 80mm): Instale o driver oficial do fabricante no computador (ex: Elgin, Bematech, Epson, Pos-58/80). Ao clicar em 'Térmica 58/80mm' no recibo, selecione sua impressora e imprima em alta velocidade.
+2. Impressoras Bluetooth no Celular/Tablet: Pareie a mini-impressora nas configurações Bluetooth do aparelho e selecione imprimir recibo.
 3. Impressoras Comuns (Folha A4): Utilize o botão 'Imprimir A4' ou 'Baixar PDF'.`,
     passos: [
       'Abra qualquer pedido ou venda e clique no ícone de Recibo',
@@ -35,10 +96,10 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como personalizar os dados, logotipo e textos do recibo',
     categoria: 'impressao',
     resumo: 'Edite o logotipo, nome fantasia, endereço, telefones, mensagem de cabeçalho e rodapé do cupom.',
-    conteudo: `Personalize o recibo entregue ao cliente:
+    conteudo: `Personalize o recibo entregue ao seu cliente:
 • Cabeçalho: Nome da loja, endereço completo, CNPJ/CPF e telefones de contato.
 • Logotipo: Exibido no topo do recibo impresso e digital.
-• Rodapé: Mensagem de agradecimento, termos de troca ou chaves Pix.`,
+• Rodapé: Mensagem de agradecimento, termos de troca ou chave Pix.`,
     passos: [
       'Ao visualizar um recibo, clique em "Editar meu recibo"',
       'Edite os dados da loja, cabeçalho e rodapé na gaveta lateral',
@@ -48,7 +109,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     tags: ['recibo', 'personalizar', 'cabecalho', 'rodape', 'logo', 'configuracao', 'cupom']
   },
 
-  // 2. VENDAS & PDV
+  // 3. VENDAS & PDV
   {
     id: 'como-fazer-venda-pdv',
     titulo: 'Como fazer uma venda rápida no PDV (Frente de Caixa)',
@@ -75,9 +136,9 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     resumo: 'Entenda a separação entre Pedidos em andamento e Histórico de Vendas finalizadas.',
     conteudo: `No HUBI, existe uma separação clara entre Pedidos e Vendas:
 • Pedidos: Abrange todo o fluxo de produção, separação e entrega (Pendente, Confirmado, Em produção, Saiu para entrega).
-• Vendas: Quando o pedido é finalizado e o pagamento é confirmado, clique em 'Concluir venda'. O pedido passa para Concluído e migra automaticamente para o Histórico de Vendas.`,
+• Vendas: Quando o pedido é finalizado e o pagamento é confirmado, clique em 'Concluir venda'. O pedido passa para Concluído e migra automaticamente para a aba Vendas.`,
     passos: [
-      'Na tela de Pedidos, clique no código do pedido para abrir os detalhes',
+      'Na tela de Pedidos, clique no código do pedido para abrir a visão detalhada',
       'Verifique os itens e o cliente',
       'Clique no botão verde "Concluir venda"',
       'Selecione o meio de pagamento recebido e confirme',
@@ -92,9 +153,9 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     resumo: 'Procedimento para cancelamento seguro de pedidos e vendas.',
     conteudo: `Para cancelar um pedido que não será atendido:
 1. Abra os detalhes do pedido clicando no seu código.
-2. Clique no ícone vermelho de bloqueio (Cancelar pedido).
-3. Confirme o cancelamento no modal 'Cancelar pedido? Este pedido não poderá ser alterado'.
-4. O status mudará para Cancelado e os produtos não impactarão o faturamento.`,
+2. Clique no botão vermelho de cancelamento.
+3. Confirme no modal 'Cancelar pedido? Este pedido não poderá ser alterado'.
+4. O status mudará para Cancelado e não impactará o faturamento.`,
     passos: [
       'Acesse Pedidos ou Vendas',
       'Clique no código do pedido',
@@ -104,12 +165,12 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     tags: ['cancelar', 'estorno', 'devolucao', 'cancelado', 'pedido', 'venda']
   },
 
-  // 3. FIADO & CRÉDITO DE CLIENTES
+  // 4. FIADO & CRÉDITO DE CLIENTES
   {
     id: 'venda-fiado',
     titulo: 'Como fazer uma venda no fiado e controle de crédito',
     categoria: 'fiado',
-    resumo: 'Registro de vendas fiado, limites de crédito para clientes e quitação de parcelas.',
+    resumo: 'Registro de vendas fiado, limites de crédito para clientes e quitação de débitos.',
     conteudo: `O HUBI possui controle completo de fiado e conta-corrente de clientes:
 1. No PDV ou ao Concluir Pedido, selecione a forma de pagamento 'Venda Fiado'.
 2. O sistema exige que a venda seja vinculada a um Cliente cadastrado.
@@ -132,7 +193,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
 1. Acesse o módulo Clientes.
 2. Localize o cliente pelo nome ou telefone.
 3. Clique em 'Receber Fiado / Abater Saldo'.
-4. Informe o valor pago (total ou parcial) e o meio de pagamento (Pix, Dinheiro, Cartão).
+4. Informe o valor pago (total ou parcial) e a forma de pagamento (Pix, Dinheiro, Cartão).
 5. O saldo devedor do cliente é reduzido imediatamente e a entrada é lançada no Caixa.`,
     passos: [
       'Acesse Clientes',
@@ -141,44 +202,6 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
       'Informe o valor e confirme'
     ],
     tags: ['receber fiado', 'abater divida', 'baixa fiado', 'quitar fiado', 'saldo cliente']
-  },
-
-  // 4. PRODUTOS & ESTOQUE
-  {
-    id: 'cadastrar-produtos-grade',
-    titulo: 'Como cadastrar produtos com variações (Cores, Tamanhos, Sabores)',
-    categoria: 'estoque',
-    resumo: 'Crie grades de produtos com controle de estoque individual por variação.',
-    conteudo: `Para produtos com múltiplos tamanhos ou cores:
-1. Acesse Produtos & Estoque > Novo Produto.
-2. Preencha Nome, Categoria e Preço.
-3. Ative a opção 'Tem variações'.
-4. Defina os atributos (ex: Tamanho: P, M, G | Cor: Preto, Branco).
-5. O HUBI gera a matriz de variações onde você pode definir estoque e código de barras individual para cada combinação.`,
-    passos: [
-      'Acesse Produtos & Estoque > Cadastrar Produto',
-      'Ative o switch "Tem variações"',
-      'Adicione as opções de tamanho, cor ou sabor',
-      'Informe a quantidade em estoque de cada variação e salve'
-    ],
-    tags: ['produto', 'variacao', 'grade', 'tamanho', 'cor', 'estoque', 'matriz']
-  },
-  {
-    id: 'tabelas-preco-atacado',
-    titulo: 'Como configurar preços de Atacado e Distribuidor (Autoatacado)',
-    categoria: 'estoque',
-    resumo: 'Defina preços escalonados por quantidade para vendas no atacado.',
-    conteudo: `No HUBI, cada produto pode ter 3 faixas de preços:
-• Varejo: Preço padrão para compras individuais.
-• Atacado: Aplicado automaticamente quando o cliente compra acima da quantidade mínima de atacado (ex: 5 peças).
-• Distribuidor (Autoatacado): Preço especial para revendedores em grandes volumes (ex: 20 peças).`,
-    passos: [
-      'No cadastro ou edição do produto, vá na seção Precificação',
-      'Preencha o Preço Atacado e a Quantidade Mínima de Atacado',
-      'Preencha o Preço Distribuidor e a Quantidade Mínima',
-      'No PDV e no Catálogo, o desconto por volume será aplicado automaticamente'
-    ],
-    tags: ['atacado', 'distribuidor', 'autoatacado', 'tabela de preco', 'desconto volume', 'preco']
   },
 
   // 5. CATÁLOGO ONLINE & WHATSAPP
@@ -206,8 +229,8 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     categoria: 'catalogo',
     resumo: 'Permita que o cliente acompanhe em tempo real o status do pedido pelo WhatsApp.',
     conteudo: `Todo pedido possui um link público e seguro de acompanhamento em tempo real:
-• O cliente pode abrir no celular para ver se o pedido está confirmado, em produção ou saiu para entrega.
-• Também permite que o cliente visualize o endereço, itens e contato da loja.`,
+• O cliente pode abrir no celular para ver se o pedido está confirmado, em produção ou pronto para retirada.
+• Também permite que o cliente visualize o endereço, itens e contato da loja com botão Como Chegar.`,
     passos: [
       'Abra os detalhes do pedido',
       'No topo, clique em "Copiar link" ou "WhatsApp"',
@@ -223,7 +246,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     titulo: 'Como cadastrar, inativar e apagar usuários / operadores',
     categoria: 'usuarios',
     resumo: 'Controle de operadores, níveis de acesso (Admin, Gerente, Vendedor) e permissões de segurança.',
-    conteudo: `O controle de usuários permite definir exatamente o que cada operador pode fazer:
+    conteudo: `O controle de usuários do HUBI permite definir exatamente o que cada operador pode fazer:
 • Perfis disponíveis: Owner (Dono), Admin (Acesso total), Gerente (Financeiro e relatórios) e Vendedor/Comum (Frente de caixa e pedidos próprios).
 • Permissões individuais: Bloqueio de uso em celular pessoal, permissão para dar desconto, visualização de transações de outros operadores e permissão de gerenciar estoque.`,
     passos: [
@@ -243,7 +266,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     resumo: 'Controle o saldo inicial de troco, retiradas e conciliação de valores no fim do dia.',
     conteudo: `Mantenha seu caixa 100% conciliado:
 • Abertura de Caixa: Informe o valor de troco inicial em dinheiro na gaveta.
-• Sangria / Suprimento: Registre saídas para pagamentos rápidos ou aportes de troco.
+• Sangria / Suprimento: Registre saídas para despesas rápidas ou aportes de troco.
 • Fechamento: No final do expediente, conte os valores em dinheiro, confira os totais de cartões e Pix e clique em 'Fechar Caixa'. O sistema gera o relatório de conferência.`,
     passos: [
       'Acesse Finanças & Caixa',
@@ -261,8 +284,8 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     categoria: 'relatorios',
     resumo: 'Como gerar planilhas em Excel/CSV de pedidos, vendas, clientes e movimentações financeiras.',
     conteudo: `Você pode exportar relatórios completos com 1 clique:
-• Na tela de Pedidos ou Vendas: Clique no botão 'Exportar' no canto superior direito para baixar a planilha detalhada em CSV/Excel com todos os itens, clientes, valores e formas de pagamento.
-• Na tela de Finanças: Acesse o Fluxo de Caixa para exportar entradas, saídas e previsões financeiras.
+• Na tela de Pedidos ou Vendas: Clique no botão 'Exportar' para baixar a planilha detalhada em CSV/Excel com todos os itens, clientes, valores e formas de pagamento.
+• Na tela de Finanças: Acesse o Fluxo de Caixa para exportar entradas, saídas e conciliações.
 • Na tela de Estatísticas: Visualize gráficos de faturamento por período, ticket médio e produtos mais vendidos.`,
     passos: [
       'Acesse a tela de Pedidos, Vendas ou Finanças',
@@ -275,7 +298,7 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
 ];
 
 /**
- * Consulta a IA Especialista em Suporte HUBI / Kyte
+ * Consulta a IA Especialista em Suporte HUBI
  */
 export const responderDuvidaSuporteIA = async (
   duvida: string,
@@ -292,18 +315,26 @@ export const responderDuvidaSuporteIA = async (
   ).join('\n\n');
 
   const prompt = `
-Você é a **Rubi**, a assistente virtual e especialista oficial em suporte do sistema **HUBI** (totalmente compatível com as funcionalidades e fluxos operacionais do Kyte e HUBI).
-Seu objetivo é ajudar o usuário (${nomeUsuario}, da loja ${nomeLoja}) respondendo dúvidas operacionais com extrema clareza, objetividade, assertividade e empatia.
+Você é a **Rubi**, a assistente virtual e especialista oficial em suporte do **Sistema HUBI** (sistema de gestão comercial e PDV).
+Seu objetivo é ajudar o usuário (${nomeUsuario}, da loja ${nomeLoja}) respondendo dúvidas operacionais com extrema clareza, precisão, assertividade e empatia.
 
-BASE OFICIAL DE TUTORIAIS DO SISTEMA:
+IMPORTANTE SOBRE O SISTEMA HUBI:
+- O nome exclusivo do sistema é **HUBI**. NUNCA mencione palavras ou sistemas de terceiros como "Kyte". Sempre se refira ao sistema como **HUBI** ou **HUBI PDV**.
+- SUPERPODER EXCLUSIVO DE CADASTRO DE PRODUTOS COM IA:
+  Sempre que o usuário perguntar sobre cadastrar produtos, criar itens ou gerenciar estoque, você DEVE destacar e explicar que o HUBI possui **Inteligência Artificial integrada para cadastramento de produtos**:
+  1. 📸 **Cadastro por Foto / Imagem**: O lojista tira uma foto do produto (no celular ou computador) e a IA reconhece o item, sugere nome, categoria e descrição automaticamente.
+  2. 🏷️ **Gerador de Descrições Comerciais com IA**: Basta digitar o nome do item e clicar no botão ✨ para a IA criar descrições vendedoras e atrativas para o Catálogo Online e balcão.
+  3. 📦 **Leitor de Código de Barras (EAN)**: Consulta rápida do código de barras para preenchimento ágil.
+  4. 🎨 **Grade de Variações**: Controle de cores, tamanhos e sabores com estoque individual.
+
+BASE OFICIAL DE TUTORIAIS DO HUBI:
 ${baseConhecimentoTexto}
 
 DIRETRIZES DE RESPOSTA:
-1. Responda em português brasileiro com tom prestativo, profissional e encorajador.
-2. Seja direto ao ponto: forneça um passo a passo numerado e claro quando for uma dúvida de como fazer algo.
-3. Use a base de tutoriais acima como verdade absoluta para ensinar como usar impressoras térmicas 58/80mm, PDV, fiado, pedidos, vendas, variações de produtos, catálogo online e relatórios.
-4. Use formatação markdown (negritos, tópicos e emojis) para tornar a leitura visualmente excelente.
-5. Termine sempre de forma acolhedora se colocando à disposição para tirar qualquer outra dúvida!
+1. Responda em português brasileiro com tom prestativo, ágil, profissional e encorajador.
+2. Seja direto ao ponto: forneça um passo a passo numerado e claro quando for uma dúvida operacional.
+3. Use formatação markdown (negritos, tópicos e emojis) para tornar a leitura visualmente agradável.
+4. Termine sempre se colocando à disposição para ajudar com qualquer outra dúvida no HUBI!
 
 PERGUNTA DO USUÁRIO:
 "${duvida}"
@@ -313,7 +344,7 @@ PERGUNTA DO USUÁRIO:
     try {
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.25, maxOutputTokens: 800 }
+        generationConfig: { temperature: 0.25, maxOutputTokens: 850 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -326,8 +357,13 @@ PERGUNTA DO USUÁRIO:
     }
   }
 
-  // Fallback inteligente baseado em busca por palavras-chave caso sem API key
+  // Fallback inteligente caso sem API key
   const dLower = duvida.toLowerCase();
+  
+  if (dLower.includes('produto') || dLower.includes('cadastr') || dLower.includes('item') || dLower.includes('foto') || dLower.includes('codigo')) {
+    return `Olá, **${primeiroNomeUsuario(nomeUsuario)}**! 😊\n\nNo **HUBI**, cadastrar produtos é super rápido graças à **Inteligência Artificial integrada**! ✨\n\nVocê tem 3 superpoderes ao cadastrar itens:\n\n1. 📸 **Cadastro por Foto com IA**: Envie ou tire uma foto do produto no celular/computador e a IA identifica o item, sugerindo nome, categoria e detalhes automaticamente.\n2. 🏷️ **Gerador de Descrições Comerciais com IA**: Ao digitar o nome do produto, clique no botão ✨ para a IA criar uma descrição atrativa e profissional para suas vendas no Catálogo Online e WhatsApp.\n3. 📦 **Leitor de Código de Barras**: Aponte a câmera ou o leitor de código de barras para preencher os dados do produto em segundos.\n\n**Passo a passo:**\n1. Acesse o menu **Produtos & Estoque**.\n2. Clique no botão **"Novo Produto"**.\n3. Use a câmera para escanear ou digite as informações e use a **IA** para gerar a descrição.\n4. Defina o preço de custo e preço de venda e clique em **Salvar**!\n\nSe tiver variações (cores e tamanhos), basta ativar a opção *"Tem variações"*. Posso te ajudar em mais alguma coisa? 👍`;
+  }
+
   const tutorialEncontrado = TUTORIAIS_HUBI.find(
     (t) =>
       t.tags.some((tag) => dLower.includes(tag)) ||
@@ -335,8 +371,12 @@ PERGUNTA DO USUÁRIO:
   );
 
   if (tutorialEncontrado) {
-    return `Olá, **${nomeUsuario}**! 😊\n\nAqui está como resolver sua dúvida sobre **${tutorialEncontrado.titulo}**:\n\n${tutorialEncontrado.conteudo}\n\n**Passo a passo prático:**\n${tutorialEncontrado.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes, estou por aqui! 👍`;
+    return `Olá, **${primeiroNomeUsuario(nomeUsuario)}**! 😊\n\nAqui está como resolver sua dúvida sobre **${tutorialEncontrado.titulo}** no HUBI:\n\n${tutorialEncontrado.conteudo}\n\n**Passo a passo prático:**\n${tutorialEncontrado.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes, estou à disposição! 👍`;
   }
 
-  return `Olá, **${nomeUsuario}**! 👋\n\nComo posso ajudar você no **HUBI** hoje?\n\n• **Vendas & PDV**: Registro rápido com Dinheiro, Pix, Cartão ou Fiado.\n• **Gestão de Pedidos**: Acompanhe o fluxo de produção e clique em *Concluir Venda* para registrar no Histórico de Vendas.\n• **Impressão de Recibos**: Suporte a impressoras térmicas (58/80mm), Bluetooth e folhas A4.\n• **Estoque com Grade**: Cadastro de variações (cores e tamanhos) e preços de atacado.\n• **Relatórios**: Exportação de planilhas completas em Excel/CSV.\n\nQual operação você gostaria de realizar agora?`;
+  return `Olá, **${primeiroNomeUsuario(nomeUsuario)}**! 👋\n\nComo posso ajudar você no **HUBI** hoje?\n\n• **Cadastro com IA**: Crie produtos por foto, código de barras ou descrições automáticas.\n• **Vendas & PDV**: Registro rápido com Dinheiro, Pix, Cartão ou Fiado.\n• **Gestão de Pedidos**: Acompanhe o status e clique em *Concluir Venda* para registrar em Vendas.\n• **Impressão de Recibos**: Suporte a impressoras térmicas (58/80mm), Bluetooth e folhas A4.\n• **Relatórios**: Exportação de planilhas completas em Excel/CSV.\n\nQual operação você gostaria de realizar agora?`;
+};
+
+const primeiroNomeUsuario = (nomeCompleto: string): string => {
+  return nomeCompleto ? nomeCompleto.split(' ')[0] : 'Lojista';
 };

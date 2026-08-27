@@ -1,6 +1,6 @@
 /**
  * HUBI - Serviço de Exportação de Feeds de Parceiros & Relatórios
- * Padrão fiel aos relatórios oficiais Kyte (Sales, Products, Customers) e Feeds XML
+ * Padrão oficial HUBI (Sales, Products, Customers) e Feeds XML
  */
 
 import { Loja, Produto, Pedido, Cliente, ItemPedido } from '../types';
@@ -89,7 +89,7 @@ ${itemsXml}
   }
 
   /**
-   * Exporta Relatórios para arquivo CSV formatado exatamente no padrão dos relatórios Kyte
+   * Exporta Relatórios para arquivo CSV formatado exatamente no padrão oficial HUBI
    */
   exportarCsvRelatorio(tipo: 'vendas' | 'produtos' | 'clientes', dados: any[], dataInicio?: string, dataFim?: string): void {
     let colunas: string[] = [];
