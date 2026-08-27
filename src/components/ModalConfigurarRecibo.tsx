@@ -46,7 +46,7 @@ export const ModalConfigurarRecibo: React.FC<ModalConfigurarReciboProps> = ({
         loja.endereco_cidade
       ].filter(Boolean).join(', ');
       setEndereco(endFormatado);
-      setLogoUrl((loja as any).logo_url || '');
+      setLogoUrl(loja.url_logo || (loja as any).logo_url || '');
 
       const extras = (loja as any).configuracoes_extras || {};
       const configRecibo = extras.recibo || {};

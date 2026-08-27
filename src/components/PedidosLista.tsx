@@ -479,7 +479,7 @@ export const PedidosLista: React.FC = () => {
     loja?.endereco_cidade
   ].filter(Boolean).join(', ') || 'Endereço da Loja';
 
-  const logoLojaUrl = (loja as any)?.logo_url;
+  const logoLojaUrl = loja?.url_logo || (loja as any)?.logo_url;
 
   const getStatusBadge = (status: StatusPedido) => {
     switch (status) {

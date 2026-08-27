@@ -14,14 +14,15 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo } from '../types';
+import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom } from '../types';
 import {
   obterRegrasPrecificacao,
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2 } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
+import { CupomService } from '../services/cupomService';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -62,6 +63,14 @@ export const CatalogoPublico: React.FC = () => {
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
   const [observacoes, setObservacoes] = useState<string>('');
   const [enviandoPedido, setEnviandoPedido] = useState<boolean>(false);
+
+  // Estados de Cupom de Desconto
+  const [codigoCupomInput, setCodigoCupomInput] = useState<string>('');
+  const [cupomAplicado, setCupomAplicado] = useState<Cupom | null>(null);
+  const [descontoCupom, setDescontoCupom] = useState<number>(0);
+  const [freteGratisCupom, setFreteGratisCupom] = useState<boolean>(false);
+  const [validandoCupom, setValidandoCupom] = useState<boolean>(false);
+  const [mensagemCupom, setMensagemCupom] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   useEffect(() => {
     const carregarCatalogo = async () => {
@@ -131,7 +140,65 @@ export const CatalogoPublico: React.FC = () => {
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
   const valorFrete = Number(formaEntregaEscolhida?.valor_taxa || 0);
-  const total = subtotal + valorFrete;
+  const valorFreteEfetivo = freteGratisCupom ? 0 : valorFrete;
+  const total = Math.max(0, subtotal - descontoCupom) + valorFreteEfetivo;
+
+  // Revalidar cupom caso o subtotal mude
+  useEffect(() => {
+    if (cupomAplicado && loja?.id) {
+      CupomService.validarCupomCatalogo(loja.id, cupomAplicado.codigo, subtotal).then(res => {
+        if (res.valido) {
+          setDescontoCupom(res.descontoCalculado);
+          setFreteGratisCupom(res.freteGratis);
+        } else {
+          setCupomAplicado(null);
+          setDescontoCupom(0);
+          setFreteGratisCupom(false);
+          setMensagemCupom({ tipo: 'erro', texto: res.mensagem || 'Cupom removido.' });
+        }
+      });
+    }
+  }, [subtotal, cupomAplicado?.codigo, loja?.id]);
+
+  const handleAplicarCupom = async () => {
+    if (!loja?.id || !codigoCupomInput.trim()) return;
+    setValidandoCupom(true);
+    setMensagemCupom(null);
+    try {
+      const res = await CupomService.validarCupomCatalogo(loja.id, codigoCupomInput, subtotal);
+      if (res.valido && res.cupom) {
+        setCupomAplicado(res.cupom);
+        setDescontoCupom(res.descontoCalculado);
+        setFreteGratisCupom(res.freteGratis);
+        setMensagemCupom({
+          tipo: 'sucesso',
+          texto: res.freteGratis
+            ? 'Cupom de Frete Grátis aplicado com sucesso! 🚚'
+            : `Cupom ${res.cupom.codigo} aplicado: R$ ${res.descontoCalculado.toFixed(2)} de desconto! 🎉`
+        });
+      } else {
+        setCupomAplicado(null);
+        setDescontoCupom(0);
+        setFreteGratisCupom(false);
+        setMensagemCupom({
+          tipo: 'erro',
+          texto: res.mensagem || 'Cupom inválido ou não encontrado.'
+        });
+      }
+    } catch (err) {
+      setMensagemCupom({ tipo: 'erro', texto: 'Erro ao validar cupom.' });
+    } finally {
+      setValidandoCupom(false);
+    }
+  };
+
+  const handleRemoverCupom = () => {
+    setCupomAplicado(null);
+    setDescontoCupom(0);
+    setFreteGratisCupom(false);
+    setCodigoCupomInput('');
+    setMensagemCupom(null);
+  };
 
   const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null, quantidade: number = 1) => {
     const key = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
@@ -193,11 +260,15 @@ export const CatalogoPublico: React.FC = () => {
             status: 'pendente',
             tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
             subtotal,
-            valor_frete: valorFrete,
+            valor_frete: valorFreteEfetivo,
+            valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
             valor_total: total,
             saldo_devedor: total,
+            cupom_id: cupomAplicado?.id || null,
+            cupom_codigo: cupomAplicado?.codigo || null,
+            desconto_cupom: descontoCupom || (freteGratisCupom ? valorFrete : 0),
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
-            observacoes: `Cliente: ${nomeCliente} (${whatsappCliente}). ${observacoes ? `Obs: ${observacoes}` : ''}`,
+            observacoes: `Cliente: ${nomeCliente} (${whatsappCliente}). ${cupomAplicado ? `[Cupom: ${cupomAplicado.codigo}] ` : ''}${observacoes ? `Obs: ${observacoes}` : ''}`,
             data_venda: new Date().toISOString()
           }
         ])
@@ -953,6 +1024,68 @@ Fico no aguardo da confirmação! ✨`;
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
                     />
                   </div>
+
+                  {/* CAMPO DE CUPOM DE DESCONTO */}
+                  <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Ticket className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Possui cupom de desconto?</span>
+                    </span>
+
+                    {cupomAplicado ? (
+                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                            ✓
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-slate-100">{cupomAplicado.codigo}</span>
+                            <span className="text-[10px] text-emerald-400 block">
+                              {freteGratisCupom ? 'Frete Grátis Aplicado' : `R$ ${descontoCupom.toFixed(2)} OFF`}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoverCupom}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition text-xs"
+                          title="Remover cupom"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="CÓDIGO DO CUPOM"
+                            value={codigoCupomInput}
+                            onChange={(e) => setCodigoCupomInput(e.target.value.toUpperCase())}
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-emerald-500 tracking-wider"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAplicarCupom}
+                            disabled={!codigoCupomInput.trim() || validandoCupom}
+                            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs transition cursor-pointer shrink-0"
+                          >
+                            {validandoCupom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Aplicar'}
+                          </button>
+                        </div>
+
+                        {mensagemCupom && (
+                          <span
+                            className={`text-[10px] block ${
+                              mensagemCupom.tipo === 'sucesso' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-medium'
+                            }`}
+                          >
+                            {mensagemCupom.texto}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </form>
               )}
             </div>
@@ -966,14 +1099,24 @@ Fico no aguardo da confirmação! ✨`;
                   </div>
                   {avaliacaoCarrinho.economiaTotal > 0 && (
                     <div className="flex justify-between text-emerald-400 font-semibold">
-                      <span>Desconto Aplicado ({avaliacaoCarrinho.tabelaAtiva}):</span>
+                      <span>Desconto de Volume ({avaliacaoCarrinho.tabelaAtiva}):</span>
                       <span>- R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {descontoCupom > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-semibold">
+                      <span>Desconto Cupom ({cupomAplicado?.codigo}):</span>
+                      <span>- R$ {descontoCupom.toFixed(2)}</span>
                     </div>
                   )}
                   {valorFrete > 0 && (
                     <div className="flex justify-between text-slate-300">
                       <span>Taxa de Entrega:</span>
-                      <span>+ R$ {valorFrete.toFixed(2)}</span>
+                      {freteGratisCupom ? (
+                        <span className="text-emerald-400 font-bold">GRÁTIS (Cupom)</span>
+                      ) : (
+                        <span>+ R$ {valorFrete.toFixed(2)}</span>
+                      )}
                     </div>
                   )}
                   <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">

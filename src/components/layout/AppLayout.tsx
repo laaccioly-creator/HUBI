@@ -21,9 +21,14 @@ import {
   ChevronDown,
   Check,
   Globe,
-  Receipt
+  Receipt,
+  Ticket,
+  Sun,
+  Moon,
+  Laptop
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme, ModoTema } from '../../contexts/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
@@ -37,6 +42,7 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
   const permissions = usePermissions();
+  const { tema, temaEfetivo, setTema } = useTheme();
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
@@ -303,6 +309,13 @@ export const AppLayout: React.FC = () => {
       visivel: permissions.podeAcessarCatalogo
     },
     {
+      name: 'Cupons de Desconto',
+      path: '/coupons',
+      icon: Ticket,
+      description: 'Promoções e cupons de frete grátis',
+      visivel: permissions.podeAcessarCupons
+    },
+    {
       name: 'Cadastros & Tabelas',
       path: '/auxiliares',
       icon: Layers,
@@ -469,10 +482,44 @@ export const AppLayout: React.FC = () => {
             )}
           </nav>
 
-          {/* AÇÕES DA DIREITA (INSTALAR APP + CATÁLOGO + USUÁRIO / SAIR) */}
+          {/* AÇÕES DA DIREITA (INSTALAR APP + TEMA + CATÁLOGO + USUÁRIO / SAIR) */}
           <div className="flex items-center gap-2 shrink-0">
             {/* BOTÃO FIXO DE INSTALAÇÃO DO APP NO DESKTOP */}
             <DesktopInstallButton />
+
+            {/* SELETOR DE TEMA RÁPIDO (DARK / LIGHT / SYSTEM) */}
+            <div className="hidden sm:flex items-center bg-slate-800/80 border border-slate-700/60 rounded-xl p-0.5">
+              <button
+                type="button"
+                onClick={() => setTema('dark')}
+                className={`p-1.5 rounded-lg transition ${
+                  tema === 'dark' ? 'bg-slate-700 text-amber-300 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Modo Escuro (Noturno)"
+              >
+                <Moon className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTema('light')}
+                className={`p-1.5 rounded-lg transition ${
+                  tema === 'light' ? 'bg-amber-500/20 text-amber-400 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Modo Claro (Diurno)"
+              >
+                <Sun className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTema('system')}
+                className={`p-1.5 rounded-lg transition ${
+                  tema === 'system' ? 'bg-slate-700 text-sky-400 shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Automático (Seguir o Sistema)"
+              >
+                <Laptop className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             <Link
               to={catalogUrl}
@@ -520,6 +567,45 @@ export const AppLayout: React.FC = () => {
                   <div className="px-3 py-2 border-b border-slate-800 mb-1 bg-slate-950/50 rounded-xl">
                     <p className="text-xs font-bold text-slate-100 truncate">{usuario?.nome_completo || 'Operador'}</p>
                     <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
+                  </div>
+
+                  {/* Seletor de Tema no Menu do Usuário */}
+                  <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                      Tema do Sistema
+                    </span>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setTema('dark')}
+                        className={`py-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition ${
+                          tema === 'dark' ? 'bg-slate-800 text-amber-300 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Moon className="w-3 h-3" />
+                        <span>Escuro</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTema('light')}
+                        className={`py-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition ${
+                          tema === 'light' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Sun className="w-3 h-3" />
+                        <span>Claro</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTema('system')}
+                        className={`py-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition ${
+                          tema === 'system' ? 'bg-slate-800 text-sky-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Laptop className="w-3 h-3" />
+                        <span>Auto</span>
+                      </button>
+                    </div>
                   </div>
 
                   {permissions.podeAcessarConfig && (

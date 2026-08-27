@@ -470,6 +470,9 @@ export interface Pedido {
   motivo_cancelamento?: string | null;
   criado_em?: string;
   atualizado_em?: string;
+  cupom_id?: string | null;
+  cupom_codigo?: string | null;
+  desconto_cupom?: number | null;
   cliente?: Cliente | null;
   vendedor?: UsuarioLoja | null;
   itens?: ItemPedido[];
@@ -572,4 +575,23 @@ export interface CaixaMovimentacao {
   observacao?: string | null;
   criado_em?: string;
   usuario?: UsuarioLoja | null;
+}
+
+export type TipoCupom = 'desconto_fixo' | 'desconto_percentual' | 'frete_gratis';
+
+export interface Cupom {
+  id: string;
+  loja_id: string;
+  codigo: string;
+  tipo: TipoCupom;
+  valor: number;
+  valor_minimo_carrinho: number;
+  tem_valor_minimo: boolean;
+  ativo: boolean;
+  usos_count: number;
+  limite_usos?: number | null;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  criado_em?: string;
+  atualizado_em?: string;
 }

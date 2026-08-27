@@ -105,7 +105,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
   ].filter(Boolean).join(', ') || 'Endereço da Loja';
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoLoja)}`;
-  const logoUrl = (loja as any)?.logo_url;
+  const logoUrl = loja?.url_logo || (loja as any)?.logo_url;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16 font-sans">

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { usePermissions } from './hooks/usePermissions';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -11,6 +12,7 @@ import { VendasHistorico } from './components/VendasHistorico';
 import { ProdutosEstoque } from './components/ProdutosEstoque';
 import { ProdutoCadastro } from './components/ProdutoCadastro';
 import { ClientesFiado } from './components/ClientesFiado';
+import { CuponsGestao } from './components/CuponsGestao';
 import { FinancasCaixa } from './components/FinancasCaixa';
 import { EstatisticasAnalytics } from './components/EstatisticasAnalytics';
 import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
@@ -150,6 +152,16 @@ const AppRotasInternas: React.FC = () => {
           }
         />
 
+        {/* Cupons de Desconto */}
+        <Route
+          path="coupons"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarCupons}>
+              <CuponsGestao />
+            </RotaProtegida>
+          }
+        />
+
         {/* Configurações (Apenas Admin/Owner) */}
         <Route
           path="config"
@@ -169,13 +181,15 @@ const AppRotasInternas: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <AppRotasInternas />
-        </Router>
-      </CartProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <CartProvider>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <AppRotasInternas />
+          </Router>
+        </CartProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 export default App;
