@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS public.fornecedores (
     email VARCHAR(150),
     numero_documento VARCHAR(20),
     observacoes TEXT,
+    endereco TEXT,
+    ativo BOOLEAN DEFAULT TRUE,
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -332,6 +334,12 @@ CREATE TABLE IF NOT EXISTS public.transacoes_financeiras (
     dia_vencimento_recorrencia INTEGER,
     pedido_id UUID REFERENCES public.pedidos(id) ON DELETE SET NULL,
     fornecedor_id UUID REFERENCES public.fornecedores(id) ON DELETE SET NULL,
+    forma_pagamento VARCHAR(50) DEFAULT 'dinheiro',
+    origem_receita VARCHAR(100),
+    observacoes TEXT,
+    tipo_recorrencia VARCHAR(20) DEFAULT 'gasto_fixo',
+    parcelas_total INTEGER DEFAULT 1,
+    parcela_numero INTEGER DEFAULT 1,
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );

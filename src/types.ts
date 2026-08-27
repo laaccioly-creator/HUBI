@@ -302,6 +302,8 @@ export interface Fornecedor {
   email?: string | null;
   numero_documento?: string | null;
   observacoes?: string | null;
+  endereco?: string | null;
+  ativo?: boolean;
   criado_em?: string;
 }
 
@@ -523,6 +525,11 @@ export interface TransacaoFinanceira {
   pedido_id?: string | null;
   fornecedor_id?: string | null;
   forma_pagamento?: string | null;
+  origem_receita?: string | null;
+  observacoes?: string | null;
+  tipo_recorrencia?: 'gasto_fixo' | 'parcelas' | string | null;
+  parcelas_total?: number | null;
+  parcela_numero?: number | null;
   caixa_id?: string | null;
   criado_em?: string;
   atualizado_em?: string;

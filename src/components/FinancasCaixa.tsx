@@ -27,6 +27,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { TransacaoFinanceira, Caixa, CaixaMovimentacao, Pedido } from '../types';
 import { PrintService } from '../services/printService';
+import { FinancasMobile } from './FinancasMobile';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -887,10 +888,23 @@ Assinatura do Supervisor: ___________________________________________
   const lucroLiquido = totalReceitas - totalDespesasPagas;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
-      {/* ========================================================================= */}
-      {/* HEADER SUPERIOR                                                           */}
-      {/* ========================================================================= */}
+    <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
+      {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 029) */}
+      <div className="block lg:hidden h-full overflow-hidden">
+        <FinancasMobile
+          transacoes={transacoes}
+          pedidos={pedidos}
+          caixaAberto={caixaAberto}
+          carregando={carregando}
+          onRecarregar={carregarFinanceiro}
+        />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
+      <div className="hidden lg:flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
+        {/* ========================================================================= */}
+        {/* HEADER SUPERIOR                                                           */}
+        {/* ========================================================================= */}
       <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -2075,6 +2089,7 @@ Assinatura do Supervisor: ___________________________________________
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
