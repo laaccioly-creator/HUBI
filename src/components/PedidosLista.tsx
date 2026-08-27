@@ -31,7 +31,16 @@ import {
   ArrowLeft,
   DollarSign,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Ban,
+  Wallet,
+  Coins,
+  Send,
+  HelpCircle,
+  ExternalLink,
+  MessageCircle,
+  Percent,
+  Plus
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -43,6 +52,7 @@ import { audioService } from '../services/audioService';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
+import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
 import { PedidosListaMobile } from './PedidosListaMobile';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
@@ -72,18 +82,6 @@ const STATUS_PEDIDO_OPCOES: { id: StatusPedido; label: string }[] = [
   { id: 'cancelado', label: 'Cancelado' }
 ];
 
-const STATUS_PAGAMENTO_OPCOES: { id: StatusPagamento; label: string }[] = [
-  { id: 'aguardando_pagamento', label: 'Aguardando pagamento' },
-  { id: 'pago', label: 'Pago' },
-  { id: 'parcialmente_pago', label: 'Parcialmente Pago' }
-];
-
-const TIPOS_VENDA_OPCOES: { id: TabelaPreco; label: string }[] = [
-  { id: 'varejo', label: 'Varejo' },
-  { id: 'atacado', label: 'Atacado' },
-  { id: 'autoatacado', label: 'Distribuidor' }
-];
-
 export const PedidosLista: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
@@ -96,17 +94,34 @@ export const PedidosLista: React.FC = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
   const [statusFiltro, setStatusFiltro] = useState<string>('todos');
   const [busca, setBusca] = useState<string>('');
+  
+  // Modais e Detalhes
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
+  
+  // Novos Modais da Especificação (TELA004, TELA005, TELA010)
+  const [modalCancelarPedidoAberto, setModalCancelarPedidoAberto] = useState<boolean>(false);
+  const [gavetaConcluirVendaAberta, setGavetaConcluirVendaAberta] = useState<boolean>(false);
+  const [modalConfigurarReciboAberto, setModalConfigurarReciboAberto] = useState<boolean>(false);
+  const [modalDescontoAberto, setModalDescontoAberto] = useState<boolean>(false);
+
+  // Estados de Conclusão de Venda (TELA005)
+  const [meioPagamentoConclusao, setMeioPagamentoConclusao] = useState<string>('dinheiro');
+  const [valorRecebidoConclusao, setValorRecebidoConclusao] = useState<string>('');
+  const [salvandoConclusao, setSalvandoConclusao] = useState<boolean>(false);
+
+  // Edição de Desconto e Observação
+  const [novoDescontoValor, setNovoDescontoValor] = useState<string>('');
+  const [observacaoTexto, setObservacaoTexto] = useState<string>('');
+  const [exibirObsRecibo, setExibirObsRecibo] = useState<boolean>(true);
+
   const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
-
-  const podeAlterarTipoVenda = permissions.ehAdmin;
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
     if (pedido.status_pagamento) return pedido.status_pagamento;
@@ -120,7 +135,6 @@ export const PedidosLista: React.FC = () => {
     try {
       setCarregando(true);
 
-      // Buscar clientes e usuários da loja em paralelo
       supabase.from('clientes').select('*').eq('loja_id', loja.id).then(({ data }) => {
         if (data) setClientes(data);
       });
@@ -139,7 +153,6 @@ export const PedidosLista: React.FC = () => {
         `)
         .eq('loja_id', loja.id);
 
-      // Se o usuário NÃO tem permissão de ver transações de outros operadores, filtra apenas os seus
       if (usuario && !permissions.podeVerTransacoesOutros) {
         query = query.eq('vendedor_id', usuario.id);
       }
@@ -192,6 +205,14 @@ export const PedidosLista: React.FC = () => {
     }
   }, [loja?.id, usuario?.id, somAtivo, permissions.podeVerTransacoesOutros]);
 
+  useEffect(() => {
+    if (pedidoSelecionado) {
+      setObservacaoTexto(pedidoSelecionado.observacoes || '');
+      setValorRecebidoConclusao(Number(pedidoSelecionado.valor_total || 0).toFixed(2));
+      setNovoDescontoValor(Number(pedidoSelecionado.valor_desconto || 0).toFixed(2));
+    }
+  }, [pedidoSelecionado]);
+
   const handleConsultarProduto = async (item: ItemPedido) => {
     try {
       if (item.produto_id) {
@@ -199,237 +220,186 @@ export const PedidosLista: React.FC = () => {
           .from('produtos')
           .select('*, categoria:categorias(*), variacoes:variacoes_produto(*)')
           .eq('id', item.produto_id)
-          .maybeSingle();
+          .single();
 
-        if (data) {
-          setProdutoDetalhesModal(data as unknown as Produto);
-          return;
+        if (!error && data) {
+          setProdutoDetalhesModal(data as Produto);
         }
       }
-      setProdutoDetalhesModal({
-        id: item.produto_id || 'temp',
-        loja_id: loja?.id || '',
-        nome: item.nome_produto,
-        preco_venda_varejo: item.preco_venda_unitario,
-        preco_custo: 0,
-        quantidade_estoque: 0,
-        estoque_minimo_alerta: 0,
-        tipo_unidade: 'un',
-        ativo: true,
-        exibir_catalogo: true,
-        destaque: false,
-        fotos_urls: [],
-        tem_variacoes: false,
-        controlar_estoque: false,
-        promocao_ativa: false,
-        qtd_minima_atacado: 1,
-        qtd_minima_autoatacado: 1,
-        criado_em: new Date().toISOString()
-      } as unknown as Produto);
-    } catch (e) {
-      console.warn('Erro ao carregar detalhes do produto:', e);
+    } catch (err) {
+      console.error('Erro ao buscar detalhes do produto:', err);
     }
-  };
-
-  const statusConfig = (loja?.configuracoes_extras as any)?.status_pedidos_ativos || {};
-  const isStatusHabilitado = (statusId: string) => {
-    if (statusId === 'em_producao') return statusConfig.em_producao !== false;
-    if (statusId === 'em_expedicao') return statusConfig.em_expedicao !== false;
-    if (statusId === 'saiu_para_entrega') return statusConfig.saiu_para_entrega !== false;
-    if (statusId === 'pronto_para_retirar') return statusConfig.pronto_para_retirar !== false;
-    return true;
-  };
-
-  const getOpcoesStatusPermitidas = (pedido: Pedido) => {
-    const statusPag = resolverStatusPagamento(pedido);
-    const ehPago = statusPag === 'pago';
-
-    if (pedido.status === 'pendente') {
-      // Quando pendente, só pode passar para confirmado
-      return [
-        { id: 'pendente' as StatusPedido, label: 'Pendente' },
-        { id: 'confirmado' as StatusPedido, label: 'Confirmado' }
-      ];
-    }
-    let opcoesDisponiveis = STATUS_PEDIDO_OPCOES.filter(opt => isStatusHabilitado(opt.id));
-
-    // Regra de Negócio: Pedido só pode passar para Concluído se o pagamento estiver quitado (Pago)
-    if (!ehPago) {
-      opcoesDisponiveis = opcoesDisponiveis.filter(opt => opt.id !== 'concluido');
-    }
-
-    if (permissions.ehVendedorOuComum) {
-      // Vendedor/Comum não pode alterar depois de confirmado
-      return opcoesDisponiveis.filter(opt => opt.id === pedido.status);
-    }
-    // Demais perfis (Gerente, Admin, Owner) podem alternar entre status pós-pendente
-    return opcoesDisponiveis.filter(opt => opt.id !== 'pendente');
-  };
-
-  const podeAlterarStatusDoPedido = (pedido: Pedido) => {
-    if (pedido.status === 'pendente') return true;
-    if (permissions.ehVendedorOuComum) return false;
-    return true;
   };
 
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
-    const pedidoAlvo = pedidos.find(p => p.id === pedidoId);
-    if (!pedidoAlvo) return;
-
-    // Validações de transição de status
-    if (pedidoAlvo.status === 'pendente' && novoStatus !== 'confirmado' && novoStatus !== 'pendente') {
-      alert('Pedidos com status Pendente só podem ser alterados para Confirmado.');
-      return;
-    }
-    if (permissions.ehVendedorOuComum && pedidoAlvo.status !== 'pendente') {
-      alert('Seu perfil só pode alterar pedidos de Pendente para Confirmado.');
-      return;
-    }
-
-    // Validação: Só pode concluir se estiver Pago
-    const statusPag = resolverStatusPagamento(pedidoAlvo);
-    if (novoStatus === 'concluido' && statusPag !== 'pago') {
-      alert('O status do pedido só pode ser alterado para Concluído se o status do pagamento estiver Pago. Por favor, utilize o botão "Receber" para registrar o pagamento antes de concluir o pedido.');
-      return;
-    }
-
     try {
-      const { error } = await supabase
-        .from('pedidos')
-        .update({ status: novoStatus, atualizado_em: new Date().toISOString() })
-        .eq('id', pedidoId);
-
-      if (error) throw error;
-      
-      setPedidos(prev =>
-        prev.map(p => (p.id === pedidoId ? { ...p, status: novoStatus } : p))
-      );
-
-      if (novoStatus === 'concluido') {
-        if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
-          setPedidoSelecionado(null);
-        }
-      } else {
-        if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
-          setPedidoSelecionado(prev => prev ? { ...prev, status: novoStatus } : null);
-        }
-      }
-
-      if (pedidoReciboModal && pedidoReciboModal.id === pedidoId) {
-        setPedidoReciboModal(prev => prev ? { ...prev, status: novoStatus } : null);
-      }
-
-      if (pedidoItensModal && pedidoItensModal.id === pedidoId) {
-        setPedidoItensModal(prev => prev ? { ...prev, status: novoStatus } : null);
-      }
-
-      audioService.playBeep();
-    } catch (err) {
-      console.error('Erro ao atualizar status:', err);
-    }
-  };
-
-  const atualizarStatusPagamento = async (pedidoId: string, novoStatusPagamento: StatusPagamento) => {
-    try {
-      const ehPago = novoStatusPagamento === 'pago';
-      const ped = pedidos.find(p => p.id === pedidoId);
-      const totalPed = ped ? Number(ped.valor_total) : 0;
-
       const { error } = await supabase
         .from('pedidos')
         .update({
-          valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : ped?.valor_pago,
-          saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : ped?.saldo_devedor,
-          fiado_quitado: ehPago,
+          status: novoStatus,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', pedidoId);
 
       if (error) throw error;
 
-      setPedidos(prev =>
-        prev.map(p => (p.id === pedidoId ? {
-          ...p,
-          status_pagamento: novoStatusPagamento,
-          valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : p.valor_pago,
-          saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : p.saldo_devedor,
-          fiado_quitado: ehPago
-        } : p))
-      );
-
-      if (pedidoSelecionado?.id === pedidoId) {
-        setPedidoSelecionado(prev => prev ? {
-          ...prev,
-          status_pagamento: novoStatusPagamento,
-          valor_pago: ehPago ? totalPed : novoStatusPagamento === 'aguardando_pagamento' ? 0 : prev.valor_pago,
-          saldo_devedor: ehPago ? 0 : novoStatusPagamento === 'aguardando_pagamento' ? totalPed : prev.saldo_devedor,
-          fiado_quitado: ehPago
-        } : null);
-      }
-
-      audioService.playBeep();
-    } catch (err: any) {
-      console.error('Erro ao atualizar status de pagamento:', err);
-      alert(`Erro ao atualizar status de pagamento: ${err.message || 'Tente novamente.'}`);
-    }
-  };
-
-  const atualizarTipoVenda = async (pedidoId: string, novoTipo: TabelaPreco) => {
-    try {
-      const { error } = await supabase
-        .from('pedidos')
-        .update({
-          tabela_preco_aplicada: novoTipo,
-          atualizado_em: new Date().toISOString()
-        })
-        .eq('id', pedidoId);
-
-      if (error) throw error;
-
-      setPedidos(prev =>
-        prev.map(p => (p.id === pedidoId ? { ...p, tabela_preco_aplicada: novoTipo } : p))
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedidoId ? { ...p, status: novoStatus } : p))
       );
 
       if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
-        setPedidoSelecionado(prev => prev ? { ...prev, tabela_preco_aplicada: novoTipo } : null);
-      }
-
-      if (pedidoReciboModal && pedidoReciboModal.id === pedidoId) {
-        setPedidoReciboModal(prev => prev ? { ...prev, tabela_preco_aplicada: novoTipo } : null);
+        if (novoStatus === 'concluido') {
+          setPedidoSelecionado(null);
+        } else {
+          setPedidoSelecionado((prev) => (prev ? { ...prev, status: novoStatus } : null));
+        }
       }
 
       audioService.playBeep();
     } catch (err: any) {
-      console.error('Erro ao atualizar tipo de venda:', err);
-      alert(`Erro ao alterar Tipo da Venda: ${err.message || 'Tente novamente.'}`);
+      console.error('Erro ao atualizar status do pedido:', err);
+      alert(`Erro ao atualizar status: ${err.message || 'Tente novamente.'}`);
     }
+  };
+
+  // Concluir Venda (TELA005)
+  const handleConfirmarConcluirVenda = async () => {
+    if (!pedidoSelecionado || !loja?.id) return;
+    setSalvandoConclusao(true);
+
+    try {
+      const valorTotal = Number(pedidoSelecionado.valor_total || 0);
+
+      const { data: formas } = await supabase
+        .from('formas_pagamento')
+        .select('*')
+        .eq('loja_id', loja.id);
+
+      let formaId = formas?.[0]?.id;
+      if (formas && formas.length > 0) {
+        const formaEncontrada = formas.find(
+          (f) =>
+            f.tipo?.toLowerCase() === meioPagamentoConclusao.toLowerCase() ||
+            f.nome?.toLowerCase().includes(meioPagamentoConclusao.toLowerCase())
+        );
+        if (formaEncontrada) formaId = formaEncontrada.id;
+      }
+
+      if (formaId) {
+        await supabase.from('pagamentos_pedido').insert({
+          pedido_id: pedidoSelecionado.id,
+          loja_id: loja.id,
+          forma_pagamento_id: formaId,
+          valor: valorTotal,
+          criado_em: new Date().toISOString()
+        });
+      }
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          status: 'concluido',
+          status_pagamento: 'pago',
+          valor_pago: valorTotal,
+          saldo_devedor: 0,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', pedidoSelecionado.id);
+
+      if (error) throw error;
+
+      setGavetaConcluirVendaAberta(false);
+      setPedidoSelecionado(null);
+      carregarPedidos();
+      audioService.playNewOrderSound();
+    } catch (err: any) {
+      console.error('Erro ao concluir venda:', err);
+      alert(`Erro ao concluir venda: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSalvandoConclusao(false);
+    }
+  };
+
+  const handleConfirmarCancelarPedido = async () => {
+    if (!pedidoSelecionado) return;
+    await atualizarStatus(pedidoSelecionado.id, 'cancelado');
+    setModalCancelarPedidoAberto(false);
+  };
+
+  const handleSalvarDesconto = async () => {
+    if (!pedidoSelecionado) return;
+    const descontoNum = parseFloat(novoDescontoValor.replace(',', '.')) || 0;
+    const subtotal = Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0);
+    const novoTotal = Math.max(0, subtotal - descontoNum);
+
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          valor_desconto: descontoNum,
+          valor_total: novoTotal,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', pedidoSelecionado.id);
+
+      if (error) throw error;
+
+      setPedidoSelecionado((prev) =>
+        prev ? { ...prev, valor_desconto: descontoNum, valor_total: novoTotal } : null
+      );
+      setModalDescontoAberto(false);
+      carregarPedidos();
+    } catch (err) {
+      console.error('Erro ao salvar desconto:', err);
+    }
+  };
+
+  const handleCopiarLinkAndamento = (pedido: Pedido) => {
+    const origin = window.location.origin;
+    const link = `${origin}/order-tracking/${pedido.numero_pedido || pedido.id}`;
+    navigator.clipboard.writeText(link);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  };
+
+  const handleCompartilharWhatsApp = (pedido: Pedido) => {
+    const origin = window.location.origin;
+    const link = `${origin}/order-tracking/${pedido.numero_pedido || pedido.id}`;
+    const texto = `Olá! Acompanhe o andamento do seu pedido #${pedido.numero_pedido} na ${loja?.nome_fantasia || 'nossa loja'} em tempo real pelo link:\n${link}`;
+    const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
+    const cleanTel = tel.replace(/\D/g, '');
+    const url = cleanTel
+      ? `https://wa.me/55${cleanTel}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleCopiarReciboTexto = (pedido: Pedido) => {
+    if (!loja) return;
+    const msg = PrintService.generateWhatsAppMessage(pedido, loja);
+    navigator.clipboard.writeText(msg);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   };
 
   const handleEditarPedido = (pedido: Pedido) => {
     if (pedido.status !== 'pendente') {
-      alert('A alteração de pedido só é permitida para pedidos com status Pendente.');
+      alert('A alteração completa de produtos só é permitida para pedidos com status Pendente.');
       return;
     }
     carregarPedidoParaEdicao(pedido);
     navigate('/pos');
   };
 
-  const handleCancelarPedido = async (pedido: Pedido) => {
-    if (window.confirm(`Deseja realmente cancelar o pedido #${pedido.numero_pedido}?`)) {
-      await atualizarStatus(pedido.id, 'cancelado');
-    }
-  };
-
-  // Contagem de pedidos abertos
   const pedidosAbertosCount = useMemo(() => {
-    return pedidos.filter(p => ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar'].includes(p.status)).length;
+    return pedidos.filter((p) =>
+      ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar'].includes(p.status)
+    ).length;
   }, [pedidos]);
 
-  // Filtragem e Ordenação
   const pedidosFiltrados = useMemo(() => {
     return pedidos
-      .filter(p => {
-        // Pedidos concluídos tornam-se vendas e pertencem exclusivamente à tela de Vendas
+      .filter((p) => {
         if (p.status === 'concluido') return false;
 
         let matchStatus = true;
@@ -444,1106 +414,1102 @@ export const PedidosLista: React.FC = () => {
           p.numero_pedido.toString().includes(termo) ||
           nomeCli.toLowerCase().includes(termo) ||
           (p.vendedor?.nome_completo && p.vendedor.nome_completo.toLowerCase().includes(termo)) ||
-          p.itens?.some(i => i.nome_produto.toLowerCase().includes(termo));
+          p.itens?.some((i) => i.nome_produto.toLowerCase().includes(termo));
 
         return matchStatus && matchBusca;
       })
       .sort((a, b) => {
-        let comparacao = 0;
+        let valA: any = 0;
+        let valB: any = 0;
+
         if (campoOrdenacao === 'data') {
-          comparacao = new Date(a.data_venda || a.criado_em || '').getTime() - new Date(b.data_venda || b.criado_em || '').getTime();
+          valA = new Date(a.data_venda || a.criado_em || '').getTime();
+          valB = new Date(b.data_venda || b.criado_em || '').getTime();
         } else if (campoOrdenacao === 'valor') {
-          comparacao = Number(a.valor_total) - Number(b.valor_total);
+          valA = Number(a.valor_total || 0);
+          valB = Number(b.valor_total || 0);
         } else if (campoOrdenacao === 'codigo') {
-          comparacao = (Number(a.numero_pedido) || 0) - (Number(b.numero_pedido) || 0);
+          valA = Number(a.numero_pedido || 0);
+          valB = Number(b.numero_pedido || 0);
         }
-        return direcaoOrdenacao === 'asc' ? comparacao : -comparacao;
+
+        if (valA < valB) return direcaoOrdenacao === 'asc' ? -1 : 1;
+        if (valA > valB) return direcaoOrdenacao === 'asc' ? 1 : -1;
+        return 0;
       });
   }, [pedidos, statusFiltro, busca, campoOrdenacao, direcaoOrdenacao]);
 
   const toggleOrdenacao = (campo: OrdenacaoCampo) => {
     if (campoOrdenacao === campo) {
-      setDirecaoOrdenacao(prev => prev === 'asc' ? 'desc' : 'asc');
+      setDirecaoOrdenacao(direcaoOrdenacao === 'asc' ? 'desc' : 'asc');
     } else {
       setCampoOrdenacao(campo);
       setDirecaoOrdenacao('desc');
     }
   };
 
-  const getStatusBadge = (status: StatusPedido, showChevron = false) => {
-    let content;
-    switch (status) {
-      case 'pendente':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock className="w-3.5 h-3.5" /> <span>Pendente</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-amber-400/70" />}
-          </span>
-        );
-        break;
-      case 'confirmado':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="w-3.5 h-3.5" /> <span>Confirmado</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-emerald-400/70" />}
-          </span>
-        );
-        break;
-      case 'em_separacao':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            <Package className="w-3.5 h-3.5" /> <span>Em separação</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-cyan-400/70" />}
-          </span>
-        );
-        break;
-      case 'em_producao':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <Package className="w-3.5 h-3.5" /> <span>Em produção</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-blue-400/70" />}
-          </span>
-        );
-        break;
-      case 'em_expedicao':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <Truck className="w-3.5 h-3.5" /> <span>Em expedição</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-purple-400/70" />}
-          </span>
-        );
-        break;
-      case 'saiu_para_entrega':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <Truck className="w-3.5 h-3.5" /> <span>Saiu para Entrega</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-indigo-400/70" />}
-          </span>
-        );
-        break;
-      case 'pronto_para_retirar':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-400 border border-teal-500/20">
-            <Store className="w-3.5 h-3.5" /> <span>Pronto para retirar</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-teal-400/70" />}
-          </span>
-        );
-        break;
-      case 'concluido':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> <span>Concluído</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-slate-400" />}
-          </span>
-        );
-        break;
-      case 'cancelado':
-        content = (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400/80 border border-rose-500/20">
-            <XCircle className="w-3.5 h-3.5" /> <span>Cancelado</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-rose-400/70" />}
-          </span>
-        );
-        break;
-      default:
-        content = (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
-            {status}
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-slate-400" />}
-          </span>
-        );
-    }
-    return content;
-  };
-
-  const getStatusPagamentoBadge = (status: StatusPagamento, showChevron = false) => {
-    switch (status) {
-      case 'pago':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 className="w-3.5 h-3.5" /> <span>Pago</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-emerald-400/70" />}
-          </span>
-        );
-      case 'parcialmente_pago':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
-            <CreditCard className="w-3.5 h-3.5" /> <span>Parcialmente Pago</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-sky-400/70" />}
-          </span>
-        );
-      case 'aguardando_pagamento':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-            <Clock className="w-3.5 h-3.5" /> <span>Aguardando pagamento</span>
-            {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 text-amber-400/70" />}
-          </span>
-        );
-    }
-  };
-
-  const getTipoVendaBadge = (tabela?: TabelaPreco | string | null, showChevron = false) => {
-    let label = 'Varejo';
-    let cls = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-    if (tabela === 'atacado') {
-      label = 'Atacado';
-      cls = 'bg-blue-500/15 text-blue-400 border-blue-500/30';
-    } else if (tabela === 'autoatacado') {
-      label = 'Distribuidor';
-      cls = 'bg-purple-500/15 text-purple-400 border-purple-500/30';
-    } else if (tabela === 'promocional') {
-      label = 'Promocional';
-      cls = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
-    }
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold border ${cls}`}>
-        <span>{label}</span>
-        {showChevron && <ChevronDown className="w-3 h-3 ml-0.5 opacity-75" />}
-      </span>
-    );
-  };
-
   const formatarData = (dataStr: string) => {
     try {
-      const data = new Date(dataStr);
-      const dia = String(data.getDate()).padStart(2, '0');
-      const mes = String(data.getMonth() + 1).padStart(2, '0');
-      const ano = String(data.getFullYear()).slice(-2);
-      const hora = String(data.getHours()).padStart(2, '0');
-      const min = String(data.getMinutes()).padStart(2, '0');
-      return `${dia}/${mes}/${ano}, ${hora}:${min}`;
+      const d = new Date(dataStr);
+      return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}, ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     } catch {
       return dataStr;
     }
   };
 
   const calcularTotalItens = (pedido: Pedido) => {
-    if (!pedido.itens || pedido.itens.length === 0) return 0;
-    return pedido.itens.reduce((acc, item) => acc + Number(item.quantidade), 0);
+    const itens = pedido.itens || pedido.itens_pedido || [];
+    return itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
   };
 
-  const handleCopiarReciboTexto = (pedido: Pedido) => {
-    if (!loja) return;
-    const msg = PrintService.generateWhatsAppMessage(pedido, loja);
-    navigator.clipboard.writeText(msg);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+  const calcularLucroEstimado = (pedido: Pedido) => {
+    const itens = pedido.itens || pedido.itens_pedido || [];
+    const totalVenda = Number(pedido.valor_total || 0);
+    const custoTotal = itens.reduce((acc, i) => {
+      const custo = Number(i.preco_custo_unitario || (i.preco_venda_unitario * 0.5));
+      return acc + (custo * Number(i.quantidade || 1));
+    }, 0);
+    return Math.max(0, totalVenda - custoTotal);
   };
 
-  const handleExportarCsv = () => {
-    if (pedidosFiltrados.length === 0) {
-      alert('Nenhum pedido disponível para exportação.');
-      return;
+  const enderecoLojaFormatado = [
+    loja?.endereco_logradouro,
+    loja?.endereco_numero,
+    loja?.endereco_bairro,
+    loja?.endereco_cidade
+  ].filter(Boolean).join(', ') || 'Endereço da Loja';
+
+  const logoLojaUrl = (loja as any)?.logo_url;
+
+  const getStatusBadge = (status: StatusPedido) => {
+    switch (status) {
+      case 'pendente':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🟡 Pendente</span>;
+      case 'confirmado':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Confirmado</span>;
+      case 'em_producao':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">🔵 Em produção</span>;
+      case 'saiu_para_entrega':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">🚚 Saiu para Entrega</span>;
+      case 'pronto_para_retirar':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/15 text-teal-400 border border-teal-500/30">🏪 Pronto Retirada</span>;
+      case 'cancelado':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">❌ Cancelado</span>;
+      default:
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 capitalize">{status.replace('_', ' ')}</span>;
     }
+  };
 
-    const headers = [
-      'Nº Pedido',
-      'Data/Hora',
-      'Cliente',
-      'Documento Cliente',
-      'Telefone Cliente',
-      'Vendedor',
-      'Status Pedido',
-      'Status Pagamento',
-      'Tipo de Venda',
-      'Total Itens',
-      'Valor Total (R$)',
-      'Valor Pago (R$)',
-      'Saldo Devedor (R$)',
-      'Itens do Pedido'
-    ];
-
-    const formatMoedaCsv = (val: number | string | null | undefined) => {
-      return Number(val || 0).toFixed(2).replace('.', ',');
-    };
-
-    const rows = pedidosFiltrados.map(p => {
-      const dataVendaFormatada = p.data_venda || p.criado_em ? new Date(p.data_venda || p.criado_em || '').toLocaleString('pt-BR') : '';
-      const nomeCli = p.cliente?.nome || 'Cliente Balcão';
-      const docCli = p.cliente?.numero_documento || '';
-      const telCli = p.cliente?.whatsapp || p.cliente?.telefone || '';
-      const vendedor = p.vendedor?.nome_completo || 'Não informado';
-      const statusPed = p.status.toUpperCase();
-      const statusPag = (p.status_pagamento || resolverStatusPagamento(p)).toUpperCase();
-      const tipoVenda = (p.tabela_preco_aplicada || 'varejo').toUpperCase();
-      const totalItens = calcularTotalItens(p);
-      const valTotal = formatMoedaCsv(p.valor_total);
-      const valPago = formatMoedaCsv(p.valor_pago);
-      const saldoDev = formatMoedaCsv(p.saldo_devedor);
-      const itensResumo = (p.itens || []).map(i => `${i.quantidade}x ${i.nome_produto} (R$ ${formatMoedaCsv(i.preco_venda_unitario)})`).join('; ');
-
-      return [
-        `"${p.numero_pedido}"`,
-        `"${dataVendaFormatada}"`,
-        `"${nomeCli.replace(/"/g, '""')}"`,
-        `"${docCli}"`,
-        `"${telCli}"`,
-        `"${vendedor.replace(/"/g, '""')}"`,
-        `"${statusPed}"`,
-        `"${statusPag}"`,
-        `"${tipoVenda}"`,
-        `"${totalItens}"`,
-        `"${valTotal}"`,
-        `"${valPago}"`,
-        `"${saldoDev}"`,
-        `"${itensResumo.replace(/"/g, '""')}"`
-      ];
-    });
-
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `pedidos_hubi_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const getStatusPagamentoBadge = (status: StatusPagamento) => {
+    switch (status) {
+      case 'pago':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Pago</span>;
+      case 'parcialmente_pago':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🟡 Parcial</span>;
+      case 'aguardando_pagamento':
+      default:
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🕒 Aguardando pagamento</span>;
+    }
   };
 
   return (
-    <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
-      {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 009) */}
-      <div className="block lg:hidden h-full overflow-hidden">
-        <PedidosListaMobile
-          pedidos={pedidos}
-          clientes={clientes}
-          usuarios={usuarios}
-          carregando={carregando}
-          onAlterarStatus={atualizarStatus}
-          onCancelarPedido={handleCancelarPedido}
-          onAbrirReceberPagamento={(p) => setPedidoReceberModal(p)}
-          onAbrirDrawerMenu={() => navigate('/pos')}
-          onClienteAtualizado={(cliAtualizado) => {
-            setClientes(prev => prev.map(c => c.id === cliAtualizado.id ? cliAtualizado : c));
-          }}
-        />
-      </div>
-
-      {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
-      <div className="hidden lg:flex h-full flex-col lg:flex-row overflow-hidden bg-slate-950 text-slate-100">
-        {/* CORPO PRINCIPAL: CABEÇALHO + TABELA */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* CABEÇALHO SUPERIOR */}
-        <div className="p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      {/* SE UM PEDIDO ESTIVER SELECIONADO: EXIBIR A VISÃO DETALHADA DO PEDIDO (TELA002, TELA002A, TELA002B) */}
+      {pedidoSelecionado ? (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 animate-in fade-in duration-150 max-w-7xl mx-auto w-full">
+          {/* HEADER DA VISÃO DETALHADA DO PEDIDO (TELA002) */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800 bg-slate-950/90 sticky top-0 z-20 backdrop-blur">
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate(-1)}
-                className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
-                title="Voltar"
+                onClick={() => setPedidoSelecionado(null)}
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+                title="Voltar para a lista de pedidos"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
-                  <span>{pedidosAbertosCount} pedidos abertos</span>
+                <h1 className="text-xl md:text-2xl font-black text-slate-100 flex items-center gap-2">
+                  <span>Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}</span>
+                  <span className="text-emerald-400 font-bold text-lg">Total R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}</span>
                 </h1>
-                <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap mt-0.5">
-                  <span>{pedidos.length} pedidos listados • Tempo real</span>
-                  {!permissions.podeVerTransacoesOutros && (
-                    <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                      👤 Seus Pedidos ({usuario?.nome_completo || 'Vendedor'})
-                    </span>
+                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
+                  {pedidoSelecionado.vendedor?.nome_completo && (
+                    <>
+                      <span>•</span>
+                      <span>{pedidoSelecionado.vendedor.nome_completo}</span>
+                    </>
                   )}
-                </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleExportarCsv}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer shadow-sm shrink-0"
-                title="Exportar Pedidos em Excel / CSV"
-              >
-                <Download className="w-4 h-4 text-slate-400" />
-                <span>Exportar</span>
-              </button>
-
-              <button
-                onClick={() => setSomAtivo(!somAtivo)}
-                title={somAtivo ? 'Notificação sonora ativada' : 'Notificação sonora desativada'}
-                className={`p-2 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition ${
-                  somAtivo
-                    ? 'bg-slate-800/80 border-slate-700 text-emerald-400 hover:bg-slate-700'
-                    : 'bg-slate-900 border-slate-800 text-slate-500 hover:bg-slate-800'
-                }`}
-              >
-                {somAtivo ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                <span className="hidden md:inline">{somAtivo ? 'Som Ativo' : 'Mudo'}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Item ou cliente"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
-              />
-              {busca && (
-                <button
-                  onClick={() => setBusca('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+            {/* Ações Rápidas do Topo: Link de Andamento, Cancelar, Concluir Venda (TELA002) */}
+            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+              {/* Seletor de Status Interativo */}
+              <div className="relative inline-block">
+                <select
+                  value={pedidoSelecionado.status}
+                  onChange={(e) => atualizarStatus(pedidoSelecionado.id, e.target.value as StatusPedido)}
+                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-              {[
-                { id: 'todos', label: 'Todos' },
-                { id: 'pendente', label: 'Pendentes' },
-                { id: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
-                { id: 'parcialmente_pago', label: 'Parcial' },
-                { id: 'pago', label: 'Pagos' },
-                { id: 'cancelado', label: 'Cancelados' }
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setStatusFiltro(f.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                    statusFiltro === f.id
-                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto p-4 md:p-6">
-          {carregando ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-              <p className="text-sm">Carregando pedidos...</p>
-            </div>
-          ) : pedidosFiltrados.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-500 space-y-2">
-              <Package className="w-10 h-10 stroke-1" />
-              <p className="text-sm font-medium">Nenhum pedido encontrado com os filtros selecionados.</p>
-            </div>
-          ) : (
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold text-[11px] tracking-wider bg-slate-900/60 sticky top-0 z-10 backdrop-blur">
-                  <th
-                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[120px]"
-                    onClick={() => toggleOrdenacao('codigo')}
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Código</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </div>
-                  </th>
-                  <th
-                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[140px]"
-                    onClick={() => toggleOrdenacao('data')}
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Data</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </div>
-                  </th>
-                  <th className="py-3 px-4 font-semibold min-w-[160px]">Cliente</th>
-                  <th className="py-3 px-4 font-semibold min-w-[130px]">Vendedor</th>
-                  <th className="py-3 px-4 font-semibold text-center min-w-[90px]">Itens</th>
-                  <th
-                    className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[110px]"
-                    onClick={() => toggleOrdenacao('valor')}
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Valor</span>
-                      <ArrowUpDown className="w-3 h-3" />
-                    </div>
-                  </th>
-                  <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Status Pedido</th>
-                  <th className="py-3 px-4 font-semibold text-center min-w-[160px]">Status Pagamento</th>
-                  <th className="py-3 px-4 font-semibold text-center min-w-[130px]">Tipo da Venda</th>
-                  <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {pedidosFiltrados.map((pedido) => {
-                  const isCancelado = pedido.status === 'cancelado';
-                  const totalItens = calcularTotalItens(pedido);
-                  const isCatalogo = pedido.origem === 'catalogo_online';
-                  const isSelecionado = pedidoSelecionado?.id === pedido.id;
-                  const statusPag = resolverStatusPagamento(pedido);
-                  const permiteTrocarTipo = podeAlterarTipoVenda && (statusPag === 'aguardando_pagamento' || Number(pedido.valor_pago) === 0);
-                  const isPendente = pedido.status === 'pendente';
-
-                  return (
-                    <tr
-                      key={pedido.id}
-                      className={`transition group hover:bg-slate-900/60 ${
-                        isSelecionado ? 'bg-slate-900/90 ring-1 ring-inset ring-emerald-500/40' : ''
-                      } ${isCancelado ? 'opacity-60' : ''}`}
-                    >
-                      <td className="py-3.5 px-4 whitespace-nowrap font-medium">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            title="Ver Recibo do Pedido"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPedidoReciboModal(pedido);
-                            }}
-                            className="p-1 rounded-lg hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
-                          >
-                            <Receipt className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            title="Abrir Detalhes do Pedido"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPedidoSelecionado(pedido);
-                            }}
-                            className={`font-bold hover:underline cursor-pointer ${
-                              isCancelado ? 'line-through text-slate-400' : 'text-slate-200 group-hover:text-emerald-400'
-                            }`}
-                          >
-                            #{isCatalogo ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
-                          </button>
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap text-slate-300">
-                        <span className={isCancelado ? 'line-through' : ''}>
-                          {formatarData(pedido.data_venda || pedido.criado_em || '')}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 max-w-[200px] truncate text-slate-200 font-medium">
-                        <span className={isCancelado ? 'line-through' : ''}>
-                          {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap text-slate-300">
-                        {isCatalogo ? (
-                          <div className="flex items-center gap-1.5 text-indigo-400 font-medium">
-                            <Store className="w-3.5 h-3.5" />
-                            <span>Catalog</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-slate-400">
-                            <User className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{pedido.vendedor?.nome_completo || 'Vendedor'}</span>
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPedidoItensModal(pedido);
-                          }}
-                          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/25 transition cursor-pointer active:scale-95 shadow-sm"
-                          title="Clique para ver os itens deste pedido"
-                        >
-                          <Package className="w-3.5 h-3.5" />
-                          <span>{totalItens} {totalItens === 1 ? 'item' : 'itens'}</span>
-                        </button>
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`font-bold text-sm ${
-                            isCancelado
-                              ? 'line-through text-slate-400'
-                              : 'text-slate-100'
-                          }`}
-                        >
-                          R$ {Number(pedido.valor_total).toFixed(2)}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center">
-                          {podeAlterarStatusDoPedido(pedido) ? (
-                            <div className="relative inline-flex items-center justify-center cursor-pointer group" title="Clique para alterar status do pedido">
-                              {getStatusBadge(pedido.status, true)}
-                              <select
-                                value={pedido.status}
-                                onChange={(e) => atualizarStatus(pedido.id, e.target.value as StatusPedido)}
-                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                              >
-                                {getOpcoesStatusPermitidas(pedido).map((opt) => (
-                                  <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          ) : (
-                            getStatusBadge(pedido.status, false)
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center">
-                          {getStatusPagamentoBadge(statusPag, false)}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center">
-                          {permiteTrocarTipo ? (
-                            <div className="relative inline-flex items-center justify-center cursor-pointer group" title="Clique para alterar Tipo da Venda (Owner/Admin)">
-                              {getTipoVendaBadge(pedido.tabela_preco_aplicada, true)}
-                              <select
-                                value={pedido.tabela_preco_aplicada || 'varejo'}
-                                onChange={(e) => atualizarTipoVenda(pedido.id, e.target.value as TabelaPreco)}
-                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                              >
-                                {TIPOS_VENDA_OPCOES.map((opt) => (
-                                  <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center justify-center gap-1" title={podeAlterarTipoVenda ? 'Tipo da venda bloqueado após pagamento' : 'Apenas Owner e Admin podem alterar'}>
-                              {getTipoVendaBadge(pedido.tabela_preco_aplicada, false)}
-                              {!podeAlterarTipoVenda && <Lock className="w-3 h-3 text-slate-600" />}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setPedidoItensModal(pedido)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer border border-slate-700/80 shrink-0"
-                            title="Consultar produtos do pedido"
-                          >
-                            <Info className="w-3.5 h-3.5" />
-                          </button>
-
-                          {isPendente ? (
-                            <button
-                              type="button"
-                              onClick={() => handleEditarPedido(pedido)}
-                              className="inline-flex items-center justify-center gap-1 min-w-[76px] px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer shadow-sm active:scale-95"
-                              title="Carregar pedido no PDV para alteração"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                              <span>Alterar</span>
-                            </button>
-                          ) : statusPag !== 'pago' ? (
-                            <button
-                              type="button"
-                              onClick={() => setPedidoReceberModal(pedido)}
-                              className="inline-flex items-center justify-center gap-1 min-w-[76px] px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer shadow-sm active:scale-95"
-                              title="Receber pagamento deste pedido"
-                            >
-                              <DollarSign className="w-3.5 h-3.5" />
-                              <span>Receber</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled
-                              className="inline-flex items-center justify-center gap-1 min-w-[76px] px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-600 border border-slate-800/50 cursor-not-allowed opacity-40"
-                              title="Pedido pago e consolidado"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Pago</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {pedidoSelecionado && (
-        <div className="w-full lg:w-[450px] bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-full overflow-hidden shadow-2xl z-20 animate-in slide-in-from-right duration-200">
-          {/* Topo do Drawer */}
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-100 text-lg">
-                  Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}
-                </h3>
-                {getStatusBadge(pedidoSelecionado.status)}
+                  {STATUS_PEDIDO_OPCOES.filter((op) => op.id !== 'concluido').map((op) => (
+                    <option key={op.id} value={op.id}>
+                      Status: {op.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
-              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
-                <span>•</span>
-                <span>{getTipoVendaBadge(pedidoSelecionado.tabela_preco_aplicada)}</span>
-                <span>•</span>
-                <span>{getStatusPagamentoBadge(resolverStatusPagamento(pedidoSelecionado))}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setPedidoSelecionado(null)}
-              className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
 
-          {/* Conteúdo do Drawer com Rolagem */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Botão de Alterar se Pendente / Receber se Não Pendente e Não Pago */}
-            {pedidoSelecionado.status === 'pendente' ? (
+              {/* Botão Copiar Link e Compartilhar no WhatsApp (TELA002) */}
               <button
                 type="button"
-                onClick={() => handleEditarPedido(pedidoSelecionado)}
-                className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2 cursor-pointer shadow"
+                onClick={() => handleCopiarLinkAndamento(pedidoSelecionado)}
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 cursor-pointer"
+                title="Copiar link da página de andamento do pedido"
               >
-                <Edit className="w-4 h-4" />
-                <span>Alterar Produtos e Valores no PDV</span>
+                <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{copiado ? 'Copiado!' : 'Copiar link'}</span>
               </button>
-            ) : resolverStatusPagamento(pedidoSelecionado) !== 'pago' ? (
+
               <button
                 type="button"
-                onClick={() => setPedidoReceberModal(pedidoSelecionado)}
-                className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-2xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-[0.99]"
+                onClick={() => handleCompartilharWhatsApp(pedidoSelecionado)}
+                className="px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold text-emerald-400 transition flex items-center gap-1.5 cursor-pointer"
+                title="Compartilhar link de andamento no WhatsApp"
               >
-                <DollarSign className="w-4 h-4" />
-                <span>Receber Pagamento do Pedido</span>
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>WhatsApp</span>
               </button>
-            ) : null}
 
-            {/* Informações do Cliente */}
-            <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 text-xs space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                <span className="font-bold text-slate-200 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-emerald-400" /> Dados do Cliente
-                </span>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  Tabela: {pedidoSelecionado.tabela_preco_aplicada === 'autoatacado' ? 'Distribuidor' : pedidoSelecionado.tabela_preco_aplicada || 'Varejo'}
-                </span>
-              </div>
-              <p className="text-slate-200 font-semibold text-sm">
-                {pedidoSelecionado.cliente?.nome || 'Cliente Avulso (Balcão)'}
-              </p>
-              {pedidoSelecionado.cliente?.whatsapp && (
-                <p className="text-slate-300 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                  {pedidoSelecionado.cliente.whatsapp}
-                </p>
-              )}
-              {pedidoSelecionado.endereco_entrega && (
-                <p className="text-slate-400 flex items-start gap-1.5 pt-1">
-                  <Truck className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
-                  <span>{pedidoSelecionado.endereco_entrega}</span>
-                </p>
-              )}
+              {/* Botão Cancelar Pedido (TELA004) */}
+              <button
+                type="button"
+                onClick={() => setModalCancelarPedidoAberto(true)}
+                className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 transition cursor-pointer"
+                title="Cancelar pedido"
+              >
+                <Ban className="w-4 h-4" />
+              </button>
+
+              {/* Botão Principal Concluir Venda (TELA005) */}
+              <button
+                type="button"
+                onClick={() => setGavetaConcluirVendaAberta(true)}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+              >
+                <span>&gt;</span>
+                <span>Concluir venda</span>
+              </button>
             </div>
+          </div>
 
-            {/* Itens do Pedido com Ação de Detalhar Produto */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300">
-                  Itens do Pedido ({pedidoSelecionado.itens?.length || 0})
-                </span>
-                <span className="text-[11px] text-emerald-400 font-medium">
-                  {calcularTotalItens(pedidoSelecionado)} unidades
-                </span>
-              </div>
+          {/* GRID PRINCIPAL: COLUNA ESQUERDA (CLIENTE, OBS, ITENS) + COLUNA DIREITA (RESUMO, PAGAMENTO, RECIBO, HISTÓRICO) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* COLUNA ESQUERDA (7 colunas) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Card Cliente (TELA002) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cliente</span>
+                </div>
 
-              <div className="space-y-1.5">
-                {pedidoSelecionado.itens?.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/80 flex items-center justify-between text-xs gap-2"
-                  >
-                    <div className="space-y-0.5 min-w-0">
-                      <span className="font-semibold text-slate-200 block truncate">
-                        {Number(item.quantidade)}x {item.nome_produto}
-                      </span>
-                      {item.rotulo_variacao && (
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
-                          {item.rotulo_variacao}
-                        </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-700 text-slate-200 font-black text-sm flex items-center justify-center">
+                      {pedidoSelecionado.cliente?.nome
+                        ? pedidoSelecionado.cliente.nome.slice(0, 2).toUpperCase()
+                        : 'AV'}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-100">
+                        {pedidoSelecionado.cliente?.nome || 'Cliente Avulso (Balcão)'}
+                      </h4>
+                      {pedidoSelecionado.cliente?.whatsapp || pedidoSelecionado.cliente?.telefone ? (
+                        <a
+                          href={`https://wa.me/55${(pedidoSelecionado.cliente.whatsapp || pedidoSelecionado.cliente.telefone || '').replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-bold text-emerald-400 hover:underline inline-flex items-center gap-1.5 mt-0.5"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>+{pedidoSelecionado.cliente.whatsapp || pedidoSelecionado.cliente.telefone}</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-slate-500">Sem telefone cadastrado</span>
                       )}
-                      <span className="text-[11px] text-slate-500 block">
-                        Unitário: R$ {Number(item.preco_venda_unitario).toFixed(2)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-bold text-slate-100 text-sm">
-                        R$ {Number(item.subtotal).toFixed(2)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleConsultarProduto(item)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer"
-                        title="Ver Detalhes do Produto"
-                      >
-                        <Info className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Card Observação (TELA002) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Observação</span>
+                </div>
+
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Digite aqui uma observação para o pedido..."
+                    value={observacaoTexto}
+                    onChange={(e) => setObservacaoTexto(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                  />
+                  <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exibirObsRecibo}
+                      onChange={(e) => setExibirObsRecibo(e.target.checked)}
+                      className="rounded text-emerald-500 focus:ring-emerald-500 border-slate-700 bg-slate-950"
+                    />
+                    <span>Exibir no recibo</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Card Itens do Pedido (TELA002 / TELA002A) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <span className="text-sm font-bold text-slate-100">
+                    {pedidoSelecionado.itens?.length || 0} itens no pedido
+                  </span>
+                  {pedidoSelecionado.status === 'pendente' && (
+                    <button
+                      type="button"
+                      onClick={() => handleEditarPedido(pedidoSelecionado)}
+                      className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Editar produtos</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="divide-y divide-slate-800/60">
+                  {pedidoSelecionado.itens?.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="py-3 flex items-center justify-between gap-3 group hover:bg-slate-800/30 px-2 rounded-xl transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                          <Package className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-emerald-400 text-xs">{item.quantidade}x</span>
+                            <span className="text-xs font-bold text-slate-100 truncate">{item.nome_produto}</span>
+                          </div>
+                          {item.rotulo_variacao && (
+                            <span className="text-[10px] text-slate-400 block">
+                              Variação: {item.rotulo_variacao}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-black text-slate-100 block">
+                          R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          R$ {Number(item.preco_venda_unitario || 0).toFixed(2)} un
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* COLUNA DIREITA (5 colunas): RESUMO, PAGAMENTO, RECIBO PREVIEW, HISTÓRICO */}
+            <div className="lg:col-span-5 space-y-6">
+              {/* Card Resumo do Pedido (TELA002) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resumo do pedido</span>
+                  <button
+                    type="button"
+                    onClick={() => setModalDescontoAberto(true)}
+                    className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                  >
+                    Editar
+                  </button>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Subtotal de produtos</span>
+                    <span className="font-bold">
+                      R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {Number(pedidoSelecionado.valor_desconto || 0) > 0 && (
+                    <div className="flex justify-between text-rose-400 font-semibold">
+                      <span>Desconto</span>
+                      <span>-R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-base font-black text-slate-100 pt-2 border-t border-slate-800">
+                    <span>Total</span>
+                    <span className="text-emerald-400">
+                      R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Lucro Estimado (TELA002) */}
+                  <div className="text-right pt-1">
+                    <span className="text-[11px] font-bold text-emerald-400">
+                      Lucro estimado: R$ {calcularLucroEstimado(pedidoSelecionado).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Meios de Pagamento (TELA002) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Meios de pagamento</span>
+                  <button
+                    type="button"
+                    onClick={() => setGavetaConcluirVendaAberta(true)}
+                    className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                  >
+                    Editar
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                  <div className="flex items-center gap-2 text-slate-200 font-bold">
+                    <Coins className="w-4 h-4 text-emerald-400" />
+                    <span className="capitalize">
+                      {pedidoSelecionado.pagamentos?.[0]?.forma_pagamento?.nome || 'Dinheiro / Pix'}
+                    </span>
+                  </div>
+                  <span className="font-black text-slate-100">
+                    R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Recibo Preview (TELA002A) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recibo</span>
+                  <button
+                    type="button"
+                    onClick={() => setPedidoReciboModal(pedidoSelecionado)}
+                    className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                  >
+                    Ver completo
+                  </button>
+                </div>
+
+                {/* Mini Preview do Recibo */}
+                <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-2">
+                  {logoLojaUrl ? (
+                    <img src={logoLojaUrl} alt="Logo" className="h-8 max-w-[120px] object-contain mx-auto" />
+                  ) : (
+                    <Store className="w-6 h-6 text-emerald-400 mx-auto" />
+                  )}
+                  <p className="text-xs font-black text-slate-200">
+                    RECIBO #{pedidoSelecionado.numero_pedido}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {loja?.nome_fantasia || 'HUBI PDV'} • {loja?.whatsapp || loja?.telefone}
+                  </p>
+                </div>
+
+                {/* Botões de Ação do Recibo (TELA002A) */}
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopiarReciboTexto(pedidoSelecionado)}
+                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
+                    title="Copiar texto do recibo"
+                  >
+                    <Copy className="w-4 h-4 mb-0.5 text-emerald-400" />
+                    <span className="text-[10px]">{copiado ? 'Copiado' : 'Copiar'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => PrintService.printReceipt(pedidoSelecionado, loja, 'a4')}
+                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
+                    title="Baixar PDF / A4"
+                  >
+                    <Download className="w-4 h-4 mb-0.5 text-sky-400" />
+                    <span className="text-[10px]">PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCompartilharWhatsApp(pedidoSelecionado)}
+                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
+                    title="Enviar recibo pelo WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4 mb-0.5 text-emerald-400" />
+                    <span className="text-[10px]">WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => PrintService.printReceipt(pedidoSelecionado, loja, '80mm')}
+                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs flex flex-col items-center justify-center transition shadow cursor-pointer font-bold"
+                    title="Imprimir recibo térmico"
+                  >
+                    <Printer className="w-4 h-4 mb-0.5" />
+                    <span className="text-[10px]">Imprimir</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card Histórico do Pedido (TELA002B) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-800 pb-2">
+                  Histórico do Pedido
+                </span>
+
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-start gap-2.5 text-emerald-400 font-bold">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 mt-1"></div>
+                    <div>
+                      <p>Confirmado</p>
+                      <span className="text-[10px] text-slate-500 font-normal">
+                        {formatarData(pedidoSelecionado.criado_em || '')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 text-slate-400">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-600 mt-1"></div>
+                    <div>
+                      <p>Pendente</p>
+                      <span className="text-[10px] text-slate-500 font-normal">
+                        {formatarData(pedidoSelecionado.criado_em || '')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* SE NENHUM PEDIDO ESTIVER SELECIONADO: EXIBIR A TABELA PRINCIPAL DE PEDIDOS (TELA001) */
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* HEADER DA LISTAGEM DE PEDIDOS (TELA001) */}
+          <div className="p-4 md:p-6 pb-2 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl md:text-2xl font-black text-slate-100 flex items-center gap-2">
+                    <span>{pedidosAbertosCount} pedidos abertos</span>
+                  </h1>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {pedidosFiltrados.length} pedidos listados • Tempo real
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSomAtivo(!somAtivo)}
+                  className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                    somAtivo
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                      : 'bg-slate-900 border-slate-800 text-slate-500'
+                  }`}
+                  title={somAtivo ? 'Som de novos pedidos ativado' : 'Som desativado'}
+                >
+                  {somAtivo ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{somAtivo ? 'Som Ativo' : 'Mudo'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Barra de Pesquisa e Filtros Rápidos (TELA001) */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Item ou cliente"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                {busca && (
+                  <button
+                    onClick={() => setBusca('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                {[
+                  { id: 'todos', label: 'Todos' },
+                  { id: 'pendente', label: 'Pendentes' },
+                  { id: 'confirmado', label: 'Confirmados' },
+                  { id: 'em_producao', label: 'Em Produção' },
+                  { id: 'cancelado', label: 'Cancelados' }
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setStatusFiltro(f.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                      statusFiltro === f.id
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                        : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
                 ))}
               </div>
             </div>
-
-            {/* Resumo Financeiro Limpo */}
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-xs space-y-1.5">
-              <div className="flex justify-between text-slate-400">
-                <span>Subtotal:</span>
-                <span className="font-mono">R$ {Number(pedidoSelecionado.subtotal).toFixed(2)}</span>
-              </div>
-              {Number(pedidoSelecionado.valor_frete) > 0 && (
-                <div className="flex justify-between text-purple-400">
-                  <span>Taxa de Entrega:</span>
-                  <span className="font-mono">+ R$ {Number(pedidoSelecionado.valor_frete).toFixed(2)}</span>
-                </div>
-              )}
-              {Number(pedidoSelecionado.valor_desconto) > 0 && (
-                <div className="flex justify-between text-rose-400">
-                  <span>Desconto:</span>
-                  <span className="font-mono">- R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-emerald-400 font-bold text-base pt-2 border-t border-slate-800">
-                <span>VALOR TOTAL:</span>
-                <span className="font-mono">R$ {Number(pedidoSelecionado.valor_total).toFixed(2)}</span>
-              </div>
-            </div>
           </div>
 
-          {/* Botões de Ação do Drawer */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900 space-y-2">
-            <button
-              onClick={() => setPedidoReciboModal(pedidoSelecionado)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold flex items-center justify-center gap-2 border border-slate-700 transition shadow-sm cursor-pointer"
-            >
-              <Receipt className="w-4 h-4" />
-              <span>Ver Apresentação do Recibo</span>
-            </button>
+          {/* TABELA DE PEDIDOS (TELA001) */}
+          <div className="flex-1 overflow-auto p-4 md:p-6">
+            {carregando ? (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                <p className="text-sm">Carregando pedidos...</p>
+              </div>
+            ) : pedidosFiltrados.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-500 space-y-2">
+                <Package className="w-10 h-10 stroke-1" />
+                <p className="text-sm font-medium">Nenhum pedido encontrado com os filtros selecionados.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold text-[11px] tracking-wider bg-slate-900/60 sticky top-0 z-10 backdrop-blur">
+                    <th
+                      className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[120px]"
+                      onClick={() => toggleOrdenacao('codigo')}
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Código</span>
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </th>
+                    <th
+                      className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[140px]"
+                      onClick={() => toggleOrdenacao('data')}
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Data</span>
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 font-semibold min-w-[160px]">Cliente</th>
+                    <th className="py-3 px-4 font-semibold min-w-[130px]">Vendedor</th>
+                    <th className="py-3 px-4 font-semibold text-center min-w-[90px]">Itens</th>
+                    <th
+                      className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[110px]"
+                      onClick={() => toggleOrdenacao('valor')}
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Valor</span>
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Status Pedido</th>
+                    <th className="py-3 px-4 font-semibold text-center min-w-[160px]">Status Pagamento</th>
+                    <th className="py-3 px-4 font-semibold text-center min-w-[130px]">Tipo da Venda</th>
+                    <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {pedidosFiltrados.map((pedido) => {
+                    const isCancelado = pedido.status === 'cancelado';
+                    const totalItens = calcularTotalItens(pedido);
+                    const isCatalogo = pedido.origem === 'catalogo_online';
+                    const statusPag = resolverStatusPagamento(pedido);
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  if (pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, '80mm');
-                }}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-emerald-400" />
-                <span>Térmica 58/80mm</span>
-              </button>
+                    return (
+                      <tr
+                        key={pedido.id}
+                        className={`transition group hover:bg-slate-900/60 ${isCancelado ? 'opacity-60' : ''}`}
+                      >
+                        <td className="py-3.5 px-4 whitespace-nowrap font-medium">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              title="Ver Recibo do Pedido"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPedidoReciboModal(pedido);
+                              }}
+                              className="p-1 rounded-lg hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                            >
+                              <Receipt className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Abrir Detalhes do Pedido (TELA002)"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPedidoSelecionado(pedido);
+                              }}
+                              className={`font-bold hover:underline cursor-pointer ${
+                                isCancelado ? 'line-through text-slate-400' : 'text-slate-200 group-hover:text-emerald-400'
+                              }`}
+                            >
+                              #{isCatalogo ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
+                            </button>
+                          </div>
+                        </td>
 
-              <button
-                onClick={() => {
-                  if (pedidoSelecionado) PrintService.printReceipt(pedidoSelecionado, loja, 'a4');
-                }}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-indigo-400" />
-                <span>Imprimir A4</span>
-              </button>
-            </div>
+                        <td className="py-3.5 px-4 whitespace-nowrap text-slate-300">
+                          <span className={isCancelado ? 'line-through' : ''}>
+                            {formatarData(pedido.data_venda || pedido.criado_em || '')}
+                          </span>
+                        </td>
 
-            {pedidoSelecionado.cliente?.whatsapp && (
-              <button
-                onClick={() => {
-                  if (loja && pedidoSelecionado.cliente?.whatsapp) {
-                    const msg = PrintService.generateWhatsAppMessage(pedidoSelecionado, loja);
-                    PrintService.openWhatsApp(pedidoSelecionado.cliente.whatsapp, msg);
-                  }
-                }}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Enviar Recibo por WhatsApp</span>
-              </button>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-semibold text-slate-200">
+                            {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap text-slate-400">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{pedido.vendedor?.nome_completo || 'Catálogo Online'}</span>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                          <button
+                            type="button"
+                            onClick={() => setPedidoItensModal(pedido)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer"
+                          >
+                            <Package className="w-3 h-3" />
+                            <span>{totalItens} itens</span>
+                          </button>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-black text-slate-100">
+                            R$ {Number(pedido.valor_total || 0).toFixed(2)}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                          {getStatusBadge(pedido.status)}
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                          {getStatusPagamentoBadge(statusPag)}
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap text-center text-slate-300 capitalize font-medium">
+                          {pedido.tabela_preco_aplicada || 'Varejo'}
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {pedido.status === 'pendente' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleEditarPedido(pedido)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                <span>Alterar</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPedidoSelecionado(pedido);
+                                  setGavetaConcluirVendaAberta(true);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
+                              >
+                                <DollarSign className="w-3.5 h-3.5" />
+                                <span>Receber</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
       )}
 
-      {/* MODAL DE APRESENTAÇÃO DO RECIBO */}
-      {pedidoReciboModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
-            {/* Topo do Modal de Recibo */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <Receipt className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-100 text-sm">Recibo do Pedido #{pedidoReciboModal.numero_pedido}</h3>
-                  <p className="text-[11px] text-slate-400">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                </div>
-              </div>
+      {/* ========================================================================= */}
+      {/* MODAL 1: CANCELAR PEDIDO? (TELA004)                                      */}
+      {/* ========================================================================= */}
+      {modalCancelarPedidoAberto && pedidoSelecionado && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 text-center">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="font-bold text-slate-200">
+                R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)} para{' '}
+                {pedidoSelecionado.cliente?.nome || 'Cliente Balcão'}
+              </span>
               <button
-                onClick={() => setPedidoReciboModal(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
+                type="button"
+                onClick={() => setModalCancelarPedidoAberto(false)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Visualização do Cupom/Recibo Conforme Modelo dos Logs */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 text-xs space-y-3 shadow-inner">
-                {/* Logo da Loja se houver */}
-                {loja?.url_logo && (
-                  <div className="text-center pb-1">
-                    <img src={loja.url_logo} alt={loja.nome_fantasia} className="max-h-12 max-w-[160px] mx-auto object-contain" />
-                  </div>
-                )}
+            <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto">
+              <Ban className="w-7 h-7" />
+            </div>
 
-                {/* Título RECIBO # */}
-                <div className="text-center">
-                  <h4 className="font-bold text-slate-100 text-base tracking-wide">
-                    RECIBO #{pedidoReciboModal.numero_pedido}
-                  </h4>
-                </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-slate-100">Cancelar pedido?</h3>
+              <p className="text-xs text-slate-400">Este pedido não poderá ser alterado.</p>
+            </div>
 
-                {/* Dados da Loja */}
-                <div className="space-y-0.5 text-xs text-slate-300">
-                  <p className="font-bold uppercase text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                  <p className="text-slate-400">
-                    {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
-                    {loja?.whatsapp ? ` - +55 ${loja.whatsapp}` : (loja?.telefone ? ` - +55 ${loja.telefone}` : '')}
-                  </p>
-                </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalCancelarPedidoAberto(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
+              >
+                Voltar
+              </button>
 
-                {/* Dados do Cliente */}
-                <div className="space-y-0.5 text-xs text-slate-300">
-                  <p className="font-semibold text-slate-100">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
-                  {(pedidoReciboModal.cliente?.whatsapp || pedidoReciboModal.cliente?.telefone) && (
-                    <p className="text-slate-400">
-                      +55 {pedidoReciboModal.cliente.whatsapp || pedidoReciboModal.cliente.telefone}
-                    </p>
-                  )}
-                  {pedidoReciboModal.endereco_entrega && (
-                    <p className="text-[11px] text-slate-400">Entrega: {pedidoReciboModal.endereco_entrega}</p>
-                  )}
-                </div>
+              <button
+                type="button"
+                onClick={handleConfirmarCancelarPedido}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white transition shadow-lg shadow-rose-600/20 cursor-pointer"
+              >
+                Cancelar pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                {/* Resumo de itens */}
-                <div className="font-semibold text-slate-300 text-xs pt-1">
-                  {pedidoReciboModal.itens?.length || 0} itens (Qtd.: {pedidoReciboModal.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
-                </div>
+      {/* ========================================================================= */}
+      {/* GAVETA 2: CONCLUIR VENDA (TELA005)                                       */}
+      {/* ========================================================================= */}
+      {gavetaConcluirVendaAberta && pedidoSelecionado && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <h3 className="text-base font-bold text-slate-100">Concluir venda</h3>
+              <button
+                type="button"
+                onClick={() => setGavetaConcluirVendaAberta(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-                {/* Linha Divisória */}
-                <div className="border-t border-slate-700 my-2"></div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <div>
+                <h4 className="text-2xl font-black text-slate-100">
+                  R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
+                </h4>
+                <p className="text-xs text-slate-400">
+                  de {pedidoSelecionado.cliente?.nome || 'Cliente Avulso (Balcão)'}
+                </p>
+              </div>
 
-                {/* Tabela de Itens */}
-                <div className="space-y-1.5">
-                  {pedidoReciboModal.itens?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start text-xs">
-                      <span className="text-slate-200">
-                        <strong>{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
-                      </span>
-                      <span className="font-semibold text-slate-100 whitespace-nowrap pl-3">
-                        R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-slate-300 block">Selecione o meio de pagamento</span>
 
-                {/* Linha Divisória */}
-                <div className="border-t border-slate-700 my-2"></div>
+                <div className="space-y-2">
+                  {[
+                    { id: 'dinheiro', label: 'Dinheiro', icon: Coins },
+                    { id: 'cartao_debito', label: 'Cartão de Débito', icon: CreditCard },
+                    { id: 'cartao_credito', label: 'Cartão de Crédito', icon: CreditCard },
+                    { id: 'pix', label: 'Pix', icon: Wallet },
+                    { id: 'fiado', label: 'Venda Fiado', icon: FileText },
+                    { id: 'saldo_cliente', label: 'Saldo Cliente', icon: User },
+                    { id: 'link_pagamento', label: 'Link de Pagamento', icon: ExternalLink },
+                    { id: 'outros', label: 'Outros', icon: DollarSign }
+                  ].map((m) => {
+                    const IconComp = m.icon;
+                    const isSel = meioPagamentoConclusao === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => setMeioPagamentoConclusao(m.id)}
+                        className={`p-3 rounded-2xl border transition cursor-pointer flex flex-col gap-2 ${
+                          isSel
+                            ? 'bg-emerald-950/40 border-emerald-500/50'
+                            : 'bg-slate-950/60 hover:bg-slate-800/60 border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSel ? 'border-emerald-400 bg-emerald-500' : 'border-slate-600'}`}>
+                            {isSel && <div className="w-1.5 h-1.5 rounded-full bg-slate-950"></div>}
+                          </div>
+                          <IconComp className={`w-4 h-4 ${isSel ? 'text-emerald-400' : 'text-slate-400'}`} />
+                          <span className={`text-xs font-bold ${isSel ? 'text-slate-100' : 'text-slate-300'}`}>
+                            {m.label}
+                          </span>
+                        </div>
 
-                {/* Acréscimos/Descontos se houver */}
-                {(Number(pedidoReciboModal.valor_desconto) > 0 || Number(pedidoReciboModal.valor_frete) > 0) && (
-                  <div className="space-y-1 text-xs text-slate-400">
-                    {Number(pedidoReciboModal.subtotal) > 0 && (
-                      <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>R$ {Number(pedidoReciboModal.subtotal).toFixed(2)}</span>
+                        {/* Se Dinheiro selecionado: input do valor recebido */}
+                        {isSel && m.id === 'dinheiro' && (
+                          <div className="pt-2 border-t border-slate-800/80">
+                            <label className="text-[10px] text-slate-400 block mb-1">Valor recebido</label>
+                            <input
+                              type="text"
+                              value={valorRecebidoConclusao}
+                              onChange={(e) => setValorRecebidoConclusao(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {Number(pedidoReciboModal.valor_desconto) > 0 && (
-                      <div className="flex justify-between text-rose-400">
-                        <span>Desconto:</span>
-                        <span>- R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {Number(pedidoReciboModal.valor_frete) > 0 && (
-                      <div className="flex justify-between text-purple-400">
-                        <span>Taxa de Entrega:</span>
-                        <span>+ R$ {Number(pedidoReciboModal.valor_frete).toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Total */}
-                <div className="text-right text-sm font-bold text-slate-100">
-                  Total: R$ {Number(pedidoReciboModal.valor_total).toFixed(2)}
-                </div>
-
-                {Number(pedidoReciboModal.saldo_devedor) > 0 && (
-                  <div className="text-right text-xs font-semibold text-amber-400">
-                    Saldo Devedor (Fiado): R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}
-                  </div>
-                )}
-
-                {/* Linha Divisória */}
-                <div className="border-t border-slate-700 my-2"></div>
-
-                {/* Data Formatada por Extenso */}
-                <div className="text-center text-[11px] text-slate-400">
-                  {formatarDataRecibo(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em)}
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* Ações do Modal de Recibo com Botões Compactos */}
-            <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2">
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pedidoReciboModal) {
-                      PrintService.printReceipt(pedidoReciboModal, loja, '80mm');
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Imprimir Cupom em Bobina Térmica (58mm/80mm)"
-                >
-                  <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="truncate">Térmica 58/80mm</span>
-                </button>
+            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setGavetaConcluirVendaAberta(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pedidoReciboModal) {
-                      PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Imprimir Recibo em Folha A4"
-                >
-                  <Printer className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="truncate">Imprimir A4</span>
-                </button>
+              <button
+                type="button"
+                onClick={handleConfirmarConcluirVenda}
+                disabled={salvandoConclusao}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-black text-white transition flex items-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
+              >
+                {salvandoConclusao ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Concluindo...</span>
+                  </>
+                ) : (
+                  <span>Concluir venda</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pedidoReciboModal) {
-                      PrintService.printReceipt(pedidoReciboModal, loja, 'a4');
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Baixar e Salvar Recibo em PDF"
-                >
-                  <Download className="w-3.5 h-3.5 text-sky-400" />
-                  <span className="truncate">Baixar PDF</span>
-                </button>
+      {/* ========================================================================= */}
+      {/* MODAL 3: RECIBO COMPLETO (TELA007 / TELA008)                             */}
+      {/* ========================================================================= */}
+      {pedidoReciboModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <h3 className="text-sm font-bold text-slate-100">
+                Recibo #{pedidoReciboModal.numero_pedido}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPedidoReciboModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950 text-slate-100">
+              {/* Logo e Cabeçalho do Recibo */}
+              <div className="text-center space-y-1 border-b border-slate-800 pb-4">
+                {logoLojaUrl ? (
+                  <img src={logoLojaUrl} alt="Logo" className="h-10 max-w-[160px] object-contain mx-auto mb-2" />
+                ) : (
+                  <Store className="w-8 h-8 text-emerald-400 mx-auto mb-1" />
+                )}
+                <h4 className="font-black text-sm text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
+                <p className="text-xs text-slate-400">{enderecoLojaFormatado}</p>
+                <p className="text-xs text-slate-400">{loja?.whatsapp || loja?.telefone}</p>
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5">
+              {/* Cliente */}
+              <div className="space-y-0.5 border-b border-slate-800 pb-3 text-xs">
+                <span className="text-slate-400">Cliente:</span>
+                <p className="font-bold text-slate-100">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
+                {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-400">{pedidoReciboModal.cliente.whatsapp}</p>}
+              </div>
+
+              {/* Itens */}
+              <div className="space-y-2 border-b border-slate-800 pb-3 text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">
+                  Itens do Pedido ({calcularTotalItens(pedidoReciboModal)} un)
+                </span>
+                {pedidoReciboModal.itens?.map((item, idx) => (
+                  <div key={idx} className="flex justify-between py-1 border-b border-slate-900">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-emerald-400">{item.quantidade}x</span>
+                      <span className="text-slate-200">{item.nome_produto}</span>
+                    </div>
+                    <span className="font-bold text-slate-100">
+                      R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totais */}
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between text-slate-400">
+                  <span>Subtotal</span>
+                  <span>R$ {Number(pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
+                </div>
+                {Number(pedidoReciboModal.valor_desconto || 0) > 0 && (
+                  <div className="flex justify-between text-rose-400">
+                    <span>Desconto</span>
+                    <span>-R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-black text-slate-100 pt-2 border-t border-slate-800">
+                  <span>Total</span>
+                  <span className="text-emerald-400">R$ {Number(pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer do Modal de Recibo com Ações e Link "Editar meu recibo" (TELA007 / TELA010) */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setModalConfigurarReciboAberto(true)}
+                className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Editar meu recibo</span>
+              </button>
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (pedidoReciboModal) {
-                      PrintService.openEmail(pedidoReciboModal, loja);
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Enviar Recibo por E-mail"
+                  onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, '80mm')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
                 >
-                  <Mail className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="truncate">E-mail</span>
+                  Térmica 58/80mm
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (loja && pedidoReciboModal) {
-                      const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
-                      PrintService.openWhatsApp(pedidoReciboModal.cliente?.whatsapp || '', msg);
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                  onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, 'a4')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition shadow cursor-pointer"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span className="truncate">WhatsApp</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCopiarReciboTexto(pedidoReciboModal)}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                >
-                  {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-                  <span className="truncate">{copiado ? 'Copiado!' : 'Copiar'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPedidoReciboModal(null)}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-                >
-                  Fechar
+                  Imprimir A4
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
-      </div>
 
-      {/* MODAL DE ITENS DO PEDIDO */}
-      <ModalItensPedido
-        isOpen={!!pedidoItensModal}
-        onClose={() => setPedidoItensModal(null)}
-        pedido={pedidoItensModal}
-        onConsultarProduto={(item) => handleConsultarProduto(item)}
+      {/* ========================================================================= */}
+      {/* MODAL 4: EDITAR DESCONTO                                                 */}
+      {/* ========================================================================= */}
+      {modalDescontoAberto && pedidoSelecionado && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 className="text-sm font-bold text-slate-100">Editar Desconto</h3>
+              <button
+                type="button"
+                onClick={() => setModalDescontoAberto(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-400">Valor do desconto (R$)</label>
+              <input
+                type="text"
+                value={novoDescontoValor}
+                onChange={(e) => setNovoDescontoValor(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalDescontoAberto(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-slate-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSalvarDesconto}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white"
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIGURAR RECIBO (TELA010) */}
+      <ModalConfigurarRecibo
+        aberto={modalConfigurarReciboAberto}
+        onClose={() => setModalConfigurarReciboAberto(false)}
       />
 
-      {/* MODAL DE DETALHES DO PRODUTO (CONSULTA FICHA TÉCNICA) */}
+      {/* MODAL DE ITENS DO PEDIDO (TELA008) */}
+      <ModalItensPedido
+        isOpen={!!pedidoItensModal}
+        pedido={pedidoItensModal}
+        onClose={() => setPedidoItensModal(null)}
+        onConsultarProduto={handleConsultarProduto}
+      />
+
+      {/* MODAL DE DETALHES DO PRODUTO */}
       <ModalDetalhesProduto
         isOpen={!!produtoDetalhesModal}
-        onClose={() => setProdutoDetalhesModal(null)}
         produto={produtoDetalhesModal}
+        onClose={() => setProdutoDetalhesModal(null)}
       />
 
       {/* MODAL DE RECEBER PAGAMENTO */}
       <ModalReceberPagamento
         isOpen={!!pedidoReceberModal}
-        onClose={() => setPedidoReceberModal(null)}
         pedido={pedidoReceberModal}
+        onClose={() => setPedidoReceberModal(null)}
         onPagamentoConcluido={() => {
+          setPedidoReceberModal(null);
           carregarPedidos();
-          if (pedidoSelecionado && pedidoReceberModal && pedidoSelecionado.id === pedidoReceberModal.id) {
-            setPedidoSelecionado(null);
-          }
         }}
       />
     </div>
   );
 };
-
-
-

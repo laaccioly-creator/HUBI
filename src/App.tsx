@@ -16,6 +16,7 @@ import { EstatisticasAnalytics } from './components/EstatisticasAnalytics';
 import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
 import { AssistenteRubi } from './components/AssistenteRubi';
 import { CatalogoPublico } from './components/CatalogoPublico';
+import { PedidoAndamentoPublico } from './components/PedidoAndamentoPublico';
 import { ConfiguracaoCatalogo } from './components/ConfiguracaoCatalogo';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
@@ -41,6 +42,9 @@ const AppRotasInternas: React.FC = () => {
       {/* Rota Pública do Catálogo Online do Cliente */}
       <Route path="/catalog/:slug" element={<CatalogoPublico />} />
       <Route path="/catalog" element={<CatalogoPublico />} />
+
+      {/* Rota Pública de Acompanhamento / Andamento do Pedido (TELA003/TELA003A) */}
+      <Route path="/order-tracking/:id" element={<PedidoAndamentoPublico />} />
 
       {/* Rotas Internas do HUBI */}
       <Route path="/" element={<AppLayout />}>

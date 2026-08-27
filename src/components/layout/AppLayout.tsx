@@ -28,6 +28,8 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
+import { ChatAjudaIA } from '../ChatAjudaIA';
+import { DesktopAppPrompt } from '../DesktopAppPrompt';
 import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
@@ -330,6 +332,9 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
+      {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
+      <DesktopAppPrompt />
+
       {/* TOP HEADER / BARRA SUPERIOR DE BOTÕES (PADRÃO TSB) */}
       <header className={`bg-slate-900/95 border-b border-slate-800/80 backdrop-blur-xl z-30 shrink-0 ${isCustomMobileRoute ? 'hidden md:block' : ''}`}>
         <div className="px-3 md:px-4 py-2.5 flex items-center justify-between gap-2">
@@ -739,6 +744,9 @@ export const AppLayout: React.FC = () => {
       <main className={`flex-1 overflow-y-auto bg-slate-950 ${isCustomMobileRoute ? 'pb-0' : 'pb-20 md:pb-0'}`}>
         <Outlet />
       </main>
+
+      {/* WIDGET FLUTUANTE DE AJUDA & SUPORTE IA (TELA009) */}
+      <ChatAjudaIA />
 
       {/* BOTTOM NAVIGATION BAR MOBILE (MÓDULOS PRINCIPAIS AUTORIZADOS) */}
       <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-2 z-30 ${isCustomMobileRoute ? 'hidden' : ''}`}>
