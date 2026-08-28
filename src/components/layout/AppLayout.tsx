@@ -352,25 +352,25 @@ export const AppLayout: React.FC = () => {
       <header className={`bg-slate-900/95 border-b border-slate-800/80 backdrop-blur-xl z-30 shrink-0 ${isCustomMobileRoute ? 'hidden md:block' : ''}`}>
         <div className="px-3 md:px-4 py-2.5 flex items-center justify-between gap-2">
           {/* IDENTIFICAÇÃO DA LOJA (ESQUERDA) */}
-          <div className="flex items-center gap-3 shrink-0">
-            <Link to="/pos" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-base shrink-0 group-hover:scale-105 transition">
+          <div className="flex items-center gap-2.5 shrink-0 z-10">
+            <Link to="/pos" className="flex items-center gap-2 group">
+              <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm lg:text-base shrink-0 group-hover:scale-105 transition">
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
               <div className="hidden sm:block min-w-0">
-                <h1 className="font-bold text-slate-100 text-sm truncate max-w-[130px] lg:max-w-[170px] leading-tight group-hover:text-emerald-400 transition">
+                <h1 className="font-bold text-slate-100 text-xs lg:text-sm truncate max-w-[100px] md:max-w-[120px] lg:max-w-[160px] leading-tight group-hover:text-emerald-400 transition">
                   {loja?.nome_fantasia || 'HUBI PDV'}
                 </h1>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Conectado</span>
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[9px] text-emerald-400 font-semibold uppercase tracking-wider">Conectado</span>
                 </div>
               </div>
             </Link>
           </div>
 
           {/* BARRA HORIZONTAL DE BOTÕES DE MÓDULOS (DESKTOP) */}
-          <nav className="hidden md:flex items-center gap-1.5 flex-1 justify-center max-w-5xl mx-2 py-0.5 relative">
+          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 flex-1 justify-center min-w-0 px-1 py-0.5 overflow-x-auto scrollbar-none">
             {mainButtons.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname.startsWith(item.path);
@@ -380,14 +380,14 @@ export const AppLayout: React.FC = () => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 ${
+                    className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 ${
                       isActive
-                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400/30'
+                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400/30'
                         : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300 border border-emerald-500/30'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="whitespace-nowrap">{item.name}</span>
                   </Link>
                 );
               }
@@ -397,15 +397,15 @@ export const AppLayout: React.FC = () => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 shrink-0 ${
+                    className={`flex items-center gap-1 px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 shrink-0 ${
                       isActive
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 ring-1 ring-indigo-400/40'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25 ring-1 ring-indigo-400/40'
                         : 'bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20'
                     }`}
                   >
-                    <Icon className="w-4 h-4 text-indigo-400" />
-                    <span>{item.name}</span>
-                    <span className="bg-indigo-500/30 text-indigo-200 text-[9px] font-extrabold px-1 rounded">IA</span>
+                    <Icon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    <span className="whitespace-nowrap">{item.name}</span>
+                    <span className="bg-indigo-500/30 text-indigo-200 text-[8px] font-extrabold px-1 rounded">IA</span>
                   </Link>
                 );
               }
@@ -414,17 +414,17 @@ export const AppLayout: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 shrink-0 relative ${
+                  className={`flex items-center gap-1.5 px-2 lg:px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 shrink-0 relative ${
                     isActive
                       ? 'bg-slate-800 text-white shadow-sm border border-slate-700 font-semibold'
                       : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span>{item.name}</span>
+                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  <span className="whitespace-nowrap">{item.name}</span>
 
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-bounce">
+                    <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full animate-bounce">
                       {item.badge}
                     </span>
                   )}
@@ -432,20 +432,20 @@ export const AppLayout: React.FC = () => {
               );
             })}
 
-            {/* BOTÃO DROPDOWN: MAIS MÓDULOS (SÓ EXIBE SE HOUVER MÓDULOS EXTRAS PERMITIDOS) */}
+            {/* BOTÃO DROPDOWN: MAIS MÓDULOS */}
             {extraButtons.length > 0 && (
-              <div className="relative" ref={maisMenuRef}>
+              <div className="relative shrink-0" ref={maisMenuRef}>
                 <button
                   type="button"
                   onClick={() => setMaisMenuOpen(prev => !prev)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer select-none shrink-0 ${
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer select-none shrink-0 ${
                     maisMenuOpen || isExtraActive
                       ? 'bg-slate-800 text-emerald-400 border border-slate-700 font-semibold shadow-sm'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
                   }`}
                 >
                   <span>Mais</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${maisMenuOpen ? 'rotate-180 text-emerald-400' : ''}`} />
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${maisMenuOpen ? 'rotate-180 text-emerald-400' : ''}`} />
                 </button>
 
                 {maisMenuOpen && (
@@ -462,7 +462,7 @@ export const AppLayout: React.FC = () => {
                           key={item.path}
                           to={item.path}
                           onClick={() => setMaisMenuOpen(false)}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs transition ${
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition ${
                             isActive
                               ? 'bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30'
                               : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -482,17 +482,14 @@ export const AppLayout: React.FC = () => {
             )}
           </nav>
 
-          {/* AÇÕES DA DIREITA (INSTALAR APP + TEMA + CATÁLOGO + USUÁRIO / SAIR) */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* BOTÃO FIXO DE INSTALAÇÃO DO APP NO DESKTOP */}
-            <DesktopInstallButton />
-
+          {/* AÇÕES DA DIREITA (TEMA + CATÁLOGO + USUÁRIO / SAIR) */}
+          <div className="flex items-center gap-1.5 lg:gap-2 shrink-0 z-10">
             {/* SELETOR DE TEMA RÁPIDO (DARK / LIGHT / SYSTEM) */}
-            <div className="hidden sm:flex items-center bg-slate-800/80 border border-slate-700/60 rounded-xl p-0.5">
+            <div className="flex items-center bg-slate-800/80 border border-slate-700/60 rounded-xl p-0.5" title={`Tema atual: ${tema === 'system' ? `Automático (${temaEfetivo === 'dark' ? 'Escuro' : 'Claro'})` : tema === 'dark' ? 'Modo Escuro' : 'Modo Claro'}`}>
               <button
                 type="button"
                 onClick={() => setTema('dark')}
-                className={`p-1.5 rounded-lg transition ${
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
                   tema === 'dark' ? 'bg-slate-700 text-amber-300 shadow' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Modo Escuro (Noturno)"
@@ -502,7 +499,7 @@ export const AppLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setTema('light')}
-                className={`p-1.5 rounded-lg transition ${
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
                   tema === 'light' ? 'bg-amber-500/20 text-amber-400 shadow' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Modo Claro (Diurno)"
@@ -512,10 +509,10 @@ export const AppLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setTema('system')}
-                className={`p-1.5 rounded-lg transition ${
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
                   tema === 'system' ? 'bg-slate-700 text-sky-400 shadow' : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="Automático (Seguir o Sistema)"
+                title={`Automático (Sistema ativo: ${temaEfetivo === 'dark' ? 'Escuro' : 'Claro'})`}
               >
                 <Laptop className="w-3.5 h-3.5" />
               </button>
