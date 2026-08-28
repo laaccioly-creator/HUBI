@@ -141,22 +141,22 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4">
+      <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 text-slate-800 md:text-slate-100">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-200 md:border-slate-800 flex items-center justify-between bg-white md:bg-slate-900">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 flex items-center justify-center">
               <Camera className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-100">Leitor de Código de Barras</h3>
-              <span className="text-[11px] text-slate-400">Aponte a câmera para o código do produto</span>
+              <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Leitor de Código de Barras</h3>
+              <span className="text-[11px] text-slate-500 md:text-slate-400">Aponte a câmera para o código do produto</span>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

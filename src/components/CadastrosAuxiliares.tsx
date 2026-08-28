@@ -33,6 +33,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Categoria, Fornecedor, UnidadeMedida, FormaPagamento, TipoPagamento } from '../types';
 import { SyncService } from '../services/syncService';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fracionado: boolean; padrao?: boolean }> = [
   { sigla: 'un', nome: 'Unidade', permite_fracionado: false, padrao: true },
@@ -63,6 +64,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
   const [abaAtiva, setAbaAtiva] = useState<'categorias' | 'unidades' | 'fornecedores' | 'pagamentos' | 'precificacao'>('categorias');
   const [busca, setBusca] = useState<string>('');
+  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
 
   // Estados de Dados
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -728,10 +730,331 @@ export const CadastrosAuxiliares: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 font-sans">
-      <div className="max-w-6xl mx-auto w-full space-y-6">
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans">
+        {/* Header Superior Mobile */}
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerMenuAberto(true)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+              title="Menu Principal"
+            >
+              <div className="space-y-1">
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+              </div>
+            </button>
+            <h1 className="font-bold text-base text-slate-800">Cadastros & Tabelas</h1>
+          </div>
 
-        {/* HEADER DA PÁGINA */}
+          {abaAtiva !== 'precificacao' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (abaAtiva === 'categorias') {
+                  setCatEditando(null);
+                  setCatNome('');
+                  setCatIcone('📦');
+                  setModalCategoriaAberta(true);
+                } else if (abaAtiva === 'unidades') {
+                  setUnidadeEditando(null);
+                  setUnidadeSigla('');
+                  setUnidadeNome('');
+                  setUnidadeFracionada(false);
+                  setModalUnidadeAberta(true);
+                } else if (abaAtiva === 'fornecedores') {
+                  setFornecedorEditando(null);
+                  setFornNome('');
+                  setFornContato('');
+                  setFornDoc('');
+                  setFornWhatsapp('');
+                  setFornEmail('');
+                  setFornObs('');
+                  setModalFornecedorAberta(true);
+                } else if (abaAtiva === 'pagamentos') {
+                  abrirModalNovoPagamento();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Novo</span>
+            </button>
+          )}
+        </div>
+
+        {/* Abas Horizontais em Pílula Clara */}
+        <div className="p-3 bg-white border-b border-slate-200 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-1.5">
+          {[
+            { id: 'categorias', label: 'Categorias' },
+            { id: 'unidades', label: 'Unidades' },
+            { id: 'fornecedores', label: 'Fornecedores' },
+            { id: 'pagamentos', label: 'Pagamentos' },
+            { id: 'precificacao', label: 'Precificação' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setAbaAtiva(tab.id as any)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition border ${
+                abaAtiva === tab.id
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Campo de Busca (quando aplicável) */}
+        {abaAtiva !== 'precificacao' && (
+          <div className="p-3 bg-white border-b border-slate-200 shrink-0">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Buscar registros..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              />
+              {busca && (
+                <button
+                  onClick={() => setBusca('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Conteúdo Mobile com Scroll */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+          {carregando ? (
+            <div className="text-center py-16 text-xs text-slate-400">Carregando dados...</div>
+          ) : (
+            <>
+              {/* ABA CATEGORIAS MOBILE */}
+              {abaAtiva === 'categorias' && (
+                categoriasFiltradas.length === 0 ? (
+                  <div className="text-center py-16 text-xs text-slate-400">Nenhuma categoria encontrada.</div>
+                ) : (
+                  categoriasFiltradas.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-sm shrink-0">
+                          {cat.icone || '📦'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{cat.nome}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {contagemProdutosCat[cat.id] || 0} produtos vinculados
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCatEditando(cat);
+                            setCatNome(cat.nome);
+                            setCatIcone(cat.icone || '📦');
+                            setModalCategoriaAberta(true);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => excluirCategoria(cat)}
+                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {/* ABA UNIDADES MOBILE */}
+              {abaAtiva === 'unidades' && (
+                unidadesFiltradas.length === 0 ? (
+                  <div className="text-center py-16 text-xs text-slate-400">Nenhuma unidade encontrada.</div>
+                ) : (
+                  unidadesFiltradas.map((un) => (
+                    <div
+                      key={un.id}
+                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200 uppercase">
+                            {un.sigla}
+                          </span>
+                          <span className="font-bold text-slate-800 text-xs sm:text-sm truncate">{un.nome}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          {un.permite_fracionado ? 'Permite fracionamento (decimais)' : 'Apenas inteiros'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUnidadeEditando(un);
+                            setUnidadeSigla(un.sigla);
+                            setUnidadeNome(un.nome);
+                            setUnidadeFracionada(un.permite_fracionado);
+                            setModalUnidadeAberta(true);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => excluirUnidade(un)}
+                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {/* ABA FORNECEDORES MOBILE */}
+              {abaAtiva === 'fornecedores' && (
+                fornecedoresFiltrados.length === 0 ? (
+                  <div className="text-center py-16 text-xs text-slate-400">Nenhum fornecedor encontrado.</div>
+                ) : (
+                  fornecedoresFiltrados.map((forn) => (
+                    <div
+                      key={forn.id}
+                      className="p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 text-xs sm:text-sm">{forn.nome}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFornecedorEditando(forn);
+                              setFornNome(forn.nome);
+                              setFornContato(forn.pessoa_contato || '');
+                              setFornDoc(forn.numero_documento || '');
+                              setFornWhatsapp(forn.whatsapp || forn.telefone || '');
+                              setFornEmail(forn.email || '');
+                              setFornObs(forn.observacoes || '');
+                              setModalFornecedorAberta(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => excluirFornecedor(forn)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 space-y-0.5">
+                        {forn.numero_documento && <p>Doc: {forn.numero_documento}</p>}
+                        {forn.telefone && <p>Tel: {forn.telefone}</p>}
+                        {forn.email && <p>Email: {forn.email}</p>}
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {/* ABA FORMAS DE PAGAMENTO MOBILE */}
+              {abaAtiva === 'pagamentos' && (
+                formasPagamentoFiltradas.length === 0 ? (
+                  <div className="text-center py-16 text-xs text-slate-400">Nenhuma forma de pagamento encontrada.</div>
+                ) : (
+                  formasPagamentoFiltradas.map((fp) => (
+                    <div
+                      key={fp.id}
+                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-800 text-xs sm:text-sm block truncate">{fp.nome}</span>
+                        <span className="text-[11px] text-slate-500 capitalize">Tipo: {fp.tipo}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => abrirModalEditarPagamento(fp)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
+
+              {/* ABA PRECIFICAÇÃO MOBILE */}
+              {abaAtiva === 'precificacao' && (
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+                  <h3 className="font-bold text-sm text-slate-800">Regras de Atacado & Varejo</h3>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Desconto Padrão Atacado (%)</label>
+                    <input
+                      type="number"
+                      value={descontoAtacado}
+                      onChange={(e) => setDescontoAtacado(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:border-emerald-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={salvarRegrasPrecificacao}
+                    disabled={salvando}
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50"
+                  >
+                    {salvando ? 'Salvando...' : 'Salvar Regras'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Menu Gaveta Lateral */}
+        <MobileMenuDrawer
+          aberto={drawerMenuAberto}
+          onFechar={() => setDrawerMenuAberto(false)}
+        />
+      </div>
+
+      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col h-full overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 font-sans">
+        <div className="max-w-6xl mx-auto w-full space-y-6">
+          {/* HEADER DA PÁGINA */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -1664,42 +1987,43 @@ export const CadastrosAuxiliares: React.FC = () => {
         )}
 
       </div>
+      </div>
 
       {/* ========================================================================= */}
       {/* MODAL CATEGORIA                                                           */}
       {/* ========================================================================= */}
       {modalCategoriaAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
                 {catEditando ? 'Editar Categoria' : 'Nova Categoria'}
               </h3>
-              <button onClick={() => setModalCategoriaAberta(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setModalCategoriaAberta(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={salvarCategoria} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Nome da Categoria:</label>
+                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">Nome da Categoria:</label>
                 <input
                   type="text"
-                  placeholder="Ex: BRINQUEDOS ERÓTICOS, BEBIDAS, ROUPAS..."
+                  placeholder="Ex: BEBIDAS, ROUPAS..."
                   value={catNome}
                   onChange={(e) => setCatNome(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 uppercase focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 uppercase focus:outline-none focus:border-emerald-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Ícone / Emoji:</label>
+                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">Ícone / Emoji:</label>
                 <input
                   type="text"
                   value={catIcone}
                   onChange={(e) => setCatIcone(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-emerald-500"
                   placeholder="Ex: 📦, 🧴, 🥤, 👗, 🍔"
                 />
               </div>
@@ -1708,7 +2032,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalCategoriaAberta(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1730,12 +2054,12 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalUnidadeAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
                 {unidadeEditando ? 'Editar Unidade de Medida' : 'Nova Unidade de Medida'}
               </h3>
-              <button onClick={() => setModalUnidadeAberta(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setModalUnidadeAberta(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1805,12 +2129,12 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalFornecedorAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
                 {fornecedorEditando ? 'Editar Fornecedor' : 'Novo Fornecedor'}
               </h3>
-              <button onClick={() => setModalFornecedorAberta(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setModalFornecedorAberta(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1911,15 +2235,15 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalPagamentoAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-400" />
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-slate-800 md:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
                 <span>{pagEditando ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}</span>
               </h3>
               <button
                 onClick={() => setModalPagamentoAberta(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 md:hover:text-white p-1 rounded-lg hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

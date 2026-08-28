@@ -104,31 +104,31 @@ export const ModalConfigurarRecibo: React.FC<ModalConfigurarReciboProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end animate-in fade-in">
-      <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+      <div className="w-full max-w-lg bg-white md:bg-slate-900 border-l border-slate-200 md:border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 text-slate-800 md:text-slate-100">
         {/* HEADER DA GAVETA (TELA010) */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+        <div className="p-4 border-b border-slate-200 md:border-slate-800 flex items-center justify-between bg-white md:bg-slate-950/80">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-base font-bold text-slate-100">Configurar recibos</h2>
+            <h2 className="text-base font-bold text-slate-800 md:text-slate-100">Configurar recibos</h2>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* CONTEÚDO SCROLLÁVEL */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50 md:bg-transparent">
           {/* Logo da Loja */}
           <div className="p-4 bg-slate-950/60 rounded-2xl border border-slate-800 flex flex-col items-center justify-center text-center space-y-2">
             {logoUrl ? (
@@ -251,11 +251,11 @@ export const ModalConfigurarRecibo: React.FC<ModalConfigurarReciboProps> = ({
         </div>
 
         {/* FOOTER COM BOTÕES VOLTAR / SALVAR (TELA010) */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center justify-end gap-2.5">
+        <div className="p-4 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-950/90 flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition cursor-pointer"
+            className="px-4 py-2 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-xs font-bold text-slate-700 md:text-slate-300 transition cursor-pointer"
           >
             Voltar
           </button>

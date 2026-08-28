@@ -45,6 +45,7 @@ import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido } from 
 import { PrintService, formatarDataRecibo } from '../services/printService';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
+import { VendasHistoricoMobile } from './VendasHistoricoMobile';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo' | 'cliente';
 type OrdenacaoDirecao = 'asc' | 'desc';
@@ -572,11 +573,29 @@ export const VendasHistorico: React.FC = () => {
   }, [vendedorSelecionadoId, usuarios]);
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-slate-950 text-slate-100 select-none">
-      {/* CORPO PRINCIPAL */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* TOPO: CABEÇALHO DA TELA DE VENDAS */}
-        <div className="p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full overflow-hidden">
+        <VendasHistoricoMobile
+          vendas={vendas}
+          clientes={clientes}
+          usuarios={usuarios}
+          carregando={carregando}
+          onVerItens={(pedido) => setVendaItensModal(pedido)}
+          onVerRecibo={(pedido) => setVendaReciboModal(pedido)}
+          onCancelarVenda={(pedido) => {
+            setMotivoCancelamento('');
+            setVendaCancelarModal(pedido);
+          }}
+        />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col h-full overflow-hidden bg-slate-950 text-slate-100 font-sans">
+        {/* CORPO PRINCIPAL */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* TOPO: CABEÇALHO DA TELA DE VENDAS */}
+          <div className="p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
@@ -1218,6 +1237,7 @@ export const VendasHistorico: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* MODAL DE CANCELAMENTO DE VENDA (TELA005) */}
       {vendaCancelarModal && (

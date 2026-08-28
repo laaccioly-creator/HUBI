@@ -307,26 +307,26 @@ export const ChatAjudaIA: React.FC = () => {
 
       {/* JANELA / WIDGET DE AJUDA & SUPORTE IA (RESPONSIVO PARA DESKTOP E MOBILE) */}
       {aberto && (
-        <div className="fixed bottom-0 md:bottom-24 right-0 md:right-6 z-50 w-full md:w-[420px] max-w-full h-[90vh] md:h-[620px] max-h-[92vh] bg-slate-900 border border-slate-800 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 select-none">
+        <div className="fixed bottom-0 md:bottom-24 right-0 md:right-6 z-50 w-full md:w-[420px] max-w-full h-[90vh] md:h-[620px] max-h-[92vh] bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 select-none text-slate-800 md:text-slate-100">
           {/* HEADER DO WIDGET */}
-          <div className="p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-4 bg-white md:bg-gradient-to-r md:from-slate-900 md:via-slate-800 md:to-slate-900 border-b border-slate-200 md:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-black text-sm">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 md:text-emerald-400 flex items-center justify-center font-black text-sm">
                 HB
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-slate-800 md:text-slate-100 flex items-center gap-1.5">
                   <span>Rubi IA • Suporte Oficial</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 </h3>
-                <span className="text-[10px] text-slate-400">Atendimento por Voz e Texto</span>
+                <span className="text-[10px] text-slate-500 md:text-slate-400">Atendimento por Voz e Texto</span>
               </div>
             </div>
 
             <button
               type="button"
               onClick={() => setAberto(false)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -620,7 +620,7 @@ export const ChatAjudaIA: React.FC = () => {
           </div>
 
           {/* BARRA DE NAVEGAÇÃO INFERIOR DO WIDGET (TELA009) */}
-          <div className="p-2 border-t border-slate-800 bg-slate-950 grid grid-cols-4 gap-1">
+          <div className="p-2 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-950 grid grid-cols-4 gap-1">
             <button
               type="button"
               onClick={() => {
@@ -628,7 +628,7 @@ export const ChatAjudaIA: React.FC = () => {
                 setArtigoSelecionado(null);
               }}
               className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'inicio' ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                abaAtiva === 'inicio' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
               }`}
             >
               <BookOpen className="w-4 h-4" />
@@ -642,7 +642,7 @@ export const ChatAjudaIA: React.FC = () => {
                 setArtigoSelecionado(null);
               }}
               className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'mensagens' ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                abaAtiva === 'mensagens' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
               }`}
             >
               <MessageCircle className="w-4 h-4" />
@@ -656,7 +656,7 @@ export const ChatAjudaIA: React.FC = () => {
                 setArtigoSelecionado(null);
               }}
               className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'ajuda' ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                abaAtiva === 'ajuda' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
               }`}
             >
               <HelpCircle className="w-4 h-4" />
@@ -670,7 +670,7 @@ export const ChatAjudaIA: React.FC = () => {
                 setArtigoSelecionado(null);
               }}
               className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'noticias' ? 'bg-emerald-500/15 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                abaAtiva === 'noticias' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
               }`}
             >
               <Newspaper className="w-4 h-4" />

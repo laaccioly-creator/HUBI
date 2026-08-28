@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { UsuarioLoja, MetricasUsuario } from '../types';
 import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 const CORES_PALETA = [
   '#10B981', // Emerald
@@ -42,6 +43,7 @@ export const UsuariosGestao: React.FC = () => {
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [modalDrawerAberto, setModalDrawerAberto] = useState<boolean>(false);
+  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [usuarioSelecionadoEdicao, setUsuarioSelecionadoEdicao] = useState<UsuarioLoja | null>(null);
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
 
@@ -344,7 +346,111 @@ export const UsuariosGestao: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
+        {/* Header Superior Mobile */}
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerMenuAberto(true)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+              title="Menu Principal"
+            >
+              <div className="space-y-1">
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+              </div>
+            </button>
+            <h1 className="font-bold text-base text-slate-800">Usuários ({usuarios.length})</h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAbrirAdicionar}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Novo</span>
+          </button>
+        </div>
+
+        {/* Conteúdo Mobile com Scroll */}
+        <div className="p-4 space-y-4 flex-1">
+          {/* Gráfico Donut de Desempenho em Card Branco */}
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
+            <span className="text-xs font-bold text-slate-700 block">Vendas por Colaborador (30 dias)</span>
+            {renderGraficoPizza()}
+          </div>
+
+          {/* Lista de Colaboradores em Cards Brancos */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block px-1">
+              Colaboradores Cadastrados ({usuarios.length})
+            </span>
+
+            {carregando ? (
+              <div className="text-center py-12 text-xs text-slate-400">Carregando equipe...</div>
+            ) : (
+              usuarios.map((u) => {
+                const isAdmin = u.perfil === 'admin' || u.perfil === 'owner';
+                const fat = Number(u.faturamento_30d) || 0;
+                const cor = dadosGraficoUsuarios.find(d => d.id === u.id)?.cor || '#10B981';
+
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => handleAbrirEdicao(u)}
+                    className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-xs hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-xs"
+                        style={{ backgroundColor: cor }}
+                      >
+                        {formatarIniciais(u.nome_completo)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                            {u.nome_completo}
+                          </span>
+                          {isAdmin ? (
+                            <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          ) : (
+                            <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-500 block truncate">
+                          {u.email || (isAdmin ? 'Administrador' : 'Vendedor')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-slate-900 text-xs sm:text-sm block">
+                        R$ {fat.toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-slate-400">30 dias</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Menu Gaveta Lateral */}
+        <MobileMenuDrawer
+          aberto={drawerMenuAberto}
+          onFechar={() => setDrawerMenuAberto(false)}
+        />
+      </div>
+
+      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col h-full overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
       
       {/* CABEÇALHO SUPERIOR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
@@ -527,6 +633,7 @@ export const UsuariosGestao: React.FC = () => {
           </div>
         </div>
 
+      </div>
       </div>
 
       {/* DRAWER / PAINEL UNIFICADO DE ADIÇÃO E EDIÇÃO */}

@@ -26,6 +26,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -37,6 +38,7 @@ export const ClientesFiado: React.FC = () => {
   const [ordemCrescente, setOrdemCrescente] = useState<boolean>(true);
 
   // Modais e Perfil Mobile
+  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [clientePerfilMobile, setClientePerfilMobile] = useState<Cliente | null>(null);
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
@@ -246,11 +248,144 @@ export const ClientesFiado: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* ========================================================================= */}
-      {/* HEADER DA TELA (ESTILO EXATO DA IMAGEM DO KYTE)                           */}
-      {/* ========================================================================= */}
-      <div className="p-4 sm:p-6 lg:px-8 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900">
+        {/* Header Superior Mobile */}
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerMenuAberto(true)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+              title="Menu Principal"
+            >
+              <div className="space-y-1">
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+              </div>
+            </button>
+            <h1 className="font-bold text-base text-slate-800">Clientes ({clientes.length})</h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setClienteEditar(null);
+              setModalNovoCliente(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Cliente</span>
+          </button>
+        </div>
+
+        {/* Campo de Busca Integrado */}
+        <div className="p-3 bg-white border-b border-slate-200 shrink-0">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, telefone, email..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+            />
+            {busca && (
+              <button
+                onClick={() => setBusca('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Resumo de Débito / Fiado */}
+        <div className="p-3 grid grid-cols-2 gap-2 bg-slate-50 shrink-0">
+          <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Total a Receber</span>
+            <p className="text-base font-black text-amber-600">
+              R$ {clientes.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Em Débito</span>
+            <p className="text-base font-black text-slate-800">
+              {clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length} clientes
+            </p>
+          </div>
+        </div>
+
+        {/* Lista de Clientes em Cards Brancos */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {carregando ? (
+            <div className="text-center py-16 text-xs text-slate-400">Carregando clientes...</div>
+          ) : clientesFiltrados.length === 0 ? (
+            <div className="text-center py-16 text-xs text-slate-400">Nenhum cliente encontrado.</div>
+          ) : (
+            clientesFiltrados.map((cliente) => {
+              const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
+              const phoneWhatsapp = cliente.whatsapp || cliente.telefone;
+
+              return (
+                <div
+                  key={cliente.id}
+                  onClick={() => setClientePerfilMobile(cliente)}
+                  className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-2 shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
+                        {getIniciais(cliente.nome)}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 block truncate text-xs sm:text-sm">
+                          {cliente.nome}
+                        </span>
+                        {phoneWhatsapp && (
+                          <span className="text-[11px] text-slate-500 block truncate">
+                            {phoneWhatsapp}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      {emDebito ? (
+                        <div>
+                          <span className="text-[10px] text-amber-600 font-bold block">Pendente</span>
+                          <span className="font-black text-amber-600 text-xs sm:text-sm">
+                            R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-medium">Em dia</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Menu Gaveta Lateral */}
+        <MobileMenuDrawer
+          aberto={drawerMenuAberto}
+          onFechar={() => setDrawerMenuAberto(false)}
+        />
+      </div>
+
+      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+        {/* ========================================================================= */}
+        {/* HEADER DA TELA (ESTILO EXATO DA IMAGEM DO KYTE)                           */}
+        {/* ========================================================================= */}
+        <div className="p-4 sm:p-6 lg:px-8 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Título Principal */}
           <div className="flex items-center gap-3">
@@ -476,6 +611,7 @@ export const ClientesFiado: React.FC = () => {
             </table>
           </div>
         </div>
+      </div>
       </div>
 
       {/* ========================================================================= */}

@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, PagamentoPedido } from '../types';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 type TipoMetrica =
   | 'faturamento'
@@ -99,6 +100,7 @@ export const EstatisticasAnalytics: React.FC = () => {
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('este_mes');
   const [periodoOffset, setPeriodoOffset] = useState<number>(0);
   const [dropdownPeriodoAberto, setDropdownPeriodoAberto] = useState<boolean>(false);
+  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [dataInicioCustom, setDataInicioCustom] = useState<string>('');
   const [dataFimCustom, setDataFimCustom] = useState<string>('');
 
@@ -788,8 +790,254 @@ export const EstatisticasAnalytics: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950">
-      {/* CABEÇALHO SUPERIOR */}
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans">
+        {/* Header Superior Mobile */}
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerMenuAberto(true)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+              title="Menu Principal"
+            >
+              <div className="space-y-1">
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+              </div>
+            </button>
+            <h1 className="font-bold text-base text-slate-800">Estatísticas</h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPeriodoOffset(0);
+              setTipoPeriodo('este_mes');
+            }}
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition"
+          >
+            Hoje
+          </button>
+        </div>
+
+        {/* Seletor de Período Horizontal Claro */}
+        <div className="p-3 bg-white border-b border-slate-200 shrink-0 space-y-2">
+          <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setPeriodoOffset(prev => prev - 1)}
+              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <span className="text-xs font-bold text-slate-800">
+              {PERIODOS_OPCOES.find(p => p.id === tipoPeriodo)?.label}
+              {periodoOffset !== 0 && ` (${periodoOffset > 0 ? `+${periodoOffset}` : periodoOffset})`}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPeriodoOffset(prev => prev + 1)}
+              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Pílulas de Seleção Rápida de Período */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {PERIODOS_OPCOES.slice(0, 6).map((op) => (
+              <button
+                key={op.id}
+                type="button"
+                onClick={() => {
+                  setTipoPeriodo(op.id);
+                  setPeriodoOffset(0);
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition border ${
+                  tipoPeriodo === op.id
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
+                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pílulas de Seleção de Métrica */}
+        <div className="px-3 py-2 bg-slate-100/60 border-b border-slate-200 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-1.5">
+          {[
+            { id: 'faturamento', label: 'Faturamento' },
+            { id: 'vendas', label: 'Qtd Vendas' },
+            { id: 'ticket_medio', label: 'Ticket Médio' },
+            { id: 'lucro', label: 'Lucro Real' },
+            { id: 'meio_pagamento', label: 'Pagamentos' },
+            { id: 'ranking_produtos', label: 'Top Produtos' },
+            { id: 'ranking_clientes', label: 'Top Clientes' }
+          ].map((met) => (
+            <button
+              key={met.id}
+              type="button"
+              onClick={() => setMetricaSelecionada(met.id as TipoMetrica)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
+                metricaSelecionada === met.id
+                  ? 'bg-white text-slate-900 border-slate-300 shadow-xs font-bold'
+                  : 'bg-transparent text-slate-500 border-transparent hover:bg-white/50'
+              }`}
+            >
+              {met.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Conteúdo com Scroll */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Card de Destaque da Métrica Selecionada */}
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {metricaSelecionada === 'faturamento' && 'Faturamento Total'}
+              {metricaSelecionada === 'vendas' && 'Número de Vendas Concluídas'}
+              {metricaSelecionada === 'ticket_medio' && 'Ticket Médio por Venda'}
+              {metricaSelecionada === 'lucro' && 'Lucro Líquido Real'}
+              {metricaSelecionada === 'meio_pagamento' && 'Distribuição por Meio de Pagamento'}
+              {metricaSelecionada === 'ranking_produtos' && 'Produtos Mais Vendidos'}
+              {metricaSelecionada === 'ranking_clientes' && 'Clientes Mais Fiéis'}
+            </span>
+
+            <div className="text-2xl font-black text-slate-900">
+              {metricaSelecionada === 'faturamento' && `R$ ${faturamentoTotal.toFixed(2)}`}
+              {metricaSelecionada === 'vendas' && `${totalVendas} pedidos`}
+              {metricaSelecionada === 'ticket_medio' && `R$ ${ticketMedio.toFixed(2)}`}
+              {metricaSelecionada === 'lucro' && `R$ ${lucroTotal.toFixed(2)}`}
+              {metricaSelecionada === 'meio_pagamento' && `R$ ${faturamentoTotal.toFixed(2)}`}
+              {metricaSelecionada === 'ranking_produtos' && `${rankingProdutos.length} produtos vendidos`}
+              {metricaSelecionada === 'ranking_clientes' && `${rankingClientes.length} clientes ativos`}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Margem de Lucro: <strong className="text-emerald-600 font-bold">{faturamentoTotal > 0 ? ((lucroTotal / faturamentoTotal) * 100).toFixed(1) : '0.0'}%</strong></span>
+              <span>Ticket: <strong className="text-slate-700 font-bold">R$ {ticketMedio.toFixed(2)}</strong></span>
+            </div>
+          </div>
+
+          {/* Conteúdo Específico por Métrica */}
+          {metricaSelecionada === 'meio_pagamento' ? (
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-slate-700">Divisão por Forma de Pagamento</h3>
+              {dadosMeiosPagamento.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">Nenhum pagamento registrado no período.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {dadosMeiosPagamento.map((p, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800">{p.nome}</span>
+                        <span className="font-mono text-slate-600 font-bold">R$ {p.valor.toFixed(2)} ({p.percentual.toFixed(1)}%)</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(p.percentual, 100)}%`, backgroundColor: p.cor }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : metricaSelecionada === 'ranking_produtos' ? (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-700 px-1">Produtos Mais Vendidos</h3>
+              {rankingProdutos.length === 0 ? (
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-400">Nenhum produto vendido no período.</div>
+              ) : (
+                rankingProdutos.slice(0, 15).map((prod, idx) => (
+                  <div key={idx} className="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-xs truncate">{prod.nome}</p>
+                        <p className="text-[11px] text-slate-500">{prod.qtd} unidades vendidas</p>
+                      </div>
+                    </div>
+                    <span className="font-black text-slate-900 text-xs shrink-0">
+                      R$ {prod.valor.toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : metricaSelecionada === 'ranking_clientes' ? (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-700 px-1">Melhores Clientes</h3>
+              {rankingClientes.length === 0 ? (
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-400">Nenhum cliente no período.</div>
+              ) : (
+                rankingClientes.slice(0, 15).map((cli, idx) => (
+                  <div key={idx} className="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-xs truncate">{cli.nome}</p>
+                        <p className="text-[11px] text-slate-500">{cli.compras} compras</p>
+                      </div>
+                    </div>
+                    <span className="font-black text-slate-900 text-xs shrink-0">
+                      R$ {cli.valor.toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            /* Lista temporal com barras */
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-slate-700">Evolução no Período</h3>
+              {dadosAgrupadosTemporais.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">Nenhum dado para o período selecionado.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {dadosAgrupadosTemporais.map((d, idx) => {
+                    const val = metricaSelecionada === 'vendas' ? d.vendas : metricaSelecionada === 'lucro' ? d.lucro : metricaSelecionada === 'ticket_medio' ? d.ticketMedio : d.faturamento;
+                    const maxVal = Math.max(...dadosAgrupadosTemporais.map(it => metricaSelecionada === 'vendas' ? it.vendas : it.faturamento), 1);
+                    const pct = (val / maxVal) * 100;
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-600">{d.rotulo}</span>
+                          <span className="font-bold text-slate-900">
+                            {metricaSelecionada === 'vendas' ? `${val} pedidos` : `R$ ${val.toFixed(2)}`}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Menu Gaveta Lateral */}
+        <MobileMenuDrawer
+          aberto={drawerMenuAberto}
+          onFechar={() => setDrawerMenuAberto(false)}
+        />
+      </div>
+
+      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col h-full overflow-hidden bg-slate-950">
+        {/* CABEÇALHO SUPERIOR */}
       <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-800 bg-slate-900/50 shrink-0">
         <div className="flex items-center gap-3">
           <button
@@ -1441,6 +1689,7 @@ export const EstatisticasAnalytics: React.FC = () => {
           )}
 
         </div>
+      </div>
       </div>
     </div>
   );

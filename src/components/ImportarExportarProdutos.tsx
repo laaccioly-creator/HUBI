@@ -212,38 +212,38 @@ export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> =
   }, [resultadoParse, filtroVisualizacao]);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl space-y-6 animate-in fade-in">
+    <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-xl space-y-6 animate-in fade-in text-slate-800 md:text-slate-100">
       {/* Topo com Título e Voltar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 md:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onVoltar}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 transition cursor-pointer"
             title="Voltar ao menu de configurações"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h2 className="font-extrabold text-base sm:text-lg text-slate-100 flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+            <h2 className="font-extrabold text-base sm:text-lg text-slate-800 md:text-slate-100 flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
               <span>Importar e Exportar Produtos</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 md:text-slate-400 mt-0.5">
               Cadastre ou atualize seus produtos em massa com planilhas Excel (.xlsx) e CSV 100% compatíveis.
             </p>
           </div>
         </div>
 
         {/* Seletor de Abas */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800 self-start sm:self-auto">
+        <div className="flex items-center bg-slate-100 md:bg-slate-950 p-1 rounded-2xl border border-slate-200 md:border-slate-800 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setAbaAtiva('importar')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               abaAtiva === 'importar'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                : 'text-slate-600 md:text-slate-400 hover:text-slate-900 md:hover:text-slate-200'
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
@@ -255,8 +255,8 @@ export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> =
             onClick={() => setAbaAtiva('exportar')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
               abaAtiva === 'exportar'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                : 'text-slate-600 md:text-slate-400 hover:text-slate-900 md:hover:text-slate-200'
             }`}
           >
             <Download className="w-3.5 h-3.5" />

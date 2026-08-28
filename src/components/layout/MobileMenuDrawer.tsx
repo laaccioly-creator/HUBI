@@ -190,22 +190,22 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       />
 
       {/* Painel do Drawer */}
-      <div className="relative w-4/5 max-w-xs bg-slate-900 text-slate-100 h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+      <div className="relative w-4/5 max-w-xs bg-white text-slate-900 h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-left duration-200 border-r border-slate-200">
         {/* Header do Drawer */}
-        <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between shrink-0">
+        <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-base shadow-lg shadow-emerald-500/20 shrink-0">
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-sm text-slate-100 truncate">{loja?.nome_fantasia || 'HUBI PDV'}</h3>
-              <p className="text-[10px] text-emerald-400 font-semibold truncate">{usuario?.nome_completo || 'Operador'}</p>
+              <h3 className="font-bold text-sm text-slate-800 truncate">{loja?.nome_fantasia || 'HUBI PDV'}</h3>
+              <p className="text-[10px] text-emerald-600 font-semibold truncate">{usuario?.nome_completo || 'Operador'}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onFechar}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
             title="Fechar menu"
           >
             <X className="w-5 h-5" />
@@ -230,12 +230,12 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                   onClick={() => navegarPara(item.caminho)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition ${
                     isAtivo
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold'
-                      : 'hover:bg-slate-800 text-slate-200 hover:text-emerald-400 font-medium'
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold'
+                      : 'hover:bg-slate-100 text-slate-700 hover:text-emerald-600 font-medium'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <Icone className={`w-5 h-5 shrink-0 ${isAtivo ? 'text-emerald-400' : 'text-slate-400'}`} />
+                    <Icone className={`w-5 h-5 shrink-0 ${isAtivo ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <span className="truncate">{item.nome}</span>
                   </div>
                   {item.badge !== undefined && (
@@ -249,13 +249,13 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         </div>
 
         {/* Rodapé do Drawer */}
-        <div className="p-3 border-t border-slate-800 space-y-2 bg-slate-950/80 shrink-0">
+        <div className="p-3 border-t border-slate-200 space-y-2 bg-slate-50 shrink-0">
           <a
             href={catalogUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={onFechar}
-            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold border border-emerald-500/20 transition"
+            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition"
           >
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4" />
@@ -270,7 +270,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
               onFechar();
               desconectarPdv();
             }}
-            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 text-xs font-bold transition text-left cursor-pointer"
+            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold transition text-left cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Trocar Estabelecimento / Sair</span>

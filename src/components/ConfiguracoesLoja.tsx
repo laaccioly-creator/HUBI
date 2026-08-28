@@ -58,6 +58,7 @@ import { PrintService } from '../services/printService';
 import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 type SubTelaConfig =
   | 'menu'
@@ -92,6 +93,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
@@ -946,8 +948,252 @@ export const ConfiguracoesLoja: React.FC = () => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 text-slate-100 overflow-y-auto">
-      {/* HEADER DA PÁGINA */}
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
+        {/* Header Superior Mobile */}
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0 sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            {subTela === 'menu' ? (
+              <button
+                type="button"
+                onClick={() => setDrawerMenuAberto(true)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+                title="Menu Principal"
+              >
+                <div className="space-y-1">
+                  <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                  <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                  <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                </div>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSubTela('menu')}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <h1 className="font-bold text-base text-slate-800">
+              {subTela === 'menu' && 'Configurações'}
+              {subTela === 'geral' && 'Geral'}
+              {subTela === 'dados-loja' && 'Dados da Loja'}
+              {subTela === 'identificacao' && 'Identificação Fiscal'}
+              {subTela === 'recibo' && 'Meu Recibo'}
+              {subTela === 'pedidos-vendas' && 'Pedidos e Vendas'}
+              {subTela === 'entrega' && 'Opções de Entrega'}
+              {subTela === 'exportar' && 'Exportar Relatórios'}
+              {subTela === 'parceiros' && 'Integrações'}
+            </h1>
+          </div>
+
+          {isDirty && (
+            <button
+              type="button"
+              onClick={handleSalvarTodasConfiguracoes}
+              disabled={salvando}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
+            >
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+          )}
+        </div>
+
+        {/* Conteúdo Mobile */}
+        <div className="p-4 space-y-4 flex-1">
+          {/* MENU EM GRADE MOBILE */}
+          {subTela === 'menu' && (
+            <div className="grid grid-cols-2 gap-3">
+              {itensMenu.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    if (item.id === 'catalogo') {
+                      navigate('/catalog-config');
+                    } else if (item.id === 'produtos') {
+                      navigate('/auxiliares');
+                    } else {
+                      setSubTela(item.id as SubTelaConfig);
+                    }
+                  }}
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 flex flex-col items-center justify-center text-center gap-2.5 transition shadow-xs cursor-pointer"
+                >
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-2xs">
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <span className="font-bold text-xs text-slate-800 leading-tight">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* SUBTELA GERAL MOBILE */}
+          {subTela === 'geral' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Preferências de Início</span>
+              <div
+                onClick={() => setModalTelaInicial(true)}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer"
+              >
+                <div>
+                  <span className="font-bold text-xs text-slate-800 block">Tela Inicial Padrão</span>
+                  <span className="text-[11px] text-slate-500">Tela carregada ao abrir o app</span>
+                </div>
+                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 uppercase">
+                  {telaInicialPadrao === 'pos' ? 'PDV' : telaInicialPadrao === 'pedidos' ? 'Pedidos' : 'Início'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* SUBTELA DADOS DA LOJA MOBILE */}
+          {subTela === 'dados-loja' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3.5">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Identificação</span>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Nome Fantasia da Loja</label>
+                <input
+                  type="text"
+                  value={nomeLoja}
+                  onChange={(e) => setNomeLoja(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Razão Social</label>
+                <input
+                  type="text"
+                  value={razaoSocial}
+                  onChange={(e) => setRazaoSocial(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">CPF ou CNPJ</label>
+                <input
+                  type="text"
+                  value={documento}
+                  onChange={(e) => setDocumento(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-mono focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">WhatsApp da Loja</label>
+                <input
+                  type="text"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Endereço da Loja</label>
+                <input
+                  type="text"
+                  value={enderecoLogradouro}
+                  onChange={(e) => setEnderecoLogradouro(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* SUBTELA MEU RECIBO MOBILE */}
+          {subTela === 'recibo' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Cabeçalho do Recibo</label>
+                <textarea
+                  rows={2}
+                  value={reciboCabecalho}
+                  onChange={(e) => setReciboCabecalho(e.target.value)}
+                  placeholder="Ex: Agradecemos a preferência!"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Rodapé do Recibo</label>
+                <textarea
+                  rows={2}
+                  value={reciboRodape}
+                  onChange={(e) => setReciboRodape(e.target.value)}
+                  placeholder="Ex: Volte sempre!"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalPreviewRecibo(true)}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <Receipt className="w-4 h-4" />
+                <span>Visualizar Preview do Recibo</span>
+              </button>
+            </div>
+          )}
+
+          {/* SUBTELA EXPORTAR RELATÓRIOS MOBILE */}
+          {subTela === 'exportar' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Relatórios e Feeds</span>
+              <p className="text-xs text-slate-600">
+                Exporte produtos e relatórios de vendas para planilhas ou integre com o catálogo do Facebook / Google Shopping.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/c/${loja?.slug_catalogo || ''}`);
+                  setMensagemToast('Link do catálogo copiado!');
+                  setTimeout(() => setMensagemToast(''), 3000);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 flex items-center justify-center gap-2 transition"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Copiar Link do Catálogo Público</span>
+              </button>
+            </div>
+          )}
+
+          {/* DEMAIS SUBTELAS */}
+          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+              <h3 className="font-bold text-sm text-slate-800">Configurações desta seção</h3>
+              <p className="text-xs text-slate-500">
+                Para configurações avançadas desta categoria, você também pode acessar pelo computador.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSubTela('menu')}
+                className="w-full py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200"
+              >
+                Voltar ao Menu
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Menu Gaveta Lateral */}
+        <MobileMenuDrawer
+          aberto={drawerMenuAberto}
+          onFechar={() => setDrawerMenuAberto(false)}
+        />
+      </div>
+
+      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col flex-1 h-full bg-slate-950 text-slate-100 overflow-y-auto">
+        {/* HEADER DA PÁGINA */}
       <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -2350,16 +2596,17 @@ export const ConfiguracoesLoja: React.FC = () => {
         )}
 
       </div>
+      </div>
 
       {/* ========================================================================= */}
       {/* MODAL: SELETOR DE TELA INICIAL */}
       {/* ========================================================================= */}
       {modalTelaInicial && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-100">Tela inicial</h3>
-              <button onClick={() => setModalTelaInicial(false)} className="text-slate-400 hover:text-white">
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Tela inicial</h3>
+              <button onClick={() => setModalTelaInicial(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2381,15 +2628,15 @@ export const ConfiguracoesLoja: React.FC = () => {
                   }}
                   className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${
                     telaInicialPadrao === opt.id
-                      ? 'bg-emerald-500/10 border-emerald-500 text-slate-100'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                      ? 'bg-emerald-50 md:bg-emerald-500/10 border-emerald-500 text-emerald-900 md:text-slate-100'
+                      : 'bg-slate-50 md:bg-slate-950 border-slate-200 md:border-slate-800 text-slate-700 md:text-slate-400 hover:bg-slate-100 md:hover:bg-slate-900'
                   }`}
                 >
                   <div>
                     <span className="font-bold text-xs block">{opt.title}</span>
                     <span className="text-[10px] text-slate-500 block">{opt.desc}</span>
                   </div>
-                  {telaInicialPadrao === opt.id && <Check className="w-4 h-4 text-emerald-400" />}
+                  {telaInicialPadrao === opt.id && <Check className="w-4 h-4 text-emerald-500" />}
                 </label>
               ))}
             </div>
@@ -2402,10 +2649,10 @@ export const ConfiguracoesLoja: React.FC = () => {
       {/* ========================================================================= */}
       {modalPreviewRecibo && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-100">Recibo da Loja (Preview)</h3>
-              <button onClick={() => setModalPreviewRecibo(false)} className="text-slate-400 hover:text-white">
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Recibo da Loja (Preview)</h3>
+              <button onClick={() => setModalPreviewRecibo(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>

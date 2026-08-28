@@ -223,24 +223,24 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in">
-      <div className="bg-slate-900 border-l border-slate-800 w-full max-w-2xl h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+      <div className="bg-white md:bg-slate-900 border-l border-slate-200 md:border-slate-800 w-full max-w-2xl h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 text-slate-800 md:text-slate-100">
         
         {/* CABEÇALHO DO DRAWER */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/95 sticky top-0 z-10">
+        <div className="p-4 sm:p-5 border-b border-slate-200 md:border-slate-800 flex items-center justify-between bg-white md:bg-slate-900/95 sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <h3 className="font-black text-lg text-slate-100 flex items-center gap-2">
+            <h3 className="font-black text-lg text-slate-800 md:text-slate-100 flex items-center gap-2">
               <span>{usuarioEdicao ? usuarioEdicao.nome_completo : 'Adicionar Usuário'}</span>
             </h3>
 
             {ehOwner && (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-300 border border-teal-500/30 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-600 md:text-teal-300 border border-teal-500/30 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
                 <Crown className="w-3 h-3" />
                 OWNER
               </span>
             )}
 
             {ehAdmin && !ehOwner && (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-600 md:text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
                 <Shield className="w-3 h-3" />
                 ADMIN
               </span>
@@ -250,8 +250,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
           <div className="flex items-center gap-3">
             {/* Switch de Inativar Usuário no cabeçalho (Conforme telas de referência) */}
             {usuarioEdicao && (
-              <div className="flex items-center gap-2 pr-2 border-r border-slate-800">
-                <span className="text-[11px] font-semibold text-slate-300 hidden sm:inline">
+              <div className="flex items-center gap-2 pr-2 border-r border-slate-200 md:border-slate-800">
+                <span className="text-[11px] font-semibold text-slate-600 md:text-slate-300 hidden sm:inline">
                   {ativo ? 'Ativo' : 'Inativo'}
                 </span>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0" title={ehOwner ? "O proprietário não pode ser inativado" : "Ativar ou inativar acesso"}>
@@ -262,7 +262,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     onChange={(e) => setAtivo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className={`w-8 h-4.5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500 ${ehOwner ? 'opacity-60 cursor-not-allowed' : ''}`}></div>
+                  <div className="w-9 h-5 bg-slate-300 md:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
             )}
@@ -270,7 +270,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-slate-100 md:hover:bg-slate-800 text-slate-400 hover:text-slate-700 md:hover:text-white transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -279,11 +279,11 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
         {/* FAIXA DE INDICADORES DE VENDAS (HOJE, ONTEM, ESTA SEMANA, ESTE MÊS) */}
         {usuarioEdicao && metricas && (
-          <div className="bg-slate-950/60 border-b border-slate-800/80 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-2.5 space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Hoje</span>
-              <span className="text-slate-200 font-bold block">{metricas.hoje_vendas} vendas</span>
-              <span className="text-[11px] text-emerald-400 font-semibold block">
+          <div className="bg-slate-50 md:bg-slate-950/60 border-b border-slate-200 md:border-slate-800/80 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="bg-slate-200/50 md:bg-slate-900/60 border border-slate-300/50 md:border-slate-800/60 rounded-xl p-2.5 space-y-0.5">
+              <span className="text-[10px] text-slate-500 md:text-slate-400 font-bold uppercase tracking-wider block">Hoje</span>
+              <span className="text-slate-800 md:text-slate-200 font-bold block">{metricas.hoje_vendas} vendas</span>
+              <span className="text-[11px] text-emerald-600 md:text-emerald-400 font-semibold block">
                 R$ {metricas.hoje_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -594,13 +594,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         </form>
 
         {/* RODAPÉ DO DRAWER COM AÇÕES */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/95 flex items-center justify-between gap-3 sticky bottom-0 z-10">
+        <div className="p-4 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-900/95 flex items-center justify-between gap-3 sticky bottom-0 z-10">
           {usuarioEdicao && !ehOwner ? (
             <button
               type="button"
               onClick={handleExcluirUsuario}
               disabled={salvando}
-              className="px-3.5 py-2.5 rounded-xl border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-2.5 rounded-xl border border-rose-200 md:border-rose-500/30 bg-rose-50 md:bg-transparent hover:bg-rose-100 md:hover:bg-rose-500/20 text-rose-600 md:text-rose-400 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
               title="Excluir este usuário"
             >
               <Trash2 className="w-4 h-4" />
@@ -610,7 +610,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
             >
               Cancelar
             </button>

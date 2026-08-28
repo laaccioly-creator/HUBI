@@ -13,6 +13,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 interface MensagemIA {
   id: string;
@@ -41,6 +42,7 @@ export const AssistenteRubi: React.FC = () => {
   ]);
   const [inputTexto, setInputTexto] = useState<string>('');
   const [pensando, setPensando] = useState<boolean>(false);
+  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,7 +130,141 @@ export const AssistenteRubi: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-950">
+    <div className="h-full w-full overflow-hidden select-none">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
+      <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans">
+        {/* Header Superior Mobile */}
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerMenuAberto(true)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition"
+              title="Menu Principal"
+            >
+              <div className="space-y-1">
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+              </div>
+            </button>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                <span>Rubi IA</span>
+                <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-1.5 py-0.2 rounded border border-indigo-200">
+                  HUBI
+                </span>
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Área de Mensagens com Scroll */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {mensagens.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex items-start gap-2.5 ${msg.remetente === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {msg.remetente === 'rubi' && (
+                <div className="w-7 h-7 rounded-xl bg-indigo-500 flex items-center justify-center text-white shrink-0 mt-0.5 shadow-xs">
+                  <Bot className="w-4 h-4" />
+                </div>
+              )}
+
+              <div
+                className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                  msg.remetente === 'user'
+                    ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
+                    : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs whitespace-pre-line'
+                }`}
+              >
+                {msg.texto}
+              </div>
+
+              {msg.remetente === 'user' && (
+                <div className="w-7 h-7 rounded-xl bg-slate-200 flex items-center justify-center text-slate-700 shrink-0 mt-0.5">
+                  <User className="w-4 h-4" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {pensando && (
+            <div className="flex items-center gap-2 text-indigo-600 text-xs p-2 bg-indigo-50/50 rounded-xl border border-indigo-100">
+              <Sparkles className="w-4 h-4 animate-spin text-indigo-500" />
+              <span className="font-semibold">Rubi está analisando os dados...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Rodapé Mobile: Sugestões e Input */}
+        <div className="p-3 border-t border-slate-200 bg-white space-y-2 shrink-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+            <button
+              type="button"
+              onClick={() => handleEnviarMensagem('Como estão as vendas e o faturamento?')}
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 font-medium"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Resumo de Vendas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleEnviarMensagem('Quais produtos estão com estoque baixo?')}
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 font-medium"
+            >
+              <Package className="w-3.5 h-3.5 text-amber-600" />
+              <span>Alerta de Estoque</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleEnviarMensagem('Quanto tenho a receber em fiado?')}
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 font-medium"
+            >
+              <DollarSign className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Total em Fiado</span>
+            </button>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEnviarMensagem();
+            }}
+            className="flex items-center gap-2"
+          >
+            <input
+              type="text"
+              placeholder="Digite uma pergunta para a Rubi..."
+              value={inputTexto}
+              onChange={(e) => setInputTexto(e.target.value)}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+            />
+            <button
+              type="submit"
+              disabled={!inputTexto.trim() || pensando}
+              className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 disabled:opacity-50 transition cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+
+        {/* Menu Gaveta Lateral */}
+        <MobileMenuDrawer
+          aberto={drawerMenuAberto}
+          onFechar={() => setDrawerMenuAberto(false)}
+        />
+      </div>
+
+      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      <div className="hidden md:flex flex-col h-full overflow-hidden bg-slate-950">
       <div className="p-4 border-b border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -242,6 +378,7 @@ export const AssistenteRubi: React.FC = () => {
             <Send className="w-4 h-4" />
           </button>
         </form>
+      </div>
       </div>
     </div>
   );

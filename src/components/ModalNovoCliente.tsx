@@ -445,18 +445,18 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 md:text-slate-100">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-slate-200 md:border-slate-800 bg-white md:bg-slate-900/90 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 md:bg-emerald-500/10 border border-emerald-200 md:border-emerald-500/20 text-emerald-600 md:text-emerald-400 flex items-center justify-center font-bold">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-100">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 md:text-slate-100">
                 {clienteEditar ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500 md:text-slate-400">
                 {clienteEditar
                   ? 'Atualize os dados de contato, endereço e condições de crédito'
                   : 'Preencha os dados de contato, endereço e controle de crédito'}
@@ -465,7 +465,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-slate-100 hover:bg-slate-100 md:hover:bg-slate-800 transition"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -889,11 +889,11 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         </form>
 
         {/* Rodapé com Ações */}
-        <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-900/90 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
+        <div className="p-4 sm:p-5 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-900/90 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
           >
             Cancelar
           </button>
