@@ -513,9 +513,26 @@ export const PedidosLista: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* SE UM PEDIDO ESTIVER SELECIONADO: EXIBIR A VISÃO DETALHADA DO PEDIDO (TELA002, TELA002A, TELA002B) */}
-      {pedidoSelecionado ? (
+    <>
+      {/* VISÃO MOBILE DE PEDIDOS (CONFORME TELA001 A TELA010 DISPONIBILIZADAS) */}
+      <div className="md:hidden h-full flex flex-col overflow-hidden bg-slate-900 text-slate-100">
+        <PedidosListaMobile
+          pedidos={pedidos}
+          clientes={clientes}
+          usuarios={usuarios}
+          carregando={carregando}
+          onAlterarStatus={atualizarStatus}
+          onCancelarPedido={(ped) => atualizarStatus(ped.id, 'cancelado')}
+          onAbrirReceberPagamento={(ped) => setPedidoReceberModal(ped)}
+          onAbrirDrawerMenu={() => {}}
+          onClienteAtualizado={() => carregarPedidos()}
+        />
+      </div>
+
+      {/* VISÃO DESKTOP DE PEDIDOS */}
+      <div className="hidden md:flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+        {/* SE UM PEDIDO ESTIVER SELECIONADO: EXIBIR A VISÃO DETALHADA DO PEDIDO (TELA002, TELA002A, TELA002B) */}
+        {pedidoSelecionado ? (
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 animate-in fade-in duration-150 max-w-7xl mx-auto w-full">
           {/* HEADER DA VISÃO DETALHADA DO PEDIDO (TELA002) */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800 bg-slate-950/90 sticky top-0 z-20 backdrop-blur">
@@ -1510,6 +1527,7 @@ export const PedidosLista: React.FC = () => {
           carregarPedidos();
         }}
       />
-    </div>
+      </div>
+    </>
   );
 };

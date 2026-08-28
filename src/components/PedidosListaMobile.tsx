@@ -24,9 +24,19 @@ import {
   AlertTriangle,
   Store,
   ArrowRight,
-  TrendingUp,
   Tag,
-  Mic
+  Mic,
+  ShoppingCart,
+  ShoppingBag,
+  Package,
+  Users,
+  BarChart3,
+  Ticket,
+  Globe,
+  Layers,
+  UserCheck,
+  Settings,
+  LogOut
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,6 +75,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   // Estados de Navegação de Telas
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [clientePerfilSelecionado, setClientePerfilSelecionado] = useState<Cliente | null>(null);
+  const [drawerInternoAberto, setDrawerInternoAberto] = useState<boolean>(false);
 
   // Estados de Busca e Filtros Rápidos (TELA001, TELA003, TELA004)
   const [busca, setBusca] = useState<string>('');
@@ -667,9 +678,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={onAbrirDrawerMenu}
+            onClick={() => {
+              if (onAbrirDrawerMenu) onAbrirDrawerMenu();
+              setDrawerInternoAberto(true);
+            }}
             className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-            title="Menu"
+            title="Menu Principal"
           >
             <div className="space-y-1">
               <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
@@ -1078,6 +1092,184 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             >
               Filtrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* DRAWER MENU LATERAL MOBILE (ACESSO A TODOS OS MÓDULOS) */}
+      {drawerInternoAberto && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setDrawerInternoAberto(false)}
+          />
+
+          {/* Painel do Drawer */}
+          <div className="relative w-4/5 max-w-xs bg-slate-900 text-slate-100 h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+            {/* Header do Drawer */}
+            <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white text-base shadow-lg shadow-emerald-500/20">
+                  {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm text-slate-100 truncate">{loja?.nome_fantasia || 'HUBI PDV'}</h3>
+                  <p className="text-[10px] text-emerald-400 font-semibold">{usuario?.nome_completo || 'Operador'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerInternoAberto(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Links dos Módulos */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1 text-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/pos');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <ShoppingCart className="w-5 h-5 text-emerald-400" />
+                <span>Vender (Frente de Caixa)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDrawerInternoAberto(false)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-left font-bold"
+              >
+                <ShoppingBag className="w-5 h-5 text-emerald-400" />
+                <span>Pedidos ({pedidos.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/sales');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Receipt className="w-5 h-5 text-slate-400" />
+                <span>Vendas / Histórico</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/products');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Package className="w-5 h-5 text-slate-400" />
+                <span>Produtos & Estoque</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/customers');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Users className="w-5 h-5 text-slate-400" />
+                <span>Clientes</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/finances');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <DollarSign className="w-5 h-5 text-slate-400" />
+                <span>Finanças & Caixa</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/analytics');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <BarChart3 className="w-5 h-5 text-slate-400" />
+                <span>Estatísticas</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/coupons');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Ticket className="w-5 h-5 text-emerald-400" />
+                <span>Cupons de Desconto</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/catalog-config');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Globe className="w-5 h-5 text-slate-400" />
+                <span>Catálogo Online</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/auxiliares');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Layers className="w-5 h-5 text-slate-400" />
+                <span>Cadastros & Tabelas</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/users');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <UserCheck className="w-5 h-5 text-slate-400" />
+                <span>Gestão de Usuários</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerInternoAberto(false);
+                  navigate('/config');
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-emerald-400 text-left font-medium transition"
+              >
+                <Settings className="w-5 h-5 text-slate-400" />
+                <span>Configurações</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

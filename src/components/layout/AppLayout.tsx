@@ -244,12 +244,13 @@ export const AppLayout: React.FC = () => {
 
   const catalogUrl = loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : '/catalog';
 
-  const todosBotoesPrincipais = [
+  // 12 BOTÕES DISTRIBUÍDOS EM 2 FILEIRAS DE 6 BOTÕES CADA (ALINHADOS E COM FONTE BRANCA)
+  const row1Buttons = [
     {
       name: 'Vender (PDV)',
       path: '/pos',
       icon: ShoppingCart,
-      isPrimary: true,
+      badge: undefined,
       visivel: permissions.podeAcessarPdv
     },
     {
@@ -263,83 +264,78 @@ export const AppLayout: React.FC = () => {
       name: 'Vendas',
       path: '/sales',
       icon: Receipt,
+      badge: undefined,
       visivel: permissions.podeAcessarVendas
     },
     {
       name: 'Produtos & Estoque',
       path: '/products',
       icon: Package,
+      badge: undefined,
       visivel: permissions.podeAcessarProdutos
     },
     {
       name: 'Clientes',
       path: '/customers',
       icon: Users,
+      badge: undefined,
       visivel: permissions.podeAcessarClientes
     },
     {
       name: 'Finanças & Caixa',
       path: '/finances',
       icon: DollarSign,
+      badge: undefined,
       visivel: permissions.podeAcessarFinancas
-    },
+    }
+  ].filter(b => b.visivel);
+
+  const row2Buttons = [
     {
       name: 'Estatísticas',
       path: '/analytics',
       icon: BarChart3,
+      badge: undefined,
       visivel: permissions.podeAcessarAnalytics
-    },
-    {
-      name: 'Rubi IA',
-      path: '/smart-assistant',
-      icon: Sparkles,
-      isAi: true,
-      visivel: permissions.podeAcessarRubiIA
-    }
-  ];
-
-  const mainButtons = todosBotoesPrincipais.filter(b => b.visivel);
-
-  const todosBotoesExtras = [
-    {
-      name: 'Catálogo Online',
-      path: '/catalog-config',
-      icon: Globe,
-      description: 'Vitrine, cores e pedidos online',
-      visivel: permissions.podeAcessarCatalogo
     },
     {
       name: 'Cupons de Desconto',
       path: '/coupons',
       icon: Ticket,
-      description: 'Promoções e cupons de frete grátis',
+      badge: undefined,
       visivel: permissions.podeAcessarCupons
+    },
+    {
+      name: 'Catálogo Online',
+      path: '/catalog-config',
+      icon: Globe,
+      badge: undefined,
+      visivel: permissions.podeAcessarCatalogo
     },
     {
       name: 'Cadastros & Tabelas',
       path: '/auxiliares',
       icon: Layers,
-      description: 'Categorias, Fornecedores, Formas',
+      badge: undefined,
       visivel: permissions.podeAcessarAuxiliares
     },
     {
       name: 'Gestão de Usuários',
       path: '/users',
       icon: UserCheck,
-      description: 'Controle de operadores e acessos',
+      badge: undefined,
       visivel: permissions.podeAcessarUsuarios
     },
     {
       name: 'Configurações',
       path: '/config',
       icon: Settings,
-      description: 'Dados da loja e taxas',
+      badge: undefined,
       visivel: permissions.podeAcessarConfig
     }
-  ];
+  ].filter(b => b.visivel);
 
-  const extraButtons = todosBotoesExtras.filter(b => b.visivel);
-  const isExtraActive = extraButtons.some(item => location.pathname.startsWith(item.path));
+  const todosOsBotoes = [...row1Buttons, ...row2Buttons];
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
   const isCustomMobileRoute = isPosRoute || location.pathname.startsWith('/products') || location.pathname.startsWith('/orders') || location.pathname.startsWith('/catalog-config') || location.pathname.startsWith('/finances');
 
@@ -348,18 +344,17 @@ export const AppLayout: React.FC = () => {
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
-      {/* TOP HEADER / BARRA SUPERIOR EM 2 LINHAS (PADRÃO DESKTOP & MOBILE) */}
+      {/* TOP HEADER / BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES CADA (12 BOTÕES PADRONIZADOS) */}
       <header className={`bg-slate-900 border-b border-slate-800/80 z-30 shrink-0 shadow-md ${isCustomMobileRoute ? 'hidden md:block' : ''}`}>
-        {/* LINHA 1: IDENTIFICAÇÃO DA LOJA + MÓDULOS OPERACIONAIS PRINCIPAIS + AÇÕES RÁPIDAS */}
-        <div className="px-3 md:px-5 py-2.5 flex items-center justify-between gap-3 border-b border-slate-800/50">
-          {/* IDENTIFICAÇÃO DA LOJA (ESQUERDA - COM MARGEM GENEROSA PARA A DIREITA) */}
-          <div className="flex items-center gap-3 shrink-0 mr-2 lg:mr-4">
+        <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
+          {/* IDENTIFICAÇÃO DA LOJA (ESQUERDA - COM ESPAÇO AMPLO PARA DESLOCAR O PDV PARA A DIREITA) */}
+          <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">
             <Link to="/pos" className="flex items-center gap-2.5 group">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
               <div className="hidden sm:block min-w-0">
-                <h1 className="font-bold text-slate-100 text-xs lg:text-sm truncate max-w-[110px] md:max-w-[130px] lg:max-w-[160px] leading-tight group-hover:text-emerald-400 transition">
+                <h1 className="font-bold text-slate-100 text-xs lg:text-sm truncate max-w-[110px] md:max-w-[130px] lg:max-w-[150px] leading-tight group-hover:text-emerald-400 transition">
                   {loja?.nome_fantasia || 'HUBI PDV'}
                 </h1>
                 <div className="flex items-center gap-1">
@@ -370,108 +365,62 @@ export const AppLayout: React.FC = () => {
             </Link>
           </div>
 
-          {/* BARRA HORIZONTAL DE MÓDULOS OPERACIONAIS PRINCIPAIS (LINHA 1) */}
-          <nav className="hidden md:flex items-center gap-1.5 lg:gap-2 flex-1 justify-center min-w-0 px-1 overflow-x-auto scrollbar-none">
-            {mainButtons.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname.startsWith(item.path);
+          {/* GRID CENTRAL EM 2 FILEIRAS DE 6 BOTÕES CADA (12 BOTÕES ALINHADOS E COM MESMO COMPORTAMENTO DO VENDER PDV) */}
+          <nav className="hidden md:flex flex-col gap-1.5 flex-1 max-w-4xl min-w-0 justify-center">
+            {/* FILEIRA 1 (6 BOTÕES) */}
+            <div className="grid grid-cols-6 gap-1.5 lg:gap-2 w-full">
+              {row1Buttons.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname.startsWith(item.path);
 
-              if (item.isPrimary) {
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 shadow-md ${
+                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate ${
                       isActive
-                        ? 'bg-emerald-600 text-white shadow-emerald-500/25 ring-2 ring-emerald-400/40'
-                        : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500 hover:text-white border border-emerald-500/40'
+                        ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
+                        : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
                     }`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="whitespace-nowrap">{item.name}</span>
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{item.name}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 );
-              }
-
-              if (item.isAi) {
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 shrink-0 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25 ring-1 ring-indigo-400/40'
-                        : 'bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 border border-indigo-500/20'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 text-indigo-400 shrink-0" />
-                    <span className="whitespace-nowrap">{item.name}</span>
-                    <span className="bg-indigo-500/30 text-indigo-200 text-[8px] font-extrabold px-1 rounded">IA</span>
-                  </Link>
-                );
-              }
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 shrink-0 relative ${
-                    isActive
-                      ? 'bg-slate-800 text-white shadow-sm border border-slate-700 font-semibold'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent'
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span className="whitespace-nowrap">{item.name}</span>
-
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full animate-bounce">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* AÇÕES DA DIREITA (TEMA CLARO/ESCURO + CATÁLOGO + USUÁRIO) */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* SELETOR DE TEMA: APENAS MODO ESCURO E MODO CLARO */}
-            <div className="flex items-center bg-slate-800 border border-slate-700/80 rounded-xl p-0.5" title={`Tema ativo: ${tema === 'dark' ? 'Modo Escuro' : 'Modo Claro'}`}>
-              <button
-                type="button"
-                onClick={() => setTema('dark')}
-                className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-bold ${
-                  tema === 'dark' ? 'bg-slate-700 text-amber-300 shadow' : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Ativar Modo Escuro (Noturno)"
-              >
-                <Moon className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setTema('light')}
-                className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-bold ${
-                  tema === 'light' ? 'bg-amber-500/20 text-amber-400 shadow' : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Ativar Modo Claro (Diurno)"
-              >
-                <Sun className="w-3.5 h-3.5" />
-              </button>
+              })}
             </div>
 
-            <Link
-              to={catalogUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium border border-slate-700 transition shadow-sm"
-              title="Abrir Catálogo Online do Cliente"
-            >
-              <Store className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Catálogo</span>
-              <ExternalLink className="w-3 h-3 text-slate-400" />
-            </Link>
+            {/* FILEIRA 2 (6 BOTÕES) */}
+            <div className="grid grid-cols-6 gap-1.5 lg:gap-2 w-full">
+              {row2Buttons.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname.startsWith(item.path);
 
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate ${
+                      isActive
+                        ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
+                        : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/* LADO DIREITO: APENAS O MENU DO USUÁRIO (ONDE FICA A ESCOLHA DO TEMA) */}
+          <div className="flex items-center gap-2 shrink-0 justify-end w-44 lg:w-52">
             {/* NOTIFICAÇÃO MOBILE / RÁPIDA */}
             <Link
               to="/orders"
@@ -485,20 +434,20 @@ export const AppLayout: React.FC = () => {
               )}
             </Link>
 
-            {/* MENU DO USUÁRIO / TROCAR PDV */}
+            {/* MENU DO USUÁRIO (CONTÉM TEMA CLARO/ESCURO, CONFIGURAÇÕES E SAIR) */}
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(prev => !prev)}
-                className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-left cursor-pointer"
+                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-left cursor-pointer shadow-sm"
               >
                 <div className="w-6 h-6 rounded-lg bg-emerald-600/20 text-emerald-400 font-bold text-[11px] flex items-center justify-center border border-emerald-500/30">
                   {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
                 </div>
-                <span className="text-xs font-medium text-slate-200 max-w-[90px] truncate">
+                <span className="text-xs font-medium text-slate-200 max-w-[100px] truncate">
                   {usuario?.nome_completo || 'Operador'}
                 </span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
               {userMenuOpen && (
@@ -585,36 +534,6 @@ export const AppLayout: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* LINHA 2: GESTÃO & CONFIGURAÇÕES (APRESENTADOS DIRETAMENTE SEM DROPDOWN 'MAIS') */}
-        {extraButtons.length > 0 && (
-          <div className="hidden md:flex items-center justify-between px-3 md:px-5 py-1.5 bg-slate-950/40 text-xs overflow-x-auto scrollbar-none">
-            <div className="flex items-center gap-1.5 lg:gap-2">
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mr-1 shrink-0">
-                Gestão & Configuração:
-              </span>
-              {extraButtons.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname.startsWith(item.path);
-
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl transition font-medium shrink-0 ${
-                      isActive
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold shadow-sm'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent'
-                    }`}
-                  >
-                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
-                    <span className="whitespace-nowrap">{item.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* MENU DROPDOWN MOBILE (APENAS MÓDULOS AUTORIZADOS) */}
         {mobileMenuOpen && (
@@ -703,14 +622,14 @@ export const AppLayout: React.FC = () => {
               </Link>
             )}
 
-            {permissions.podeAcessarRubiIA && (
+            {permissions.podeAcessarCupons && (
               <Link
-                to="/smart-assistant"
+                to="/coupons"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-indigo-300 hover:bg-indigo-500/10 font-semibold"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-emerald-400 hover:bg-emerald-500/10 font-semibold"
               >
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <span>Assistente Rubi (IA)</span>
+                <Ticket className="w-4 h-4 text-emerald-400" />
+                <span>Cupons de Desconto</span>
               </Link>
             )}
 

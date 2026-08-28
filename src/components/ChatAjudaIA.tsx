@@ -196,20 +196,105 @@ export const ChatAjudaIA: React.FC = () => {
     );
   });
 
+  // Posição arrastável do botão da Rubi IA (Drag and Drop)
+  const [posicao, setPosicao] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const salvo = localStorage.getItem('hubi_rubi_ia_pos');
+      if (salvo) return JSON.parse(salvo);
+    } catch {}
+    return null;
+  });
+
+  const arrastandoRef = useRef<boolean>(false);
+  const posInicialMouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const posInicialBtnRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const houveArrastoRef = useRef<boolean>(false);
+
+  // Iniciar Arrastar (Mouse & Touch)
+  const iniciarArrasto = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+    const btnEl = e.currentTarget as HTMLElement;
+    const rect = btnEl.getBoundingClientRect();
+
+    arrastandoRef.current = true;
+    houveArrastoRef.current = false;
+    posInicialMouseRef.current = { x: clientX, y: clientY };
+    posInicialBtnRef.current = { x: rect.left, y: rect.top };
+
+    const emMovimento = (moveEvent: MouseEvent | TouchEvent) => {
+      if (!arrastandoRef.current) return;
+      const curX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const curY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+
+      const deltaX = curX - posInicialMouseRef.current.x;
+      const deltaY = curY - posInicialMouseRef.current.y;
+
+      if (Math.hypot(deltaX, deltaY) > 6) {
+        houveArrastoRef.current = true;
+      }
+
+      const novoX = Math.max(10, Math.min(window.innerWidth - 65, posInicialBtnRef.current.x + deltaX));
+      const novoY = Math.max(10, Math.min(window.innerHeight - 65, posInicialBtnRef.current.y + deltaY));
+
+      setPosicao({ x: novoX, y: novoY });
+    };
+
+    const finalizarArrasto = () => {
+      arrastandoRef.current = false;
+      window.removeEventListener('mousemove', emMovimento);
+      window.removeEventListener('mouseup', finalizarArrasto);
+      window.removeEventListener('touchmove', emMovimento);
+      window.removeEventListener('touchend', finalizarArrasto);
+
+      setPosicao((posAtual) => {
+        if (posAtual) {
+          try {
+            localStorage.setItem('hubi_rubi_ia_pos', JSON.stringify(posAtual));
+          } catch {}
+        }
+        return posAtual;
+      });
+    };
+
+    window.addEventListener('mousemove', emMovimento);
+    window.addEventListener('mouseup', finalizarArrasto);
+    window.addEventListener('touchmove', emMovimento, { passive: true });
+    window.addEventListener('touchend', finalizarArrasto);
+  };
+
+  const handleClickBotao = () => {
+    if (!houveArrastoRef.current) {
+      setAberto((prev) => !prev);
+    }
+  };
+
   return (
     <>
-      {/* BOTÃO FLUTUANTE DE AJUDA COM IA (DISPONÍVEL EM TODAS AS TELAS - DESKTOP E MOBILE) */}
-      <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 animate-in fade-in duration-200">
+      {/* BOTÃO FLUTUANTE DE AJUDA COM IA - ARRASTÁVEL LIVREMENTE PELA TELA */}
+      <div
+        style={
+          posicao
+            ? { left: `${posicao.x}px`, top: `${posicao.y}px`, bottom: 'auto', right: 'auto' }
+            : {}
+        }
+        className={`${
+          posicao ? 'fixed' : 'fixed bottom-20 right-4 md:bottom-6 md:right-6'
+        } z-40 animate-in fade-in duration-200 select-none`}
+      >
         <button
           type="button"
-          onClick={() => setAberto((prev) => !prev)}
-          className="relative w-13 h-13 md:w-14 md:h-14 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer border-2 border-emerald-300/40"
-          title="Ajuda e Suporte IA por Voz ou Texto (Rubi)"
+          onMouseDown={iniciarArrasto}
+          onTouchStart={iniciarArrasto}
+          onClick={handleClickBotao}
+          className="relative w-13 h-13 md:w-14 md:h-14 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing border-2 border-emerald-300/40"
+          title="Rubi IA • Clique para abrir ou arraste para qualquer lugar da tela"
         >
           {aberto ? (
-            <X className="w-6 h-6" />
+            <X className="w-6 h-6 pointer-events-none" />
           ) : (
-            <div className="relative">
+            <div className="relative pointer-events-none">
               <MessageCircle className="w-7 h-7 fill-current text-white" />
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full animate-ping"></span>
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-slate-900 flex items-center justify-center">

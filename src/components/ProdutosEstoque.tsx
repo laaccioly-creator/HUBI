@@ -171,7 +171,7 @@ export const ProdutosEstoque: React.FC = () => {
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
       {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 020) */}
-      <div className="block lg:hidden h-full overflow-hidden">
+      <div className="block md:hidden h-full overflow-hidden">
         <ProdutosMobile
           produtos={produtos}
           categorias={categorias}
@@ -181,7 +181,7 @@ export const ProdutosEstoque: React.FC = () => {
       </div>
 
       {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
-      <div className="hidden lg:flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
+      <div className="hidden md:flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
         {/* Header Superior */}
         <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
