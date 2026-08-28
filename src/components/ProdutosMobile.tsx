@@ -2163,7 +2163,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   value={formData.nome}
                   onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                   placeholder="Informe o nome completo do item"
-                  className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 uppercase border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none"
+                  className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 uppercase border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                 />
               </div>
 
@@ -2176,7 +2176,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     value={formData.precoVenda}
                     onChange={(e) => setFormData(prev => ({ ...prev, precoVenda: e.target.value }))}
                     placeholder="0,00"
-                    className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none"
+                    className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                   />
                 </div>
               </div>
@@ -2208,7 +2208,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         value={formData.precoPromocional}
                         onChange={(e) => setFormData(prev => ({ ...prev, precoPromocional: e.target.value }))}
                         placeholder="0,00"
-                        className="w-full py-2 pr-8 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none"
+                        className="w-full py-2 pr-8 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                       />
                       {formData.precoPromocional && (
                         <button
@@ -2262,7 +2262,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         value={formData.codigoBarras}
                         onChange={(e) => setFormData(prev => ({ ...prev, codigoBarras: e.target.value }))}
                         placeholder="Código de barras ou interno"
-                        className="w-full py-2 pr-10 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none"
+                        className="w-full py-2 pr-10 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                       />
                       <button
                         type="button"
@@ -2285,7 +2285,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         value={formData.precoCusto}
                         onChange={(e) => setFormData(prev => ({ ...prev, precoCusto: e.target.value }))}
                         placeholder="0,00"
-                        className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none"
+                        className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                       />
                     </div>
                   </div>

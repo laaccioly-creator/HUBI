@@ -175,8 +175,19 @@ html.light textarea {
   color: #0f172a !important;
 }
 
+/* Correção Global: Previne Tarja Preta do Navegador em Inputs Móveis e Transparentes */
+input.bg-transparent,
+textarea.bg-transparent,
+select.bg-transparent,
+.bg-white input:not([class*="bg-slate-"]):not([class*="bg-black"]):not([class*="bg-emerald-"]):not([class*="bg-teal-"]):not([class*="bg-indigo-"]),
+.bg-white textarea:not([class*="bg-slate-"]):not([class*="bg-black"]) {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
 html.light input::placeholder,
-html.light textarea::placeholder {
+html.light textarea::placeholder,
+input.bg-transparent::placeholder {
   color: #94a3b8 !important;
 }
 
