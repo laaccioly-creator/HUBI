@@ -43,36 +43,82 @@
 }
 
 /* ==========================================================================
-   LIGHT MODE ENGINE (Modo Claro / Diurno de Alto Contraste & Nitidez)
+   LIGHT MODE ENGINE (Modo Claro / Diurno conforme Captura de Tela (1290).png)
    ========================================================================== */
 html.light body {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-html.light .bg-slate-950,
-html.light .bg-slate-950\/90,
-html.light .bg-slate-950\/80,
-html.light .bg-slate-950\/60 {
+/* No Modo Claro, o Header Superior mantém o padrão Slate/Navy escuro (#1e293b) do layout de referência */
+html.light header {
+  background-color: #1e293b !important;
+  border-bottom-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.light header .text-slate-100 {
+  color: #f8fafc !important;
+}
+
+html.light header .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+html.light header .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+html.light header .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html.light header .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.light header .bg-slate-800,
+html.light header .bg-slate-800\/80,
+html.light header .bg-slate-800\/60 {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.light header .bg-slate-950\/40,
+html.light header .bg-slate-950\/50 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+html.light header .border-slate-800,
+html.light header .border-slate-700,
+html.light header .border-slate-700\/80,
+html.light header .border-slate-700\/60 {
+  border-color: #475569 !important;
+}
+
+/* ÁREA DE CONTEÚDO NO MODO CLARO (Branco Puro & Slate Suave de Alto Contraste) */
+html.light main,
+html.light .flex-1.bg-slate-950,
+html.light div.bg-slate-950 {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-html.light .bg-slate-900,
-html.light .bg-slate-900\/95,
-html.light .bg-slate-900\/90,
-html.light .bg-slate-900\/80,
-html.light .bg-slate-900\/60 {
+html.light .bg-slate-900:not(header *),
+html.light .bg-slate-900\/95:not(header *),
+html.light .bg-slate-900\/90:not(header *),
+html.light .bg-slate-900\/80:not(header *),
+html.light .bg-slate-900\/60:not(header *) {
   background-color: #ffffff !important;
   color: #0f172a !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
-html.light .bg-slate-800,
-html.light .bg-slate-800\/80,
-html.light .bg-slate-800\/60,
-html.light .bg-slate-800\/40,
-html.light .bg-slate-800\/30 {
+html.light .bg-slate-800:not(header *),
+html.light .bg-slate-800\/80:not(header *),
+html.light .bg-slate-800\/60:not(header *),
+html.light .bg-slate-800\/40:not(header *),
+html.light .bg-slate-800\/30:not(header *) {
   background-color: #f1f5f9 !important;
   color: #0f172a !important;
 }

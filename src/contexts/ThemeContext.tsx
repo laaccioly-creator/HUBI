@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ModoTema = 'dark' | 'light' | 'system';
+export type ModoTema = 'dark' | 'light';
 
 interface ThemeContextType {
   tema: ModoTema;
-  temaEfetivo: 'dark' | 'light';
   setTema: (novoTema: ModoTema) => void;
   alternarTema: () => void;
 }
@@ -17,52 +16,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [tema, setTemaState] = useState<ModoTema>(() => {
     try {
       const salvo = localStorage.getItem(STORAGE_KEY) as ModoTema;
-      if (salvo && ['dark', 'light', 'system'].includes(salvo)) {
+      if (salvo && ['dark', 'light'].includes(salvo)) {
         return salvo;
       }
     } catch {}
     return 'dark'; // Padrão Hubi
   });
 
-  const [temaEfetivo, setTemaEfetivo] = useState<'dark' | 'light'>('dark');
-
   useEffect(() => {
-    const aplicarTema = () => {
-      let efetivo: 'dark' | 'light' = 'dark';
-
-      if (tema === 'system') {
-        const prefereDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        efetivo = prefereDark ? 'dark' : 'light';
-      } else {
-        efetivo = tema;
-      }
-
-      setTemaEfetivo(efetivo);
-
-      const root = document.documentElement;
-      if (efetivo === 'dark') {
-        root.classList.add('dark');
-        root.classList.remove('light');
-        root.style.colorScheme = 'dark';
-      } else {
-        root.classList.add('light');
-        root.classList.remove('dark');
-        root.style.colorScheme = 'light';
-      }
-    };
-
-    aplicarTema();
-
-    // Ouvir alterações do sistema operacional quando em modo system
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (tema === 'system') {
-        aplicarTema();
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    const root = document.documentElement;
+    if (tema === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      root.style.colorScheme = 'dark';
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
+    }
   }, [tema]);
 
   const setTema = (novoTema: ModoTema) => {
@@ -73,13 +44,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const alternarTema = () => {
-    if (tema === 'dark') setTema('light');
-    else if (tema === 'light') setTema('system');
-    else setTema('dark');
+    setTema(tema === 'dark' ? 'light' : 'dark');
   };
 
   return (
-    <ThemeContext.Provider value={{ tema, temaEfetivo, setTema, alternarTema }}>
+    <ThemeContext.Provider value={{ tema, setTema, alternarTema }}>
       {children}
     </ThemeContext.Provider>
   );
