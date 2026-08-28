@@ -40,17 +40,6 @@ CREATE TABLE IF NOT EXISTS public.lojas (
     instrucoes_pos_pedido TEXT,
     valor_minimo_pedido NUMERIC(12,2) DEFAULT 0.00,
     tipo_plano VARCHAR(20) DEFAULT 'GROW',
-    desconto_padrao_atacado_percentual NUMERIC(5,2) DEFAULT 20.00,
-    tipo_minimo_padrao_atacado VARCHAR(20) DEFAULT 'quantidade',
-    qtd_minima_padrao_atacado NUMERIC(12,2) DEFAULT 6.00,
-    valor_minimo_padrao_atacado NUMERIC(12,2) DEFAULT 0.00,
-    desconto_padrao_autoatacado_percentual NUMERIC(5,2) DEFAULT 25.00,
-    tipo_minimo_padrao_autoatacado VARCHAR(20) DEFAULT 'quantidade',
-    qtd_minima_padrao_autoatacado NUMERIC(12,2) DEFAULT 24.00,
-    valor_minimo_padrao_autoatacado NUMERIC(12,2) DEFAULT 0.00,
-    qtd_minima_sku_padrao_atacado NUMERIC(12,2) DEFAULT 6.00,
-    qtd_minima_sku_padrao_autoatacado NUMERIC(12,2) DEFAULT 6.00,
-    configuracoes_extras JSONB DEFAULT '{"recibo": {"rodape": "", "cabecalho": "", "adicionar_cliente": true, "exibir_codigo_produto": false}, "pagamentos": {"permitir_fiado": true}, "taxas_venda": {"nome_taxa_pdv": "", "tipo_taxa_pdv": "percentual", "usar_taxa_pdv": false, "valor_taxa_pdv": 0, "aplicar_taxa_pdv": "adicionar", "taxa_pdv_opcional": false, "nome_taxa_catalogo": "", "tipo_taxa_catalogo": "percentual", "usar_taxa_catalogo": false, "valor_taxa_catalogo": 0, "aplicar_taxa_catalogo": "adicionar", "taxa_catalogo_somente_entrega": false}, "entrega_retirada": {"descricao_entregas": "Entregas feitas via UBER envios para Fortaleza e região metropolitana.", "trabalho_com_entregas": true, "trabalho_com_retirada": false}, "preferencias_gerais": {"casas_decimais": true, "transacoes_canceladas": "riscadas"}, "status_pedidos_ativos": {"em_producao": true, "em_expedicao": true, "saiu_para_entrega": true, "pronto_para_retirar": true}}'::jsonb,
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );
@@ -63,18 +52,10 @@ CREATE TABLE IF NOT EXISTS public.usuarios_loja (
     nome_completo VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL,
     whatsapp_atendimento VARCHAR(20),
-    perfil VARCHAR(20) NOT NULL DEFAULT 'vendedor' CHECK (perfil IN ('owner', 'admin', 'gerente', 'vendedor', 'comum')),
-    pode_uso_celular_pessoal BOOLEAN DEFAULT TRUE,
-    pode_ver_transacoes_outros BOOLEAN DEFAULT FALSE,
-    pode_dar_desconto BOOLEAN DEFAULT FALSE,
-    pode_cadastrar_alterar_produtos BOOLEAN DEFAULT FALSE,
-    pode_gerenciar_estoque BOOLEAN DEFAULT FALSE,
-    pode_ativar_fiado BOOLEAN DEFAULT FALSE,
+    perfil VARCHAR(20) NOT NULL DEFAULT 'vendedor' CHECK (perfil IN ('admin', 'gerente', 'vendedor')),
     pode_ver_preco_custo BOOLEAN DEFAULT FALSE,
     pode_exportar_relatorios BOOLEAN DEFAULT FALSE,
     pode_editar_vendas_passadas BOOLEAN DEFAULT FALSE,
-    senha_hash VARCHAR(255),
-    ultimo_login TIMESTAMPTZ,
     ativo BOOLEAN DEFAULT TRUE,
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
@@ -101,21 +82,7 @@ CREATE TABLE IF NOT EXISTS public.fornecedores (
     email VARCHAR(150),
     numero_documento VARCHAR(20),
     observacoes TEXT,
-    endereco TEXT,
-    ativo BOOLEAN DEFAULT TRUE,
     criado_em TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Tabela: unidades_medida (Unidades de Medida Customizadas e Padrões)
-CREATE TABLE IF NOT EXISTS public.unidades_medida (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
-    sigla VARCHAR(10) NOT NULL,
-    nome VARCHAR(50) NOT NULL,
-    permite_fracionado BOOLEAN DEFAULT FALSE,
-    padrao BOOLEAN DEFAULT FALSE,
-    criado_em TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(loja_id, sigla)
 );
 
 -- Tabela: produtos (Produtos Principais com Múltiplas Tabelas de Preço)
@@ -133,13 +100,9 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     preco_custo NUMERIC(12,2) DEFAULT 0.00,
     preco_venda_varejo NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     preco_venda_atacado NUMERIC(12,2),
-    tipo_minimo_atacado VARCHAR(20) DEFAULT 'quantidade',
     qtd_minima_atacado NUMERIC(12,3) DEFAULT 6,
-    valor_minimo_atacado NUMERIC(12,2),
     preco_venda_autoatacado NUMERIC(12,2),
-    tipo_minimo_autoatacado VARCHAR(20) DEFAULT 'quantidade',
     qtd_minima_autoatacado NUMERIC(12,3) DEFAULT 24,
-    valor_minimo_autoatacado NUMERIC(12,2),
     preco_promocional NUMERIC(12,2),
     promocao_ativa BOOLEAN DEFAULT FALSE,
     quantidade_estoque NUMERIC(12,3) DEFAULT 0,
@@ -193,42 +156,17 @@ CREATE TABLE IF NOT EXISTS public.clientes (
     loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
     nome VARCHAR(150) NOT NULL,
     telefone VARCHAR(20),
-    telefone2 VARCHAR(20),
-    telefone_is_whatsapp BOOLEAN DEFAULT FALSE,
-    telefone2_is_whatsapp BOOLEAN DEFAULT FALSE,
     whatsapp VARCHAR(20),
     email VARCHAR(150),
     numero_documento VARCHAR(20),
     tabela_preco_padrao VARCHAR(20) DEFAULT 'varejo',
-    endereco_cep VARCHAR(10),
-    endereco_logradouro VARCHAR(200),
-    endereco_numero VARCHAR(30),
-    endereco_complemento VARCHAR(100),
-    endereco_bairro VARCHAR(100),
-    endereco_cidade VARCHAR(100),
-    endereco_estado VARCHAR(2),
     endereco_principal TEXT,
     endereco_secundario TEXT,
     saldo_devedor_fiado NUMERIC(12,2) DEFAULT 0.00,
     limite_credito NUMERIC(12,2) DEFAULT 0.00,
-    saldo_credito NUMERIC(12,2) DEFAULT 0.00,
     permite_fiado BOOLEAN DEFAULT TRUE,
     data_aniversario DATE,
     observacoes TEXT,
-    criado_em TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Tabela: movimentacoes_saldo_cliente (Histórico e Extrato de Créditos / Ajustes)
-CREATE TABLE IF NOT EXISTS public.movimentacoes_saldo_cliente (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
-    cliente_id UUID NOT NULL REFERENCES public.clientes(id) ON DELETE CASCADE,
-    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('adicionar', 'subtrair')),
-    valor NUMERIC(12,2) NOT NULL CHECK (valor > 0),
-    saldo_anterior NUMERIC(12,2) DEFAULT 0.00,
-    saldo_posterior NUMERIC(12,2) DEFAULT 0.00,
-    observacao TEXT,
-    usuario_id UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -334,12 +272,6 @@ CREATE TABLE IF NOT EXISTS public.transacoes_financeiras (
     dia_vencimento_recorrencia INTEGER,
     pedido_id UUID REFERENCES public.pedidos(id) ON DELETE SET NULL,
     fornecedor_id UUID REFERENCES public.fornecedores(id) ON DELETE SET NULL,
-    forma_pagamento VARCHAR(50) DEFAULT 'dinheiro',
-    origem_receita VARCHAR(100),
-    observacoes TEXT,
-    tipo_recorrencia VARCHAR(20) DEFAULT 'gasto_fixo',
-    parcelas_total INTEGER DEFAULT 1,
-    parcela_numero INTEGER DEFAULT 1,
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );
@@ -414,7 +346,6 @@ BEGIN
         UPDATE public.variacoes_produto
         SET quantidade_estoque = quantidade_estoque - NEW.quantidade
         WHERE id = NEW.variacao_id;
-        -- A trigger trg_sincronizar_estoque_pai atualizará public.produtos automaticamente
     ELSE
         -- Produto simples sem variação
         UPDATE public.produtos
@@ -447,32 +378,6 @@ CREATE TRIGGER trg_atualizar_estoque_ao_inserir_item
 AFTER INSERT ON public.itens_pedido
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_atualizar_estoque_pedido();
-
--- A.1) Sincronização Automática de Estoque entre Variações e Produto Pai
-CREATE OR REPLACE FUNCTION public.fn_sincronizar_estoque_produto_pai()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_produto_id UUID;
-BEGIN
-    v_produto_id := COALESCE(NEW.produto_id, OLD.produto_id);
-    
-    UPDATE public.produtos
-    SET quantidade_estoque = COALESCE((
-        SELECT SUM(quantidade_estoque)
-        FROM public.variacoes_produto
-        WHERE produto_id = v_produto_id AND ativo = TRUE
-    ), 0)
-    WHERE id = v_produto_id AND tem_variacoes = TRUE;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_sincronizar_estoque_pai ON public.variacoes_produto;
-CREATE TRIGGER trg_sincronizar_estoque_pai
-AFTER INSERT OR UPDATE OF quantidade_estoque, ativo OR DELETE ON public.variacoes_produto
-FOR EACH ROW
-EXECUTE FUNCTION public.fn_sincronizar_estoque_produto_pai();
 
 -- B) Atualização de Saldo Devedor do Cliente (Fiado)
 CREATE OR REPLACE FUNCTION public.fn_atualizar_saldo_fiado_cliente()
@@ -565,130 +470,43 @@ ALTER TABLE public.pagamentos_pedido ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transacoes_financeiras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.caixas ENABLE ROW LEVEL SECURITY;
 
--- Políticas de Acesso e Operação (Multi-tenant gerenciado por loja_id)
-DROP POLICY IF EXISTS "catalogo_lojas_publico" ON public.lojas;
-DROP POLICY IF EXISTS "lojas_usuario_select" ON public.lojas;
-DROP POLICY IF EXISTS "lojas_all_policy" ON public.lojas;
-CREATE POLICY "lojas_all_policy" ON public.lojas FOR ALL USING (true) WITH CHECK (true);
+-- Políticas de Leitura Pública para Catálogo Online
+CREATE POLICY "catalogo_lojas_publico" ON public.lojas FOR SELECT USING (true);
+CREATE POLICY "catalogo_produtos_publico" ON public.produtos FOR SELECT USING (exibir_catalogo = TRUE AND ativo = TRUE);
+CREATE POLICY "catalogo_variacoes_publico" ON public.variacoes_produto FOR SELECT USING (ativo = TRUE);
+CREATE POLICY "catalogo_categorias_publico" ON public.categorias FOR SELECT USING (ativo = TRUE);
+CREATE POLICY "catalogo_formas_entrega_publico" ON public.formas_entrega FOR SELECT USING (ativo = TRUE);
+CREATE POLICY "catalogo_formas_pagamento_publico" ON public.formas_pagamento FOR SELECT USING (exibir_catalogo = TRUE AND ativo = TRUE);
+CREATE POLICY "catalogo_criar_pedidos_publico" ON public.pedidos FOR INSERT WITH CHECK (origem = 'catalogo_online' AND status = 'pendente');
+CREATE POLICY "catalogo_criar_itens_publico" ON public.itens_pedido FOR INSERT WITH CHECK (true);
 
-DROP POLICY IF EXISTS "usuarios_loja_all" ON public.usuarios_loja;
-DROP POLICY IF EXISTS "usuarios_loja_all_policy" ON public.usuarios_loja;
-CREATE POLICY "usuarios_loja_all_policy" ON public.usuarios_loja FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_produtos_publico" ON public.produtos;
-DROP POLICY IF EXISTS "produtos_loja_all" ON public.produtos;
-DROP POLICY IF EXISTS "produtos_all_policy" ON public.produtos;
-CREATE POLICY "produtos_all_policy" ON public.produtos FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_variacoes_publico" ON public.variacoes_produto;
-DROP POLICY IF EXISTS "variacoes_loja_all" ON public.variacoes_produto;
-DROP POLICY IF EXISTS "variacoes_all_policy" ON public.variacoes_produto;
-CREATE POLICY "variacoes_all_policy" ON public.variacoes_produto FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_categorias_publico" ON public.categorias;
-DROP POLICY IF EXISTS "categorias_loja_all" ON public.categorias;
-DROP POLICY IF EXISTS "categorias_all_policy" ON public.categorias;
-CREATE POLICY "categorias_all_policy" ON public.categorias FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "fornecedores_loja_all" ON public.fornecedores;
-DROP POLICY IF EXISTS "fornecedores_all_policy" ON public.fornecedores;
-CREATE POLICY "fornecedores_all_policy" ON public.fornecedores FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "unidades_medida_all_policy" ON public.unidades_medida;
-CREATE POLICY "unidades_medida_all_policy" ON public.unidades_medida FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "itens_combo_loja_all" ON public.itens_combo;
-DROP POLICY IF EXISTS "itens_combo_all_policy" ON public.itens_combo;
-CREATE POLICY "itens_combo_all_policy" ON public.itens_combo FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "clientes_loja_all" ON public.clientes;
-DROP POLICY IF EXISTS "clientes_all_policy" ON public.clientes;
-CREATE POLICY "clientes_all_policy" ON public.clientes FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_formas_pagamento_publico" ON public.formas_pagamento;
-DROP POLICY IF EXISTS "formas_pagamento_loja_all" ON public.formas_pagamento;
-DROP POLICY IF EXISTS "formas_pagamento_all_policy" ON public.formas_pagamento;
-CREATE POLICY "formas_pagamento_all_policy" ON public.formas_pagamento FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_formas_entrega_publico" ON public.formas_entrega;
-DROP POLICY IF EXISTS "formas_entrega_loja_all" ON public.formas_entrega;
-DROP POLICY IF EXISTS "formas_entrega_all_policy" ON public.formas_entrega;
-CREATE POLICY "formas_entrega_all_policy" ON public.formas_entrega FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_criar_pedidos_publico" ON public.pedidos;
-DROP POLICY IF EXISTS "pedidos_loja_all" ON public.pedidos;
-DROP POLICY IF EXISTS "pedidos_all_policy" ON public.pedidos;
-CREATE POLICY "pedidos_all_policy" ON public.pedidos FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "catalogo_criar_itens_publico" ON public.itens_pedido;
-DROP POLICY IF EXISTS "itens_pedido_loja_all" ON public.itens_pedido;
-DROP POLICY IF EXISTS "itens_pedido_all_policy" ON public.itens_pedido;
-CREATE POLICY "itens_pedido_all_policy" ON public.itens_pedido FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "pagamentos_pedido_loja_all" ON public.pagamentos_pedido;
-DROP POLICY IF EXISTS "pagamentos_pedido_all_policy" ON public.pagamentos_pedido;
-CREATE POLICY "pagamentos_pedido_all_policy" ON public.pagamentos_pedido FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "transacoes_loja_all" ON public.transacoes_financeiras;
-DROP POLICY IF EXISTS "transacoes_all_policy" ON public.transacoes_financeiras;
-CREATE POLICY "transacoes_all_policy" ON public.transacoes_financeiras FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "caixas_loja_all" ON public.caixas;
-DROP POLICY IF EXISTS "caixas_all_policy" ON public.caixas;
-CREATE POLICY "caixas_all_policy" ON public.caixas FOR ALL USING (true) WITH CHECK (true);
+-- Políticas Multi-Tenant para Usuários da Loja
+CREATE POLICY "lojas_usuario_select" ON public.lojas FOR ALL USING (usuario_pertence_loja(id));
+CREATE POLICY "usuarios_loja_all" ON public.usuarios_loja FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "categorias_loja_all" ON public.categorias FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "fornecedores_loja_all" ON public.fornecedores FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "produtos_loja_all" ON public.produtos FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "variacoes_loja_all" ON public.variacoes_produto FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "itens_combo_loja_all" ON public.itens_combo FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "clientes_loja_all" ON public.clientes FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "formas_pagamento_loja_all" ON public.formas_pagamento FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "formas_entrega_loja_all" ON public.formas_entrega FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "pedidos_loja_all" ON public.pedidos FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "itens_pedido_loja_all" ON public.itens_pedido FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "pagamentos_pedido_loja_all" ON public.pagamentos_pedido FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "transacoes_loja_all" ON public.transacoes_financeiras FOR ALL USING (usuario_pertence_loja(loja_id));
+CREATE POLICY "caixas_loja_all" ON public.caixas FOR ALL USING (usuario_pertence_loja(loja_id));
 
 -- ==============================================================================
 -- 7. HABILITAÇÃO DO SUPABASE REALTIME
 -- ==============================================================================
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'pedidos'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.pedidos;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'itens_pedido'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.itens_pedido;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'produtos'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.produtos;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'variacoes_produto'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.variacoes_produto;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'transacoes_financeiras'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.transacoes_financeiras;
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'caixas'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.caixas;
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-        NULL;
-END;
-$$;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.pedidos;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.itens_pedido;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.produtos;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.variacoes_produto;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.transacoes_financeiras;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.caixas;
 
 -- 8. OTIMIZAÇÃO DE ESTATÍSTICAS
 ANALYZE;
