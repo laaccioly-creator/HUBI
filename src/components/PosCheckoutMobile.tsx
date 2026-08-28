@@ -48,6 +48,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria } from '../types';
 import { audioService } from '../services/audioService';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 interface PosCheckoutMobileProps {
   produtos: Produto[];
@@ -96,6 +97,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
   // Estados de Navegação e Visualização
   const [subTela, setSubTela] = useState<SubTelaMobile>('vender');
+  const [menuDrawerAberto, setMenuDrawerAberto] = useState<boolean>(false);
   const [modoVisualizacao, setModoVisualizacao] = useState<'grade' | 'lista'>('grade'); // Grade (tela001) vs Lista (tela007)
   const [buscaAberta, setBuscaAberta] = useState<boolean>(false); // Tela 004
   const [termoBusca, setTermoBusca] = useState<string>('');
@@ -359,194 +361,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     setSubTela('vender');
   };
 
-  // =========================================================================
-  // TELA 002: DRAWER MENU LATERAL MOBILE
-  // =========================================================================
-  if (subTela === 'menu') {
-    return (
-      <div className="fixed inset-0 z-50 bg-slate-950 flex animate-in slide-in-from-left duration-200">
-        <div className="w-full sm:w-80 bg-slate-900 h-full flex flex-col justify-between border-r border-slate-800 text-slate-100 overflow-y-auto">
-          {/* Topo do Drawer */}
-          <div>
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-black text-base text-slate-100 tracking-wide uppercase">
-                    {loja?.nome_fantasia || 'HUBI LOJA'}
-                  </h3>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </div>
-                <p className="text-xs text-slate-400 font-medium">
-                  {usuario?.nome_completo || 'Operador'}
-                </p>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubTela('vender');
-                    navigate('/config');
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider"
-                >
-                  Gerenciar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSubTela('vender')}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Links do Menu */}
-            <nav className="p-2 space-y-0.5 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <Store className="w-4 h-4 text-slate-400" />
-                <span>Início</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSubTela('vender')}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/80 text-emerald-400 transition text-left font-bold"
-              >
-                <ShoppingCart className="w-4 h-4 text-emerald-400" />
-                <span>Vender</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/orders'); }}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <ShoppingBag className="w-4 h-4 text-slate-400" />
-                  <span>Pedidos</span>
-                </div>
-                {pedidosConfirmadosCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px]">
-                    {pedidosConfirmadosCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/products'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <Package className="w-4 h-4 text-slate-400" />
-                <span>Produtos</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/smart-assistant'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-indigo-300 hover:bg-indigo-500/10 transition text-left"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <span>Kai / Rubi IA</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/catalog-config'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <Globe className="w-4 h-4 text-slate-400" />
-                <span>Catálogo Online</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/finances'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <DollarSign className="w-4 h-4 text-slate-400" />
-                <span>Finanças</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/customers'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <Users className="w-4 h-4 text-slate-400" />
-                <span>Clientes</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/orders'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <History className="w-4 h-4 text-slate-400" />
-                <span>Histórico</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/analytics'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <BarChart3 className="w-4 h-4 text-slate-400" />
-                <span>Estatísticas</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/users'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <UserCheck className="w-4 h-4 text-slate-400" />
-                <span>Usuários</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSubTela('vender'); navigate('/config'); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 transition text-left"
-              >
-                <Settings className="w-4 h-4 text-slate-400" />
-                <span>Configurações</span>
-              </button>
-            </nav>
-          </div>
-
-          {/* Rodapé do Drawer */}
-          <div className="p-3 border-t border-slate-800 space-y-2 bg-slate-950/60">
-            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-xs text-emerald-400 block">HUBI PDV Mobile</span>
-                <span className="text-[10px] text-slate-400">Sincronizado e seguro</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-emerald-400" />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSubTela('vender');
-                desconectarPdv();
-              }}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-rose-400 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Trocar Operador / Sair</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // =========================================================================
   // TELA 003: SELEÇÃO E CADASTRO DE CLIENTE
@@ -1156,9 +971,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setSubTela('menu')}
+            onClick={() => setMenuDrawerAberto(true)}
             className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-            title="Menu do Sistema"
+            title="Menu Principal"
           >
             <div className="space-y-1">
               <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
@@ -1337,9 +1152,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <div
                   key={produto.id}
                   onClick={() => handleClicarProduto(produto)}
-                  className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs active:scale-95 transition-all duration-100 flex flex-col justify-between cursor-pointer group"
+                  className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-emerald-400 active:scale-95 transition-all duration-100 flex flex-col justify-between cursor-pointer group"
                 >
-                  <div className="relative aspect-square bg-slate-100">
+                  <div className="relative aspect-square bg-slate-50">
                     <img
                       src={fotoUrl}
                       alt={produto.nome}
@@ -1355,19 +1170,19 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     )}
                   </div>
 
-                  {/* Card Bottom Dark (Padrão Mockup) */}
-                  <div className="bg-slate-900 text-white p-1.5 space-y-0.5">
+                  {/* Card Bottom Limpo */}
+                  <div className="bg-white p-2 space-y-0.5 border-t border-slate-100">
                     <div className="flex items-start gap-1">
                       {produto.destaque && (
-                        <span className="text-amber-400 text-[10px] shrink-0">★</span>
+                        <span className="text-amber-500 text-[10px] shrink-0">★</span>
                       )}
-                      <h3 className="font-bold text-[10px] uppercase truncate leading-tight">
+                      <h3 className="font-bold text-[11px] uppercase truncate leading-tight text-slate-800">
                         {produto.nome}
                       </h3>
                     </div>
 
                     <div className="flex items-baseline justify-between pt-0.5">
-                      <span className="font-black text-[11px] text-slate-100">
+                      <span className="font-black text-xs text-emerald-600">
                         R$ {Number(precoFinal).toFixed(2)}
                       </span>
                       {precoOriginal && (
@@ -1383,7 +1198,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           </div>
         ) : (
           // MODO LISTA: 1 LINHA POR PRODUTO (TELA 007)
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200 overflow-hidden">
             {produtosFiltrados.map((produto) => {
               const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
@@ -1394,10 +1209,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <div
                   key={produto.id}
                   onClick={() => handleClicarProduto(produto)}
-                  className="py-2.5 flex items-center justify-between hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer px-1"
+                  className="p-3 flex items-center justify-between hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="relative w-12 h-12 rounded-lg bg-slate-100 overflow-hidden shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                       <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover" />
                       {qtdNoCarrinho > 0 && (
                         <span className="absolute top-0.5 right-0.5 bg-emerald-500 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
@@ -1423,7 +1238,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         R$ {Number(precoOriginal).toFixed(2)}
                       </span>
                     )}
-                    <span className="font-black text-xs text-slate-900">
+                    <span className="font-black text-xs text-emerald-600">
                       R$ {Number(precoFinal).toFixed(2)}
                     </span>
                   </div>
@@ -1495,6 +1310,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           </div>
         </div>
       )}
+
+      {/* DRAWER MENU UNIFICADO MOBILE */}
+      <MobileMenuDrawer
+        aberto={menuDrawerAberto}
+        onFechar={() => setMenuDrawerAberto(false)}
+        pedidosConfirmadosCount={pedidosConfirmadosCount}
+      />
     </div>
   );
 };
+export default PosCheckoutMobile;

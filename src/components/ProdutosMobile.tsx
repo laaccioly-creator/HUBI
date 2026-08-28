@@ -50,6 +50,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
 import { audioService } from '../services/audioService';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
@@ -3461,153 +3462,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
       )}
 
-      {/* DRAWER MENU MOBILE (HAMBURGUER `☰`) */}
-      {drawerMenuAberto && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex">
-          <div className="w-72 bg-slate-900 h-full p-5 flex flex-col justify-between text-white animate-in slide-in-from-left duration-200">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-2xl bg-teal-500 flex items-center justify-center font-black text-white text-xs shadow-md">
-                    {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
-                  </div>
-                  <div>
-                    <h2 className="font-extrabold text-xs sm:text-sm text-white truncate max-w-[150px]">{loja?.nome_fantasia || 'HUBI'}</h2>
-                    <p className="text-[10px] text-teal-400 font-bold uppercase">{usuario?.nome_completo || 'Operador'}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDrawerMenuAberto(false)}
-                  className="p-1.5 text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Links de Navegação */}
-              <nav className="space-y-1 text-xs sm:text-sm">
-                {permissions.podeAcessarPdv && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/pos')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                  >
-                    <ShoppingCart className="w-5 h-5 text-teal-400" />
-                    <span>Vender (Frente de Caixa)</span>
-                  </button>
-                )}
-
-                {permissions.podeAcessarPedidos && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/orders')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                  >
-                    <ShoppingBag className="w-5 h-5 text-slate-400" />
-                    <span>Pedidos</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setDrawerMenuAberto(false)}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 bg-teal-500/15 text-teal-400 font-extrabold border border-teal-500/30"
-                >
-                  <Tag className="w-5 h-5 text-teal-400" />
-                  <span>Produtos & Estoque</span>
-                </button>
-
-                {permissions.podeAcessarClientes && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/customers')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                  >
-                    <Users className="w-5 h-5 text-slate-400" />
-                    <span>Clientes</span>
-                  </button>
-                )}
-
-                {permissions.podeAcessarFinancas && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/finances')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                  >
-                    <DollarSign className="w-5 h-5 text-slate-400" />
-                    <span>Finanças & Caixa</span>
-                  </button>
-                )}
-
-                {permissions.podeAcessarAnalytics && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/analytics')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                  >
-                    <BarChart3 className="w-5 h-5 text-slate-400" />
-                    <span>Estatísticas & Relatórios</span>
-                  </button>
-                )}
-
-                {permissions.podeAcessarRubiIA && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/smart-assistant')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-indigo-300 hover:bg-indigo-500/10 font-bold"
-                  >
-                    <Sparkles className="w-5 h-5 text-indigo-400" />
-                    <span>Assistente Rubi (IA)</span>
-                  </button>
-                )}
-
-                {permissions.podeAcessarCatalogo && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/catalog-config')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 font-medium"
-                  >
-                    <Globe className="w-5 h-5 text-slate-400" />
-                    <span>Catálogo Online</span>
-                  </button>
-                )}
-
-                {permissions.podeAcessarConfig && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/config')}
-                    className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 font-medium"
-                  >
-                    <Settings className="w-5 h-5 text-slate-400" />
-                    <span>Configurações</span>
-                  </button>
-                )}
-              </nav>
-            </div>
-
-            {/* Sair */}
-            <div className="pt-3 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setDrawerMenuAberto(false);
-                  desconectarPdv();
-                }}
-                className="w-full p-3 rounded-2xl flex items-center gap-3 text-rose-400 hover:bg-rose-500/10 text-xs sm:text-sm font-bold"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Trocar de Estabelecimento / Sair</span>
-              </button>
-            </div>
-          </div>
-
-          <div
-            className="flex-1"
-            onClick={() => setDrawerMenuAberto(false)}
-          />
-        </div>
-      )}
+      {/* DRAWER MENU UNIFICADO MOBILE */}
+      <MobileMenuDrawer
+        aberto={drawerMenuAberto}
+        onFechar={() => setDrawerMenuAberto(false)}
+      />
     </div>
   );
 };
+export default ProdutosMobile;

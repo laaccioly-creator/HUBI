@@ -40,6 +40,7 @@ import {
   ComportamentoSemEstoque,
   FormaEntrega
 } from '../types';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 type SubTelaCatalogoMobile =
   | 'hub'                  // TELA001
@@ -2677,132 +2678,12 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
       {/* ===================================================================== */}
       {/* DRAWER MENU LATERAL MOBILE (☰)                                       */}
-      {/* ===================================================================== */}
-      {drawerMenuAberto && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="w-72 bg-slate-900 h-full p-5 text-white flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-200">
-            <div className="space-y-6">
-              {/* Topo do Drawer */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-teal-500 flex items-center justify-center font-black text-white text-base shadow-md">
-                    {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
-                  </div>
-                  <div>
-                    <span className="font-bold text-sm text-slate-100 block truncate max-w-[140px]">
-                      {loja?.nome_fantasia || 'HUBI PDV'}
-                    </span>
-                    <span className="font-bold text-[11px] text-teal-400 block">Catálogo Online</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDrawerMenuAberto(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Itens do Menu */}
-              <nav className="space-y-1 text-sm font-semibold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerMenuAberto(false);
-                    navigate('/pos');
-                  }}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800"
-                >
-                  <ShoppingCart className="w-5 h-5 text-slate-400" />
-                  <span>PDV / Vender</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerMenuAberto(false);
-                    navigate('/orders');
-                  }}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800"
-                >
-                  <ShoppingBag className="w-5 h-5 text-slate-400" />
-                  <span>Pedidos</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerMenuAberto(false);
-                    navigate('/products');
-                  }}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800"
-                >
-                  <Layers className="w-5 h-5 text-slate-400" />
-                  <span>Produtos & Estoque</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerMenuAberto(false);
-                    navigate('/customers');
-                  }}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800"
-                >
-                  <Users className="w-5 h-5 text-slate-400" />
-                  <span>Clientes</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerMenuAberto(false);
-                    navigate('/finance');
-                  }}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800"
-                >
-                  <DollarSign className="w-5 h-5 text-slate-400" />
-                  <span>Finanças</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDrawerMenuAberto(false);
-                    navigate('/config');
-                  }}
-                  className="w-full p-3 rounded-2xl flex items-center gap-3 text-slate-300 hover:bg-slate-800"
-                >
-                  <Settings className="w-5 h-5 text-slate-400" />
-                  <span>Configurações</span>
-                </button>
-              </nav>
-            </div>
-
-            {/* Sair */}
-            <div className="pt-4 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setDrawerMenuAberto(false);
-                  desconectarPdv();
-                  navigate('/login');
-                }}
-                className="w-full p-3 rounded-2xl flex items-center gap-3 text-rose-400 hover:bg-rose-500/10 text-xs font-bold"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Trocar de Estabelecimento / Sair</span>
-              </button>
-            </div>
-          </div>
-
-          <div
-            className="flex-1 bg-black/60 backdrop-blur-xs"
-            onClick={() => setDrawerMenuAberto(false)}
-          />
-        </div>
-      )}
+      {/* DRAWER MENU UNIFICADO MOBILE */}
+      <MobileMenuDrawer
+        aberto={drawerMenuAberto}
+        onFechar={() => setDrawerMenuAberto(false)}
+      />
     </div>
   );
 };
+export default ConfiguracaoCatalogoMobile;

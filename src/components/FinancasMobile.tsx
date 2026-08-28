@@ -42,6 +42,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { TransacaoFinanceira, Fornecedor, Pedido, Caixa } from '../types';
+import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 export type SubTelaMobileFinance =
   | 'hub'
@@ -120,6 +121,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
   // Pilha de Navegação Mobile
   const [subTela, setSubTela] = useState<SubTelaMobileFinance>('hub');
+  const [menuDrawerAberto, setMenuDrawerAberto] = useState<boolean>(false);
 
   // Estado dos Fornecedores
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -676,7 +678,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white text-slate-900 font-sans select-none">
       {/* TOAST DE NOTIFICAÇÃO */}
       {mensagemToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-2">
@@ -689,42 +691,40 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* 1. TELA 001: HUB / MENU PRINCIPAL DE FINANÇAS MOBILE                      */}
       {/* ========================================================================= */}
       {subTela === 'hub' && (
-        <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
-          {/* Header Superior Mobile */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
-            <button
-              type="button"
-              onClick={() => navigate('/pos')}
-              className="flex items-center gap-2.5 text-left group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-sm shadow-md shadow-emerald-500/20">
-                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
-              </div>
-              <div>
-                <span className="font-bold text-xs text-slate-200 block group-hover:text-emerald-400 transition">
-                  {usuario?.nome_completo || loja?.nome_fantasia || 'Usuário'}
-                </span>
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                  HUBI Mobile <ChevronRight className="w-3 h-3 text-slate-500" />
-                </span>
-              </div>
-            </button>
+        <div className="flex flex-col h-full overflow-hidden animate-in fade-in bg-white">
+          {/* Header Superior Mobile (Padrão Pedidos) */}
+          <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMenuDrawerAberto(true)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+                title="Menu Principal"
+              >
+                <div className="space-y-1">
+                  <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                  <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                  <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                </div>
+              </button>
+              <h1 className="font-black text-base text-slate-800 tracking-tight">Finanças & Caixa</h1>
+            </div>
 
             <button
               type="button"
               onClick={() => abrirNovaSaida('a_pagar')}
-              className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+              className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
               title="Nova saída"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 stroke-[2.5]" />
             </button>
           </div>
 
           {/* Conteúdo: Seção Finanças e Grid de Botões */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 block mb-3">
-                Finanças
+                Módulos Financeiros
               </span>
 
               <div className="grid grid-cols-2 gap-3">
@@ -732,17 +732,17 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('contas_pagar')}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/40 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left relative group shadow-sm"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left relative group shadow-xs"
                 >
                   {saidasAtrasadas.length > 0 && (
                     <span className="absolute top-3 right-3 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
                       {saidasAtrasadas.length}
                     </span>
                   )}
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <Receipt className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-100 group-hover:text-emerald-400 transition">
+                  <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
                     Contas a pagar
                   </span>
                 </button>
@@ -751,12 +751,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('fluxo_caixa')}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/40 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-sm"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <TrendingUp className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-100 group-hover:text-emerald-400 transition">
+                  <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
                     Fluxo de caixa
                   </span>
                 </button>
@@ -765,12 +765,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('entradas')}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/40 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-sm"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <ArrowDownLeft className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-100 group-hover:text-emerald-400 transition">
+                  <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
                     Entradas
                   </span>
                 </button>
@@ -779,12 +779,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('saidas')}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/40 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-sm"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-rose-400 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center group-hover:scale-105 transition">
                     <ArrowUpRight className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-100 group-hover:text-rose-400 transition">
+                  <span className="font-bold text-xs text-slate-800 group-hover:text-rose-600 transition">
                     Saídas
                   </span>
                 </button>
@@ -793,12 +793,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('fornecedores')}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/40 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-sm"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <Building2 className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-100 group-hover:text-emerald-400 transition">
+                  <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
                     Fornecedores
                   </span>
                 </button>
@@ -806,14 +806,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* 6. Vendas */}
                 <button
                   type="button"
-                  onClick={() => navigate('/orders')}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/40 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-sm"
+                  onClick={() => navigate('/sales')}
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
-                    <ShoppingCart className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
+                    <Receipt className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-100 group-hover:text-cyan-400 transition">
-                    Vendas
+                  <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
+                    Vendas / Histórico
                   </span>
                 </button>
               </div>
@@ -822,9 +822,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             {/* 7. Card Banner Vendas e Catálogo */}
             <div
               onClick={() => navigate('/catalog-config')}
-              className="p-4 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/30 transition cursor-pointer flex items-center gap-3.5 shadow-md"
+              className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-emerald-500/40 transition cursor-pointer flex items-center gap-3.5 shadow-xs"
             >
-              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
                 <Store className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
@@ -2490,6 +2490,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           </div>
         </div>
       )}
+
+      {/* DRAWER MENU UNIFICADO MOBILE */}
+      <MobileMenuDrawer
+        aberto={menuDrawerAberto}
+        onFechar={() => setMenuDrawerAberto(false)}
+      />
     </div>
   );
 };
+export default FinancasMobile;

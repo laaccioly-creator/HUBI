@@ -35,6 +35,7 @@ import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
 import { ChatAjudaIA } from '../ChatAjudaIA';
 import { DesktopAppPrompt, DesktopInstallButton } from '../DesktopAppPrompt';
+import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
@@ -344,10 +345,61 @@ export const AppLayout: React.FC = () => {
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
-      {/* TOP HEADER / BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES CADA (12 BOTÕES PADRONIZADOS) */}
-      <header className={`bg-slate-900 border-b border-slate-800/80 z-30 shrink-0 shadow-md ${isCustomMobileRoute ? 'hidden md:block' : ''}`}>
+      {/* TOP HEADER MOBILE (PADRÃO PEDIDOS: LIMPO, MODERNO E BRANCO) */}
+      {!isCustomMobileRoute && (
+        <div className="md:hidden h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between text-slate-800 shrink-0 select-none">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+              title="Menu Principal"
+            >
+              <div className="space-y-1">
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
+              </div>
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-xs shadow-sm">
+                {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
+              </div>
+              <h1 className="font-bold text-sm text-slate-800 truncate max-w-[170px]">
+                {loja?.nome_fantasia || 'HUBI PDV'}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/orders"
+              className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+              title="Pedidos"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              {pedidosConfirmadosCount > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
+                  {pedidosConfirmadosCount}
+                </span>
+              )}
+            </Link>
+
+            <Link
+              to="/pos"
+              className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
+              title="Vender PDV"
+            >
+              <ShoppingCart className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* TOP HEADER DESKTOP (BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES) */}
+      <header className="hidden md:block bg-slate-900 border-b border-slate-800/80 z-30 shrink-0 shadow-md">
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
-          {/* IDENTIFICAÇÃO DA LOJA (ESQUERDA - COM ESPAÇO AMPLO PARA DESLOCAR O PDV PARA A DIREITA) */}
+          {/* IDENTIFICAÇÃO DA LOJA */}
           <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">
             <Link to="/pos" className="flex items-center gap-2.5 group">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
@@ -365,9 +417,9 @@ export const AppLayout: React.FC = () => {
             </Link>
           </div>
 
-          {/* GRID CENTRAL EM 2 FILEIRAS DE 6 BOTÕES CADA (12 BOTÕES ALINHADOS E COM MESMO COMPORTAMENTO DO VENDER PDV) */}
-          <nav className="hidden md:flex flex-col gap-1.5 flex-1 max-w-4xl min-w-0 justify-center">
-            {/* FILEIRA 1 (6 BOTÕES) */}
+          {/* GRID CENTRAL EM 2 FILEIRAS DE 6 BOTÕES */}
+          <nav className="flex flex-col gap-1.5 flex-1 max-w-4xl min-w-0 justify-center">
+            {/* FILEIRA 1 */}
             <div className="grid grid-cols-6 gap-1.5 lg:gap-2 w-full">
               {row1Buttons.map((item) => {
                 const Icon = item.icon;
@@ -395,7 +447,7 @@ export const AppLayout: React.FC = () => {
               })}
             </div>
 
-            {/* FILEIRA 2 (6 BOTÕES) */}
+            {/* FILEIRA 2 */}
             <div className="grid grid-cols-6 gap-1.5 lg:gap-2 w-full">
               {row2Buttons.map((item) => {
                 const Icon = item.icon;
@@ -419,27 +471,13 @@ export const AppLayout: React.FC = () => {
             </div>
           </nav>
 
-          {/* LADO DIREITO: APENAS O MENU DO USUÁRIO (ONDE FICA A ESCOLHA DO TEMA) */}
+          {/* LADO DIREITO: MENU DO USUÁRIO */}
           <div className="flex items-center gap-2 shrink-0 justify-end w-44 lg:w-52">
-            {/* NOTIFICAÇÃO MOBILE / RÁPIDA */}
-            <Link
-              to="/orders"
-              className="md:hidden relative p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white"
-            >
-              <Bell className="w-4 h-4" />
-              {pedidosConfirmadosCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
-                  {pedidosConfirmadosCount}
-                </span>
-              )}
-            </Link>
-
-            {/* MENU DO USUÁRIO (CONTÉM TEMA CLARO/ESCURO, CONFIGURAÇÕES E SAIR) */}
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(prev => !prev)}
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-left cursor-pointer shadow-sm"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-left cursor-pointer shadow-sm"
               >
                 <div className="w-6 h-6 rounded-lg bg-emerald-600/20 text-emerald-400 font-bold text-[11px] flex items-center justify-center border border-emerald-500/30">
                   {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
@@ -457,7 +495,6 @@ export const AppLayout: React.FC = () => {
                     <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
 
-                  {/* Seletor de Tema no Menu do Usuário */}
                   <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
                       Tema do Sistema
@@ -524,210 +561,36 @@ export const AppLayout: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {/* BOTÃO MENU HAMBURGUER MOBILE */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
           </div>
         </div>
-
-        {/* MENU DROPDOWN MOBILE (APENAS MÓDULOS AUTORIZADOS) */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-slate-900 border-t border-slate-800 px-4 py-3 space-y-1.5 z-40 max-h-[80vh] overflow-y-auto animate-in slide-in-from-top duration-200">
-            {permissions.podeAcessarPdv && (
-              <Link
-                to="/pos"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 font-bold text-sm border border-emerald-500/30"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span>Vender (Frente de Caixa)</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarPedidos && (
-              <Link
-                to="/orders"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <div className="flex items-center gap-3">
-                  <ShoppingBag className="w-4 h-4 text-slate-400" />
-                  <span>Pedidos</span>
-                </div>
-                {pedidosConfirmadosCount > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {pedidosConfirmadosCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            {permissions.podeAcessarVendas && (
-              <Link
-                to="/sales"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <Receipt className="w-4 h-4 text-slate-400" />
-                <span>Vendas</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarProdutos && (
-              <Link
-                to="/products"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <Package className="w-4 h-4 text-slate-400" />
-                <span>Produtos & Estoque</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarClientes && (
-              <Link
-                to="/customers"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <Users className="w-4 h-4 text-slate-400" />
-                <span>Clientes</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarFinancas && (
-              <Link
-                to="/finances"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <DollarSign className="w-4 h-4 text-slate-400" />
-                <span>Finanças & Caixa</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarAnalytics && (
-              <Link
-                to="/analytics"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <BarChart3 className="w-4 h-4 text-slate-400" />
-                <span>Estatísticas & Relatórios</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarCupons && (
-              <Link
-                to="/coupons"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-emerald-400 hover:bg-emerald-500/10 font-semibold"
-              >
-                <Ticket className="w-4 h-4 text-emerald-400" />
-                <span>Cupons de Desconto</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarCatalogo && (
-              <Link
-                to="/catalog-config"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-emerald-300 hover:bg-emerald-500/10 font-semibold"
-              >
-                <Globe className="w-4 h-4 text-emerald-400" />
-                <span>Catálogo Online</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarAuxiliares && (
-              <Link
-                to="/auxiliares"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <Layers className="w-4 h-4 text-slate-400" />
-                <span>Cadastros & Tabelas Auxiliares</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarUsuarios && (
-              <Link
-                to="/users"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <UserCheck className="w-4 h-4 text-slate-400" />
-                <span>Gestão de Usuários</span>
-              </Link>
-            )}
-
-            {permissions.podeAcessarConfig && (
-              <Link
-                to="/config"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800"
-              >
-                <Settings className="w-4 h-4 text-slate-400" />
-                <span>Configurações</span>
-              </Link>
-            )}
-
-            <Link
-              to={catalogUrl}
-              target="_blank"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-sm font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <Store className="w-4 h-4" />
-                <span>Abrir Catálogo Público</span>
-              </div>
-              <ExternalLink className="w-4 h-4" />
-            </Link>
-
-            <div className="pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  desconectarPdv();
-                }}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-500/10 text-sm font-semibold transition text-left"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Trocar de Estabelecimento / Sair</span>
-              </button>
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* ÁREA DE CONTEÚDO PRINCIPAL (OCUPA 100% DA LARGURA) */}
-      <main className={`flex-1 overflow-y-auto bg-slate-950 ${isCustomMobileRoute ? 'pb-0' : 'pb-20 md:pb-0'}`}>
+      {/* DRAWER MENU UNIFICADO MOBILE */}
+      <MobileMenuDrawer
+        aberto={mobileMenuOpen}
+        onFechar={() => setMobileMenuOpen(false)}
+        pedidosConfirmadosCount={pedidosConfirmadosCount}
+      />
+
+      {/* ÁREA DE CONTEÚDO PRINCIPAL (MOBILE CLARO PADRÃO PEDIDOS / DESKTOP ESCURO) */}
+      <main className={`flex-1 overflow-y-auto bg-slate-50 md:bg-slate-950 text-slate-900 md:text-slate-100 ${isCustomMobileRoute ? 'pb-0' : 'pb-16 md:pb-0'}`}>
         <Outlet />
       </main>
 
-      {/* WIDGET FLUTUANTE DE AJUDA & SUPORTE IA (TELA009) */}
+      {/* WIDGET FLUTUANTE DE AJUDA & SUPORTE IA */}
       <ChatAjudaIA />
 
-      {/* BOTTOM NAVIGATION BAR MOBILE (MÓDULOS PRINCIPAIS AUTORIZADOS) */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-2 z-30 ${isCustomMobileRoute ? 'hidden' : ''}`}>
+      {/* BOTTOM NAVIGATION BAR MOBILE */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-xl border-t border-slate-200 flex items-center justify-around px-2 z-30 shadow-lg ${isCustomMobileRoute ? 'hidden' : ''}`}>
         {permissions.podeAcessarPdv && (
           <Link
             to="/pos"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/pos' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+              location.pathname === '/pos' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <div className="relative">
-              <ShoppingCart className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-1 font-medium">Vender</span>
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 font-semibold">Vender</span>
           </Link>
         )}
 
@@ -735,7 +598,7 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/orders"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition relative ${
-              location.pathname === '/orders' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+              location.pathname === '/orders' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <div className="relative">
@@ -746,7 +609,19 @@ export const AppLayout: React.FC = () => {
                 </span>
               )}
             </div>
-            <span className="text-[10px] mt-1 font-medium">Pedidos</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Pedidos</span>
+          </Link>
+        )}
+
+        {permissions.podeAcessarVendas && (
+          <Link
+            to="/sales"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
+              location.pathname === '/sales' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Receipt className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 font-semibold">Vendas</span>
           </Link>
         )}
 
@@ -754,23 +629,11 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/products"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname.startsWith('/products') ? 'text-emerald-400 font-bold' : 'text-slate-400'
+              location.pathname.startsWith('/products') ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <Package className="w-5 h-5" />
-            <span className="text-[10px] mt-1 font-medium">Produtos</span>
-          </Link>
-        )}
-
-        {permissions.podeAcessarClientes && (
-          <Link
-            to="/customers"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/customers' ? 'text-emerald-400 font-bold' : 'text-slate-400'
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] mt-1 font-medium">Clientes</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Produtos</span>
           </Link>
         )}
 
@@ -778,11 +641,11 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/finances"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/finances' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+              location.pathname === '/finances' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <DollarSign className="w-5 h-5" />
-            <span className="text-[10px] mt-1 font-medium">Finanças</span>
+            <span className="text-[10px] mt-0.5 font-semibold">Finanças</span>
           </Link>
         )}
       </nav>
