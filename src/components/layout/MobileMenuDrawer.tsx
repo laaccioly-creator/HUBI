@@ -103,7 +103,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       badge: pedidosCount > 0 ? pedidosCount : undefined
     },
     {
-      nome: 'Vendas / Histórico',
+      nome: 'Vendas',
       caminho: '/sales',
       icone: Receipt,
       visivel: permissions.podeAcessarVendas,

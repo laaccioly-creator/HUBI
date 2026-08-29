@@ -354,7 +354,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
             </div>
           </button>
-          <h1 className="font-bold text-base text-slate-800">Histórico de vendas</h1>
+          <h1 className="font-bold text-base text-slate-800">Vendas</h1>
         </div>
 
         <button

@@ -813,7 +813,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     <Receipt className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
-                    Vendas / Histórico
+                    Vendas
                   </span>
                 </button>
               </div>

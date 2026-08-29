@@ -594,10 +594,13 @@ export const EstatisticasAnalytics: React.FC = () => {
   }, [dadosAgrupadosTemporais, metricaSelecionada]);
 
   // Função para renderizar SVG Donut Chart
-  const renderDonutChart = (dados: { nome: string; valor: number; percentual: number; cor: string }[]) => {
+  const renderDonutChart = (
+    dados: { nome: string; valor: number; percentual: number; cor: string }[],
+    tema: 'claro' | 'escuro' = 'escuro'
+  ) => {
     if (dados.length === 0 || dados.every(d => d.valor === 0)) {
       return (
-        <div className="flex items-center justify-center h-48 text-slate-500 text-xs">
+        <div className={`flex items-center justify-center h-48 text-xs ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`}>
           Nenhum dado registrado para o período.
         </div>
       );
@@ -611,8 +614,8 @@ export const EstatisticasAnalytics: React.FC = () => {
     const circumference = 2 * Math.PI * radius;
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-8 py-6">
-        <div className="relative w-44 h-44 flex items-center justify-center">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 py-4 sm:py-6">
+        <div className="relative w-40 h-40 sm:w-44 sm:h-44 flex items-center justify-center shrink-0">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
             {dados.map((d, i) => {
               const strokeDasharray = `${(d.percentual / 100) * circumference} ${circumference}`;
@@ -637,17 +640,29 @@ export const EstatisticasAnalytics: React.FC = () => {
           </svg>
           <div className="absolute flex flex-col items-center justify-center text-center">
             <span className="text-[10px] uppercase font-bold text-slate-400">Total</span>
-            <span className="text-xs font-bold text-slate-100">R$ {total.toFixed(2)}</span>
+            <span className={`text-xs font-bold ${tema === 'claro' ? 'text-slate-900' : 'text-slate-100'}`}>
+              R$ {total.toFixed(2)}
+            </span>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 max-w-xs">
+        <div className="flex flex-col gap-2 w-full max-w-xs">
           {dados.map((d, idx) => (
-            <div key={idx} className="flex items-center gap-2 text-xs">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.cor }} />
-              <span className="text-slate-300 font-medium truncate">{d.nome}:</span>
-              <span className="text-slate-100 font-bold">{d.percentual.toFixed(1)}%</span>
-              <span className="text-slate-500 text-[11px]">(R$ {d.valor.toFixed(2)})</span>
+            <div key={idx} className="flex items-center justify-between sm:justify-start gap-2 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.cor }} />
+                <span className={`font-medium truncate ${tema === 'claro' ? 'text-slate-700' : 'text-slate-300'}`}>
+                  {d.nome}:
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className={`font-bold ${tema === 'claro' ? 'text-slate-900' : 'text-slate-100'}`}>
+                  {d.percentual.toFixed(1)}%
+                </span>
+                <span className={`text-[11px] ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`}>
+                  (R$ {d.valor.toFixed(2)})
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -656,11 +671,11 @@ export const EstatisticasAnalytics: React.FC = () => {
   };
 
   // Renderizar Gráfico de Linhas / Área SVG Interativo
-  const renderLineAreaChart = () => {
+  const renderLineAreaChart = (tema: 'claro' | 'escuro' = 'escuro') => {
     const dados = dadosAgrupadosTemporais;
     if (dados.length === 0) {
       return (
-        <div className="flex items-center justify-center h-56 text-slate-500 text-xs">
+        <div className={`flex items-center justify-center h-56 text-xs ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`}>
           Sem dados para o período selecionado.
         </div>
       );
@@ -703,13 +718,14 @@ export const EstatisticasAnalytics: React.FC = () => {
     const areaString = `${pathString} L ${points[points.length - 1].x},${paddingTop + chartHeight} L ${points[0].x},${paddingTop + chartHeight} Z`;
 
     const isMoeda = metricaSelecionada !== 'vendas';
+    const gradientId = `areaGradient-${tema}`;
 
     return (
       <div className="relative w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56 select-none font-sans text-[10px]">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-52 sm:h-56 select-none font-sans text-[10px]">
           <defs>
-            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10B981" stopOpacity="0.25" />
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10B981" stopOpacity={tema === 'claro' ? 0.35 : 0.25} />
               <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
             </linearGradient>
           </defs>
@@ -725,11 +741,17 @@ export const EstatisticasAnalytics: React.FC = () => {
                   y1={y}
                   x2={width - paddingRight}
                   y2={y}
-                  stroke="#334155"
+                  stroke={tema === 'claro' ? '#E2E8F0' : '#334155'}
                   strokeDasharray="2 2"
                   strokeWidth="0.8"
                 />
-                <text x={paddingLeft - 8} y={y + 3} textAnchor="end" fill="#94A3B8" className="text-[9px]">
+                <text
+                  x={paddingLeft - 8}
+                  y={y + 3}
+                  textAnchor="end"
+                  fill={tema === 'claro' ? '#64748B' : '#94A3B8'}
+                  className="text-[9px]"
+                >
                   {isMoeda ? `R$ ${gridVal >= 1000 ? `${(gridVal / 1000).toFixed(1)}k` : gridVal.toFixed(0)}` : Math.round(gridVal)}
                 </text>
               </g>
@@ -737,7 +759,7 @@ export const EstatisticasAnalytics: React.FC = () => {
           })}
 
           {/* Área Preenchida com Gradiente */}
-          <path d={areaString} fill="url(#areaGradient)" />
+          <path d={areaString} fill={`url(#${gradientId})`} />
 
           {/* Linha Principal */}
           <path d={pathString} fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -754,13 +776,19 @@ export const EstatisticasAnalytics: React.FC = () => {
                   cy={pt.y}
                   r={isMelhor ? 5 : 3.5}
                   fill={isMelhor ? '#10B981' : isPior ? '#EF4444' : '#10B981'}
-                  stroke="#0F172A"
+                  stroke={tema === 'claro' ? '#FFFFFF' : '#0F172A'}
                   strokeWidth="2"
                   className="transition-transform group-hover:scale-150"
                 />
                 {/* Rótulo Eixo X */}
                 {(dados.length <= 12 || idx % 2 === 0 || idx === dados.length - 1) && (
-                  <text x={pt.x} y={height - 12} textAnchor="middle" fill="#94A3B8" className="text-[9px]">
+                  <text
+                    x={pt.x}
+                    y={height - 12}
+                    textAnchor="middle"
+                    fill={tema === 'claro' ? '#64748B' : '#94A3B8'}
+                    className="text-[9px]"
+                  >
                     {pt.rotulo}
                   </text>
                 )}
@@ -770,18 +798,26 @@ export const EstatisticasAnalytics: React.FC = () => {
         </svg>
 
         {/* Legenda de Picos no Rodapé */}
-        <div className="flex items-center gap-4 text-[11px] text-slate-400 mt-2 px-2">
+        <div className={`flex flex-wrap items-center gap-4 text-[11px] mt-2 px-2 ${tema === 'claro' ? 'text-slate-600' : 'text-slate-400'}`}>
           <div className="flex items-center gap-1.5 font-semibold">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-            <span className="text-emerald-400 uppercase">Melhor {agrupamentoSelecionado === 'hora' ? 'Hora' : 'Dia'}:</span>
-            <span className="text-slate-200">{melhorItem ? melhorItem.rotulo : '-'}</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className={tema === 'claro' ? 'text-emerald-600 uppercase font-bold' : 'text-emerald-400 uppercase'}>
+              Melhor {agrupamentoSelecionado === 'hora' ? 'Hora' : 'Dia'}:
+            </span>
+            <span className={tema === 'claro' ? 'text-slate-800 font-bold' : 'text-slate-200'}>
+              {melhorItem ? melhorItem.rotulo : '-'}
+            </span>
           </div>
 
           {piorItem && (
             <div className="flex items-center gap-1.5 font-semibold">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-              <span className="text-rose-400 uppercase">Pior {agrupamentoSelecionado === 'hora' ? 'Hora' : 'Dia'}:</span>
-              <span className="text-slate-200">{piorItem.rotulo}</span>
+              <span className={tema === 'claro' ? 'text-rose-600 uppercase font-bold' : 'text-rose-400 uppercase'}>
+                Pior {agrupamentoSelecionado === 'hora' ? 'Hora' : 'Dia'}:
+              </span>
+              <span className={tema === 'claro' ? 'text-slate-800 font-bold' : 'text-slate-200'}>
+                {piorItem.rotulo}
+              </span>
             </div>
           )}
         </div>
@@ -877,15 +913,17 @@ export const EstatisticasAnalytics: React.FC = () => {
             { id: 'vendas', label: 'Qtd Vendas' },
             { id: 'ticket_medio', label: 'Ticket Médio' },
             { id: 'lucro', label: 'Lucro Real' },
+            { id: 'taxa_venda', label: 'Taxa Venda' },
             { id: 'meio_pagamento', label: 'Pagamentos' },
             { id: 'ranking_produtos', label: 'Top Produtos' },
-            { id: 'ranking_clientes', label: 'Top Clientes' }
+            { id: 'ranking_clientes', label: 'Top Clientes' },
+            { id: 'vendas_usuario', label: 'Por Vendedor' }
           ].map((met) => (
             <button
               key={met.id}
               type="button"
               onClick={() => setMetricaSelecionada(met.id as TipoMetrica)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border cursor-pointer ${
                 metricaSelecionada === met.id
                   ? 'bg-white text-slate-900 border-slate-300 shadow-xs font-bold'
                   : 'bg-transparent text-slate-500 border-transparent hover:bg-white/50'
@@ -905,9 +943,11 @@ export const EstatisticasAnalytics: React.FC = () => {
               {metricaSelecionada === 'vendas' && 'Número de Vendas Concluídas'}
               {metricaSelecionada === 'ticket_medio' && 'Ticket Médio por Venda'}
               {metricaSelecionada === 'lucro' && 'Lucro Líquido Real'}
+              {metricaSelecionada === 'taxa_venda' && 'Total em Taxas de Venda'}
               {metricaSelecionada === 'meio_pagamento' && 'Distribuição por Meio de Pagamento'}
               {metricaSelecionada === 'ranking_produtos' && 'Produtos Mais Vendidos'}
               {metricaSelecionada === 'ranking_clientes' && 'Clientes Mais Fiéis'}
+              {metricaSelecionada === 'vendas_usuario' && 'Desempenho por Colaborador'}
             </span>
 
             <div className="text-2xl font-black text-slate-900">
@@ -915,9 +955,11 @@ export const EstatisticasAnalytics: React.FC = () => {
               {metricaSelecionada === 'vendas' && `${totalVendas} pedidos`}
               {metricaSelecionada === 'ticket_medio' && `R$ ${ticketMedio.toFixed(2)}`}
               {metricaSelecionada === 'lucro' && `R$ ${lucroTotal.toFixed(2)}`}
+              {metricaSelecionada === 'taxa_venda' && `R$ ${taxasVendaTotal.toFixed(2)}`}
               {metricaSelecionada === 'meio_pagamento' && `R$ ${faturamentoTotal.toFixed(2)}`}
               {metricaSelecionada === 'ranking_produtos' && `${rankingProdutos.length} produtos vendidos`}
               {metricaSelecionada === 'ranking_clientes' && `${rankingClientes.length} clientes ativos`}
+              {metricaSelecionada === 'vendas_usuario' && `${vendasPorUsuario.length} colaboradores`}
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
@@ -926,104 +968,315 @@ export const EstatisticasAnalytics: React.FC = () => {
             </div>
           </div>
 
-          {/* Conteúdo Específico por Métrica */}
-          {metricaSelecionada === 'meio_pagamento' ? (
-            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-              <h3 className="text-xs font-bold text-slate-700">Divisão por Forma de Pagamento</h3>
-              {dadosMeiosPagamento.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4 text-center">Nenhum pagamento registrado no período.</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {dadosMeiosPagamento.map((p, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-800">{p.nome}</span>
-                        <span className="font-mono text-slate-600 font-bold">R$ {p.valor.toFixed(2)} ({p.percentual.toFixed(1)}%)</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${Math.min(p.percentual, 100)}%`, backgroundColor: p.cor }} />
-                      </div>
-                    </div>
+          {/* PAINEL TEMPORAL (GRÁFICO DE LINHA/ÁREA + TABELA) PARA FATURAMENTO, VENDAS, TICKET, LUCRO, TAXA, PAGAMENTO */}
+          {(metricaSelecionada === 'faturamento' ||
+            metricaSelecionada === 'vendas' ||
+            metricaSelecionada === 'ticket_medio' ||
+            metricaSelecionada === 'lucro' ||
+            metricaSelecionada === 'taxa_venda' ||
+            metricaSelecionada === 'meio_pagamento') && (
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+              {/* Título do Gráfico & Seletor de Agrupamento Temporal */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                    Evolução no Período
+                  </h3>
+                  <span className="text-[11px] text-slate-400">
+                    {agrupamentoSelecionado === 'hora' && 'Agrupado por hora do dia'}
+                    {agrupamentoSelecionado === 'dia' && 'Agrupado por dia do mês'}
+                    {agrupamentoSelecionado === 'dia_semana' && 'Agrupado por dia da semana'}
+                    {agrupamentoSelecionado === 'mes' && 'Agrupado por mês'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+                  {(['hora', 'dia', 'dia_semana', 'mes'] as TipoAgrupamento[]).map((ag) => (
+                    <button
+                      key={ag}
+                      type="button"
+                      onClick={() => setAgrupamentoSelecionado(ag)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                        agrupamentoSelecionado === ag
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {ag === 'dia_semana' ? 'Semana' : ag === 'mes' ? 'Mês' : ag}
+                    </button>
                   ))}
                 </div>
-              )}
+              </div>
+
+              {/* GRÁFICO INTERATIVO DE LINHAS E ÁREA */}
+              {renderLineAreaChart('claro')}
+
+              {/* TABELA DE DADOS TEMPORAIS */}
+              <div className="overflow-x-auto border-t border-slate-100 pt-3">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold text-[10px]">
+                      <th className="py-2 px-2.5">
+                        {agrupamentoSelecionado === 'hora' && 'Hora'}
+                        {agrupamentoSelecionado === 'dia' && 'Dia'}
+                        {agrupamentoSelecionado === 'dia_semana' && 'Dia da Semana'}
+                        {agrupamentoSelecionado === 'mes' && 'Mês'}
+                      </th>
+                      <th className="py-2 px-2.5 text-right">Faturamento</th>
+                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
+                        <>
+                          <th className="py-2 px-2.5 text-right">Vendas</th>
+                          <th className="py-2 px-2.5 text-right">Ticket</th>
+                        </>
+                      )}
+                      {metricaSelecionada === 'lucro' && (
+                        <th className="py-2 px-2.5 text-right text-emerald-600">Lucro</th>
+                      )}
+                      {metricaSelecionada === 'taxa_venda' && (
+                        <th className="py-2 px-2.5 text-right text-rose-500">Taxa</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {dadosAgrupadosTemporais.filter(d => d.faturamento > 0 || d.vendas > 0).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-4 text-slate-400 text-xs">
+                          Nenhum dado registrado para o período.
+                        </td>
+                      </tr>
+                    ) : (
+                      dadosAgrupadosTemporais
+                        .filter(d => d.faturamento > 0 || d.vendas > 0)
+                        .map((linha, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 transition">
+                            <td className="py-2 px-2.5 font-bold text-slate-800">
+                              {linha.rotulo}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-medium text-slate-700">
+                              R$ {linha.faturamento.toFixed(2)}
+                            </td>
+                            {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
+                              <>
+                                <td className="py-2 px-2.5 text-right text-slate-600">
+                                  {linha.vendas}
+                                </td>
+                                <td className="py-2 px-2.5 text-right font-medium text-slate-600">
+                                  R$ {linha.ticketMedio.toFixed(2)}
+                                </td>
+                              </>
+                            )}
+                            {metricaSelecionada === 'lucro' && (
+                              <td className="py-2 px-2.5 text-right font-bold text-emerald-600">
+                                R$ {linha.lucro.toFixed(2)}
+                              </td>
+                            )}
+                            {metricaSelecionada === 'taxa_venda' && (
+                              <td className="py-2 px-2.5 text-right font-bold text-rose-500">
+                                R$ {linha.taxaVenda.toFixed(2)}
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          ) : metricaSelecionada === 'ranking_produtos' ? (
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-700 px-1">Produtos Mais Vendidos</h3>
-              {rankingProdutos.length === 0 ? (
-                <div className="p-4 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-400">Nenhum produto vendido no período.</div>
-              ) : (
-                rankingProdutos.slice(0, 15).map((prod, idx) => (
-                  <div key={idx} className="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-800 text-xs truncate">{prod.nome}</p>
-                        <p className="text-[11px] text-slate-500">{prod.qtd} unidades vendidas</p>
-                      </div>
-                    </div>
-                    <span className="font-black text-slate-900 text-xs shrink-0">
-                      R$ {prod.valor.toFixed(2)}
-                    </span>
-                  </div>
-                ))
-              )}
+          )}
+
+          {/* CARD DE MEIO DE PAGAMENTO (DONUT + TABELA CONSOLIDADA) */}
+          {metricaSelecionada === 'meio_pagamento' && (
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Distribuição Consolidada por Meio de Pagamento
+                </h3>
+                <p className="text-[11px] text-slate-500">Participação de cada forma nas vendas do período.</p>
+              </div>
+
+              {/* Gráfico Donut */}
+              {renderDonutChart(dadosMeiosPagamento, 'claro')}
+
+              {/* Tabela de Meios de Pagamento */}
+              <div className="overflow-x-auto border-t border-slate-100 pt-3">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold text-[10px]">
+                      <th className="py-2 px-2.5">Forma</th>
+                      <th className="py-2 px-2.5 text-center">Qtd</th>
+                      <th className="py-2 px-2.5 text-right">Total</th>
+                      <th className="py-2 px-2.5 text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {dadosMeiosPagamento.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-4 text-slate-400 text-xs">
+                          Nenhum pagamento registrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      dadosMeiosPagamento.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition">
+                          <td className="py-2 px-2.5 font-bold text-slate-800 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.cor }} />
+                            <span className="truncate">{item.nome}</span>
+                          </td>
+                          <td className="py-2 px-2.5 text-center text-slate-600">{item.qtd}</td>
+                          <td className="py-2 px-2.5 text-right font-medium text-slate-800">
+                            R$ {item.valor.toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-bold text-slate-700">
+                            {item.percentual.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-slate-200 font-bold text-slate-800 bg-slate-50">
+                      <td className="py-2 px-2.5">Total</td>
+                      <td className="py-2 px-2.5 text-center">{dadosMeiosPagamento.reduce((acc, i) => acc + i.qtd, 0)}</td>
+                      <td className="py-2 px-2.5 text-right text-emerald-600">
+                        R$ {dadosMeiosPagamento.reduce((acc, i) => acc + i.valor, 0).toFixed(2)}
+                      </td>
+                      <td className="py-2 px-2.5 text-right">100%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
-          ) : metricaSelecionada === 'ranking_clientes' ? (
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-700 px-1">Melhores Clientes</h3>
-              {rankingClientes.length === 0 ? (
-                <div className="p-4 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-400">Nenhum cliente no período.</div>
-              ) : (
-                rankingClientes.slice(0, 15).map((cli, idx) => (
-                  <div key={idx} className="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-800 text-xs truncate">{cli.nome}</p>
-                        <p className="text-[11px] text-slate-500">{cli.compras} compras</p>
-                      </div>
-                    </div>
-                    <span className="font-black text-slate-900 text-xs shrink-0">
-                      R$ {cli.valor.toFixed(2)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          ) : (
-            /* Lista temporal com barras */
+          )}
+
+          {/* CARD DE RANKING DE PRODUTOS */}
+          {metricaSelecionada === 'ranking_produtos' && (
             <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-              <h3 className="text-xs font-bold text-slate-700">Evolução no Período</h3>
-              {dadosAgrupadosTemporais.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4 text-center">Nenhum dado para o período selecionado.</p>
+              <div className="border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Ranking de Produtos
+                </h3>
+                <p className="text-[11px] text-slate-500">Produtos mais vendidos ordenados pelo faturamento gerado.</p>
+              </div>
+
+              {rankingProdutos.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400">Nenhum produto vendido no período.</div>
               ) : (
-                <div className="space-y-2.5">
-                  {dadosAgrupadosTemporais.map((d, idx) => {
-                    const val = metricaSelecionada === 'vendas' ? d.vendas : metricaSelecionada === 'lucro' ? d.lucro : metricaSelecionada === 'ticket_medio' ? d.ticketMedio : d.faturamento;
-                    const maxVal = Math.max(...dadosAgrupadosTemporais.map(it => metricaSelecionada === 'vendas' ? it.vendas : it.faturamento), 1);
-                    const pct = (val / maxVal) * 100;
-                    return (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-slate-600">{d.rotulo}</span>
-                          <span className="font-bold text-slate-900">
-                            {metricaSelecionada === 'vendas' ? `${val} pedidos` : `R$ ${val.toFixed(2)}`}
-                          </span>
-                        </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold text-[10px]">
+                        <th className="py-2 px-2.5 w-8 text-center">#</th>
+                        <th className="py-2 px-2.5">Produto</th>
+                        <th className="py-2 px-2.5 text-right">Total</th>
+                        <th className="py-2 px-2.5 text-right">Qtd</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {rankingProdutos.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition">
+                          <td className="py-2 px-2.5 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-2 px-2.5 font-semibold text-slate-800 truncate max-w-[140px]">{item.nome}</td>
+                          <td className="py-2 px-2.5 text-right font-bold text-emerald-600">R$ {item.valor.toFixed(2)}</td>
+                          <td className="py-2 px-2.5 text-right text-slate-600">{item.qtd}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* CARD DE RANKING DE CLIENTES */}
+          {metricaSelecionada === 'ranking_clientes' && (
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+              <div className="border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Ranking de Melhores Clientes
+                </h3>
+                <p className="text-[11px] text-slate-500">Clientes com maior volume de compras no período selecionado.</p>
+              </div>
+
+              {rankingClientes.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400">Nenhum cliente registrado no período.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold text-[10px]">
+                        <th className="py-2 px-2.5 w-8 text-center">#</th>
+                        <th className="py-2 px-2.5">Cliente</th>
+                        <th className="py-2 px-2.5 text-right">Total</th>
+                        <th className="py-2 px-2.5 text-right">Compras</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {rankingClientes.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition">
+                          <td className="py-2 px-2.5 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-2 px-2.5 font-semibold text-slate-800 truncate max-w-[140px]">{item.nome}</td>
+                          <td className="py-2 px-2.5 text-right font-bold text-emerald-600">R$ {item.valor.toFixed(2)}</td>
+                          <td className="py-2 px-2.5 text-right text-slate-600">{item.compras}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CARD DE VENDAS POR USUÁRIO (DONUT + TABELA) */}
+          {metricaSelecionada === 'vendas_usuario' && (
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Vendas por Usuário
+                </h3>
+                <p className="text-[11px] text-slate-500">Desempenho e faturamento por operador, vendedor ou catálogo online.</p>
+              </div>
+
+              {/* Gráfico Donut de Usuários */}
+              {renderDonutChart(vendasPorUsuario, 'claro')}
+
+              {/* Tabela de Usuários */}
+              <div className="overflow-x-auto border-t border-slate-100 pt-3">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold text-[10px]">
+                      <th className="py-2 px-2.5">Colaborador</th>
+                      <th className="py-2 px-2.5 text-center">Vendas</th>
+                      <th className="py-2 px-2.5 text-right">Faturamento</th>
+                      <th className="py-2 px-2.5 text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {vendasPorUsuario.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-4 text-slate-400 text-xs">
+                          Nenhum usuário registrado com vendas.
+                        </td>
+                      </tr>
+                    ) : (
+                      vendasPorUsuario.map((user, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition">
+                          <td className="py-2 px-2.5 font-bold text-slate-800 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: user.cor }} />
+                            <span className="truncate">{user.nome}</span>
+                          </td>
+                          <td className="py-2 px-2.5 text-center text-slate-600">{user.qtd}</td>
+                          <td className="py-2 px-2.5 text-right font-medium text-slate-800">
+                            R$ {user.valor.toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right font-bold text-slate-700">
+                            {user.percentual.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

@@ -1,33 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  MessageCircle,
   X,
   Send,
-  Search,
   Sparkles,
-  HelpCircle,
-  Newspaper,
-  ChevronRight,
-  ArrowLeft,
   Bot,
   User,
-  Loader2,
-  CheckCircle2,
-  BookOpen,
-  Printer,
-  FileText,
-  Users,
-  CreditCard,
-  ExternalLink,
-  Gift,
+  TrendingUp,
+  Package,
+  DollarSign,
   Mic,
   MicOff,
-  Volume2
+  ExternalLink
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { TUTORIAIS_HUBI, ArtigoTutorial, responderDuvidaSuporteIA } from '../services/tutoriaisHubiService';
-
-type AbaChat = 'inicio' | 'mensagens' | 'ajuda' | 'noticias';
+import { responderDuvidaSuporteIA } from '../services/tutoriaisHubiService';
 
 interface MensagemChat {
   id: string;
@@ -37,11 +25,9 @@ interface MensagemChat {
 }
 
 export const ChatAjudaIA: React.FC = () => {
+  const navigate = useNavigate();
   const { loja, usuario } = useAuth();
   const [aberto, setAberto] = useState<boolean>(false);
-  const [abaAtiva, setAbaAtiva] = useState<AbaChat>('inicio');
-  const [buscaAjuda, setBuscaAjuda] = useState<string>('');
-  const [artigoSelecionado, setArtigoSelecionado] = useState<ArtigoTutorial | null>(null);
 
   // Chat com IA
   const [mensagens, setMensagens] = useState<MensagemChat[]>([]);
@@ -49,12 +35,10 @@ export const ChatAjudaIA: React.FC = () => {
   const [enviando, setEnviando] = useState<boolean>(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Reconhecimento de Voz (Microfone - Mobile & Desktop)
+  // Reconhecimento de Voz (Microfone)
   const [escutandoVoz, setEscutandoVoz] = useState<boolean>(false);
   const [suporteVoz, setSuporteVoz] = useState<boolean>(false);
   const recognitionRef = useRef<any>(null);
-
-  const primeiroNome = usuario?.nome_completo ? usuario.nome_completo.split(' ')[0] : 'Lojista';
 
   // Inicializar Web Speech API (Microfone)
   useEffect(() => {
@@ -100,10 +84,7 @@ export const ChatAjudaIA: React.FC = () => {
   }, []);
 
   const alternarGravacaoVoz = () => {
-    if (!recognitionRef.current) {
-      alert('O reconhecimento de voz não é suportado pelo seu navegador atual. Você pode digitar sua pergunta normalmente.');
-      return;
-    }
+    if (!recognitionRef.current) return;
 
     if (escutandoVoz) {
       try {
@@ -119,26 +100,27 @@ export const ChatAjudaIA: React.FC = () => {
     }
   };
 
-  // Mensagem inicial de boas-vindas
+  // Mensagem inicial de boas-vindas idêntica ao Assistente Rubi
   useEffect(() => {
     if (mensagens.length === 0) {
       setMensagens([
         {
           id: 'welcome-1',
           remetente: 'ia',
-          texto: `Olá, **${primeiroNome}**! 👋 Sou a **Rubi**, especialista em suporte do HUBI.\n\nVocê pode me fazer perguntas digitando ou **falando pelo microfone** 🎙️!\n\nPosso te orientar sobre impressoras térmicas, vendas, relatórios, fiado, estoque, pedidos ou qualquer funcionalidade do sistema.`,
+          texto: `Olá! Sou a **Rubi**, sua assistente inteligente no **HUBI**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?`,
           data: new Date()
         }
       ]);
     }
-  }, [primeiroNome]);
+  }, [mensagens.length]);
 
   useEffect(() => {
-    if (abaAtiva === 'mensagens') {
+    if (aberto) {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [mensagens, abaAtiva]);
+  }, [mensagens, aberto]);
 
+  // Inteligência Unificada idêntica ao Assistente Rubi do Desktop
   const handleEnviarMensagem = async (textoDireto?: string) => {
     if (escutandoVoz && recognitionRef.current) {
       try {
@@ -160,24 +142,86 @@ export const ChatAjudaIA: React.FC = () => {
     setMensagens((prev) => [...prev, novaMsgUser]);
     setInputMensagem('');
     setEnviando(true);
-    setAbaAtiva('mensagens');
 
     try {
-      const respostaIA = await responderDuvidaSuporteIA(texto, usuario, loja);
-      const novaMsgIA: MensagemChat = {
-        id: (Date.now() + 1).toString(),
-        remetente: 'ia',
-        texto: respostaIA,
-        data: new Date()
+      if (!loja?.id) throw new Error('Loja não identificada');
+
+      const pLower = texto.toLowerCase();
+
+      const { data: pedidos } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('loja_id', loja.id)
+        .eq('status', 'confirmado');
+
+      const { data: produtos } = await supabase
+        .from('produtos')
+        .select('*, variacoes:variacoes_produto(*)')
+        .eq('loja_id', loja.id)
+        .eq('ativo', true);
+
+      const { data: clientes } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('loja_id', loja.id);
+
+      const getEstoqueReal = (p: any) => {
+        if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
+          return p.variacoes.reduce((acc: number, v: any) => acc + Number(v.quantidade_estoque || 0), 0);
+        }
+        return Number(p.quantidade_estoque || 0);
       };
-      setMensagens((prev) => [...prev, novaMsgIA]);
+
+      const faturamento = pedidos?.reduce((acc, p) => acc + Number(p.valor_total || 0), 0) || 0;
+      const totalPedidos = pedidos?.length || 0;
+      const produtosAlerta = produtos?.filter((p) => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
+      const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
+
+      let resposta = '';
+
+      if (pLower.includes('venda') || pLower.includes('faturamento') || pLower.includes('hoje')) {
+        resposta = `📊 **Resumo de Vendas & Faturamento:**\n\n• **Faturamento Total:** R$ ${faturamento.toFixed(2)}\n• **Volume de Vendas:** ${totalPedidos} pedidos confirmados\n• **Ticket Médio:** R$ ${(totalPedidos > 0 ? faturamento / totalPedidos : 0).toFixed(2)}\n\nSuas vendas estão com bom desempenho! Quer uma dica para aumentar o ticket médio oferecendo combos?`;
+      } else if (pLower.includes('estoque') || pLower.includes('baixo') || pLower.includes('acabando')) {
+        if (produtosAlerta.length > 0) {
+          const listaAlerta = produtosAlerta
+            .slice(0, 3)
+            .map((p) => `• **${p.nome}**: restam apenas ${getEstoqueReal(p)} un`)
+            .join('\n');
+          resposta = `⚠️ **Atenção ao Estoque:**\n\nVocê possui **${produtosAlerta.length} produto(s)** com estoque no limite:\n\n${listaAlerta}\n\nRecomendo fazer um pedido aos fornecedores para não perder vendas!`;
+        } else {
+          resposta = `✅ **Estoque Regularizado!**\n\nTodos os seus ${produtos?.length || 0} produtos cadastrados estão com quantidades acima do nível mínimo de alerta.`;
+        }
+      } else if (pLower.includes('fiado') || pLower.includes('devedor') || pLower.includes('cobrar')) {
+        resposta = `💰 **Controle de Fiado:**\n\nAtualmente há um total de **R$ ${totalFiado.toFixed(2)}** em haver com clientes.\n\nVocê pode ir na aba **Clientes** para disparar lembretes amigáveis direto pelo WhatsApp em 1 clique!`;
+      } else {
+        try {
+          const respostaTutorial = await responderDuvidaSuporteIA(texto, usuario, loja);
+          if (respostaTutorial && respostaTutorial.trim()) {
+            resposta = respostaTutorial;
+          } else {
+            resposta = `Entendido! Para a sua loja **${loja.nome_fantasia}**, temos atualmente:\n\n• **${produtos?.length || 0}** produtos ativos\n• **${totalPedidos}** vendas fechadas\n• **${clientes?.length || 0}** clientes cadastrados\n\nPosso detalhar qualquer um desses relatórios para você. O que prefere ver agora?`;
+          }
+        } catch {
+          resposta = `Entendido! Para a sua loja **${loja.nome_fantasia}**, temos atualmente:\n\n• **${produtos?.length || 0}** produtos ativos\n• **${totalPedidos}** vendas fechadas\n• **${clientes?.length || 0}** clientes cadastrados\n\nPosso detalhar qualquer um desses relatórios para você. O que prefere ver agora?`;
+        }
+      }
+
+      setMensagens((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          remetente: 'ia',
+          texto: resposta,
+          data: new Date()
+        }
+      ]);
     } catch (err) {
       setMensagens((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           remetente: 'ia',
-          texto: 'Desculpe, tive uma instabilidade momentânea ao consultar a IA. Por favor, tente novamente ou confira os artigos na aba Ajuda.',
+          texto: 'Desculpe, tive uma instabilidade momentânea ao consultar os dados da loja. Por favor, tente novamente.',
           data: new Date()
         }
       ]);
@@ -186,17 +230,7 @@ export const ChatAjudaIA: React.FC = () => {
     }
   };
 
-  const tutoriaisFiltrados = TUTORIAIS_HUBI.filter((t) => {
-    if (!buscaAjuda) return true;
-    const b = buscaAjuda.toLowerCase();
-    return (
-      t.titulo.toLowerCase().includes(b) ||
-      t.resumo.toLowerCase().includes(b) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(b))
-    );
-  });
-
-  // Posição arrastável do botão da Rubi IA (Drag and Drop)
+  // Posição arrastável da bolinha da Rubi IA (Drag and Drop)
   const [posicao, setPosicao] = useState<{ x: number; y: number } | null>(() => {
     try {
       const salvo = localStorage.getItem('hubi_rubi_ia_pos');
@@ -210,7 +244,6 @@ export const ChatAjudaIA: React.FC = () => {
   const posInicialBtnRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const houveArrastoRef = useRef<boolean>(false);
 
-  // Iniciar Arrastar (Mouse & Touch)
   const iniciarArrasto = (e: React.MouseEvent | React.TouchEvent) => {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -231,9 +264,7 @@ export const ChatAjudaIA: React.FC = () => {
       const deltaX = curX - posInicialMouseRef.current.x;
       const deltaY = curY - posInicialMouseRef.current.y;
 
-      if (Math.hypot(deltaX, deltaY) > 6) {
-        houveArrastoRef.current = true;
-      }
+      if (Math.hypot(deltaX, deltaY) > 6) houveArrastoRef.current = true;
 
       const novoX = Math.max(10, Math.min(window.innerWidth - 65, posInicialBtnRef.current.x + deltaX));
       const novoY = Math.max(10, Math.min(window.innerHeight - 65, posInicialBtnRef.current.y + deltaY));
@@ -247,14 +278,9 @@ export const ChatAjudaIA: React.FC = () => {
       window.removeEventListener('mouseup', finalizarArrasto);
       window.removeEventListener('touchmove', emMovimento);
       window.removeEventListener('touchend', finalizarArrasto);
-
-      setPosicao((posAtual) => {
-        if (posAtual) {
-          try {
-            localStorage.setItem('hubi_rubi_ia_pos', JSON.stringify(posAtual));
-          } catch {}
-        }
-        return posAtual;
+      setPosicao((pos) => {
+        if (pos) localStorage.setItem('hubi_rubi_ia_pos', JSON.stringify(pos));
+        return pos;
       });
     };
 
@@ -265,417 +291,178 @@ export const ChatAjudaIA: React.FC = () => {
   };
 
   const handleClickBotao = () => {
-    if (!houveArrastoRef.current) {
-      setAberto((prev) => !prev);
-    }
+    if (!houveArrastoRef.current) setAberto((prev) => !prev);
   };
 
   return (
     <>
-      {/* BOTÃO FLUTUANTE DE AJUDA COM IA - ARRASTÁVEL LIVREMENTE PELA TELA */}
       <div
-        style={
-          posicao
-            ? { left: `${posicao.x}px`, top: `${posicao.y}px`, bottom: 'auto', right: 'auto' }
-            : {}
-        }
-        className={`${
-          posicao ? 'fixed' : 'fixed bottom-20 right-4 md:bottom-6 md:right-6'
-        } z-40 animate-in fade-in duration-200 select-none`}
+        style={posicao ? { left: `${posicao.x}px`, top: `${posicao.y}px`, bottom: 'auto', right: 'auto' } : {}}
+        className={`${posicao ? 'fixed' : 'fixed bottom-5 right-4 md:bottom-6 md:right-6'} z-40 animate-in fade-in duration-200 select-none`}
       >
         <button
           type="button"
           onMouseDown={iniciarArrasto}
           onTouchStart={iniciarArrasto}
           onClick={handleClickBotao}
-          className="relative w-13 h-13 md:w-14 md:h-14 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing border-2 border-emerald-300/40"
-          title="Rubi IA • Clique para abrir ou arraste para qualquer lugar da tela"
+          className="relative w-13 h-13 md:w-14 md:h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:to-purple-500 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing border-2 border-white/40 ring-2 ring-indigo-500/20"
+          title="Assistente Rubi IA • Clique para abrir ou arraste pela tela"
         >
           {aberto ? (
             <X className="w-6 h-6 pointer-events-none" />
           ) : (
             <div className="relative pointer-events-none">
-              <MessageCircle className="w-7 h-7 fill-current text-white" />
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full animate-ping"></span>
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-slate-900 flex items-center justify-center">
-                <Sparkles className="w-2 h-2 text-slate-950" />
-              </span>
+              <Sparkles className="w-6 h-6 text-white animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-indigo-900" />
             </div>
           )}
         </button>
       </div>
 
-      {/* JANELA / WIDGET DE AJUDA & SUPORTE IA (RESPONSIVO PARA DESKTOP E MOBILE) */}
       {aberto && (
-        <div className="fixed bottom-0 md:bottom-24 right-0 md:right-6 z-50 w-full md:w-[420px] max-w-full h-[90vh] md:h-[620px] max-h-[92vh] bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 select-none text-slate-800 md:text-slate-100">
-          {/* HEADER DO WIDGET */}
-          <div className="p-4 bg-white md:bg-gradient-to-r md:from-slate-900 md:via-slate-800 md:to-slate-900 border-b border-slate-200 md:border-slate-800 flex items-center justify-between">
+        <div className="fixed bottom-0 md:bottom-24 right-0 md:right-6 z-50 w-full md:w-[420px] max-w-full h-[88vh] md:h-[620px] max-h-[92vh] bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 select-none text-slate-800 md:text-slate-100">
+          <div className="p-3.5 bg-white md:bg-slate-900/90 border-b border-slate-200 md:border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 md:text-emerald-400 flex items-center justify-center font-black text-sm">
-                HB
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 shrink-0">
+                <Sparkles className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="text-xs font-bold text-slate-800 md:text-slate-100 flex items-center gap-1.5">
-                  <span>Rubi IA • Suporte Oficial</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Rubi - Assistente IA</span>
+                  <span className="bg-indigo-50 md:bg-indigo-500/20 text-indigo-700 md:text-indigo-300 text-[10px] font-bold px-1.5 py-0.2 rounded border border-indigo-200 md:border-indigo-500/30">
+                    HUBI AI
+                  </span>
                 </h3>
-                <span className="text-[10px] text-slate-500 md:text-slate-400">Atendimento por Voz e Texto</span>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Online • Inteligência de Vendas e Gestão</span>
+                </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setAberto(false)}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* INDICADOR VISUAL DE GRAVAÇÃO DE VOZ QUANDO ATIVO */}
-          {escutandoVoz && (
-            <div className="bg-rose-950/80 border-b border-rose-500/30 px-4 py-2 flex items-center justify-between text-xs text-rose-300 animate-pulse">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-                <span className="font-bold">Ouvindo você... Fale sua dúvida agora!</span>
-              </div>
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={alternarGravacaoVoz}
-                className="text-[10px] underline font-bold text-rose-200"
+                onClick={() => {
+                  setAberto(false);
+                  navigate('/smart-assistant');
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-100 md:hover:bg-slate-800 text-slate-500 md:text-slate-400 transition cursor-pointer"
+                title="Abrir em tela cheia"
               >
-                Concluir fala
+                <ExternalLink className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setAberto(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 md:hover:bg-slate-800 text-slate-500 md:text-slate-400 transition cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
-          )}
+          </div>
 
-          {/* CONTEÚDO DA ABA SELECIONADA */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* ABA 1: INÍCIO (TELA009) */}
-            {abaAtiva === 'inicio' && (
-              <div className="space-y-4 animate-in fade-in">
-                {/* Saudação com Destaque */}
-                <div className="space-y-1">
-                  <h3 className="text-lg font-black text-slate-100 flex items-center gap-1.5">
-                    <span>Olá {primeiroNome.toUpperCase()}</span>
-                    <span>👋</span>
-                  </h3>
-                  <p className="text-base font-bold text-slate-200">Como podemos ajudar?</p>
-                </div>
-
-                {/* Card de Envio Rápido de Mensagem com Microfone */}
-                <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2 shadow-inner">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder={escutandoVoz ? 'Ouvindo sua voz...' : 'Envie uma mensagem ou fale...'}
-                      value={inputMensagem}
-                      onChange={(e) => setInputMensagem(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleEnviarMensagem();
-                      }}
-                      className="flex-1 bg-transparent text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
-                    />
-
-                    {/* Botão de Microfone de Voz */}
-                    {suporteVoz && (
-                      <button
-                        type="button"
-                        onClick={alternarGravacaoVoz}
-                        className={`p-2 rounded-xl transition cursor-pointer ${
-                          escutandoVoz
-                            ? 'bg-rose-600 text-white animate-bounce shadow-lg shadow-rose-600/40'
-                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400'
-                        }`}
-                        title={escutandoVoz ? 'Parar de escutar' : 'Falar por voz pelo microfone'}
-                      >
-                        {escutandoVoz ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => handleEnviarMensagem()}
-                      disabled={!inputMensagem.trim()}
-                      className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/60 md:bg-slate-950/40">
+            {mensagens.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex items-start gap-2.5 ${msg.remetente === 'usuario' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.remetente === 'ia' && (
+                  <div className="w-7 h-7 rounded-xl bg-indigo-500 flex items-center justify-center text-white shrink-0 mt-0.5 shadow-xs">
+                    <Bot className="w-4 h-4" />
                   </div>
+                )}
+                <div
+                  className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                    msg.remetente === 'usuario'
+                      ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
+                      : 'bg-white md:bg-slate-800 border border-slate-200 md:border-slate-700 text-slate-800 md:text-slate-100 rounded-bl-none shadow-xs whitespace-pre-line'
+                  }`}
+                >
+                  {msg.texto}
                 </div>
-
-                {/* Banner de Dica / Novidade */}
-                <div className="p-3.5 bg-gradient-to-br from-indigo-950/40 via-purple-950/30 to-slate-950 rounded-2xl border border-indigo-500/20 flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
-                    <Gift className="w-4 h-4" />
-                  </div>
-                  <div className="space-y-0.5 min-w-0">
-                    <h4 className="text-xs font-bold text-slate-100">Atendimento Inteligente por Voz</h4>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Toque no ícone do microfone para fazer qualquer pergunta sobre o sistema por voz enquanto atende no balcão.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Seção "Qual é a sua dúvida?" com Tutoriais */}
-                <div className="space-y-2">
-                  <span className="text-xs font-bold text-slate-300 block">Qual é a sua dúvida?</span>
-
-                  <div className="space-y-1.5">
-                    {TUTORIAIS_HUBI.slice(0, 5).map((tutorial) => (
-                      <button
-                        key={tutorial.id}
-                        type="button"
-                        onClick={() => {
-                          setArtigoSelecionado(tutorial);
-                          setAbaAtiva('ajuda');
-                        }}
-                        className="w-full p-2.5 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/80 flex items-center justify-between text-left transition group cursor-pointer"
-                      >
-                        <span className="text-xs text-slate-300 group-hover:text-emerald-400 font-medium truncate pr-2">
-                          {tutorial.titulo}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 shrink-0 transition-transform group-hover:translate-x-0.5" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ABA 2: MENSAGENS (CHAT COM IA RUBI) */}
-            {abaAtiva === 'mensagens' && (
-              <div className="flex flex-col h-full space-y-3 animate-in fade-in">
-                <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                  {mensagens.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex gap-2.5 ${msg.remetente === 'usuario' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {msg.remetente === 'ia' && (
-                        <div className="w-6 h-6 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                          <Bot className="w-3.5 h-3.5" />
-                        </div>
-                      )}
-                      <div
-                        className={`p-3 rounded-2xl text-xs max-w-[85%] leading-relaxed whitespace-pre-wrap ${
-                          msg.remetente === 'usuario'
-                            ? 'bg-emerald-600 text-white rounded-br-none'
-                            : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm'
-                        }`}
-                      >
-                        {msg.texto}
-                      </div>
-                    </div>
-                  ))}
-                  {enviando && (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 italic pl-8">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                      <span>Rubi está pensando na resposta...</span>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                {/* Input de Mensagem com Microfone */}
-                <div className="p-2 bg-slate-950 rounded-2xl border border-slate-800 flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder={escutandoVoz ? 'Ouvindo sua voz...' : 'Pergunte ou fale à IA...'}
-                    value={inputMensagem}
-                    onChange={(e) => setInputMensagem(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleEnviarMensagem();
-                    }}
-                    className="flex-1 bg-transparent px-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
-                  />
-
-                  {/* Microfone de Voz */}
-                  {suporteVoz && (
-                    <button
-                      type="button"
-                      onClick={alternarGravacaoVoz}
-                      className={`p-2 rounded-xl transition cursor-pointer ${
-                        escutandoVoz
-                          ? 'bg-rose-600 text-white animate-bounce shadow-lg shadow-rose-600/40'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400'
-                      }`}
-                      title={escutandoVoz ? 'Parar gravação' : 'Perguntar por voz'}
-                    >
-                      {escutandoVoz ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleEnviarMensagem()}
-                    disabled={!inputMensagem.trim() || enviando}
-                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ABA 3: AJUDA / TUTORIAIS COMPLETOS */}
-            {abaAtiva === 'ajuda' && (
-              <div className="space-y-3 animate-in fade-in">
-                {artigoSelecionado ? (
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => setArtigoSelecionado(null)}
-                      className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:underline font-bold"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Voltar aos tutoriais</span>
-                    </button>
-
-                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
-                      <h4 className="text-sm font-bold text-slate-100">{artigoSelecionado.titulo}</h4>
-                      <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                        {artigoSelecionado.conteudo}
-                      </p>
-
-                      <div className="pt-2 border-t border-slate-800 space-y-1.5">
-                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                          Passo a Passo
-                        </span>
-                        <ul className="space-y-1 text-xs text-slate-400 list-disc list-inside">
-                          {artigoSelecionado.passos.map((p, idx) => (
-                            <li key={idx} className="leading-tight">
-                              {p}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleEnviarMensagem(`Como funciona o tutorial: ${artigoSelecionado.titulo}?`)}
-                        className="w-full py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer mt-2"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Tirar dúvidas sobre este tópico com a IA</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Campo de Busca nos Tutoriais */}
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Buscar dúvidas e tutoriais..."
-                        value={buscaAjuda}
-                        onChange={(e) => setBuscaAjuda(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      {tutoriaisFiltrados.map((tutorial) => (
-                        <button
-                          key={tutorial.id}
-                          type="button"
-                          onClick={() => setArtigoSelecionado(tutorial)}
-                          className="w-full p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 flex flex-col text-left transition group cursor-pointer space-y-1"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-xs font-bold text-slate-100 group-hover:text-emerald-400 truncate">
-                              {tutorial.titulo}
-                            </span>
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 shrink-0" />
-                          </div>
-                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                            {tutorial.resumo}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
+                {msg.remetente === 'usuario' && (
+                  <div className="w-7 h-7 rounded-xl bg-slate-200 md:bg-slate-800 flex items-center justify-center text-slate-700 md:text-slate-300 shrink-0 mt-0.5">
+                    <User className="w-4 h-4" />
                   </div>
                 )}
               </div>
-            )}
-
-            {/* ABA 4: NOTÍCIAS / NOVIDADES */}
-            {abaAtiva === 'noticias' && (
-              <div className="space-y-3 animate-in fade-in">
-                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                      Nova Versão
-                    </span>
-                    <span className="text-[10px] text-slate-500">Hoje</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-100">Suporte por Voz & Visão Detalhada de Pedidos</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Agora você pode conversar com a IA do HUBI por voz diretamente no celular ou computador, além de contar com a nova visão detalhada de pedidos e histórico de vendas!
-                  </p>
-                </div>
+            ))}
+            {enviando && (
+              <div className="flex items-center gap-2 text-indigo-600 md:text-indigo-400 text-xs p-2.5 bg-indigo-50 md:bg-indigo-950/30 rounded-xl border border-indigo-100 md:border-indigo-800/40">
+                <Sparkles className="w-4 h-4 animate-spin text-indigo-500" />
+                <span className="font-semibold">Rubi está analisando os dados da sua loja...</span>
               </div>
             )}
+            <div ref={chatEndRef} />
           </div>
 
-          {/* BARRA DE NAVEGAÇÃO INFERIOR DO WIDGET (TELA009) */}
-          <div className="p-2 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-950 grid grid-cols-4 gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                setAbaAtiva('inicio');
-                setArtigoSelecionado(null);
+          <div className="p-3 bg-white md:bg-slate-900 border-t border-slate-200 md:border-slate-800 space-y-2 shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+              <button
+                type="button"
+                onClick={() => handleEnviarMensagem('Como estão as vendas e o faturamento?')}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 md:border-slate-700 font-medium text-[11px] cursor-pointer"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Resumo de Vendas</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleEnviarMensagem('Quais produtos estão com estoque baixo?')}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 md:border-slate-700 font-medium text-[11px] cursor-pointer"
+              >
+                <Package className="w-3.5 h-3.5 text-amber-500" />
+                <span>Alerta de Estoque</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleEnviarMensagem('Quanto tenho a receber em fiado?')}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 md:border-slate-700 font-medium text-[11px] cursor-pointer"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Total em Fiado</span>
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleEnviarMensagem();
               }}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'inicio' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
-              }`}
+              className="flex items-center gap-1.5"
             >
-              <BookOpen className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5">Início</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setAbaAtiva('mensagens');
-                setArtigoSelecionado(null);
-              }}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'mensagens' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
-              }`}
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5">Mensagens</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setAbaAtiva('ajuda');
-                setArtigoSelecionado(null);
-              }}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'ajuda' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
-              }`}
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5">Ajuda</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setAbaAtiva('noticias');
-                setArtigoSelecionado(null);
-              }}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-                abaAtiva === 'noticias' ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold' : 'text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200'
-              }`}
-            >
-              <Newspaper className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5">Notícias</span>
-            </button>
+              <div className="flex-1 flex items-center bg-slate-50 md:bg-slate-800 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 transition">
+                <input
+                  type="text"
+                  placeholder={escutandoVoz ? 'Ouvindo sua voz...' : 'Digite uma pergunta para a Rubi...'}
+                  value={inputMensagem}
+                  onChange={(e) => setInputMensagem(e.target.value)}
+                  className="flex-1 bg-transparent text-xs text-slate-800 md:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                />
+                {suporteVoz && (
+                  <button
+                    type="button"
+                    onClick={alternarGravacaoVoz}
+                    className={`p-1.5 rounded-lg transition cursor-pointer ${
+                      escutandoVoz ? 'bg-rose-600 text-white animate-bounce shadow-md' : 'text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400'
+                    }`}
+                    title={escutandoVoz ? 'Parar gravação' : 'Falar por voz'}
+                  >
+                    {escutandoVoz ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={!inputMensagem.trim() || enviando}
+                className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white shadow-md shadow-indigo-500/20 transition cursor-pointer"
+                title="Enviar pergunta"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
           </div>
         </div>
       )}

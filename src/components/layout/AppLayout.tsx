@@ -338,7 +338,7 @@ export const AppLayout: React.FC = () => {
 
   const todosOsBotoes = [...row1Buttons, ...row2Buttons];
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
-  const isCustomMobileRoute = isPosRoute || location.pathname.startsWith('/products') || location.pathname.startsWith('/orders') || location.pathname.startsWith('/catalog-config') || location.pathname.startsWith('/finances');
+  const isCustomMobileRoute = true;
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
