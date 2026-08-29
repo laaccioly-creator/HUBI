@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { responderDuvidaSuporteIA } from '../services/tutoriaisHubiService';
+import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
 
 interface MensagemChat {
   id: string;
@@ -33,7 +33,41 @@ export const ChatAjudaIA: React.FC = () => {
   const [mensagens, setMensagens] = useState<MensagemChat[]>([]);
   const [inputMensagem, setInputMensagem] = useState<string>('');
   const [enviando, setEnviando] = useState<boolean>(false);
+  const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
+  const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Monitora redimensionamento de viewport móvel e teclado virtual
+  useEffect(() => {
+    const handleVisualViewportChange = () => {
+      if (window.visualViewport) {
+        const offset = window.innerHeight - window.visualViewport.height;
+        setAlturaTeclado(offset > 50 ? offset : 0);
+        setTimeout(() => {
+          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 80);
+      }
+    };
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleVisualViewportChange);
+      window.visualViewport.addEventListener('scroll', handleVisualViewportChange);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleVisualViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleVisualViewportChange);
+      }
+    };
+  }, []);
 
   // Reconhecimento de Voz (Microfone)
   const [escutandoVoz, setEscutandoVoz] = useState<boolean>(false);
@@ -177,34 +211,16 @@ export const ChatAjudaIA: React.FC = () => {
       const produtosAlerta = produtos?.filter((p) => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
       const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
 
-      let resposta = '';
+      const dadosLoja: DadosLojaRubi = {
+        faturamento,
+        totalPedidos,
+        produtosAlerta,
+        totalFiado,
+        produtosTotal: produtos?.length || 0,
+        clientesTotal: clientes?.length || 0
+      };
 
-      if (pLower.includes('venda') || pLower.includes('faturamento') || pLower.includes('hoje')) {
-        resposta = `📊 **Resumo de Vendas & Faturamento:**\n\n• **Faturamento Total:** R$ ${faturamento.toFixed(2)}\n• **Volume de Vendas:** ${totalPedidos} pedidos confirmados\n• **Ticket Médio:** R$ ${(totalPedidos > 0 ? faturamento / totalPedidos : 0).toFixed(2)}\n\nSuas vendas estão com bom desempenho! Quer uma dica para aumentar o ticket médio oferecendo combos?`;
-      } else if (pLower.includes('estoque') || pLower.includes('baixo') || pLower.includes('acabando')) {
-        if (produtosAlerta.length > 0) {
-          const listaAlerta = produtosAlerta
-            .slice(0, 3)
-            .map((p) => `• **${p.nome}**: restam apenas ${getEstoqueReal(p)} un`)
-            .join('\n');
-          resposta = `⚠️ **Atenção ao Estoque:**\n\nVocê possui **${produtosAlerta.length} produto(s)** com estoque no limite:\n\n${listaAlerta}\n\nRecomendo fazer um pedido aos fornecedores para não perder vendas!`;
-        } else {
-          resposta = `✅ **Estoque Regularizado!**\n\nTodos os seus ${produtos?.length || 0} produtos cadastrados estão com quantidades acima do nível mínimo de alerta.`;
-        }
-      } else if (pLower.includes('fiado') || pLower.includes('devedor') || pLower.includes('cobrar')) {
-        resposta = `💰 **Controle de Fiado:**\n\nAtualmente há um total de **R$ ${totalFiado.toFixed(2)}** em haver com clientes.\n\nVocê pode ir na aba **Clientes** para disparar lembretes amigáveis direto pelo WhatsApp em 1 clique!`;
-      } else {
-        try {
-          const respostaTutorial = await responderDuvidaSuporteIA(texto, usuario, loja);
-          if (respostaTutorial && respostaTutorial.trim()) {
-            resposta = respostaTutorial;
-          } else {
-            resposta = `Entendido! Para a sua loja **${loja.nome_fantasia}**, temos atualmente:\n\n• **${produtos?.length || 0}** produtos ativos\n• **${totalPedidos}** vendas fechadas\n• **${clientes?.length || 0}** clientes cadastrados\n\nPosso detalhar qualquer um desses relatórios para você. O que prefere ver agora?`;
-          }
-        } catch {
-          resposta = `Entendido! Para a sua loja **${loja.nome_fantasia}**, temos atualmente:\n\n• **${produtos?.length || 0}** produtos ativos\n• **${totalPedidos}** vendas fechadas\n• **${clientes?.length || 0}** clientes cadastrados\n\nPosso detalhar qualquer um desses relatórios para você. O que prefere ver agora?`;
-        }
-      }
+      const resposta = await processarPerguntaRubiIA(texto, usuario, loja, dadosLoja);
 
       setMensagens((prev) => [
         ...prev,
@@ -320,7 +336,13 @@ export const ChatAjudaIA: React.FC = () => {
       </div>
 
       {aberto && (
-        <div className="fixed bottom-0 md:bottom-24 right-0 md:right-6 z-50 w-full md:w-[420px] max-w-full h-[88vh] md:h-[620px] max-h-[92vh] bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 select-none text-slate-800 md:text-slate-100">
+        <div
+          style={{
+            bottom: isMobile && alturaTeclado > 0 ? `${alturaTeclado}px` : undefined,
+            maxHeight: isMobile && alturaTeclado > 0 ? `calc(100dvh - ${alturaTeclado}px)` : undefined
+          }}
+          className="fixed bottom-0 md:bottom-24 right-0 md:right-6 z-50 w-full md:w-[420px] max-w-full h-[100dvh] md:h-[620px] max-h-[100dvh] md:max-h-[92vh] bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200 select-none text-slate-800 md:text-slate-100"
+        >
           <div className="p-3.5 bg-white md:bg-slate-900/90 border-b border-slate-200 md:border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 shrink-0">
@@ -399,12 +421,17 @@ export const ChatAjudaIA: React.FC = () => {
             <div ref={chatEndRef} />
           </div>
 
-          <div className="p-3 bg-white md:bg-slate-900 border-t border-slate-200 md:border-slate-800 space-y-2 shrink-0">
+          <div
+            style={{
+              paddingBottom: isMobile && alturaTeclado > 0 ? `${alturaTeclado + 8}px` : '12px'
+            }}
+            className="p-3 bg-white md:bg-slate-900 border-t border-slate-200 md:border-slate-800 space-y-2 shrink-0 transition-all duration-150"
+          >
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
               <button
                 type="button"
                 onClick={() => handleEnviarMensagem('Como estão as vendas e o faturamento?')}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 md:border-slate-700 font-medium text-[11px] cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-800 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-300 md:border-slate-700 font-semibold text-[11px] cursor-pointer"
               >
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Resumo de Vendas</span>
@@ -412,7 +439,7 @@ export const ChatAjudaIA: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleEnviarMensagem('Quais produtos estão com estoque baixo?')}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 md:border-slate-700 font-medium text-[11px] cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-800 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-300 md:border-slate-700 font-semibold text-[11px] cursor-pointer"
               >
                 <Package className="w-3.5 h-3.5 text-amber-500" />
                 <span>Alerta de Estoque</span>
@@ -420,7 +447,7 @@ export const ChatAjudaIA: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleEnviarMensagem('Quanto tenho a receber em fiado?')}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 md:border-slate-700 font-medium text-[11px] cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-800 md:text-slate-300 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-300 md:border-slate-700 font-semibold text-[11px] cursor-pointer"
               >
                 <DollarSign className="w-3.5 h-3.5 text-indigo-500" />
                 <span>Total em Fiado</span>
@@ -433,13 +460,37 @@ export const ChatAjudaIA: React.FC = () => {
               }}
               className="flex items-center gap-1.5"
             >
-              <div className="flex-1 flex items-center bg-slate-50 md:bg-slate-800 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 transition">
+              <div className="flex-1 flex items-center bg-white md:bg-slate-800 border-2 border-slate-400 md:border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-emerald-600 md:focus-within:border-indigo-500 shadow-sm transition">
                 <input
                   type="text"
                   placeholder={escutandoVoz ? 'Ouvindo sua voz...' : 'Digite uma pergunta para a Rubi...'}
                   value={inputMensagem}
                   onChange={(e) => setInputMensagem(e.target.value)}
-                  className="flex-1 bg-transparent text-xs text-slate-800 md:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                  onFocus={(e) => {
+                    setTimeout(() => {
+                      e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }, 200);
+                  }}
+                  style={
+                    isMobile
+                      ? {
+                          color: '#000000',
+                          WebkitTextFillColor: '#000000',
+                          fontWeight: 700,
+                          caretColor: '#000000'
+                        }
+                      : {
+                          color: '#ffffff',
+                          WebkitTextFillColor: '#ffffff',
+                          caretColor: '#ffffff'
+                        }
+                  }
+                  className={`flex-1 bg-transparent text-xs ${
+                    isMobile
+                      ? 'rubi-input-mobile text-black !text-black font-bold placeholder:text-slate-500 placeholder:font-medium'
+                      : 'rubi-input-desktop text-white !text-white font-normal placeholder:text-slate-400 placeholder:font-normal'
+                  } focus:outline-none`}
                 />
                 {suporteVoz && (
                   <button
@@ -457,7 +508,7 @@ export const ChatAjudaIA: React.FC = () => {
               <button
                 type="submit"
                 disabled={!inputMensagem.trim() || enviando}
-                className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white shadow-md shadow-indigo-500/20 transition cursor-pointer"
+                className="p-2.5 rounded-xl bg-emerald-600 md:bg-indigo-600 hover:bg-emerald-700 md:hover:bg-indigo-500 disabled:opacity-40 text-white shadow-md shadow-emerald-600/20 md:shadow-indigo-500/20 transition cursor-pointer shrink-0"
                 title="Enviar pergunta"
               >
                 <Send className="w-4 h-4" />

@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
 
 interface MensagemIA {
   id: string;
@@ -23,7 +24,7 @@ interface MensagemIA {
 }
 
 export const AssistenteRubi: React.FC = () => {
-  const { loja } = useAuth();
+  const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
 
@@ -43,10 +44,38 @@ export const AssistenteRubi: React.FC = () => {
   const [inputTexto, setInputTexto] = useState<string>('');
   const [pensando, setPensando] = useState<boolean>(false);
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
+  const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
   const endRef = useRef<HTMLDivElement>(null);
+  const endMobileRef = useRef<HTMLDivElement>(null);
+
+  // Monitora redimensionamento da tela pelo teclado virtual no Mobile
+  useEffect(() => {
+    const handleVisualViewportChange = () => {
+      if (window.visualViewport) {
+        const offset = window.innerHeight - window.visualViewport.height;
+        setAlturaTeclado(offset > 50 ? offset : 0);
+        setTimeout(() => {
+          endMobileRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 80);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleVisualViewportChange);
+      window.visualViewport.addEventListener('scroll', handleVisualViewportChange);
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleVisualViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleVisualViewportChange);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    endMobileRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
 
   const handleEnviarMensagem = async (textoPergunta?: string) => {
@@ -94,37 +123,29 @@ export const AssistenteRubi: React.FC = () => {
       const produtosAlerta = produtos?.filter(p => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
       const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
 
-      let resposta = '';
-      const pLower = pergunta.toLowerCase();
+      const dadosLoja: DadosLojaRubi = {
+        faturamento,
+        totalPedidos,
+        produtosAlerta,
+        totalFiado,
+        produtosTotal: produtos?.length || 0,
+        clientesTotal: clientes?.length || 0
+      };
 
-      if (pLower.includes('venda') || pLower.includes('faturamento') || pLower.includes('hoje')) {
-        resposta = `📊 **Resumo de Vendas & Faturamento:**\n\n• **Faturamento Total:** R$ ${faturamento.toFixed(2)}\n• **Volume de Vendas:** ${totalPedidos} pedidos confirmados\n• **Ticket Médio:** R$ ${(totalPedidos > 0 ? faturamento / totalPedidos : 0).toFixed(2)}\n\nSuas vendas estão com bom desempenho! Quer uma dica para aumentar o ticket médio oferecendo combos?`;
-      } else if (pLower.includes('estoque') || pLower.includes('baixo') || pLower.includes('acabando')) {
-        if (produtosAlerta.length > 0) {
-          const listaAlerta = produtosAlerta.slice(0, 3).map(p => `• **${p.nome}**: restam apenas ${getEstoqueReal(p)} un`).join('\n');
-          resposta = `⚠️ **Atenção ao Estoque:**\n\nVocê possui **${produtosAlerta.length} produto(s)** com estoque no limite:\n\n${listaAlerta}\n\nRecomendo fazer um pedido aos fornecedores para não perder vendas!`;
-        } else {
-          resposta = `✅ **Estoque Regularizado!**\n\nTodos os seus ${produtos?.length || 0} produtos cadastrados estão com quantidades acima do nível mínimo de alerta.`;
+      const resposta = await processarPerguntaRubiIA(pergunta, usuario, loja, dadosLoja);
+
+      setMensagens(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          remetente: 'rubi',
+          texto: resposta,
+          data: new Date()
         }
-      } else if (pLower.includes('fiado') || pLower.includes('devedor') || pLower.includes('cobrar')) {
-        resposta = `💰 **Controle de Fiado:**\n\nAtualmente há um total de **R$ ${totalFiado.toFixed(2)}** em haver com clientes.\n\nVocê pode ir na aba **Clientes & Fiado** para disparar lembretes amigáveis direto pelo WhatsApp em 1 clique!`;
-      } else {
-        resposta = `Entendido! Para a sua loja **${loja.nome_fantasia}**, temos atualmente:\n\n• **${produtos?.length || 0}** produtos ativos\n• **${totalPedidos}** vendas fechadas\n• **${clientes?.length || 0}** clientes cadastrados\n\nPosso detalhar qualquer um desses relatórios para você. O que prefere ver agora?`;
-      }
-
-      setTimeout(() => {
-        setMensagens(prev => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            remetente: 'rubi',
-            texto: resposta,
-            data: new Date()
-          }
-        ]);
-        setPensando(false);
-      }, 700);
+      ]);
+      setPensando(false);
     } catch (e) {
+      console.warn('Erro ao processar mensagem com Rubi IA:', e);
       setPensando(false);
     }
   };
@@ -207,15 +228,19 @@ export const AssistenteRubi: React.FC = () => {
               <span className="font-semibold">Rubi está analisando os dados...</span>
             </div>
           )}
+          <div ref={endMobileRef} />
         </div>
 
         {/* Rodapé Mobile: Sugestões e Input */}
-        <div className="p-3 border-t border-slate-200 bg-white space-y-2 shrink-0">
+        <div
+          style={{ paddingBottom: alturaTeclado > 0 ? `${alturaTeclado + 8}px` : '12px' }}
+          className="p-3 border-t border-slate-200 bg-white space-y-2 shrink-0 transition-all duration-150"
+        >
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
             <button
               type="button"
               onClick={() => handleEnviarMensagem('Como estão as vendas e o faturamento?')}
-              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 font-medium"
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-300 font-semibold"
             >
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
               <span>Resumo de Vendas</span>
@@ -224,7 +249,7 @@ export const AssistenteRubi: React.FC = () => {
             <button
               type="button"
               onClick={() => handleEnviarMensagem('Quais produtos estão com estoque baixo?')}
-              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 font-medium"
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-300 font-semibold"
             >
               <Package className="w-3.5 h-3.5 text-amber-600" />
               <span>Alerta de Estoque</span>
@@ -233,7 +258,7 @@ export const AssistenteRubi: React.FC = () => {
             <button
               type="button"
               onClick={() => handleEnviarMensagem('Quanto tenho a receber em fiado?')}
-              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-200 font-medium"
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 whitespace-nowrap flex items-center gap-1.5 transition border border-slate-300 font-semibold"
             >
               <DollarSign className="w-3.5 h-3.5 text-indigo-600" />
               <span>Total em Fiado</span>
@@ -252,12 +277,24 @@ export const AssistenteRubi: React.FC = () => {
               placeholder="Digite uma pergunta para a Rubi..."
               value={inputTexto}
               onChange={(e) => setInputTexto(e.target.value)}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              onFocus={(e) => {
+                setTimeout(() => {
+                  e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                  endMobileRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }, 200);
+              }}
+              style={{
+                color: '#000000',
+                WebkitTextFillColor: '#000000',
+                fontWeight: 700,
+                caretColor: '#000000'
+              }}
+              className="flex-1 rubi-input-mobile bg-white border-2 border-slate-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-xs text-black !text-black font-bold placeholder:text-slate-500 placeholder:font-medium focus:outline-none shadow-sm transition"
             />
             <button
               type="submit"
               disabled={!inputTexto.trim() || pensando}
-              className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20 disabled:opacity-50 transition cursor-pointer"
+              className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-50 transition cursor-pointer shrink-0"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -376,7 +413,12 @@ export const AssistenteRubi: React.FC = () => {
             placeholder="Digite uma pergunta para a Rubi..."
             value={inputTexto}
             onChange={(e) => setInputTexto(e.target.value)}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+            style={{
+              color: '#ffffff',
+              WebkitTextFillColor: '#ffffff',
+              caretColor: '#ffffff'
+            }}
+            className="flex-1 rubi-input-desktop bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-xs text-white !text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500"
           />
           <button
             type="submit"

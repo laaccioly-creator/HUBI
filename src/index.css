@@ -191,6 +191,35 @@ input.bg-transparent::placeholder {
   color: #94a3b8 !important;
 }
 
+/* ==========================================================================
+   RUBI IA CHAT INPUTS (Desktop: Branco Puro | Mobile: Preto Negrito)
+   ========================================================================== */
+.rubi-input-desktop,
+.rubi-input-desktop input {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+
+.rubi-input-desktop::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+.rubi-input-mobile,
+.rubi-input-mobile input {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  font-weight: 700 !important;
+  caret-color: #000000 !important;
+}
+
+.rubi-input-mobile::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  font-weight: 500 !important;
+}
+
 /* Badges e Pílulas Verdes (Confirmado, Pago, Itens) com Alto Contraste */
 html.light .text-emerald-400,
 html.light .text-emerald-300 {

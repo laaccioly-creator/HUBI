@@ -72,6 +72,23 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     ],
     tags: ['atacado', 'distribuidor', 'autoatacado', 'tabela de preco', 'desconto volume', 'preco']
   },
+  {
+    id: 'combos-promocionais',
+    titulo: 'Como criar Combos e Kits de Produtos Promocionais',
+    categoria: 'catalogo',
+    resumo: 'Agrupe produtos diferentes em kits com preço especial promocional para aumentar vendas.',
+    conteudo: `Kits promocionais aumentam o ticket médio da sua loja:
+• No cadastro ou edição do produto, ative a opção 'Este produto é um Combo / Kit'.
+• Selecione os itens que compõem o kit e as respectivas quantidades.
+• Quando o combo é vendido no PDV ou Catálogo, o HUBI abate automaticamente o estoque dos produtos individuais que o compõem.`,
+    passos: [
+      'Acesse Produtos & Estoque > Novo Produto',
+      'Ative a opção "É um Combo / Kit"',
+      'Selecione os produtos que fazem parte do pacote e quantidades',
+      'Defina o preço promocional do combo e salve'
+    ],
+    tags: ['combo', 'kit', 'promocao', 'pacote', 'oferta', 'produtos juntos', 'como criar combo']
+  },
 
   // 2. IMPRESSÃO & RECIBOS
   {
@@ -114,20 +131,61 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
     id: 'como-fazer-venda-pdv',
     titulo: 'Como fazer uma venda rápida no PDV (Frente de Caixa)',
     categoria: 'vendas',
-    resumo: 'Como adicionar produtos, aplicar descontos, vincular clientes e finalizar a venda.',
-    conteudo: `O PDV do HUBI permite registrar vendas em segundos:
-1. Adicione produtos digitando o nome, escaneando o código de barras ou clicando nos cards de categorias.
-2. Para aplicar desconto: Clique em Desconto no carrinho e insira em R$ ou %.
-3. Para vincular cliente: Clique em 'Vincular Cliente' no topo do carrinho.
-4. Clique em 'Cobrar', escolha a forma de pagamento (Dinheiro, Pix, Cartão, Fiado) e confirme.`,
+    resumo: 'Passo a passo para registrar uma venda rápida no balcão, bipar produtos, cobrar e emitir recibo.',
+    conteudo: `O PDV do HUBI foi desenvolvido para registrar vendas em poucos segundos:
+1. **Adicione os produtos**: Selecione os produtos tocando nos cards de categorias, digitando o nome na busca rápida ou escaneando o código de barras com o leitor / câmera.
+2. **Ajuste quantidades**: Toque no produto no carrinho para alterar a quantidade.
+3. **Desconto ou Cliente (Opcional)**: Toque em 'Desconto' para abater valor em R$ ou % ou 'Vincular Cliente' para identificar a compra.
+4. **Cobrar / Finalizar**: Clique no botão verde 'Cobrar'. Escolha a forma de pagamento (Dinheiro, Pix, Cartão ou Fiado).
+5. **Comprovante**: Emita o recibo na impressora térmica (58/80mm) ou envie diretamente pelo WhatsApp do cliente!`,
     passos: [
-      'Acesse a aba Vender (PDV)',
-      'Selecione os produtos desejados',
+      'Acesse a aba Vender (PDV) no menu principal',
+      'Adicione os produtos desejados pelo nome, código de barras ou categorias',
+      'Se desejar, aplique desconto ou vincule um cliente no topo do carrinho',
       'Clique no botão verde "Cobrar / Finalizar"',
-      'Escolha a forma de pagamento e informe o valor recebido',
-      'Imprima o recibo ou envie pelo WhatsApp'
+      'Escolha a forma de pagamento (Dinheiro com troco automático, Pix, Cartão ou Fiado)',
+      'Confirme a venda e imprima o recibo ou envie pelo WhatsApp'
     ],
-    tags: ['venda', 'pdv', 'frente de caixa', 'cobrar', 'desconto', 'pagamento', 'balcao']
+    tags: [
+      'venda', 'como fazer venda', 'fazer venda', 'como vender', 'como faco uma venda', 'como faço uma venda',
+      'passar venda', 'registrar venda', 'pdv', 'frente de caixa', 'cobrar', 'caixa', 'balcao', 'vender'
+    ]
+  },
+  {
+    id: 'aplicar-desconto-venda',
+    titulo: 'Como aplicar descontos em uma venda ou produto no PDV',
+    categoria: 'vendas',
+    resumo: 'Como conceder descontos em porcentagem (%) ou valor em dinheiro (R$) no carrinho do PDV.',
+    conteudo: `No HUBI você pode conceder descontos com total flexibilidade durante o atendimento:
+• **Desconto em Reais (R$)**: Insira um valor fixo de abatimento sobre o total da compra (ex: R$ 10,00 de desconto).
+• **Desconto em Porcentagem (%)**: Aplique uma porcentagem de abatimento (ex: 5% ou 10% de desconto).
+• O total da venda é recalculado instantaneamente e o valor do desconto sai detalhado no cupom do cliente.`,
+    passos: [
+      'Com os produtos adicionados no carrinho do PDV, clique no botão "Desconto"',
+      'Escolha o formato: R$ (valor em dinheiro) ou % (porcentagem)',
+      'Digite o valor do desconto desejado',
+      'Clique em "Aplicar Desconto"',
+      'O valor final da venda será atualizado com o desconto aplicado'
+    ],
+    tags: ['desconto', 'dar desconto', 'como dar desconto', 'como aplicar desconto', 'porcentagem', 'reais', 'promocao', 'abater', 'cupom']
+  },
+  {
+    id: 'formas-pagamento-troco',
+    titulo: 'Como receber pagamentos, calcular troco e formas aceitas',
+    categoria: 'vendas',
+    resumo: 'Suporte a Dinheiro com cálculo automático de troco, Pix com QR Code, Cartões e Fiado.',
+    conteudo: `O HUBI gerencia todas as formas de pagamento do comércio:
+1. **Dinheiro**: Digite o valor entregue pelo cliente em cédulas. O HUBI calcula na hora o troco exato a devolver, evitando erros de caixa.
+2. **Pix**: Exiba a chave Pix da loja ou gere a cobrança rápida.
+3. **Cartão de Crédito / Débito**: Registre a bandeira e as taxas configuradas da maquininha são descontadas automaticamente da apuração do lucro.
+4. **Venda Fiado**: Lance na conta do cliente com controle de limite e vencimento.`,
+    passos: [
+      'No PDV, clique no botão verde "Cobrar"',
+      'Selecione a forma de pagamento desejada',
+      'Se for Dinheiro: informe o valor recebido e confira o troco calculado na tela',
+      'Confirme o recebimento para liquidar a venda'
+    ],
+    tags: ['pagamento', 'formas de pagamento', 'troco', 'calcular troco', 'dinheiro', 'pix', 'cartao', 'debito', 'credito', 'cobrar']
   },
   {
     id: 'concluir-pedido-venda',
@@ -201,7 +259,24 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
       'Clique em "Receber Pagamento"',
       'Informe o valor e confirme'
     ],
-    tags: ['receber fiado', 'abater divida', 'baixa fiado', 'quitar fiado', 'saldo cliente']
+    tags: ['receber fiado', 'abater divida', 'baixa fiado', 'quitar fiado', 'saldo cliente', 'como receber fiado']
+  },
+  {
+    id: 'cadastrar-clientes',
+    titulo: 'Como cadastrar clientes, dados de contato e limite de fiado',
+    categoria: 'geral',
+    resumo: 'Cadastre nomes, telefones, WhatsApp e defina limite de crédito fiado.',
+    conteudo: `Cadastrar clientes no HUBI agiliza o atendimento e previne inadimplência:
+• Acesse a aba Clientes e clique em 'Novo Cliente'.
+• Preencha Nome, Telefone / WhatsApp e endereço.
+• Defina se o cliente tem permissão para comprar no Fiado e estipule um Limite de Crédito seguro em R$.`,
+    passos: [
+      'Acesse o menu Clientes no menu lateral ou inferior',
+      'Clique no botão "+ Novo Cliente"',
+      'Preencha nome e WhatsApp (com DDD)',
+      'Defina o limite de fiado e clique em Salvar'
+    ],
+    tags: ['cliente', 'cadastrar cliente', 'novo cliente', 'como cadastrar cliente', 'telefone', 'whatsapp', 'limite fiado']
   },
 
   // 5. CATÁLOGO ONLINE & WHATSAPP
@@ -261,20 +336,36 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
   // 7. FINANÇAS & FLUXO DE CAIXA
   {
     id: 'abertura-fechamento-caixa',
-    titulo: 'Como fazer a abertura, sangria e fechamento de caixa diário',
+    titulo: 'Como fazer a abertura e fechamento de caixa diário',
     categoria: 'financas',
     resumo: 'Controle o saldo inicial de troco, retiradas e conciliação de valores no fim do dia.',
     conteudo: `Mantenha seu caixa 100% conciliado:
-• Abertura de Caixa: Informe o valor de troco inicial em dinheiro na gaveta.
-• Sangria / Suprimento: Registre saídas para despesas rápidas ou aportes de troco.
-• Fechamento: No final do expediente, conte os valores em dinheiro, confira os totais de cartões e Pix e clique em 'Fechar Caixa'. O sistema gera o relatório de conferência.`,
+• **Abertura de Caixa**: Informe o valor de troco inicial em dinheiro na gaveta ao abrir o dia.
+• **Durante o expediente**: Todas as vendas em dinheiro, Pix e cartões são contabilizadas em tempo real.
+• **Fechamento**: No final do expediente, conte os valores em dinheiro na gaveta e clique em 'Fechar Caixa'. O sistema aponta automaticamente se houve quebra ou sobra de caixa.`,
     passos: [
-      'Acesse Finanças & Caixa',
-      'Verifique as movimentações do turno',
-      'Utilize os botões Sangria ou Suprimento quando necessário',
-      'Clique em "Fechar Caixa" para gerar o resumo do turno'
+      'Acesse a tela Finanças & Caixa',
+      'Para abrir o caixa: Clique em "Abrir Caixa" e digite o fundo de troco inicial',
+      'No fim do dia: Clique em "Fechar Caixa" e informe o dinheiro apurado na gaveta',
+      'Confirme para gerar o resumo do turno'
     ],
-    tags: ['caixa', 'abertura de caixa', 'fechamento de caixa', 'sangria', 'troco', 'suprimento', 'financas']
+    tags: ['caixa', 'abertura de caixa', 'fechamento de caixa', 'como abrir caixa', 'como fechar caixa', 'troco', 'gaveta', 'financas']
+  },
+  {
+    id: 'sangria-suprimento-caixa',
+    titulo: 'Como realizar Sangria e Suprimento no Caixa Diário',
+    categoria: 'financas',
+    resumo: 'Como registrar retiradas rápidas de dinheiro (sangria) ou reforço de troco (suprimento).',
+    conteudo: `Controle as entradas e saídas avulsas de dinheiro da gaveta:
+• **Sangria**: Retirada de dinheiro do caixa para despesas rápidas (ex: motoboy, água, lanche) ou depósito.
+• **Suprimento**: Entrada de dinheiro extra na gaveta para reforçar o troco durante o dia.`,
+    passos: [
+      'Na tela Finanças & Caixa, clique no botão "Sangria" (para retirar) ou "Suprimento" (para adicionar)',
+      'Informe o valor em R$',
+      'Digite uma breve descrição (ex: Reforço de moedas ou Pagamento avulso)',
+      'Confirme a movimentação'
+    ],
+    tags: ['sangria', 'suprimento', 'retirada', 'reforco', 'troco', 'gaveta', 'despesa', 'como fazer sangria']
   },
 
   // 8. RELATÓRIOS & EXPORTAÇÃO
@@ -297,6 +388,135 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
   }
 ];
 
+export interface DadosLojaRubi {
+  faturamento: number;
+  totalPedidos: number;
+  produtosAlerta: any[];
+  totalFiado: number;
+  produtosTotal: number;
+  clientesTotal: number;
+}
+
+/**
+ * Normaliza strings removendo acentos e caracteres especiais para busca robusta
+ */
+export const normalizarTexto = (txt: string): string => {
+  return txt
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const primeiroNomeUsuario = (nomeCompleto?: string | null): string => {
+  if (!nomeCompleto) return 'Lojista';
+  return nomeCompleto.split(' ')[0] || 'Lojista';
+};
+
+/**
+ * Localiza o tutorial mais relevante com algoritmo inteligente de pontuação
+ */
+export const encontrarTutorialMaisRelevante = (pergunta: string): ArtigoTutorial | null => {
+  const normQuery = normalizarTexto(pergunta);
+  const palavrasQuery = normQuery.split(' ').filter(w => w.length > 2);
+
+  // 1. Mapeamentos diretos de alta prioridade para dúvidas operacionais mais frequentes
+  if (
+    normQuery.includes('fazer venda') ||
+    normQuery.includes('faco uma venda') ||
+    normQuery.includes('faco venda') ||
+    normQuery.includes('como vender') ||
+    normQuery.includes('passar venda') ||
+    normQuery.includes('nova venda') ||
+    normQuery.includes('venda no pdv') ||
+    normQuery.includes('registrar venda') ||
+    (normQuery.includes('como') && normQuery.includes('venda'))
+  ) {
+    const tVenda = TUTORIAIS_HUBI.find(t => t.id === 'como-fazer-venda-pdv');
+    if (tVenda) return tVenda;
+  }
+
+  if (normQuery.includes('desconto')) {
+    const tDesc = TUTORIAIS_HUBI.find(t => t.id === 'aplicar-desconto-venda');
+    if (tDesc) return tDesc;
+  }
+
+  if (normQuery.includes('troco') || normQuery.includes('forma de pagamento') || normQuery.includes('formas de pagamento')) {
+    const tTroco = TUTORIAIS_HUBI.find(t => t.id === 'formas-pagamento-troco');
+    if (tTroco) return tTroco;
+  }
+
+  if (normQuery.includes('cadastr') && (normQuery.includes('produt') || normQuery.includes('item'))) {
+    const tProd = TUTORIAIS_HUBI.find(t => t.id === 'cadastro-produtos-ia');
+    if (tProd) return tProd;
+  }
+
+  if (normQuery.includes('impress') || normQuery.includes('recibo') || normQuery.includes('cupom') || normQuery.includes('termica')) {
+    const tImp = TUTORIAIS_HUBI.find(t => t.id === 'impressoras-recibo');
+    if (tImp) return tImp;
+  }
+
+  if (normQuery.includes('abrir caixa') || normQuery.includes('fechar caixa') || normQuery.includes('abertura de caixa') || normQuery.includes('fechamento de caixa')) {
+    const tCaixa = TUTORIAIS_HUBI.find(t => t.id === 'abertura-fechamento-caixa');
+    if (tCaixa) return tCaixa;
+  }
+
+  if (normQuery.includes('sangria') || normQuery.includes('suprimento')) {
+    const tSangria = TUTORIAIS_HUBI.find(t => t.id === 'sangria-suprimento-caixa');
+    if (tSangria) return tSangria;
+  }
+
+  if (normQuery.includes('fiado')) {
+    if (normQuery.includes('receber') || normQuery.includes('baixa') || normQuery.includes('abater') || normQuery.includes('quitar')) {
+      const tRecFiado = TUTORIAIS_HUBI.find(t => t.id === 'receber-fiado');
+      if (tRecFiado) return tRecFiado;
+    }
+    const tVendaFiado = TUTORIAIS_HUBI.find(t => t.id === 'venda-fiado');
+    if (tVendaFiado) return tVendaFiado;
+  }
+
+  if (normQuery.includes('cancelar')) {
+    const tCanc = TUTORIAIS_HUBI.find(t => t.id === 'cancelar-pedido-venda');
+    if (tCanc) return tCanc;
+  }
+
+  if (normQuery.includes('concluir') && (normQuery.includes('pedido') || normQuery.includes('venda'))) {
+    const tConc = TUTORIAIS_HUBI.find(t => t.id === 'concluir-pedido-venda');
+    if (tConc) return tConc;
+  }
+
+  // 2. Pontuação dinâmica com base em tags, título e conteúdo
+  let melhorScore = 0;
+  let melhorTutorial: ArtigoTutorial | null = null;
+
+  for (const t of TUTORIAIS_HUBI) {
+    let score = 0;
+    const normTitulo = normalizarTexto(t.titulo);
+    const normConteudo = normalizarTexto(t.conteudo);
+
+    for (const tag of t.tags) {
+      const normTag = normalizarTexto(tag);
+      if (normQuery.includes(normTag)) {
+        score += normTag.length > 5 ? 40 : 20;
+      }
+    }
+
+    for (const word of palavrasQuery) {
+      if (normTitulo.includes(word)) score += 15;
+      if (normConteudo.includes(word)) score += 5;
+    }
+
+    if (score > melhorScore) {
+      melhorScore = score;
+      melhorTutorial = t;
+    }
+  }
+
+  return melhorScore >= 15 ? melhorTutorial : null;
+};
+
 /**
  * Consulta a IA Especialista em Suporte HUBI
  */
@@ -306,7 +526,7 @@ export const responderDuvidaSuporteIA = async (
   loja?: Loja | null
 ): Promise<string> => {
   const apiKey = getGeminiApiKey();
-  const nomeUsuario = usuario?.nome_completo || 'Lojista';
+  const nomeUsuario = primeiroNomeUsuario(usuario?.nome_completo);
   const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
 
   // Base de conhecimento condensada de todos os tutoriais
@@ -318,23 +538,18 @@ export const responderDuvidaSuporteIA = async (
 Você é a **Rubi**, a assistente virtual e especialista oficial em suporte do **Sistema HUBI** (sistema de gestão comercial e PDV).
 Seu objetivo é ajudar o usuário (${nomeUsuario}, da loja ${nomeLoja}) respondendo dúvidas operacionais com extrema clareza, precisão, assertividade e empatia.
 
-IMPORTANTE SOBRE O SISTEMA HUBI:
-- O nome exclusivo do sistema é **HUBI**. NUNCA mencione palavras ou sistemas de terceiros como "Kyte". Sempre se refira ao sistema como **HUBI** ou **HUBI PDV**.
-- SUPERPODER EXCLUSIVO DE CADASTRO DE PRODUTOS COM IA:
-  Sempre que o usuário perguntar sobre cadastrar produtos, criar itens ou gerenciar estoque, você DEVE destacar e explicar que o HUBI possui **Inteligência Artificial integrada para cadastramento de produtos**:
-  1. 📸 **Cadastro por Foto / Imagem**: O lojista tira uma foto do produto (no celular ou computador) e a IA reconhece o item, sugere nome, categoria e descrição automaticamente.
-  2. 🏷️ **Gerador de Descrições Comerciais com IA**: Basta digitar o nome do item e clicar no botão ✨ para a IA criar descrições vendedoras e atrativas para o Catálogo Online e balcão.
-  3. 📦 **Leitor de Código de Barras (EAN)**: Consulta rápida do código de barras para preenchimento ágil.
-  4. 🎨 **Grade de Variações**: Controle de cores, tamanhos e sabores com estoque individual.
-
-BASE OFICIAL DE TUTORIAIS DO HUBI:
-${baseConhecimentoTexto}
-
-DIRETRIZES DE RESPOSTA:
+DIRETRIZES FUNDAMENTAIS:
 1. Responda em português brasileiro com tom prestativo, ágil, profissional e encorajador.
-2. Seja direto ao ponto: forneça um passo a passo numerado e claro quando for uma dúvida operacional.
-3. Use formatação markdown (negritos, tópicos e emojis) para tornar a leitura visualmente agradável.
-4. Termine sempre se colocando à disposição para ajudar com qualquer outra dúvida no HUBI!
+2. DÚVIDAS OPERACIONAIS ("Como faço...", "Como funciona...", "Passo a passo", "Onde clico..."):
+   - Forneça um PASSO A PASSO numerado e claro de como realizar a ação no sistema HUBI.
+   - NUNCA dê um relatório ou resumo financeiro de faturamento quando o usuário perguntar COMO FAZER uma operação (ex: "como faço uma venda", "como dar desconto", "como cadastrar produto").
+3. NOME DO SISTEMA:
+   - O nome exclusivo do sistema é **HUBI**. NUNCA mencione outros softwares. Sempre se refira ao sistema como **HUBI** ou **HUBI PDV**.
+4. Use formatação markdown (negritos, tópicos numerados e emojis) para leitura fácil e agradável.
+5. Finalize sempre se colocando à disposição para ajudar com qualquer outra dúvida.
+
+BASE OFICIAL DE TUTORIAIS DO HUBI (MENUS DE AJUDA):
+${baseConhecimentoTexto}
 
 PERGUNTA DO USUÁRIO:
 "${duvida}"
@@ -357,26 +572,101 @@ PERGUNTA DO USUÁRIO:
     }
   }
 
-  // Fallback inteligente caso sem API key
-  const dLower = duvida.toLowerCase();
-  
-  if (dLower.includes('produto') || dLower.includes('cadastr') || dLower.includes('item') || dLower.includes('foto') || dLower.includes('codigo')) {
-    return `Olá, **${primeiroNomeUsuario(nomeUsuario)}**! 😊\n\nNo **HUBI**, cadastrar produtos é super rápido graças à **Inteligência Artificial integrada**! ✨\n\nVocê tem 3 superpoderes ao cadastrar itens:\n\n1. 📸 **Cadastro por Foto com IA**: Envie ou tire uma foto do produto no celular/computador e a IA identifica o item, sugerindo nome, categoria e detalhes automaticamente.\n2. 🏷️ **Gerador de Descrições Comerciais com IA**: Ao digitar o nome do produto, clique no botão ✨ para a IA criar uma descrição atrativa e profissional para suas vendas no Catálogo Online e WhatsApp.\n3. 📦 **Leitor de Código de Barras**: Aponte a câmera ou o leitor de código de barras para preencher os dados do produto em segundos.\n\n**Passo a passo:**\n1. Acesse o menu **Produtos & Estoque**.\n2. Clique no botão **"Novo Produto"**.\n3. Use a câmera para escanear ou digite as informações e use a **IA** para gerar a descrição.\n4. Defina o preço de custo e preço de venda e clique em **Salvar**!\n\nSe tiver variações (cores e tamanhos), basta ativar a opção *"Tem variações"*. Posso te ajudar em mais alguma coisa? 👍`;
-  }
-
-  const tutorialEncontrado = TUTORIAIS_HUBI.find(
-    (t) =>
-      t.tags.some((tag) => dLower.includes(tag)) ||
-      t.titulo.toLowerCase().split(' ').some((w) => w.length > 3 && dLower.includes(w))
-  );
+  // Fallback inteligente garantido através da base de conhecimento de tutoriais
+  const tutorialEncontrado = encontrarTutorialMaisRelevante(duvida);
 
   if (tutorialEncontrado) {
-    return `Olá, **${primeiroNomeUsuario(nomeUsuario)}**! 😊\n\nAqui está como resolver sua dúvida sobre **${tutorialEncontrado.titulo}** no HUBI:\n\n${tutorialEncontrado.conteudo}\n\n**Passo a passo prático:**\n${tutorialEncontrado.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes, estou à disposição! 👍`;
+    return `Olá, **${nomeUsuario}**! 😊\n\nAqui está o passo a passo sobre **${tutorialEncontrado.titulo}** no HUBI:\n\n${tutorialEncontrado.conteudo}\n\n**Passo a passo prático:**\n${tutorialEncontrado.passos.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\nSe precisar de mais detalhes ou tiver outra dúvida, conte comigo! 👍`;
   }
 
-  return `Olá, **${primeiroNomeUsuario(nomeUsuario)}**! 👋\n\nComo posso ajudar você no **HUBI** hoje?\n\n• **Cadastro com IA**: Crie produtos por foto, código de barras ou descrições automáticas.\n• **Vendas & PDV**: Registro rápido com Dinheiro, Pix, Cartão ou Fiado.\n• **Gestão de Pedidos**: Acompanhe o status e clique em *Concluir Venda* para registrar em Vendas.\n• **Impressão de Recibos**: Suporte a impressoras térmicas (58/80mm), Bluetooth e folhas A4.\n• **Relatórios**: Exportação de planilhas completas em Excel/CSV.\n\nQual operação você gostaria de realizar agora?`;
+  return `Olá, **${nomeUsuario}**! 👋\n\nSou a **Rubi**, sua assistente no **HUBI**! Posso te ensinar qualquer rotina do sistema:\n\n• **Vendas & PDV**: Como fazer uma venda rápida, dar descontos em R$ ou % e emitir recibos.\n• **Cadastro com IA**: Como cadastrar produtos tirando foto, escaneando código de barras ou gerando descrições com IA.\n• **Gestão de Pedidos**: Concluir pedidos, alterar status e cancelamento com estorno.\n• **Fiado & Clientes**: Vender no fiado, consultar saldos e dar baixa em pagamentos.\n• **Caixa & Finanças**: Abertura, fechamento, sangrias e suprimentos de troco.\n• **Impressão**: Configuração de impressoras térmicas (58/80mm) Bluetooth/USB e recibos A4.\n\nQual operação você gostaria de realizar agora?`;
 };
 
-const primeiroNomeUsuario = (nomeCompleto: string): string => {
-  return nomeCompleto ? nomeCompleto.split(' ')[0] : 'Lojista';
+/**
+ * Processador Unificado da Inteligência Rubi IA:
+ * Roteia inteligentemente entre dúvidas operacionais de suporte (tutoriais) e consultas de métricas ao vivo da loja.
+ */
+export const processarPerguntaRubiIA = async (
+  pergunta: string,
+  usuario?: UsuarioLoja | null,
+  loja?: Loja | null,
+  dadosLoja?: DadosLojaRubi
+): Promise<string> => {
+  const pNorm = normalizarTexto(pergunta);
+
+  // 1. Identificar se é uma pergunta operacional / de ajuda / "como fazer"
+  const termosComoFazer = [
+    'como', 'passo a passo', 'tutorial', 'ensina', 'onde fica', 'onde clico',
+    'duvida', 'duvidas', 'ajuda', 'manual', 'explicar', 'explica', 'guia',
+    'como fazer', 'como faco', 'como cadastrar', 'como vender', 'como registrar',
+    'como funciona', 'como emitir', 'como imprimir', 'como cobrar', 'como cancelar',
+    'como abrir', 'como fechar', 'como dar', 'como criar', 'como alterar', 'como usar',
+    'nao sei como', 'me ajuda'
+  ];
+
+  const ehPerguntaOperacional = termosComoFazer.some(termo => pNorm.includes(termo));
+
+  // 2. Se for pergunta operacional, NUNCA retorna resumo de faturamento. Vai direto ao tutorial/suporte!
+  if (ehPerguntaOperacional) {
+    return await responderDuvidaSuporteIA(pergunta, usuario, loja);
+  }
+
+  // 3. Consultas de Métricas Financeiras e Faturamento da Loja (Apenas se NÃO for pergunta operacional)
+  const termosResumoVendas = [
+    'resumo de venda', 'resumo de vendas', 'faturamento de hoje', 'quanto vendi',
+    'total de vendas hoje', 'total vendido', 'vendas de hoje', 'relatorio de vendas hoje',
+    'como estao as vendas', 'faturamento total', 'ticket medio', 'volume de vendas',
+    'faturamento'
+  ];
+
+  const ehConsultaMetricasVendas =
+    termosResumoVendas.some(t => pNorm.includes(t)) ||
+    pNorm === 'vendas' ||
+    pNorm === 'resumo vendas' ||
+    pNorm === 'vendas hoje';
+
+  if (ehConsultaMetricasVendas && dadosLoja) {
+    const { faturamento, totalPedidos } = dadosLoja;
+    const ticketMedio = totalPedidos > 0 ? faturamento / totalPedidos : 0;
+    return `📊 **Resumo de Vendas & Faturamento:**\n\n• **Faturamento Total:** R$ ${faturamento.toFixed(2)}\n• **Volume de Vendas:** ${totalPedidos} pedidos confirmados\n• **Ticket Médio:** R$ ${ticketMedio.toFixed(2)}\n\nSuas vendas estão registradas no sistema! Quer ajuda com alguma rotina de vendas ou dicas para impulsionar o negócio?`;
+  }
+
+  // 4. Consultas de Alerta de Estoque
+  const termosAlertaEstoque = [
+    'estoque baixo', 'alerta de estoque', 'produtos acabando', 'estoque no limite',
+    'o que esta acabando', 'falta no estoque', 'estoque zerado'
+  ];
+
+  const ehConsultaEstoque = termosAlertaEstoque.some(t => pNorm.includes(t));
+
+  if (ehConsultaEstoque && dadosLoja) {
+    const { produtosAlerta, produtosTotal } = dadosLoja;
+    if (produtosAlerta && produtosAlerta.length > 0) {
+      const getEstoque = (p: any) => {
+        if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
+          return p.variacoes.reduce((acc: number, v: any) => acc + Number(v.quantidade_estoque || 0), 0);
+        }
+        return Number(p.quantidade_estoque || 0);
+      };
+      const listaAlerta = produtosAlerta.slice(0, 4).map(p => `• **${p.nome}**: restam ${getEstoque(p)} un`).join('\n');
+      return `⚠️ **Atenção ao Estoque:**\n\nVocê possui **${produtosAlerta.length} produto(s)** com estoque no limite ou abaixo do mínimo:\n\n${listaAlerta}\n\nRecomendo repor esses itens com seus fornecedores para não perder vendas!`;
+    } else {
+      return `✅ **Estoque Regularizado!**\n\nTodos os seus ${produtosTotal || 0} produtos cadastrados estão com quantidades acima do nível mínimo de alerta.`;
+    }
+  }
+
+  // 5. Consultas de Saldo Devedor em Fiado
+  const termosConsultaFiado = [
+    'total em fiado', 'quanto tenho a receber', 'saldo devedor fiado', 'total fiado',
+    'quem esta me devendo', 'devedores'
+  ];
+
+  const ehConsultaFiado = termosConsultaFiado.some(t => pNorm.includes(t));
+
+  if (ehConsultaFiado && dadosLoja) {
+    return `💰 **Controle de Fiado:**\n\nAtualmente há um total de **R$ ${dadosLoja.totalFiado.toFixed(2)}** em haver com clientes.\n\nVocê pode ir na aba **Clientes** para consultar os nomes e enviar lembretes amigáveis de pagamento direto pelo WhatsApp em 1 clique!`;
+  }
+
+  // 6. Para qualquer outra dúvida, consulta a base de tutoriais ou IA Gemini
+  return await responderDuvidaSuporteIA(pergunta, usuario, loja);
 };
