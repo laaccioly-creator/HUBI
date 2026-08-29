@@ -30,6 +30,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
@@ -43,6 +44,7 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
   const permissions = usePermissions();
+  const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -52,6 +54,14 @@ export const AppLayout: React.FC = () => {
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleNavegacaoMenu = (path: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    verificarSaidaComConfirmacao(() => {
+      window.dispatchEvent(new CustomEvent('hubi_navegacao_menu', { detail: { path } }));
+      navigate(path);
+    });
+  };
 
   // Manipulador global da tecla ESC em todo o sistema
   useEffect(() => {
@@ -74,7 +84,9 @@ export const AppLayout: React.FC = () => {
         const openModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
         if (!openModal) {
           if (location.pathname !== '/pos' && location.pathname !== '/') {
-            navigate(-1);
+            verificarSaidaComConfirmacao(() => {
+              navigate(-1);
+            });
           }
         }
       }
@@ -82,7 +94,7 @@ export const AppLayout: React.FC = () => {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, location.pathname, navigate]);
+  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, location.pathname, navigate, verificarSaidaComConfirmacao]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -401,7 +413,11 @@ export const AppLayout: React.FC = () => {
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
           {/* IDENTIFICAÇÃO DA LOJA */}
           <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">
-            <Link to="/pos" className="flex items-center gap-2.5 group">
+            <button
+              type="button"
+              onClick={(e) => handleNavegacaoMenu('/pos', e)}
+              className="flex items-center gap-2.5 group text-left cursor-pointer"
+            >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
@@ -414,7 +430,7 @@ export const AppLayout: React.FC = () => {
                   <span className="text-[9px] text-emerald-400 font-semibold uppercase tracking-wider">Conectado</span>
                 </div>
               </div>
-            </Link>
+            </button>
           </div>
 
           {/* GRID CENTRAL EM 2 FILEIRAS DE 6 BOTÕES */}
@@ -426,10 +442,11 @@ export const AppLayout: React.FC = () => {
                 const isActive = location.pathname.startsWith(item.path);
 
                 return (
-                  <Link
+                  <button
                     key={item.path}
-                    to={item.path}
-                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate ${
+                    type="button"
+                    onClick={(e) => handleNavegacaoMenu(item.path, e)}
+                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
                         : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
@@ -442,7 +459,7 @@ export const AppLayout: React.FC = () => {
                         {item.badge}
                       </span>
                     )}
-                  </Link>
+                  </button>
                 );
               })}
             </div>
@@ -454,10 +471,11 @@ export const AppLayout: React.FC = () => {
                 const isActive = location.pathname.startsWith(item.path);
 
                 return (
-                  <Link
+                  <button
                     key={item.path}
-                    to={item.path}
-                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate ${
+                    type="button"
+                    onClick={(e) => handleNavegacaoMenu(item.path, e)}
+                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
                         : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
@@ -465,7 +483,7 @@ export const AppLayout: React.FC = () => {
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{item.name}</span>
-                  </Link>
+                  </button>
                 );
               })}
             </div>

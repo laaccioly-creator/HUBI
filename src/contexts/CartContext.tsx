@@ -47,6 +47,7 @@ interface CartContextType {
   limparCarrinho: () => void;
   carregarPedidoParaEdicao: (pedido: any) => void;
   cancelarEdicaoPedido: () => void;
+  atualizarStatusPedidoEmEdicao: (novoStatus: string) => void;
 }
 
 const CartContext = createContext<CartContextType>({} as CartContextType);
@@ -256,10 +257,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTabelaPrecoGlobalState(pedido.tabela_preco_aplicada || 'varejo');
     
     const descVal = Number(pedido.valor_desconto) || 0;
-    const descPerc = Number(pedido.desconto_percentual) || (Number(pedido.subtotal) > 0 ? (descVal / Number(pedido.subtotal)) * 100 : 0);
-    
-    setDescontoState(descVal);
-    setDescontoPercentualState(Number(descPerc.toFixed(2)));
+    const descPercCalculado = Number(pedido.subtotal) > 0 ? (descVal / Number(pedido.subtotal)) * 100 : 0;
+    const matchPerc = typeof pedido.observacoes === 'string' ? pedido.observacoes.match(/\[DESCONTO_PERC:([0-9.]+)\]/) : null;
+    const ehPercentual = pedido.tipo_desconto === 'percentual' || Boolean(pedido.desconto_percentual && Number(pedido.desconto_percentual) > 0) || Boolean(matchPerc);
+
+    if (ehPercentual) {
+      setTipoDesconto('percentual');
+      const percFinal = matchPerc ? parseFloat(matchPerc[1]) : (Number(pedido.desconto_percentual) || descPercCalculado);
+      setDescontoPercentualState(Number(percFinal.toFixed(2)));
+      setDescontoState(descVal);
+    } else {
+      setTipoDesconto('valor');
+      setDescontoState(descVal);
+      setDescontoPercentualState(Number(descPercCalculado.toFixed(2)));
+    }
+
     setTaxaEntrega(Number(pedido.valor_frete) || 0);
 
     const cartItens: CartItem[] = (pedido.itens || []).map((item: any) => ({
@@ -289,6 +301,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cancelarEdicaoPedido = () => {
     limparCarrinho();
+  };
+
+  const atualizarStatusPedidoEmEdicao = (novoStatus: string) => {
+    setPedidoEmEdicao((prev: any) => (prev ? { ...prev, status: novoStatus } : null));
   };
 
   const total = useMemo(() => {
@@ -327,7 +343,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTaxaEntrega,
         limparCarrinho,
         carregarPedidoParaEdicao,
-        cancelarEdicaoPedido
+        cancelarEdicaoPedido,
+        atualizarStatusPedidoEmEdicao
       }}
     >
       {children}

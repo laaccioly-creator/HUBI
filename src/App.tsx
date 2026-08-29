@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { FeedbackProvider } from './contexts/FeedbackContext';
 import { usePermissions } from './hooks/usePermissions';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -185,7 +186,9 @@ export const App: React.FC = () => {
       <AuthProvider>
         <CartProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <AppRotasInternas />
+            <FeedbackProvider>
+              <AppRotasInternas />
+            </FeedbackProvider>
           </Router>
         </CartProvider>
       </AuthProvider>

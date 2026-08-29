@@ -49,6 +49,8 @@ import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo } from '../services/printService';
 import { audioService } from '../services/audioService';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
@@ -82,11 +84,18 @@ const STATUS_PEDIDO_OPCOES: { id: StatusPedido; label: string }[] = [
   { id: 'cancelado', label: 'Cancelado' }
 ];
 
+interface HistoricoItem {
+  status: string;
+  data: string;
+  usuario?: string;
+}
+
 export const PedidosLista: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const { carregarPedidoParaEdicao } = useCart();
   const navigate = useNavigate();
+  const { mostrarSucesso, mostrarAviso, mostrarErro } = useFeedbackModal();
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -101,6 +110,7 @@ export const PedidosLista: React.FC = () => {
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
+  const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
   
   // Novos Modais da Especificação (TELA004, TELA005, TELA010)
   const [modalCancelarPedidoAberto, setModalCancelarPedidoAberto] = useState<boolean>(false);
@@ -123,11 +133,82 @@ export const PedidosLista: React.FC = () => {
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
 
+  // Escuta reset de navegação do menu superior
+  useEffect(() => {
+    const handleMenuNav = (e: any) => {
+      if (e.detail?.path === '/orders') {
+        setPedidoSelecionado(null);
+      }
+    };
+    window.addEventListener('hubi_navegacao_menu', handleMenuNav);
+    return () => window.removeEventListener('hubi_navegacao_menu', handleMenuNav);
+  }, []);
+
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
     if (pedido.status_pagamento) return pedido.status_pagamento;
     if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
     if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
     return 'aguardando_pagamento';
+  };
+
+  const extrairHistoricoPedido = (pedido: Pedido): HistoricoItem[] => {
+    const itens: HistoricoItem[] = [];
+    try {
+      const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      // fallback
+    }
+
+    if (pedido.criado_em) {
+      itens.push({
+        status: 'pendente',
+        data: pedido.criado_em,
+        usuario: pedido.vendedor?.nome_completo || 'Sistema'
+      });
+    }
+    if (pedido.status && pedido.status !== 'pendente') {
+      itens.push({
+        status: pedido.status,
+        data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
+        usuario: pedido.vendedor?.nome_completo || 'Operador'
+      });
+    }
+    return itens;
+  };
+
+  const adicionarHistoricoObservacao = (observacoesAtuais: string | null | undefined, novoStatus: string, usuarioNome?: string): string => {
+    let textoBase = observacoesAtuais || '';
+    let historico: HistoricoItem[] = [];
+
+    const match = textoBase.match(/<!--HUBI_HISTORICO:(.*?)-->/);
+    if (match && match[1]) {
+      try {
+        historico = JSON.parse(match[1]);
+      } catch (e) {
+        historico = [];
+      }
+      textoBase = textoBase.replace(/<!--HUBI_HISTORICO:.*?-->/g, '').trim();
+    } else {
+      historico.push({
+        status: 'pendente',
+        data: new Date().toISOString(),
+        usuario: 'Sistema'
+      });
+    }
+
+    historico.push({
+      status: novoStatus,
+      data: new Date().toISOString(),
+      usuario: usuarioNome || 'Operador'
+    });
+
+    return `${textoBase} <!--HUBI_HISTORICO:${JSON.stringify(historico)}-->`.trim();
   };
 
   const carregarPedidos = async (tocarAlerta = false) => {
@@ -233,10 +314,18 @@ export const PedidosLista: React.FC = () => {
 
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
     try {
+      const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
+      const novasObservacoes = adicionarHistoricoObservacao(
+        pedAlvo?.observacoes,
+        novoStatus,
+        usuario?.nome_completo || 'Operador'
+      );
+
       const { error } = await supabase
         .from('pedidos')
         .update({
           status: novoStatus,
+          observacoes: novasObservacoes,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', pedidoId);
@@ -244,21 +333,119 @@ export const PedidosLista: React.FC = () => {
       if (error) throw error;
 
       setPedidos((prev) =>
-        prev.map((p) => (p.id === pedidoId ? { ...p, status: novoStatus } : p))
+        prev.map((p) => (p.id === pedidoId ? { ...p, status: novoStatus, observacoes: novasObservacoes } : p))
       );
 
       if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
         if (novoStatus === 'concluido') {
           setPedidoSelecionado(null);
         } else {
-          setPedidoSelecionado((prev) => (prev ? { ...prev, status: novoStatus } : null));
+          setPedidoSelecionado((prev) => (prev ? { ...prev, status: novoStatus, observacoes: novasObservacoes } : null));
         }
       }
 
       audioService.playBeep();
     } catch (err: any) {
       console.error('Erro ao atualizar status do pedido:', err);
-      alert(`Erro ao atualizar status: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(`Erro ao atualizar status: ${err.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const handleAlterarClientePedido = async (novoClienteId: string) => {
+    if (!pedidoSelecionado) return;
+    try {
+      const clienteEncontrado = clientes.find((c) => c.id === novoClienteId) || null;
+      const clienteIdFinal = novoClienteId === 'avulso' ? null : novoClienteId;
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          cliente_id: clienteIdFinal,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', pedidoSelecionado.id);
+
+      if (error) throw error;
+
+      setPedidoSelecionado((prev) => (prev ? { ...prev, cliente_id: clienteIdFinal, cliente: clienteEncontrado } : null));
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedidoSelecionado.id ? { ...p, cliente_id: clienteIdFinal, cliente: clienteEncontrado } : p))
+      );
+      mostrarSucesso('Cliente do pedido alterado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao alterar cliente do pedido:', err);
+      mostrarErro(`Erro ao atualizar cliente: ${err.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const handleClienteCriado = (novoCliente: Cliente) => {
+    setClientes((prev) => [novoCliente, ...prev]);
+    setModalNovoClienteAberto(false);
+    if (pedidoSelecionado) {
+      handleAlterarClientePedido(novoCliente.id);
+    }
+  };
+
+  const handleSalvarMeioPagamento = async () => {
+    if (!pedidoSelecionado || !loja?.id) return;
+    try {
+      setSalvandoConclusao(true);
+      const dataIso = new Date().toISOString();
+
+      const { data: fps } = await supabase.from('formas_pagamento').select('*').eq('loja_id', loja.id);
+      const listaFPs = fps && fps.length > 0 ? fps : [];
+      const fpEncontrada = listaFPs.find(
+        (f: any) => f.nome?.toLowerCase().includes(meioPagamentoConclusao) || f.tipo === meioPagamentoConclusao
+      ) || listaFPs[0];
+
+      if (fpEncontrada?.id) {
+        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoSelecionado.id);
+        const { error: erroPag } = await supabase.from('pagamentos_pedido').insert([
+          {
+            loja_id: loja.id,
+            pedido_id: pedidoSelecionado.id,
+            forma_pagamento_id: fpEncontrada.id,
+            valor: Number(pedidoSelecionado.valor_total || 0),
+            parcelas: 1,
+            valor_taxa: 0,
+            valor_liquido: Number(pedidoSelecionado.valor_total || 0),
+            data_pagamento: dataIso,
+            eh_pagamento_fiado: meioPagamentoConclusao === 'fiado'
+          }
+        ]);
+        if (erroPag) throw erroPag;
+      }
+
+      await supabase
+        .from('pedidos')
+        .update({ atualizado_em: dataIso })
+        .eq('id', pedidoSelecionado.id);
+
+      const { data: pedidoAtualizado } = await supabase
+        .from('pedidos')
+        .select(`
+          *,
+          cliente:clientes(*),
+          vendedor:usuarios_loja(*),
+          itens:itens_pedido(*),
+          pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
+        `)
+        .eq('id', pedidoSelecionado.id)
+        .single();
+
+      if (pedidoAtualizado) {
+        setPedidoSelecionado(pedidoAtualizado);
+        setPedidos((prev) => prev.map((p) => (p.id === pedidoAtualizado.id ? pedidoAtualizado : p)));
+      }
+
+      audioService.playBeep();
+      setGavetaConcluirVendaAberta(false);
+      mostrarSucesso('Pedido salvo com sucesso');
+    } catch (err: any) {
+      console.error('Erro ao salvar meio de pagamento:', err);
+      mostrarErro(`Erro ao salvar meio de pagamento: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSalvandoConclusao(false);
     }
   };
 
@@ -613,14 +800,30 @@ export const PedidosLista: React.FC = () => {
               </button>
 
               {/* Botão Principal Concluir Venda (TELA005) */}
-              <button
-                type="button"
-                onClick={() => setGavetaConcluirVendaAberta(true)}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-              >
-                <span>&gt;</span>
-                <span>Concluir venda</span>
-              </button>
+              {resolverStatusPagamento(pedidoSelecionado) !== 'pago' ? (
+                <button
+                  type="button"
+                  onClick={() => setGavetaConcluirVendaAberta(true)}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span>Receber / Concluir</span>
+                </button>
+              ) : pedidoSelecionado.status !== 'concluido' ? (
+                <button
+                  type="button"
+                  onClick={() => atualizarStatus(pedidoSelecionado.id, 'concluido')}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Concluir Pedido</span>
+                </button>
+              ) : (
+                <div className="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Pago e Concluído</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -632,6 +835,33 @@ export const PedidosLista: React.FC = () => {
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cliente</span>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <select
+                        value={pedidoSelecionado.cliente_id || 'avulso'}
+                        onChange={(e) => handleAlterarClientePedido(e.target.value)}
+                        className="bg-slate-950 border border-slate-700 hover:border-emerald-500 rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate"
+                        title="Alterar cliente do pedido"
+                      >
+                        <option value="avulso">Cliente Avulso (Balcão)</option>
+                        {clientes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setModalNovoClienteAberto(true)}
+                      className="p-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 transition cursor-pointer"
+                      title="Adicionar novo cliente"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -695,16 +925,14 @@ export const PedidosLista: React.FC = () => {
                   <span className="text-sm font-bold text-slate-100">
                     {pedidoSelecionado.itens?.length || 0} itens no pedido
                   </span>
-                  {pedidoSelecionado.status === 'pendente' && (
-                    <button
-                      type="button"
-                      onClick={() => handleEditarPedido(pedidoSelecionado)}
-                      className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                      <span>Editar produtos</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleEditarPedido(pedidoSelecionado)}
+                    className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Editar</span>
+                  </button>
                 </div>
 
                 <div className="divide-y divide-slate-800/60">
@@ -752,7 +980,7 @@ export const PedidosLista: React.FC = () => {
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resumo do pedido</span>
                   <button
                     type="button"
-                    onClick={() => setModalDescontoAberto(true)}
+                    onClick={() => handleEditarPedido(pedidoSelecionado)}
                     className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
                   >
                     Editar
@@ -895,25 +1123,28 @@ export const PedidosLista: React.FC = () => {
                 </span>
 
                 <div className="space-y-3 text-xs">
-                  <div className="flex items-start gap-2.5 text-emerald-400 font-bold">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 mt-1"></div>
-                    <div>
-                      <p>Confirmado</p>
-                      <span className="text-[10px] text-slate-500 font-normal">
-                        {formatarData(pedidoSelecionado.criado_em || '')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5 text-slate-400">
-                    <div className="w-2.5 h-2.5 rounded-full bg-slate-600 mt-1"></div>
-                    <div>
-                      <p>Pendente</p>
-                      <span className="text-[10px] text-slate-500 font-normal">
-                        {formatarData(pedidoSelecionado.criado_em || '')}
-                      </span>
-                    </div>
-                  </div>
+                  {extrairHistoricoPedido(pedidoSelecionado).map((item, idx, arr) => {
+                    const isLast = idx === arr.length - 1;
+                    const rotuloStatus = STATUS_PEDIDO_OPCOES.find((s) => s.id === item.status)?.label || item.status;
+                    return (
+                      <div key={idx} className="flex items-start gap-2.5">
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
+                            isLast ? 'bg-emerald-400 ring-4 ring-emerald-400/20' : 'bg-slate-600'
+                          }`}
+                        />
+                        <div>
+                          <p className={`font-bold capitalize ${isLast ? 'text-emerald-400' : 'text-slate-300'}`}>
+                            {rotuloStatus}
+                          </p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500 font-normal">
+                            <span>{formatarData(item.data)}</span>
+                            {item.usuario && <span>• Por {item.usuario}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -957,40 +1188,34 @@ export const PedidosLista: React.FC = () => {
             </div>
 
             {/* Barra de Pesquisa e Filtros Rápidos (TELA001) */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-              <div className="relative flex-1">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+              <div className="relative w-full md:w-48 lg:w-56 shrink-0">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Item ou cliente"
+                  placeholder="Item ou cliente..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-8 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                 />
                 {busca && (
                   <button
                     onClick={() => setBusca('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-                {[
-                  { id: 'todos', label: 'Todos' },
-                  { id: 'pendente', label: 'Pendentes' },
-                  { id: 'confirmado', label: 'Confirmados' },
-                  { id: 'em_producao', label: 'Em Produção' },
-                  { id: 'cancelado', label: 'Cancelados' }
-                ].map((f) => (
+              <div className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                {ABAS_STATUS.map((f) => (
                   <button
                     key={f.id}
                     onClick={() => setStatusFiltro(f.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                       statusFiltro === f.id
-                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm font-bold'
                         : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
                     }`}
                   >
@@ -1153,7 +1378,7 @@ export const PedidosLista: React.FC = () => {
                                 <Edit className="w-3.5 h-3.5" />
                                 <span>Alterar</span>
                               </button>
-                            ) : (
+                            ) : statusPag !== 'pago' ? (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1164,6 +1389,16 @@ export const PedidosLista: React.FC = () => {
                               >
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>Receber</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setPedidoReciboModal(pedido)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
+                                title="Ver Recibo"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Recibo</span>
                               </button>
                             )}
                           </div>
@@ -1310,20 +1545,34 @@ export const PedidosLista: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center justify-end gap-3">
+            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setGavetaConcluirVendaAberta(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition cursor-pointer"
               >
                 Cancelar
               </button>
 
               <button
                 type="button"
+                onClick={handleSalvarMeioPagamento}
+                disabled={salvandoConclusao}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {salvandoConclusao ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                ) : (
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>Salvar</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleConfirmarConcluirVenda}
                 disabled={salvandoConclusao}
-                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-black text-white transition flex items-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-black text-white transition flex items-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
               >
                 {salvandoConclusao ? (
                   <>
@@ -1358,59 +1607,80 @@ export const PedidosLista: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950 text-slate-100">
-              {/* Logo e Cabeçalho do Recibo */}
-              <div className="text-center space-y-1 border-b border-slate-800 pb-4">
-                {logoLojaUrl ? (
-                  <img src={logoLojaUrl} alt="Logo" className="h-10 max-w-[160px] object-contain mx-auto mb-2" />
-                ) : (
-                  <Store className="w-8 h-8 text-emerald-400 mx-auto mb-1" />
-                )}
-                <h4 className="font-black text-sm text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
-                <p className="text-xs text-slate-400">{enderecoLojaFormatado}</p>
-                <p className="text-xs text-slate-400">{loja?.whatsapp || loja?.telefone}</p>
-              </div>
-
-              {/* Cliente */}
-              <div className="space-y-0.5 border-b border-slate-800 pb-3 text-xs">
-                <span className="text-slate-400">Cliente:</span>
-                <p className="font-bold text-slate-100">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
-                {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-400">{pedidoReciboModal.cliente.whatsapp}</p>}
-              </div>
-
-              {/* Itens */}
-              <div className="space-y-2 border-b border-slate-800 pb-3 text-xs">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">
-                  Itens do Pedido ({calcularTotalItens(pedidoReciboModal)} un)
-                </span>
-                {pedidoReciboModal.itens?.map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-1 border-b border-slate-900">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-emerald-400">{item.quantidade}x</span>
-                      <span className="text-slate-200">{item.nome_produto}</span>
-                    </div>
-                    <span className="font-bold text-slate-100">
-                      R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Totais */}
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between text-slate-400">
-                  <span>Subtotal</span>
-                  <span>R$ {Number(pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950/90 flex justify-center">
+              <div className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-2xl border border-slate-300 font-mono text-xs space-y-3">
+                {/* Logo e Cabeçalho do Recibo */}
+                <div className="text-center space-y-1 border-b border-slate-300 border-dashed pb-3">
+                  {logoLojaUrl ? (
+                    <img src={logoLojaUrl} alt="Logo" className="h-10 max-w-[160px] object-contain mx-auto mb-2" />
+                  ) : (
+                    <Store className="w-8 h-8 text-slate-700 mx-auto mb-1" />
+                  )}
+                  <h4 className="font-black text-sm text-slate-950 uppercase">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
+                  <p className="text-[11px] text-slate-600">{enderecoLojaFormatado}</p>
+                  <p className="text-[11px] text-slate-600">{loja?.whatsapp || loja?.telefone}</p>
                 </div>
-                {Number(pedidoReciboModal.valor_desconto || 0) > 0 && (
-                  <div className="flex justify-between text-rose-400">
-                    <span>Desconto</span>
-                    <span>-R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
+
+                {/* Número e Data */}
+                <div className="flex justify-between items-center text-[11px] text-slate-600 border-b border-slate-200 border-dashed pb-2">
+                  <span className="font-bold text-slate-900">RECIBO #{pedidoReciboModal.numero_pedido}</span>
+                  <span>{formatarData(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em || '')}</span>
+                </div>
+
+                {/* Cliente */}
+                <div className="space-y-0.5 border-b border-slate-300 border-dashed pb-2 text-[11px]">
+                  <span className="text-slate-500 font-semibold">Cliente:</span>
+                  <p className="font-bold text-slate-900">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
+                  {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-600">{pedidoReciboModal.cliente.whatsapp}</p>}
+                </div>
+
+                {/* Itens */}
+                <div className="space-y-2 border-b border-slate-300 border-dashed pb-2">
+                  <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px] block">
+                    Itens ({calcularTotalItens(pedidoReciboModal)} un)
+                  </span>
+                  {pedidoReciboModal.itens?.map((item, idx) => (
+                    <div key={idx} className="flex justify-between py-0.5 text-slate-800">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-950">{item.quantidade}x</span>
+                        <span className="text-slate-800">{item.nome_produto}</span>
+                      </div>
+                      <span className="font-bold text-slate-900 whitespace-nowrap pl-2">
+                        R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Totais */}
+                <div className="space-y-1 text-xs text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span className="font-semibold text-slate-900">R$ {Number(pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
                   </div>
-                )}
-                <div className="flex justify-between text-sm font-black text-slate-100 pt-2 border-t border-slate-800">
-                  <span>Total</span>
-                  <span className="text-emerald-400">R$ {Number(pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
+                  {Number(pedidoReciboModal.valor_desconto || 0) > 0 && (
+                    <div className="flex justify-between text-red-600 font-bold">
+                      <span>Desconto:</span>
+                      <span>-R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {Number(pedidoReciboModal.valor_frete || 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span>Taxa de Entrega:</span>
+                      <span className="font-semibold">+R$ {Number(pedidoReciboModal.valor_frete).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-900">
+                    <span>TOTAL:</span>
+                    <span>R$ {Number(pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
+                  </div>
+
+                  {Number(pedidoReciboModal.saldo_devedor || 0) > 0 && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center space-y-0.5">
+                      <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo Devedor (A Prazo / Fiado)</span>
+                      <span className="text-sm font-black text-red-600">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1526,6 +1796,13 @@ export const PedidosLista: React.FC = () => {
           setPedidoReceberModal(null);
           carregarPedidos();
         }}
+      />
+
+      {/* MODAL NOVO CLIENTE */}
+      <ModalNovoCliente
+        isOpen={modalNovoClienteAberto}
+        onClose={() => setModalNovoClienteAberto(false)}
+        onClienteCadastrado={handleClienteCriado}
       />
       </div>
     </>

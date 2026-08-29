@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { supabase } from '../../lib/supabase';
 
 interface MobileMenuDrawerProps {
@@ -79,12 +80,16 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
   if (!aberto) return null;
 
+  const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const catalogUrl = loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : '/catalog';
   const pedidosCount = countProp !== undefined ? countProp : internalCount;
 
   const navegarPara = (caminho: string) => {
-    onFechar();
-    navigate(caminho);
+    verificarSaidaComConfirmacao(() => {
+      onFechar();
+      window.dispatchEvent(new CustomEvent('hubi_navegacao_menu', { detail: { path: caminho } }));
+      navigate(caminho);
+    });
   };
 
   const modulos = [

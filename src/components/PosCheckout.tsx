@@ -33,10 +33,12 @@ import {
   Download,
   Copy
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria } from '../types';
 import { PrintService, formatarDataRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
@@ -48,8 +50,10 @@ import { audioService } from '../services/audioService';
 import { PosCheckoutMobile } from './PosCheckoutMobile';
 
 export const PosCheckout: React.FC = () => {
+  const navigate = useNavigate();
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
+  const { mostrarSucesso, mostrarAviso, mostrarErro, setTemAlteracoesNaoSalvas } = useFeedbackModal();
   const {
     itens,
     clienteSelecionado,
@@ -75,8 +79,20 @@ export const PosCheckout: React.FC = () => {
     setDesconto,
     setTaxaEntrega,
     limparCarrinho,
-    cancelarEdicaoPedido
+    cancelarEdicaoPedido,
+    atualizarStatusPedidoEmEdicao
   } = useCart();
+
+  useEffect(() => {
+    if (pedidoEmEdicao && itens.length > 0) {
+      setTemAlteracoesNaoSalvas(true);
+    } else {
+      setTemAlteracoesNaoSalvas(false);
+    }
+    return () => {
+      setTemAlteracoesNaoSalvas(false);
+    };
+  }, [pedidoEmEdicao, itens.length, setTemAlteracoesNaoSalvas]);
 
   const {
     isOnline,
@@ -279,13 +295,20 @@ export const PosCheckout: React.FC = () => {
 
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
+      const statusFinal = pedidoEmEdicao?.status || 'pendente';
+      let obsFinal = pedidoEmEdicao?.observacoes || '';
+      obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
+      if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
+        obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+      }
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorIdSanitizado,
         cliente_id: clienteIdSanitizado,
         origem: 'pdv_desktop' as const,
         tabela_preco_aplicada: tabelaPrecoCalculada,
-        status: 'pendente' as const,
+        status: statusFinal as any,
         subtotal,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
@@ -293,6 +316,7 @@ export const PosCheckout: React.FC = () => {
         valor_pago: 0,
         saldo_devedor: total,
         fiado_quitado: false,
+        observacoes: obsFinal || null,
         data_venda: dataIso
       };
 
@@ -328,8 +352,6 @@ export const PosCheckout: React.FC = () => {
           const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
           const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
           if (erroItens) throw erroItens;
-
-          alert(`Pedido #${pedidoEmEdicao.numero_pedido} atualizado como Pendente com sucesso!`);
         } else {
           // Insere novo pedido pendente
           const { data: pedidoCriado, error: erroPedido } = await supabase
@@ -343,18 +365,147 @@ export const PosCheckout: React.FC = () => {
           const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
           const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
           if (erroItens) throw erroItens;
-
-          alert(`Pedido #${pedidoCriado.numero_pedido} salvo como Pendente com sucesso!`);
         }
-      } else {
-        alert('Pedido pendente salvo localmente no modo offline.');
       }
 
       audioService.playBeep();
+      const eraEdicao = !!pedidoEmEdicao;
       limparCarrinho();
+      mostrarSucesso('Pedido salvo com sucesso');
+      if (eraEdicao) {
+        navigate('/orders');
+      }
     } catch (err: any) {
-      console.error('Erro ao salvar pedido pendente:', err);
-      alert(`Erro ao salvar pedido pendente: ${err.message || 'Tente novamente.'}`);
+      console.error('Erro ao salvar pedido:', err);
+      mostrarErro(`Erro ao salvar pedido: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSalvandoPendente(false);
+    }
+  };
+
+  const handleSalvarComFormaPagamento = async () => {
+    if (!loja?.id) {
+      mostrarErro('Estabelecimento não selecionado. Por favor, recarregue a página.');
+      return;
+    }
+    if (itens.length === 0) {
+      mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar.');
+      return;
+    }
+
+    let fpFinal = formaPagamentoEscolhida;
+    if (!fpFinal) {
+      const listaFPs = (formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO;
+      fpFinal = listaFPs[0];
+      setFormaPagamentoEscolhida(fpFinal);
+    }
+
+    try {
+      setSalvandoPendente(true);
+      const dataIso = new Date().toISOString();
+      let vendedorIdSanitizado: string | null = usuario?.id && SyncService.isUuidValido(usuario.id) ? usuario.id : null;
+      const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
+
+      let obsFinal = pedidoEmEdicao?.observacoes || '';
+      obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
+      if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
+        obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+      }
+
+      const statusFinal = pedidoEmEdicao?.status || 'pendente';
+
+      const dadosBasePedido = {
+        loja_id: loja.id,
+        vendedor_id: vendedorIdSanitizado,
+        cliente_id: clienteIdSanitizado,
+        origem: 'pdv_desktop' as const,
+        tabela_preco_aplicada: tabelaPrecoCalculada,
+        status: statusFinal as any,
+        subtotal,
+        valor_desconto: desconto,
+        valor_frete: taxaEntrega,
+        valor_total: total,
+        valor_pago: 0,
+        saldo_devedor: total,
+        fiado_quitado: false,
+        observacoes: obsFinal || null,
+        data_venda: dataIso
+      };
+
+      const itensFormatados = itens.map(item => ({
+        loja_id: loja.id,
+        produto_id: item.produto.id,
+        variacao_id: item.variacao && SyncService.isUuidValido(item.variacao.id) ? item.variacao.id : null,
+        tabela_preco_utilizada: item.tabelaPrecoUtilizada,
+        nome_produto: item.produto.nome,
+        rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+        preco_venda_unitario: item.precoUnitario,
+        quantidade: item.quantidade,
+        subtotal: item.subtotal,
+        observacoes: item.observacoes || null
+      }));
+
+      let pedidoIdFinal = '';
+
+      if (pedidoEmEdicao?.id) {
+        pedidoIdFinal = pedidoEmEdicao.id;
+        const { error: erroUpdate } = await supabase
+          .from('pedidos')
+          .update({
+            ...dadosBasePedido,
+            atualizado_em: dataIso
+          })
+          .eq('id', pedidoEmEdicao.id);
+
+        if (erroUpdate) throw erroUpdate;
+
+        await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
+        const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
+        const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+        if (erroItens) throw erroItens;
+      } else {
+        const { data: pedidoCriado, error: erroPedido } = await supabase
+          .from('pedidos')
+          .insert([dadosBasePedido])
+          .select()
+          .single();
+
+        if (erroPedido || !pedidoCriado) throw erroPedido;
+        pedidoIdFinal = pedidoCriado.id;
+
+        const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
+        const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+        if (erroItens) throw erroItens;
+      }
+
+      // Registra ou atualiza meio de pagamento previsto no pedido
+      if (fpFinal?.id && pedidoIdFinal) {
+        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoIdFinal);
+        await supabase.from('pagamentos_pedido').insert([{
+          loja_id: loja.id,
+          pedido_id: pedidoIdFinal,
+          forma_pagamento_id: fpFinal.id,
+          valor: total,
+          parcelas: parcelasCartao,
+          valor_taxa: 0,
+          valor_liquido: total,
+          data_pagamento: dataIso,
+          eh_pagamento_fiado: fpFinal.tipo === 'fiado'
+        }]);
+      }
+
+      audioService.playBeep();
+      setModalFechamento(false);
+      const eraEdicao = !!pedidoEmEdicao;
+      limparCarrinho();
+      mostrarSucesso('Pedido salvo com sucesso');
+      if (eraEdicao) {
+        navigate('/orders');
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar pedido com forma de pagamento:', err);
+      mostrarErro(`Erro ao salvar pedido: ${err.message || 'Tente novamente.'}`);
     } finally {
       setSalvandoPendente(false);
     }
@@ -408,6 +559,12 @@ export const PosCheckout: React.FC = () => {
       const valorLiquido = total - taxaValor;
       const dataIso = new Date().toISOString();
 
+      let obsFinal = pedidoEmEdicao?.observacoes || '';
+      obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
+      if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
+        obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+      }
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorId,
@@ -422,6 +579,7 @@ export const PosCheckout: React.FC = () => {
         valor_pago: ehFiado ? 0 : total,
         saldo_devedor: ehFiado ? total : 0,
         fiado_quitado: !ehFiado,
+        observacoes: obsFinal || null,
         data_venda: dataIso
       };
 
@@ -777,22 +935,36 @@ export const PosCheckout: React.FC = () => {
       <div className="w-full lg:w-[380px] bg-slate-900 flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-800">
         {/* Header do Carrinho & Seleção de Cliente */}
         <div className="p-3.5 border-b border-slate-800 space-y-2.5">
-          {/* Banner de Edição de Pedido */}
+          {/* Seletor de Status e Fechar X ao Editar Pedido */}
           {pedidoEmEdicao && (
-            <div className="p-2.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between animate-in fade-in">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-400 shrink-0" />
-                <div>
-                  <span className="text-xs font-bold text-amber-300 block">Editando Pedido #{pedidoEmEdicao.numero_pedido}</span>
-                  <span className="text-[10px] text-amber-400/80">Status: Pendente</span>
-                </div>
+            <div className="p-2 bg-slate-800/90 border border-slate-700/80 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-[11px] text-slate-400 font-semibold shrink-0">Status:</span>
+                <select
+                  value={pedidoEmEdicao.status || 'pendente'}
+                  onChange={(e) => atualizarStatusPedidoEmEdicao(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 text-emerald-400 font-bold text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer capitalize"
+                >
+                  <option value="pendente">Pendente</option>
+                  <option value="confirmado">Confirmado</option>
+                  <option value="em_separacao">Em separação</option>
+                  <option value="em_producao">Em produção</option>
+                  <option value="em_expedicao">Em expedição</option>
+                  <option value="saiu_para_entrega">Saiu para Entrega</option>
+                  <option value="pronto_para_retirar">Pronto para retirar</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
               </div>
               <button
                 type="button"
-                onClick={cancelarEdicaoPedido}
-                className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 text-[10px] font-bold rounded-lg transition"
+                onClick={() => {
+                  cancelarEdicaoPedido();
+                  navigate('/orders');
+                }}
+                className="p-1.5 rounded-xl bg-slate-700/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition cursor-pointer shrink-0"
+                title="Fechar e voltar para Pedidos"
               >
-                Cancelar
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -1318,24 +1490,48 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
-            <button
-              type="button"
-              disabled={finalizandoVenda}
-              onClick={handleFinalizarVenda}
-              className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98"
-            >
-              {finalizandoVenda ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Processando Venda...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>Confirmar e Concluir Venda</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalFechamento(false)}
+                className="py-3.5 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={salvandoPendente || finalizandoVenda}
+                onClick={handleSalvarComFormaPagamento}
+                className="flex-1 py-3.5 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+              >
+                {salvandoPendente ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                ) : (
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>Salvar</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={finalizandoVenda || salvandoPendente}
+                onClick={handleFinalizarVenda}
+                className="flex-[2] py-3.5 px-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-xs shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+              >
+                {finalizandoVenda ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="truncate">Confirmar e Concluir</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1379,7 +1575,7 @@ export const PosCheckout: React.FC = () => {
                 </div>
               )}
 
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 text-xs space-y-3 shadow-inner">
+              <div className="bg-white text-slate-900 p-6 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-xl font-mono">
                 {/* Logo da Loja se houver */}
                 {loja?.url_logo && (
                   <div className="text-center pb-1">
@@ -1388,91 +1584,81 @@ export const PosCheckout: React.FC = () => {
                 )}
 
                 {/* Título RECIBO # */}
-                <div className="text-center">
-                  <h4 className="font-bold text-slate-100 text-base tracking-wide">
+                <div className="text-center border-b border-slate-200 border-dashed pb-2">
+                  <h4 className="font-black text-slate-900 text-base tracking-wide uppercase">
                     RECIBO #{pedidoConcluido.numero_pedido}
                   </h4>
-                </div>
-
-                {/* Dados da Loja */}
-                <div className="space-y-0.5 text-xs text-slate-300">
-                  <p className="font-bold uppercase text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                  <p className="text-slate-400">
+                  <p className="font-bold text-slate-800 uppercase text-[11px]">{loja?.nome_fantasia || 'HUBI PDV'}</p>
+                  <p className="text-slate-500 text-[10px]">
                     {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
-                    {loja?.whatsapp ? ` - +55 ${loja.whatsapp}` : (loja?.telefone ? ` - +55 ${loja.telefone}` : '')}
+                    {loja?.whatsapp ? ` • +55 ${loja.whatsapp}` : (loja?.telefone ? ` • +55 ${loja.telefone}` : '')}
                   </p>
                 </div>
 
                 {/* Dados do Cliente */}
-                <div className="space-y-0.5 text-xs text-slate-300">
-                  <p className="font-semibold text-slate-100">{pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
+                <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
+                  <p className="font-bold text-slate-900">Cliente: {pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
                   {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
-                    <p className="text-slate-400">
-                      +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
+                    <p className="text-slate-500 text-[10px]">
+                      Tel: +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
                     </p>
                   )}
                   {pedidoConcluido.endereco_entrega && (
-                    <p className="text-[11px] text-slate-400">Entrega: {pedidoConcluido.endereco_entrega}</p>
+                    <p className="text-[10px] text-slate-500">Entrega: {pedidoConcluido.endereco_entrega}</p>
                   )}
                 </div>
 
                 {/* Resumo de itens */}
-                <div className="font-semibold text-slate-300 text-xs pt-1">
+                <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">
                   {pedidoConcluido.itens?.length || 0} itens (Qtd.: {pedidoConcluido.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
                 </div>
 
-                {/* Linha Divisória */}
-                <div className="border-t border-slate-700 my-2"></div>
-
                 {/* Tabela de Itens */}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2">
                   {pedidoConcluido.itens?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start text-xs">
-                      <span className="text-slate-200">
-                        <strong>{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+                    <div key={idx} className="flex justify-between items-start text-xs text-slate-800">
+                      <span>
+                        <strong className="text-slate-950">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
                       </span>
-                      <span className="font-semibold text-slate-100 whitespace-nowrap pl-3">
+                      <span className="font-bold text-slate-900 whitespace-nowrap pl-3">
                         R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                {/* Linha Divisória */}
-                <div className="border-t border-slate-700 my-2"></div>
-
                 {/* Acréscimos/Descontos se houver */}
-                {(Number(pedidoConcluido.valor_desconto) > 0 || Number(pedidoConcluido.valor_frete) > 0) && (
-                  <div className="space-y-1 text-xs text-slate-400">
-                    {Number(pedidoConcluido.subtotal) > 0 && (
-                      <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>R$ {Number(pedidoConcluido.subtotal).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {Number(pedidoConcluido.valor_desconto) > 0 && (
-                      <div className="flex justify-between text-rose-400">
-                        <span>Desconto:</span>
-                        <span>- R$ {Number(pedidoConcluido.valor_desconto).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {Number(pedidoConcluido.valor_frete) > 0 && (
-                      <div className="flex justify-between text-purple-400">
-                        <span>Taxa de Entrega:</span>
-                        <span>+ R$ {Number(pedidoConcluido.valor_frete).toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="space-y-1 text-xs text-slate-700">
+                  {Number(pedidoConcluido.subtotal) > 0 && (
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span className="font-semibold text-slate-900">R$ {Number(pedidoConcluido.subtotal).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {Number(pedidoConcluido.valor_desconto) > 0 && (
+                    <div className="flex justify-between text-red-600 font-bold">
+                      <span>Desconto:</span>
+                      <span>- R$ {Number(pedidoConcluido.valor_desconto).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {Number(pedidoConcluido.valor_frete) > 0 && (
+                    <div className="flex justify-between text-slate-700">
+                      <span>Taxa de Entrega:</span>
+                      <span className="font-semibold">+ R$ {Number(pedidoConcluido.valor_frete).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Total */}
-                <div className="text-right text-sm font-bold text-slate-100">
-                  Total: R$ {Number(pedidoConcluido.valor_total).toFixed(2)}
+                <div className="border-t border-slate-900 pt-2 flex justify-between items-center text-sm font-black text-slate-950">
+                  <span>TOTAL:</span>
+                  <span className="text-base">R$ {Number(pedidoConcluido.valor_total).toFixed(2)}</span>
                 </div>
 
                 {Number(pedidoConcluido.saldo_devedor) > 0 && (
-                  <div className="text-right text-xs font-semibold text-amber-400">
-                    Saldo Devedor (Fiado): R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}
+                  <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
+                    <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo Devedor (A Prazo / Fiado)</span>
+                    <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
                   </div>
                 )}
 
