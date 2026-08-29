@@ -35,6 +35,7 @@ import {
   LogOut,
   ArrowDown,
   ArrowUp,
+  ArrowLeft,
   QrCode,
   Tag,
   Mic,
@@ -3064,7 +3065,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       {/* Header Superior Mobile (TELA001 / TELA002) */}
       <div className="h-16 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-2xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <button
             type="button"
             onClick={() => setDrawerMenuAberto(true)}
