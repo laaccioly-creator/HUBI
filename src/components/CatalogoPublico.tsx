@@ -443,23 +443,44 @@ Fico no aguardo da confirmação! ✨`;
 
       // Gerar cobrança Mercado Pago se ativado
       if (loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
+        const emailEfetivo = dadosContato.email?.trim() || clienteSelecionado?.email?.trim() || undefined;
+
         pixInfoRes = await paymentGatewayService.gerarPixMercadoPago({
           loja,
           valor: total,
           descricao: `Pedido #${pedidoCriado.numero_pedido} - ${loja.nome_fantasia}`,
           pedidoNumero: pedidoCriado.numero_pedido,
-          emailCliente: 'cliente@hubi.app',
+          emailCliente: emailEfetivo,
           nomeCliente: nomeCliente
         });
 
+        const itensPreference = carrinho.map(c => {
+          const precoUnitario = calcularPrecoUnitarioPorTabela(
+            c.produto,
+            c.variacao,
+            avaliacaoCarrinho.tabelaAtiva,
+            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+          );
+          return {
+            titulo: `${c.produto.nome}${c.variacao ? ` - ${c.variacao.valor_variacao_1}` : ''}`,
+            quantidade: c.quantidade,
+            precoUnitario: precoUnitario
+          };
+        });
+
+        if (valorFreteEfetivo > 0) {
+          itensPreference.push({
+            titulo: `Frete / Entrega (${formaEntregaEscolhida?.nome || 'Padrão'})`,
+            quantidade: 1,
+            precoUnitario: valorFreteEfetivo
+          });
+        }
+
         const linkRes = await paymentGatewayService.gerarLinkMercadoPago({
           loja,
-          itens: carrinho.map(c => ({
-            titulo: c.produto.nome,
-            quantidade: c.quantidade,
-            precoUnitario: c.produto.preco_venda_varejo
-          })),
-          pedidoNumero: pedidoCriado.numero_pedido
+          itens: itensPreference,
+          pedidoNumero: pedidoCriado.numero_pedido,
+          clienteEmail: emailEfetivo
         });
 
         if (linkRes.sucesso && linkRes.linkPagamento) {

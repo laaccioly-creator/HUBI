@@ -674,11 +674,11 @@ BEGIN
 
     v_body := v_response.content::JSONB;
 
-    IF v_response.status IN (200, 201) AND (v_body->>'init_point') IS NOT NULL THEN
+    IF v_response.status IN (200, 201) AND (v_body->>'init_point' IS NOT NULL OR v_body->>'sandbox_init_point' IS NOT NULL) THEN
         RETURN jsonb_build_object(
             'sucesso', true,
             'preferenceId', v_body->>'id',
-            'linkPagamento', v_body->>'init_point',
+            'linkPagamento', COALESCE(v_body->>'sandbox_init_point', v_body->>'init_point'),
             'mensagem', 'Link de pagamento gerado com sucesso!'
         );
     ELSE

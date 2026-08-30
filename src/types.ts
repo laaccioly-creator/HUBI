@@ -44,6 +44,7 @@ export interface PagamentosDigitaisConfig {
   provedor_ativo?: 'mercado_pago' | 'pagseguro' | 'google_pay' | 'asaas' | 'stripe' | 'picpay' | 'todos';
   mercado_pago?: {
     ativo?: boolean;
+    ambiente?: 'producao' | 'sandbox';
     public_key?: string;
     access_token?: string;
     taxa_credito_percentual?: number;

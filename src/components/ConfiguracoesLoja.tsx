@@ -148,6 +148,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
   const [mpPublicKey, setMpPublicKey] = useState<string>('');
   const [mpAccessToken, setMpAccessToken] = useState<string>('');
+  const [mpAmbiente, setMpAmbiente] = useState<'producao' | 'sandbox'>('sandbox');
   const [mpTaxaCredito, setMpTaxaCredito] = useState<number>(2.99);
   const [mpTaxaPix, setMpTaxaPix] = useState<number>(0.99);
   const [mpPrazoDias, setMpPrazoDias] = useState<number>(2);
@@ -313,6 +314,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       setMpPublicKey(mp.public_key || '');
       setMpAccessToken(mp.access_token || '');
+      setMpAmbiente(mp.ambiente || 'sandbox');
       setMpTaxaCredito(Number(mp.taxa_credito_percentual ?? 2.99));
       setMpTaxaPix(Number(mp.taxa_pix_percentual ?? 0.99));
       setMpPrazoDias(Number(mp.prazo_dias ?? 2));
@@ -579,6 +581,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           provedor_ativo: provedorDigital,
           mercado_pago: {
             ativo: provedorDigital === 'mercado_pago',
+            ambiente: mpAmbiente,
             public_key: mpPublicKey,
             access_token: mpAccessToken,
             taxa_credito_percentual: mpTaxaCredito,
@@ -1259,7 +1262,20 @@ export const ConfiguracoesLoja: React.FC = () => {
                       </button>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-600 block">Access Token de Produção</label>
+                      <label className="text-[11px] font-bold text-slate-600 block">Ambiente</label>
+                      <select
+                        value={mpAmbiente}
+                        onChange={(e) => setMpAmbiente(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:border-sky-500 focus:bg-white font-semibold"
+                      >
+                        <option value="sandbox">Ambiente de Teste (Sandbox)</option>
+                        <option value="producao">Ambiente Real (Produção)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">
+                        Access Token {mpAmbiente === 'sandbox' ? '(Credenciais de Teste)' : '(Produção)'}
+                      </label>
                       <input
                         type="password"
                         value={mpAccessToken}
@@ -2003,7 +2019,20 @@ export const ConfiguracoesLoja: React.FC = () => {
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Access Token de Produção</label>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Ambiente</label>
+                    <select
+                      value={mpAmbiente}
+                      onChange={(e) => setMpAmbiente(e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-semibold"
+                    >
+                      <option value="sandbox">Ambiente de Teste (Sandbox)</option>
+                      <option value="producao">Ambiente Real (Produção)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                      Access Token {mpAmbiente === 'sandbox' ? '(Credenciais de Teste)' : '(Produção)'}
+                    </label>
                     <input
                       type="password"
                       value={mpAccessToken}

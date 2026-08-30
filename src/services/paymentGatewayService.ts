@@ -222,14 +222,19 @@ class PaymentGatewayService {
 
       const data = await response.json();
 
-      if (!response.ok || !data.init_point) {
+      if (!response.ok || (!data.init_point && !data.sandbox_init_point)) {
         throw new Error(data.message || 'Erro ao gerar link de pagamento.');
       }
+
+      // No Sandbox, deve abrir sandbox.mercadopago.com.br para aceitar os cartões de teste sem erro de "uma das partes é de teste"
+      const linkEscolhido = (mpConfig.ambiente === 'producao')
+        ? data.init_point
+        : (data.sandbox_init_point || data.init_point);
 
       return {
         sucesso: true,
         preferenceId: data.id,
-        linkPagamento: data.init_point,
+        linkPagamento: linkEscolhido,
         mensagem: 'Link de pagamento criado com sucesso!'
       };
     } catch (err: any) {
