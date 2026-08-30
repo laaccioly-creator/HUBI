@@ -511,3 +511,191 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.caixas;
 
 -- 8. OTIMIZAÇÃO DE ESTATÍSTICAS
 ANALYZE;
+
+-- ==============================================================================
+-- 9. INTEGRAÇÃO MERCADO PAGO VIA SUPABASE RPC (SERVER-SIDE / SEM CORS)
+-- Permite gerar Pix e Links de Pagamento direto pelo servidor Supabase,
+-- contornando bloqueios de CORS do navegador em clientes do catálogo online.
+-- ==============================================================================
+
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+
+-- Função: Criar Pix Dinâmico no Mercado Pago
+CREATE OR REPLACE FUNCTION public.criar_pix_mercado_pago(
+    p_loja_id UUID,
+    p_valor NUMERIC,
+    p_descricao TEXT,
+    p_pedido_numero BIGINT,
+    p_email_cliente TEXT DEFAULT 'cliente@hubi.app',
+    p_nome_cliente TEXT DEFAULT 'Cliente'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_access_token TEXT;
+    v_loja_nome TEXT;
+    v_response extensions.http_response;
+    v_payload JSONB;
+    v_body JSONB;
+    v_headers extensions.http_header[];
+BEGIN
+    SELECT 
+        nome_fantasia,
+        configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'access_token'
+    INTO v_loja_nome, v_access_token
+    FROM public.lojas
+    WHERE id = p_loja_id;
+
+    IF v_access_token IS NULL OR trim(v_access_token) = '' THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'mensagem', 'Access Token do Mercado Pago não configurado na loja.'
+        );
+    END IF;
+
+    v_payload := jsonb_build_object(
+        'transaction_amount', ROUND(p_valor, 2),
+        'description', COALESCE(p_descricao, 'Pedido #' || p_pedido_numero || ' - ' || v_loja_nome),
+        'payment_method_id', 'pix',
+        'payer', jsonb_build_object(
+            'email', COALESCE(NULLIF(trim(p_email_cliente), ''), 'cliente@hubi.app'),
+            'first_name', COALESCE(NULLIF(trim(p_nome_cliente), ''), 'Cliente')
+        ),
+        'external_reference', 'PEDIDO_' || p_pedido_numero
+    );
+
+    v_headers := ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || trim(v_access_token)),
+        extensions.http_header('Content-Type', 'application/json'),
+        extensions.http_header('X-Idempotency-Key', 'hubi_' || p_loja_id || '_' || p_pedido_numero || '_' || EXTRACT(EPOCH FROM clock_timestamp())::BIGINT)
+    ];
+
+    SELECT * INTO v_response FROM extensions.http((
+        'POST',
+        'https://api.mercadopago.com/v1/payments',
+        v_headers,
+        'application/json',
+        v_payload::TEXT
+    )::extensions.http_request);
+
+    v_body := v_response.content::JSONB;
+
+    IF v_response.status IN (200, 201) AND (v_body->>'id') IS NOT NULL THEN
+        RETURN jsonb_build_object(
+            'sucesso', true,
+            'transacaoId', v_body->>'id',
+            'qrCode', v_body->'point_of_interaction'->'transaction_data'->>'qr_code',
+            'qrCodeBase64', v_body->'point_of_interaction'->'transaction_data'->>'qr_code_base64',
+            'ticketUrl', v_body->'point_of_interaction'->'transaction_data'->>'ticket_url',
+            'valorTotal', p_valor,
+            'expiraEm', v_body->>'date_of_expiration',
+            'mensagem', 'QR Code Pix gerado com sucesso!'
+        );
+    ELSE
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'mensagem', COALESCE(v_body->>'message', 'Falha no Mercado Pago (HTTP ' || v_response.status || ')')
+        );
+    END IF;
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'sucesso', false,
+        'mensagem', 'Erro no servidor: ' || SQLERRM
+    );
+END;
+$$;
+
+-- Função: Criar Link / Preference de Pagamento no Mercado Pago
+CREATE OR REPLACE FUNCTION public.criar_link_mercado_pago(
+    p_loja_id UUID,
+    p_itens JSONB,
+    p_pedido_numero BIGINT,
+    p_cliente_email TEXT DEFAULT 'cliente@hubi.app',
+    p_back_url TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_access_token TEXT;
+    v_response extensions.http_response;
+    v_payload JSONB;
+    v_body JSONB;
+    v_headers extensions.http_header[];
+BEGIN
+    SELECT 
+        configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'access_token'
+    INTO v_access_token
+    FROM public.lojas
+    WHERE id = p_loja_id;
+
+    IF v_access_token IS NULL OR trim(v_access_token) = '' THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'mensagem', 'Access Token do Mercado Pago não configurado.'
+        );
+    END IF;
+
+    v_payload := jsonb_build_object(
+        'items', p_itens,
+        'payer', jsonb_build_object(
+            'email', COALESCE(NULLIF(trim(p_cliente_email), ''), 'cliente@hubi.app')
+        ),
+        'external_reference', 'PEDIDO_' || p_pedido_numero
+    );
+
+    IF p_back_url IS NOT NULL AND trim(p_back_url) != '' THEN
+        v_payload := v_payload || jsonb_build_object(
+            'back_urls', jsonb_build_object(
+                'success', p_back_url || '?status=aprovado&pedido=' || p_pedido_numero,
+                'failure', p_back_url || '?status=falha&pedido=' || p_pedido_numero,
+                'pending', p_back_url || '?status=pendente&pedido=' || p_pedido_numero
+            ),
+            'auto_return', 'approved'
+        );
+    END IF;
+
+    v_headers := ARRAY[
+        extensions.http_header('Authorization', 'Bearer ' || trim(v_access_token)),
+        extensions.http_header('Content-Type', 'application/json')
+    ];
+
+    SELECT * INTO v_response FROM extensions.http((
+        'POST',
+        'https://api.mercadopago.com/checkout/preferences',
+        v_headers,
+        'application/json',
+        v_payload::TEXT
+    )::extensions.http_request);
+
+    v_body := v_response.content::JSONB;
+
+    IF v_response.status IN (200, 201) AND (v_body->>'init_point') IS NOT NULL THEN
+        RETURN jsonb_build_object(
+            'sucesso', true,
+            'preferenceId', v_body->>'id',
+            'linkPagamento', v_body->>'init_point',
+            'mensagem', 'Link de pagamento gerado com sucesso!'
+        );
+    ELSE
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'mensagem', COALESCE(v_body->>'message', 'Falha ao criar link de pagamento no Mercado Pago.')
+        );
+    END IF;
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'sucesso', false,
+        'mensagem', 'Erro no servidor: ' || SQLERRM
+    );
+END;
+$$;
+
+-- Permissões de Execução Públicas
+GRANT EXECUTE ON FUNCTION public.criar_pix_mercado_pago TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.criar_link_mercado_pago TO anon, authenticated, service_role;

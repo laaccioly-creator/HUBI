@@ -4,6 +4,7 @@
  */
 
 import { Loja, PagamentosDigitaisConfig, PrazosTaxasMaquininha } from '../types';
+import { supabase } from '../lib/supabase';
 
 export interface PixDinamicoResponse {
   sucesso: boolean;
@@ -34,7 +35,8 @@ export interface PrevisaoRecebimentoCalculada {
 
 class PaymentGatewayService {
   /**
-   * Gera cobrança Pix dinâmica pelo Mercado Pago via API REST Oficial
+   * Gera cobrança Pix dinâmica pelo Mercado Pago
+   * Prioriza execução Server-Side via Supabase RPC para contornar restrições de CORS do navegador.
    */
   async gerarPixMercadoPago(params: {
     loja: Loja;
@@ -55,6 +57,43 @@ class PaymentGatewayService {
       };
     }
 
+    // 1. Tenta via Supabase RPC (execução server-side, 100% livre de bloqueio de CORS)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('criar_pix_mercado_pago', {
+        p_loja_id: loja.id,
+        p_valor: Number(valor.toFixed(2)),
+        p_descricao: descricao || `Pedido #${pedidoNumero} - ${loja.nome_fantasia}`,
+        p_pedido_numero: pedidoNumero,
+        p_email_cliente: emailCliente || 'cliente@hubi.app',
+        p_nome_cliente: nomeCliente || 'Cliente'
+      });
+
+      if (!rpcError && rpcData) {
+        if (rpcData.sucesso) {
+          return {
+            sucesso: true,
+            transacaoId: rpcData.transacaoId,
+            qrCode: rpcData.qrCode,
+            qrCodeBase64: rpcData.qrCodeBase64,
+            ticketUrl: rpcData.ticketUrl,
+            valorTotal: valor,
+            expiraEm: rpcData.expiraEm,
+            mensagem: rpcData.mensagem || 'QR Code Pix gerado com sucesso!'
+          };
+        } else if (rpcData.mensagem) {
+          console.warn('Mercado Pago RPC retornou erro:', rpcData.mensagem);
+          return {
+            sucesso: false,
+            valorTotal: valor,
+            mensagem: rpcData.mensagem
+          };
+        }
+      }
+    } catch (rpcErr) {
+      console.warn('Tentativa via RPC criar_pix_mercado_pago não disponível, tentando fallback:', rpcErr);
+    }
+
+    // 2. Fallback: Chamada HTTP Direta (funciona em ambientes com proxy ou mobile webview)
     try {
       const response = await fetch('https://api.mercadopago.com/v1/payments', {
         method: 'POST',
@@ -96,10 +135,13 @@ class PaymentGatewayService {
       };
     } catch (err: any) {
       console.error('Erro Mercado Pago Pix:', err);
+      const isCors = err?.message?.includes('Failed to fetch') || err?.name === 'TypeError';
       return {
         sucesso: false,
         valorTotal: valor,
-        mensagem: err.message || 'Erro ao gerar Pix no Mercado Pago.'
+        mensagem: isCors
+          ? 'Bloqueio de CORS do navegador. Execute a função SQL criar_pix_mercado_pago no Supabase para habilitar o Pix.'
+          : (err.message || 'Erro ao gerar Pix no Mercado Pago.')
       };
     }
   }
@@ -123,6 +165,34 @@ class PaymentGatewayService {
       };
     }
 
+    // 1. Tenta via Supabase RPC (execução server-side, livre de CORS)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('criar_link_mercado_pago', {
+        p_loja_id: loja.id,
+        p_itens: itens.map(i => ({
+          title: i.titulo,
+          quantity: i.quantidade,
+          currency_id: 'BRL',
+          unit_price: Number(i.precoUnitario.toFixed(2))
+        })),
+        p_pedido_numero: pedidoNumero,
+        p_cliente_email: clienteEmail || 'cliente@hubi.app',
+        p_back_url: typeof window !== 'undefined' ? `${window.location.origin}/catalog/${loja.slug_catalogo}` : undefined
+      });
+
+      if (!rpcError && rpcData?.sucesso && rpcData?.linkPagamento) {
+        return {
+          sucesso: true,
+          preferenceId: rpcData.preferenceId,
+          linkPagamento: rpcData.linkPagamento,
+          mensagem: rpcData.mensagem || 'Link de pagamento gerado com sucesso!'
+        };
+      }
+    } catch (rpcErr) {
+      console.warn('Tentativa via RPC criar_link_mercado_pago falhou, tentando fallback:', rpcErr);
+    }
+
+    // 2. Fallback: Chamada Direta
     try {
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
