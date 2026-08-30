@@ -341,6 +341,70 @@ export const CatalogoPublico: React.FC = () => {
     try {
       setEnviandoPedido(true);
 
+      // 1. Criar ou Atualizar Cliente na base de dados do HUBI
+      let clienteFinalId = clienteSelecionado?.id || null;
+
+      console.group('🛒 [HUBI Catálogo] Processando Pedido e Cliente');
+      console.info('Cliente selecionado prévio:', clienteSelecionado);
+      console.info('Dados de contato:', { nomeCliente, whatsappCliente, dadosContato });
+      console.info('Dados de endereço:', { enderecoEntrega, dadosEndereco });
+
+      try {
+        if (!clienteFinalId) {
+          console.log('💾 Novo cliente detectado. Inserindo na tabela public.clientes...');
+          const { data: novoCliente, error: erroNovoCliente } = await supabase
+            .from('clientes')
+            .insert([
+              {
+                loja_id: loja.id,
+                nome: nomeCliente.trim(),
+                telefone: whatsappCliente.trim(),
+                whatsapp: whatsappCliente.trim(),
+                email: dadosContato.email?.trim() || null,
+                numero_documento: dadosContato.cpfCnpj?.trim() || null,
+                data_aniversario: dadosContato.dataAniversario || null,
+                endereco_principal: enderecoEntrega || null,
+                tabela_preco_padrao: 'varejo'
+              }
+            ])
+            .select()
+            .single();
+
+          if (erroNovoCliente) {
+            console.error('❌ Erro ao salvar novo cliente no Supabase:', erroNovoCliente);
+          } else if (novoCliente) {
+            console.log('✅ Novo cliente cadastrado com sucesso no HUBI! ID:', novoCliente.id, novoCliente);
+            clienteFinalId = novoCliente.id;
+            setClienteSelecionado(novoCliente);
+          }
+        } else {
+          console.log('🔄 Atualizando dados do cliente existente (ID: ' + clienteFinalId + ')...');
+          const { data: cliAtualizado, error: erroAtualizar } = await supabase
+            .from('clientes')
+            .update({
+              nome: nomeCliente.trim(),
+              telefone: whatsappCliente.trim(),
+              whatsapp: whatsappCliente.trim(),
+              email: dadosContato.email?.trim() || null,
+              numero_documento: dadosContato.cpfCnpj?.trim() || null,
+              data_aniversario: dadosContato.dataAniversario || null,
+              endereco_principal: enderecoEntrega || null
+            })
+            .eq('id', clienteFinalId)
+            .select()
+            .single();
+
+          if (erroAtualizar) {
+            console.warn('Aviso ao atualizar cliente:', erroAtualizar);
+          } else if (cliAtualizado) {
+            console.log('✅ Cliente atualizado no banco HUBI:', cliAtualizado);
+          }
+        }
+      } catch (cliErr) {
+        console.error('Exceção ao persistir cliente:', cliErr);
+      }
+      console.groupEnd();
+
       const dadosObs = [
         `Cliente: ${nomeCliente} (${whatsappCliente})`,
         dadosContato.cpfCnpj ? `CPF/CNPJ: ${dadosContato.cpfCnpj}` : '',
@@ -354,7 +418,7 @@ export const CatalogoPublico: React.FC = () => {
         .insert([
           {
             loja_id: loja.id,
-            cliente_id: clienteSelecionado?.id || null,
+            cliente_id: clienteFinalId,
             origem: 'catalogo_online',
             status: 'pendente',
             tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
@@ -1413,6 +1477,7 @@ Fico no aguardo da confirmação! ✨`;
                 href={pedidoConcluidoModal.linkPagamento}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => console.info('👉 [Checkout Modal] Clicou para abrir o link de pagamento do Mercado Pago:', pedidoConcluidoModal.linkPagamento)}
                 className="w-full py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 transition cursor-pointer"
               >
                 <span>Pagar com Cartão / Mercado Pago</span>

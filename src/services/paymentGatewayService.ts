@@ -165,8 +165,19 @@ class PaymentGatewayService {
       };
     }
 
+    const tokenMascarado = mpConfig.access_token ? `${mpConfig.access_token.slice(0, 14)}...${mpConfig.access_token.slice(-6)}` : 'NÃO CONFIGURADO';
+    const isModoSandbox = mpConfig.ambiente !== 'producao';
+
+    console.group('💳 [Mercado Pago] Criando Link de Pagamento (Preference)');
+    console.info('Ambiente Configurado:', isModoSandbox ? 'TESTE (Sandbox)' : 'PRODUÇÃO (Real)');
+    console.info('Token da Loja:', tokenMascarado);
+    console.info('E-mail do Pagador:', clienteEmail || '(não informado)');
+    console.info('Itens do Pedido:', itens);
+    console.groupEnd();
+
     // 1. Tenta via Supabase RPC (execução server-side, livre de CORS)
     try {
+      console.log('⚡ [Mercado Pago] Chamando RPC criar_link_mercado_pago no Supabase...');
       const { data: rpcData, error: rpcError } = await supabase.rpc('criar_link_mercado_pago', {
         p_loja_id: loja.id,
         p_itens: itens.map(i => ({
@@ -180,20 +191,33 @@ class PaymentGatewayService {
         p_back_url: typeof window !== 'undefined' ? `${window.location.origin}/catalog/${loja.slug_catalogo}` : undefined
       });
 
+      if (rpcError) {
+        console.warn('⚠️ [Mercado Pago] RPC retornou erro ou não existe:', rpcError);
+      } else {
+        console.log('✅ [Mercado Pago] Resposta do RPC Supabase:', rpcData);
+      }
+
       if (!rpcError && rpcData?.sucesso && rpcData?.linkPagamento) {
+        let linkFinal = rpcData.linkPagamento;
+        if (isModoSandbox && !linkFinal.includes('sandbox.mercadopago.com')) {
+          linkFinal = linkFinal.replace('www.mercadopago.com', 'sandbox.mercadopago.com');
+          console.info('🔄 [Mercado Pago] URL convertida para Sandbox:', linkFinal);
+        }
+        console.info('🌐 [Mercado Pago] Link Final Aberto pelo Cliente:', linkFinal);
         return {
           sucesso: true,
           preferenceId: rpcData.preferenceId,
-          linkPagamento: rpcData.linkPagamento,
+          linkPagamento: linkFinal,
           mensagem: rpcData.mensagem || 'Link de pagamento gerado com sucesso!'
         };
       }
     } catch (rpcErr) {
-      console.warn('Tentativa via RPC criar_link_mercado_pago falhou, tentando fallback:', rpcErr);
+      console.warn('Tentativa via RPC criar_link_mercado_pago falhou, tentando fallback direto:', rpcErr);
     }
 
     // 2. Fallback: Chamada Direta
     try {
+      console.log('🌐 [Mercado Pago Direct] Executando fetch direto para https://api.mercadopago.com/checkout/preferences...');
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
@@ -221,15 +245,21 @@ class PaymentGatewayService {
       });
 
       const data = await response.json();
+      console.log('📦 [Mercado Pago Direct] Resposta da API:', data);
 
       if (!response.ok || (!data.init_point && !data.sandbox_init_point)) {
         throw new Error(data.message || 'Erro ao gerar link de pagamento.');
       }
 
-      // No Sandbox, deve abrir sandbox.mercadopago.com.br para aceitar os cartões de teste sem erro de "uma das partes é de teste"
-      const linkEscolhido = (mpConfig.ambiente === 'producao')
-        ? data.init_point
-        : (data.sandbox_init_point || data.init_point);
+      let linkEscolhido = isModoSandbox
+        ? (data.sandbox_init_point || data.init_point)
+        : data.init_point;
+
+      if (isModoSandbox && linkEscolhido && !linkEscolhido.includes('sandbox.mercadopago.com')) {
+        linkEscolhido = linkEscolhido.replace('www.mercadopago.com', 'sandbox.mercadopago.com');
+      }
+
+      console.info('🚀 [Mercado Pago Direct] Link Final Selecionado:', linkEscolhido);
 
       return {
         sucesso: true,
@@ -238,7 +268,7 @@ class PaymentGatewayService {
         mensagem: 'Link de pagamento criado com sucesso!'
       };
     } catch (err: any) {
-      console.error('Erro Mercado Pago Preference:', err);
+      console.error('❌ [Mercado Pago Direct] Erro ao criar preference:', err);
       return {
         sucesso: false,
         mensagem: err.message || 'Falha ao criar link no Mercado Pago.'
