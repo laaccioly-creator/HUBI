@@ -14,15 +14,19 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom } from '../types';
+import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente } from '../types';
 import {
   obterRegrasPrecificacao,
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2 } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2 } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
+import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
+import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
+import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
+import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -63,6 +67,78 @@ export const CatalogoPublico: React.FC = () => {
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
   const [observacoes, setObservacoes] = useState<string>('');
   const [enviandoPedido, setEnviandoPedido] = useState<boolean>(false);
+
+  // Estados de Identificação do Cliente (3 Botões)
+  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
+  const [modalBuscaClienteAberto, setModalBuscaClienteAberto] = useState<boolean>(false);
+  const [modalContatoAberto, setModalContatoAberto] = useState<boolean>(false);
+  const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
+  const [dadosContato, setDadosContato] = useState<DadosContatoCliente>({
+    nome: '',
+    telefone: '',
+    telefoneIsWhatsapp: true
+  });
+  const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente>({
+    cep: '',
+    rua: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: ''
+  });
+
+  const handleSelecionarCliente = (cliente: Cliente) => {
+    setClienteSelecionado(cliente);
+    setNomeCliente(cliente.nome || '');
+    const tel = cliente.whatsapp || cliente.telefone || cliente.telefone2 || '';
+    setWhatsappCliente(tel);
+
+    setDadosContato({
+      nome: cliente.nome || '',
+      telefone: tel,
+      telefoneIsWhatsapp: cliente.telefone_is_whatsapp ?? true,
+      telefone2: cliente.telefone2 || '',
+      telefone2IsWhatsapp: cliente.telefone2_is_whatsapp ?? false,
+      cpfCnpj: cliente.numero_documento || '',
+      dataAniversario: cliente.data_aniversario || '',
+      email: cliente.email || ''
+    });
+
+    const endObj: DadosEnderecoCliente = {
+      cep: cliente.endereco_cep || '',
+      rua: cliente.endereco_logradouro || '',
+      numero: cliente.endereco_numero || '',
+      complemento: cliente.endereco_complemento || '',
+      bairro: cliente.endereco_bairro || '',
+      cidade: cliente.endereco_cidade || '',
+      estado: cliente.endereco_estado || ''
+    };
+    setDadosEndereco(endObj);
+
+    const partes = [
+      endObj.rua,
+      endObj.numero ? `nº ${endObj.numero}` : '',
+      endObj.complemento ? `(${endObj.complemento})` : '',
+      endObj.bairro ? `- ${endObj.bairro}` : '',
+      endObj.cidade,
+      endObj.estado ? `/${endObj.estado}` : '',
+      endObj.cep ? `• CEP: ${endObj.cep}` : ''
+    ].filter(Boolean);
+
+    setEnderecoEntrega(partes.join(' '));
+  };
+
+  const handleSalvarContato = (novosDados: DadosContatoCliente) => {
+    setDadosContato(novosDados);
+    setNomeCliente(novosDados.nome);
+    setWhatsappCliente(novosDados.telefone);
+  };
+
+  const handleSalvarEndereco = (novosDados: DadosEnderecoCliente, formatado: string) => {
+    setDadosEndereco(novosDados);
+    setEnderecoEntrega(formatado);
+  };
 
   // Estados de Cupom de Desconto
   const [codigoCupomInput, setCodigoCupomInput] = useState<string>('');
@@ -136,6 +212,17 @@ export const CatalogoPublico: React.FC = () => {
   const avaliacaoCarrinho = useMemo(() => {
     return avaliarNivelCarrinho(carrinho, regrasAtivas);
   }, [carrinho, regrasAtivas]);
+
+  const contextoRubi = useMemo(() => {
+    if (!loja) return null;
+    return {
+      loja,
+      categorias,
+      produtos,
+      formasEntrega,
+      regrasAtivas
+    };
+  }, [loja, categorias, produtos, formasEntrega, regrasAtivas]);
 
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
@@ -243,19 +330,31 @@ export const CatalogoPublico: React.FC = () => {
 
   const handleEnviarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loja?.id || carrinho.length === 0 || !nomeCliente.trim() || !whatsappCliente.trim()) {
-      alert('Por favor, informe seu nome e WhatsApp para finalizar o pedido.');
+    if (!loja?.id || carrinho.length === 0) return;
+
+    if (!nomeCliente.trim() || !whatsappCliente.trim()) {
+      setModalContatoAberto(true);
+      alert('Por favor, informe seu nome e WhatsApp clicando no botão "Contato" para finalizar o pedido.');
       return;
     }
 
     try {
       setEnviandoPedido(true);
 
+      const dadosObs = [
+        `Cliente: ${nomeCliente} (${whatsappCliente})`,
+        dadosContato.cpfCnpj ? `CPF/CNPJ: ${dadosContato.cpfCnpj}` : '',
+        dadosContato.email ? `E-mail: ${dadosContato.email}` : '',
+        cupomAplicado ? `[Cupom: ${cupomAplicado.codigo}]` : '',
+        observacoes ? `Obs: ${observacoes}` : ''
+      ].filter(Boolean).join('. ');
+
       const { data: pedidoCriado, error: erroPedido } = await supabase
         .from('pedidos')
         .insert([
           {
             loja_id: loja.id,
+            cliente_id: clienteSelecionado?.id || null,
             origem: 'catalogo_online',
             status: 'pendente',
             tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
@@ -264,11 +363,8 @@ export const CatalogoPublico: React.FC = () => {
             valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
             valor_total: total,
             saldo_devedor: total,
-            cupom_id: cupomAplicado?.id || null,
-            cupom_codigo: cupomAplicado?.codigo || null,
-            desconto_cupom: descontoCupom || (freteGratisCupom ? valorFrete : 0),
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
-            observacoes: `Cliente: ${nomeCliente} (${whatsappCliente}). ${cupomAplicado ? `[Cupom: ${cupomAplicado.codigo}] ` : ''}${observacoes ? `Obs: ${observacoes}` : ''}`,
+            observacoes: dadosObs,
             data_venda: new Date().toISOString()
           }
         ])
@@ -860,7 +956,24 @@ Fico no aguardo da confirmação! ✨`;
                   <div className="space-y-1.5 pt-2 border-t border-slate-800">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-slate-300 leading-tight">
-                        Faltam <b className="text-emerald-400">R$ {avaliacaoCarrinho.faltaValorParaProximo.toFixed(2)}</b> ou <b className="text-emerald-400">{avaliacaoCarrinho.faltaPecasParaProximo} peças</b> para {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado'}!
+                        {(() => {
+                          const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado';
+                          const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
+                          const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
+                          const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
+                          const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
+
+                          if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+                            const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
+                            return (
+                              <>Faltam <b className="text-emerald-400">{faltamPecas} {faltamPecas === 1 ? 'peça' : 'peças'}</b> para {proxNome}!</>
+                            );
+                          }
+                          const faltaVal = avaliacaoCarrinho.faltaValorParaProximo;
+                          return (
+                            <>Faltam <b className="text-emerald-400">R$ {faltaVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b> para {proxNome}!</>
+                          );
+                        })()}
                       </span>
                       <span className="text-[10px] font-bold text-amber-300 ml-2">
                         {avaliacaoCarrinho.progressoGeralPercent}%
@@ -962,57 +1075,129 @@ Fico no aguardo da confirmação! ✨`;
 
               {carrinho.length > 0 && (
                 <form id="formCheckout" onSubmit={handleEnviarPedido} className="pt-4 border-t border-slate-800 space-y-3">
-                  <span className="text-xs font-bold text-slate-200 block">Dados para Entrega & Contato</span>
+                  <div className="space-y-3">
+                    <span className="text-xs font-bold text-slate-200 block">Identificação & Entrega</span>
 
-                  <div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Seu Nome Completo *"
-                      value={nomeCliente}
-                      onChange={(e) => setNomeCliente(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
-                    />
-                  </div>
-
-                  <div>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="Seu WhatsApp com DDD *"
-                      value={whatsappCliente}
-                      onChange={(e) => setWhatsappCliente(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
-                    />
-                  </div>
-
-                  {formasEntrega.length > 0 && (
-                    <div>
-                      <select
-                        value={formaEntregaEscolhida?.id || ''}
-                        onChange={(e) => {
-                          const f = formasEntrega.find(fe => fe.id === e.target.value) || null;
-                          setFormaEntregaEscolhida(f);
-                        }}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                    {/* GRADE COM OS 3 BOTÕES */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalBuscaClienteAberto(true)}
+                        className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-emerald-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm"
                       >
-                        {formasEntrega.map(fe => (
-                          <option key={fe.id} value={fe.id}>
-                            {fe.nome} (+ R$ {Number(fe.valor_taxa).toFixed(2)})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-slate-950 flex items-center justify-center transition">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-emerald-400 leading-tight">
+                          Já tenho cadastro
+                        </span>
+                      </button>
 
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Endereço Completo (Rua, Número, Bairro)..."
-                      value={enderecoEntrega}
-                      onChange={(e) => setEnderecoEntrega(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
-                    />
+                      <button
+                        type="button"
+                        onClick={() => setModalContatoAberto(true)}
+                        className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-sky-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative"
+                      >
+                        {nomeCliente && whatsappCliente && (
+                          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
+                        )}
+                        <div className="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 flex items-center justify-center transition">
+                          <Phone className="w-4 h-4" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-sky-400 leading-tight">
+                          Contato
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setModalEnderecoAberto(true)}
+                        className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-purple-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative"
+                      >
+                        {enderecoEntrega && (
+                          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
+                        )}
+                        <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-400 group-hover:bg-purple-500 group-hover:text-slate-950 flex items-center justify-center transition">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-purple-400 leading-tight">
+                          Endereço
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* CARDS COM RESUMO DOS DADOS PREENCHIDOS E OPÇÃO DE ALTERAR */}
+                    <div className="space-y-2 pt-1">
+                      {/* Resumo do Contato */}
+                      <div
+                        onClick={() => setModalContatoAberto(true)}
+                        className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700/80 hover:border-slate-600 flex items-center justify-between cursor-pointer transition"
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${nomeCliente ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/60 text-slate-400'}`}>
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="truncate">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Contato
+                              </span>
+                              {nomeCliente ? (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300">
+                                  PREENCHIDO
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300">
+                                  OBRIGATÓRIO
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-200 block truncate mt-0.5">
+                              {nomeCliente ? `${nomeCliente} • ${whatsappCliente}` : 'Toque em Contato para informar Nome e WhatsApp'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-sky-400 font-bold hover:underline shrink-0 ml-2">
+                          <Edit2 className="w-3 h-3" />
+                          <span>{nomeCliente ? 'Alterar' : 'Preencher'}</span>
+                        </div>
+                      </div>
+
+                      {/* Resumo do Endereço */}
+                      <div
+                        onClick={() => setModalEnderecoAberto(true)}
+                        className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700/80 hover:border-slate-600 flex items-center justify-between cursor-pointer transition"
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${enderecoEntrega ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700/60 text-slate-400'}`}>
+                            <MapPin className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="truncate">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Endereço
+                              </span>
+                              {enderecoEntrega ? (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300">
+                                  PREENCHIDO
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-medium text-slate-500">
+                                  (Opcional / Retirada)
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-200 block truncate mt-0.5">
+                              {enderecoEntrega || 'Toque em Endereço para informar CEP, Rua e Bairro'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-purple-400 font-bold hover:underline shrink-0 ml-2">
+                          <Edit2 className="w-3 h-3" />
+                          <span>{enderecoEntrega ? 'Alterar' : 'Preencher'}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -1238,6 +1423,35 @@ Fico no aguardo da confirmação! ✨`;
           </div>
         </div>
       )}
+
+      {/* MODAL BUSCA CLIENTE (JÁ TENHO CADASTRO) */}
+      {loja && (
+        <ModalBuscaClienteCatalogo
+          isOpen={modalBuscaClienteAberto}
+          onClose={() => setModalBuscaClienteAberto(false)}
+          lojaId={loja.id}
+          onSelectCliente={handleSelecionarCliente}
+        />
+      )}
+
+      {/* MODAL CONTATO DO CLIENTE */}
+      <ModalContatoClienteCatalogo
+        isOpen={modalContatoAberto}
+        onClose={() => setModalContatoAberto(false)}
+        dadosIniciais={dadosContato}
+        onSalvar={handleSalvarContato}
+      />
+
+      {/* MODAL ENDEREÇO DO CLIENTE */}
+      <ModalEnderecoClienteCatalogo
+        isOpen={modalEnderecoAberto}
+        onClose={() => setModalEnderecoAberto(false)}
+        dadosIniciais={dadosEndereco}
+        onSalvar={handleSalvarEndereco}
+      />
+
+      {/* ASSISTENTE VIRTUAL RUBI IA NO CATÁLOGO */}
+      {contextoRubi && <ChatRubiCatalogo contexto={contextoRubi} />}
     </div>
   );
 };

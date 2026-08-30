@@ -479,6 +479,7 @@ CREATE POLICY "catalogo_formas_entrega_publico" ON public.formas_entrega FOR SEL
 CREATE POLICY "catalogo_formas_pagamento_publico" ON public.formas_pagamento FOR SELECT USING (exibir_catalogo = TRUE AND ativo = TRUE);
 CREATE POLICY "catalogo_criar_pedidos_publico" ON public.pedidos FOR INSERT WITH CHECK (origem = 'catalogo_online' AND status = 'pendente');
 CREATE POLICY "catalogo_criar_itens_publico" ON public.itens_pedido FOR INSERT WITH CHECK (true);
+CREATE POLICY "catalogo_clientes_publico" ON public.clientes FOR SELECT USING (true);
 
 -- Políticas Multi-Tenant para Usuários da Loja
 CREATE POLICY "lojas_usuario_select" ON public.lojas FOR ALL USING (usuario_pertence_loja(id));

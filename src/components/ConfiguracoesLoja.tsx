@@ -936,6 +936,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   // Itens do Menu Principal de Configurações em Botões
   const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'geral', label: 'Geral', icon: Settings },
+    { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard, badge: 'Mercado Pago' },
     { id: 'importar-exportar-produtos', label: 'Importar / Exportar Produtos', icon: FileSpreadsheet, badge: 'Excel / CSV' },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
     { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock },
@@ -990,6 +991,7 @@ export const ConfiguracoesLoja: React.FC = () => {
             <h1 className="font-bold text-base text-slate-800">
               {subTela === 'menu' && 'Configurações'}
               {subTela === 'geral' && 'Geral'}
+              {subTela === 'pagamentos' && 'Opções de Pagamento'}
               {subTela === 'dados-loja' && 'Dados da Loja'}
               {subTela === 'identificacao' && 'Identificação Fiscal'}
               {subTela === 'recibo' && 'Meu Recibo'}
@@ -1177,8 +1179,277 @@ export const ConfiguracoesLoja: React.FC = () => {
             </div>
           )}
 
+          {/* SUBTELA PAGAMENTOS MOBILE */}
+          {subTela === 'pagamentos' && (
+            <div className="space-y-4">
+              {/* Integração Digital / Provedores */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Integração de Pagamento Digital
+                </span>
+
+                <div
+                  onClick={() => setModalProvedor(true)}
+                  className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 flex items-center justify-between cursor-pointer transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${
+                        provedorDigital === 'mercado_pago'
+                          ? 'bg-sky-50 text-sky-600 border border-sky-200'
+                          : provedorDigital === 'pagseguro'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                          : provedorDigital === 'asaas'
+                          ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                          : provedorDigital === 'stripe'
+                          ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
+                          : provedorDigital === 'picpay'
+                          ? 'bg-teal-50 text-teal-600 border border-teal-200'
+                          : provedorDigital === 'google_pay'
+                          ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                          : 'bg-slate-100 text-slate-400 border border-slate-200'
+                      }`}
+                    >
+                      {provedorDigital === 'mercado_pago' && 'MP'}
+                      {provedorDigital === 'pagseguro' && 'PAG'}
+                      {provedorDigital === 'asaas' && 'AS'}
+                      {provedorDigital === 'stripe' && 'ST'}
+                      {provedorDigital === 'picpay' && 'PIC'}
+                      {provedorDigital === 'google_pay' && 'GP'}
+                      {provedorDigital === 'nenhum' && <Lock className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-800">Provedor Ativo</span>
+                        {provedorDigital !== 'nenhum' ? (
+                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full">
+                            ATIVO
+                          </span>
+                        ) : (
+                          <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            DESATIVADO
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold text-sky-600 block mt-0.5">
+                        {provedorDigital === 'mercado_pago' && 'Mercado Pago'}
+                        {provedorDigital === 'pagseguro' && 'PagBank (PagSeguro)'}
+                        {provedorDigital === 'asaas' && 'Asaas'}
+                        {provedorDigital === 'stripe' && 'Stripe'}
+                        {provedorDigital === 'picpay' && 'PicPay E-commerce'}
+                        {provedorDigital === 'google_pay' && 'Google Pay'}
+                        {provedorDigital === 'nenhum' && 'Toque para escolher o provedor'}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </div>
+
+                {/* Mercado Pago */}
+                {provedorDigital === 'mercado_pago' && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-sky-700">Credenciais Mercado Pago</span>
+                      <button
+                        type="button"
+                        onClick={() => setProvedorDigital('nenhum')}
+                        className="text-[11px] text-rose-500 font-bold hover:underline cursor-pointer"
+                      >
+                        Desativar
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">Access Token de Produção</label>
+                      <input
+                        type="password"
+                        value={mpAccessToken}
+                        onChange={(e) => setMpAccessToken(e.target.value)}
+                        placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxx"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono focus:border-sky-500 focus:bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">Public Key</label>
+                      <input
+                        type="text"
+                        value={mpPublicKey}
+                        onChange={(e) => setMpPublicKey(e.target.value)}
+                        placeholder="APP_USR-xxxxxxxx"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono focus:border-sky-500 focus:bg-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600 block">Taxa Pix (%)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mpTaxaPix}
+                          onChange={(e) => setMpTaxaPix(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:border-sky-500 focus:bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-600 block">Taxa Crédito (%)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={mpTaxaCredito}
+                          onChange={(e) => setMpTaxaCredito(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:border-sky-500 focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PagBank / PagSeguro */}
+                {provedorDigital === 'pagseguro' && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-emerald-700">Credenciais PagBank</span>
+                      <button
+                        type="button"
+                        onClick={() => setProvedorDigital('nenhum')}
+                        className="text-[11px] text-rose-500 font-bold hover:underline cursor-pointer"
+                      >
+                        Desativar
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">E-mail da Conta</label>
+                      <input
+                        type="email"
+                        value={pagseguroEmail}
+                        onChange={(e) => setPagseguroEmail(e.target.value)}
+                        placeholder="seu-email@pagseguro.com.br"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">Token</label>
+                      <input
+                        type="password"
+                        value={pagseguroToken}
+                        onChange={(e) => setPagseguroToken(e.target.value)}
+                        placeholder="Token gerado no painel"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Asaas */}
+                {provedorDigital === 'asaas' && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-purple-700">Credenciais Asaas</span>
+                      <button
+                        type="button"
+                        onClick={() => setProvedorDigital('nenhum')}
+                        className="text-[11px] text-rose-500 font-bold hover:underline cursor-pointer"
+                      >
+                        Desativar
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">API Key ($aact_...)</label>
+                      <input
+                        type="password"
+                        value={asaasApiKey}
+                        onChange={(e) => setAsaasApiKey(e.target.value)}
+                        placeholder="$aact_..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Stripe */}
+                {provedorDigital === 'stripe' && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-indigo-700">Credenciais Stripe</span>
+                      <button
+                        type="button"
+                        onClick={() => setProvedorDigital('nenhum')}
+                        className="text-[11px] text-rose-500 font-bold hover:underline cursor-pointer"
+                      >
+                        Desativar
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 block">Publishable Key</label>
+                      <input
+                        type="text"
+                        value={stripePublishableKey}
+                        onChange={(e) => setStripePublishableKey(e.target.value)}
+                        placeholder="pk_live_..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Meios Presenciais / Balcão */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Meios de Pagamento Aceitos
+                </span>
+                <div className="space-y-2">
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                    <span className="text-xs font-bold text-slate-700">Pix (Manual / Chave)</span>
+                    <input
+                      type="checkbox"
+                      checked={pixAtivo}
+                      onChange={(e) => setPixAtivo(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </label>
+                  {pixAtivo && (
+                    <input
+                      type="text"
+                      value={pixChave}
+                      onChange={(e) => setPixChave(e.target.value)}
+                      placeholder="Chave Pix (CNPJ, E-mail, Celular, etc.)"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    />
+                  )}
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                    <span className="text-xs font-bold text-slate-700">Dinheiro</span>
+                    <input
+                      type="checkbox"
+                      checked={dinheiroAtivo}
+                      onChange={(e) => setDinheiroAtivo(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                    <span className="text-xs font-bold text-slate-700">Cartão de Débito</span>
+                    <input
+                      type="checkbox"
+                      checked={debitoAtivo}
+                      onChange={(e) => setDebitoAtivo(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                    <span className="text-xs font-bold text-slate-700">Cartão de Crédito</span>
+                    <input
+                      type="checkbox"
+                      checked={creditoAtivo}
+                      onChange={(e) => setCreditoAtivo(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* DEMAIS SUBTELAS */}
-          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && (
+          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
               <h3 className="font-bold text-sm text-slate-800">Configurações desta seção</h3>
               <p className="text-xs text-slate-500">
