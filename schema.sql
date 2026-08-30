@@ -511,7 +511,76 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.variacoes_produto;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.transacoes_financeiras;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.caixas;
 
--- 8. OTIMIZAÇÃO DE ESTATÍSTICAS
+-- 8. FUNÇÃO SEGURA PARA SALVAR CLIENTES PELO CATÁLOGO ONLINE
+CREATE OR REPLACE FUNCTION public.salvar_cliente_catalogo(
+    p_loja_id UUID,
+    p_nome TEXT,
+    p_telefone TEXT,
+    p_email TEXT DEFAULT NULL,
+    p_cpf_cnpj TEXT DEFAULT NULL,
+    p_aniversario DATE DEFAULT NULL,
+    p_endereco TEXT DEFAULT NULL,
+    p_cliente_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_cliente_id UUID;
+    v_cliente JSONB;
+BEGIN
+    IF p_cliente_id IS NOT NULL THEN
+        UPDATE public.clientes
+        SET
+            nome = TRIM(p_nome),
+            telefone = TRIM(p_telefone),
+            whatsapp = TRIM(p_telefone),
+            email = NULLIF(TRIM(p_email), ''),
+            numero_documento = NULLIF(TRIM(p_cpf_cnpj), ''),
+            data_aniversario = p_aniversario,
+            endereco_principal = NULLIF(TRIM(p_endereco), '')
+        WHERE id = p_cliente_id AND loja_id = p_loja_id
+        RETURNING id INTO v_cliente_id;
+    END IF;
+
+    IF v_cliente_id IS NULL THEN
+        INSERT INTO public.clientes (
+            loja_id,
+            nome,
+            telefone,
+            whatsapp,
+            email,
+            numero_documento,
+            data_aniversario,
+            endereco_principal,
+            tabela_preco_padrao
+        )
+        VALUES (
+            p_loja_id,
+            TRIM(p_nome),
+            TRIM(p_telefone),
+            TRIM(p_telefone),
+            NULLIF(TRIM(p_email), ''),
+            NULLIF(TRIM(p_cpf_cnpj), ''),
+            p_aniversario,
+            NULLIF(TRIM(p_endereco), ''),
+            'varejo'
+        )
+        RETURNING id INTO v_cliente_id;
+    END IF;
+
+    SELECT to_jsonb(c) INTO v_cliente FROM public.clientes c WHERE c.id = v_cliente_id;
+
+    RETURN jsonb_build_object('sucesso', true, 'cliente_id', v_cliente_id, 'cliente', v_cliente);
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('sucesso', false, 'erro', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.salvar_cliente_catalogo TO anon, authenticated, service_role;
+
+-- 9. OTIMIZAÇÃO DE ESTATÍSTICAS
 ANALYZE;
 
 -- ==============================================================================

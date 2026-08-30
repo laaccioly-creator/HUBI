@@ -350,54 +350,73 @@ export const CatalogoPublico: React.FC = () => {
       console.info('Dados de endereço:', { enderecoEntrega, dadosEndereco });
 
       try {
-        if (!clienteFinalId) {
-          console.log('💾 Novo cliente detectado. Inserindo na tabela public.clientes...');
-          const { data: novoCliente, error: erroNovoCliente } = await supabase
-            .from('clientes')
-            .insert([
-              {
-                loja_id: loja.id,
+        console.log('💾 Persistindo cliente na base HUBI...');
+        const { data: rpcCli, error: rpcCliErr } = await supabase.rpc('salvar_cliente_catalogo', {
+          p_loja_id: loja.id,
+          p_nome: nomeCliente.trim(),
+          p_telefone: whatsappCliente.trim(),
+          p_email: dadosContato.email?.trim() || null,
+          p_cpf_cnpj: dadosContato.cpfCnpj?.trim() || null,
+          p_aniversario: dadosContato.dataAniversario || null,
+          p_endereco: enderecoEntrega || null,
+          p_cliente_id: clienteFinalId
+        });
+
+        if (!rpcCliErr && rpcCli?.sucesso && rpcCli?.cliente_id) {
+          console.log('✅ Cliente persistido via RPC no HUBI! ID:', rpcCli.cliente_id, rpcCli.cliente);
+          clienteFinalId = rpcCli.cliente_id;
+          if (rpcCli.cliente) setClienteSelecionado(rpcCli.cliente);
+        } else {
+          // Fallback para operação direta na tabela caso RPC ainda não exista
+          if (!clienteFinalId) {
+            console.log('Tentando inserção direta na tabela public.clientes...');
+            const { data: novoCliente, error: erroNovoCliente } = await supabase
+              .from('clientes')
+              .insert([
+                {
+                  loja_id: loja.id,
+                  nome: nomeCliente.trim(),
+                  telefone: whatsappCliente.trim(),
+                  whatsapp: whatsappCliente.trim(),
+                  email: dadosContato.email?.trim() || null,
+                  numero_documento: dadosContato.cpfCnpj?.trim() || null,
+                  data_aniversario: dadosContato.dataAniversario || null,
+                  endereco_principal: enderecoEntrega || null,
+                  tabela_preco_padrao: 'varejo'
+                }
+              ])
+              .select()
+              .single();
+
+            if (erroNovoCliente) {
+              console.error('❌ Erro ao salvar novo cliente no Supabase (verifique as políticas RLS no schema.sql):', erroNovoCliente);
+            } else if (novoCliente) {
+              console.log('✅ Novo cliente cadastrado com sucesso no HUBI! ID:', novoCliente.id, novoCliente);
+              clienteFinalId = novoCliente.id;
+              setClienteSelecionado(novoCliente);
+            }
+          } else {
+            console.log('Tentando atualização direta na tabela public.clientes...');
+            const { data: cliAtualizado, error: erroAtualizar } = await supabase
+              .from('clientes')
+              .update({
                 nome: nomeCliente.trim(),
                 telefone: whatsappCliente.trim(),
                 whatsapp: whatsappCliente.trim(),
                 email: dadosContato.email?.trim() || null,
                 numero_documento: dadosContato.cpfCnpj?.trim() || null,
                 data_aniversario: dadosContato.dataAniversario || null,
-                endereco_principal: enderecoEntrega || null,
-                tabela_preco_padrao: 'varejo'
-              }
-            ])
-            .select()
-            .single();
+                endereco_principal: enderecoEntrega || null
+              })
+              .eq('id', clienteFinalId)
+              .select()
+              .single();
 
-          if (erroNovoCliente) {
-            console.error('❌ Erro ao salvar novo cliente no Supabase:', erroNovoCliente);
-          } else if (novoCliente) {
-            console.log('✅ Novo cliente cadastrado com sucesso no HUBI! ID:', novoCliente.id, novoCliente);
-            clienteFinalId = novoCliente.id;
-            setClienteSelecionado(novoCliente);
-          }
-        } else {
-          console.log('🔄 Atualizando dados do cliente existente (ID: ' + clienteFinalId + ')...');
-          const { data: cliAtualizado, error: erroAtualizar } = await supabase
-            .from('clientes')
-            .update({
-              nome: nomeCliente.trim(),
-              telefone: whatsappCliente.trim(),
-              whatsapp: whatsappCliente.trim(),
-              email: dadosContato.email?.trim() || null,
-              numero_documento: dadosContato.cpfCnpj?.trim() || null,
-              data_aniversario: dadosContato.dataAniversario || null,
-              endereco_principal: enderecoEntrega || null
-            })
-            .eq('id', clienteFinalId)
-            .select()
-            .single();
-
-          if (erroAtualizar) {
-            console.warn('Aviso ao atualizar cliente:', erroAtualizar);
-          } else if (cliAtualizado) {
-            console.log('✅ Cliente atualizado no banco HUBI:', cliAtualizado);
+            if (erroAtualizar) {
+              console.warn('Aviso ao atualizar cliente:', erroAtualizar);
+            } else if (cliAtualizado) {
+              console.log('✅ Cliente atualizado no banco HUBI:', cliAtualizado);
+            }
           }
         }
       } catch (cliErr) {

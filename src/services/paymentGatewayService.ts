@@ -200,7 +200,7 @@ class PaymentGatewayService {
       if (!rpcError && rpcData?.sucesso && rpcData?.linkPagamento) {
         let linkFinal = rpcData.linkPagamento;
         if (isModoSandbox && !linkFinal.includes('sandbox.mercadopago.com')) {
-          linkFinal = linkFinal.replace('www.mercadopago.com', 'sandbox.mercadopago.com');
+          linkFinal = linkFinal.replace(/https:\/\/(www\.)?mercadopago\.(com\.br|com)/i, 'https://sandbox.mercadopago.com.br');
           console.info('🔄 [Mercado Pago] URL convertida para Sandbox:', linkFinal);
         }
         console.info('🌐 [Mercado Pago] Link Final Aberto pelo Cliente:', linkFinal);
@@ -256,7 +256,7 @@ class PaymentGatewayService {
         : data.init_point;
 
       if (isModoSandbox && linkEscolhido && !linkEscolhido.includes('sandbox.mercadopago.com')) {
-        linkEscolhido = linkEscolhido.replace('www.mercadopago.com', 'sandbox.mercadopago.com');
+        linkEscolhido = linkEscolhido.replace(/https:\/\/(www\.)?mercadopago\.(com\.br|com)/i, 'https://sandbox.mercadopago.com.br');
       }
 
       console.info('🚀 [Mercado Pago Direct] Link Final Selecionado:', linkEscolhido);
