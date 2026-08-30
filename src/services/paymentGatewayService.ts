@@ -187,7 +187,7 @@ class PaymentGatewayService {
           unit_price: Number(i.precoUnitario.toFixed(2))
         })),
         p_pedido_numero: pedidoNumero,
-        p_cliente_email: clienteEmail || 'cliente@hubi.app',
+        p_cliente_email: isModoSandbox ? 'comprador_teste@testuser.com' : (clienteEmail || 'cliente@hubi.app'),
         p_back_url: typeof window !== 'undefined' ? `${window.location.origin}/catalog/${loja.slug_catalogo}` : undefined
       });
 
@@ -218,6 +218,7 @@ class PaymentGatewayService {
     // 2. Fallback: Chamada Direta
     try {
       console.log('🌐 [Mercado Pago Direct] Executando fetch direto para https://api.mercadopago.com/checkout/preferences...');
+      const emailPagador = isModoSandbox ? 'comprador_teste@testuser.com' : (clienteEmail || 'cliente@hubi.app');
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
@@ -232,7 +233,7 @@ class PaymentGatewayService {
             unit_price: Number(i.precoUnitario.toFixed(2))
           })),
           payer: {
-            email: clienteEmail || 'cliente@hubi.app'
+            email: emailPagador
           },
           external_reference: `PEDIDO_${pedidoNumero}`,
           back_urls: typeof window !== 'undefined' ? {

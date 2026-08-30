@@ -693,14 +693,16 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_access_token TEXT;
+    v_ambiente TEXT;
     v_response extensions.http_response;
     v_payload JSONB;
     v_body JSONB;
     v_headers extensions.http_header[];
 BEGIN
     SELECT 
-        configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'access_token'
-    INTO v_access_token
+        configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'access_token',
+        COALESCE(configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'ambiente', 'sandbox')
+    INTO v_access_token, v_ambiente
     FROM public.lojas
     WHERE id = p_loja_id;
 
@@ -714,7 +716,10 @@ BEGIN
     v_payload := jsonb_build_object(
         'items', p_itens,
         'payer', jsonb_build_object(
-            'email', COALESCE(NULLIF(trim(p_cliente_email), ''), 'cliente@hubi.app')
+            'email', CASE 
+                WHEN v_ambiente = 'sandbox' THEN 'comprador_teste@testuser.com'
+                ELSE COALESCE(NULLIF(trim(p_cliente_email), ''), 'cliente@hubi.app')
+            END
         ),
         'external_reference', 'PEDIDO_' || p_pedido_numero
     );
@@ -749,7 +754,10 @@ BEGIN
         RETURN jsonb_build_object(
             'sucesso', true,
             'preferenceId', v_body->>'id',
-            'linkPagamento', COALESCE(v_body->>'sandbox_init_point', v_body->>'init_point'),
+            'linkPagamento', CASE
+                WHEN v_ambiente = 'sandbox' THEN COALESCE(v_body->>'sandbox_init_point', REPLACE(v_body->>'init_point', 'mercadopago.com', 'sandbox.mercadopago.com'))
+                ELSE v_body->>'init_point'
+            END,
             'mensagem', 'Link de pagamento gerado com sucesso!'
         );
     ELSE
