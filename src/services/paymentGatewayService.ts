@@ -187,7 +187,7 @@ class PaymentGatewayService {
           unit_price: Number(i.precoUnitario.toFixed(2))
         })),
         p_pedido_numero: pedidoNumero,
-        p_cliente_email: isModoSandbox ? 'comprador_teste@testuser.com' : (clienteEmail || 'cliente@hubi.app'),
+        p_cliente_email: clienteEmail || 'cliente@hubi.app',
         p_back_url: typeof window !== 'undefined' ? `${window.location.origin}/catalog/${loja.slug_catalogo}` : undefined
       });
 
@@ -198,16 +198,11 @@ class PaymentGatewayService {
       }
 
       if (!rpcError && rpcData?.sucesso && rpcData?.linkPagamento) {
-        let linkFinal = rpcData.linkPagamento;
-        if (isModoSandbox && !linkFinal.includes('sandbox.mercadopago.com')) {
-          linkFinal = linkFinal.replace(/https:\/\/(www\.)?mercadopago\.(com\.br|com)/i, 'https://sandbox.mercadopago.com.br');
-          console.info('🔄 [Mercado Pago] URL convertida para Sandbox:', linkFinal);
-        }
-        console.info('🌐 [Mercado Pago] Link Final Aberto pelo Cliente:', linkFinal);
+        console.info('🌐 [Mercado Pago] Link Final Aberto pelo Cliente (padrão TSB):', rpcData.linkPagamento);
         return {
           sucesso: true,
           preferenceId: rpcData.preferenceId,
-          linkPagamento: linkFinal,
+          linkPagamento: rpcData.linkPagamento,
           mensagem: rpcData.mensagem || 'Link de pagamento gerado com sucesso!'
         };
       }
@@ -215,10 +210,9 @@ class PaymentGatewayService {
       console.warn('Tentativa via RPC criar_link_mercado_pago falhou, tentando fallback direto:', rpcErr);
     }
 
-    // 2. Fallback: Chamada Direta
+    // 2. Fallback: Chamada Direta (Exatamente como no TSB)
     try {
       console.log('🌐 [Mercado Pago Direct] Executando fetch direto para https://api.mercadopago.com/checkout/preferences...');
-      const emailPagador = isModoSandbox ? 'comprador_teste@testuser.com' : (clienteEmail || 'cliente@hubi.app');
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
@@ -232,9 +226,6 @@ class PaymentGatewayService {
             currency_id: 'BRL',
             unit_price: Number(i.precoUnitario.toFixed(2))
           })),
-          payer: {
-            email: emailPagador
-          },
           external_reference: `PEDIDO_${pedidoNumero}`,
           back_urls: typeof window !== 'undefined' ? {
             success: `${window.location.origin}/catalog/${loja.slug_catalogo}?status=aprovado&pedido=${pedidoNumero}`,
@@ -248,24 +239,16 @@ class PaymentGatewayService {
       const data = await response.json();
       console.log('📦 [Mercado Pago Direct] Resposta da API:', data);
 
-      if (!response.ok || (!data.init_point && !data.sandbox_init_point)) {
+      if (!response.ok || !data.init_point) {
         throw new Error(data.message || 'Erro ao gerar link de pagamento.');
       }
 
-      let linkEscolhido = isModoSandbox
-        ? (data.sandbox_init_point || data.init_point)
-        : data.init_point;
-
-      if (isModoSandbox && linkEscolhido && !linkEscolhido.includes('sandbox.mercadopago.com')) {
-        linkEscolhido = linkEscolhido.replace(/https:\/\/(www\.)?mercadopago\.(com\.br|com)/i, 'https://sandbox.mercadopago.com.br');
-      }
-
-      console.info('🚀 [Mercado Pago Direct] Link Final Selecionado:', linkEscolhido);
+      console.info('🚀 [Mercado Pago Direct] Link Final Selecionado (padrão TSB):', data.init_point);
 
       return {
         sucesso: true,
         preferenceId: data.id,
-        linkPagamento: linkEscolhido,
+        linkPagamento: data.init_point,
         mensagem: 'Link de pagamento criado com sucesso!'
       };
     } catch (err: any) {

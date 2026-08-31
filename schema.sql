@@ -715,12 +715,6 @@ BEGIN
 
     v_payload := jsonb_build_object(
         'items', p_itens,
-        'payer', jsonb_build_object(
-            'email', CASE 
-                WHEN v_ambiente = 'sandbox' THEN 'comprador_teste@testuser.com'
-                ELSE COALESCE(NULLIF(trim(p_cliente_email), ''), 'cliente@hubi.app')
-            END
-        ),
         'external_reference', 'PEDIDO_' || p_pedido_numero
     );
 
@@ -750,14 +744,11 @@ BEGIN
 
     v_body := v_response.content::JSONB;
 
-    IF v_response.status IN (200, 201) AND (v_body->>'init_point' IS NOT NULL OR v_body->>'sandbox_init_point' IS NOT NULL) THEN
+    IF v_response.status IN (200, 201) AND (v_body->>'init_point') IS NOT NULL THEN
         RETURN jsonb_build_object(
             'sucesso', true,
             'preferenceId', v_body->>'id',
-            'linkPagamento', CASE
-                WHEN v_ambiente = 'sandbox' THEN COALESCE(v_body->>'sandbox_init_point', REPLACE(v_body->>'init_point', 'mercadopago.com', 'sandbox.mercadopago.com'))
-                ELSE v_body->>'init_point'
-            END,
+            'linkPagamento', v_body->>'init_point',
             'mensagem', 'Link de pagamento gerado com sucesso!'
         );
     ELSE

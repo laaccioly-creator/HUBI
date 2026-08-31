@@ -40,6 +40,7 @@ interface PedidoConcluidoInfo {
   whatsAppUrl: string;
   pixInfo?: PixDinamicoResponse | null;
   linkPagamento?: string | null;
+  preferenceId?: string | null;
 }
 
 export const CatalogoPublico: React.FC = () => {
@@ -523,6 +524,7 @@ Fico no aguardo da confirmação! ✨`;
       
       let pixInfoRes: PixDinamicoResponse | null = null;
       let linkPagamentoUrl: string | null = null;
+      let linkPreferenceId: string | null = null;
 
       // Gerar cobrança Mercado Pago se ativado
       if (loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
@@ -568,6 +570,7 @@ Fico no aguardo da confirmação! ✨`;
 
         if (linkRes.sucesso && linkRes.linkPagamento) {
           linkPagamentoUrl = linkRes.linkPagamento;
+          linkPreferenceId = linkRes.preferenceId || null;
         }
       }
 
@@ -578,13 +581,43 @@ Fico no aguardo da confirmação! ✨`;
         numeroPedido: pedidoCriado.numero_pedido,
         whatsAppUrl: (loja.resumo_whatsapp ?? true) ? urlWhats : '',
         pixInfo: pixInfoRes?.sucesso ? pixInfoRes : null,
-        linkPagamento: linkPagamentoUrl
+        linkPagamento: linkPagamentoUrl,
+        preferenceId: linkPreferenceId
       });
     } catch (err: any) {
       console.error('Erro ao enviar pedido:', err);
       alert(`Erro ao finalizar pedido: ${err.message || 'Tente novamente.'}`);
     } finally {
       setEnviandoPedido(false);
+    }
+  };
+
+  const handleAbrirCheckoutMP = () => {
+    if (!pedidoConcluidoModal) return;
+
+    const MP_SDK = (window as any).MercadoPago;
+    const publicKey = loja?.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.public_key;
+
+    if (MP_SDK && publicKey && pedidoConcluidoModal.preferenceId) {
+      try {
+        console.info('🚀 [Mercado Pago SDK] Abrindo Checkout Modal oficial (padrão TSB)...', {
+          publicKey,
+          preferenceId: pedidoConcluidoModal.preferenceId
+        });
+        const mp = new MP_SDK(publicKey.trim(), { locale: 'pt-BR' });
+        mp.checkout({
+          preference: { id: pedidoConcluidoModal.preferenceId },
+          autoOpen: true,
+        });
+        return;
+      } catch (err) {
+        console.warn('⚠️ Falha ao abrir modal SDK, usando redirecionamento direto:', err);
+      }
+    }
+
+    if (pedidoConcluidoModal.linkPagamento) {
+      console.info('🌐 [Mercado Pago Fallback] Abrindo link de pagamento em nova aba:', pedidoConcluidoModal.linkPagamento);
+      window.open(pedidoConcluidoModal.linkPagamento, '_blank');
     }
   };
 
@@ -1490,18 +1523,16 @@ Fico no aguardo da confirmação! ✨`;
               </div>
             )}
 
-            {/* LINK DE PAGAMENTO EXTERNO MERCADO PAGO / CARTÃO */}
+            {/* LINK / MODAL DE PAGAMENTO MERCADO PAGO / CARTÃO */}
             {pedidoConcluidoModal.linkPagamento && (
-              <a
-                href={pedidoConcluidoModal.linkPagamento}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => console.info('👉 [Checkout Modal] Clicou para abrir o link de pagamento do Mercado Pago:', pedidoConcluidoModal.linkPagamento)}
+              <button
+                type="button"
+                onClick={handleAbrirCheckoutMP}
                 className="w-full py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 transition cursor-pointer"
               >
                 <span>Pagar com Cartão / Mercado Pago</span>
                 <ExternalLink className="w-4 h-4" />
-              </a>
+              </button>
             )}
 
             <div className="space-y-2 pt-2">
