@@ -42,7 +42,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido } from '../types';
-import { PrintService, formatarDataRecibo } from '../services/printService';
+import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
@@ -1360,6 +1360,18 @@ export const VendasHistorico: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Dados do Vendedor / Origem (Antes do Cliente) */}
+                <div className="space-y-0.5 text-xs text-slate-300 border-b border-slate-700/60 pb-2">
+                  <span className="text-slate-400 font-medium">
+                    {vendaReciboModal.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
+                  </span>
+                  <p className="font-semibold text-slate-100">
+                    {vendaReciboModal.origem === 'catalogo_online'
+                      ? 'Catálogo Online (Pedido Online)'
+                      : vendaReciboModal.vendedor?.nome_completo || 'Caixa / Balcão'}
+                  </p>
+                </div>
+
                 {/* Dados do Cliente */}
                 <div className="space-y-0.5 text-xs text-slate-300">
                   <p className="font-semibold text-slate-100">
@@ -1427,6 +1439,40 @@ export const VendasHistorico: React.FC = () => {
                 <div className="text-right text-sm font-bold text-slate-100">
                   Total: R$ {Number(vendaReciboModal.valor_total).toFixed(2)}
                 </div>
+
+                {/* Dados do Pagamento (Após o Valor Total) */}
+                {(() => {
+                  const pagInfo = obterDadosPagamentoRecibo(vendaReciboModal);
+                  return (
+                    <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-amber-950/30 border-amber-500/30'}`}>
+                      <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-700">
+                        <span className="font-bold text-[10px] text-slate-400 uppercase">Status Pagamento:</span>
+                        <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                          {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                        </span>
+                      </div>
+                      {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                        <div className="space-y-1.5 pt-1.5 text-slate-300">
+                          {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                            <div key={idx} className="flex justify-between items-start text-[11px]">
+                              <div>
+                                <span className="font-semibold text-slate-200">{pag.forma}</span>
+                                {pag.origemGateway && (
+                                  <span className="text-[10px] text-sky-400 block font-medium">Origem: {pag.origemGateway}</span>
+                                )}
+                              </div>
+                              <span className="font-bold text-slate-100">R$ {pag.valor.toFixed(2)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between font-extrabold text-emerald-400 pt-1.5 border-t border-emerald-500/20 text-xs">
+                            <span>Valor Pago:</span>
+                            <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
 
                 <div className="border-t border-slate-700 my-2"></div>
 

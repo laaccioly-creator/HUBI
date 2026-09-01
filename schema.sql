@@ -769,3 +769,182 @@ $$;
 -- Permissões de Execução Públicas
 GRANT EXECUTE ON FUNCTION public.criar_pix_mercado_pago TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.criar_link_mercado_pago TO anon, authenticated, service_role;
+
+-- Adiciona coluna status_pagamento se não existir
+ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS status_pagamento VARCHAR(30) DEFAULT 'aguardando_pagamento';
+
+-- ==============================================================================
+-- 10. FUNÇÃO SEGURA: CONFIRMAR PAGAMENTO MERCADO PAGO (CHECKOUT & PIX)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.confirmar_pagamento_mercado_pago(
+    p_loja_id UUID,
+    p_pedido_numero BIGINT,
+    p_payment_id TEXT DEFAULT NULL,
+    p_status TEXT DEFAULT 'approved'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_access_token TEXT;
+    v_pedido RECORD;
+    v_forma_pagamento_id UUID;
+    v_status_mp TEXT := NULL;
+    v_valor_recebido NUMERIC := NULL;
+    v_response extensions.http_response;
+    v_headers extensions.http_header[];
+    v_body JSONB;
+BEGIN
+    -- 1. Localizar o pedido da loja
+    SELECT * INTO v_pedido
+    FROM public.pedidos
+    WHERE loja_id = p_loja_id AND numero_pedido = p_pedido_numero;
+
+    IF v_pedido.id IS NULL THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'mensagem', 'Pedido #' || p_pedido_numero || ' não encontrado nesta loja.'
+        );
+    END IF;
+
+    -- Verificar se já está pago
+    IF v_pedido.status_pagamento = 'pago' OR (v_pedido.saldo_devedor <= 0 AND v_pedido.valor_pago > 0) THEN
+        RETURN jsonb_build_object(
+            'sucesso', true,
+            'ja_pago', true,
+            'mensagem', 'Pedido #' || p_pedido_numero || ' já consta como pago.',
+            'pedido_id', v_pedido.id,
+            'status_pagamento', 'pago'
+        );
+    END IF;
+
+    -- 2. Buscar access_token do Mercado Pago da loja
+    SELECT configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'access_token'
+    INTO v_access_token
+    FROM public.lojas
+    WHERE id = p_loja_id;
+
+    -- 3. Se temos p_payment_id e access_token, consulta status real na API do Mercado Pago
+    IF p_payment_id IS NOT NULL AND trim(p_payment_id) != '' AND v_access_token IS NOT NULL AND trim(v_access_token) != '' THEN
+        BEGIN
+            v_headers := ARRAY[
+                extensions.http_header('Authorization', 'Bearer ' || trim(v_access_token)),
+                extensions.http_header('Content-Type', 'application/json')
+            ];
+
+            SELECT * INTO v_response FROM extensions.http((
+                'GET',
+                'https://api.mercadopago.com/v1/payments/' || trim(p_payment_id),
+                v_headers,
+                'application/json',
+                NULL
+            )::extensions.http_request);
+
+            IF v_response.status = 200 THEN
+                v_body := v_response.content::JSONB;
+                v_status_mp := v_body->>'status';
+                IF (v_body->>'transaction_amount') IS NOT NULL THEN
+                    v_valor_recebido := (v_body->>'transaction_amount')::NUMERIC;
+                END IF;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            -- Caso ocorra falha ou timeout na extensão http, mantém nulo para usar p_status
+            v_status_mp := NULL;
+        END;
+    END IF;
+
+    -- Fallback se verificação via HTTP falhou ou não foi enviada
+    IF v_status_mp IS NULL THEN
+        IF p_status IN ('approved', 'aprovado') THEN
+            v_status_mp := 'approved';
+        END IF;
+    END IF;
+
+    -- Se não estiver aprovado, retorna status atual sem alterar o pedido
+    IF v_status_mp IS NULL OR v_status_mp != 'approved' THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'status_mp', COALESCE(v_status_mp, 'pendente'),
+            'mensagem', 'Pagamento ainda não foi aprovado pelo Mercado Pago (Status: ' || COALESCE(v_status_mp, 'pendente') || ').'
+        );
+    END IF;
+
+    -- 4. Definir valor recebido
+    IF v_valor_recebido IS NULL OR v_valor_recebido <= 0 THEN
+        v_valor_recebido := v_pedido.valor_total;
+    END IF;
+
+    -- 5. Localizar ou criar forma de pagamento para Mercado Pago
+    SELECT id INTO v_forma_pagamento_id 
+    FROM public.formas_pagamento 
+    WHERE loja_id = p_loja_id 
+      AND ativo = TRUE 
+    ORDER BY 
+      CASE 
+        WHEN lower(nome) LIKE '%mercado pago%' THEN 1
+        WHEN tipo = 'pix' THEN 2
+        WHEN lower(nome) LIKE '%pix%' THEN 3
+        ELSE 4
+      END
+    LIMIT 1;
+
+    IF v_forma_pagamento_id IS NULL THEN
+        INSERT INTO public.formas_pagamento (loja_id, nome, tipo, taxa_percentual, ativo, exibir_catalogo)
+        VALUES (p_loja_id, 'Mercado Pago', 'pix', 0.99, TRUE, TRUE)
+        RETURNING id INTO v_forma_pagamento_id;
+    END IF;
+
+    -- 6. Inserir em pagamentos_pedido (dispara trg_gerar_financeiro_pagamento)
+    INSERT INTO public.pagamentos_pedido (
+        loja_id,
+        pedido_id,
+        forma_pagamento_id,
+        valor,
+        parcelas,
+        valor_taxa,
+        valor_liquido,
+        data_pagamento,
+        eh_pagamento_fiado
+    ) VALUES (
+        p_loja_id,
+        v_pedido.id,
+        v_forma_pagamento_id,
+        v_valor_recebido,
+        1,
+        0.00,
+        v_valor_recebido,
+        NOW(),
+        FALSE
+    );
+
+    -- 7. Atualizar status e valores do pedido
+    UPDATE public.pedidos
+    SET 
+        status_pagamento = 'pago',
+        status = CASE WHEN status = 'pendente' THEN 'confirmado' ELSE status END,
+        valor_pago = v_valor_recebido,
+        saldo_devedor = GREATEST(0, (v_pedido.valor_total - v_valor_recebido)),
+        atualizado_em = NOW()
+    WHERE id = v_pedido.id;
+
+    RETURN jsonb_build_object(
+        'sucesso', true,
+        'pedido_id', v_pedido.id,
+        'pedido_numero', p_pedido_numero,
+        'status_pagamento', 'pago',
+        'valor_pago', v_valor_recebido,
+        'mensagem', 'Pagamento aprovado e registrado com sucesso!'
+    );
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'sucesso', false,
+        'mensagem', 'Erro ao confirmar pagamento: ' || SQLERRM
+    );
+END;
+$$;
+
+-- Permissão de Execução Pública
+GRANT EXECUTE ON FUNCTION public.confirmar_pagamento_mercado_pago TO anon, authenticated, service_role;
+

@@ -279,6 +279,65 @@ class PaymentGatewayService {
   }
 
   /**
+   * Confirma e liquida o pagamento de um pedido do Mercado Pago no sistema HUBI.
+   * Invoca a RPC segura confirmar_pagamento_mercado_pago no Supabase.
+   */
+  async confirmarPagamentoMercadoPago(params: {
+    lojaId: string;
+    pedidoNumero: number;
+    paymentId?: string;
+    status?: string;
+    accessToken?: string;
+  }): Promise<{ sucesso: boolean; status?: string; mensagem?: string; jaPago?: boolean }> {
+    const { lojaId, pedidoNumero, paymentId, status, accessToken } = params;
+
+    let statusEfetivo = status;
+
+    // Se temos paymentId e accessToken, verifica diretamente no Mercado Pago se ainda não temos certeza
+    if (paymentId && accessToken && (!statusEfetivo || statusEfetivo === 'pendente')) {
+      try {
+        const mpStatus = await this.consultarStatusMercadoPago(paymentId, accessToken);
+        if (mpStatus) {
+          statusEfetivo = mpStatus;
+        }
+      } catch (err) {
+        console.warn('Aviso ao checar status direto no Mercado Pago:', err);
+      }
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('confirmar_pagamento_mercado_pago', {
+        p_loja_id: lojaId,
+        p_pedido_numero: pedidoNumero,
+        p_payment_id: paymentId || null,
+        p_status: statusEfetivo || 'approved'
+      });
+
+      if (error) {
+        console.warn('Erro ao executar RPC confirmar_pagamento_mercado_pago:', error);
+        return {
+          sucesso: false,
+          mensagem: error.message || 'Erro ao confirmar pagamento no banco.'
+        };
+      }
+
+      return {
+        sucesso: Boolean(data?.sucesso),
+        status: data?.status_pagamento || data?.status_mp || statusEfetivo,
+        jaPago: Boolean(data?.ja_pago),
+        mensagem: data?.mensagem
+      };
+    } catch (err: any) {
+      console.error('Falha ao confirmar pagamento Mercado Pago:', err);
+      return {
+        sucesso: false,
+        mensagem: err?.message || 'Falha ao processar confirmação de pagamento.'
+      };
+    }
+  }
+
+
+  /**
    * Projeção Financeira e Cálculo de Prazos & Taxas de Maquininhas
    * Utilizado para calcular recebimento líquido e datas previstas de compensação bancária
    */

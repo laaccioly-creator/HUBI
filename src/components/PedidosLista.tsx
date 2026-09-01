@@ -47,7 +47,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
-import { PrintService, formatarDataRecibo } from '../services/printService';
+import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { audioService } from '../services/audioService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
@@ -230,7 +230,7 @@ export const PedidosLista: React.FC = () => {
           cliente:clientes(*),
           vendedor:usuarios_loja(*),
           itens:itens_pedido(*),
-          pagamentos:pagamentos_pedido(*)
+          pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
         `)
         .eq('loja_id', loja.id);
 
@@ -1627,6 +1627,18 @@ export const PedidosLista: React.FC = () => {
                   <span>{formatarData(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em || '')}</span>
                 </div>
 
+                {/* Vendedor / Canal (Antes do Cliente) */}
+                <div className="space-y-0.5 border-b border-slate-300 border-dashed pb-2 text-[11px]">
+                  <span className="text-slate-500 font-semibold">
+                    {pedidoReciboModal.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
+                  </span>
+                  <p className="font-bold text-slate-900">
+                    {pedidoReciboModal.origem === 'catalogo_online'
+                      ? 'Catálogo Online (Pedido Online)'
+                      : pedidoReciboModal.vendedor?.nome_completo || 'Caixa / Balcão'}
+                  </p>
+                </div>
+
                 {/* Cliente */}
                 <div className="space-y-0.5 border-b border-slate-300 border-dashed pb-2 text-[11px]">
                   <span className="text-slate-500 font-semibold">Cliente:</span>
@@ -1681,6 +1693,40 @@ export const PedidosLista: React.FC = () => {
                       <span className="text-sm font-black text-red-600">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
                     </div>
                   )}
+
+                  {/* Dados do Pagamento (Após o Valor Total) */}
+                  {(() => {
+                    const pagInfo = obterDadosPagamentoRecibo(pedidoReciboModal);
+                    return (
+                      <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                        <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-300">
+                          <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
+                          <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                          </span>
+                        </div>
+                        {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                          <div className="space-y-1.5 pt-1.5 text-slate-800">
+                            {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                              <div key={idx} className="flex justify-between items-start text-[11px]">
+                                <div>
+                                  <span className="font-semibold">{pag.forma}</span>
+                                  {pag.origemGateway && (
+                                    <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                                  )}
+                                </div>
+                                <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
+                              <span>Valor Pago:</span>
+                              <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

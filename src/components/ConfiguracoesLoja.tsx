@@ -2981,6 +2981,19 @@ export const ConfiguracoesLoja: React.FC = () => {
                 <p className="text-center italic text-[11px] border-b pb-2">{reciboCabecalho}</p>
               )}
 
+              <div className="border-b pb-2 text-[10px] space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-semibold">Vendedor:</span>
+                  <span className="font-bold text-slate-800">Catálogo Online / Vendedor</span>
+                </div>
+                {reciboAdicionarCliente && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-semibold">Cliente:</span>
+                    <span className="font-bold text-slate-800">Cliente Exemplo</span>
+                  </div>
+                )}
+              </div>
+
               <div className="border-t border-b py-2 space-y-1">
                 <div className="flex justify-between font-bold">
                   <span>1x Camiseta Exemplo</span>
@@ -2991,6 +3004,21 @@ export const ConfiguracoesLoja: React.FC = () => {
               <div className="flex justify-between font-black text-sm pt-1">
                 <span>TOTAL:</span>
                 <span>R$ 89,90</span>
+              </div>
+
+              <div className="mt-2 p-2 rounded bg-emerald-50 border border-emerald-200 text-[10px] space-y-1">
+                <div className="flex justify-between items-center pb-1 border-b border-dashed border-emerald-200">
+                  <span className="font-bold text-slate-700">STATUS:</span>
+                  <span className="font-black text-emerald-800 bg-emerald-100 px-1 rounded">✓ PAGO</span>
+                </div>
+                <div className="flex justify-between text-slate-700">
+                  <span>Pix (Mercado Pago)</span>
+                  <span className="font-bold text-slate-900">R$ 89,90</span>
+                </div>
+                <div className="flex justify-between font-extrabold text-emerald-900 pt-1 border-t border-emerald-200">
+                  <span>Valor Pago:</span>
+                  <span>R$ 89,90</span>
+                </div>
               </div>
 
               {reciboRodape && (

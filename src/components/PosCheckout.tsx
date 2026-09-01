@@ -40,7 +40,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria } from '../types';
-import { PrintService, formatarDataRecibo } from '../services/printService';
+import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { SyncService } from '../services/syncService';
@@ -687,7 +687,13 @@ export const PosCheckout: React.FC = () => {
             ...pedidoCriado,
             cliente: clienteSelecionado,
             vendedor: usuario,
-            itens: itensComId as any
+            itens: itensComId as any,
+            pagamentos: [{
+              ...dadosPagamento,
+              forma_pagamento_id: fpIdReal,
+              pedido_id: pedidoCriado.id,
+              forma_pagamento: fpFinal
+            }] as any
           };
 
           setEhVendaOfflineSalva(false);
@@ -1595,6 +1601,18 @@ export const PosCheckout: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Dados do Vendedor / Origem (Antes do Cliente) */}
+                <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
+                  <span className="text-slate-500 font-semibold">
+                    {pedidoConcluido.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
+                  </span>
+                  <p className="font-bold text-slate-900">
+                    {pedidoConcluido.origem === 'catalogo_online'
+                      ? 'Catálogo Online (Pedido Online)'
+                      : pedidoConcluido.vendedor?.nome_completo || 'Caixa / Balcão'}
+                  </p>
+                </div>
+
                 {/* Dados do Cliente */}
                 <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
                   <p className="font-bold text-slate-900">Cliente: {pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
@@ -1661,6 +1679,40 @@ export const PosCheckout: React.FC = () => {
                     <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
                   </div>
                 )}
+
+                {/* Dados do Pagamento (Após o Valor Total) */}
+                {(() => {
+                  const pagInfo = obterDadosPagamentoRecibo(pedidoConcluido);
+                  return (
+                    <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                      <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
+                        <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
+                        <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                        </span>
+                      </div>
+                      {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                        <div className="space-y-1.5 pt-1.5 text-slate-800">
+                          {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                            <div key={idx} className="flex justify-between items-start text-[11px]">
+                              <div>
+                                <span className="font-semibold">{pag.forma}</span>
+                                {pag.origemGateway && (
+                                  <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                                )}
+                              </div>
+                              <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
+                            <span>Valor Pago:</span>
+                            <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
 
                 {/* Linha Divisória */}
                 <div className="border-t border-slate-700 my-2"></div>

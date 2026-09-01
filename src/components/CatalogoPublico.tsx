@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ShoppingBag,
   Search,
@@ -23,6 +23,7 @@ import {
 import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2 } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
+import { audioService } from '../services/audioService';
 import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
@@ -61,6 +62,17 @@ export const CatalogoPublico: React.FC = () => {
   const [modoExibicaoPublico, setModoExibicaoPublico] = useState<ModoExibicaoCatalogo>('grade');
   const [pedidoConcluidoModal, setPedidoConcluidoModal] = useState<PedidoConcluidoInfo | null>(null);
   const [pixCopiado, setPixCopiado] = useState<boolean>(false);
+
+  // Tratamento do Retorno Mercado Pago & Polling do Pix
+  const [searchParams] = useSearchParams();
+  const [modalRetornoMP, setModalRetornoMP] = useState<{
+    aberto: boolean;
+    pedidoNumero: number;
+    sucesso: boolean;
+    mensagem: string;
+  } | null>(null);
+  const [pixAprovadoEmTempoReal, setPixAprovadoEmTempoReal] = useState<boolean>(false);
+  const [verificandoPixManual, setVerificandoPixManual] = useState<boolean>(false);
 
   const [nomeCliente, setNomeCliente] = useState<string>('');
   const [whatsappCliente, setWhatsappCliente] = useState<string>('');
@@ -204,6 +216,144 @@ export const CatalogoPublico: React.FC = () => {
 
     carregarCatalogo();
   }, [slug]);
+
+  // 1. Tratar Retorno do Mercado Pago (Redirecionamento pós-checkout)
+  useEffect(() => {
+    if (!loja?.id) return;
+
+    const statusParam = searchParams.get('status') || searchParams.get('collection_status');
+    const rawPedido = searchParams.get('pedido') || searchParams.get('external_reference')?.replace('PEDIDO_', '');
+    const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
+
+    if (!statusParam || !rawPedido) return;
+
+    const pedidoNumero = Number(rawPedido);
+    if (!pedidoNumero) return;
+
+    const statusLimpo = statusParam.toLowerCase();
+    const isAprovado = ['aprovado', 'approved'].includes(statusLimpo);
+    const isPendente = ['pendente', 'pending', 'in_process'].includes(statusLimpo);
+
+    const processarRetornoMP = async () => {
+      if (isAprovado) {
+        try {
+          const accessToken = loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token;
+          const res = await paymentGatewayService.confirmarPagamentoMercadoPago({
+            lojaId: loja.id,
+            pedidoNumero,
+            paymentId: paymentId || undefined,
+            status: 'approved',
+            accessToken
+          });
+
+          audioService.playNewOrderSound();
+
+          setModalRetornoMP({
+            aberto: true,
+            pedidoNumero,
+            sucesso: true,
+            mensagem: res.sucesso
+              ? `Pagamento do Pedido #${pedidoNumero} confirmado com sucesso no Mercado Pago! O status do seu pedido já está PAGO e foi enviado para a loja preparar.`
+              : `Pagamento do Pedido #${pedidoNumero} recebido! Atualizando status no sistema.`
+          });
+        } catch (err: any) {
+          console.error('Erro ao confirmar retorno do Mercado Pago:', err);
+          setModalRetornoMP({
+            aberto: true,
+            pedidoNumero,
+            sucesso: true,
+            mensagem: `Pagamento do Pedido #${pedidoNumero} processado com sucesso!`
+          });
+        }
+      } else if (isPendente) {
+        setModalRetornoMP({
+          aberto: true,
+          pedidoNumero,
+          sucesso: false,
+          mensagem: `O pagamento do Pedido #${pedidoNumero} está em análise/processamento no Mercado Pago. Assim que for compensado, o status será atualizado automaticamente.`
+        });
+      } else {
+        setModalRetornoMP({
+          aberto: true,
+          pedidoNumero,
+          sucesso: false,
+          mensagem: `O pagamento do Pedido #${pedidoNumero} não foi concluído ou foi cancelado no Mercado Pago.`
+        });
+      }
+
+      // Limpar parâmetros da URL para evitar loops ao recarregar a página
+      window.history.replaceState({}, document.title, window.location.pathname);
+    };
+
+    processarRetornoMP();
+  }, [loja?.id, searchParams]);
+
+  // 2. Polling em Tempo Real para Pix Dinâmico no Modal
+  useEffect(() => {
+    if (!pedidoConcluidoModal?.pixInfo?.transacaoId || pixAprovadoEmTempoReal || !loja?.id) {
+      return;
+    }
+
+    const transacaoId = pedidoConcluidoModal.pixInfo.transacaoId;
+    const pedidoNumero = pedidoConcluidoModal.numeroPedido;
+    const accessToken = loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token;
+
+    let ativo = true;
+
+    const checarStatusPix = async () => {
+      try {
+        const res = await paymentGatewayService.confirmarPagamentoMercadoPago({
+          lojaId: loja.id,
+          pedidoNumero,
+          paymentId: transacaoId,
+          accessToken
+        });
+
+        if (ativo && (res.status === 'approved' || res.status === 'pago' || res.jaPago)) {
+          setPixAprovadoEmTempoReal(true);
+          audioService.playNewOrderSound();
+        }
+      } catch (err) {
+        console.warn('Checagem em segundo plano do Pix:', err);
+      }
+    };
+
+    const intervalId = setInterval(checarStatusPix, 4000);
+
+    return () => {
+      ativo = false;
+      clearInterval(intervalId);
+    };
+  }, [pedidoConcluidoModal, pixAprovadoEmTempoReal, loja?.id]);
+
+  const handleVerificarPixManualmente = async () => {
+    if (!pedidoConcluidoModal?.pixInfo?.transacaoId || !loja?.id) return;
+    setVerificandoPixManual(true);
+    try {
+      const transacaoId = pedidoConcluidoModal.pixInfo.transacaoId;
+      const pedidoNumero = pedidoConcluidoModal.numeroPedido;
+      const accessToken = loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token;
+
+      const res = await paymentGatewayService.confirmarPagamentoMercadoPago({
+        lojaId: loja.id,
+        pedidoNumero,
+        paymentId: transacaoId,
+        accessToken
+      });
+
+      if (res.status === 'approved' || res.status === 'pago' || res.jaPago) {
+        setPixAprovadoEmTempoReal(true);
+        audioService.playNewOrderSound();
+      } else {
+        alert('O pagamento ainda não foi identificado como aprovado pelo banco. Aguarde alguns instantes e tente novamente.');
+      }
+    } catch (err: any) {
+      alert(`Não foi possível verificar no momento: ${err.message || 'Tente novamente em instantes.'}`);
+    } finally {
+      setVerificandoPixManual(false);
+    }
+  };
+
 
   const corTema = loja?.cor_primaria || '#10B981';
 
@@ -576,6 +726,7 @@ Fico no aguardo da confirmação! ✨`;
 
       setCarrinho([]);
       setDrawerCarrinhoAberto(false);
+      setPixAprovadoEmTempoReal(false);
 
       setPedidoConcluidoModal({
         numeroPedido: pedidoCriado.numero_pedido,
@@ -1488,8 +1639,27 @@ Fico no aguardo da confirmação! ✨`;
               {loja?.instrucoes_pos_pedido || 'Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!'}
             </div>
 
-            {/* SE HOUVER PIX DINÂMICO MERCADO PAGO GERADO */}
-            {pedidoConcluidoModal.pixInfo && (
+            {/* SE PIX FOI APROVADO EM TEMPO REAL */}
+            {pixAprovadoEmTempoReal ? (
+              <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 text-center space-y-2 animate-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h4 className="text-sm font-black text-emerald-400">Pagamento Pix Confirmado! 🎉</h4>
+                <p className="text-xs text-slate-300">
+                  Identificamos o seu pagamento instantaneamente! O pedido está como <strong>PAGO</strong> e já foi enviado para a produção.
+                </p>
+                <Link
+                  to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-400 underline hover:text-emerald-300 font-semibold pt-1"
+                  target="_blank"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Acompanhar status do pedido</span>
+                </Link>
+              </div>
+            ) : pedidoConcluidoModal.pixInfo ? (
+              /* SE HOUVER PIX DINÂMICO AGUARDANDO PAGAMENTO */
               <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-center space-y-3">
                 <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-400">
                   <QrCode className="w-4 h-4" />
@@ -1520,11 +1690,37 @@ Fico no aguardo da confirmação! ✨`;
                     <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix (Copia e Cola)'}</span>
                   </button>
                 )}
+
+                <div className="pt-1 flex flex-col items-center gap-2">
+                  <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                    <span>Aguardando identificação do pagamento...</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={verificandoPixManual}
+                    onClick={handleVerificarPixManualmente}
+                    className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    {verificandoPixManual ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                        <span>Verificando no Mercado Pago...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Já paguei no banco (Verificar agora)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            )}
+            ) : null}
 
             {/* LINK / MODAL DE PAGAMENTO MERCADO PAGO / CARTÃO */}
-            {pedidoConcluidoModal.linkPagamento && (
+            {!pixAprovadoEmTempoReal && pedidoConcluidoModal.linkPagamento && (
               <button
                 type="button"
                 onClick={handleAbrirCheckoutMP}
@@ -1536,6 +1732,15 @@ Fico no aguardo da confirmação! ✨`;
             )}
 
             <div className="space-y-2 pt-2">
+              <Link
+                to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-slate-700"
+                target="_blank"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
+              </Link>
+
               {pedidoConcluidoModal.whatsAppUrl && (
                 <a
                   href={pedidoConcluidoModal.whatsAppUrl}
@@ -1550,10 +1755,62 @@ Fico no aguardo da confirmação! ✨`;
 
               <button
                 type="button"
-                onClick={() => setPedidoConcluidoModal(null)}
+                onClick={() => {
+                  setPedidoConcluidoModal(null);
+                  setPixAprovadoEmTempoReal(false);
+                }}
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
               >
                 Voltar ao Catálogo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE RETORNO DO MERCADO PAGO */}
+      {modalRetornoMP && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-lg ${
+                modalRetornoMP.sucesso ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+              }`}
+            >
+              {modalRetornoMP.sucesso ? (
+                <CheckCircle2 className="w-10 h-10" />
+              ) : (
+                <AlertTriangle className="w-10 h-10" />
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-100">
+                {modalRetornoMP.sucesso ? `Pagamento Pedido #${modalRetornoMP.pedidoNumero} Confirmado!` : `Pagamento Pedido #${modalRetornoMP.pedidoNumero}`}
+              </h3>
+              <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                {modalRetornoMP.mensagem}
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {modalRetornoMP.sucesso && (
+                <Link
+                  to={`/order-tracking/${modalRetornoMP.pedidoNumero}`}
+                  className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer"
+                  target="_blank"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Acompanhar Pedido Online</span>
+                </Link>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setModalRetornoMP(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>

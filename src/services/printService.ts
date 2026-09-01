@@ -29,6 +29,98 @@ export const formatarDataRecibo = (dataIso?: string | null): string => {
   }
 };
 
+export const formatarVendedorRecibo = (pedido: Pedido): { label: string; valor: string; ehCatalogo: boolean; contato?: string } => {
+  const ehCatalogo = pedido.origem === 'catalogo_online';
+  if (ehCatalogo) {
+    return {
+      label: 'Canal / Vendedor',
+      valor: 'Catálogo Online',
+      ehCatalogo: true
+    };
+  }
+
+  const nome = pedido.vendedor?.nome_completo 
+    || (pedido as any).nome_vendedor 
+    || (pedido.origem === 'pdv_mobile' ? 'PDV Mobile' : 'Caixa / Balcão');
+
+  const contato = pedido.vendedor?.whatsapp_atendimento ? `Tel/Whats: ${pedido.vendedor.whatsapp_atendimento}` : undefined;
+
+  return {
+    label: 'Vendedor',
+    valor: nome,
+    ehCatalogo: false,
+    contato
+  };
+};
+
+export interface InfoPagamentoRecibo {
+  foiPago: boolean;
+  statusTexto: string;
+  totalPago: number;
+  pagamentosDetalhados: Array<{
+    forma: string;
+    origemGateway?: string;
+    valor: number;
+    parcelas?: number;
+    dataPagamento?: string;
+  }>;
+}
+
+export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo => {
+  const statusPag = pedido.status_pagamento 
+    || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0 ? 'pago' 
+    : pedido.status === 'concluido' && Number(pedido.saldo_devedor) <= 0 ? 'pago' 
+    : 'aguardando_pagamento');
+
+  const foiPago = statusPag === 'pago' || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0);
+  const totalPago = Number(pedido.valor_pago || (foiPago ? pedido.valor_total : 0));
+
+  const itensPag: InfoPagamentoRecibo['pagamentosDetalhados'] = [];
+
+  if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
+    for (const p of pedido.pagamentos) {
+      const nomeForma = p.forma_pagamento?.nome || 'Pagamento';
+      const tipoForma = p.forma_pagamento?.tipo || '';
+      const ehMercadoPago = nomeForma.toLowerCase().includes('mercado pago') 
+        || tipoForma.toLowerCase().includes('mercado_pago')
+        || (pedido.origem === 'catalogo_online' && (tipoForma === 'pix' || tipoForma === 'cartao_credito' || nomeForma.toLowerCase().includes('pix')));
+
+      let origemGateway: string | undefined = undefined;
+      if (ehMercadoPago) {
+        origemGateway = 'Mercado Pago';
+      } else if (pedido.origem === 'catalogo_online') {
+        origemGateway = 'Catálogo Online';
+      } else {
+        origemGateway = 'PDV / Balcão';
+      }
+
+      itensPag.push({
+        forma: nomeForma,
+        origemGateway,
+        valor: Number(p.valor || 0),
+        parcelas: p.parcelas && p.parcelas > 1 ? p.parcelas : undefined,
+        dataPagamento: p.data_pagamento
+      });
+    }
+  } else if (foiPago) {
+    // Fallback caso não haja registro na tabela filha pagamentos_pedido
+    const ehCatalogo = pedido.origem === 'catalogo_online';
+    itensPag.push({
+      forma: ehCatalogo ? 'Pix / Cartão Online' : 'Pagamento no Caixa',
+      origemGateway: ehCatalogo ? 'Mercado Pago' : 'PDV / Balcão',
+      valor: totalPago,
+      dataPagamento: pedido.atualizado_em || pedido.data_venda
+    });
+  }
+
+  return {
+    foiPago,
+    statusTexto: foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO',
+    totalPago,
+    pagamentosDetalhados: itensPag
+  };
+};
+
 export class PrintService {
   /**
    * Dispara a impressão do recibo formatado abrindo a janela de impressão nativa e/ou popup dedicado
@@ -59,6 +151,12 @@ export class PrintService {
 
       const telefoneLoja = loja?.whatsapp || loja?.telefone;
       const lojaContatoFormatado = [enderecoLinha, telefoneLoja ? `+55 ${telefoneLoja}` : ''].filter(Boolean).join(' - ');
+
+      // Dados do vendedor / canal de venda (antes do cliente)
+      const vendedorInfo = formatarVendedorRecibo(pedido);
+
+      // Dados de pagamento (após o valor total)
+      const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
 
       // Dados do cliente
       const clienteNome = pedido.cliente?.nome || (pedido as any).nome_cliente || 'Cliente';
@@ -126,9 +224,24 @@ export class PrintService {
             ${lojaContatoFormatado ? `<div>${lojaContatoFormatado}</div>` : ''}
           </div>
 
+          <!-- Informações do Vendedor / Origem (Antes do Cliente) -->
+          <div style="margin-bottom: 12px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+            <div style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">
+              ${vendedorInfo.label}:
+            </div>
+            <div style="font-weight: 700; color: #0f172a; font-size: ${isA4 ? '14px' : '12px'};">
+              ${vendedorInfo.valor}
+              ${vendedorInfo.ehCatalogo ? `<span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 600; color: #059669; margin-left: 4px;">(Pedido Online)</span>` : ''}
+            </div>
+            ${vendedorInfo.contato ? `<div style="font-size: ${isA4 ? '11px' : '9px'}; color: #64748b; margin-top: 1px;">${vendedorInfo.contato}</div>` : ''}
+          </div>
+
           <!-- Informações do Cliente -->
           <div style="margin-bottom: 16px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155;">
-            <div style="font-weight: 600; margin-bottom: 2px;">
+            <div style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">
+              Cliente:
+            </div>
+            <div style="font-weight: 600; margin-bottom: 2px; color: #0f172a;">
               ${clienteNome}
             </div>
             ${clienteContatoFormatado ? `<div>${clienteContatoFormatado}</div>` : ''}
@@ -184,6 +297,50 @@ export class PrintService {
               Saldo Devedor (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}
             </div>
           ` : ''}
+
+          <!-- Dados do Pagamento (Após o Valor Total) -->
+          <div style="
+            margin-top: 10px;
+            padding: 8px 10px;
+            background-color: ${pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
+            border: 1px solid ${pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
+            border-radius: 6px;
+            font-size: ${isA4 ? '12px' : '10px'};
+          ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
+              <span style="font-weight: 700; color: ${pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
+                Status Pagamento:
+              </span>
+              <span style="font-weight: 800; color: ${pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
+                ${pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
+              </span>
+            </div>
+
+            ${pagamentoInfo.foiPago ? `
+              <div style="margin-top: 4px;">
+                ${pagamentoInfo.pagamentosDetalhados.map(pag => `
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin: 3px 0; color: #1e293b;">
+                    <div>
+                      <span style="font-weight: 600;">Forma:</span> ${pag.forma}${pag.parcelas ? ` (${pag.parcelas}x)` : ''}
+                      ${pag.origemGateway ? `<div style="font-size: ${isA4 ? '11px' : '9px'}; color: #0284c7; font-weight: 600;">Origem: ${pag.origemGateway}</div>` : ''}
+                    </div>
+                    <div style="text-align: right;">
+                      <span style="font-weight: 700; color: #0f172a;">R$ ${pag.valor.toFixed(2)}</span>
+                    </div>
+                  </div>
+                `).join('')}
+
+                <div style="display: flex; justify-content: space-between; margin-top: 6px; padding-top: 4px; border-top: 1px solid #bbf7d0; font-weight: 800; color: #166534;">
+                  <span>Valor Pago:</span>
+                  <span>R$ ${pagamentoInfo.totalPago.toFixed(2)}</span>
+                </div>
+              </div>
+            ` : `
+              <div style="color: #92400e; font-size: ${isA4 ? '11px' : '9px'}; margin-top: 2px;">
+                Aguardando quitação pelo cliente ou confirmação de pagamento.
+              </div>
+            `}
+          </div>
 
           <!-- Linha Divisória Inferior -->
           <div style="border-top: 1.5px solid #334155; margin: 8px 0 14px 0;"></div>
@@ -448,6 +605,8 @@ export class PrintService {
     if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
     text += divider;
 
+    const vendedorInfo = formatarVendedorRecibo(pedido);
+    text += `Vendedor: ${vendedorInfo.valor}\n`;
     if (pedido.cliente?.nome) text += `Cliente: ${pedido.cliente.nome}\n`;
     text += divider;
 
@@ -475,6 +634,22 @@ export class PrintService {
       text += `SALDO DEVEDOR (FIADO): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n`;
     }
 
+    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
+    text += divider;
+    if (pagamentoInfo.foiPago) {
+      text += '\x1B\x45\x01'; // Bold ON
+      text += 'PAGAMENTO: [PAGO]\n';
+      text += '\x1B\x45\x00'; // Bold OFF
+      for (const pag of pagamentoInfo.pagamentosDetalhados) {
+        const gw = pag.origemGateway ? ` (${pag.origemGateway})` : '';
+        const parc = pag.parcelas ? ` [${pag.parcelas}x]` : '';
+        text += `> ${pag.forma}${parc}${gw}: R$ ${pag.valor.toFixed(2)}\n`;
+      }
+      text += `Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
+    } else {
+      text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+    }
+
     text += divider;
     text += '\x1B\x61\x01'; // Center
     text += `${formatarDataRecibo(pedido.data_venda || pedido.criado_em)}\n\n\n`;
@@ -492,16 +667,30 @@ export class PrintService {
     const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
     const dataFormatada = formatarDataRecibo(pedido.data_venda || pedido.criado_em);
     const clienteNome = pedido.cliente?.nome || (pedido as any).nome_cliente || 'Cliente';
+    const vendedorInfo = formatarVendedorRecibo(pedido);
+    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
 
     const linhasItens = itens.map(i =>
       `${Number(i.quantidade || 1)}x ${i.nome_produto}${i.rotulo_variacao ? ` / ${i.rotulo_variacao}` : ''}  -  R$ ${Number(i.subtotal || 0).toFixed(2)}`
     ).join('\n');
 
+    let pagStr = '';
+    if (pagamentoInfo.foiPago) {
+      pagStr = `\nSTATUS DO PAGAMENTO: PAGO\n` +
+        pagamentoInfo.pagamentosDetalhados.map(p =>
+          `Forma: ${p.forma}${p.parcelas ? ` (${p.parcelas}x)` : ''}${p.origemGateway ? ` (Origem: ${p.origemGateway})` : ''} - Valor Pago: R$ ${p.valor.toFixed(2)}`
+        ).join('\n') +
+        `\nValor Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
+    } else {
+      pagStr = `\nSTATUS DO PAGAMENTO: AGUARDANDO PAGAMENTO\n`;
+    }
+
     return `RECIBO #${pedido.numero_pedido}\n\n` +
       `${nomeLoja.toUpperCase()}\n` +
       (loja?.whatsapp ? `WhatsApp: +55 ${loja.whatsapp}\n` : '') +
       (loja?.endereco_cidade ? `Local: ${loja.endereco_cidade}\n` : '') +
-      `\nCliente: ${clienteNome}\n` +
+      `\nVendedor: ${vendedorInfo.valor}\n` +
+      `Cliente: ${clienteNome}\n` +
       (pedido.cliente?.whatsapp ? `Contato: +55 ${pedido.cliente.whatsapp}\n` : '') +
       `\n${itens.length} itens (Qtd.: ${totalQtd})\n` +
       `--------------------------------------------------\n` +
@@ -511,6 +700,7 @@ export class PrintService {
       (Number(pedido.valor_frete) > 0 ? `Taxa Entrega: + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : '') +
       `Total: R$ ${Number(pedido.valor_total).toFixed(2)}\n` +
       (Number(pedido.saldo_devedor) > 0 ? `Saldo Fiado: R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : '') +
+      pagStr +
       `--------------------------------------------------\n` +
       `${dataFormatada}\n\n` +
       `Obrigado pela preferência!`;
@@ -534,17 +724,30 @@ export class PrintService {
     const itens = (pedido.itens || (pedido as any).itens_pedido || []) as ItemPedido[];
     const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
     const dataFormatada = formatarDataRecibo(pedido.data_venda || pedido.criado_em);
+    const vendedorInfo = formatarVendedorRecibo(pedido);
+    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
 
     const itensTexto = itens
       ? itens.map((i: ItemPedido) => `▫️ *${i.quantidade}x* ${i.nome_produto} ${i.rotulo_variacao ? `(${i.rotulo_variacao})` : ''} - R$ ${Number(i.subtotal).toFixed(2)}`).join('\n')
       : '';
+
+    let pagWhatsApp = '';
+    if (pagamentoInfo.foiPago) {
+      const detalhes = pagamentoInfo.pagamentosDetalhados.map(p =>
+        `💳 *Forma:* ${p.forma}${p.parcelas ? ` (${p.parcelas}x)` : ''}${p.origemGateway ? ` _[Origem: ${p.origemGateway}]_` : ''}\n💰 *Valor Pago:* R$ ${p.valor.toFixed(2)}`
+      ).join('\n');
+      pagWhatsApp = `\n✅ *Status do Pagamento:* PAGO\n${detalhes}\n💵 *Total Quitado:* R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
+    } else {
+      pagWhatsApp = `\n⏳ *Status do Pagamento:* AGUARDANDO PAGAMENTO\n`;
+    }
 
     return `🧾 *RECIBO #${pedido.numero_pedido} - ${loja.nome_fantasia || 'HUBI'}*
 
 *${loja.nome_fantasia || 'HUBI'}*
 ${loja.whatsapp ? `Tel/Whats: +55 ${loja.whatsapp}` : ''}
 
-*${pedido.cliente?.nome || 'Cliente'}*
+👤 *Vendedor:* ${vendedorInfo.valor}
+👤 *Cliente:* ${pedido.cliente?.nome || 'Cliente'}
 ${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}` : ''}
 
 *${itens.length} itens (Qtd.: ${totalQtd})*
@@ -552,7 +755,7 @@ ${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}` : ''}
 ${itensTexto}
 ━━━━━━━━━━━━━━━━━━━━
 ${Number(pedido.valor_desconto) > 0 ? `🏷️ *Desconto:* - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : ''}${Number(pedido.valor_frete) > 0 ? `🛵 *Taxa de Entrega:* + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : ''}💵 *TOTAL:* R$ ${Number(pedido.valor_total).toFixed(2)}
-${Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : ''}━━━━━━━━━━━━━━━━━━━━
+${Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
 ${dataFormatada}
 
 Agradecemos a sua preferência! ✨`;
