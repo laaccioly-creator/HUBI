@@ -264,17 +264,37 @@ class PaymentGatewayService {
    * Consulta status de pagamento no Mercado Pago
    */
   async consultarStatusMercadoPago(transacaoId: string, accessToken: string): Promise<string> {
+    const detalhes = await this.consultarDetalhesMercadoPago(transacaoId, accessToken);
+    return detalhes.status || 'pendente';
+  }
+
+  /**
+   * Consulta detalhes completos do pagamento no Mercado Pago (status, tipo, meio, parcelas)
+   */
+  async consultarDetalhesMercadoPago(transacaoId: string, accessToken: string): Promise<{
+    status: string;
+    payment_type_id?: string;
+    payment_method_id?: string;
+    installments?: number;
+    transaction_amount?: number;
+  }> {
     try {
-      const res = await fetch(`https://api.mercadopago.com/v1/payments/${transacaoId}`, {
+      const res = await fetch(`https://api.mercadopago.com/v1/payments/${transacaoId.trim()}`, {
         headers: {
           'Authorization': `Bearer ${accessToken.trim()}`
         }
       });
       const data = await res.json();
-      return data.status || 'pendente'; // approved, pending, in_process, rejected, cancelled
+      return {
+        status: data.status || 'pendente',
+        payment_type_id: data.payment_type_id,
+        payment_method_id: data.payment_method_id,
+        installments: Number(data.installments) || 1,
+        transaction_amount: data.transaction_amount ? Number(data.transaction_amount) : undefined
+      };
     } catch (err) {
-      console.error('Erro ao consultar status:', err);
-      return 'pendente';
+      console.error('Erro ao consultar detalhes no Mercado Pago:', err);
+      return { status: 'pendente' };
     }
   }
 
@@ -288,20 +308,29 @@ class PaymentGatewayService {
     paymentId?: string;
     status?: string;
     accessToken?: string;
+    paymentType?: string;
+    paymentMethod?: string;
+    installments?: number;
   }): Promise<{ sucesso: boolean; status?: string; mensagem?: string; jaPago?: boolean }> {
     const { lojaId, pedidoNumero, paymentId, status, accessToken } = params;
 
     let statusEfetivo = status;
+    let paymentTypeEfetivo = params.paymentType;
+    let paymentMethodEfetivo = params.paymentMethod;
+    let parcelasEfetivas = params.installments || 1;
 
-    // Se temos paymentId e accessToken, verifica diretamente no Mercado Pago se ainda não temos certeza
-    if (paymentId && accessToken && (!statusEfetivo || statusEfetivo === 'pendente')) {
+    // Se temos paymentId e accessToken, consulta os detalhes completos diretamente no Mercado Pago
+    if (paymentId && accessToken) {
       try {
-        const mpStatus = await this.consultarStatusMercadoPago(paymentId, accessToken);
-        if (mpStatus) {
-          statusEfetivo = mpStatus;
+        const mpDetalhes = await this.consultarDetalhesMercadoPago(paymentId, accessToken);
+        if (mpDetalhes) {
+          if (mpDetalhes.status) statusEfetivo = mpDetalhes.status;
+          if (mpDetalhes.payment_type_id) paymentTypeEfetivo = mpDetalhes.payment_type_id;
+          if (mpDetalhes.payment_method_id) paymentMethodEfetivo = mpDetalhes.payment_method_id;
+          if (mpDetalhes.installments) parcelasEfetivas = mpDetalhes.installments;
         }
       } catch (err) {
-        console.warn('Aviso ao checar status direto no Mercado Pago:', err);
+        console.warn('Aviso ao checar detalhes direto no Mercado Pago:', err);
       }
     }
 
@@ -310,7 +339,10 @@ class PaymentGatewayService {
         p_loja_id: lojaId,
         p_pedido_numero: pedidoNumero,
         p_payment_id: paymentId || null,
-        p_status: statusEfetivo || 'approved'
+        p_status: statusEfetivo || 'approved',
+        p_payment_type: paymentTypeEfetivo || null,
+        p_payment_method: paymentMethodEfetivo || null,
+        p_parcelas: parcelasEfetivas
       });
 
       if (error) {

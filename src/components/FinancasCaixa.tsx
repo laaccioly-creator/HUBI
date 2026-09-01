@@ -897,6 +897,11 @@ Assinatura do Supervisor: ___________________________________________
           caixaAberto={caixaAberto}
           carregando={carregando}
           onRecarregar={carregarFinanceiro}
+          onAbrirCaixa={() => setModalAberturaCaixa(true)}
+          onSangria={() => setModalSangria(true)}
+          onSuprimento={() => setModalSuprimento(true)}
+          onFechamentoCego={() => setModalFechamentoCego(true)}
+          saldoEsperadoGaveta={apuracaoTurnoAtual.saldoEsperadoGaveta}
         />
       </div>
 

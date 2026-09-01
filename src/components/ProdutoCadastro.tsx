@@ -471,7 +471,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   };
 };
 
-const pesquisarPrecosMercadoIA = async (
+export const pesquisarPrecosMercadoIA = async (
   nomeProduto: string,
   categoriaNome?: string,
   barcode?: string

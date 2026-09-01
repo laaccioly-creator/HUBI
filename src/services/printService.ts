@@ -53,8 +53,24 @@ export const formatarVendedorRecibo = (pedido: Pedido): { label: string; valor: 
   };
 };
 
+export const ehPedidoFiado = (pedido: Pedido): boolean => {
+  if (!pedido) return false;
+  if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
+    const temPagamentoFiado = pedido.pagamentos.some(p => 
+      p.eh_pagamento_fiado === true || 
+      p.forma_pagamento?.tipo === 'fiado' ||
+      p.forma_pagamento?.nome?.toLowerCase().includes('fiado')
+    );
+    if (temPagamentoFiado) return true;
+  }
+  const formaStr = String((pedido as any).forma_pagamento || (pedido as any).tipo_pagamento || '').toLowerCase();
+  if (formaStr.includes('fiado')) return true;
+  return false;
+};
+
 export interface InfoPagamentoRecibo {
   foiPago: boolean;
+  ehFiado: boolean;
   statusTexto: string;
   totalPago: number;
   pagamentosDetalhados: Array<{
@@ -67,9 +83,11 @@ export interface InfoPagamentoRecibo {
 }
 
 export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo => {
+  const ehFiado = ehPedidoFiado(pedido);
+
   const statusPag = pedido.status_pagamento 
     || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0 ? 'pago' 
-    : pedido.status === 'concluido' && Number(pedido.saldo_devedor) <= 0 ? 'pago' 
+    : pedido.status === 'concluido' && (!ehFiado || Number(pedido.saldo_devedor) <= 0) ? 'pago' 
     : 'aguardando_pagamento');
 
   const foiPago = statusPag === 'pago' || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0);
@@ -79,11 +97,11 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
 
   if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
     for (const p of pedido.pagamentos) {
-      const nomeForma = p.forma_pagamento?.nome || 'Pagamento';
+      let nomeForma = p.forma_pagamento?.nome || 'Pagamento';
       const tipoForma = p.forma_pagamento?.tipo || '';
       const ehMercadoPago = nomeForma.toLowerCase().includes('mercado pago') 
         || tipoForma.toLowerCase().includes('mercado_pago')
-        || (pedido.origem === 'catalogo_online' && (tipoForma === 'pix' || tipoForma === 'cartao_credito' || nomeForma.toLowerCase().includes('pix')));
+        || (pedido.origem === 'catalogo_online' && (tipoForma === 'pix' || tipoForma === 'cartao_credito' || tipoForma === 'cartao_debito' || nomeForma.toLowerCase().includes('pix')));
 
       let origemGateway: string | undefined = undefined;
       if (ehMercadoPago) {
@@ -106,7 +124,7 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
     // Fallback caso não haja registro na tabela filha pagamentos_pedido
     const ehCatalogo = pedido.origem === 'catalogo_online';
     itensPag.push({
-      forma: ehCatalogo ? 'Pix / Cartão Online' : 'Pagamento no Caixa',
+      forma: ehCatalogo ? 'Mercado Pago Online' : 'Pagamento no Caixa',
       origemGateway: ehCatalogo ? 'Mercado Pago' : 'PDV / Balcão',
       valor: totalPago,
       dataPagamento: pedido.atualizado_em || pedido.data_venda
@@ -115,6 +133,7 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
 
   return {
     foiPago,
+    ehFiado,
     statusTexto: foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO',
     totalPago,
     pagamentosDetalhados: itensPag
@@ -292,9 +311,9 @@ export class PrintService {
             Total: R$ ${Number(pedido.valor_total || 0).toFixed(2)}
           </div>
 
-          ${Number(pedido.saldo_devedor || 0) > 0 ? `
+          ${(pagamentoInfo.ehFiado && Number(pedido.saldo_devedor || 0) > 0) ? `
             <div style="text-align: right; margin-bottom: 6px; font-size: ${isA4 ? '13px' : '11px'}; font-weight: 600; color: #b45309;">
-              Saldo Devedor (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}
+              Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}
             </div>
           ` : ''}
 
@@ -630,11 +649,12 @@ export class PrintService {
     text += `TOTAL:                 R$ ${Number(pedido.valor_total).toFixed(2)}\n`;
     text += '\x1B\x45\x00'; // Bold OFF
 
-    if (Number(pedido.saldo_devedor) > 0) {
-      text += `SALDO DEVEDOR (FIADO): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n`;
+    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
+
+    if (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0) {
+      text += `SALDO A PAGAR (FIADO): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n`;
     }
 
-    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
     text += divider;
     if (pagamentoInfo.foiPago) {
       text += '\x1B\x45\x01'; // Bold ON
@@ -699,7 +719,7 @@ export class PrintService {
       (Number(pedido.valor_desconto) > 0 ? `Desconto: - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : '') +
       (Number(pedido.valor_frete) > 0 ? `Taxa Entrega: + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : '') +
       `Total: R$ ${Number(pedido.valor_total).toFixed(2)}\n` +
-      (Number(pedido.saldo_devedor) > 0 ? `Saldo Fiado: R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : '') +
+      (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : '') +
       pagStr +
       `--------------------------------------------------\n` +
       `${dataFormatada}\n\n` +
@@ -755,7 +775,7 @@ ${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}` : ''}
 ${itensTexto}
 ━━━━━━━━━━━━━━━━━━━━
 ${Number(pedido.valor_desconto) > 0 ? `🏷️ *Desconto:* - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : ''}${Number(pedido.valor_frete) > 0 ? `🛵 *Taxa de Entrega:* + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : ''}💵 *TOTAL:* R$ ${Number(pedido.valor_total).toFixed(2)}
-${Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
+${pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
 ${dataFormatada}
 
 Agradecemos a sua preferência! ✨`;

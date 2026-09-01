@@ -44,7 +44,9 @@ import {
   FileText,
   Barcode,
   RefreshCw,
-  Key
+  Key,
+  Zap,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -52,6 +54,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
@@ -182,6 +185,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     precoVenda: string;
     precoPromocional: string;
     precoCusto: string;
+    precoAtacado: string;
+    qtdMinimaAtacado: number;
+    precoAutoatacado: string;
+    qtdMinimaAutoatacado: number;
     categoriaId: string;
     descricao: string;
     codigoBarras: string;
@@ -199,6 +206,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     precoVenda: '',
     precoPromocional: '',
     precoCusto: '',
+    precoAtacado: '',
+    qtdMinimaAtacado: 6,
+    precoAutoatacado: '',
+    qtdMinimaAutoatacado: 24,
     categoriaId: '',
     descricao: '',
     codigoBarras: '',
@@ -217,6 +228,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [salvandoProduto, setSalvandoProduto] = useState<boolean>(false);
   const [processandoIA, setProcessandoIA] = useState<boolean>(false);
   const [mensagemFeedback, setMensagemFeedback] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
+
+  // Estados do Radar de Preços de Mercado (IA Gemini)
+  const [modalRadarAberto, setModalRadarAberto] = useState<boolean>(false);
+  const [dadosMercado, setDadosMercado] = useState<DadosMercadoIA | null>(null);
+  const [buscandoMercado, setBuscandoMercado] = useState<boolean>(false);
+  const [erroMercado, setErroMercado] = useState<string | null>(null);
 
   // Estados de IA no Modal de Criação / Preenchimento
   const [abaModalIA, setAbaModalIA] = useState<'foto' | 'texto' | 'codigo'>('foto');
@@ -442,6 +459,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       precoVenda: '',
       precoPromocional: '',
       precoCusto: '',
+      precoAtacado: '',
+      qtdMinimaAtacado: 6,
+      precoAutoatacado: '',
+      qtdMinimaAutoatacado: 24,
       categoriaId: '',
       descricao: '',
       codigoBarras: '',
@@ -530,8 +551,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       setFormData(prev => ({ ...prev, corEtiqueta: cor }));
       setModalCorEtiquetaAberto(false);
-      setMensagemFeedback({ texto: 'Cor da tarja aplicada a TODOS os produtos com sucesso!', tipo: 'sucesso' });
-      await onRecarregar();
     } catch (err: any) {
       console.error('Erro ao aplicar cor em massa:', err);
       setMensagemFeedback({ texto: 'Erro ao aplicar cor a todos os produtos.', tipo: 'erro' });
@@ -540,14 +559,58 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     }
   };
 
+  // Funções do Radar de Preços de Mercado (IA)
+  const handleAbrirRadarPrecos = async () => {
+    setModalRadarAberto(true);
+    setErroMercado(null);
+
+    if (!dadosMercado) {
+      if (!formData.nome.trim()) {
+        setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
+        return;
+      }
+      await buscarConcorrentesMercado();
+    }
+  };
+
+  const buscarConcorrentesMercado = async () => {
+    if (!formData.nome.trim()) {
+      setErroMercado('Informe o nome do produto para realizar a pesquisa de mercado.');
+      return;
+    }
+    try {
+      setBuscandoMercado(true);
+      setErroMercado(null);
+      const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
+      const resultado = await pesquisarPrecosMercadoIA(formData.nome, catNome, formData.codigoBarras);
+      setDadosMercado(resultado);
+    } catch (err: any) {
+      setErroMercado(err.message || 'Erro ao pesquisar preços de mercado.');
+    } finally {
+      setBuscandoMercado(false);
+    }
+  };
+
+  const handleAplicarPrecoMercado = (novoPreco: number) => {
+    setFormData(prev => ({ ...prev, precoVenda: novoPreco.toFixed(2).replace('.', ',') }));
+    setModalRadarAberto(false);
+    setMensagemFeedback({ texto: `Preço R$ ${novoPreco.toFixed(2)} aplicado com sucesso!`, tipo: 'sucesso' });
+  };
+
   const abrirEditarProduto = (p: Produto, aba: 'cadastro' | 'estoque' = 'cadastro') => {
     setProdutoEditando(p);
+    setDadosMercado(null);
+    setErroMercado(null);
     const corSalva = obterCorProduto(p);
     setFormData({
       nome: p.nome || '',
       precoVenda: p.preco_venda_varejo !== undefined && p.preco_venda_varejo !== null ? String(p.preco_venda_varejo) : '',
       precoPromocional: p.preco_promocional ? String(p.preco_promocional) : '',
       precoCusto: p.preco_custo !== undefined && p.preco_custo !== null ? String(p.preco_custo) : '',
+      precoAtacado: p.preco_venda_atacado ? String(p.preco_venda_atacado) : '',
+      qtdMinimaAtacado: Number(p.qtd_minima_atacado || 6),
+      precoAutoatacado: p.preco_venda_autoatacado ? String(p.preco_venda_autoatacado) : '',
+      qtdMinimaAutoatacado: Number(p.qtd_minima_autoatacado || 24),
       categoriaId: p.categoria_id || '',
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
@@ -581,6 +644,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const precoVendaNum = parseFloat(formData.precoVenda.replace(',', '.')) || 0;
       const precoPromoNum = formData.precoPromocional ? parseFloat(formData.precoPromocional.replace(',', '.')) : null;
       const precoCustoNum = formData.precoCusto ? parseFloat(formData.precoCusto.replace(',', '.')) : 0;
+      const precoAtacadoNum = formData.precoAtacado ? parseFloat(formData.precoAtacado.replace(',', '.')) : null;
+      const qtdMinAtacadoNum = Number(formData.qtdMinimaAtacado) || null;
+      const precoAutoatacadoNum = formData.precoAutoatacado ? parseFloat(formData.precoAutoatacado.replace(',', '.')) : null;
+      const qtdMinAutoatacadoNum = Number(formData.qtdMinimaAutoatacado) || null;
 
       const payload: Partial<Produto> = {
         loja_id: loja.id,
@@ -590,6 +657,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         preco_promocional: precoPromoNum,
         promocao_ativa: Boolean(precoPromoNum && precoPromoNum > 0 && precoPromoNum < precoVendaNum),
         preco_custo: precoCustoNum,
+        preco_venda_atacado: precoAtacadoNum,
+        qtd_minima_atacado: qtdMinAtacadoNum || undefined,
+        preco_venda_autoatacado: precoAutoatacadoNum,
+        qtd_minima_autoatacado: qtdMinAutoatacadoNum || undefined,
         descricao: formData.descricao.trim() || null,
         codigo_barras: formData.codigoBarras.trim() || null,
         tipo_unidade: formData.tipoUnidade,
@@ -2170,7 +2241,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Preço de Venda</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Preço de Venda</label>
+                  <button
+                    type="button"
+                    onClick={handleAbrirRadarPrecos}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] border border-indigo-200 transition cursor-pointer active:scale-95 shadow-xs"
+                    title="Pesquisar concorrentes de mercado com IA"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
+                    <span>Radar de Preços</span>
+                  </button>
+                </div>
                 <div className="flex items-center">
                   <span className="text-sm sm:text-base font-extrabold text-slate-500 mr-1.5">R$</span>
                   <input
@@ -2181,6 +2263,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                   />
                 </div>
+                {(() => {
+                  const pv = parseFloat(formData.precoVenda.replace(',', '.')) || 0;
+                  const pc = parseFloat(formData.precoCusto.replace(',', '.')) || 0;
+                  const lucro = pv - pc;
+                  const margem = pv > 0 ? (lucro / pv) * 100 : 0;
+                  if (pv <= 0 || pc <= 0) return null;
+                  return (
+                    <div className="mt-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs animate-in fade-in">
+                      <span className="font-semibold text-emerald-800">Lucro: R$ {lucro.toFixed(2)}</span>
+                      <span className="font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                        Margem: {margem.toFixed(1)}%
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -2289,6 +2386,64 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         placeholder="0,00"
                         className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                       />
+                    </div>
+                  </div>
+
+                  {/* Tabelas de Atacado & Distribuidor */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div>
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <TrendingUp className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Tabelas de Atacado & Distribuidor</span>
+                      </span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Preços diferenciados ativados por volume no PDV</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Atacado</label>
+                        <div className="flex items-center">
+                          <span className="text-xs font-bold text-slate-500 mr-1">R$</span>
+                          <input
+                            type="text"
+                            value={formData.precoAtacado}
+                            onChange={(e) => setFormData(prev => ({ ...prev, precoAtacado: e.target.value }))}
+                            placeholder="0,00"
+                            className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mín. Atacado</label>
+                        <input
+                          type="number"
+                          value={formData.qtdMinimaAtacado}
+                          onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAtacado: parseInt(e.target.value) || 0 }))}
+                          className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Distribuidor</label>
+                        <div className="flex items-center">
+                          <span className="text-xs font-bold text-slate-500 mr-1">R$</span>
+                          <input
+                            type="text"
+                            value={formData.precoAutoatacado}
+                            onChange={(e) => setFormData(prev => ({ ...prev, precoAutoatacado: e.target.value }))}
+                            placeholder="0,00"
+                            className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mín. Distribuidor</label>
+                        <input
+                          type="number"
+                          value={formData.qtdMinimaAutoatacado}
+                          onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAutoatacado: parseInt(e.target.value) || 0 }))}
+                          className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -2763,6 +2918,138 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <span>Fração (Kilo, Litro, Metro, etc.)</span>
                   {formData.tipoUnidade !== 'un' && <Check className="w-5 h-5 text-teal-600" />}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL RADAR DE PREÇOS DE MERCADO (IA GEMINI) */}
+        {modalRadarAberto && (
+          <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-200">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
+                    <Zap className="w-5 h-5 fill-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-black text-sm sm:text-base text-slate-900">Radar de Preços</h3>
+                      <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full font-bold">
+                        IA Gemini
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 truncate max-w-[240px]">
+                      {formData.nome ? `Pesquisa para: "${formData.nome}"` : 'Pesquisa de mercado'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setModalRadarAberto(false)}
+                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Corpo */}
+              <div className="overflow-y-auto flex-1 space-y-3 pr-0.5">
+                {buscandoMercado ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="relative">
+                      <div className="w-14 h-14 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
+                      <Sparkles className="w-5 h-5 text-amber-500 absolute inset-0 m-auto animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-800">Pesquisando concorrentes...</h4>
+                      <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">
+                        Consultando valores no Mercado Livre, Shopee, Amazon, Magalu e redes varejistas.
+                      </p>
+                    </div>
+                  </div>
+                ) : erroMercado ? (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 text-center">
+                    <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
+                    <p className="text-xs text-rose-800 font-bold">{erroMercado}</p>
+                    <button
+                      type="button"
+                      onClick={buscarConcorrentesMercado}
+                      className="px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-rose-700 transition"
+                    >
+                      Tentar Novamente
+                    </button>
+                  </div>
+                ) : dadosMercado ? (
+                  <div className="space-y-3">
+                    {/* Preço Médio Card */}
+                    <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl space-y-2.5">
+                      <div className="flex items-baseline justify-between">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-indigo-800 block">Preço Médio</span>
+                          <span className="text-2xl font-black text-indigo-950">R$ {dadosMercado.precoMedio.toFixed(2)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
+                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95"
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-white" />
+                          <span>Aplicar Médio</span>
+                        </button>
+                      </div>
+
+                      {/* Menor e Maior Preço */}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-indigo-200/60 text-xs">
+                        <div className="bg-white/80 p-2 rounded-xl border border-indigo-100">
+                          <span className="text-[10px] text-slate-500 block">Menor Preço</span>
+                          <span className="font-extrabold text-emerald-700">R$ {dadosMercado.menorPreco.toFixed(2)}</span>
+                        </div>
+                        <div className="bg-white/80 p-2 rounded-xl border border-indigo-100">
+                          <span className="text-[10px] text-slate-500 block">Maior Preço</span>
+                          <span className="font-extrabold text-indigo-900">R$ {dadosMercado.maiorPreco.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lista de Concorrentes */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block px-1">Lojas e Marketplaces Encontrados</span>
+                      {dadosMercado.concorrentes.map((conc, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-100 transition"
+                        >
+                          <div>
+                            <span className="font-bold text-xs text-slate-800 block">{conc.loja}</span>
+                            {conc.tipo && <span className="text-[10px] text-slate-400">{conc.tipo}</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-xs text-slate-900">R$ {conc.preco.toFixed(2)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleAplicarPrecoMercado(conc.preco)}
+                              className="px-2 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold text-[10px] rounded-lg transition"
+                            >
+                              Aplicar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={buscarConcorrentesMercado}
+                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Atualizar Pesquisa</span>
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

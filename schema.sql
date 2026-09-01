@@ -776,11 +776,18 @@ ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS status_pagamento VARCHAR(30)
 -- ==============================================================================
 -- 10. FUNÇÃO SEGURA: CONFIRMAR PAGAMENTO MERCADO PAGO (CHECKOUT & PIX)
 -- ==============================================================================
+-- Remove versões anteriores com assinaturas diferentes para evitar ambiguidade (Erro 42725)
+DROP FUNCTION IF EXISTS public.confirmar_pagamento_mercado_pago(UUID, BIGINT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.confirmar_pagamento_mercado_pago(UUID, BIGINT, TEXT, TEXT, TEXT, TEXT, INTEGER);
+
 CREATE OR REPLACE FUNCTION public.confirmar_pagamento_mercado_pago(
     p_loja_id UUID,
     p_pedido_numero BIGINT,
     p_payment_id TEXT DEFAULT NULL,
-    p_status TEXT DEFAULT 'approved'
+    p_status TEXT DEFAULT 'approved',
+    p_payment_type TEXT DEFAULT NULL,
+    p_payment_method TEXT DEFAULT NULL,
+    p_parcelas INTEGER DEFAULT 1
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -792,6 +799,11 @@ DECLARE
     v_forma_pagamento_id UUID;
     v_status_mp TEXT := NULL;
     v_valor_recebido NUMERIC := NULL;
+    v_payment_type TEXT := p_payment_type;
+    v_payment_method TEXT := p_payment_method;
+    v_parcelas INTEGER := COALESCE(p_parcelas, 1);
+    v_tipo_db VARCHAR(30) := 'cartao_credito';
+    v_nome_padrao VARCHAR(100) := 'Cartão de Crédito (Mercado Pago)';
     v_response extensions.http_response;
     v_headers extensions.http_header[];
     v_body JSONB;
@@ -808,24 +820,13 @@ BEGIN
         );
     END IF;
 
-    -- Verificar se já está pago
-    IF v_pedido.status_pagamento = 'pago' OR (v_pedido.saldo_devedor <= 0 AND v_pedido.valor_pago > 0) THEN
-        RETURN jsonb_build_object(
-            'sucesso', true,
-            'ja_pago', true,
-            'mensagem', 'Pedido #' || p_pedido_numero || ' já consta como pago.',
-            'pedido_id', v_pedido.id,
-            'status_pagamento', 'pago'
-        );
-    END IF;
-
     -- 2. Buscar access_token do Mercado Pago da loja
     SELECT configuracoes_extras->'pagamentos_digitais'->'mercado_pago'->>'access_token'
     INTO v_access_token
     FROM public.lojas
     WHERE id = p_loja_id;
 
-    -- 3. Se temos p_payment_id e access_token, consulta status real na API do Mercado Pago
+    -- 3. Se temos p_payment_id e access_token, consulta status real e detalhes do meio de pagamento na API do Mercado Pago
     IF p_payment_id IS NOT NULL AND trim(p_payment_id) != '' AND v_access_token IS NOT NULL AND trim(v_access_token) != '' THEN
         BEGIN
             v_headers := ARRAY[
@@ -846,6 +847,15 @@ BEGIN
                 v_status_mp := v_body->>'status';
                 IF (v_body->>'transaction_amount') IS NOT NULL THEN
                     v_valor_recebido := (v_body->>'transaction_amount')::NUMERIC;
+                END IF;
+                IF (v_body->>'payment_type_id') IS NOT NULL AND trim(v_body->>'payment_type_id') != '' THEN
+                    v_payment_type := v_body->>'payment_type_id';
+                END IF;
+                IF (v_body->>'payment_method_id') IS NOT NULL AND trim(v_body->>'payment_method_id') != '' THEN
+                    v_payment_method := v_body->>'payment_method_id';
+                END IF;
+                IF (v_body->>'installments') IS NOT NULL THEN
+                    v_parcelas := (v_body->>'installments')::INTEGER;
                 END IF;
             END IF;
         EXCEPTION WHEN OTHERS THEN
@@ -875,27 +885,55 @@ BEGIN
         v_valor_recebido := v_pedido.valor_total;
     END IF;
 
-    -- 5. Localizar ou criar forma de pagamento para Mercado Pago
+    -- 5. Classificar o meio de pagamento real retornado pelo Mercado Pago
+    IF lower(COALESCE(v_payment_type, '')) IN ('credit_card', 'cartao_credito') THEN
+        v_tipo_db := 'cartao_credito';
+        IF v_payment_method IS NOT NULL AND trim(v_payment_method) != '' THEN
+            v_nome_padrao := 'Cartão de Crédito ' || upper(trim(v_payment_method)) || ' (Mercado Pago)';
+        ELSE
+            v_nome_padrao := 'Cartão de Crédito (Mercado Pago)';
+        END IF;
+    ELSIF lower(COALESCE(v_payment_type, '')) IN ('debit_card', 'cartao_debito') THEN
+        v_tipo_db := 'cartao_debito';
+        IF v_payment_method IS NOT NULL AND trim(v_payment_method) != '' THEN
+            v_nome_padrao := 'Cartão de Débito ' || upper(trim(v_payment_method)) || ' (Mercado Pago)';
+        ELSE
+            v_nome_padrao := 'Cartão de Débito (Mercado Pago)';
+        END IF;
+    ELSIF lower(COALESCE(v_payment_type, '')) IN ('bank_transfer', 'pix') OR lower(COALESCE(v_payment_method, '')) = 'pix' THEN
+        v_tipo_db := 'pix';
+        v_nome_padrao := 'Pix (Mercado Pago)';
+    ELSIF lower(COALESCE(v_payment_type, '')) IN ('ticket', 'boleto') THEN
+        v_tipo_db := 'outro';
+        v_nome_padrao := 'Boleto (Mercado Pago)';
+    ELSE
+        v_tipo_db := 'cartao_credito';
+        v_nome_padrao := 'Cartão de Crédito (Mercado Pago)';
+    END IF;
+
+    -- 6. Localizar ou criar forma de pagamento correspondente ao tipo real
     SELECT id INTO v_forma_pagamento_id 
     FROM public.formas_pagamento 
     WHERE loja_id = p_loja_id 
       AND ativo = TRUE 
+      AND tipo = v_tipo_db
     ORDER BY 
       CASE 
-        WHEN lower(nome) LIKE '%mercado pago%' THEN 1
-        WHEN tipo = 'pix' THEN 2
-        WHEN lower(nome) LIKE '%pix%' THEN 3
-        ELSE 4
+        WHEN lower(nome) = lower(v_nome_padrao) THEN 1
+        WHEN lower(nome) LIKE '%mercado pago%' THEN 2
+        ELSE 3
       END
     LIMIT 1;
 
     IF v_forma_pagamento_id IS NULL THEN
         INSERT INTO public.formas_pagamento (loja_id, nome, tipo, taxa_percentual, ativo, exibir_catalogo)
-        VALUES (p_loja_id, 'Mercado Pago', 'pix', 0.99, TRUE, TRUE)
+        VALUES (p_loja_id, v_nome_padrao, v_tipo_db, 0.99, TRUE, TRUE)
         RETURNING id INTO v_forma_pagamento_id;
     END IF;
 
-    -- 6. Inserir em pagamentos_pedido (dispara trg_gerar_financeiro_pagamento)
+    -- 7. Substituir pagamentos pendentes/incorretos e registrar o pagamento definitivo
+    DELETE FROM public.pagamentos_pedido WHERE pedido_id = v_pedido.id;
+
     INSERT INTO public.pagamentos_pedido (
         loja_id,
         pedido_id,
@@ -911,20 +949,20 @@ BEGIN
         v_pedido.id,
         v_forma_pagamento_id,
         v_valor_recebido,
-        1,
+        COALESCE(v_parcelas, 1),
         0.00,
         v_valor_recebido,
         NOW(),
         FALSE
     );
 
-    -- 7. Atualizar status e valores do pedido
+    -- 8. Atualizar status e valores do pedido (saldo_devedor = 0 para pedido pago)
     UPDATE public.pedidos
     SET 
         status_pagamento = 'pago',
         status = CASE WHEN status = 'pendente' THEN 'confirmado' ELSE status END,
         valor_pago = v_valor_recebido,
-        saldo_devedor = GREATEST(0, (v_pedido.valor_total - v_valor_recebido)),
+        saldo_devedor = 0,
         atualizado_em = NOW()
     WHERE id = v_pedido.id;
 
@@ -946,5 +984,5 @@ END;
 $$;
 
 -- Permissão de Execução Pública
-GRANT EXECUTE ON FUNCTION public.confirmar_pagamento_mercado_pago TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.confirmar_pagamento_mercado_pago(UUID, BIGINT, TEXT, TEXT, TEXT, TEXT, INTEGER) TO anon, authenticated, service_role;
 

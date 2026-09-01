@@ -224,6 +224,8 @@ export const CatalogoPublico: React.FC = () => {
     const statusParam = searchParams.get('status') || searchParams.get('collection_status');
     const rawPedido = searchParams.get('pedido') || searchParams.get('external_reference')?.replace('PEDIDO_', '');
     const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
+    const paymentType = searchParams.get('payment_type');
+    const paymentMethodId = searchParams.get('payment_method_id');
 
     if (!statusParam || !rawPedido) return;
 
@@ -243,7 +245,9 @@ export const CatalogoPublico: React.FC = () => {
             pedidoNumero,
             paymentId: paymentId || undefined,
             status: 'approved',
-            accessToken
+            accessToken,
+            paymentType: paymentType || undefined,
+            paymentMethod: paymentMethodId || undefined
           });
 
           audioService.playNewOrderSound();
@@ -306,7 +310,9 @@ export const CatalogoPublico: React.FC = () => {
           lojaId: loja.id,
           pedidoNumero,
           paymentId: transacaoId,
-          accessToken
+          accessToken,
+          paymentType: 'bank_transfer',
+          paymentMethod: 'pix'
         });
 
         if (ativo && (res.status === 'approved' || res.status === 'pago' || res.jaPago)) {
@@ -338,7 +344,9 @@ export const CatalogoPublico: React.FC = () => {
         lojaId: loja.id,
         pedidoNumero,
         paymentId: transacaoId,
-        accessToken
+        accessToken,
+        paymentType: 'bank_transfer',
+        paymentMethod: 'pix'
       });
 
       if (res.status === 'approved' || res.status === 'pago' || res.jaPago) {

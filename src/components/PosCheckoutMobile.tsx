@@ -42,12 +42,14 @@ import {
   Phone,
   MessageCircle,
   Download,
-  AlertCircle
+  AlertCircle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria, TabelaPreco } from '../types';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
@@ -60,6 +62,8 @@ interface PosCheckoutMobileProps {
   onAbrirFechamento: () => void;
   onAbrirNovoCliente: () => void;
   onAbrirVariacoesModal: (produto: Produto) => void;
+  isOnline?: boolean;
+  pendentesCount?: number;
 }
 
 type SubTelaMobile = 'vender' | 'menu' | 'clientes' | 'camera' | 'avulso' | 'carrinho';
@@ -71,7 +75,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   pedidosConfirmadosCount,
   onAbrirFechamento,
   onAbrirNovoCliente,
-  onAbrirVariacoesModal
+  onAbrirVariacoesModal,
+  isOnline = true,
+  pendentesCount = 0
 }) => {
   const navigate = useNavigate();
   const { loja, usuario, desconectarPdv } = useAuth();
@@ -86,6 +92,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     subtotal,
     total,
     totalItens,
+    tabelaPrecoGlobal,
+    tabelaPrecoCalculada,
+    setTabelaPrecoGlobal,
     adicionarItem,
     removerItem,
     atualizarQuantidade,
@@ -105,6 +114,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('tudo');
   const [multiplicadorQtd, setMultiplicadorQtd] = useState<number>(1);
   const [modalMultiplicador, setModalMultiplicador] = useState<boolean>(false);
+  const [modalTabelaPrecoAberto, setModalTabelaPrecoAberto] = useState<boolean>(false);
 
   // Estados da Tela 003: Clientes
   const [buscaCliente, setBuscaCliente] = useState<string>('');
@@ -993,20 +1003,61 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <h1 className="font-black text-lg text-slate-800 tracking-tight">Vender</h1>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setSubTela('clientes')}
-          className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-black text-xs shadow-sm transition cursor-pointer active:scale-95"
-          title="Adicionar ou Selecionar Cliente"
-        >
-          {clienteSelecionado ? (
-            <span className="text-[11px] uppercase truncate max-w-[32px] px-0.5">
-              {clienteSelecionado.nome.slice(0, 2)}
+        <div className="flex items-center gap-1.5">
+          {/* Status Conexão / Fila Offline */}
+          <div
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${
+              isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700 animate-pulse'
+            }`}
+            title={isOnline ? 'Online - Supabase conectado' : 'Modo Offline Ativo'}
+          >
+            {isOnline ? <Wifi className="w-3 h-3 text-emerald-600" /> : <WifiOff className="w-3 h-3 text-amber-600" />}
+            {pendentesCount > 0 ? (
+              <span className="font-extrabold text-[9px] bg-amber-200 text-amber-900 px-1 rounded-full">
+                {pendentesCount}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Seletor Compacto de Tabela de Preço */}
+          <button
+            type="button"
+            onClick={() => setModalTabelaPrecoAberto(true)}
+            className={`px-2 py-1 rounded-lg text-[10px] font-black border transition cursor-pointer active:scale-95 flex items-center gap-1 ${
+              tabelaPrecoCalculada === 'autoatacado'
+                ? 'bg-purple-50 text-purple-700 border-purple-300'
+                : tabelaPrecoCalculada === 'atacado'
+                ? 'bg-blue-50 text-blue-700 border-blue-300'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+            title="Tabela de Preço Ativa"
+          >
+            <Tag className="w-2.5 h-2.5" />
+            <span>
+              {tabelaPrecoCalculada === 'autoatacado'
+                ? 'Distrib.'
+                : tabelaPrecoCalculada === 'atacado'
+                ? 'Atacado'
+                : 'Varejo'}
             </span>
-          ) : (
-            '+8'
-          )}
-        </button>
+          </button>
+
+          {/* Botão de Cliente */}
+          <button
+            type="button"
+            onClick={() => setSubTela('clientes')}
+            className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-black text-xs shadow-sm transition cursor-pointer active:scale-95"
+            title="Adicionar ou Selecionar Cliente"
+          >
+            {clienteSelecionado ? (
+              <span className="text-[11px] uppercase truncate max-w-[32px] px-0.5">
+                {clienteSelecionado.nome.slice(0, 2)}
+              </span>
+            ) : (
+              '+8'
+            )}
+          </button>
+        </div>
       </div>
 
       {/* 2. Barra de Ferramentas / Ações Rápidas (Ou Barra de Busca Tela 004) */}
@@ -1154,8 +1205,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             {produtosFiltrados.map((produto) => {
               const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
-              const precoFinal = produto.preco_venda_varejo;
-              const precoOriginal = produto.preco_promocional ? produto.preco_venda_varejo : null;
+              let precoFinal = produto.preco_venda_varejo;
+              if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
+                precoFinal = produto.preco_venda_atacado;
+              } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
+                precoFinal = produto.preco_venda_autoatacado;
+              } else if (produto.promocao_ativa && produto.preco_promocional) {
+                precoFinal = produto.preco_promocional;
+              }
+              const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
 
               return (
                 <div
@@ -1211,8 +1269,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             {produtosFiltrados.map((produto) => {
               const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
-              const precoFinal = produto.preco_venda_varejo;
-              const precoOriginal = produto.preco_promocional ? produto.preco_venda_varejo : null;
+              let precoFinal = produto.preco_venda_varejo;
+              if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
+                precoFinal = produto.preco_venda_atacado;
+              } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
+                precoFinal = produto.preco_venda_autoatacado;
+              } else if (produto.promocao_ativa && produto.preco_promocional) {
+                precoFinal = produto.preco_promocional;
+              }
+              const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
 
               return (
                 <div
@@ -1313,6 +1378,61 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   }`}
                 >
                   {fator}X
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Seleção de Tabela de Preço */}
+      {modalTabelaPrecoAberto && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-600" />
+                <h3 className="font-bold text-sm text-slate-800">Tabela de Preço</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalTabelaPrecoAberto(false)}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Selecione a tabela de preços a ser aplicada aos produtos desta venda:
+            </p>
+
+            <div className="space-y-2">
+              {[
+                { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal' },
+                { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume' },
+                { id: 'autoatacado', rotulo: '⚡ Distribuidor / Autoatacado', desc: 'Preço especial para grandes quantidades' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
+                    setModalTabelaPrecoAberto(false);
+                  }}
+                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between ${
+                    (tabelaPrecoGlobal || 'varejo') === tab.id
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div>
+                    <span className="font-bold text-xs block">{tab.rotulo}</span>
+                    <span className="text-[10px] text-slate-500">{tab.desc}</span>
+                  </div>
+                  {(tabelaPrecoGlobal || 'varejo') === tab.id && (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  )}
                 </button>
               ))}
             </div>

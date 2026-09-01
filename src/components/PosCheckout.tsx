@@ -789,6 +789,8 @@ export const PosCheckout: React.FC = () => {
           onAbrirFechamento={handleAbrirFechamento}
           onAbrirNovoCliente={() => setModalNovoCliente(true)}
           onAbrirVariacoesModal={(produto) => setProdutoModalVariacao(produto)}
+          isOnline={isOnline}
+          pendentesCount={pendentesCount}
         />
       </div>
 
@@ -1673,44 +1675,46 @@ export const PosCheckout: React.FC = () => {
                   <span className="text-base">R$ {Number(pedidoConcluido.valor_total).toFixed(2)}</span>
                 </div>
 
-                {Number(pedidoConcluido.saldo_devedor) > 0 && (
-                  <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
-                    <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo Devedor (A Prazo / Fiado)</span>
-                    <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
-                  </div>
-                )}
-
                 {/* Dados do Pagamento (Após o Valor Total) */}
                 {(() => {
                   const pagInfo = obterDadosPagamentoRecibo(pedidoConcluido);
                   return (
-                    <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                      <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
-                        <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
-                        <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                          {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
-                        </span>
-                      </div>
-                      {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
-                        <div className="space-y-1.5 pt-1.5 text-slate-800">
-                          {pagInfo.pagamentosDetalhados.map((pag, idx) => (
-                            <div key={idx} className="flex justify-between items-start text-[11px]">
-                              <div>
-                                <span className="font-semibold">{pag.forma}</span>
-                                {pag.origemGateway && (
-                                  <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
-                                )}
-                              </div>
-                              <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
-                            <span>Valor Pago:</span>
-                            <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
-                          </div>
+                    <>
+                      {pagInfo.ehFiado && Number(pedidoConcluido.saldo_devedor) > 0 && (
+                        <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
+                          <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                          <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
                         </div>
-                      ) : null}
-                    </div>
+                      )}
+
+                      <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                        <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
+                          <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
+                          <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                          </span>
+                        </div>
+                        {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                          <div className="space-y-1.5 pt-1.5 text-slate-800">
+                            {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                              <div key={idx} className="flex justify-between items-start text-[11px]">
+                                <div>
+                                  <span className="font-semibold">{pag.forma}</span>
+                                  {pag.origemGateway && (
+                                    <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                                  )}
+                                </div>
+                                <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
+                              <span>Valor Pago:</span>
+                              <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
                   );
                 })()}
 

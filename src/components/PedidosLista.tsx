@@ -713,6 +713,7 @@ export const PedidosLista: React.FC = () => {
           onAbrirReceberPagamento={(ped) => setPedidoReceberModal(ped)}
           onAbrirDrawerMenu={() => {}}
           onClienteAtualizado={() => carregarPedidos()}
+          onRecarregar={carregarPedidos}
         />
       </div>
 
@@ -1687,18 +1688,19 @@ export const PedidosLista: React.FC = () => {
                     <span>R$ {Number(pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
                   </div>
 
-                  {Number(pedidoReciboModal.saldo_devedor || 0) > 0 && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center space-y-0.5">
-                      <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo Devedor (A Prazo / Fiado)</span>
-                      <span className="text-sm font-black text-red-600">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
-                    </div>
-                  )}
-
                   {/* Dados do Pagamento (Após o Valor Total) */}
                   {(() => {
                     const pagInfo = obterDadosPagamentoRecibo(pedidoReciboModal);
                     return (
-                      <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                      <>
+                        {pagInfo.ehFiado && Number(pedidoReciboModal.saldo_devedor || 0) > 0 && (
+                          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center space-y-0.5">
+                            <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                            <span className="text-sm font-black text-red-600">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
                         <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-300">
                           <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
                           <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
@@ -1724,7 +1726,8 @@ export const PedidosLista: React.FC = () => {
                             </div>
                           </div>
                         ) : null}
-                      </div>
+                        </div>
+                      </>
                     );
                   })()}
                 </div>

@@ -36,7 +36,10 @@ import {
   MapPin,
   User,
   Info,
-  Check
+  Check,
+  ArrowUp,
+  ArrowDown,
+  LogOut
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,6 +68,11 @@ interface FinancasMobileProps {
   fornecedoresIniciais?: Fornecedor[];
   carregando: boolean;
   onRecarregar: () => Promise<void>;
+  onAbrirCaixa?: () => void;
+  onSangria?: () => void;
+  onSuprimento?: () => void;
+  onFechamentoCego?: () => void;
+  saldoEsperadoGaveta?: number;
 }
 
 // Categorias de Gastos Predefinidas (TELA010 / TELA022)
@@ -114,6 +122,11 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
   caixaAberto,
   carregando,
   onRecarregar,
+  onAbrirCaixa,
+  onSangria,
+  onSuprimento,
+  onFechamentoCego,
+  saldoEsperadoGaveta
 }) => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
@@ -729,7 +742,87 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           </div>
 
           {/* Conteúdo: Seção Finanças e Grid de Botões */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-slate-50">
+            {/* CARD FRENTE DE CAIXA / TURNO */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                    caixaAberto ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-xs text-slate-800">
+                      Frente de Caixa
+                    </h3>
+                    <p className="text-[10px] text-slate-400">
+                      {caixaAberto ? `Turno ${caixaAberto.turno || '1'} • Caixa ativo` : 'Nenhum turno aberto no momento'}
+                    </p>
+                  </div>
+                </div>
+
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                  caixaAberto
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  {caixaAberto ? '● ABERTO' : '● FECHADO'}
+                </span>
+              </div>
+
+              {caixaAberto ? (
+                <div className="space-y-3 pt-1 border-t border-slate-100">
+                  <div className="flex items-baseline justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-[11px] font-bold text-slate-500">Saldo em Dinheiro Esperado</span>
+                    <span className="text-sm font-black text-slate-900">
+                      R$ {Number(saldoEsperadoGaveta !== undefined ? saldoEsperadoGaveta : caixaAberto.saldo_inicial).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={onSangria}
+                      className="py-2.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      <ArrowUp className="w-4 h-4 text-rose-600" />
+                      <span>Sangria</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onSuprimento}
+                      className="py-2.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      <ArrowDown className="w-4 h-4 text-emerald-600" />
+                      <span>Suprimento</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onFechamentoCego}
+                      className="py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      <LogOut className="w-4 h-4 text-amber-400" />
+                      <span>Fechar</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={onAbrirCaixa}
+                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    <span>Abrir Novo Turno de Caixa</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 block mb-3">
                 Módulos Financeiros

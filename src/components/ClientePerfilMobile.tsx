@@ -20,7 +20,10 @@ import {
   AlertCircle,
   Calendar,
   Lock,
-  ArrowRight
+  ArrowRight,
+  CreditCard,
+  Banknote,
+  Zap
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,12 +76,71 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
   // Estados da aba CONTA / CRÉDITOS (TELA13)
   const [saldoCredito, setSaldoCredito] = useState<number>(Number(cliente.saldo_credito || 0));
+  const [saldoDevedorFiado, setSaldoDevedorFiado] = useState<number>(Number(cliente.saldo_devedor_fiado || 0));
+  const [modalQuitarFiado, setModalQuitarFiado] = useState<boolean>(false);
+  const [valorQuitarStr, setValorQuitarStr] = useState<string>('');
+  const [formaQuitar, setFormaQuitar] = useState<string>('dinheiro');
+  const [obsQuitar, setObsQuitar] = useState<string>('');
+  const [processandoQuitar, setProcessandoQuitar] = useState<boolean>(false);
+
   const [modalAjusteSaldo, setModalAjusteSaldo] = useState<boolean>(false);
   const [etapaAjuste, setEtapaAjuste] = useState<'valor' | 'observacao'>('valor');
   const [tipoAjuste, setTipoAjuste] = useState<'adicionar' | 'subtrair'>('adicionar');
   const [valorAjusteStr, setValorAjusteStr] = useState<string>('');
   const [observacaoAjuste, setObservacaoAjuste] = useState<string>('');
   const [processandoAjuste, setProcessandoAjuste] = useState<boolean>(false);
+
+  const handleConfirmarQuitarFiado = async () => {
+    if (!cliente.id || !loja?.id) return;
+    const valorNum = parseFloat(valorQuitarStr.replace(',', '.')) || 0;
+    if (valorNum <= 0) {
+      alert('Informe um valor válido para abater.');
+      return;
+    }
+
+    try {
+      setProcessandoQuitar(true);
+      const novoSaldo = Math.max(0, Number(saldoDevedorFiado) - valorNum);
+
+      // 1. Atualiza na tabela clientes
+      const { error: errCli } = await supabase
+        .from('clientes')
+        .update({ saldo_devedor_fiado: novoSaldo })
+        .eq('id', cliente.id);
+
+      if (errCli) throw errCli;
+
+      // 2. Insere na tabela transacoes_financeiras
+      try {
+        await supabase.from('transacoes_financeiras').insert([{
+          loja_id: loja.id,
+          tipo: 'ENTRADA',
+          categoria: 'Recuperação de Crédito / Fiado',
+          descricao: `Quitação Fiado: ${nome || cliente.nome}`,
+          valor: valorNum,
+          forma_pagamento: formaQuitar,
+          status: 'pago',
+          pago_em: new Date().toISOString(),
+          criado_em: new Date().toISOString(),
+          observacoes: `Abatimento fiado. ${obsQuitar}`.trim()
+        }]);
+      } catch (errFin) {
+        console.warn('Aviso ao registrar transação financeira da quitação:', errFin);
+      }
+
+      setSaldoDevedorFiado(novoSaldo);
+      setModalQuitarFiado(false);
+      setValorQuitarStr('');
+      setObsQuitar('');
+      onClienteAtualizado({ ...cliente, saldo_devedor_fiado: novoSaldo });
+      alert(`Abatimento de R$ ${valorNum.toFixed(2)} realizado com sucesso! Novo saldo devedor: R$ ${novoSaldo.toFixed(2)}`);
+    } catch (err: any) {
+      console.error('Erro ao quitar fiado:', err);
+      alert('Erro ao quitar fiado: ' + (err.message || 'Tente novamente.'));
+    } finally {
+      setProcessandoQuitar(false);
+    }
+  };
 
   // Extrato de Movimentações
   const [modalExtrato, setModalExtrato] = useState<boolean>(false);
@@ -592,54 +654,113 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         )}
 
         {/* ================================================================= */}
-        {/* ABA 4: CONTA / CRÉDITOS (TELA13) */}
+        {/* ================================================================= */}
+        {/* ABA 4: CONTA / CRÉDITOS E FIADO (TELA13) */}
         {/* ================================================================= */}
         {abaAtiva === 'conta' && (
-          <div className="flex flex-col justify-between h-full p-6 text-center">
-            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-              <span className="text-xs uppercase tracking-wider font-bold text-slate-400">
-                SALDO ATUAL
-              </span>
+          <div className="flex flex-col justify-between h-full p-4 overflow-y-auto space-y-4">
+            <div className="space-y-4">
+              {/* CARD 1: DÍVIDA A PRAZO (FIADO) */}
+              <div className={`p-4 rounded-3xl border text-center space-y-3 ${
+                saldoDevedorFiado > 0 ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Conta a Prazo (Fiado)
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                    saldoDevedorFiado > 0
+                      ? 'bg-rose-100 text-rose-700 border-rose-300'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
+                    {saldoDevedorFiado > 0 ? '● Débito Pendente' : '● Em Dia'}
+                  </span>
+                </div>
 
-              <div className="text-5xl font-black text-slate-800 tracking-tight">
-                R$ {saldoCredito.toFixed(2)}
+                <div>
+                  <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">
+                    Saldo Devedor
+                  </span>
+                  <div className={`text-3xl sm:text-4xl font-black tracking-tight ${
+                    saldoDevedorFiado > 0 ? 'text-rose-600' : 'text-slate-700'
+                  }`}>
+                    R$ {saldoDevedorFiado.toFixed(2)}
+                  </div>
+                </div>
+
+                {saldoDevedorFiado > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValorQuitarStr(saldoDevedorFiado.toFixed(2));
+                      setFormaQuitar('dinheiro');
+                      setObsQuitar('');
+                      setModalQuitarFiado(true);
+                    }}
+                    className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-md shadow-rose-600/25 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>Quitar / Abater Fiado</span>
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-2 pt-2 w-full max-w-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTipoAjuste('adicionar');
-                    setEtapaAjuste('valor');
-                    setModalAjusteSaldo(true);
-                  }}
-                  className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm shadow-md shadow-emerald-500/20 transition cursor-pointer"
-                >
-                  Adicionar créditos
-                </button>
+              {/* CARD 2: SALDO DE CRÉDITOS (PRÉ-PAGO / ADIANTAMENTOS) */}
+              <div className="p-4 rounded-3xl border border-slate-200 bg-white text-center space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Créditos na Loja
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Adiantamentos
+                  </span>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEtapaAjuste('valor');
-                    setModalAjusteSaldo(true);
-                  }}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 hover:underline block mx-auto pt-1 cursor-pointer"
-                >
-                  Ajuste de saldo
-                </button>
+                <div>
+                  <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">
+                    Saldo Disponível
+                  </span>
+                  <div className="text-3xl sm:text-4xl font-black text-emerald-600 tracking-tight">
+                    R$ {saldoCredito.toFixed(2)}
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-1 w-full max-w-xs mx-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoAjuste('adicionar');
+                      setEtapaAjuste('valor');
+                      setModalAjusteSaldo(true);
+                    }}
+                    className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-sm transition cursor-pointer active:scale-95"
+                  >
+                    Adicionar créditos
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEtapaAjuste('valor');
+                      setModalAjusteSaldo(true);
+                    }}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline block mx-auto pt-0.5 cursor-pointer"
+                  >
+                    Ajuste de saldo
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Botão Extrato da Conta */}
-            <div className="pt-6">
+            <div className="pt-2">
               <button
                 type="button"
                 onClick={() => {
                   carregarExtratoCreditos();
                   setModalExtrato(true);
                 }}
-                className="w-full py-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                className="w-full py-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <Receipt className="w-4 h-4" />
                 <span>Extrato da conta</span>
@@ -811,6 +932,107 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* MODAL QUITAR / ABATER FIADO MOBILE */}
+      {/* ================================================================= */}
+      {modalQuitarFiado && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-rose-600" />
+                <h3 className="font-bold text-sm text-slate-800">Quitar / Abater Fiado</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalQuitarFiado(false)}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between text-xs">
+              <span className="font-bold text-rose-800">Dívida Total Pendente:</span>
+              <span className="font-black text-rose-700 text-base">R$ {saldoDevedorFiado.toFixed(2)}</span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase">Valor a Abater (R$)</label>
+                  <button
+                    type="button"
+                    onClick={() => setValorQuitarStr(saldoDevedorFiado.toFixed(2))}
+                    className="text-[10px] text-emerald-600 font-extrabold hover:underline"
+                  >
+                    Quitar Tudo
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="0,00"
+                  value={valorQuitarStr}
+                  onChange={(e) => setValorQuitarStr(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-base font-black text-slate-900 focus:outline-none focus:border-rose-500 text-center"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Forma de Pagamento</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'dinheiro', rotulo: 'Dinheiro', icone: Banknote },
+                    { id: 'pix', rotulo: 'Pix', icone: Zap },
+                    { id: 'cartao_debito', rotulo: 'Débito', icone: CreditCard },
+                    { id: 'cartao_credito', rotulo: 'Crédito', icone: CreditCard }
+                  ].map(f => {
+                    const Icon = f.icone;
+                    const sel = formaQuitar === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setFormaQuitar(f.id)}
+                        className={`p-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+                          sel
+                            ? 'bg-rose-50 border-rose-500 text-rose-700'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{f.rotulo}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Observações (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Pago pelo WhatsApp, comprovante em anexo..."
+                  value={obsQuitar}
+                  onChange={(e) => setObsQuitar(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={processandoQuitar}
+                onClick={handleConfirmarQuitarFiado}
+                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-600/25 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{processandoQuitar ? 'Processando...' : 'Confirmar Abatimento'}</span>
+              </button>
             </div>
           </div>
         </div>

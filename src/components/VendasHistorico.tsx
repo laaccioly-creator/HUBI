@@ -1444,8 +1444,16 @@ export const VendasHistorico: React.FC = () => {
                 {(() => {
                   const pagInfo = obterDadosPagamentoRecibo(vendaReciboModal);
                   return (
-                    <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-amber-950/30 border-amber-500/30'}`}>
-                      <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-700">
+                    <>
+                      {pagInfo.ehFiado && Number(vendaReciboModal.saldo_devedor) > 0 && (
+                        <div className="mt-2 p-2 bg-amber-950/40 border border-amber-500/30 rounded-lg text-center space-y-0.5">
+                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                          <span className="text-sm font-black text-amber-300">R$ {Number(vendaReciboModal.saldo_devedor).toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-amber-950/30 border-amber-500/30'}`}>
+                        <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-700">
                         <span className="font-bold text-[10px] text-slate-400 uppercase">Status Pagamento:</span>
                         <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                           {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
@@ -1470,7 +1478,8 @@ export const VendasHistorico: React.FC = () => {
                           </div>
                         </div>
                       ) : null}
-                    </div>
+                      </div>
+                    </>
                   );
                 })()}
 

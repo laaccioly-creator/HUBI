@@ -34,8 +34,8 @@ import {
   BarChart3,
   Ticket,
   Globe,
-  Layers,
   UserCheck,
+  UserCheck2,
   Settings,
   LogOut
 } from 'lucide-react';
@@ -43,7 +43,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
-import { PrintService, formatarDataRecibo } from '../services/printService';
+import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
@@ -57,6 +57,7 @@ interface PedidosListaMobileProps {
   onAbrirReceberPagamento: (pedido: Pedido) => void;
   onAbrirDrawerMenu: () => void;
   onClienteAtualizado: (cliente: Cliente) => void;
+  onRecarregar?: () => void;
 }
 
 export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
@@ -68,7 +69,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   onCancelarPedido,
   onAbrirReceberPagamento,
   onAbrirDrawerMenu,
-  onClienteAtualizado
+  onClienteAtualizado,
+  onRecarregar
 }) => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
@@ -126,6 +128,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [abaDetalhe, setAbaDetalhe] = useState<'itens' | 'detalhes' | 'cliente'>('itens');
   const [modalAlterarStatus, setModalAlterarStatus] = useState<boolean>(false);
   const [modalOpcoesPedido, setModalOpcoesPedido] = useState<boolean>(false);
+  const [modalAlterarVendedor, setModalAlterarVendedor] = useState<boolean>(false);
+  const [salvandoVendedor, setSalvandoVendedor] = useState<boolean>(false);
 
   // Mapa de Clientes e Usuários para exibição rápida
   const mapaClientes = useMemo(() => {
@@ -139,6 +143,39 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     usuarios.forEach(u => map.set(u.id, u.nome_completo));
     return map;
   }, [usuarios]);
+
+  const handleTrocarVendedorPedido = async (novoVendedorId: string | null) => {
+    if (!pedidoSelecionado) return;
+    try {
+      setSalvandoVendedor(true);
+      const payload: any = {
+        vendedor_id: novoVendedorId
+      };
+      if (novoVendedorId === null) {
+        payload.origem = 'catalogo_online';
+      }
+
+      const { error } = await supabase
+        .from('pedidos')
+        .update(payload)
+        .eq('id', pedidoSelecionado.id);
+
+      if (error) throw error;
+
+      setPedidoSelecionado(prev => prev ? ({
+        ...prev,
+        vendedor_id: novoVendedorId || undefined,
+        origem: novoVendedorId === null ? 'catalogo_online' : prev.origem
+      }) : null);
+      setModalAlterarVendedor(false);
+      if (onRecarregar) await onRecarregar();
+    } catch (err) {
+      console.error('Erro ao alterar vendedor do pedido:', err);
+      alert('Erro ao alterar vendedor do pedido.');
+    } finally {
+      setSalvandoVendedor(false);
+    }
+  };
 
   // Filtros aplicados
   const pedidosFiltrados = useMemo(() => {
@@ -341,11 +378,27 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
-            {/* Pílula de Pagamento */}
-            <div className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-1.5 text-xs font-bold text-slate-700">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="capitalize">{pedidoSelecionado.status_pagamento || 'Dinheiro'}</span>
-            </div>
+            {/* Pílula de Pagamento Real */}
+            {(() => {
+              const pagInfo = obterDadosPagamentoRecibo(pedidoSelecionado);
+              const ehPago = pagInfo.foiPago;
+              const nomeForma = pagInfo.pagamentosDetalhados?.[0]?.forma;
+              return (
+                <div
+                  className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
+                    ehPago
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-amber-200 bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  <DollarSign className={`w-3.5 h-3.5 ${ehPago ? 'text-emerald-600' : 'text-amber-600'}`} />
+                  <span>
+                    {ehPago ? 'Pago' : 'Aguardando Pagamento'}
+                    {nomeForma ? ` (${nomeForma})` : ''}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Adicionar observação */}
@@ -642,6 +695,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 type="button"
                 onClick={() => {
                   setModalOpcoesPedido(false);
+                  setModalAlterarVendedor(true);
+                }}
+                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left"
+              >
+                <UserCheck2 className="w-4 h-4 text-slate-500" />
+                <span>Alterar vendedor</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setModalOpcoesPedido(false);
                   carregarPedidoParaEdicao(pedidoSelecionado);
                   navigate('/pos');
                 }}
@@ -663,6 +728,83 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <Trash2 className="w-4 h-4" />
                 <span>Cancelar pedido</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL ALTERAR VENDEDOR DO PEDIDO */}
+        {modalAlterarVendedor && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center animate-in fade-in">
+            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom text-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <UserCheck2 className="w-4 h-4 text-emerald-600" />
+                  <h3 className="font-bold text-sm text-slate-800">Alterar Vendedor do Pedido</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalAlterarVendedor(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Selecione o vendedor responsável por este pedido #{pedidoSelecionado?.numero_pedido}:
+              </p>
+
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                {/* Opção Catálogo Online */}
+                <button
+                  type="button"
+                  disabled={salvandoVendedor}
+                  onClick={() => handleTrocarVendedorPedido(null)}
+                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between ${
+                    pedidoSelecionado?.origem === 'catalogo_online' || !pedidoSelecionado?.vendedor_id
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Globe className="w-4 h-4 text-slate-500" />
+                    <div>
+                      <span className="font-bold text-xs block">Catálogo Online</span>
+                      <span className="text-[10px] text-slate-400">Venda originada do catálogo web</span>
+                    </div>
+                  </div>
+                  {(pedidoSelecionado?.origem === 'catalogo_online' || !pedidoSelecionado?.vendedor_id) && (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  )}
+                </button>
+
+                {/* Vendedores da Loja */}
+                {usuarios.map(usr => {
+                  const ehAtual = pedidoSelecionado?.vendedor_id === usr.id;
+                  return (
+                    <button
+                      key={usr.id}
+                      type="button"
+                      disabled={salvandoVendedor}
+                      onClick={() => handleTrocarVendedorPedido(usr.id)}
+                      className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between ${
+                        ehAtual
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <User className="w-4 h-4 text-slate-500" />
+                        <div>
+                          <span className="font-bold text-xs block">{usr.nome_completo}</span>
+                          <span className="text-[10px] text-slate-400 capitalize">{usr.perfil || 'Vendedor'}</span>
+                        </div>
+                      </div>
+                      {ehAtual && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
