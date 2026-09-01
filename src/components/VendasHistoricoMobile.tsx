@@ -24,7 +24,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { Pedido, Cliente, UsuarioLoja } from '../types';
-import { PrintService, formatarDataRecibo } from '../services/printService';
+import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
@@ -178,6 +178,8 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   }, [vendasFiltradas]);
 
   const obterIconePagamento = (p: Pedido) => {
+    const pagInfo = obterDadosPagamentoRecibo(p);
+    if (!pagInfo.foiPago) return <Clock className="w-3.5 h-3.5 text-amber-500" />;
     const tipo = (p.pagamentos?.[0] as any)?.forma_pagamento?.tipo?.toLowerCase() || '';
     if (tipo === 'dinheiro') return <Coins className="w-3.5 h-3.5 text-emerald-600" />;
     if (tipo === 'pix') return <Wallet className="w-3.5 h-3.5 text-teal-600" />;
@@ -185,7 +187,13 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   };
 
   const handleCopiarRecibo = (pedido: Pedido) => {
-    const texto = `Pedido #${pedido.numero_pedido}\nData: ${pedido.data_venda || ''}\nTotal: R$ ${Number(pedido.valor_total).toFixed(2)}`;
+    const pagInfo = obterDadosPagamentoRecibo(pedido);
+    let texto = `Pedido #${pedido.numero_pedido}\nData: ${pedido.data_venda || ''}\nTotal: R$ ${Number(pedido.valor_total).toFixed(2)}\nStatus: ${pagInfo.foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO'}`;
+    if (pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0) {
+      const forma = pagInfo.pagamentosDetalhados[0].forma;
+      const origem = pagInfo.pagamentosDetalhados[0].origemGateway;
+      texto += `\nForma: ${forma}${origem ? ` (${origem})` : ''}`;
+    }
     navigator.clipboard.writeText(texto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
@@ -267,6 +275,64 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               </div>
             )}
           </div>
+
+          {/* Dados do Pagamento (Paridade com Desktop e Pedidos) */}
+          {(() => {
+            const pagInfo = obterDadosPagamentoRecibo(vendaDetalhes);
+            return (
+              <>
+                {pagInfo.ehFiado && Number(vendaDetalhes.saldo_devedor) > 0 && (
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl text-center space-y-0.5">
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                      Saldo a Pagar (Fiado)
+                    </span>
+                    <span className="text-base font-black text-amber-700">
+                      R$ {Number(vendaDetalhes.saldo_devedor).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                <div className={`p-3.5 rounded-2xl border text-xs space-y-2 ${
+                  pagInfo.foiPago
+                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                    : 'bg-amber-50/70 border-amber-200 text-amber-900'
+                }`}>
+                  <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
+                    <span className="font-bold text-[10px] text-slate-500 uppercase">Status Pagamento</span>
+                    <span className={`font-black text-[10px] px-2 py-0.5 rounded-full ${
+                      pagInfo.foiPago
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-amber-100 text-amber-800 border border-amber-300'
+                    }`}>
+                      {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                    </span>
+                  </div>
+
+                  {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 && (
+                    <div className="space-y-1.5 pt-0.5">
+                      {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                        <div key={idx} className="flex justify-between items-start text-xs">
+                          <div>
+                            <span className="font-bold text-slate-800">{pag.forma}</span>
+                            {pag.origemGateway && (
+                              <span className="text-[10px] text-sky-600 block font-semibold">
+                                Origem: {pag.origemGateway}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-black text-slate-800">R$ {pag.valor.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between font-extrabold text-emerald-700 pt-1.5 border-t border-emerald-200/60 text-xs">
+                        <span>Valor Pago:</span>
+                        <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
 
           {/* Lista de Produtos da Venda */}
           <div className="space-y-2">
@@ -436,9 +502,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                       className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-1.5 shadow-xs"
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {cancelado ? (
-                            <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                            <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           ) : (
                             obterIconePagamento(v)
                           )}
@@ -446,9 +512,22 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                             R$ {Number(v.valor_total).toFixed(2)}
                           </span>
                           <span className="text-[10px] text-slate-400 font-normal">por {vendedor}</span>
+
+                          {!cancelado && (() => {
+                            const pagInfo = obterDadosPagamentoRecibo(v);
+                            return (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                                pagInfo.foiPago
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                                {pagInfo.foiPago ? 'Pago' : 'Aguardando'}
+                              </span>
+                            );
+                          })()}
                         </div>
 
-                        <span className="text-[10px] text-slate-400 font-medium">
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
                           {new Date(v.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
