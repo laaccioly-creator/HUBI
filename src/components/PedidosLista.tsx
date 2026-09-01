@@ -578,6 +578,32 @@ export const PedidosLista: React.FC = () => {
     navigate('/pos');
   };
 
+  const contagensPorStatus = useMemo(() => {
+    const counts: Record<string, number> = {
+      todos: 0,
+      pendente: 0,
+      confirmado: 0,
+      em_separacao: 0,
+      em_producao: 0,
+      em_expedicao: 0,
+      saiu_para_entrega: 0,
+      pronto_para_retirar: 0,
+      cancelado: 0
+    };
+
+    pedidos.forEach((p) => {
+      // Tudo com status diferente de 'concluido' é pedido aberto / ativo (conta em 'todos')
+      if (p.status !== 'concluido') {
+        counts.todos += 1;
+      }
+      if (counts[p.status] !== undefined) {
+        counts[p.status] += 1;
+      }
+    });
+
+    return counts;
+  }, [pedidos]);
+
   const pedidosAbertosCount = useMemo(() => {
     return pedidos.filter((p) =>
       ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar'].includes(p.status)
@@ -1210,19 +1236,32 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               <div className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-                {ABAS_STATUS.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setStatusFiltro(f.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
-                      statusFiltro === f.id
-                        ? 'bg-emerald-500 text-slate-950 shadow-sm font-bold'
-                        : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+                {ABAS_STATUS.map((f) => {
+                  const count = contagensPorStatus[f.id] || 0;
+                  const isActive = statusFiltro === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => setStatusFiltro(f.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-emerald-500 text-slate-950 shadow-sm font-bold'
+                          : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      <span>{f.label}</span>
+                      <span
+                        className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                          isActive
+                            ? 'bg-slate-950/25 text-slate-950'
+                            : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

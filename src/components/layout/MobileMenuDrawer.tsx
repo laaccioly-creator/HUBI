@@ -105,7 +105,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       caminho: '/orders',
       icone: ShoppingBag,
       visivel: permissions.podeAcessarPedidos,
-      badge: pedidosCount > 0 ? pedidosCount : undefined
+      badge: undefined
     },
     {
       nome: 'Vendas',

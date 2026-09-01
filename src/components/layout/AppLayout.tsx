@@ -270,7 +270,7 @@ export const AppLayout: React.FC = () => {
       name: 'Pedidos',
       path: '/orders',
       icon: ShoppingBag,
-      badge: pedidosConfirmadosCount,
+      badge: undefined,
       visivel: permissions.podeAcessarPedidos
     },
     {
@@ -386,15 +386,10 @@ export const AppLayout: React.FC = () => {
           <div className="flex items-center gap-2">
             <Link
               to="/orders"
-              className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
               title="Pedidos"
             >
               <ShoppingBag className="w-5 h-5" />
-              {pedidosConfirmadosCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
-                  {pedidosConfirmadosCount}
-                </span>
-              )}
             </Link>
 
             <Link
@@ -621,11 +616,6 @@ export const AppLayout: React.FC = () => {
           >
             <div className="relative">
               <ShoppingBag className="w-5 h-5" />
-              {pedidosConfirmadosCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
-                  {pedidosConfirmadosCount}
-                </span>
-              )}
             </div>
             <span className="text-[10px] mt-0.5 font-semibold">Pedidos</span>
           </Link>
