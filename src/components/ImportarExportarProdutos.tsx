@@ -480,6 +480,7 @@ export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> =
                       <th className="p-3">Linha</th>
                       <th className="p-3">Status / Ação</th>
                       <th className="p-3">Produto</th>
+                      <th className="p-3">SKU (Cód. Interno)</th>
                       <th className="p-3">Código Barras</th>
                       <th className="p-3">Categoria</th>
                       <th className="p-3 text-right">Preço Venda</th>
@@ -508,6 +509,7 @@ export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> =
                           )}
                         </td>
                         <td className="p-3 font-bold text-slate-200 max-w-[200px] truncate">{item.nome || <span className="text-rose-400 italic">(Em branco)</span>}</td>
+                        <td className="p-3 font-mono font-bold text-emerald-400 text-[11px]">{item.codigo_interno || '-'}</td>
                         <td className="p-3 font-mono text-slate-400 text-[11px]">{item.codigo_barras || '-'}</td>
                         <td className="p-3 text-slate-300">{item.categoria || '-'}</td>
                         <td className="p-3 text-right font-bold text-emerald-400">R$ {item.preco_venda_varejo.toFixed(2)}</td>

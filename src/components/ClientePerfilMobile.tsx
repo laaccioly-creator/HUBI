@@ -28,6 +28,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Cliente, Pedido, MovimentacaoSaldoCliente } from '../types';
+import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -52,12 +53,16 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   // Estados de formulário da aba DADOS
   const [nome, setNome] = useState(cliente.nome || '');
   const [whatsapp, setWhatsapp] = useState(cliente.whatsapp || cliente.telefone || '');
-  const [enderecoLogradouro, setEnderecoLogradouro] = useState(cliente.endereco_logradouro || cliente.endereco_principal || '');
-  const [enderecoNumero, setEnderecoNumero] = useState(cliente.endereco_numero || '');
-  const [enderecoBairro, setEnderecoBairro] = useState(cliente.endereco_bairro || '');
-  const [enderecoCidade, setEnderecoCidade] = useState(cliente.endereco_cidade || '');
-  const [enderecoEstado, setEnderecoEstado] = useState(cliente.endereco_estado || '');
-  const [enderecoCep, setEnderecoCep] = useState(cliente.endereco_cep || '');
+  const endExtraido = (!cliente.endereco_logradouro && !cliente.endereco_cidade && cliente.endereco_principal)
+    ? extrairEnderecoEstruturado(cliente.endereco_principal)
+    : null;
+
+  const [enderecoLogradouro, setEnderecoLogradouro] = useState(cliente.endereco_logradouro || endExtraido?.rua || cliente.endereco_principal || '');
+  const [enderecoNumero, setEnderecoNumero] = useState(cliente.endereco_numero || endExtraido?.numero || '');
+  const [enderecoBairro, setEnderecoBairro] = useState(cliente.endereco_bairro || endExtraido?.bairro || '');
+  const [enderecoCidade, setEnderecoCidade] = useState(cliente.endereco_cidade || endExtraido?.cidade || '');
+  const [enderecoEstado, setEnderecoEstado] = useState(cliente.endereco_estado || endExtraido?.estado || '');
+  const [enderecoCep, setEnderecoCep] = useState(cliente.endereco_cep || endExtraido?.cep || '');
   
   // Opcionais (TELA14)
   const [mostrarOpcionais, setMostrarOpcionais] = useState<boolean>(false);

@@ -59,6 +59,125 @@ const ESTADOS_BRASIL = [
   { sigla: 'TO', nome: 'Tocantins' }
 ];
 
+const UFS_MAP: Record<string, string> = {
+  'AC': 'AC', 'AL': 'AL', 'AP': 'AP', 'AM': 'AM', 'BA': 'BA', 'CE': 'CE', 'DF': 'DF', 'ES': 'ES',
+  'GO': 'GO', 'MA': 'MA', 'MT': 'MT', 'MS': 'MS', 'MG': 'MG', 'PA': 'PA', 'PB': 'PB', 'PR': 'PR',
+  'PE': 'PE', 'PI': 'PI', 'RJ': 'RJ', 'RN': 'RN', 'RS': 'RS', 'RO': 'RO', 'RR': 'RR', 'SC': 'SC',
+  'SP': 'SP', 'SE': 'SE', 'TO': 'TO',
+  'ACRE': 'AC', 'ALAGOAS': 'AL', 'AMAZONAS': 'AM', 'BAHIA': 'BA', 'CEARA': 'CE', 'CEARÁ': 'CE',
+  'ESPIRITO SANTO': 'ES', 'ESPÍRITO SANTO': 'ES', 'GOIAS': 'GO', 'GOIÁS': 'GO', 'MARANHAO': 'MA', 'MARANHÃO': 'MA',
+  'MATO GROSSO': 'MT', 'MINAS GERAIS': 'MG', 'PARA': 'PA', 'PARÁ': 'PA', 'PARAIBA': 'PB', 'PARAÍBA': 'PB',
+  'PARANA': 'PR', 'PARANÁ': 'PR', 'PERNAMBUCO': 'PE', 'PIAUI': 'PI', 'PIAUÍ': 'PI', 'RIO DE JANEIRO': 'RJ',
+  'RIO GRANDE DO NORTE': 'RN', 'RIO GRANDE DO SUL': 'RS', 'RONDONIA': 'RO', 'RONDÔNIA': 'RO',
+  'SANTA CATARINA': 'SC', 'SAO PAULO': 'SP', 'SÃO PAULO': 'SP', 'SERGIPE': 'SE', 'TOCANTINS': 'TO'
+};
+
+/**
+ * Extrai campos estruturados de endereço a partir de uma string única (endereco_principal)
+ */
+export function extrairEnderecoEstruturado(texto?: string | null) {
+  if (!texto || !texto.trim()) {
+    return { cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' };
+  }
+
+  let limpo = texto.trim().replace(/\r\n/g, '\n');
+  let cep = '';
+  let estado = '';
+  let numero = '';
+  let complemento = '';
+  let bairro = '';
+  let cidade = '';
+  let rua = '';
+
+  // 1. Extrair CEP (ex: CEP: 52020-140 ou 52020-140)
+  const matchCep = limpo.match(/(?:CEP:?\s*)?(\d{5}-?\d{3})/i);
+  if (matchCep) {
+    const rawCep = matchCep[1].replace(/\D/g, '');
+    cep = `${rawCep.slice(0, 5)}-${rawCep.slice(5)}`;
+    limpo = limpo.replace(matchCep[0], '').trim();
+  }
+
+  // 2. Extrair Estado / UF (ex: ", PE" ou "/PE" ou "- PIAUI")
+  for (const [nomeUf, sigla] of Object.entries(UFS_MAP)) {
+    const regexUf = new RegExp(`(?:,|\\/|-|•|\\s)\\s*\\b${nomeUf}\\b(?:$|\\s|,|\\/|-|•)`, 'i');
+    if (regexUf.test(limpo)) {
+      estado = sigla;
+      limpo = limpo.replace(regexUf, ' ').trim();
+      break;
+    }
+  }
+
+  // 3. Extrair linhas adicionais como complemento (ex: "Casa", "Bloco 6...")
+  const linhas = limpo.split('\n').map(l => l.trim()).filter(Boolean);
+  if (linhas.length > 1) {
+    complemento = linhas.slice(1).join(' - ');
+    limpo = linhas[0];
+  }
+
+  // 4. Analisar partes separadas por vírgula ou marcadores
+  const partes = limpo.split(/[,•]/).map(p => p.trim()).filter(Boolean);
+
+  if (partes.length >= 2) {
+    rua = partes[0];
+    for (let i = 1; i < partes.length; i++) {
+      const parte = partes[i];
+      const matchNum = parte.match(/^(?:n[ºo°\.]?\s*)?(\d+[A-Za-z]?)$/i);
+      if (matchNum && !numero) {
+        numero = matchNum[1];
+        continue;
+      }
+      if (i === 1 && !numero && parte.match(/\d+/)) {
+        const m = parte.match(/^(?:n[ºo°\.]?\s*)?(\d+[A-Za-z]?)(.*)$/i);
+        if (m) {
+          numero = m[1];
+          if (m[2] && m[2].trim()) {
+            complemento = complemento ? `${complemento} - ${m[2].trim()}` : m[2].trim();
+          }
+          continue;
+        }
+      }
+      if (!bairro && i < partes.length - 1) {
+        bairro = parte;
+      } else if (!cidade) {
+        cidade = parte;
+      } else {
+        complemento = complemento ? `${complemento}, ${parte}` : parte;
+      }
+    }
+  } else {
+    // String contínua única (ex: "Rua Pedro Ponciano 209")
+    const matchNumFinal = limpo.match(/^(.*?)[,\s]+(?:n[ºo°\.]?\s*)?(\d+[A-Za-z]?)(.*)$/i);
+    if (matchNumFinal) {
+      rua = matchNumFinal[1].trim();
+      numero = matchNumFinal[2].trim();
+      const resto = matchNumFinal[3].trim().replace(/^[,-\s]+/, '');
+      if (resto) {
+        if (!bairro) bairro = resto;
+        else complemento = complemento ? `${complemento} - ${resto}` : resto;
+      }
+    } else {
+      rua = limpo;
+    }
+  }
+
+  // Se rua ainda contiver o número no final (ex: "Rua Pedro Ponciano 209")
+  if (rua && !numero) {
+    const mRua = rua.match(/^(.*?)[,\s]+(?:n[ºo°\.]?\s*)?(\d+[A-Za-z]?)$/i);
+    if (mRua) {
+      rua = mRua[1].trim();
+      numero = mRua[2].trim();
+    }
+  }
+
+  rua = rua.replace(/[,-\/]+$/, '').trim();
+  numero = numero.replace(/[,-\/]+$/, '').trim();
+  bairro = bairro.replace(/[,-\/]+$/, '').trim();
+  cidade = cidade.replace(/[,-\/]+$/, '').trim();
+  complemento = complemento.replace(/[,-\/]+$/, '').trim();
+
+  return { cep, rua, numero, complemento, bairro, cidade, estado };
+}
+
 export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   isOpen,
   onClose,
@@ -119,13 +238,43 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setPermiteFiado(clienteEditar.permite_fiado ?? permissions.podeAtivarFiado);
         setLimiteCredito(String(clienteEditar.limite_credito ?? '500.00'));
         setTabelaPreco(clienteEditar.tabela_preco_padrao || 'varejo');
-        setCep(clienteEditar.endereco_cep || '');
-        setRua(clienteEditar.endereco_logradouro || '');
-        setNumero(clienteEditar.endereco_numero || '');
-        setComplemento(clienteEditar.endereco_complemento || '');
-        setBairro(clienteEditar.endereco_bairro || '');
-        setCidade(clienteEditar.endereco_cidade || '');
-        setEstado(clienteEditar.endereco_estado || '');
+
+        // Endereço: se já tiver campos estruturados, usa-os
+        const temEstruturado = Boolean(
+          clienteEditar.endereco_logradouro ||
+          clienteEditar.endereco_cep ||
+          clienteEditar.endereco_cidade ||
+          clienteEditar.endereco_bairro
+        );
+
+        if (temEstruturado) {
+          setCep(clienteEditar.endereco_cep || '');
+          setRua(clienteEditar.endereco_logradouro || '');
+          setNumero(clienteEditar.endereco_numero || '');
+          setComplemento(clienteEditar.endereco_complemento || '');
+          setBairro(clienteEditar.endereco_bairro || '');
+          setCidade(clienteEditar.endereco_cidade || '');
+          setEstado(clienteEditar.endereco_estado || '');
+        } else if (clienteEditar.endereco_principal) {
+          // Fallback inteligente: se tiver apenas endereco_principal em texto,
+          // extrai os campos para preencher o formulário na edição
+          const extraido = extrairEnderecoEstruturado(clienteEditar.endereco_principal);
+          setCep(extraido.cep || clienteEditar.endereco_cep || '');
+          setRua(extraido.rua || clienteEditar.endereco_principal || '');
+          setNumero(extraido.numero || clienteEditar.endereco_numero || '');
+          setComplemento(extraido.complemento || clienteEditar.endereco_complemento || '');
+          setBairro(extraido.bairro || clienteEditar.endereco_bairro || '');
+          setCidade(extraido.cidade || clienteEditar.endereco_cidade || '');
+          setEstado(extraido.estado || clienteEditar.endereco_estado || '');
+        } else {
+          setCep('');
+          setRua('');
+          setNumero('');
+          setComplemento('');
+          setBairro('');
+          setCidade('');
+          setEstado('');
+        }
       } else {
         setAtivo(true);
         setNome('');
@@ -313,7 +462,10 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     if (estado.trim()) partesEndereco.push(estado.trim());
     if (cep.trim()) partesEndereco.push(`CEP: ${cep.trim()}`);
 
-    const enderecoPrincipalFormatado = partesEndereco.join(', ');
+    let enderecoPrincipalFormatado = partesEndereco.join(', ');
+    if (!enderecoPrincipalFormatado && clienteEditar?.endereco_principal) {
+      enderecoPrincipalFormatado = clienteEditar.endereco_principal;
+    }
 
     // Definir número principal para WhatsApp
     let whatsappPrincipal = '';

@@ -115,6 +115,57 @@ const LINHAS_EXEMPLO_MODELO = [
   }
 ];
 
+/**
+ * Extrai o prefixo de 2 letras a partir do nome da categoria.
+ * Exemplos:
+ *  - "Cosmético" ou "Cosméticos" -> "CO"
+ *  - "Brinquedo Erótico" -> "BE"
+ *  - "Óleos e Lubrificantes" -> "OL"
+ *  - "Lingerie" -> "LI"
+ */
+export function extrairPrefixoCategoria(categoria?: string | null): string {
+  if (!categoria || !categoria.trim()) {
+    return 'PR'; // Padrão: PR (Produto)
+  }
+
+  // Remove acentos e caracteres não alfanuméricos
+  const normalizada = categoria
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  // Conectivos e preposições que não devem ser usados como palavra principal
+  const stopWords = new Set(['DE', 'DA', 'DO', 'DAS', 'DOS', 'E', 'EM', 'PARA', 'COM', 'POR', 'NO', 'NA', 'NOS', 'NAS']);
+
+  const palavrasValidas = normalizada
+    .split(/[^A-Z0-9]+/)
+    .filter(p => p.length > 0 && !stopWords.has(p));
+
+  if (palavrasValidas.length >= 2) {
+    // 2 Letras: 1ª letra da 1ª palavra + 1ª letra da 2ª palavra (Ex: BRINQUEDO EROTICO -> BE)
+    return (palavrasValidas[0][0] + palavrasValidas[1][0]).toUpperCase();
+  }
+
+  if (palavrasValidas.length === 1) {
+    const pal = palavrasValidas[0];
+    if (pal.length >= 2) {
+      // 2 Letras: primeiras duas letras da palavra (Ex: COSMETICO -> CO)
+      return pal.substring(0, 2).toUpperCase();
+    }
+    return (pal + 'X').toUpperCase();
+  }
+
+  const todasPalavras = normalizada.split(/[^A-Z0-9]+/).filter(p => p.length > 0);
+  if (todasPalavras.length >= 2) {
+    return (todasPalavras[0][0] + todasPalavras[1][0]).toUpperCase();
+  } else if (todasPalavras.length === 1 && todasPalavras[0].length >= 2) {
+    return todasPalavras[0].substring(0, 2).toUpperCase();
+  }
+
+  return 'PR';
+}
+
 export const productImportExportService = {
   /**
    * Baixa a Planilha Modelo Padrão em formato Excel (.xlsx)
@@ -151,8 +202,9 @@ export const productImportExportService = {
       { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': 'INSTRUÇÕES DE PREENCHIMENTO' },
       { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '1. Colunas com asterisco (*) são de preenchimento obrigatório: "Nome do Produto" e "Preço Venda / Varejo".' },
       { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '2. Categorias: Se a categoria informada não existir no sistema, ela será criada automaticamente na importação.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '3. Atualização de Produtos: Se o código de barras, SKU ou nome já existir na sua loja, os dados serão atualizados.' },
-      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '4. Novos Produtos: Se o produto não existir no sistema, um novo cadastro será criado com sucesso.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '3. SKU / Código Interno Automático: Se deixar em branco, o sistema gerará automaticamente o código interno a partir da categoria (2 letras da categoria + 4 dígitos sequenciais, ex: Cosmético -> CO0001; Brinquedo Erótico -> BE0001).' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '4. Atualização de Produtos: Se o código de barras, SKU ou nome já existir na sua loja, os dados serão atualizados.' },
+      { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '5. Novos Produtos: Se o produto não existir no sistema, um novo cadastro será criado com sucesso.' },
       { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '5. Preços: Utilize números decimais com ponto ou vírgula (Ex: 12.50 ou 12,50). Não use R$.' },
       { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '6. Unidades aceitas: UN, KG, G, L, ML, PCT, CX, FD, M, MT, DZ, PAR.' },
       { 'GUIA DE IMPORTAÇÃO DE PRODUTOS - HUBI': '7. Catálogo: Preencha com SIM ou NÃO para controlar a visibilidade na loja online.' },
@@ -321,9 +373,23 @@ export const productImportExportService = {
     const mapPorSku = new Map<string, Produto>();
     const mapPorNome = new Map<string, Produto>();
 
+    // Mapa para controlar os números sequenciais de código interno por prefixo de categoria (ex: CO0001, BE0001)
+    const mapaContadoresPorPrefixo = new Map<string, number>();
+
     produtosExistentes.forEach(p => {
       if (p.codigo_barras) mapPorCodigoBarras.set(p.codigo_barras.trim().toLowerCase(), p);
-      if (p.codigo_interno) mapPorSku.set(p.codigo_interno.trim().toLowerCase(), p);
+      if (p.codigo_interno) {
+        mapPorSku.set(p.codigo_interno.trim().toLowerCase(), p);
+        const match = p.codigo_interno.trim().match(/^([A-Za-z]{2})(\d+)$/);
+        if (match) {
+          const pref = match[1].toUpperCase();
+          const num = parseInt(match[2], 10);
+          const maiorAtual = mapaContadoresPorPrefixo.get(pref) || 0;
+          if (num > maiorAtual) {
+            mapaContadoresPorPrefixo.set(pref, num);
+          }
+        }
+      }
       if (p.nome) mapPorNome.set(p.nome.trim().toLowerCase(), p);
     });
 
@@ -445,13 +511,46 @@ export const productImportExportService = {
         produtoExistente = mapPorNome.get(nome.toLowerCase());
       }
 
+      // Lógica de Geração Automática do Código Interno (SKU):
+      // Se vier em branco na planilha:
+      //  - Se for atualização de produto que já possua código interno no banco, preserva o existente.
+      //  - Caso contrário, gera código a partir de 2 letras da categoria + 4 dígitos sequenciais (Ex: CO0001, BE0001).
+      let codInternoFinal = codInterno;
+
+      if (!codInternoFinal) {
+        if (produtoExistente && produtoExistente.codigo_interno) {
+          codInternoFinal = produtoExistente.codigo_interno;
+        } else {
+          const prefixo = extrairPrefixoCategoria(categoria);
+          const ultimoNum = mapaContadoresPorPrefixo.get(prefixo) || 0;
+          const proximoNum = ultimoNum + 1;
+          mapaContadoresPorPrefixo.set(prefixo, proximoNum);
+          codInternoFinal = `${prefixo}${String(proximoNum).padStart(4, '0')}`;
+        }
+      } else {
+        // Se o SKU foi preenchido manualmente e segue padrão de 2 letras + números, atualiza o contador do prefixo
+        const matchManual = codInternoFinal.trim().match(/^([A-Za-z]{2})(\d+)$/);
+        if (matchManual) {
+          const pref = matchManual[1].toUpperCase();
+          const num = parseInt(matchManual[2], 10);
+          const maior = mapaContadoresPorPrefixo.get(pref) || 0;
+          if (num > maior) {
+            mapaContadoresPorPrefixo.set(pref, num);
+          }
+        }
+      }
+
+      if (codInternoFinal) {
+        mapPorSku.set(codInternoFinal.toLowerCase(), produtoExistente || ({} as any));
+      }
+
       const exibirCatalogo = !catalogoRaw.includes('NAO') && !catalogoRaw.includes('NÃO') && !catalogoRaw.includes('FALSE') && catalogoRaw !== '0';
       const ativo = !statusRaw.includes('INATIV') && !statusRaw.includes('DESATIV') && !statusRaw.includes('FALSE') && statusRaw !== '0';
 
       const linhaValida: LinhaProdutoImportacao = {
         linha: numLinha,
         codigo_barras: codBarras || undefined,
-        codigo_interno: codInterno || undefined,
+        codigo_interno: codInternoFinal || undefined,
         nome,
         categoria: categoria || undefined,
         descricao: descricao || undefined,
