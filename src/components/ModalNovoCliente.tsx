@@ -477,7 +477,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       whatsappPrincipal = telefone1.replace(/\D/g, '');
     }
 
-    const payloadCompleto = {
+    const payloadCompleto: Record<string, any> = {
       loja_id: loja.id,
       nome: nome.trim(),
       numero_documento: cpfCnpj.trim() || null,
@@ -510,17 +510,26 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
       if (clienteEditar?.id) {
         // ATUALIZAÇÃO (UPDATE)
-        const res = await supabase
+        let res = await supabase
           .from('clientes')
           .update(payloadCompleto)
           .eq('id', clienteEditar.id)
           .select()
           .single();
 
-        data = res.data;
-        error = res.error;
+        // Se falhar porque a coluna 'ativo' não existe no banco, remove 'ativo' e tenta novamente
+        if (res.error && res.error.message && res.error.message.includes('ativo')) {
+          delete payloadCompleto.ativo;
+          res = await supabase
+            .from('clientes')
+            .update(payloadCompleto)
+            .eq('id', clienteEditar.id)
+            .select()
+            .single();
+        }
 
-        if (error && error.message && error.message.includes('column')) {
+        // Se ainda falhar por alguma outra coluna, tenta o payload reduzido
+        if (res.error && res.error.message && res.error.message.includes('column')) {
           const payloadLegado = {
             nome: nome.trim(),
             numero_documento: cpfCnpj.trim() || null,
@@ -532,30 +541,37 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
             tabela_preco_padrao: tabelaPreco,
             observacoes: observacoes.trim() || null,
-            endereco_principal: enderecoPrincipalFormatado || null,
-            ativo: ativo
+            endereco_principal: enderecoPrincipalFormatado || null
           };
-          const resFallback = await supabase
+          res = await supabase
             .from('clientes')
             .update(payloadLegado)
             .eq('id', clienteEditar.id)
             .select()
             .single();
-          data = resFallback.data;
-          error = resFallback.error;
         }
+
+        data = res.data;
+        error = res.error;
       } else {
         // INSERÇÃO (INSERT NOVO)
-        const res = await supabase
+        let res = await supabase
           .from('clientes')
           .insert([payloadCompleto])
           .select()
           .single();
 
-        data = res.data;
-        error = res.error;
+        // Se falhar porque a coluna 'ativo' não existe no banco, remove 'ativo' e tenta novamente
+        if (res.error && res.error.message && res.error.message.includes('ativo')) {
+          delete payloadCompleto.ativo;
+          res = await supabase
+            .from('clientes')
+            .insert([payloadCompleto])
+            .select()
+            .single();
+        }
 
-        if (error && error.message && error.message.includes('column')) {
+        if (res.error && res.error.message && res.error.message.includes('column')) {
           const payloadLegado = {
             loja_id: loja.id,
             nome: nome.trim(),
@@ -571,14 +587,15 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             observacoes: observacoes.trim() || null,
             endereco_principal: enderecoPrincipalFormatado || null
           };
-          const resFallback = await supabase
+          res = await supabase
             .from('clientes')
             .insert([payloadLegado])
             .select()
             .single();
-          data = resFallback.data;
-          error = resFallback.error;
         }
+
+        data = res.data;
+        error = res.error;
       }
 
       if (error) throw error;

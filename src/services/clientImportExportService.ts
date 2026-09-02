@@ -436,10 +436,19 @@ export const clientImportExportService = {
       try {
         if (c.clienteExistenteId) {
           // Update
-          const { error: erroUpdate } = await supabase
+          let { error: erroUpdate } = await supabase
             .from('clientes')
             .update(payloadCompleto)
             .eq('id', c.clienteExistenteId);
+
+          if (erroUpdate && erroUpdate.message && erroUpdate.message.includes('ativo')) {
+            delete payloadCompleto.ativo;
+            const retry = await supabase
+              .from('clientes')
+              .update(payloadCompleto)
+              .eq('id', c.clienteExistenteId);
+            erroUpdate = retry.error;
+          }
 
           if (erroUpdate) {
             // Fallback reduzido caso colunas específicas de endereço não existam na tabela
@@ -467,9 +476,17 @@ export const clientImportExportService = {
           // Insert
           payloadCompleto.saldo_devedor_fiado = c.saldo_devedor_fiado || 0;
 
-          const { error: erroInsert } = await supabase
+          let { error: erroInsert } = await supabase
             .from('clientes')
             .insert([payloadCompleto]);
+
+          if (erroInsert && erroInsert.message && erroInsert.message.includes('ativo')) {
+            delete payloadCompleto.ativo;
+            const retry = await supabase
+              .from('clientes')
+              .insert([payloadCompleto]);
+            erroInsert = retry.error;
+          }
 
           if (erroInsert) {
             const payloadReduzido = {
