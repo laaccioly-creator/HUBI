@@ -29,12 +29,13 @@ import {
 
 interface ImportarExportarProdutosProps {
   onVoltar: () => void;
+  abaInicial?: 'importar' | 'exportar';
 }
 
-export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> = ({ onVoltar }) => {
+export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> = ({ onVoltar, abaInicial = 'importar' }) => {
   const { loja } = useAuth();
 
-  const [abaAtiva, setAbaAtiva] = useState<'importar' | 'exportar'>('importar');
+  const [abaAtiva, setAbaAtiva] = useState<'importar' | 'exportar'>(abaInicial);
 
   // Estados de Carregamento
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -225,7 +226,12 @@ export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> =
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h2 className="font-extrabold text-base sm:text-lg text-slate-800 md:text-slate-100 flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase">
+                2º Passo Recomendado
+              </span>
+            </div>
+            <h2 className="font-extrabold text-base sm:text-lg text-slate-800 md:text-slate-100 flex items-center gap-2 mt-1">
               <FileSpreadsheet className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
               <span>Importar e Exportar Produtos</span>
             </h2>

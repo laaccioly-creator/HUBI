@@ -58,6 +58,7 @@ import { PrintService } from '../services/printService';
 import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
+import { CentralImportarExportar } from './CentralImportarExportar';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 type SubTelaConfig =
@@ -76,6 +77,7 @@ type SubTelaConfig =
   | 'entrega'
   | 'retirada'
   | 'exportar'
+  | 'importar-exportar'
   | 'importar-exportar-produtos'
   | 'parceiros';
 
@@ -940,7 +942,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'geral', label: 'Geral', icon: Settings },
     { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard, badge: 'Mercado Pago' },
-    { id: 'importar-exportar-produtos', label: 'Importar / Exportar Produtos', icon: FileSpreadsheet, badge: 'Excel / CSV' },
+    { id: 'importar-exportar', label: 'Importar / Exportar', icon: FileSpreadsheet, badge: 'Excel / CSV' },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
     { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock },
     { id: 'catalogo', label: 'Catálogo Online', icon: Globe },
@@ -1001,6 +1003,7 @@ export const ConfiguracoesLoja: React.FC = () => {
               {subTela === 'pedidos-vendas' && 'Pedidos e Vendas'}
               {subTela === 'entrega' && 'Opções de Entrega'}
               {subTela === 'exportar' && 'Exportar Relatórios'}
+              {(subTela === 'importar-exportar' || subTela === 'importar-exportar-produtos') && 'Importar / Exportar'}
               {subTela === 'parceiros' && 'Integrações'}
             </h1>
           </div>
@@ -1180,6 +1183,11 @@ export const ConfiguracoesLoja: React.FC = () => {
                 <span>Copiar Link do Catálogo Público</span>
               </button>
             </div>
+          )}
+
+          {/* SUBTELA IMPORTAR E EXPORTAR MOBILE */}
+          {(subTela === 'importar-exportar' || subTela === 'importar-exportar-produtos') && (
+            <CentralImportarExportar onVoltar={() => setSubTela('menu')} />
           )}
 
           {/* SUBTELA PAGAMENTOS MOBILE */}
@@ -2811,10 +2819,10 @@ export const ConfiguracoesLoja: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* SUB-TELA: IMPORTAR E EXPORTAR PRODUTOS */}
+        {/* SUB-TELA: IMPORTAR E EXPORTAR DADOS (CLIENTES, PRODUTOS E PEDIDOS) */}
         {/* ========================================================================= */}
-        {subTela === 'importar-exportar-produtos' && (
-          <ImportarExportarProdutos onVoltar={() => setSubTela('menu')} />
+        {(subTela === 'importar-exportar' || subTela === 'importar-exportar-produtos') && (
+          <CentralImportarExportar onVoltar={() => setSubTela('menu')} />
         )}
 
         {/* ========================================================================= */}
