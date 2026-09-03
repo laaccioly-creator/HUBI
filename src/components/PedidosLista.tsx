@@ -145,9 +145,10 @@ export const PedidosLista: React.FC = () => {
   }, []);
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
-    if (pedido.status_pagamento) return pedido.status_pagamento;
+    if (pedido.status_pagamento === 'pago') return 'pago';
     if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
     if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
+    if (pedido.status_pagamento) return pedido.status_pagamento;
     return 'aguardando_pagamento';
   };
 
@@ -473,6 +474,7 @@ export const PedidosLista: React.FC = () => {
       }
 
       if (formaId) {
+        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoSelecionado.id);
         await supabase.from('pagamentos_pedido').insert({
           pedido_id: pedidoSelecionado.id,
           loja_id: loja.id,
@@ -1062,7 +1064,9 @@ export const PedidosLista: React.FC = () => {
                   <div className="flex items-center gap-2 text-slate-200 font-bold">
                     <Coins className="w-4 h-4 text-emerald-400" />
                     <span className="capitalize">
-                      {pedidoSelecionado.pagamentos?.[0]?.forma_pagamento?.nome || 'Dinheiro / Pix'}
+                      {pedidoSelecionado.pagamentos && pedidoSelecionado.pagamentos.length > 0
+                        ? pedidoSelecionado.pagamentos[pedidoSelecionado.pagamentos.length - 1]?.forma_pagamento?.nome || 'Dinheiro / Pix'
+                        : 'Dinheiro / Pix'}
                     </span>
                   </div>
                   <span className="font-black text-slate-100">

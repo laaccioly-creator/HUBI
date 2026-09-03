@@ -122,6 +122,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   const [abaCor, setAbaCor] = useState<'sugestoes' | 'personalizada'>('personalizada');
   const [modoExibicao, setModoExibicao] = useState<ModoExibicaoCatalogo>('grade');
   const [produtosSemEstoque, setProdutosSemEstoque] = useState<ComportamentoSemEstoque>('exibir');
+  const [exibirProdutosSemFoto, setExibirProdutosSemFoto] = useState<boolean>(false);
   const [bannerUrl, setBannerUrl] = useState<string>('');
   const [exibirBanner, setExibirBanner] = useState<boolean>(false);
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
@@ -205,6 +206,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
       setCorPrimaria(loja.cor_primaria || '#10B981');
       setModoExibicao(catConfig.modo_exibicao || 'grade');
       setProdutosSemEstoque(catConfig.produtos_sem_estoque || 'exibir');
+      setExibirProdutosSemFoto(catConfig.exibir_produtos_sem_foto ?? false);
       setBannerUrl(loja.url_banner || '');
       setExibirBanner(catConfig.exibir_banner ?? Boolean(loja.url_banner));
 
@@ -300,6 +302,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
           publicar_catalogo: publicarCatalogo,
           modo_exibicao: modoExibicao,
           produtos_sem_estoque: produtosSemEstoque,
+          exibir_produtos_sem_foto: exibirProdutosSemFoto,
           exibir_banner: exibirBanner
         },
         entrega_retirada: {
@@ -910,6 +913,47 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               <span className="text-sm font-semibold text-slate-800">Banner</span>
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </button>
+
+            <div className="w-full p-4 flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-slate-800 block">Exibir produtos sem foto</span>
+                <span className="text-xs text-slate-400 block mt-0.5">
+                  {exibirProdutosSemFoto ? 'Exibindo produtos sem imagem' : 'Apenas produtos com foto (Padrão)'}
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exibirProdutosSemFoto}
+                  onChange={async (e) => {
+                    const novoVal = e.target.checked;
+                    setExibirProdutosSemFoto(novoVal);
+                    if (!loja?.id) return;
+                    try {
+                      const extras = loja.configuracoes_extras || {};
+                      await supabase
+                        .from('lojas')
+                        .update({
+                          configuracoes_extras: {
+                            ...extras,
+                            catalogo: {
+                              ...(extras.catalogo || {}),
+                              exibir_produtos_sem_foto: novoVal
+                            }
+                          }
+                        })
+                        .eq('id', loja.id);
+                      recarregarDadosLoja?.();
+                      mostrarToast('Preferência de fotos salva!', 'sucesso');
+                    } catch {
+                      mostrarToast('Erro ao salvar preferência.', 'erro');
+                    }
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+              </label>
+            </div>
           </div>
         </div>
       )}

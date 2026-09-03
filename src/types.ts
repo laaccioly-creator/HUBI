@@ -128,6 +128,7 @@ export interface ConfiguracoesExtrasLoja {
     publicar_catalogo?: boolean;
     modo_exibicao?: ModoExibicaoCatalogo;
     produtos_sem_estoque?: ComportamentoSemEstoque;
+    exibir_produtos_sem_foto?: boolean;
     exibir_banner?: boolean;
     titulo_banner?: string;
   };

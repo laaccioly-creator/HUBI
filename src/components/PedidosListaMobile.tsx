@@ -612,7 +612,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (pedidoSelecionado.status_pagamento === 'pago') {
+                  const estaPago = pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0);
+                  if (estaPago) {
                     onAlterarStatus(pedidoSelecionado.id, 'concluido');
                     setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                   } else {
@@ -621,7 +622,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 }}
                 className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
               >
-                {pedidoSelecionado.status_pagamento === 'pago' ? 'Concluir Pedido' : 'Receber e Concluir'}
+                {(pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0)) ? 'Concluir Pedido' : 'Receber e Concluir'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (

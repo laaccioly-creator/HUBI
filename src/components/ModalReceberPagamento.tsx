@@ -169,6 +169,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
       // 2. Atualizar status e valores do pedido
       const payloadUpdate: any = {
+        status_pagamento: novoStatusPagamento,
         valor_pago: novoValorPago,
         saldo_devedor: novoSaldoDevedor,
         fiado_quitado: quitado,

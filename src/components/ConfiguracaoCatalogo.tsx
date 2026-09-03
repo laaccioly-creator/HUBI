@@ -80,6 +80,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
 
   const [comportamentoSemEstoque, setComportamentoSemEstoque] = useState<ComportamentoSemEstoque>('exibir');
+  const [exibirProdutosSemFoto, setExibirProdutosSemFoto] = useState<boolean>(false);
 
   // Inicializar com dados da loja
   useEffect(() => {
@@ -99,6 +100,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       const banUrl = loja.url_banner || '';
       const exBan = catConfig.exibir_banner ?? Boolean(loja.url_banner);
       const semEst = catConfig.produtos_sem_estoque || 'exibir';
+      const semFoto = catConfig.exibir_produtos_sem_foto ?? false;
 
       setPublicarCatalogo(pub);
       setSlugCatalogo(slug);
@@ -112,6 +114,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       setExibirBanner(exBan);
       setBannerUrl(banUrl);
       setComportamentoSemEstoque(semEst);
+      setExibirProdutosSemFoto(semFoto);
 
       setSnapshotInicial(
         JSON.stringify({
@@ -123,7 +126,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           modoExibicao: modo,
           exibirBanner: exBan,
           bannerUrl: banUrl,
-          comportamentoSemEstoque: semEst
+          comportamentoSemEstoque: semEst,
+          exibirProdutosSemFoto: semFoto
         })
       );
     }
@@ -196,6 +200,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           publicar_catalogo: publicarCatalogo,
           modo_exibicao: modoExibicao,
           produtos_sem_estoque: comportamentoSemEstoque,
+          exibir_produtos_sem_foto: exibirProdutosSemFoto,
           exibir_banner: exibirBanner
         }
       };
@@ -280,7 +285,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       modoExibicao,
       exibirBanner,
       bannerUrl,
-      comportamentoSemEstoque
+      comportamentoSemEstoque,
+      exibirProdutosSemFoto
     });
   }, [
     publicarCatalogo,
@@ -291,7 +297,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
     modoExibicao,
     exibirBanner,
     bannerUrl,
-    comportamentoSemEstoque
+    comportamentoSemEstoque,
+    exibirProdutosSemFoto
   ]);
 
   const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
@@ -723,6 +730,37 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </label>
                 ))}
+              </div>
+            </div>
+
+            {/* 6. PRODUTOS SEM FOTO */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-100 text-base">Exibir produtos sem foto</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Defina se produtos que ainda não possuem imagens cadastradas devem aparecer no catálogo online.
+                  </p>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exibirProdutosSemFoto}
+                    onChange={(e) => setExibirProdutosSemFoto(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              <div className="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
+                <ImageIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  {exibirProdutosSemFoto
+                    ? 'Produtos sem foto estão VISÍVEIS no catálogo online com uma imagem padrão.'
+                    : 'Apenas produtos COM FOTO cadastrada aparecem no catálogo online (Padrão e Recomendado).'}
+                </span>
               </div>
             </div>
 

@@ -28,6 +28,7 @@ import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
+import { getCategoriaPeso } from './PosCheckout';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -789,21 +790,58 @@ Fico no aguardo da confirmação! ✨`;
 
   const catConfig = loja?.configuracoes_extras?.catalogo;
   const semEstoqueModo = catConfig?.produtos_sem_estoque || 'exibir';
+  const exibirSemFoto = catConfig?.exibir_produtos_sem_foto ?? false;
   const bannerAtivo = (catConfig?.exibir_banner ?? Boolean(loja?.url_banner)) && Boolean(loja?.url_banner);
   const aceitaPedidos = loja?.aceita_pedidos_online ?? true;
 
-  const produtosFiltrados = produtos.filter(p => {
-    const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase());
-    const matchCat = categoriaSelecionada === 'todas' || p.categoria_id === categoriaSelecionada;
-    
-    // Regra de produtos sem estoque
-    if (semEstoqueModo === 'ocultar') {
-      const est = getEstoqueTotal(p);
-      if (est <= 0) return false;
-    }
+  const categoriasOrdenadas = useMemo(() => {
+    return [...categorias].sort((a, b) => {
+      const pesoA = getCategoriaPeso(a.nome);
+      const pesoB = getCategoriaPeso(b.nome);
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }, [categorias]);
 
-    return matchBusca && matchCat;
-  });
+  const mapaCategorias = useMemo(() => {
+    const mapa = new Map<string, { nome: string; peso: number }>();
+    categorias.forEach(c => {
+      mapa.set(c.id, { nome: c.nome, peso: getCategoriaPeso(c.nome) });
+    });
+    return mapa;
+  }, [categorias]);
+
+  const produtosFiltrados = useMemo(() => {
+    const termo = busca.toLowerCase().trim();
+
+    const filtrados = produtos.filter(p => {
+      const matchBusca = !termo || p.nome.toLowerCase().includes(termo) || (p.codigo_interno && p.codigo_interno.toLowerCase().includes(termo));
+      const matchCat = categoriaSelecionada === 'todas' || p.categoria_id === categoriaSelecionada;
+      if (!matchCat) return false;
+
+      // Regra de produtos sem estoque
+      if (semEstoqueModo === 'ocultar') {
+        const est = getEstoqueTotal(p);
+        if (est <= 0) return false;
+      }
+
+      // Regra de produtos sem foto (padrão desligado / false)
+      if (!exibirSemFoto) {
+        const temFoto = p.fotos_urls && Array.isArray(p.fotos_urls) && p.fotos_urls.length > 0 && Boolean(p.fotos_urls[0]);
+        if (!temFoto) return false;
+      }
+
+      return matchBusca;
+    });
+
+    // Ordenação com prioridade: 1º Cosméticos, 2º Brinquedos Eróticos, 3º Próteses, 4º Fantasias, 5º Couro/Sado
+    return filtrados.sort((a, b) => {
+      const pesoA = a.categoria_id ? (mapaCategorias.get(a.categoria_id)?.peso ?? 999) : 999;
+      const pesoB = b.categoria_id ? (mapaCategorias.get(b.categoria_id)?.peso ?? 999) : 999;
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }, [produtos, busca, categoriaSelecionada, semEstoqueModo, exibirSemFoto, mapaCategorias]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
@@ -937,7 +975,7 @@ Fico no aguardo da confirmação! ✨`;
           >
             Todos
           </button>
-          {categorias.map(cat => (
+          {categoriasOrdenadas.map(cat => (
             <button
               key={cat.id}
               onClick={() => setCategoriaSelecionada(cat.id)}

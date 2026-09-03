@@ -39,7 +39,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPagamento } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
@@ -334,6 +334,7 @@ export const PosCheckout: React.FC = () => {
         origem: 'pdv_desktop' as const,
         tabela_preco_aplicada: tabelaPrecoCalculada,
         status: statusFinal as any,
+        status_pagamento: 'aguardando_pagamento' as const,
         subtotal,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
@@ -446,6 +447,7 @@ export const PosCheckout: React.FC = () => {
         origem: 'pdv_desktop' as const,
         tabela_preco_aplicada: tabelaPrecoCalculada,
         status: statusFinal as any,
+        status_pagamento: 'aguardando_pagamento' as const,
         subtotal,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
@@ -590,13 +592,16 @@ export const PosCheckout: React.FC = () => {
         obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
       }
 
+      const statusFinal = (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente' ? pedidoEmEdicao.status : 'confirmado');
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorId,
         cliente_id: clienteSelecionado ? clienteSelecionado.id : null,
         origem: 'pdv_desktop' as const,
         tabela_preco_aplicada: tabelaPrecoCalculada,
-        status: 'confirmado' as const,
+        status: statusFinal as any,
+        status_pagamento: (ehFiado ? 'aguardando_pagamento' : 'pago') as StatusPagamento,
         subtotal,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
@@ -700,6 +705,9 @@ export const PosCheckout: React.FC = () => {
           }));
           const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
           if (erroItens) throw erroItens;
+
+          // Remove quaisquer formas de pagamento anteriores registradas para este pedido (evita pagamentos duplicados / não efetivados)
+          await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoCriado.id);
 
           const { error: erroPagamento } = await supabase.from('pagamentos_pedido').insert([{
             ...dadosPagamento,

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS public.lojas (
     instrucoes_pos_pedido TEXT,
     valor_minimo_pedido NUMERIC(12,2) DEFAULT 0.00,
     tipo_plano VARCHAR(20) DEFAULT 'GROW',
+    configuracoes_extras JSONB DEFAULT '{}'::jsonb,
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );

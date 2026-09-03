@@ -96,7 +96,26 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
   const itensPag: InfoPagamentoRecibo['pagamentosDetalhados'] = [];
 
   if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
-    for (const p of pedido.pagamentos) {
+    let pagamentosFiltrados = [...pedido.pagamentos];
+
+    // Se houver mais de um registro e o último já cobre o valor total ou pago do pedido,
+    // desconsidera a forma provisória anterior que foi substituída (ex: cartão substituído por Pix)
+    if (pagamentosFiltrados.length > 1) {
+      pagamentosFiltrados.sort((a, b) => {
+        const dataA = new Date(a.data_pagamento || a.criado_em || 0).getTime();
+        const dataB = new Date(b.data_pagamento || b.criado_em || 0).getTime();
+        return dataB - dataA;
+      });
+
+      const ultimo = pagamentosFiltrados[0];
+      const valUltimo = Number(ultimo.valor || 0);
+      const valNecessario = Number(pedido.valor_pago || pedido.valor_total || 0);
+      if (valUltimo >= valNecessario && valNecessario > 0) {
+        pagamentosFiltrados = [ultimo];
+      }
+    }
+
+    for (const p of pagamentosFiltrados) {
       let nomeForma = p.forma_pagamento?.nome || 'Pagamento';
       const tipoForma = p.forma_pagamento?.tipo || '';
       const ehMercadoPago = nomeForma.toLowerCase().includes('mercado pago') 
