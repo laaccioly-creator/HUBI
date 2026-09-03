@@ -1433,16 +1433,21 @@ export const PedidosLista: React.FC = () => {
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>Receber</span>
                               </button>
-                            ) : (
+                            ) : pedido.status !== 'concluido' ? (
                               <button
                                 type="button"
-                                onClick={() => setPedidoReciboModal(pedido)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
-                                title="Ver Recibo"
+                                onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                title="Concluir Pedido"
                               >
-                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>Recibo</span>
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>Concluir Pedido</span>
                               </button>
+                            ) : (
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Concluído</span>
+                              </div>
                             )}
                           </div>
                         </td>
