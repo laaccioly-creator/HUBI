@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
     vendedor_id UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
     origem VARCHAR(20) NOT NULL DEFAULT 'pdv_mobile' CHECK (origem IN ('pdv_mobile', 'pdv_desktop', 'catalogo_online')),
     tabela_preco_aplicada VARCHAR(20) DEFAULT 'varejo',
-    status VARCHAR(20) NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'em_producao', 'em_expedicao', 'entregue', 'concluido', 'cancelado')),
+    status VARCHAR(50) NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar', 'entregue', 'concluido', 'cancelado')),
     subtotal NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     valor_desconto NUMERIC(12,2) DEFAULT 0.00,
     valor_frete NUMERIC(12,2) DEFAULT 0.00,

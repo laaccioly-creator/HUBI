@@ -832,11 +832,11 @@ export const PedidosLista: React.FC = () => {
               {resolverStatusPagamento(pedidoSelecionado) !== 'pago' ? (
                 <button
                   type="button"
-                  onClick={() => setGavetaConcluirVendaAberta(true)}
+                  onClick={() => setPedidoReceberModal(pedidoSelecionado)}
                   className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
                 >
                   <DollarSign className="w-4 h-4" />
-                  <span>Receber / Concluir</span>
+                  <span>Receber Pagamento</span>
                 </button>
               ) : pedidoSelecionado.status !== 'concluido' ? (
                 <button
@@ -1053,7 +1053,7 @@ export const PedidosLista: React.FC = () => {
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Meios de pagamento</span>
                   <button
                     type="button"
-                    onClick={() => setGavetaConcluirVendaAberta(true)}
+                    onClick={() => setPedidoReceberModal(pedidoSelecionado)}
                     className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
                   >
                     Editar
@@ -1426,8 +1426,7 @@ export const PedidosLista: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPedidoSelecionado(pedido);
-                                  setGavetaConcluirVendaAberta(true);
+                                  setPedidoReceberModal(pedido);
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
                               >
@@ -1884,8 +1883,11 @@ export const PedidosLista: React.FC = () => {
         isOpen={!!pedidoReceberModal}
         pedido={pedidoReceberModal}
         onClose={() => setPedidoReceberModal(null)}
-        onPagamentoConcluido={() => {
+        onPagamentoConcluido={(pedidoAtualizado) => {
           setPedidoReceberModal(null);
+          if (pedidoAtualizado && pedidoSelecionado?.id === pedidoAtualizado.id) {
+            setPedidoSelecionado(pedidoAtualizado);
+          }
           carregarPedidos();
         }}
       />

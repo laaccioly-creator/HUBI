@@ -26,7 +26,7 @@ interface ModalReceberPagamentoProps {
   isOpen: boolean;
   onClose: () => void;
   pedido: Pedido | null;
-  onPagamentoConcluido: () => void;
+  onPagamentoConcluido: (pedidoAtualizado?: Pedido) => void;
 }
 
 export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
@@ -150,6 +150,11 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
       // 1. Inserir pagamento em pagamentos_pedido se houver valor financeiro
       if (!ehFiado && valorInformado > 0) {
+        // Se este for o primeiro pagamento financeiro ou quitação, remove registros provisórios anteriores não efetivados
+        if (pedido.pagamentos && pedido.pagamentos.length > 0 && valorJaPago === 0) {
+          await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedido.id);
+        }
+
         const { error: erroPag } = await supabase.from('pagamentos_pedido').insert([
           {
             loja_id: loja.id,
@@ -175,6 +180,10 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         fiado_quitado: quitado,
         atualizado_em: dataIso
       };
+
+      if (pedido.status === 'pendente' && quitado) {
+        payloadUpdate.status = 'confirmado';
+      }
 
       const { data: pedUpd, error: erroUpd } = await supabase
         .from('pedidos')
@@ -214,9 +223,10 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
       }
 
       audioService.playNewOrderSound();
-      setPedidoAtualizado((pedUpd as unknown as Pedido) || { ...pedido, ...payloadUpdate });
+      const objAtualizado = (pedUpd as unknown as Pedido) || { ...pedido, ...payloadUpdate };
+      setPedidoAtualizado(objAtualizado);
       setSucessoModal(true);
-      onPagamentoConcluido();
+      onPagamentoConcluido(objAtualizado);
     } catch (err: any) {
       console.error('Erro ao receber pagamento:', err);
       setErroMsg(err.message || 'Erro ao registrar pagamento. Tente novamente.');
@@ -243,11 +253,14 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold flex items-center justify-center">
-              <DollarSign className="w-5 h-5" />
+              <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
-                Receber Pagamento #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100 flex items-center gap-2">
+                <span>Pagamento e Fechamento</span>
+                <span className="text-xs text-slate-400 font-normal">
+                  #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
+                </span>
               </h3>
               <p className="text-xs text-slate-500 md:text-slate-400">
                 Cliente: <span className="text-slate-800 md:text-slate-200 font-semibold">{pedido.cliente?.nome || 'Cliente Balcão'}</span>
