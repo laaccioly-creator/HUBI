@@ -101,7 +101,7 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200 select-none">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200 select-none">
       <div
         className={`w-full max-w-md bg-slate-900 border ${estilo.corBorda} rounded-3xl p-6 shadow-2xl shadow-black/60 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95 duration-200 relative`}
       >

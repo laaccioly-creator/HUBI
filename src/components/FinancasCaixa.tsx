@@ -28,11 +28,13 @@ import { usePermissions } from '../hooks/usePermissions';
 import { TransacaoFinanceira, Caixa, CaixaMovimentacao, Pedido } from '../types';
 import { PrintService } from '../services/printService';
 import { FinancasMobile } from './FinancasMobile';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
 
   useEffect(() => {
     if (!permissions.podeAcessarFinancas) {
@@ -255,7 +257,7 @@ export const FinancasCaixa: React.FC = () => {
   const handleCadastrarDespesa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
-      alert('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem lançar despesas.');
+      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem lançar despesas.', 'Acesso Restrito');
       return;
     }
     if (!loja?.id || !descricao.trim() || !valor) return;
@@ -299,9 +301,9 @@ export const FinancasCaixa: React.FC = () => {
       setModalNovaDespesa(false);
       setDescricao('');
       setValor('');
-      alert('Despesa lançada com sucesso!');
+      mostrarSucesso('Despesa lançada com sucesso!');
     } catch (err: any) {
-      alert(`Erro ao lançar despesa: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao lançar despesa');
     }
   };
 
@@ -371,9 +373,9 @@ export const FinancasCaixa: React.FC = () => {
         criado_em: new Date().toISOString()
       });
 
-      alert('Caixa aberto com sucesso!');
+      mostrarSucesso('Caixa aberto com sucesso!');
     } catch (err: any) {
-      alert(`Erro ao abrir caixa: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao abrir caixa');
     }
   };
 
@@ -381,7 +383,7 @@ export const FinancasCaixa: React.FC = () => {
   const handleRegistrarSangria = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
-      alert('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar sangria.');
+      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar sangria.', 'Acesso Restrito');
       return;
     }
     if (!caixaAberto || !valorSangria) return;
@@ -389,7 +391,7 @@ export const FinancasCaixa: React.FC = () => {
     try {
       const valNum = Number(valorSangria);
       if (valNum <= 0) {
-        alert('Informe um valor válido para a sangria.');
+        mostrarAviso('Informe um valor válido para a sangria.');
         return;
       }
 
@@ -409,9 +411,9 @@ export const FinancasCaixa: React.FC = () => {
       setModalSangria(false);
       setValorSangria('');
       setMotivoSangria('');
-      alert(`Sangria de R$ ${valNum.toFixed(2)} registrada com sucesso!`);
+      mostrarSucesso(`Sangria de R$ ${valNum.toFixed(2)} registrada com sucesso!`);
     } catch (err: any) {
-      alert(`Erro ao registrar sangria: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao registrar sangria');
     }
   };
 
@@ -419,7 +421,7 @@ export const FinancasCaixa: React.FC = () => {
   const handleRegistrarSuprimento = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
-      alert('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar suprimento.');
+      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar suprimento.', 'Acesso Restrito');
       return;
     }
     if (!caixaAberto || !valorSuprimento) return;
@@ -427,7 +429,7 @@ export const FinancasCaixa: React.FC = () => {
     try {
       const valNum = Number(valorSuprimento);
       if (valNum <= 0) {
-        alert('Informe um valor válido para o suprimento.');
+        mostrarAviso('Informe um valor válido para o suprimento.');
         return;
       }
 
@@ -447,9 +449,9 @@ export const FinancasCaixa: React.FC = () => {
       setModalSuprimento(false);
       setValorSuprimento('');
       setMotivoSuprimento('');
-      alert(`Suprimento de R$ ${valNum.toFixed(2)} registrado com sucesso!`);
+      mostrarSucesso(`Suprimento de R$ ${valNum.toFixed(2)} registrado com sucesso!`);
     } catch (err: any) {
-      alert(`Erro ao registrar suprimento: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao registrar suprimento');
     }
   };
 
@@ -683,9 +685,9 @@ export const FinancasCaixa: React.FC = () => {
       setObservacaoFechamento('');
 
       await carregarFinanceiro();
-      alert('Caixa encerrado com sucesso!');
+      mostrarSucesso('Caixa encerrado com sucesso!');
     } catch (err: any) {
-      alert(`Erro ao fechar caixa: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao fechar caixa');
     } finally {
       setProcessandoFechamento(false);
     }

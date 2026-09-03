@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { ModalAlertaFeedback, TipoFeedback } from '../components/ModalAlertaFeedback';
 
 interface AlertaOpcoes {
@@ -64,7 +64,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const mostrarErro = useCallback((mensagem: string, titulo?: string) => {
     mostrarAlerta({
       tipo: 'erro',
-      titulo: titulo || 'Atenção',
+      titulo: titulo || 'Erro',
       mensagem,
       textoBotaoConfirmar: 'Fechar'
     });
@@ -114,6 +114,74 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       onProsseguir();
     }
   }, [temAlteracoesNaoSalvas, confirmar]);
+
+  // Interceptação global de window.alert para garantir que nenhuma mensagem nativa do navegador seja exibida
+  useEffect(() => {
+    const originalAlert = window.alert;
+
+    window.alert = (msg?: any) => {
+      const texto = String(msg ?? '');
+      const textoLower = texto.toLowerCase();
+
+      if (
+        textoLower.includes('sucesso') ||
+        textoLower.includes('aberto com sucesso') ||
+        textoLower.includes('salvo com sucesso') ||
+        textoLower.includes('salva com sucesso') ||
+        textoLower.includes('atualizado com sucesso') ||
+        textoLower.includes('atualizada com sucesso') ||
+        textoLower.includes('cadastrado com sucesso') ||
+        textoLower.includes('excluído com sucesso') ||
+        textoLower.includes('excluido com sucesso') ||
+        textoLower.includes('registrado com sucesso') ||
+        textoLower.includes('registrada com sucesso') ||
+        textoLower.includes('ajustado com sucesso') ||
+        textoLower.includes('concluído com sucesso') ||
+        textoLower.includes('concluido com sucesso')
+      ) {
+        mostrarSucesso(texto);
+      } else if (
+        textoLower.includes('erro') ||
+        textoLower.includes('falha') ||
+        textoLower.includes('não foi possível') ||
+        textoLower.includes('nao foi possivel') ||
+        textoLower.includes('não é possível') ||
+        textoLower.includes('nao e possivel')
+      ) {
+        mostrarErro(texto);
+      } else if (
+        textoLower.includes('atenção') ||
+        textoLower.includes('atencao') ||
+        textoLower.includes('aviso') ||
+        textoLower.includes('restrita') ||
+        textoLower.includes('permissão') ||
+        textoLower.includes('permissao') ||
+        textoLower.includes('informe') ||
+        textoLower.includes('preencha') ||
+        textoLower.includes('obrigatório') ||
+        textoLower.includes('obrigatorio') ||
+        textoLower.includes('insuficiente') ||
+        textoLower.includes('excede') ||
+        textoLower.includes('não encontrado') ||
+        textoLower.includes('nao encontrado') ||
+        textoLower.includes('não suportada') ||
+        textoLower.includes('nao suportada')
+      ) {
+        mostrarAviso(texto);
+      } else {
+        mostrarAlerta({
+          tipo: 'info',
+          titulo: 'Mensagem do Sistema',
+          mensagem: texto,
+          textoBotaoConfirmar: 'Entendido'
+        });
+      }
+    };
+
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, [mostrarAlerta, mostrarSucesso, mostrarErro, mostrarAviso]);
 
   return (
     <FeedbackContext.Provider

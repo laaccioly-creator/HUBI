@@ -27,11 +27,13 @@ import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [busca, setBusca] = useState<string>('');
@@ -100,8 +102,9 @@ export const ClientesFiado: React.FC = () => {
 
       setClientes(prev => prev.filter(c => c.id !== clienteExcluir.id));
       setClienteExcluir(null);
+      mostrarSucesso('Cliente excluído com sucesso.');
     } catch (err: any) {
-      alert(`Erro ao excluir cliente: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao excluir cliente');
     } finally {
       setExcluindo(false);
     }
@@ -150,8 +153,9 @@ export const ClientesFiado: React.FC = () => {
 
       setClienteQuitar(null);
       setValorAbatimento('');
+      mostrarSucesso(`Quitação de R$ ${valor.toFixed(2)} registrada com sucesso!`);
     } catch (err: any) {
-      alert(`Erro ao registrar quitação: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao registrar quitação');
     } finally {
       setProcessandoQuitacao(false);
     }
@@ -160,7 +164,7 @@ export const ClientesFiado: React.FC = () => {
   // Exportar Lista de Clientes para CSV
   const handleExportarCsv = () => {
     if (clientes.length === 0) {
-      alert('Nenhum cliente disponível para exportação.');
+      mostrarAviso('Nenhum cliente disponível para exportação.');
       return;
     }
 

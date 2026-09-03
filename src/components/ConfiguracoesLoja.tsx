@@ -60,6 +60,7 @@ import { paymentGatewayService } from '../services/paymentGatewayService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 type SubTelaConfig =
   | 'menu'
@@ -86,6 +87,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const permissions = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
 
   useEffect(() => {
     if (!permissions.podeAcessarConfig) {
@@ -665,7 +667,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       mostrarToast('Configurações salvas com sucesso!');
     } catch (err: any) {
       console.error('Erro ao salvar:', err);
-      alert(`Erro ao salvar: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao salvar configurações');
     } finally {
       setSalvando(false);
     }
@@ -736,7 +738,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       setModalExportConcluido(true);
     } catch (err: any) {
-      alert(`Erro na exportação: ${err.message}`);
+      mostrarErro(err.message, 'Erro na exportação');
     } finally {
       setSalvando(false);
     }

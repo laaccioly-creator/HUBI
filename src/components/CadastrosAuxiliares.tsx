@@ -34,6 +34,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Categoria, Fornecedor, UnidadeMedida, FormaPagamento, TipoPagamento } from '../types';
 import { SyncService } from '../services/syncService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fracionado: boolean; padrao?: boolean }> = [
   { sigla: 'un', nome: 'Unidade', permite_fracionado: false, padrao: true },
@@ -55,6 +56,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const { loja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
 
   useEffect(() => {
     if (!permissions.podeAcessarAuxiliares) {
@@ -338,7 +340,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar categoria:', err);
-      alert(`Erro ao salvar categoria: ${err.message || 'Tente novamente'}`);
+      mostrarErro(err.message || 'Tente novamente', 'Erro ao salvar categoria');
     } finally {
       setSalvando(false);
     }
@@ -347,7 +349,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const excluirCategoria = async (cat: Categoria) => {
     const totalProds = contagemProdutosCat[cat.id] || 0;
     if (totalProds > 0) {
-      alert(`Não é possível excluir a categoria "${cat.nome}" pois ela possui ${totalProds} produto(s) vinculado(s). Reclassifique os produtos antes de excluir.`);
+      mostrarAviso(`Não é possível excluir a categoria "${cat.nome}" pois ela possui ${totalProds} produto(s) vinculado(s). Reclassifique os produtos antes de excluir.`, 'Categoria em Uso');
       return;
     }
     if (!confirm(`Deseja realmente excluir a categoria "${cat.nome}"?`)) return;
@@ -358,7 +360,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       exibirAlertaSucesso('Categoria removida.');
       setCategorias(prev => prev.filter(c => c.id !== cat.id));
     } catch (err: any) {
-      alert(`Erro ao excluir categoria: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao excluir categoria');
     }
   };
 
@@ -410,7 +412,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar unidade:', err);
-      alert(`Erro ao salvar unidade: ${err.message || 'Tente novamente'}`);
+      mostrarErro(err.message || 'Tente novamente', 'Erro ao salvar unidade');
     } finally {
       setSalvando(false);
     }
@@ -418,7 +420,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
   const excluirUnidade = async (un: UnidadeMedida) => {
     if (un.sigla === 'un') {
-      alert('A unidade padrão "UN" (Unidade) não pode ser excluída.');
+      mostrarAviso('A unidade padrão "UN" (Unidade) não pode ser excluída.', 'Ação Não Permitida');
       return;
     }
     if (!confirm(`Deseja remover a unidade "${un.sigla.toUpperCase()} - ${un.nome}"?`)) return;
@@ -430,7 +432,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setUnidades(prev => prev.filter(u => u.id !== un.id));
       exibirAlertaSucesso('Unidade de medida removida.');
     } catch (err: any) {
-      alert(`Erro ao excluir unidade: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao excluir unidade');
     }
   };
 
@@ -480,7 +482,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar fornecedor:', err);
-      alert(`Erro ao salvar fornecedor: ${err.message || 'Tente novamente'}`);
+      mostrarErro(err.message || 'Tente novamente', 'Erro ao salvar fornecedor');
     } finally {
       setSalvando(false);
     }
@@ -494,7 +496,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       exibirAlertaSucesso('Fornecedor removido com sucesso.');
       setFornecedores(prev => prev.filter(f => f.id !== forn.id));
     } catch (err: any) {
-      alert(`Erro ao excluir fornecedor: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao excluir fornecedor');
     }
   };
 
@@ -562,7 +564,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar forma de pagamento:', err);
-      alert(`Erro ao salvar forma de pagamento: ${err.message || 'Tente novamente'}`);
+      mostrarErro(err.message || 'Tente novamente', 'Erro ao salvar forma de pagamento');
     } finally {
       setSalvando(false);
     }
@@ -581,7 +583,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       }
       exibirAlertaSucesso(`Forma de pagamento ${novoStatus ? 'ativada' : 'desativada'}.`);
     } catch (err: any) {
-      alert(`Erro ao alterar status: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao alterar status');
     }
   };
 
@@ -595,7 +597,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setFormasPagamento(prev => prev.filter(item => item.id !== fp.id));
       exibirAlertaSucesso('Forma de pagamento removida com sucesso.');
     } catch (err: any) {
-      alert(`Erro ao excluir forma de pagamento: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao excluir forma de pagamento');
     }
   };
 
@@ -662,7 +664,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       exibirAlertaSucesso('Regras de precificação salvas com sucesso!');
       setSnapshotPrecificacaoInicial(snapshotPrecificacaoAtual);
     } catch (err: any) {
-      alert(`Erro ao salvar regras: ${err.message}`);
+      mostrarErro(err.message, 'Erro ao salvar regras');
     } finally {
       setSalvando(false);
     }

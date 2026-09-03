@@ -265,7 +265,7 @@ export const PosCheckout: React.FC = () => {
       setBuscaCodigoBarras('');
       audioService.playBeep();
     } else {
-      alert(`Produto com código ${barcode} não foi encontrado.`);
+      mostrarAviso(`Produto com código ${barcode} não foi encontrado.`);
     }
   };
 
@@ -277,11 +277,11 @@ export const PosCheckout: React.FC = () => {
 
   const handleSalvarPedidoPendente = async () => {
     if (!loja?.id) {
-      alert('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
+      mostrarErro('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
       return;
     }
     if (itens.length === 0) {
-      alert('O carrinho está vazio. Adicione produtos antes de salvar o pedido.');
+      mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar o pedido.');
       return;
     }
 
@@ -540,11 +540,11 @@ export const PosCheckout: React.FC = () => {
 
   const handleFinalizarVenda = async () => {
     if (!loja?.id) {
-      alert('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
+      mostrarErro('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
       return;
     }
     if (itens.length === 0) {
-      alert('O carrinho está vazio. Adicione produtos antes de fechar a venda.');
+      mostrarAviso('O carrinho está vazio. Adicione produtos antes de fechar a venda.');
       return;
     }
 
@@ -558,7 +558,7 @@ export const PosCheckout: React.FC = () => {
 
     const ehFiado = fpFinal.tipo === 'fiado';
     if (ehFiado && !clienteSelecionado) {
-      alert('Para vendas no FIADO / A PRAZO, é obrigatório selecionar um cliente cadastrado.');
+      mostrarAviso('Para vendas no FIADO / A PRAZO, é obrigatório selecionar um cliente cadastrado.', 'Cliente Obrigatório');
       return;
     }
 
@@ -792,7 +792,7 @@ export const PosCheckout: React.FC = () => {
       setValorRecebidoDinheiro('');
     } catch (err: any) {
       console.error('Erro ao finalizar venda:', err);
-      alert(`Erro ao processar venda: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao processar venda');
     } finally {
       setFinalizandoVenda(false);
     }

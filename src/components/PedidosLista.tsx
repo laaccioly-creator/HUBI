@@ -503,7 +503,7 @@ export const PedidosLista: React.FC = () => {
       audioService.playNewOrderSound();
     } catch (err: any) {
       console.error('Erro ao concluir venda:', err);
-      alert(`Erro ao concluir venda: ${err.message || 'Tente novamente.'}`);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao concluir venda');
     } finally {
       setSalvandoConclusao(false);
     }
@@ -573,7 +573,7 @@ export const PedidosLista: React.FC = () => {
 
   const handleEditarPedido = (pedido: Pedido) => {
     if (pedido.status !== 'pendente') {
-      alert('A alteração completa de produtos só é permitida para pedidos com status Pendente.');
+      mostrarAviso('A alteração completa de produtos só é permitida para pedidos com status Pendente.', 'Edição Restrita');
       return;
     }
     carregarPedidoParaEdicao(pedido);
