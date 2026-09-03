@@ -49,6 +49,30 @@ import { VendaOfflineFila } from '../services/offlineDb';
 import { audioService } from '../services/audioService';
 import { PosCheckoutMobile } from './PosCheckoutMobile';
 
+/**
+ * Retorna o peso de prioridade da categoria para ordenação no PDV:
+ * 1º Cosméticos
+ * 2º Brinquedos Eróticos
+ * 3º Próteses
+ * 4º Fantasias
+ * 5º Couro / SADO
+ * Demais categorias: alfabética
+ */
+export function getCategoriaPeso(nomeCategoria?: string | null): number {
+  if (!nomeCategoria) return 999;
+  const limpo = nomeCategoria
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (limpo.includes('COSMETICO')) return 1;
+  if (limpo.includes('BRINQUEDO') || limpo.includes('BRNQUEDO')) return 2;
+  if (limpo.includes('PROTESE')) return 3;
+  if (limpo.includes('FANTASIA')) return 4;
+  if (limpo.includes('COURO') || limpo.includes('SADO')) return 5;
+  return 100;
+}
+
 export const PosCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
@@ -105,6 +129,7 @@ export const PosCheckout: React.FC = () => {
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('todas');
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -765,14 +790,49 @@ export const PosCheckout: React.FC = () => {
     }
   };
 
-  const produtosFiltrados = produtos.filter(p => {
-    const termo = buscaProduto.toLowerCase();
-    return (
-      p.nome.toLowerCase().includes(termo) ||
-      (p.codigo_interno && p.codigo_interno.toLowerCase().includes(termo)) ||
-      (p.codigo_barras && p.codigo_barras.includes(termo))
-    );
-  });
+  const categoriasOrdenadas = useMemo(() => {
+    return [...categorias].sort((a, b) => {
+      const pesoA = getCategoriaPeso(a.nome);
+      const pesoB = getCategoriaPeso(b.nome);
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }, [categorias]);
+
+  const mapaCategorias = useMemo(() => {
+    const mapa = new Map<string, { nome: string; peso: number }>();
+    categorias.forEach(c => {
+      mapa.set(c.id, { nome: c.nome, peso: getCategoriaPeso(c.nome) });
+    });
+    return mapa;
+  }, [categorias]);
+
+  const produtosFiltrados = useMemo(() => {
+    const termo = buscaProduto.toLowerCase().trim();
+
+    const filtrados = produtos.filter(p => {
+      // Filtro de categoria selecionada no dropdown
+      if (categoriaSelecionada !== 'todas' && p.categoria_id !== categoriaSelecionada) {
+        return false;
+      }
+
+      // Filtro de busca por texto / código
+      if (!termo) return true;
+      return (
+        p.nome.toLowerCase().includes(termo) ||
+        (p.codigo_interno && p.codigo_interno.toLowerCase().includes(termo)) ||
+        (p.codigo_barras && p.codigo_barras.includes(termo))
+      );
+    });
+
+    // Ordenação com prioridade: 1º Cosméticos, 2º Brinquedos Eróticos, 3º Próteses, 4º Fantasias, 5º Couro/Sado
+    return filtrados.sort((a, b) => {
+      const pesoA = a.categoria_id ? (mapaCategorias.get(a.categoria_id)?.peso ?? 999) : 999;
+      const pesoB = b.categoria_id ? (mapaCategorias.get(b.categoria_id)?.peso ?? 999) : 999;
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }, [produtos, buscaProduto, categoriaSelecionada, mapaCategorias]);
 
   const trocoCalculado = Math.max(0, (Number(valorRecebidoDinheiro) || 0) - total);
 
@@ -782,7 +842,7 @@ export const PosCheckout: React.FC = () => {
       <div className="block lg:hidden h-full overflow-hidden">
         <PosCheckoutMobile
           produtos={produtos}
-          categorias={categorias}
+          categorias={categoriasOrdenadas}
           clientes={clientes}
           formasPagamento={formasPagamento}
           pedidosConfirmadosCount={0}
@@ -844,26 +904,62 @@ export const PosCheckout: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <div className="relative flex-1 w-full">
+            {/* Seletor Dropdown de Categorias */}
+            <div className="relative w-full sm:w-56 shrink-0">
+              <Layers className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <select
+                value={categoriaSelecionada}
+                onChange={(e) => setCategoriaSelecionada(e.target.value)}
+                className="w-full bg-slate-800/90 border border-slate-700/80 hover:border-slate-600 focus:border-emerald-500 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold text-slate-200 focus:outline-none transition appearance-none cursor-pointer"
+                title="Filtrar produtos por categoria"
+              >
+                <option value="todas" className="bg-slate-900 text-slate-200">
+                  Todas as Categorias ({produtos.length})
+                </option>
+                {categoriasOrdenadas.map((cat) => {
+                  const totalCat = produtos.filter(p => p.categoria_id === cat.id).length;
+                  return (
+                    <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-200">
+                      {cat.nome} ({totalCat})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Campo de Busca por Nome / Código (Tamanho Otimizado) */}
+            <div className="relative flex-1 w-full min-w-[170px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Buscar produto por nome, código..."
+                placeholder="Buscar produto por nome, cód..."
                 value={buscaProduto}
                 onChange={(e) => setBuscaProduto(e.target.value)}
-                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-xl pl-10 pr-8 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none transition"
               />
+              {buscaProduto && (
+                <button
+                  type="button"
+                  onClick={() => setBuscaProduto('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                  title="Limpar busca"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            <form onSubmit={handleBarcodeSubmit} className="relative w-full sm:w-64 flex items-center">
-              <Barcode className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            {/* Leitor de Código de Barras / Câmera */}
+            <form onSubmit={handleBarcodeSubmit} className="relative w-full sm:w-52 shrink-0 flex items-center">
+              <Barcode className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 ref={barcodeInputRef}
                 type="text"
                 placeholder="Cód. Barras (Enter)"
                 value={buscaCodigoBarras}
                 onChange={(e) => setBuscaCodigoBarras(e.target.value)}
-                className="w-full bg-slate-800/80 border border-emerald-500/40 rounded-xl pl-9 pr-10 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-800/80 border border-emerald-500/40 focus:border-emerald-500 rounded-xl pl-9 pr-9 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none transition"
               />
               <button
                 type="button"

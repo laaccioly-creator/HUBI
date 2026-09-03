@@ -52,6 +52,7 @@ import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria, TabelaPreco } from '../types';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { getCategoriaPeso } from './PosCheckout';
 
 interface PosCheckoutMobileProps {
   produtos: Produto[];
@@ -159,9 +160,26 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     return map;
   }, [itens]);
 
+  const categoriasOrdenadas = useMemo(() => {
+    return [...categorias].sort((a, b) => {
+      const pesoA = getCategoriaPeso(a.nome);
+      const pesoB = getCategoriaPeso(b.nome);
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }, [categorias]);
+
+  const mapaCategorias = useMemo(() => {
+    const mapa = new Map<string, { nome: string; peso: number }>();
+    categorias.forEach(c => {
+      mapa.set(c.id, { nome: c.nome, peso: getCategoriaPeso(c.nome) });
+    });
+    return mapa;
+  }, [categorias]);
+
   // Produtos filtrados por busca e categoria
   const produtosFiltrados = useMemo(() => {
-    return produtos.filter(p => {
+    const filtrados = produtos.filter(p => {
       // Filtro de busca
       if (termoBusca.trim()) {
         const t = termoBusca.toLowerCase().trim();
@@ -180,7 +198,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
       return true;
     });
-  }, [produtos, termoBusca, categoriaAtiva]);
+
+    // Ordenação com prioridade: 1º Cosméticos, 2º Brinquedos Eróticos, 3º Próteses, 4º Fantasias, 5º Couro/Sado
+    return filtrados.sort((a, b) => {
+      const pesoA = a.categoria_id ? (mapaCategorias.get(a.categoria_id)?.peso ?? 999) : 999;
+      const pesoB = b.categoria_id ? (mapaCategorias.get(b.categoria_id)?.peso ?? 999) : 999;
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }, [produtos, termoBusca, categoriaAtiva, mapaCategorias]);
 
   // Clientes filtrados na tela 003
   const clientesFiltrados = useMemo(() => {
@@ -1178,7 +1204,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           DESTAQUES
         </button>
 
-        {categorias.map(cat => (
+        {categoriasOrdenadas.map(cat => (
           <button
             key={cat.id}
             type="button"
