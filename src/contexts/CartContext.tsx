@@ -258,12 +258,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const descVal = Number(pedido.valor_desconto) || 0;
     const descPercCalculado = Number(pedido.subtotal) > 0 ? (descVal / Number(pedido.subtotal)) * 100 : 0;
+    
+    // Suporte a metadados estruturados com fallback para tag em observacoes
+    const percMeta = (pedido.metadados && typeof pedido.metadados === 'object' && pedido.metadados.desconto_percentual)
+      ? Number(pedido.metadados.desconto_percentual)
+      : null;
     const matchPerc = typeof pedido.observacoes === 'string' ? pedido.observacoes.match(/\[DESCONTO_PERC:([0-9.]+)\]/) : null;
-    const ehPercentual = pedido.tipo_desconto === 'percentual' || Boolean(pedido.desconto_percentual && Number(pedido.desconto_percentual) > 0) || Boolean(matchPerc);
+    const ehPercentual = pedido.tipo_desconto === 'percentual' ||
+      Boolean(pedido.desconto_percentual && Number(pedido.desconto_percentual) > 0) ||
+      percMeta !== null ||
+      Boolean(matchPerc);
 
     if (ehPercentual) {
       setTipoDesconto('percentual');
-      const percFinal = matchPerc ? parseFloat(matchPerc[1]) : (Number(pedido.desconto_percentual) || descPercCalculado);
+      const percFinal = percMeta !== null ? percMeta : (matchPerc ? parseFloat(matchPerc[1]) : (Number(pedido.desconto_percentual) || descPercCalculado));
       setDescontoPercentualState(Number(percFinal.toFixed(2)));
       setDescontoState(descVal);
     } else {

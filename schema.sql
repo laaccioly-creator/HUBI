@@ -217,6 +217,7 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
     fiado_quitado BOOLEAN DEFAULT FALSE,
     endereco_entrega TEXT,
     observacoes TEXT,
+    metadados JSONB DEFAULT '{}'::jsonb,
     data_venda TIMESTAMPTZ DEFAULT NOW(),
     data_entrega_agendada TIMESTAMPTZ,
     motivo_cancelamento TEXT,

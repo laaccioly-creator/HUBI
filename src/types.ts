@@ -467,6 +467,7 @@ export interface Pedido {
   fiado_quitado: boolean;
   endereco_entrega?: string | null;
   observacoes?: string | null;
+  metadados?: Record<string, any> | string | null;
   data_venda: string;
   data_entrega_agendada?: string | null;
   motivo_cancelamento?: string | null;

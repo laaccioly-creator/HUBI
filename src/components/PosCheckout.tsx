@@ -236,6 +236,17 @@ export const PosCheckout: React.FC = () => {
         if (local) infoPrevisto = JSON.parse(local);
       } catch (e) {}
 
+      if (!infoPrevisto && pedidoEmEdicao.metadados) {
+        try {
+          const metaObj = typeof pedidoEmEdicao.metadados === 'string'
+            ? JSON.parse(pedidoEmEdicao.metadados)
+            : pedidoEmEdicao.metadados;
+          if (metaObj?.pagamento_previsto) {
+            infoPrevisto = metaObj.pagamento_previsto;
+          }
+        } catch (e) {}
+      }
+
       if (!infoPrevisto && typeof pedidoEmEdicao.observacoes === 'string') {
         const match = pedidoEmEdicao.observacoes.match(/\[PAG_PREVISTO:(.*?)\]/);
         if (match && match[1]) {
@@ -367,10 +378,27 @@ export const PosCheckout: React.FC = () => {
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
       const statusFinal = pedidoEmEdicao?.status || 'pendente';
-      let obsFinal = pedidoEmEdicao?.observacoes || '';
-      obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
-      if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
-        obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+      let obsLimpa = (pedidoEmEdicao?.observacoes || '')
+        .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
+        .replace(/\[PAG_PREVISTO:.*?\]/g, '')
+        .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
+        .trim();
+
+      let metaExistente: Record<string, any> = {};
+      if (pedidoEmEdicao?.metadados) {
+        try {
+          metaExistente = typeof pedidoEmEdicao.metadados === 'string'
+            ? JSON.parse(pedidoEmEdicao.metadados)
+            : { ...pedidoEmEdicao.metadados };
+        } catch (e) {}
+      }
+
+      const novosMetadados: Record<string, any> = {
+        ...metaExistente,
+        ...(tipoDesconto === 'percentual' && descontoPercentual > 0 ? { desconto_percentual: descontoPercentual } : {})
+      };
+      if (tipoDesconto !== 'percentual') {
+        delete novosMetadados.desconto_percentual;
       }
 
       const dadosBasePedido = {
@@ -388,7 +416,8 @@ export const PosCheckout: React.FC = () => {
         valor_pago: 0,
         saldo_devedor: total,
         fiado_quitado: false,
-        observacoes: obsFinal || null,
+        observacoes: obsLimpa || null,
+        metadados: Object.keys(novosMetadados).length > 0 ? novosMetadados : null,
         data_venda: dataIso
       };
 
@@ -481,15 +510,22 @@ export const PosCheckout: React.FC = () => {
       let obsFinal = pedidoEmEdicao?.observacoes || '';
       obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
       obsFinal = obsFinal.replace(/\[PAG_PREVISTO:.*?\]/g, '').trim();
+
+      const metaExistente = (pedidoEmEdicao?.metadados && typeof pedidoEmEdicao.metadados === 'object')
+        ? { ...pedidoEmEdicao.metadados }
+        : {};
+
       if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
-        obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+        metaExistente.desconto_percentual = descontoPercentual;
+      } else {
+        delete metaExistente.desconto_percentual;
       }
 
       const valEntregueNum = parseFloat(String(valorRecebidoDinheiro).replace(',', '.')) || 0;
       const trocoNum = valEntregueNum > total ? (valEntregueNum - total) : 0;
 
       if (fpFinal) {
-        const infoPrevisto = {
+        metaExistente.pagamento_previsto = {
           forma_pagamento_id: fpFinal.id,
           forma_tipo: fpFinal.tipo,
           forma_nome: fpFinal.nome,
@@ -497,7 +533,6 @@ export const PosCheckout: React.FC = () => {
           troco: trocoNum > 0 ? trocoNum : null,
           parcelas: parcelasCartao || 1
         };
-        obsFinal = `${obsFinal} [PAG_PREVISTO:${JSON.stringify(infoPrevisto)}]`.trim();
       }
 
       const statusFinal = pedidoEmEdicao?.status || 'pendente';
@@ -518,6 +553,7 @@ export const PosCheckout: React.FC = () => {
         saldo_devedor: total,
         fiado_quitado: false,
         observacoes: obsFinal || null,
+        metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
         data_venda: dataIso
       };
 
@@ -661,9 +697,18 @@ export const PosCheckout: React.FC = () => {
 
       let obsFinal = pedidoEmEdicao?.observacoes || '';
       obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
+      obsFinal = obsFinal.replace(/\[PAG_PREVISTO:.*?\]/g, '').trim();
+
+      const metaExistente = (pedidoEmEdicao?.metadados && typeof pedidoEmEdicao.metadados === 'object')
+        ? { ...pedidoEmEdicao.metadados }
+        : {};
+
       if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
-        obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+        metaExistente.desconto_percentual = descontoPercentual;
+      } else {
+        delete metaExistente.desconto_percentual;
       }
+      delete metaExistente.pagamento_previsto;
 
       const statusFinal = (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente' ? pedidoEmEdicao.status : 'confirmado');
 
@@ -683,6 +728,7 @@ export const PosCheckout: React.FC = () => {
         saldo_devedor: ehFiado ? total : 0,
         fiado_quitado: !ehFiado,
         observacoes: obsFinal || null,
+        metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
         data_venda: dataIso
       };
 

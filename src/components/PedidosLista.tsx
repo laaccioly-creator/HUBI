@@ -144,6 +144,32 @@ export const PedidosLista: React.FC = () => {
     return () => window.removeEventListener('hubi_navegacao_menu', handleMenuNav);
   }, []);
 
+
+  const handleSalvarObservacao = async () => {
+    if (!pedidoSelecionado) return;
+    const novoTexto = observacaoTexto.trim() || null;
+    if (novoTexto === (pedidoSelecionado.observacoes || null)) return;
+
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          observacoes: novoTexto,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', pedidoSelecionado.id);
+
+      if (error) throw error;
+
+      setPedidoSelecionado((prev) => (prev ? { ...prev, observacoes: novoTexto } : null));
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedidoSelecionado.id ? { ...p, observacoes: novoTexto } : p))
+      );
+    } catch (err: any) {
+      console.error('Erro ao salvar observação do pedido:', err);
+    }
+  };
+
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
     if (pedido.status_pagamento === 'pago') return 'pago';
     if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
@@ -154,6 +180,16 @@ export const PedidosLista: React.FC = () => {
 
   const extrairHistoricoPedido = (pedido: Pedido): HistoricoItem[] => {
     const itens: HistoricoItem[] = [];
+    
+    // 1. Tentar ler do metadados.historico_status
+    if (pedido.metadados && typeof pedido.metadados === 'object') {
+      const historicoMeta = (pedido.metadados as any).historico_status;
+      if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
+        return historicoMeta;
+      }
+    }
+
+    // 2. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]-->
     try {
       const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
       if (match && match[1]) {
@@ -183,33 +219,22 @@ export const PedidosLista: React.FC = () => {
     return itens;
   };
 
-  const adicionarHistoricoObservacao = (observacoesAtuais: string | null | undefined, novoStatus: string, usuarioNome?: string): string => {
-    let textoBase = observacoesAtuais || '';
-    let historico: HistoricoItem[] = [];
-
-    const match = textoBase.match(/<!--HUBI_HISTORICO:(.*?)-->/);
-    if (match && match[1]) {
-      try {
-        historico = JSON.parse(match[1]);
-      } catch (e) {
-        historico = [];
-      }
-      textoBase = textoBase.replace(/<!--HUBI_HISTORICO:.*?-->/g, '').trim();
-    } else {
-      historico.push({
-        status: 'pendente',
-        data: new Date().toISOString(),
-        usuario: 'Sistema'
-      });
-    }
-
-    historico.push({
+  const adicionarHistoricoMetadados = (pedido: Pedido | null | undefined, novoStatus: string, usuarioNome?: string): Record<string, any> => {
+    const historicoAtual = pedido ? extrairHistoricoPedido(pedido) : [];
+    const novoItem: HistoricoItem = {
       status: novoStatus,
       data: new Date().toISOString(),
       usuario: usuarioNome || 'Operador'
-    });
+    };
 
-    return `${textoBase} <!--HUBI_HISTORICO:${JSON.stringify(historico)}-->`.trim();
+    const historicoAtualizado = [...historicoAtual, novoItem];
+
+    const metaBase = (pedido?.metadados && typeof pedido.metadados === 'object')
+      ? { ...pedido.metadados }
+      : {};
+
+    metaBase.historico_status = historicoAtualizado;
+    return metaBase;
   };
 
   const carregarPedidos = async (tocarAlerta = false) => {
@@ -321,17 +346,22 @@ export const PedidosLista: React.FC = () => {
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
     try {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
-      const novasObservacoes = adicionarHistoricoObservacao(
-        pedAlvo?.observacoes,
+      const novosMetadados = adicionarHistoricoMetadados(
+        pedAlvo,
         novoStatus,
         usuario?.nome_completo || 'Operador'
       );
+
+      // Limpar tag legada de observacoes caso ainda exista
+      let obsLimpa = pedAlvo?.observacoes || '';
+      obsLimpa = obsLimpa.replace(/<!--HUBI_HISTORICO:.*?-->/g, '').trim();
 
       const { error } = await supabase
         .from('pedidos')
         .update({
           status: novoStatus,
-          observacoes: novasObservacoes,
+          observacoes: obsLimpa || null,
+          metadados: novosMetadados,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', pedidoId);
@@ -339,14 +369,22 @@ export const PedidosLista: React.FC = () => {
       if (error) throw error;
 
       setPedidos((prev) =>
-        prev.map((p) => (p.id === pedidoId ? { ...p, status: novoStatus, observacoes: novasObservacoes } : p))
+        prev.map((p) =>
+          p.id === pedidoId
+            ? { ...p, status: novoStatus, observacoes: obsLimpa || null, metadados: novosMetadados }
+            : p
+        )
       );
 
       if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
         if (novoStatus === 'concluido') {
           setPedidoSelecionado(null);
         } else {
-          setPedidoSelecionado((prev) => (prev ? { ...prev, status: novoStatus, observacoes: novasObservacoes } : null));
+          setPedidoSelecionado((prev) =>
+            prev
+              ? { ...prev, status: novoStatus, observacoes: obsLimpa || null, metadados: novosMetadados }
+              : null
+          );
         }
       }
 
@@ -939,6 +977,7 @@ export const PedidosLista: React.FC = () => {
                     placeholder="Digite aqui uma observação para o pedido..."
                     value={observacaoTexto}
                     onChange={(e) => setObservacaoTexto(e.target.value)}
+                    onBlur={handleSalvarObservacao}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                   <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">

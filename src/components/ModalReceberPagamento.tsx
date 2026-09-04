@@ -54,8 +54,10 @@ const extrairInfoPagamentoPedido = (ped: Pedido | null): InfoPagamentoPrevisto =
     }
   } catch (e) {}
 
-  // 2. Verificar tag [PAG_PREVISTO:...] nas observações do pedido
-  if (typeof ped.observacoes === 'string') {
+  // 2. Verificar metadados estruturados ou fallback para tag [PAG_PREVISTO:...] nas observações
+  if (ped.metadados && typeof ped.metadados === 'object' && ped.metadados.pagamento_previsto) {
+    info = { ...info, ...ped.metadados.pagamento_previsto };
+  } else if (typeof ped.observacoes === 'string') {
     const match = ped.observacoes.match(/\[PAG_PREVISTO:(.*?)\]/);
     if (match && match[1]) {
       try {
