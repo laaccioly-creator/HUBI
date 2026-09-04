@@ -125,8 +125,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           valor: valorNum,
           forma_pagamento: formaQuitar,
           status: 'pago',
-          pago_em: new Date().toISOString(),
-          criado_em: new Date().toISOString(),
+          data_vencimento: new Date().toISOString().split('T')[0],
+          data_pagamento: new Date().toISOString(),
           observacoes: `Abatimento fiado. ${obsQuitar}`.trim()
         }]);
       } catch (errFin) {

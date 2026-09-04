@@ -277,8 +277,7 @@ export const FinancasCaixa: React.FC = () => {
           status: 'pago',
           eh_recorrente: ehRecorrente,
           frequencia_recorrencia: ehRecorrente ? 'mensal' : null,
-          forma_pagamento: formaPagamentoDespesa,
-          caixa_id: caixaAberto?.id || null
+          forma_pagamento: formaPagamentoDespesa
         }
       ]).select().single();
 

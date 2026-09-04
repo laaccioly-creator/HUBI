@@ -530,8 +530,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
         data_pagamento: new Date(entradaRecebidoEm).toISOString(),
         status: 'pago',
         forma_pagamento: entradaFormaLiquidacao,
-        observacoes: entradaObservacoes.trim() || null,
-        caixa_id: caixaAberto?.id || null
+        observacoes: entradaObservacoes.trim() || null
       };
 
       if (entradaEditando) {
