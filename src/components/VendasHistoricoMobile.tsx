@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Pedido, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
+import { extrairObservacaoLimpa } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
@@ -331,6 +332,20 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                   )}
                 </div>
               </>
+            );
+          })()}
+
+          {/* Observações da Venda (se houver) */}
+          {(() => {
+            const obsLimpa = extrairObservacaoLimpa(vendaDetalhes.observacoes);
+            if (!obsLimpa) return null;
+            return (
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-1">
+                <span className="font-bold uppercase tracking-wider text-[10px] text-amber-800 block">
+                  Observação da Venda
+                </span>
+                <p className="whitespace-pre-wrap">{obsLimpa}</p>
+              </div>
             );
           })()}
 
