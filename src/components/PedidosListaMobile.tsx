@@ -36,6 +36,7 @@ import {
   Globe,
   UserCheck,
   UserCheck2,
+  FileText,
   Settings,
   LogOut
 } from 'lucide-react';
@@ -43,6 +44,53 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
+
+interface HistoricoItemMobile {
+  status: string;
+  data: string;
+  usuario?: string;
+}
+
+const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => {
+  const itens: HistoricoItemMobile[] = [];
+
+  // 1. Tentar ler do metadados.historico_status
+  if (pedido.metadados && typeof pedido.metadados === 'object') {
+    const historicoMeta = (pedido.metadados as any).historico_status;
+    if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
+      return historicoMeta;
+    }
+  }
+
+  // 2. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]-->
+  try {
+    const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
+    if (match && match[1]) {
+      const parsed = JSON.parse(match[1]);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  if (pedido.criado_em) {
+    itens.push({
+      status: 'pendente',
+      data: pedido.criado_em,
+      usuario: pedido.vendedor?.nome_completo || 'Sistema'
+    });
+  }
+  if (pedido.status && pedido.status !== 'pendente') {
+    itens.push({
+      status: pedido.status,
+      data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
+      usuario: pedido.vendedor?.nome_completo || 'Operador'
+    });
+  }
+  return itens;
+};
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
@@ -427,20 +475,40 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             })()}
           </div>
 
-          {/* Adicionar observação */}
-          <button
-            type="button"
-            onClick={() => {
-              const obs = prompt('Adicionar observação ao pedido:', pedidoSelecionado.observacoes || '');
-              if (obs !== null) {
-                supabase.from('pedidos').update({ observacoes: obs }).eq('id', pedidoSelecionado.id);
-                setPedidoSelecionado({ ...pedidoSelecionado, observacoes: obs });
-              }
-            }}
-            className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1 pt-1"
-          >
-            <span>+ {pedidoSelecionado.observacoes ? 'Editar observação' : 'Adicionar observação'}</span>
-          </button>
+          {/* Observação e Ação */}
+          {(() => {
+            const obsAtualLimpa = (pedidoSelecionado.observacoes || '')
+              .replace(/\[PAG_PREVISTO:.*?\]/g, '')
+              .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
+              .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
+              .trim();
+
+            return (
+              <div className="pt-1 space-y-1.5">
+                {obsAtualLimpa && (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                    <span className="font-bold block text-[10px] text-amber-700 uppercase tracking-wide">Observação:</span>
+                    <p className="whitespace-pre-wrap break-words">{obsAtualLimpa}</p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const obs = prompt('Adicionar observação ao pedido:', obsAtualLimpa);
+                    if (obs !== null) {
+                      const obsFinal = obs.trim() || null;
+                      await supabase.from('pedidos').update({ observacoes: obsFinal, atualizado_em: new Date().toISOString() }).eq('id', pedidoSelecionado.id);
+                      setPedidoSelecionado({ ...pedidoSelecionado, observacoes: obsFinal });
+                      if (onRecarregar) onRecarregar();
+                    }
+                  }}
+                  className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>+ {obsAtualLimpa ? 'Editar observação' : 'Adicionar observação'}</span>
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Abas: ITENS | DETALHES (TELA007) | CLIENTE (TELA008) */}
@@ -515,6 +583,59 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   {new Date(pedidoSelecionado.data_venda).toLocaleString('pt-BR')}
                 </span>
               </div>
+
+              {/* Observação no Detalhe */}
+              {(() => {
+                const obsLimpa = (pedidoSelecionado.observacoes || '')
+                  .replace(/\[PAG_PREVISTO:.*?\]/g, '')
+                  .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
+                  .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
+                  .trim();
+                if (!obsLimpa) return null;
+                return (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-700 text-[10px] uppercase">
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Observação do Pedido</span>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words">{obsLimpa}</p>
+                  </div>
+                );
+              })()}
+
+              {/* Histórico de Status */}
+              {(() => {
+                const historico = extrairHistoricoPedidoMobile(pedidoSelecionado);
+                if (historico.length === 0) return null;
+                return (
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+                    <span className="font-bold text-[11px] text-slate-500 uppercase tracking-wide block">Histórico do Pedido</span>
+                    <div className="space-y-2.5">
+                      {historico.map((item, idx, arr) => {
+                        const isLast = idx === arr.length - 1;
+                        return (
+                          <div key={idx} className="flex items-start gap-2.5 text-xs">
+                            <div
+                              className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
+                                isLast ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-slate-400'
+                              }`}
+                            />
+                            <div>
+                              <p className={`font-bold capitalize ${isLast ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                {item.status.replace(/_/g, ' ')}
+                              </p>
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-normal">
+                                <span>{new Date(item.data).toLocaleString('pt-BR')}</span>
+                                {item.usuario && <span>• {item.usuario}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="space-y-2 pt-2 text-xs">
                 <div className="flex justify-between text-slate-500">
