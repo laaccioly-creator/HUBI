@@ -29,6 +29,83 @@ interface ModalReceberPagamentoProps {
   onPagamentoConcluido: (pedidoAtualizado?: Pedido) => void;
 }
 
+interface InfoPagamentoPrevisto {
+  forma_pagamento_id?: string | null;
+  forma_tipo?: string | null;
+  forma_nome?: string | null;
+  valor_entregue?: number | null;
+  troco?: number | null;
+  parcelas?: number | null;
+}
+
+const extrairInfoPagamentoPedido = (ped: Pedido | null): InfoPagamentoPrevisto => {
+  if (!ped) return {};
+
+  let info: InfoPagamentoPrevisto = {};
+
+  // 1. Verificar localStorage
+  try {
+    const salvoLocal = localStorage.getItem(`hubi_pag_previsto_${ped.id}`);
+    if (salvoLocal) {
+      const parsed = JSON.parse(salvoLocal);
+      if (parsed && typeof parsed === 'object') {
+        info = { ...parsed };
+      }
+    }
+  } catch (e) {}
+
+  // 2. Verificar tag [PAG_PREVISTO:...] nas observações do pedido
+  if (typeof ped.observacoes === 'string') {
+    const match = ped.observacoes.match(/\[PAG_PREVISTO:(.*?)\]/);
+    if (match && match[1]) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (parsed && typeof parsed === 'object') {
+          info = { ...info, ...parsed };
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 3. Se não tiver forma definida ou se tiver pagamentos_pedido vinculado
+  if (ped.pagamentos && ped.pagamentos.length > 0) {
+    const ultPag = ped.pagamentos[ped.pagamentos.length - 1];
+    if (ultPag) {
+      if (!info.forma_pagamento_id && ultPag.forma_pagamento_id) {
+        info.forma_pagamento_id = ultPag.forma_pagamento_id;
+      }
+      if (!info.forma_tipo && ultPag.forma_pagamento?.tipo) {
+        info.forma_tipo = ultPag.forma_pagamento.tipo;
+      }
+      if (!info.forma_nome && ultPag.forma_pagamento?.nome) {
+        info.forma_nome = ultPag.forma_pagamento.nome;
+      }
+      if (!info.parcelas && ultPag.parcelas) {
+        info.parcelas = ultPag.parcelas;
+      }
+    }
+  }
+
+  return info;
+};
+
+const resolverFormaCorrespondente = (formas: FormaPagamento[], info: InfoPagamentoPrevisto): FormaPagamento => {
+  if (info.forma_pagamento_id) {
+    const porId = formas.find(f => f.id === info.forma_pagamento_id);
+    if (porId) return porId;
+  }
+  if (info.forma_tipo) {
+    const porTipo = formas.find(f => f.tipo === info.forma_tipo);
+    if (porTipo) return porTipo;
+  }
+  if (info.forma_nome) {
+    const porNome = formas.find(f => f.nome.toLowerCase() === info.forma_nome!.toLowerCase());
+    if (porNome) return porNome;
+  }
+  const padraoDinheiro = formas.find(f => f.tipo === 'dinheiro');
+  return padraoDinheiro || formas[0];
+};
+
 export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
   isOpen,
   onClose,
@@ -56,7 +133,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
     { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado / A Prazo', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
   ];
 
-  // Carregar formas de pagamento cadastradas
+  // Carregar formas de pagamento cadastradas e pré-selecionar a forma informada no pedido
   useEffect(() => {
     if (!loja?.id || !isOpen) return;
     const buscarFormas = async () => {
@@ -68,24 +145,46 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
           .eq('ativo', true)
           .order('nome');
 
+        let lista = FORMAS_PADRAO;
         if (!error && data && data.length > 0) {
-          setFormasPagamento(data);
-          setFormaEscolhida(data[0]);
+          lista = data;
+        }
+        setFormasPagamento(lista);
+
+        if (pedido) {
+          const info = extrairInfoPagamentoPedido(pedido);
+          const formaAlvo = resolverFormaCorrespondente(lista, info);
+          setFormaEscolhida(formaAlvo);
+
+          if (info.valor_entregue && Number(info.valor_entregue) > 0) {
+            setValorEntregueDinheiro(Number(info.valor_entregue).toFixed(2));
+          }
+          if (info.parcelas && Number(info.parcelas) > 0) {
+            setParcelasCartao(Number(info.parcelas));
+          }
         } else {
-          setFormasPagamento(FORMAS_PADRAO);
-          setFormaEscolhida(FORMAS_PADRAO[0]);
+          setFormaEscolhida(lista.find(f => f.tipo === 'dinheiro') || lista[0]);
         }
       } catch (err) {
         console.warn('Fallback formas de pagamento:', err);
         setFormasPagamento(FORMAS_PADRAO);
-        setFormaEscolhida(FORMAS_PADRAO[0]);
+        if (pedido) {
+          const info = extrairInfoPagamentoPedido(pedido);
+          const formaAlvo = resolverFormaCorrespondente(FORMAS_PADRAO, info);
+          setFormaEscolhida(formaAlvo);
+          if (info.valor_entregue && Number(info.valor_entregue) > 0) {
+            setValorEntregueDinheiro(Number(info.valor_entregue).toFixed(2));
+          }
+        } else {
+          setFormaEscolhida(FORMAS_PADRAO.find(f => f.tipo === 'dinheiro') || FORMAS_PADRAO[0]);
+        }
       }
     };
 
     buscarFormas();
-  }, [loja?.id, isOpen]);
+  }, [loja?.id, isOpen, pedido]);
 
-  // Inicializar valores com base no saldo devedor do pedido
+  // Inicializar valores com base no saldo devedor do pedido e dados de pagamento previstos
   useEffect(() => {
     if (pedido && isOpen) {
       const valorTotal = Number(pedido.valor_total || 0);
@@ -94,13 +193,31 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
       const valorSugerido = saldoRestante > 0 ? saldoRestante : (valorTotal > 0 ? valorTotal : 0);
 
       setValorReceber(valorSugerido.toFixed(2));
-      setValorEntregueDinheiro('');
-      setParcelasCartao(1);
+
+      const info = extrairInfoPagamentoPedido(pedido);
+
+      if (formasPagamento && formasPagamento.length > 0) {
+        const formaAlvo = resolverFormaCorrespondente(formasPagamento, info);
+        setFormaEscolhida(formaAlvo);
+      }
+
+      if (info.valor_entregue && Number(info.valor_entregue) > 0) {
+        setValorEntregueDinheiro(Number(info.valor_entregue).toFixed(2));
+      } else {
+        setValorEntregueDinheiro('');
+      }
+
+      if (info.parcelas && Number(info.parcelas) > 0) {
+        setParcelasCartao(Number(info.parcelas));
+      } else {
+        setParcelasCartao(1);
+      }
+
       setErroMsg(null);
       setSucessoModal(false);
       setPedidoAtualizado(null);
     }
-  }, [pedido, isOpen]);
+  }, [pedido, isOpen, formasPagamento]);
 
   if (!isOpen || !pedido) return null;
 

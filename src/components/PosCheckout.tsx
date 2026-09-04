@@ -228,9 +228,55 @@ export const PosCheckout: React.FC = () => {
     if (formasPagamento.length === 0) {
       setFormasPagamento(listaFPs);
     }
-    if (!formaPagamentoEscolhida) {
+
+    if (pedidoEmEdicao) {
+      let infoPrevisto: any = null;
+      try {
+        const local = localStorage.getItem(`hubi_pag_previsto_${pedidoEmEdicao.id}`);
+        if (local) infoPrevisto = JSON.parse(local);
+      } catch (e) {}
+
+      if (!infoPrevisto && typeof pedidoEmEdicao.observacoes === 'string') {
+        const match = pedidoEmEdicao.observacoes.match(/\[PAG_PREVISTO:(.*?)\]/);
+        if (match && match[1]) {
+          try {
+            infoPrevisto = JSON.parse(match[1]);
+          } catch (e) {}
+        }
+      }
+
+      if (!infoPrevisto && pedidoEmEdicao.pagamentos && pedidoEmEdicao.pagamentos.length > 0) {
+        const p = pedidoEmEdicao.pagamentos[pedidoEmEdicao.pagamentos.length - 1];
+        infoPrevisto = {
+          forma_pagamento_id: p.forma_pagamento_id,
+          forma_tipo: p.forma_pagamento?.tipo,
+          forma_nome: p.forma_pagamento?.nome,
+          parcelas: p.parcelas
+        };
+      }
+
+      if (infoPrevisto) {
+        const fpCorrespondente = listaFPs.find(f =>
+          (infoPrevisto.forma_pagamento_id && f.id === infoPrevisto.forma_pagamento_id) ||
+          (infoPrevisto.forma_tipo && f.tipo === infoPrevisto.forma_tipo) ||
+          (infoPrevisto.forma_nome && f.nome.toLowerCase() === infoPrevisto.forma_nome.toLowerCase())
+        );
+        if (fpCorrespondente) {
+          setFormaPagamentoEscolhida(fpCorrespondente);
+        }
+        if (infoPrevisto.valor_entregue && Number(infoPrevisto.valor_entregue) > 0) {
+          setValorRecebidoDinheiro(Number(infoPrevisto.valor_entregue).toFixed(2));
+        }
+        if (infoPrevisto.parcelas && Number(infoPrevisto.parcelas) > 0) {
+          setParcelasCartao(Number(infoPrevisto.parcelas));
+        }
+      } else if (!formaPagamentoEscolhida) {
+        setFormaPagamentoEscolhida(listaFPs[0]);
+      }
+    } else if (!formaPagamentoEscolhida) {
       setFormaPagamentoEscolhida(listaFPs[0]);
     }
+
     setModalFechamento(true);
   };
 
@@ -434,8 +480,24 @@ export const PosCheckout: React.FC = () => {
 
       let obsFinal = pedidoEmEdicao?.observacoes || '';
       obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
+      obsFinal = obsFinal.replace(/\[PAG_PREVISTO:.*?\]/g, '').trim();
       if (tipoDesconto === 'percentual' && descontoPercentual > 0) {
         obsFinal = `${obsFinal} [DESCONTO_PERC:${descontoPercentual}]`.trim();
+      }
+
+      const valEntregueNum = parseFloat(String(valorRecebidoDinheiro).replace(',', '.')) || 0;
+      const trocoNum = valEntregueNum > total ? (valEntregueNum - total) : 0;
+
+      if (fpFinal) {
+        const infoPrevisto = {
+          forma_pagamento_id: fpFinal.id,
+          forma_tipo: fpFinal.tipo,
+          forma_nome: fpFinal.nome,
+          valor_entregue: valEntregueNum > 0 ? valEntregueNum : null,
+          troco: trocoNum > 0 ? trocoNum : null,
+          parcelas: parcelasCartao || 1
+        };
+        obsFinal = `${obsFinal} [PAG_PREVISTO:${JSON.stringify(infoPrevisto)}]`.trim();
       }
 
       const statusFinal = pedidoEmEdicao?.status || 'pendente';
@@ -508,6 +570,17 @@ export const PosCheckout: React.FC = () => {
 
       // Registra ou atualiza meio de pagamento previsto no pedido
       if (fpFinal?.id && pedidoIdFinal) {
+        try {
+          localStorage.setItem(`hubi_pag_previsto_${pedidoIdFinal}`, JSON.stringify({
+            forma_pagamento_id: fpFinal.id,
+            forma_tipo: fpFinal.tipo,
+            forma_nome: fpFinal.nome,
+            valor_entregue: valEntregueNum > 0 ? valEntregueNum : null,
+            troco: trocoNum > 0 ? trocoNum : null,
+            parcelas: parcelasCartao || 1
+          }));
+        } catch (e) {}
+
         await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoIdFinal);
         await supabase.from('pagamentos_pedido').insert([{
           loja_id: loja.id,

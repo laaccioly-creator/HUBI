@@ -289,7 +289,12 @@ export const PedidosLista: React.FC = () => {
 
   useEffect(() => {
     if (pedidoSelecionado) {
-      setObservacaoTexto(pedidoSelecionado.observacoes || '');
+      const obsLimpa = (pedidoSelecionado.observacoes || '')
+        .replace(/\[PAG_PREVISTO:.*?\]/g, '')
+        .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
+        .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
+        .trim();
+      setObservacaoTexto(obsLimpa);
       setValorRecebidoConclusao(Number(pedidoSelecionado.valor_total || 0).toFixed(2));
       setNovoDescontoValor(Number(pedidoSelecionado.valor_desconto || 0).toFixed(2));
     }
