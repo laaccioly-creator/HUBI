@@ -43,6 +43,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
+import { extrairObservacaoLimpa } from '../utils/formatters';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
@@ -981,13 +982,16 @@ export const VendasHistorico: React.FC = () => {
 
                       {/* Observações */}
                       <td className="py-3.5 px-4 text-center text-slate-400">
-                        {venda.observacoes ? (
-                          <span className="truncate max-w-[120px] block mx-auto text-[11px]" title={venda.observacoes}>
-                            {venda.observacoes}
-                          </span>
-                        ) : (
-                          <span>-</span>
-                        )}
+                        {(() => {
+                          const obsLimpa = extrairObservacaoLimpa(venda.observacoes);
+                          return obsLimpa ? (
+                            <span className="truncate max-w-[120px] block mx-auto text-[11px]" title={obsLimpa}>
+                              {obsLimpa}
+                            </span>
+                          ) : (
+                            <span>-</span>
+                          );
+                        })()}
                       </td>
 
                       {/* Ações: Cancelar Venda (TELA005) */}

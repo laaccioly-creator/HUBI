@@ -48,6 +48,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
+import { extrairObservacaoLimpa } from '../utils/formatters';
 import { audioService } from '../services/audioService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
@@ -314,11 +315,7 @@ export const PedidosLista: React.FC = () => {
 
   useEffect(() => {
     if (pedidoSelecionado) {
-      const obsLimpa = (pedidoSelecionado.observacoes || '')
-        .replace(/\[PAG_PREVISTO:.*?\]/g, '')
-        .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
-        .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
-        .trim();
+      const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
       setObservacaoTexto(obsLimpa);
       setValorRecebidoConclusao(Number(pedidoSelecionado.valor_total || 0).toFixed(2));
       setNovoDescontoValor(Number(pedidoSelecionado.valor_desconto || 0).toFixed(2));
@@ -352,9 +349,8 @@ export const PedidosLista: React.FC = () => {
         usuario?.nome_completo || 'Operador'
       );
 
-      // Limpar tag legada de observacoes caso ainda exista
-      let obsLimpa = pedAlvo?.observacoes || '';
-      obsLimpa = obsLimpa.replace(/<!--HUBI_HISTORICO:.*?-->/g, '').trim();
+      // Limpar tag legada e metadados de cliente em observações caso ainda existam
+      let obsLimpa = extrairObservacaoLimpa(pedAlvo?.observacoes);
 
       const { error } = await supabase
         .from('pedidos')
@@ -527,6 +523,13 @@ export const PedidosLista: React.FC = () => {
         });
       }
 
+      const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
+      const novosMetadados = adicionarHistoricoMetadados(
+        pedidoSelecionado,
+        'concluido',
+        usuario?.nome_completo || 'Operador'
+      );
+
       const { error } = await supabase
         .from('pedidos')
         .update({
@@ -534,6 +537,8 @@ export const PedidosLista: React.FC = () => {
           status_pagamento: 'pago',
           valor_pago: valorTotal,
           saldo_devedor: 0,
+          observacoes: obsLimpa || null,
+          metadados: novosMetadados,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', pedidoSelecionado.id);

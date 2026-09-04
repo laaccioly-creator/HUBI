@@ -43,6 +43,7 @@ import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido,
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
+import { extrairObservacaoLimpa } from '../utils/formatters';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
@@ -378,11 +379,7 @@ export const PosCheckout: React.FC = () => {
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
       const statusFinal = pedidoEmEdicao?.status || 'pendente';
-      let obsLimpa = (pedidoEmEdicao?.observacoes || '')
-        .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
-        .replace(/\[PAG_PREVISTO:.*?\]/g, '')
-        .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
-        .trim();
+      const obsLimpa = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 
       let metaExistente: Record<string, any> = {};
       if (pedidoEmEdicao?.metadados) {
@@ -507,9 +504,7 @@ export const PosCheckout: React.FC = () => {
       let vendedorIdSanitizado: string | null = usuario?.id && SyncService.isUuidValido(usuario.id) ? usuario.id : null;
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
-      let obsFinal = pedidoEmEdicao?.observacoes || '';
-      obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
-      obsFinal = obsFinal.replace(/\[PAG_PREVISTO:.*?\]/g, '').trim();
+      const obsFinal = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 
       const metaExistente = (pedidoEmEdicao?.metadados && typeof pedidoEmEdicao.metadados === 'object')
         ? { ...pedidoEmEdicao.metadados }
@@ -695,9 +690,7 @@ export const PosCheckout: React.FC = () => {
       const valorLiquido = total - taxaValor;
       const dataIso = new Date().toISOString();
 
-      let obsFinal = pedidoEmEdicao?.observacoes || '';
-      obsFinal = obsFinal.replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '').trim();
-      obsFinal = obsFinal.replace(/\[PAG_PREVISTO:.*?\]/g, '').trim();
+      const obsFinal = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 
       const metaExistente = (pedidoEmEdicao?.metadados && typeof pedidoEmEdicao.metadados === 'object')
         ? { ...pedidoEmEdicao.metadados }

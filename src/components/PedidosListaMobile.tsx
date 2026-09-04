@@ -44,6 +44,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
+import { extrairObservacaoLimpa } from '../utils/formatters';
 
 interface HistoricoItemMobile {
   status: string;
@@ -477,11 +478,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
           {/* Observação e Ação */}
           {(() => {
-            const obsAtualLimpa = (pedidoSelecionado.observacoes || '')
-              .replace(/\[PAG_PREVISTO:.*?\]/g, '')
-              .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
-              .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
-              .trim();
+            const obsAtualLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
 
             return (
               <div className="pt-1 space-y-1.5">
@@ -586,11 +583,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
               {/* Observação no Detalhe */}
               {(() => {
-                const obsLimpa = (pedidoSelecionado.observacoes || '')
-                  .replace(/\[PAG_PREVISTO:.*?\]/g, '')
-                  .replace(/\[DESCONTO_PERC:[0-9.]+\]/g, '')
-                  .replace(/<!--HUBI_HISTORICO:.*?-->/g, '')
-                  .trim();
+                const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
                 if (!obsLimpa) return null;
                 return (
                   <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">

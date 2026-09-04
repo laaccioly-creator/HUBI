@@ -584,13 +584,26 @@ export const CatalogoPublico: React.FC = () => {
       }
       console.groupEnd();
 
-      const dadosObs = [
-        `Cliente: ${nomeCliente} (${whatsappCliente})`,
-        dadosContato.cpfCnpj ? `CPF/CNPJ: ${dadosContato.cpfCnpj}` : '',
-        dadosContato.email ? `E-mail: ${dadosContato.email}` : '',
-        cupomAplicado ? `[Cupom: ${cupomAplicado.codigo}]` : '',
-        observacoes ? `Obs: ${observacoes}` : ''
-      ].filter(Boolean).join('. ');
+      const metadadosPedido = {
+        origem_detalhes: 'catalogo_online',
+        cupom: cupomAplicado ? {
+          id: cupomAplicado.id,
+          codigo: cupomAplicado.codigo,
+          desconto: descontoCupom
+        } : null,
+        contato_catalogo: {
+          nome: nomeCliente,
+          telefone: whatsappCliente,
+          cpfCnpj: dadosContato.cpfCnpj || null,
+          email: dadosContato.email || null
+        },
+        forma_entrega: formaEntregaEscolhida ? {
+          id: formaEntregaEscolhida.id,
+          nome: formaEntregaEscolhida.nome,
+          tipo: formaEntregaEscolhida.tipo,
+          valor: valorFreteEfetivo
+        } : null
+      };
 
       const { data: pedidoCriado, error: erroPedido } = await supabase
         .from('pedidos')
@@ -607,7 +620,8 @@ export const CatalogoPublico: React.FC = () => {
             valor_total: total,
             saldo_devedor: total,
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
-            observacoes: dadosObs,
+            observacoes: observacoes?.trim() || null,
+            metadados: metadadosPedido,
             data_venda: new Date().toISOString()
           }
         ])

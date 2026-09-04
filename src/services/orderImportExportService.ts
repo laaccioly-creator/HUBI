@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { Pedido, Cliente, Produto, FormaPagamento, StatusPedido, OrigemVenda } from '../types';
+import { extrairObservacaoLimpa } from '../utils/formatters';
 
 export interface ItemPedidoImportacao {
   linha: number;
@@ -517,7 +518,7 @@ export const orderImportExportService = {
         'Forma de Pagamento': meioPag,
         'Cliente': p.cliente?.nome || '',
         'Documento Cliente': p.cliente?.numero_documento || '',
-        'Observações': p.observacoes || ''
+        'Observações': extrairObservacaoLimpa(p.observacoes)
       };
     });
 
@@ -581,7 +582,7 @@ export const orderImportExportService = {
         this.formatarCampoCsv(meioPag),
         this.formatarCampoCsv(p.cliente?.nome || ''),
         this.formatarCampoCsv(p.cliente?.numero_documento || ''),
-        this.formatarCampoCsv(p.observacoes || '')
+        this.formatarCampoCsv(extrairObservacaoLimpa(p.observacoes))
       ].join(';');
     });
 
