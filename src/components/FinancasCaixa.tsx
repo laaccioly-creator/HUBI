@@ -59,6 +59,7 @@ export const FinancasCaixa: React.FC = () => {
   const [dataVencimento, setDataVencimento] = useState<string>(new Date().toISOString().split('T')[0]);
   const [ehRecorrente, setEhRecorrente] = useState<boolean>(false);
   const [formaPagamentoDespesa, setFormaPagamentoDespesa] = useState<string>('dinheiro');
+  const [salvandoDespesa, setSalvandoDespesa] = useState<boolean>(false);
 
   // Abertura de Caixa
   const [modalAberturaCaixa, setModalAberturaCaixa] = useState<boolean>(false);
@@ -260,9 +261,10 @@ export const FinancasCaixa: React.FC = () => {
       mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem lançar despesas.', 'Acesso Restrito');
       return;
     }
-    if (!loja?.id || !descricao.trim() || !valor) return;
+    if (!loja?.id || !descricao.trim() || !valor || salvandoDespesa) return;
 
     try {
+      setSalvandoDespesa(true);
       const valNum = Number(valor);
       const { data, error } = await supabase.from('transacoes_financeiras').insert([
         {
@@ -304,6 +306,8 @@ export const FinancasCaixa: React.FC = () => {
       mostrarSucesso('Despesa lançada com sucesso!');
     } catch (err: any) {
       mostrarErro(err.message || 'Tente novamente.', 'Erro ao lançar despesa');
+    } finally {
+      setSalvandoDespesa(false);
     }
   };
 
@@ -776,98 +780,206 @@ Assinatura do Supervisor: ___________________________________________
       formaPagamento?: string;
     }> = [];
 
-    // Mapeamento de pedidos por id e por numero_pedido para enriquecer transações de vendas
+    // Mapeamento e identificadores de pedidos
     const pedidosMap = new Map<string, Pedido>();
     const pedidosNumMap = new Map<number, Pedido>();
+
     pedidos.forEach(p => {
-      pedidosMap.set(p.id, p);
+      if (p.id) {
+        pedidosMap.set(p.id, p);
+        pedidosMap.set(p.id.toLowerCase(), p);
+      }
       if (p.numero_pedido != null) {
         pedidosNumMap.set(Number(p.numero_pedido), p);
       }
     });
 
-    // Rastrear quais pedidos já possuem transação financeira registrada
+    // Conjuntos para controle de duplicações estritas
     const pedidosContabilizados = new Set<string>();
+    const transacoesIdsContabilizados = new Set<string>();
 
-    // 1. Processar todas as transações financeiras reais da tabela transacoes_financeiras
-    transacoes.forEach(t => {
-      const tipo = String(t.tipo || '').toUpperCase() === 'SAIDA' || String(t.tipo || '').toLowerCase() === 'despesa'
-        ? 'SAIDA'
-        : 'ENTRADA';
-
-      let descFormatada = t.descricao || (tipo === 'ENTRADA' ? 'Recebimento Venda' : 'Despesa');
-      let fpNome = t.forma_pagamento || undefined;
-      let categoria = t.categoria || (tipo === 'ENTRADA' ? 'Venda Balcão / PDV' : 'Despesas Gerais');
-
-      // Se a transação estiver atrelada a um pedido
-      let ped: Pedido | undefined = undefined;
-      if (t.pedido_id) {
-        ped = pedidosMap.get(t.pedido_id);
-        pedidosContabilizados.add(t.pedido_id);
-        if (ped && ped.numero_pedido != null) {
-          pedidosContabilizados.add(String(ped.numero_pedido));
-        }
-      }
-
-      // Procurar por menção ao número do pedido ou venda na descrição
-      const numMatch = descFormatada.match(/(?:recebimento\s+)?(?:pedido|venda)\s*#\s*(\d+)/i);
-      if (numMatch && numMatch[1]) {
-        const numPed = Number(numMatch[1]);
-        pedidosContabilizados.add(String(numPed));
-        if (!ped) {
-          ped = pedidosNumMap.get(numPed);
-          if (ped) pedidosContabilizados.add(ped.id);
-        }
-      }
-
-      if (ped) {
-        pedidosContabilizados.add(ped.id);
-        if (ped.numero_pedido != null) pedidosContabilizados.add(String(ped.numero_pedido));
-        const nomeCli = ped.cliente?.nome || 'Cliente Balcão';
-        descFormatada = `Recebimento Venda #${ped.numero_pedido} - ${nomeCli}`;
-        if (!fpNome && ped.pagamentos && ped.pagamentos.length > 0) {
-          fpNome = ped.pagamentos[0].forma_pagamento?.nome;
-        }
-      } else {
-        descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
-      }
-
-      const status = String(t.status || 'pago').toLowerCase();
-
-      resultado.push({
-        id: t.id,
-        tipo,
-        categoria,
-        descricao: descFormatada,
-        valor: Number(t.valor || 0),
-        data: t.data_pagamento || t.data_vencimento || t.criado_em || new Date().toISOString(),
-        status: status === 'pago' ? 'pago' : status === 'pendente' ? 'pendente' : status,
-        ehRecorrente: t.eh_recorrente,
-        formaPagamento: fpNome
-      });
-    });
-
-    // 2. Fallback: Se houver pedidos que porventura não tenham registro em transacoes_financeiras
+    // 1. Processar primeiro todos os pedidos válidos (Fonte de verdade oficial para VENDAS)
     pedidos.forEach(p => {
-      if (p.status === 'cancelado') return;
-      if (pedidosContabilizados.has(p.id)) return;
-      if (p.numero_pedido != null && pedidosContabilizados.has(String(p.numero_pedido))) return;
+      // Ignorar e registrar pedidos cancelados para não puxar transações deles
+      if (p.status === 'cancelado') {
+        if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
+        if (p.numero_pedido != null) pedidosContabilizados.add(String(p.numero_pedido));
+        return;
+      }
 
+      // Pedidos sem valor pago ou pendentes sem pagamento não entram no fluxo de caixa realizado
       const valPago = Number(p.valor_pago || 0);
-      if (valPago <= 0) return; // Pedidos pendentes sem pagamento realizado não entram no fluxo de caixa
+      const valTotal = Number(p.valor_total || 0);
+      const valEfetivo = valPago > 0 ? valPago : (p.status === 'concluido' || p.status_pagamento === 'pago' ? valTotal : 0);
+      if (valEfetivo <= 0) return;
+
+      // Registrar como contabilizado para evitar que o trigger do Supabase duplique
+      if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
+      if (p.numero_pedido != null) pedidosContabilizados.add(String(p.numero_pedido));
 
       const nomeCliente = p.cliente?.nome || 'Cliente Balcão';
-      const fpNome = p.pagamentos?.[0]?.forma_pagamento?.nome || 'Dinheiro';
+
+      // Combinar múltiplas formas de pagamento se houver divisão (ex: Dinheiro + Pix)
+      let fpNome = 'Dinheiro';
+      if (p.pagamentos && p.pagamentos.length > 0) {
+        const metodos = Array.from(
+          new Set(
+            p.pagamentos
+              .map(pag => pag.forma_pagamento?.nome)
+              .filter((nome): nome is string => Boolean(nome))
+          )
+        );
+        if (metodos.length > 0) {
+          fpNome = metodos.join(' + ');
+        }
+      }
 
       resultado.push({
         id: `ped_${p.id}`,
         tipo: 'ENTRADA',
         categoria: 'Venda Balcão / PDV',
-        descricao: `Recebimento Venda #${p.numero_pedido} - ${nomeCliente}`,
-        valor: valPago,
+        descricao: `Recebimento Venda #${p.numero_pedido || p.id.slice(0, 6)} - ${nomeCliente}`,
+        valor: valEfetivo,
         data: p.data_venda || p.criado_em || new Date().toISOString(),
         status: p.status_pagamento === 'pago' || p.status === 'concluido' ? 'pago' : 'concluído',
         formaPagamento: fpNome
+      });
+    });
+
+    // Função auxiliar para verificar se uma transação financeira pertence a um pedido
+    const identificarPedidoDaTransacao = (t: TransacaoFinanceira): { pertence: boolean; pedido?: Pedido; chave?: string } => {
+      // 1. Por pedido_id
+      if (t.pedido_id) {
+        const ped = pedidosMap.get(t.pedido_id) || pedidosMap.get(t.pedido_id.toLowerCase());
+        return { pertence: true, pedido: ped, chave: t.pedido_id.toLowerCase() };
+      }
+
+      const desc = (t.descricao || '').trim();
+
+      // 2. Por UUID na descrição (ex: gerado automaticamente pelo trigger SQL: "Recebimento Pedido #<UUID>")
+      const uuidMatch = desc.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      if (uuidMatch && uuidMatch[0]) {
+        const uuid = uuidMatch[0].toLowerCase();
+        const ped = pedidosMap.get(uuid);
+        return { pertence: true, pedido: ped, chave: uuid };
+      }
+
+      // 3. Por menção a pedido ou venda numérica (ex: "Recebimento Pedido #12", "Recebimento Venda #12", "Pedido 12", "Venda 12")
+      const numMatch = desc.match(/(?:recebimento\s+)?(?:pedido|venda)\s*(?:#|\bn[ºo]\b)?\s*(\d+)/i);
+      if (numMatch && numMatch[1]) {
+        const num = Number(numMatch[1]);
+        const ped = pedidosNumMap.get(num);
+        return { pertence: true, pedido: ped, chave: String(num) };
+      }
+
+      // 4. Se a categoria é explicitamente "Venda" ou "Venda Balcão / PDV"
+      if (t.categoria === 'Venda' || t.categoria === 'Venda Balcão / PDV') {
+        return { pertence: true, chave: desc.toLowerCase() };
+      }
+
+      return { pertence: false };
+    };
+
+    // 2. Processar todas as transações financeiras reais da tabela transacoes_financeiras
+    transacoes.forEach(t => {
+      // Evitar duplicatas de ID na tabela de transações
+      if (t.id && transacoesIdsContabilizados.has(t.id)) return;
+      if (t.id) transacoesIdsContabilizados.add(t.id);
+
+      const tipo = String(t.tipo || '').toUpperCase() === 'SAIDA' || String(t.tipo || '').toLowerCase() === 'despesa'
+        ? 'SAIDA'
+        : 'ENTRADA';
+
+      // SE FOR SAÍDA (Despesas, Fornecedores, Contas a Pagar):
+      if (tipo === 'SAIDA') {
+        const status = String(t.status || 'pago').toLowerCase();
+        resultado.push({
+          id: t.id,
+          tipo: 'SAIDA',
+          categoria: t.categoria || 'Despesas Gerais',
+          descricao: t.descricao || 'Despesa',
+          valor: Number(t.valor || 0),
+          data: t.data_vencimento || t.data_pagamento || t.criado_em || new Date().toISOString(),
+          status: status === 'pago' ? 'pago' : status === 'pendente' ? 'pendente' : status,
+          ehRecorrente: t.eh_recorrente,
+          formaPagamento: t.forma_pagamento || undefined
+        });
+        return;
+      }
+
+      // SE FOR ENTRADA:
+      const vinculo = identificarPedidoDaTransacao(t);
+
+      // Se a transação pertence a uma venda/pedido:
+      if (vinculo.pertence) {
+        // Se encontramos o pedido correspondente:
+        if (vinculo.pedido) {
+          const ped = vinculo.pedido;
+          // Se o pedido já foi contabilizado (ou é cancelado), IGNORAMOS a transação redundante
+          // para não duplicar o registro com a listagem oficial de pedidos
+          if (
+            pedidosContabilizados.has(ped.id.toLowerCase()) ||
+            (ped.numero_pedido != null && pedidosContabilizados.has(String(ped.numero_pedido)))
+          ) {
+            return;
+          }
+          if (ped.status === 'cancelado') return;
+        }
+
+        // Se a transação tem um pedido_id já contabilizado:
+        if (t.pedido_id && pedidosContabilizados.has(t.pedido_id.toLowerCase())) {
+          return;
+        }
+
+        // Se a chave identificada já foi contabilizada:
+        if (vinculo.chave && pedidosContabilizados.has(vinculo.chave.toLowerCase())) {
+          return;
+        }
+
+        // Se for uma entrada de venda que NÃO estava na lista de pedidos (fallback de integridade):
+        // Garantimos que não adicionamos a mesma venda mais de uma vez
+        const chavePedido = vinculo.chave || t.pedido_id || t.descricao;
+        if (pedidosContabilizados.has(chavePedido.toLowerCase())) {
+          return;
+        }
+        pedidosContabilizados.add(chavePedido.toLowerCase());
+
+        let descFormatada = t.descricao || 'Recebimento Venda';
+        if (vinculo.pedido) {
+          const ped = vinculo.pedido;
+          const nomeCli = ped.cliente?.nome || 'Cliente Balcão';
+          descFormatada = `Recebimento Venda #${ped.numero_pedido || ped.id.slice(0, 6)} - ${nomeCli}`;
+        } else {
+          descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
+        }
+
+        const status = String(t.status || 'pago').toLowerCase();
+        resultado.push({
+          id: t.id,
+          tipo: 'ENTRADA',
+          categoria: t.categoria || 'Venda Balcão / PDV',
+          descricao: descFormatada,
+          valor: Number(t.valor || 0),
+          data: t.data_pagamento || t.data_vencimento || t.criado_em || new Date().toISOString(),
+          status: status === 'pago' ? 'pago' : status === 'pendente' ? 'pendente' : status,
+          ehRecorrente: t.eh_recorrente,
+          formaPagamento: t.forma_pagamento || undefined
+        });
+        return;
+      }
+
+      // Se for uma entrada legítima NÃO vinculada a pedido (ex: Quitação de Fiado, Aporte, etc.):
+      const status = String(t.status || 'pago').toLowerCase();
+      resultado.push({
+        id: t.id,
+        tipo: 'ENTRADA',
+        categoria: t.categoria || 'Outras Receitas',
+        descricao: t.descricao || 'Recebimento',
+        valor: Number(t.valor || 0),
+        data: t.data_pagamento || t.data_vencimento || t.criado_em || new Date().toISOString(),
+        status: status === 'pago' ? 'pago' : status === 'pendente' ? 'pendente' : status,
+        ehRecorrente: t.eh_recorrente,
+        formaPagamento: t.forma_pagamento || undefined
       });
     });
 
@@ -1520,9 +1632,10 @@ Assinatura do Supervisor: ___________________________________________
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 font-bold text-white text-xs shadow-lg shadow-rose-500/25 transition mt-2 cursor-pointer"
+                disabled={salvandoDespesa}
+                className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 font-bold text-white text-xs shadow-lg shadow-rose-500/25 transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Salvar Despesa
+                {salvandoDespesa ? 'Salvando...' : 'Salvar Despesa'}
               </button>
             </form>
           </div>

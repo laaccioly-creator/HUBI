@@ -262,8 +262,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       pedidoOriginal?: Pedido;
     }> = [];
 
+    const pedidosIds = new Set<string>();
+    const pedidosNumeros = new Set<string>();
+
     // 1. Vendas de Pedidos
     (pedidos || []).forEach(ped => {
+      if (ped.id) pedidosIds.add(ped.id.toLowerCase());
+      if (ped.numero_pedido != null) pedidosNumeros.add(String(ped.numero_pedido));
+
       if (ped.status === 'cancelado') return;
       const dataIso = ped.data_venda || ped.criado_em || '';
       const dataFormatada = dataIso.split('T')[0];
@@ -279,10 +285,25 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       });
     });
 
-    // 2. Entradas Manuais
+    // 2. Entradas Manuais (ignorar as vinculadas a pedidos para evitar duplicações)
+    const transacoesProcessadas = new Set<string>();
     (transacoes || [])
       .filter(t => t.tipo === 'ENTRADA')
       .forEach(tr => {
+        if (tr.id && transacoesProcessadas.has(tr.id)) return;
+        if (tr.id) transacoesProcessadas.add(tr.id);
+
+        if (tr.pedido_id && pedidosIds.has(tr.pedido_id.toLowerCase())) return;
+
+        const desc = (tr.descricao || '').trim();
+        const uuidMatch = desc.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (uuidMatch && uuidMatch[0] && pedidosIds.has(uuidMatch[0].toLowerCase())) return;
+
+        const numMatch = desc.match(/(?:recebimento\s+)?(?:pedido|venda)\s*(?:#|\bn[ºo]\b)?\s*(\d+)/i);
+        if (numMatch && numMatch[1] && pedidosNumeros.has(String(Number(numMatch[1])))) return;
+
+        if ((tr.categoria === 'Venda' || tr.categoria === 'Venda Balcão / PDV') && (tr.pedido_id || uuidMatch || numMatch)) return;
+
         const dataIso = tr.data_pagamento || tr.data_vencimento || tr.criado_em || '';
         const dataFormatada = dataIso.split('T')[0];
         list.push({
@@ -302,8 +323,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
   // Lista de Saídas
   const todasSaidas = useMemo(() => {
+    const ids = new Set<string>();
     return (transacoes || [])
-      .filter(t => t.tipo === 'SAIDA')
+      .filter(t => {
+        if (t.tipo !== 'SAIDA') return false;
+        if (t.id && ids.has(t.id)) return false;
+        if (t.id) ids.add(t.id);
+        return true;
+      })
       .sort((a, b) => (b.data_vencimento || '').localeCompare(a.data_vencimento || ''));
   }, [transacoes]);
 
