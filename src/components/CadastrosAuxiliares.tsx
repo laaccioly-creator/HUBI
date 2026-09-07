@@ -884,35 +884,69 @@ export const CadastrosAuxiliares: React.FC = () => {
             )}
           </div>
 
-          {/* GRID DE BOTÕES DE CADASTROS (ESTILO CONFIGURAÇÕES) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 animate-in fade-in duration-150">
-            {itensMenuCadastros.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setBusca('');
-                  setAbaAtiva(item.id);
-                  setModalSecaoAberta(item.id);
-                }}
-                className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-lg hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative min-h-[170px]"
-              >
-                <span className="absolute top-2.5 right-2.5 bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full shadow-xs">
-                  {item.badge}
-                </span>
-                <div className="w-13 h-13 rounded-2xl bg-slate-950 border border-slate-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
-                  <item.icon className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="font-bold text-sm text-slate-200 group-hover:text-emerald-400 transition leading-tight block">
-                    {item.label}
+          {/* BOTÕES DE CADASTROS DISTRIBUÍDOS EM DUAS LINHAS (3 NA 1ª, 2 NA 2ª) */}
+          <div className="pt-8 sm:pt-12 space-y-6 max-w-5xl mx-auto w-full animate-in fade-in duration-200">
+            {/* Primeira Linha: 3 Botões */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {itensMenuCadastros.slice(0, 3).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setBusca('');
+                    setAbaAtiva(item.id);
+                    setModalSecaoAberta(item.id);
+                  }}
+                  className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-xl hover:shadow-emerald-500/10 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative min-h-[180px]"
+                >
+                  <span className="absolute top-3 right-3 bg-emerald-500 text-slate-950 font-black text-[9px] px-2.5 py-0.5 rounded-full shadow-xs">
+                    {item.badge}
                   </span>
-                  <span className="text-[11px] text-slate-500 mt-1 block leading-snug">
-                    {item.descricao}
+                  <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
+                    <item.icon className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-base text-slate-200 group-hover:text-emerald-400 transition leading-tight block">
+                      {item.label}
+                    </span>
+                    <span className="text-xs text-slate-400 mt-1 block leading-snug">
+                      {item.descricao}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Segunda Linha: 2 Botões Centralizados */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto w-full">
+              {itensMenuCadastros.slice(3, 5).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setBusca('');
+                    setAbaAtiva(item.id);
+                    setModalSecaoAberta(item.id);
+                  }}
+                  className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-xl hover:shadow-emerald-500/10 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative min-h-[180px]"
+                >
+                  <span className="absolute top-3 right-3 bg-emerald-500 text-slate-950 font-black text-[9px] px-2.5 py-0.5 rounded-full shadow-xs">
+                    {item.badge}
                   </span>
-                </div>
-              </button>
-            ))}
+                  <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
+                    <item.icon className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-base text-slate-200 group-hover:text-emerald-400 transition leading-tight block">
+                      {item.label}
+                    </span>
+                    <span className="text-xs text-slate-400 mt-1 block leading-snug">
+                      {item.descricao}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

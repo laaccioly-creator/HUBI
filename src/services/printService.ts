@@ -282,8 +282,14 @@ export class PrintService {
             <div style="font-weight: 600; margin-bottom: 2px; color: #0f172a;">
               ${clienteNome}
             </div>
-            ${clienteContatoFormatado ? `<div>${clienteContatoFormatado}</div>` : ''}
-            ${pedido.endereco_entrega ? `<div style="font-size: ${isA4 ? '12px' : '10px'}; color: #64748b; margin-top: 2px;">Entrega: ${pedido.endereco_entrega}</div>` : ''}
+            ${(() => {
+              if (!pedido.endereco_entrega) return '';
+              const endLimpo = pedido.endereco_entrega
+                .replace(/^(\s*entrega\s*[:\-–—]\s*)+/gi, '')
+                .replace(/^(\s*retirada\s*[:\-–—]\s*)+/gi, '')
+                .trim();
+              return endLimpo ? `<div style="font-size: ${isA4 ? '12px' : '10px'}; color: #64748b; margin-top: 2px;">${endLimpo}</div>` : '';
+            })()}
           </div>
 
           <!-- Resumo de Itens -->

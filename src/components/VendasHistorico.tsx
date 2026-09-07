@@ -41,12 +41,21 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido } from '../types';
+import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido, FormaPagamento } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
+
+// Helper para limpar prefixos repetidos de endereço (ex: "Entrega: Entrega - " -> limpo)
+const limparEnderecoRecibo = (end?: string | null) => {
+  if (!end) return '';
+  return end
+    .replace(/^(\s*entrega\s*[:\-–—]\s*)+/gi, '')
+    .replace(/^(\s*retirada\s*[:\-–—]\s*)+/gi, '')
+    .trim();
+};
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo' | 'cliente';
 type OrdenacaoDirecao = 'asc' | 'desc';
@@ -72,6 +81,7 @@ export const VendasHistorico: React.FC = () => {
   const [vendas, setVendas] = useState<Pedido[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
+  const [formasPagamentoLoja, setFormasPagamentoLoja] = useState<FormaPagamento[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
 
   // Estados de busca e filtros
@@ -127,7 +137,7 @@ export const VendasHistorico: React.FC = () => {
     try {
       setCarregando(true);
 
-      // Carregar clientes e usuários
+      // Carregar clientes, usuários e formas de pagamento cadastradas
       supabase
         .from('clientes')
         .select('*')
@@ -142,6 +152,16 @@ export const VendasHistorico: React.FC = () => {
         .eq('loja_id', loja.id)
         .then(({ data }) => {
           if (data) setUsuarios(data);
+        });
+
+      supabase
+        .from('formas_pagamento')
+        .select('*')
+        .eq('loja_id', loja.id)
+        .eq('ativo', true)
+        .order('criado_em', { ascending: true })
+        .then(({ data }) => {
+          if (data) setFormasPagamentoLoja(data);
         });
 
       let query = supabase
@@ -301,25 +321,21 @@ export const VendasHistorico: React.FC = () => {
           }
         }
 
-        // 3. Filtro de Meio de Pagamento
+        // 3. Filtro de Meio de Pagamento (apenas formas cadastradas da loja)
         if (meiosPagamentoSelecionados.length > 0) {
-          const formasUsadas: string[] = (v.pagamentos || []).map((p: any) => {
-            const tipo = p.forma_pagamento?.tipo?.toLowerCase() || '';
-            const nome = p.forma_pagamento?.nome?.toLowerCase() || '';
-            if (p.eh_pagamento_fiado || tipo === 'fiado' || nome.includes('fiado')) return 'fiado';
-            if (tipo === 'pix' || nome.includes('pix')) return 'pix';
-            if (tipo === 'dinheiro' || nome.includes('dinheiro')) return 'dinheiro';
-            if (tipo === 'cartao_debito' || nome.includes('debito') || nome.includes('débito')) return 'cartao_debito';
-            if (tipo === 'cartao_credito' || nome.includes('credito') || nome.includes('crédito')) return 'cartao_credito';
-            if (nome.includes('cheque')) return 'cheque';
-            if (nome.includes('voucher')) return 'voucher';
-            if (nome.includes('saldo')) return 'saldo_cliente';
-            if (nome.includes('link')) return 'link_pagamento';
-            return 'outros';
+          const fpsSelecionadas = formasPagamentoLoja.filter((fp) => meiosPagamentoSelecionados.includes(fp.id));
+          const temFormaSelecionada = (v.pagamentos || []).some((p: any) => {
+            if (p.forma_pagamento_id && meiosPagamentoSelecionados.includes(p.forma_pagamento_id)) return true;
+            if (p.forma_pagamento?.id && meiosPagamentoSelecionados.includes(p.forma_pagamento.id)) return true;
+            const tipoP = (p.forma_pagamento?.tipo || (p.eh_pagamento_fiado ? 'fiado' : '')).toLowerCase();
+            const nomeP = (p.forma_pagamento?.nome || '').toLowerCase();
+            return fpsSelecionadas.some((fp) =>
+              fp.id === p.forma_pagamento_id ||
+              (fp.tipo && tipoP.includes(fp.tipo.toLowerCase())) ||
+              (fp.nome && nomeP.includes(fp.nome.toLowerCase()))
+            );
           });
-
-          const temFormaSelecionada = meiosPagamentoSelecionados.some((m) => formasUsadas.includes(m));
-          if (!temFormaSelecionada && formasUsadas.length > 0) return false;
+          if (!temFormaSelecionada && (v.pagamentos || []).length > 0) return false;
         }
 
         // 4. Filtro de Período
@@ -402,6 +418,7 @@ export const VendasHistorico: React.FC = () => {
     busca,
     vendedorSelecionadoId,
     meiosPagamentoSelecionados,
+    formasPagamentoLoja,
     periodoSelecionado,
     dataInicial,
     dataFinal,
@@ -596,7 +613,7 @@ export const VendasHistorico: React.FC = () => {
         {/* CORPO PRINCIPAL */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* TOPO: CABEÇALHO DA TELA DE VENDAS */}
-          <div className="p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
+          <div className="relative z-30 p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
@@ -664,7 +681,7 @@ export const VendasHistorico: React.FC = () => {
               </button>
 
               {/* Dropdown de Vendedores (TELA001 / Popover TELA003) */}
-              <div className="relative" ref={dropdownVendedorRef}>
+              <div className="relative z-30" ref={dropdownVendedorRef}>
                 <button
                   type="button"
                   onClick={() => setDropdownVendedorAberto((prev) => !prev)}
@@ -877,7 +894,6 @@ export const VendasHistorico: React.FC = () => {
                       <ArrowUpDown className="w-3 h-3 opacity-60" />
                     </div>
                   </th>
-                  <th className="py-3 px-4 text-center">Tipo</th>
                   <th className="py-3 px-4 text-center">Obs.</th>
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
@@ -888,7 +904,6 @@ export const VendasHistorico: React.FC = () => {
                   const totalItens = calcularTotalItens(venda);
                   const isCatalogo = venda.origem === 'catalogo_online';
                   const codigoFormatado = isCatalogo ? `#c-${venda.numero_pedido}` : `#${venda.numero_pedido}`;
-                  const temEntrega = Boolean(venda.endereco_entrega || Number(venda.valor_frete || 0) > 0);
                   const foiCancelada = venda.status === 'cancelado';
 
                   return (
@@ -957,27 +972,6 @@ export const VendasHistorico: React.FC = () => {
                             R$ {Number(venda.valor_total || 0).toFixed(2)}
                           </span>
                         </div>
-                      </td>
-
-                      {/* Tipo de Entrega / Retirada (TELA004) */}
-                      <td className="py-3.5 px-4 text-center">
-                        {temEntrega ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setEnderecoPopover({ venda, rect });
-                            }}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 transition cursor-pointer"
-                            title="Ver Endereço de Entrega"
-                          >
-                            <Truck className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <span className="text-slate-500" title="Retirada no balcão">
-                            <Store className="w-4 h-4 inline opacity-50" />
-                          </span>
-                        )}
                       </td>
 
                       {/* Observações */}
@@ -1132,44 +1126,39 @@ export const VendasHistorico: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'pix', label: 'Pix' },
-                    { id: 'dinheiro', label: 'Dinheiro' },
-                    { id: 'cartao_debito', label: 'Cartão de Débito' },
-                    { id: 'cartao_credito', label: 'Cartão de Crédito' },
-                    { id: 'cheque', label: 'Cheque' },
-                    { id: 'voucher', label: 'Voucher' },
-                    { id: 'outros', label: 'Outros' },
-                    { id: 'saldo_cliente', label: 'Saldo Cliente' },
-                    { id: 'fiado', label: 'Venda Fiado' },
-                    { id: 'link_pagamento', label: 'Link de Pagamento' }
-                  ].map((m) => {
-                    const ativo = meiosPagamentoSelecionados.includes(m.id);
-                    return (
-                      <label
-                        key={m.id}
-                        className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition ${
-                          ativo
-                            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={ativo}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setMeiosPagamentoSelecionados((prev) => [...prev, m.id]);
-                            } else {
-                              setMeiosPagamentoSelecionados((prev) => prev.filter((id) => id !== m.id));
-                            }
-                          }}
-                          className="accent-emerald-500"
-                        />
-                        <span className="truncate">{m.label}</span>
-                      </label>
-                    );
-                  })}
+                  {formasPagamentoLoja.length === 0 ? (
+                    <div className="col-span-2 text-center py-4 text-xs text-slate-500">
+                      Nenhuma forma de pagamento ativa encontrada.
+                    </div>
+                  ) : (
+                    formasPagamentoLoja.map((fp) => {
+                      const ativo = meiosPagamentoSelecionados.includes(fp.id);
+                      return (
+                        <label
+                          key={fp.id}
+                          className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition ${
+                            ativo
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={ativo}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setMeiosPagamentoSelecionados((prev) => [...prev, fp.id]);
+                              } else {
+                                setMeiosPagamentoSelecionados((prev) => prev.filter((id) => id !== fp.id));
+                              }
+                            }}
+                            className="accent-emerald-500"
+                          />
+                          <span className="truncate" title={fp.nome}>{fp.nome}</span>
+                        </label>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -1215,7 +1204,7 @@ export const VendasHistorico: React.FC = () => {
 
             <div className="space-y-1.5 text-xs text-slate-300 bg-slate-950 p-3 rounded-xl border border-slate-800">
               <p className="font-semibold text-slate-100">
-                {enderecoPopover.venda.endereco_entrega || 'Endereço não especificado'}
+                {limparEnderecoRecibo(enderecoPopover.venda.endereco_entrega) || 'Endereço não especificado'}
               </p>
               {enderecoPopover.venda.cliente?.nome && (
                 <p className="text-slate-400 text-[11px]">
@@ -1387,7 +1376,9 @@ export const VendasHistorico: React.FC = () => {
                     </p>
                   )}
                   {vendaReciboModal.endereco_entrega && (
-                    <p className="text-[11px] text-slate-400">Entrega: {vendaReciboModal.endereco_entrega}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {limparEnderecoRecibo(vendaReciboModal.endereco_entrega)}
+                    </p>
                   )}
                 </div>
 
