@@ -598,3 +598,117 @@ export interface Cupom {
   criado_em?: string;
   atualizado_em?: string;
 }
+
+// ==============================================================================
+// MÓDULO DE CONTROLE DE CAIXA (SESSÕES TRANSACIONAIS)
+// ==============================================================================
+export type StatusSessaoCaixa = 'ABERTO' | 'FECHADO';
+export type TipoMovimentacaoCaixa = 'VENDA' | 'SUPRIMENTO' | 'SANGRIA' | 'DESPESA';
+export type MetodoPagamentoCaixa = 'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'OUTROS';
+
+export interface DeclaradoPorMetodo {
+  dinheiro?: number;
+  pix?: number;
+  cartao_credito?: number;
+  cartao_debito?: number;
+  outros?: number;
+  [key: string]: number | undefined;
+}
+
+export interface SessaoCaixa {
+  id: string;
+  loja_id: string;
+  terminal_id: string;
+  aberto_por_usuario_id: string;
+  fechado_por_usuario_id?: string | null;
+  aberto_em: string;
+  fechado_em?: string | null;
+  fundo_inicial: number;
+  status: StatusSessaoCaixa;
+  total_entradas_sistema: number;
+  total_saidas_sistema: number;
+  saldo_esperado_dinheiro: number;
+  saldo_declarado_dinheiro?: number | null;
+  diferenca_dinheiro?: number | null;
+  declarado_por_metodo?: DeclaradoPorMetodo | null;
+  observacoes_fechamento?: string | null;
+  created_at?: string;
+
+  // Aliases e estatísticas consolidadas para relatórios e listagem rápida
+  faturamento_total?: number;
+  fundo_troco_inicial?: number;
+  saldo_dinheiro_calculado?: number;
+  saldo_dinheiro_declarado?: number | null;
+  total_vendas_dinheiro?: number;
+  total_vendas_pix?: number;
+  total_vendas_debito?: number;
+  total_vendas_credito?: number;
+  total_vendas_outros?: number;
+  total_suprimentos?: number;
+  total_sangrias?: number;
+  total_despesas?: number;
+
+  // Relacionamentos expandidos
+  aberto_por?: UsuarioLoja | null;
+  fechado_por?: UsuarioLoja | null;
+  usuario_abertura?: UsuarioLoja | null;
+  usuario_fechamento?: UsuarioLoja | null;
+  movimentacoes?: MovimentacaoCaixa[];
+}
+
+export interface MovimentacaoCaixa {
+  id: string;
+  loja_id: string;
+  sessao_caixa_id: string;
+  pedido_id?: string | null;
+  tipo: TipoMovimentacaoCaixa;
+  metodo_pagamento: MetodoPagamentoCaixa;
+  valor: number;
+  descricao?: string | null;
+  criado_por_usuario_id: string;
+  criado_em: string;
+
+  // Relacionamentos expandidos
+  criado_por?: UsuarioLoja | null;
+  usuario?: UsuarioLoja | null;
+  pedido?: Pedido | null;
+}
+
+export interface TotaisPorMetodoResumo {
+  dinheiro: number;
+  pix: number;
+  cartao_credito: number;
+  cartao_debito: number;
+  outros: number;
+}
+
+export interface QtdVendasPorMetodoResumo {
+  dinheiro: number;
+  pix: number;
+  cartao_credito: number;
+  cartao_debito: number;
+  outros: number;
+}
+
+export interface ResumoSessaoCaixa {
+  sessao: SessaoCaixa;
+  fundoInicial: number;
+  totalVendasDinheiro: number;
+  totalVendasPix: number;
+  totalVendasCredito: number;
+  totalVendasDebito: number;
+  totalVendasOutros: number;
+  totalVendasGeral: number;
+  faturamentoTotalVendas: number;
+  totalSuprimentos: number;
+  totalSangrias: number;
+  totalDespesas: number;
+  saldoEsperadoDinheiro: number;
+  duracaoHoras: number;
+  duracaoFormatada: string;
+  duracaoTexto: string;
+  abertoHaMaisDe24h: boolean;
+  contagemMovimentacoes: number;
+  totaisPorMetodo: TotaisPorMetodoResumo;
+  qtdVendasPorMetodo: QtdVendasPorMetodoResumo;
+}

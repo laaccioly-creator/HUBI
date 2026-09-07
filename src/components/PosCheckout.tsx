@@ -44,6 +44,7 @@ import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { extrairObservacaoLimpa } from '../utils/formatters';
+import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
@@ -840,6 +841,24 @@ export const PosCheckout: React.FC = () => {
               forma_pagamento: fpFinal
             }] as any
           };
+
+          // Registrar automaticamente na sessão de caixa ativa (se não for fiado a prazo)
+          if (!ehFiado && total > 0) {
+            try {
+              await caixaService.registrarVendaPedido({
+                lojaId: loja.id,
+                pedido: pedidoCriado,
+                pagamentos: [{
+                  forma_nome: fpFinal.nome,
+                  forma_tipo: fpFinal.tipo,
+                  valor: total
+                }],
+                usuarioId: usuario?.id || vendedorId || ''
+              });
+            } catch (errCaixa) {
+              console.warn('Aviso ao vincular venda à sessão de caixa:', errCaixa);
+            }
+          }
 
           setEhVendaOfflineSalva(false);
           setPedidoConcluido(pedidoCompleto);

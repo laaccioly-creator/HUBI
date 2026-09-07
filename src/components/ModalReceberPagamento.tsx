@@ -21,6 +21,7 @@ import { Pedido, FormaPagamento, StatusPagamento } from '../types';
 import { PrintService } from '../services/printService';
 import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
+import { caixaService } from '../services/caixaService';
 
 interface ModalReceberPagamentoProps {
   isOpen: boolean;
@@ -338,6 +339,24 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
           }
         } catch (cliErr) {
           console.warn('Aviso ao abater fiado do cliente:', cliErr);
+        }
+      }
+
+      // 4. Registrar na sessão de caixa ativa se houver
+      if (loja?.id && fpFinal && !ehFiado && valorInformado > 0) {
+        try {
+          await caixaService.registrarVendaPedido({
+            lojaId: loja.id,
+            pedido: pedUpd || pedido,
+            pagamentos: [{
+              forma_nome: fpFinal.nome,
+              forma_tipo: fpFinal.tipo,
+              valor: valorInformado
+            }],
+            usuarioId: usuario?.id || ''
+          });
+        } catch (errCaixa) {
+          console.warn('Aviso ao registrar recebimento no caixa:', errCaixa);
         }
       }
 

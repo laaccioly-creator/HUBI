@@ -20,13 +20,36 @@ import {
   CreditCard,
   ArrowDown,
   ArrowUp,
-  Info
+  Info,
+  Clock,
+  Calendar,
+  Filter,
+  FileText,
+  Layers,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  ChevronRight,
+  HelpCircle,
+  AlertCircle,
+  ShoppingCart
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { TransacaoFinanceira, Caixa, CaixaMovimentacao, Pedido } from '../types';
+import {
+  TransacaoFinanceira,
+  Caixa,
+  CaixaMovimentacao,
+  Pedido,
+  UsuarioLoja,
+  SessaoCaixa,
+  MovimentacaoCaixa,
+  ResumoSessaoCaixa,
+  DeclaradoPorMetodo
+} from '../types';
 import { PrintService } from '../services/printService';
+import { caixaService } from '../services/caixaService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 
@@ -44,14 +67,81 @@ export const FinancasCaixa: React.FC = () => {
 
   const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null);
-  const [movimentacoesCaixa, setMovimentacoesCaixa] = useState<CaixaMovimentacao[]>([]);
-  const [historicoCaixas, setHistoricoCaixas] = useState<Caixa[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [abaAtiva, setAbaAtiva] = useState<'caixa_atual' | 'fluxo' | 'pagar' | 'historico_caixas'>('caixa_atual');
   const [modalDetalhesMetrica, setModalDetalhesMetrica] = useState<'entradas' | 'saidas' | 'pagar' | 'lucro' | null>(null);
 
-  // Modais de Operação
+  // ==========================================
+  // ESTADO DO MÓDULO DE SESSÕES TRANSACIONAIS
+  // ==========================================
+  const [terminalId, setTerminalId] = useState<string>(() => caixaService.obterTerminalId());
+  const [sessaoAtiva, setSessaoAtiva] = useState<SessaoCaixa | null>(null);
+  const [resumoSessao, setResumoSessao] = useState<ResumoSessaoCaixa | null>(null);
+  const [historicoSessoes, setHistoricoSessoes] = useState<SessaoCaixa[]>([]);
+  const [usuariosLoja, setUsuariosLoja] = useState<UsuarioLoja[]>([]);
+  const [filtrosHistorico, setFiltrosHistorico] = useState<{
+    dataInicio: string;
+    dataFim: string;
+    usuarioId: string;
+    statusDiferenca: 'todos' | 'com_diferenca' | 'exato';
+  }>({
+    dataInicio: '',
+    dataFim: '',
+    usuarioId: 'todos',
+    statusDiferenca: 'todos'
+  });
+
+  // Drill-down de sessão passada
+  const [sessaoDrillDown, setSessaoDrillDown] = useState<SessaoCaixa | null>(null);
+  const [resumoDrillDown, setResumoDrillDown] = useState<ResumoSessaoCaixa | null>(null);
+  const [modalDrillDown, setModalDrillDown] = useState<boolean>(false);
+  const [carregandoDrillDown, setCarregandoDrillDown] = useState<boolean>(false);
+
+  // Abertura de Sessão de Caixa
+  const [modalAberturaCaixa, setModalAberturaCaixa] = useState<boolean>(false);
+  const [fundoTroco, setFundoTroco] = useState<string>('100.00');
+  const [abrindoCaixa, setAbrindoCaixa] = useState<boolean>(false);
+
+  // Movimentações: Suprimento, Sangria e Despesa Rápida
+  const [modalSuprimento, setModalSuprimento] = useState<boolean>(false);
+  const [valorSuprimento, setValorSuprimento] = useState<string>('');
+  const [motivoSuprimento, setMotivoSuprimento] = useState<string>('');
+  const [processandoSuprimento, setProcessandoSuprimento] = useState<boolean>(false);
+
+  const [modalSangria, setModalSangria] = useState<boolean>(false);
+  const [valorSangria, setValorSangria] = useState<string>('');
+  const [motivoSangria, setMotivoSangria] = useState<string>('');
+  const [processandoSangria, setProcessandoSangria] = useState<boolean>(false);
+
+  const [modalDespesaRapida, setModalDespesaRapida] = useState<boolean>(false);
+  const [valorDespesaRapida, setValorDespesaRapida] = useState<string>('');
+  const [descricaoDespesaRapida, setDescricaoDespesaRapida] = useState<string>('');
+  const [categoriaDespesaRapida, setCategoriaDespesaRapida] = useState<string>('Despesas Operacionais');
+  const [processandoDespesaRapida, setProcessandoDespesaRapida] = useState<boolean>(false);
+
+  // Fechamento Cego de Caixa
+  const [modalFechamentoCego, setModalFechamentoCego] = useState<boolean>(false);
+  const [contagemDinheiro, setContagemDinheiro] = useState<string>('');
+  const [contagemPix, setContagemPix] = useState<string>('');
+  const [contagemCredito, setContagemCredito] = useState<string>('');
+  const [contagemDebito, setContagemDebito] = useState<string>('');
+  const [contagemOutros, setContagemOutros] = useState<string>('');
+  const [observacaoFechamento, setObservacaoFechamento] = useState<string>('');
+  const [processandoFechamento, setProcessandoFechamento] = useState<boolean>(false);
+
+  // Relatório de Fechamento de Caixa
+  const [modalRelatorioFechamento, setModalRelatorioFechamento] = useState<boolean>(false);
+  const [relatorioFechamentoTexto, setRelatorioFechamentoTexto] = useState<string>('');
+  const [relatorioFechamentoResumo, setRelatorioFechamentoResumo] = useState<ResumoSessaoCaixa | null>(null);
+  const [copiadoRelatorio, setCopiadoRelatorio] = useState<boolean>(false);
+
+  // Relatórios Gerenciais Consolidados
+  const [modalRelatorioConsolidado, setModalRelatorioConsolidado] = useState<boolean>(false);
+  const [modalRelatorioSangriasDespesas, setModalRelatorioSangriasDespesas] = useState<boolean>(false);
+  const [periodoRelatorioInicio, setPeriodoRelatorioInicio] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [periodoRelatorioFim, setPeriodoRelatorioFim] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Modais de Operação Geral (DRE / Nova Despesa Plano de Contas)
   const [modalNovaDespesa, setModalNovaDespesa] = useState<boolean>(false);
   const [descricao, setDescricao] = useState<string>('');
   const [categoria, setCategoria] = useState<string>('Fornecedor');
@@ -61,40 +151,19 @@ export const FinancasCaixa: React.FC = () => {
   const [formaPagamentoDespesa, setFormaPagamentoDespesa] = useState<string>('dinheiro');
   const [salvandoDespesa, setSalvandoDespesa] = useState<boolean>(false);
 
-  // Abertura de Caixa
-  const [modalAberturaCaixa, setModalAberturaCaixa] = useState<boolean>(false);
-  const [fundoTroco, setFundoTroco] = useState<string>('100.00');
-  const [turnoAbertura, setTurnoAbertura] = useState<string>('Integral');
-  const [numeroCaixaAbertura, setNumeroCaixaAbertura] = useState<string>('01');
-
-  // Sangria
-  const [modalSangria, setModalSangria] = useState<boolean>(false);
-  const [valorSangria, setValorSangria] = useState<string>('');
-  const [motivoSangria, setMotivoSangria] = useState<string>('');
-
-  // Suprimento
-  const [modalSuprimento, setModalSuprimento] = useState<boolean>(false);
-  const [valorSuprimento, setValorSuprimento] = useState<string>('');
-  const [motivoSuprimento, setMotivoSuprimento] = useState<string>('');
-
-  // Fechamento Cego de Caixa
-  const [modalFechamentoCego, setModalFechamentoCego] = useState<boolean>(false);
-  const [valorContadoFechamento, setValorContadoFechamento] = useState<string>('');
-  const [observacaoFechamento, setObservacaoFechamento] = useState<string>('');
-  const [processandoFechamento, setProcessandoFechamento] = useState<boolean>(false);
-
-  // Relatório de Fechamento de Caixa
-  const [modalRelatorioFechamento, setModalRelatorioFechamento] = useState<boolean>(false);
+  // Fallback de compatibilidade com estrutura legada
+  const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null);
+  const [movimentacoesCaixa, setMovimentacoesCaixa] = useState<CaixaMovimentacao[]>([]);
+  const [historicoCaixas, setHistoricoCaixas] = useState<Caixa[]>([]);
   const [relatorioDados, setRelatorioDados] = useState<any | null>(null);
-  const [copiadoRelatorio, setCopiadoRelatorio] = useState<boolean>(false);
 
-  // Carregamento de dados
+  // Carregamento de dados com modelo de Sessões Transacionais
   const carregarFinanceiro = async () => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
 
-      // 1. Carregar transações manuais
+      // 1. Carregar transações manuais (DRE / Fluxo Geral)
       const { data: trData } = await supabase
         .from('transacoes_financeiras')
         .select('*, fornecedor:fornecedores(*)')
@@ -103,7 +172,7 @@ export const FinancasCaixa: React.FC = () => {
 
       if (trData) setTransacoes(trData);
 
-      // 2. Carregar pedidos e pagamentos para unificação do fluxo
+      // 2. Carregar pedidos e pagamentos para unificação do fluxo geral
       const { data: pedData } = await supabase
         .from('pedidos')
         .select('*, cliente:clientes(*), vendedor:usuarios_loja(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
@@ -112,120 +181,44 @@ export const FinancasCaixa: React.FC = () => {
 
       if (pedData) setPedidos(pedData as unknown as Pedido[]);
 
-      // 3. Carregar Caixa Aberto
-      let caixaAtivo: Caixa | null = null;
+      // 3. Carregar Sessão Ativa de Caixa do Terminal (Ciclo Transacional Independente de Meia-Noite)
       try {
-        const { data: cxData } = await supabase
-          .from('caixas')
-          .select('*, usuario:usuarios_loja(*)')
-          .eq('loja_id', loja.id)
-          .eq('status', 'ABERTO')
-          .order('data_abertura', { ascending: false })
-          .limit(1);
-
-        if (cxData && cxData.length > 0) {
-          const cx = cxData[0];
-          const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
-          if (metaLocal) {
-            try {
-              const parsed = JSON.parse(metaLocal);
-              cx.turno = parsed.turno || 'Integral';
-              cx.numero_caixa = parsed.numero_caixa || '01';
-            } catch (e) {
-              console.error(e);
-            }
-          }
-          caixaAtivo = cx;
+        const sessao = await caixaService.obterSessaoAtiva(loja.id, terminalId);
+        setSessaoAtiva(sessao);
+        if (sessao) {
+          const res = await caixaService.obterResumoSessao(sessao.id);
+          setResumoSessao(res);
+        } else {
+          setResumoSessao(null);
         }
-      } catch (e) {
-        console.warn('Aviso ao consultar caixas no Supabase:', e);
+      } catch (errSessao) {
+        console.warn('Aviso ao consultar sessão ativa de caixa:', errSessao);
       }
 
-      // Se não encontrou no Supabase, verificar fallback local ativo
-      if (!caixaAtivo) {
-        const localAtivo = localStorage.getItem('hubi_caixa_ativo');
-        if (localAtivo) {
-          try {
-            const parsed = JSON.parse(localAtivo);
-            if (parsed.status === 'ABERTO' && parsed.loja_id === loja.id) {
-              caixaAtivo = parsed;
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      }
-
-      setCaixaAberto(caixaAtivo);
-
-      // 4. Carregar histórico de caixas
-      let histCaixasLista: Caixa[] = [];
+      // 4. Carregar Histórico de Sessões de Caixa (Auditoria e Drill-Down)
       try {
-        const { data: histData } = await supabase
-          .from('caixas')
-          .select('*, usuario:usuarios_loja(*)')
+        const hist = await caixaService.listarHistoricoSessoes(loja.id, {
+          terminalId: 'todos',
+          dataInicio: filtrosHistorico.dataInicio || undefined,
+          dataFim: filtrosHistorico.dataFim || undefined,
+          usuarioId: filtrosHistorico.usuarioId !== 'todos' ? filtrosHistorico.usuarioId : undefined,
+          statusDiferenca: filtrosHistorico.statusDiferenca
+        });
+        setHistoricoSessoes(hist);
+      } catch (errHist) {
+        console.warn('Aviso ao consultar histórico de sessões:', errHist);
+      }
+
+      // 5. Carregar usuários da loja para filtro
+      try {
+        const { data: usersData } = await supabase
+          .from('usuarios_loja')
+          .select('*')
           .eq('loja_id', loja.id)
-          .order('data_abertura', { ascending: false })
-          .limit(30);
+          .order('nome_completo', { ascending: true });
+        if (usersData) setUsuariosLoja(usersData);
+      } catch (e) {}
 
-        if (histData) {
-          histCaixasLista = histData.map(cx => {
-            const metaLocal = localStorage.getItem(`hubi_caixa_meta_${cx.id}`);
-            if (metaLocal) {
-              try {
-                const parsed = JSON.parse(metaLocal);
-                return { ...cx, turno: parsed.turno || cx.turno || 'Integral', numero_caixa: parsed.numero_caixa || cx.numero_caixa || '01' };
-              } catch (e) {
-                console.error(e);
-              }
-            }
-            return cx;
-          });
-        }
-      } catch (e) {
-        console.warn('Aviso ao consultar historico de caixas no Supabase:', e);
-      }
-
-      // Conciliar com histórico local caso exista
-      const localHist = localStorage.getItem(`hubi_historico_caixas_${loja.id}`);
-      if (localHist) {
-        try {
-          const parsedHist: Caixa[] = JSON.parse(localHist);
-          const idsExistentes = new Set(histCaixasLista.map(c => c.id));
-          parsedHist.forEach(c => {
-            if (!idsExistentes.has(c.id)) {
-              histCaixasLista.push(c);
-            }
-          });
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
-      setHistoricoCaixas(histCaixasLista);
-
-      // 5. Carregar movimentações do caixa atual (do Supabase ou localStorage fallback)
-      if (caixaAtivo?.id) {
-        try {
-          const { data: movData } = await supabase
-            .from('caixas_movimentacoes')
-            .select('*')
-            .eq('caixa_id', caixaAtivo.id)
-            .order('criado_em', { ascending: true });
-
-          if (movData && movData.length > 0) {
-            setMovimentacoesCaixa(movData);
-          } else {
-            const localMov = localStorage.getItem(`hubi_caixa_mov_${caixaAtivo.id}`);
-            if (localMov) setMovimentacoesCaixa(JSON.parse(localMov));
-          }
-        } catch {
-          const localMov = localStorage.getItem(`hubi_caixa_mov_${caixaAtivo.id}`);
-          if (localMov) setMovimentacoesCaixa(JSON.parse(localMov));
-        }
-      } else {
-        setMovimentacoesCaixa([]);
-      }
     } catch (err) {
       console.error('Erro ao carregar dados financeiros:', err);
     } finally {
@@ -235,26 +228,9 @@ export const FinancasCaixa: React.FC = () => {
 
   useEffect(() => {
     carregarFinanceiro();
-  }, [loja?.id]);
+  }, [loja?.id, terminalId, filtrosHistorico.dataInicio, filtrosHistorico.dataFim, filtrosHistorico.usuarioId, filtrosHistorico.statusDiferenca]);
 
-  // Salvar movimentação auxiliar no storage e supabase
-  const registrarMovimentacaoLocal = async (mov: CaixaMovimentacao) => {
-    setMovimentacoesCaixa(prev => {
-      const nova = [...prev, mov];
-      if (mov.caixa_id) {
-        localStorage.setItem(`hubi_caixa_mov_${mov.caixa_id}`, JSON.stringify(nova));
-      }
-      return nova;
-    });
-
-    try {
-      await supabase.from('caixas_movimentacoes').insert([mov]);
-    } catch (e) {
-      // Tabela auxiliar silenciosa
-    }
-  };
-
-  // 1. Cadastrar Nova Despesa (Item 7)
+  // 1. Cadastrar Nova Despesa Manual no DRE / Fluxo Geral
   const handleCadastrarDespesa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
@@ -284,19 +260,23 @@ export const FinancasCaixa: React.FC = () => {
       if (error) throw error;
       if (data) setTransacoes(prev => [data, ...prev]);
 
-      // Se paga em dinheiro no caixa aberto, registrar como movimentação de gaveta
-      if (formaPagamentoDespesa === 'dinheiro' && caixaAberto) {
-        await registrarMovimentacaoLocal({
-          id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()),
-          caixa_id: caixaAberto.id,
-          loja_id: loja.id,
-          usuario_id: usuario?.id || null,
-          tipo: 'despesa',
-          forma_pagamento: 'dinheiro',
-          valor: valNum,
-          descricao: `Despesa: ${descricao} (${categoria})`,
-          criado_em: new Date().toISOString()
-        });
+      // Se paga em dinheiro físico e houver sessão de caixa aberta, registrar como despesa da gaveta
+      if (formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && usuario?.id) {
+        try {
+          await caixaService.registrarMovimentacao({
+            lojaId: loja.id,
+            sessaoId: sessaoAtiva.id,
+            tipo: 'DESPESA',
+            metodoPagamento: 'DINHEIRO',
+            valor: valNum,
+            descricao: `Despesa Gaveta: ${descricao} (${categoria})`,
+            usuarioId: usuario.id
+          });
+          const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
+          setResumoSessao(res);
+        } catch (errMov) {
+          console.warn('Aviso ao registrar despesa na sessão de caixa:', errMov);
+        }
       }
 
       setModalNovaDespesa(false);
@@ -310,459 +290,286 @@ export const FinancasCaixa: React.FC = () => {
     }
   };
 
-  // 2. Abertura de Caixa (Item 9)
-  const handleAbrirCaixa = async (e: React.FormEvent) => {
+  // 2. Abertura Formal de Sessão de Caixa (com Bloqueio de Concorrência)
+  const handleAbrirSessao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loja?.id || !usuario?.id) return;
     try {
-      const valInicial = Number(fundoTroco) || 0;
-      const idGerado = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `cx_${Date.now()}`;
-      
-      const payloadCaixa = {
-        loja_id: loja.id,
-        usuario_id: usuario.id,
-        saldo_inicial: valInicial,
-        status: 'ABERTO' as const
-      };
-
-      let caixaSalvo: any = null;
-
-      try {
-        const { data, error } = await supabase.from('caixas').insert([payloadCaixa]).select().single();
-        if (!error && data) {
-          caixaSalvo = data;
-        } else if (error) {
-          console.warn('Aviso ao inserir no Supabase (RLS ou offline):', error.message);
-        }
-      } catch (errDb: any) {
-        console.warn('Falha DB caixas:', errDb.message);
-      }
-
-      // Se o Supabase retornou sucesso ou se usamos o fallback local:
-      const idFinal = caixaSalvo?.id || idGerado;
-      const dataAberturaFinal = caixaSalvo?.data_abertura || new Date().toISOString();
-
-      const novoCaixa: Caixa = {
-        id: idFinal,
-        loja_id: loja.id,
-        usuario_id: usuario.id,
-        saldo_inicial: valInicial,
-        data_abertura: dataAberturaFinal,
-        status: 'ABERTO',
-        turno: turnoAbertura,
-        numero_caixa: numeroCaixaAbertura,
-        usuario
-      };
-
-      // Salvar metadados e caixa ativo localmente
-      localStorage.setItem(`hubi_caixa_meta_${idFinal}`, JSON.stringify({
-        turno: turnoAbertura,
-        numero_caixa: numeroCaixaAbertura
-      }));
-      localStorage.setItem('hubi_caixa_ativo', JSON.stringify(novoCaixa));
-
-      setCaixaAberto(novoCaixa);
+      setAbrindoCaixa(true);
+      const valFundo = Number(fundoTroco) || 0;
+      const nova = await caixaService.abrirSessao(loja.id, usuario.id, valFundo, terminalId);
+      const res = await caixaService.obterResumoSessao(nova.id);
+      setSessaoAtiva(nova);
+      setResumoSessao(res);
       setModalAberturaCaixa(false);
-
-      await registrarMovimentacaoLocal({
-        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()),
-        caixa_id: idFinal,
-        loja_id: loja.id,
-        usuario_id: usuario.id,
-        tipo: 'abertura',
-        forma_pagamento: 'dinheiro',
-        valor: valInicial,
-        descricao: `Fundo de Troco Inicial (${turnoAbertura})`,
-        criado_em: new Date().toISOString()
-      });
-
-      mostrarSucesso('Caixa aberto com sucesso!');
+      mostrarSucesso(`Sessão de caixa aberta com sucesso no terminal ${nova.terminal_id}! Fundo de troco: R$ ${valFundo.toFixed(2)}`);
+      await carregarFinanceiro();
     } catch (err: any) {
-      mostrarErro(err.message || 'Tente novamente.', 'Erro ao abrir caixa');
+      mostrarErro(err.message || 'Erro ao abrir caixa.', 'Bloqueio de Concorrência / Erro');
+    } finally {
+      setAbrindoCaixa(false);
     }
   };
 
-  // 3. Registrar Sangria (Retirada)
+  // 3. Registrar Suprimento (Entrada Manual de Troco na Gaveta - Justificativa Obrigatória)
+  const handleRegistrarSuprimento = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!permissions.ehAdmin) {
+      mostrarAviso('Permissão restrita. Apenas administradores podem registrar suprimento.', 'Acesso Restrito');
+      return;
+    }
+    if (!sessaoAtiva?.id || !loja?.id || !usuario?.id) {
+      mostrarAviso('É necessário que haja uma sessão de caixa aberta para realizar suprimento.');
+      return;
+    }
+    const valNum = Number(valorSuprimento);
+    if (isNaN(valNum) || valNum <= 0) {
+      mostrarAviso('Informe um valor válido maior que zero.');
+      return;
+    }
+    if (!motivoSuprimento.trim()) {
+      mostrarAviso('A justificativa do suprimento é obrigatória.');
+      return;
+    }
+
+    try {
+      setProcessandoSuprimento(true);
+      await caixaService.registrarMovimentacao({
+        lojaId: loja.id,
+        sessaoId: sessaoAtiva.id,
+        tipo: 'SUPRIMENTO',
+        metodoPagamento: 'DINHEIRO',
+        valor: valNum,
+        descricao: `Suprimento: ${motivoSuprimento.trim()}`,
+        usuarioId: usuario.id
+      });
+      setModalSuprimento(false);
+      setValorSuprimento('');
+      setMotivoSuprimento('');
+      mostrarSucesso(`Suprimento de R$ ${valNum.toFixed(2)} registrado com sucesso na gaveta!`);
+      const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
+      setResumoSessao(res);
+    } catch (err: any) {
+      mostrarErro(err.message, 'Erro ao registrar suprimento');
+    } finally {
+      setProcessandoSuprimento(false);
+    }
+  };
+
+  // 4. Registrar Sangria (Retirada Preventiva para Cofre/Depósito - Justificativa Obrigatória)
   const handleRegistrarSangria = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
-      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar sangria.', 'Acesso Restrito');
+      mostrarAviso('Permissão restrita. Apenas administradores podem registrar sangria.', 'Acesso Restrito');
       return;
     }
-    if (!caixaAberto || !valorSangria) return;
+    if (!sessaoAtiva?.id || !loja?.id || !usuario?.id) {
+      mostrarAviso('É necessário que haja uma sessão de caixa aberta para realizar sangria.');
+      return;
+    }
+    const valNum = Number(valorSangria);
+    if (isNaN(valNum) || valNum <= 0) {
+      mostrarAviso('Informe um valor válido maior que zero.');
+      return;
+    }
+    if (!motivoSangria.trim()) {
+      mostrarAviso('A justificativa da sangria é obrigatória.');
+      return;
+    }
 
     try {
-      const valNum = Number(valorSangria);
-      if (valNum <= 0) {
-        mostrarAviso('Informe um valor válido para a sangria.');
-        return;
-      }
-
-      await registrarMovimentacaoLocal({
-        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()),
-        caixa_id: caixaAberto.id,
-        loja_id: loja?.id || '',
-        usuario_id: usuario?.id || null,
-        tipo: 'sangria',
-        forma_pagamento: 'dinheiro',
+      setProcessandoSangria(true);
+      await caixaService.registrarMovimentacao({
+        lojaId: loja.id,
+        sessaoId: sessaoAtiva.id,
+        tipo: 'SANGRIA',
+        metodoPagamento: 'DINHEIRO',
         valor: valNum,
-        descricao: `Sangria: ${motivoSangria || 'Retirada de Dinheiro da Gaveta'}`,
-        observacao: motivoSangria,
-        criado_em: new Date().toISOString()
+        descricao: `Sangria: ${motivoSangria.trim()}`,
+        usuarioId: usuario.id
       });
-
       setModalSangria(false);
       setValorSangria('');
       setMotivoSangria('');
       mostrarSucesso(`Sangria de R$ ${valNum.toFixed(2)} registrada com sucesso!`);
+      const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
+      setResumoSessao(res);
     } catch (err: any) {
       mostrarErro(err.message, 'Erro ao registrar sangria');
+    } finally {
+      setProcessandoSangria(false);
     }
   };
 
-  // 4. Registrar Suprimento (Troco Extra)
-  const handleRegistrarSuprimento = async (e: React.FormEvent) => {
+  // 5. Registrar Despesa Operacional Rápida (Paga com Dinheiro da Gaveta)
+  const handleRegistrarDespesaRapida = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
-      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem realizar suprimento.', 'Acesso Restrito');
+      mostrarAviso('Permissão restrita. Apenas administradores podem lançar despesas de caixa.');
       return;
     }
-    if (!caixaAberto || !valorSuprimento) return;
+    if (!sessaoAtiva?.id || !loja?.id || !usuario?.id) {
+      mostrarAviso('É necessário que haja uma sessão de caixa aberta.');
+      return;
+    }
+    const valNum = Number(valorDespesaRapida);
+    if (isNaN(valNum) || valNum <= 0) {
+      mostrarAviso('Informe um valor válido maior que zero.');
+      return;
+    }
+    if (!descricaoDespesaRapida.trim()) {
+      mostrarAviso('A descrição/justificativa da despesa é obrigatória.');
+      return;
+    }
 
     try {
-      const valNum = Number(valorSuprimento);
-      if (valNum <= 0) {
-        mostrarAviso('Informe um valor válido para o suprimento.');
-        return;
-      }
-
-      await registrarMovimentacaoLocal({
-        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()),
-        caixa_id: caixaAberto.id,
-        loja_id: loja?.id || '',
-        usuario_id: usuario?.id || null,
-        tipo: 'suprimento',
-        forma_pagamento: 'dinheiro',
+      setProcessandoDespesaRapida(true);
+      // Registra saída física na sessão de caixa
+      await caixaService.registrarMovimentacao({
+        lojaId: loja.id,
+        sessaoId: sessaoAtiva.id,
+        tipo: 'DESPESA',
+        metodoPagamento: 'DINHEIRO',
         valor: valNum,
-        descricao: `Suprimento: ${motivoSuprimento || 'Adição de Troco Extra'}`,
-        observacao: motivoSuprimento,
-        criado_em: new Date().toISOString()
+        descricao: `Despesa Gaveta: ${descricaoDespesaRapida.trim()} (${categoriaDespesaRapida})`,
+        usuarioId: usuario.id
       });
 
-      setModalSuprimento(false);
-      setValorSuprimento('');
-      setMotivoSuprimento('');
-      mostrarSucesso(`Suprimento de R$ ${valNum.toFixed(2)} registrado com sucesso!`);
-    } catch (err: any) {
-      mostrarErro(err.message, 'Erro ao registrar suprimento');
-    }
-  };
-
-  // 5. Cálculos do Turno Atual (Item 9 e 4a)
-  const apuracaoTurnoAtual = useMemo(() => {
-    if (!caixaAberto) {
-      return {
-        vendasDinheiro: 0,
-        qtdDinheiro: 0,
-        vendasPix: 0,
-        qtdPix: 0,
-        vendasDebito: 0,
-        qtdDebito: 0,
-        vendasCredito: 0,
-        qtdCredito: 0,
-        totalBruto: 0,
-        totalQtdVendas: 0,
-        suprimentos: 0,
-        sangrias: 0,
-        despesasCaixa: 0,
-        saldoEsperadoGaveta: 0
-      };
-    }
-
-    const dataInicio = new Date(caixaAberto.data_abertura).getTime();
-
-    let vendasDinheiro = 0;
-    let qtdDinheiro = 0;
-    let vendasPix = 0;
-    let qtdPix = 0;
-    let vendasDebito = 0;
-    let qtdDebito = 0;
-    let vendasCredito = 0;
-    let qtdCredito = 0;
-
-    pedidos.forEach(p => {
-      if (p.status === 'cancelado') return;
-      const dataPed = new Date(p.data_venda || p.criado_em || '').getTime();
-      const pedidoNoTurno = dataPed >= dataInicio;
-
-      if (p.pagamentos && p.pagamentos.length > 0) {
-        p.pagamentos.forEach(pag => {
-          const dataPag = new Date(pag.criado_em || pag.data_pagamento || p.data_venda || p.criado_em || '').getTime();
-          if (dataPag < dataInicio && !pedidoNoTurno) return;
-
-          const tipoRaw = String(pag.forma_pagamento?.tipo || pag.forma_pagamento?.nome || (pag as any).tipo_pagamento || '').toLowerCase();
-          const val = Number(pag.valor) || 0;
-
-          if (tipoRaw.includes('debito') || tipoRaw.includes('débito')) {
-            vendasDebito += val;
-            qtdDebito += 1;
-          } else if (tipoRaw.includes('credito') || tipoRaw.includes('crédito')) {
-            vendasCredito += val;
-            qtdCredito += 1;
-          } else if (tipoRaw.includes('pix')) {
-            vendasPix += val;
-            qtdPix += 1;
-          } else {
-            vendasDinheiro += val;
-            qtdDinheiro += 1;
-          }
-        });
-      } else if (pedidoNoTurno) {
-        const val = Number(p.valor_pago || p.valor_total) || 0;
-        vendasDinheiro += val;
-        qtdDinheiro += 1;
+      // Registra no DRE geral (transacoes_financeiras) sem campo caixa_id
+      try {
+        await supabase.from('transacoes_financeiras').insert([{
+          loja_id: loja.id,
+          tipo: 'SAIDA',
+          categoria: categoriaDespesaRapida,
+          descricao: `Despesa Caixa (${sessaoAtiva.terminal_id}): ${descricaoDespesaRapida.trim()}`,
+          valor: valNum,
+          data_vencimento: new Date().toISOString().split('T')[0],
+          data_pagamento: new Date().toISOString(),
+          status: 'pago',
+          forma_pagamento: 'dinheiro'
+        }]);
+      } catch (errDre) {
+        console.warn('Aviso ao registrar despesa no DRE geral:', errDre);
       }
-    });
 
-    const suprimentos = movimentacoesCaixa
-      .filter(m => m.tipo === 'suprimento')
-      .reduce((acc, m) => acc + Number(m.valor || 0), 0);
-
-    const sangrias = movimentacoesCaixa
-      .filter(m => m.tipo === 'sangria')
-      .reduce((acc, m) => acc + Number(m.valor || 0), 0);
-
-    const despesasCaixa = movimentacoesCaixa
-      .filter(m => m.tipo === 'despesa' && (m.forma_pagamento === 'dinheiro' || !m.forma_pagamento))
-      .reduce((acc, m) => acc + Number(m.valor || 0), 0);
-
-    const totalBruto = vendasDinheiro + vendasPix + vendasDebito + vendasCredito;
-    const totalQtdVendas = qtdDinheiro + qtdPix + qtdDebito + qtdCredito;
-
-    const saldoEsperadoGaveta = Number(caixaAberto.saldo_inicial) + vendasDinheiro + suprimentos - sangrias - despesasCaixa;
-
-    return {
-      vendasDinheiro,
-      qtdDinheiro,
-      vendasPix,
-      qtdPix,
-      vendasDebito,
-      qtdDebito,
-      vendasCredito,
-      qtdCredito,
-      totalBruto,
-      totalQtdVendas,
-      suprimentos,
-      sangrias,
-      despesasCaixa,
-      saldoEsperadoGaveta
-    };
-  }, [caixaAberto, pedidos, movimentacoesCaixa]);
-
-  // 6. Etapa 1: Conferir e Gerar Relatório de Fechamento (SEM fechar o caixa automaticamente)
-  const handleConferirFechamentoCego = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!caixaAberto || valorContadoFechamento === '') return;
-
-    const valorContado = Number(valorContadoFechamento) || 0;
-    const {
-      vendasDinheiro,
-      qtdDinheiro,
-      vendasPix,
-      qtdPix,
-      vendasDebito,
-      qtdDebito,
-      vendasCredito,
-      qtdCredito,
-      totalBruto,
-      totalQtdVendas,
-      suprimentos,
-      sangrias,
-      despesasCaixa,
-      saldoEsperadoGaveta
-    } = apuracaoTurnoAtual;
-
-    const diferenca = valorContado - saldoEsperadoGaveta;
-    const dataFechamento = new Date().toISOString();
-
-    let situacaoTexto = 'CAIXA CORRETO (Sem divergência)';
-    if (diferenca > 0.01) {
-      situacaoTexto = `SOBRA DE CAIXA (+R$ ${diferenca.toFixed(2)})`;
-    } else if (diferenca < -0.01) {
-      situacaoTexto = `FALTA DE CAIXA (-R$ ${Math.abs(diferenca).toFixed(2)})`;
+      setModalDespesaRapida(false);
+      setValorDespesaRapida('');
+      setDescricaoDespesaRapida('');
+      mostrarSucesso(`Despesa de R$ ${valNum.toFixed(2)} paga com dinheiro da gaveta registrada com sucesso!`);
+      const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
+      setResumoSessao(res);
+      await carregarFinanceiro();
+    } catch (err: any) {
+      mostrarErro(err.message, 'Erro ao registrar despesa rápida');
+    } finally {
+      setProcessandoDespesaRapida(false);
     }
-
-    const relatorioCompleto = {
-      isPendenteFechamento: true,
-      caixaId: caixaAberto.id,
-      caixaNumero: caixaAberto.numero_caixa || '01',
-      turno: caixaAberto.turno || 'Integral',
-      operadorNome: caixaAberto.usuario?.nome_completo || usuario?.nome_completo || 'Operador',
-      dataAbertura: caixaAberto.data_abertura,
-      dataFechamento: dataFechamento,
-      qtdDinheiro,
-      vendasDinheiro,
-      qtdPix,
-      vendasPix,
-      qtdDebito,
-      vendasDebito,
-      qtdCredito,
-      vendasCredito,
-      totalQtdVendas,
-      totalBruto,
-      fundoInicial: Number(caixaAberto.saldo_inicial),
-      suprimentos,
-      sangrias,
-      despesasCaixa,
-      saldoEsperadoGaveta,
-      valorContado,
-      diferenca,
-      situacaoTexto,
-      observacoes: observacaoFechamento,
-      movimentacoes: movimentacoesCaixa
-    };
-
-    setRelatorioDados(relatorioCompleto);
-    setModalFechamentoCego(false);
-    setModalRelatorioFechamento(true);
   };
 
-  // 6b. Etapa 2: Confirmar e Fechar Caixa Definitivamente (Acionado dentro do Relatório)
-  const handleConfirmarFechamentoDefinitivo = async () => {
-    if (!relatorioDados || !caixaAberto) return;
+  // 6. Fechamento Cego de Caixa (Conferência Cega e Apuração de Sobra/Falta)
+  const handleFecharSessaoCega = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sessaoAtiva?.id || !usuario?.id) return;
 
     try {
       setProcessandoFechamento(true);
-      const dataFechamento = new Date().toISOString();
 
-      const payloadFechamento = {
-        data_fechamento: dataFechamento,
-        saldo_final_declarado: relatorioDados.valorContado,
-        saldo_final_calculado: relatorioDados.saldoEsperadoGaveta,
-        diferenca_quebra: relatorioDados.diferenca,
-        status: 'FECHADO' as const
+      const contagem: DeclaradoPorMetodo = {
+        dinheiro: Number(contagemDinheiro) || 0,
+        pix: Number(contagemPix) || 0,
+        cartao_credito: Number(contagemCredito) || 0,
+        cartao_debito: Number(contagemDebito) || 0,
+        outros: Number(contagemOutros) || 0
       };
 
-      try {
-        await supabase.from('caixas').update(payloadFechamento).eq('id', caixaAberto.id);
-      } catch (errDb: any) {
-        console.warn('Aviso fechamento Supabase:', errDb.message);
-      }
+      const { sessao: sessaoFechada, resumo, statusDiferenca } = await caixaService.fecharSessao({
+        sessaoId: sessaoAtiva.id,
+        usuarioId: usuario.id,
+        contagemDeclarada: contagem,
+        observacoes: observacaoFechamento
+      });
 
-      // Salvar relatório completo no storage
-      try {
-        localStorage.setItem(`hubi_caixa_rel_${caixaAberto.id}`, JSON.stringify({
-          ...relatorioDados,
-          isPendenteFechamento: false,
-          dataFechamento
-        }));
-      } catch (e) {
-        console.error(e);
-      }
+      const textoRecibo = caixaService.gerarTextoComprovanteFechamento(
+        { ...resumo, sessao: sessaoFechada },
+        loja?.nome_fantasia || 'HUBI GESTÃO'
+      );
 
-      // Remover caixa ativo local e salvar no histórico local
-      localStorage.removeItem('hubi_caixa_ativo');
-      if (loja?.id) {
-        try {
-          const histKey = `hubi_historico_caixas_${loja.id}`;
-          const prevHist = localStorage.getItem(histKey);
-          const listaHist: Caixa[] = prevHist ? JSON.parse(prevHist) : [];
-          const caixaFechadoObj: Caixa = {
-            ...caixaAberto,
-            data_fechamento: dataFechamento,
-            saldo_final_declarado: relatorioDados.valorContado,
-            saldo_final_calculado: relatorioDados.saldoEsperadoGaveta,
-            diferenca_quebra: relatorioDados.diferenca,
-            status: 'FECHADO'
-          };
-          listaHist.unshift(caixaFechadoObj);
-          localStorage.setItem(histKey, JSON.stringify(listaHist.slice(0, 50)));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
-      setRelatorioDados((prev: any) => prev ? { ...prev, isPendenteFechamento: false, dataFechamento } : null);
-      setCaixaAberto(null);
-      setValorContadoFechamento('');
+      setRelatorioFechamentoTexto(textoRecibo);
+      setRelatorioFechamentoResumo({ ...resumo, sessao: sessaoFechada });
+      setModalFechamentoCego(false);
+      setModalRelatorioFechamento(true);
+      setSessaoAtiva(null);
+      setResumoSessao(null);
+      setContagemDinheiro('');
+      setContagemPix('');
+      setContagemCredito('');
+      setContagemDebito('');
+      setContagemOutros('');
       setObservacaoFechamento('');
 
+      const difVal = Number(sessaoFechada.diferenca_dinheiro || 0);
+      const msgDif = statusDiferenca === 'exato'
+        ? 'Caixa conciliado com exatidão (R$ 0,00 de diferença).'
+        : statusDiferenca === 'sobra'
+        ? `Fechamento concluído com SOBRA de R$ ${difVal.toFixed(2)}.`
+        : `Fechamento concluído com FALTA de R$ ${Math.abs(difVal).toFixed(2)}.`;
+
+      mostrarSucesso(msgDif, 'Caixa Encerrado com Sucesso');
       await carregarFinanceiro();
-      mostrarSucesso('Caixa encerrado com sucesso!');
     } catch (err: any) {
-      mostrarErro(err.message || 'Tente novamente.', 'Erro ao fechar caixa');
+      mostrarErro(err.message, 'Erro ao encerrar sessão de caixa');
     } finally {
       setProcessandoFechamento(false);
     }
   };
 
-  // Gerar texto puro idêntico ao modelo solicitado
-  const gerarTextoRelatorioPlain = (dados: any) => {
-    if (!dados) return '';
-    const formatMoeda = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const dtAbertura = new Date(dados.dataAbertura).toLocaleString('pt-BR');
-    const dtFechamento = new Date(dados.dataFechamento).toLocaleString('pt-BR');
-
-    return `======================================================================
-                  RELATÓRIO DE FECHAMENTO DE CAIXA                    
-======================================================================
-Caixa Nº: ${dados.caixaNumero.toString().padEnd(22)} Turno: ${dados.turno}
-Operador: ${dados.operadorNome.padEnd(22)} Data/Hora Abertura: ${dtAbertura}
-Status: FECHADO                 Data/Hora Fechamento: ${dtFechamento}
-----------------------------------------------------------------------
-
-RESUMO POR FORMA DE PAGAMENTO (VENDAS TOTAIS)
-----------------------------------------------------------------------
-Forma de Pagamento          Qtd. Transações             Valor Total (R$)
-----------------------------------------------------------------------
-Dinheiro                                  ${String(dados.qtdDinheiro).padStart(2)}                    ${formatMoeda(dados.vendasDinheiro).padStart(10)}
-Pix (Mercado Pago / QrCode)               ${String(dados.qtdPix).padStart(2)}                    ${formatMoeda(dados.vendasPix).padStart(10)}
-Cartão de Débito                          ${String(dados.qtdDebito).padStart(2)}                    ${formatMoeda(dados.vendasDebito).padStart(10)}
-Cartão de Crédito                         ${String(dados.qtdCredito).padStart(2)}                    ${formatMoeda(dados.vendasCredito).padStart(10)}
-----------------------------------------------------------------------
-TOTAL BRUTO FATURADO                      ${String(dados.totalQtdVendas).padStart(2)}                    ${formatMoeda(dados.totalBruto).padStart(10)}
-
-MOVIMENTAÇÃO DE DINHEIRO (GAVETA FÍSICA)
-----------------------------------------------------------------------
-(+) Fundo de Troco Inicial (Abertura):                        R$ ${formatMoeda(dados.fundoInicial).padStart(8)}
-(+) Vendas em Dinheiro:                                       R$ ${formatMoeda(dados.vendasDinheiro).padStart(8)}
-(+) Suprimentos Extras:                                       R$ ${formatMoeda(dados.suprimentos).padStart(8)}
-(-) Sangrias (Retiradas p/ Cofre):                           -R$ ${formatMoeda(dados.sangrias).padStart(8)}
-(-) Despesas Pagas no Caixa:                                 -R$ ${formatMoeda(dados.despesasCaixa).padStart(8)}
-----------------------------------------------------------------------
-(=) SALDO TEÓRICO ESPERADO NA GAVETA:                         R$ ${formatMoeda(dados.saldoEsperadoGaveta).padStart(8)}
-
-CONCILIAÇÃO & CONFERÊNCIA
-----------------------------------------------------------------------
-Valor Informado / Contado pelo Operador:                      R$ ${formatMoeda(dados.valorContado).padStart(8)}
-Diferença de Caixa (Sobra / Falta):                            R$ ${formatMoeda(dados.diferenca).padStart(8)}
-Situação: ${dados.situacaoTexto}
-
-----------------------------------------------------------------------
-OBSERVAÇÕES / OCORRÊNCIAS
-${dados.observacoes ? `- ${dados.observacoes}` : '- Nenhuma observação registrada.'}
-======================================================================
-Assinatura do Operador: _____________________________________________
-Assinatura do Supervisor: ___________________________________________
-`;
-  };
-
-  const handleCopiarRelatorio = () => {
-    const texto = gerarTextoRelatorioPlain(relatorioDados);
-    navigator.clipboard.writeText(texto);
-    setCopiadoRelatorio(true);
-    setTimeout(() => setCopiadoRelatorio(false), 2500);
-  };
-
-  const handleImprimirRelatorio = () => {
-    if (relatorioDados) {
-      PrintService.printFechamentoCaixa(relatorioDados, loja, '80mm');
+  // 7. Drill-Down: Inspecionar Sessão Passada no Histórico
+  const handleAbrirDrillDown = async (sessao: SessaoCaixa) => {
+    try {
+      setCarregandoDrillDown(true);
+      setSessaoDrillDown(sessao);
+      setModalDrillDown(true);
+      const { resumo } = await caixaService.obterDetalhesSessao(sessao.id);
+      setResumoDrillDown(resumo);
+    } catch (err: any) {
+      mostrarErro('Erro ao carregar detalhes da sessão: ' + (err.message || 'Tente novamente'));
+    } finally {
+      setCarregandoDrillDown(false);
     }
   };
 
-  const handleEnviarWhatsappRelatorio = () => {
-    const texto = gerarTextoRelatorioPlain(relatorioDados);
+  // Ações de Compartilhamento do Relatório de Fechamento
+  const handleCopiarRelatorioTexto = (texto: string) => {
+    navigator.clipboard.writeText(texto);
+    setCopiadoRelatorio(true);
+    setTimeout(() => setCopiadoRelatorio(false), 2000);
+  };
+
+  const handleEnviarWhatsappRelatorioTexto = (texto: string) => {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+  };
+
+  const handleImprimirRelatorioTexto = (texto: string) => {
+    const janelaImpressao = window.open('', '_blank');
+    if (!janelaImpressao) return;
+    janelaImpressao.document.write(`
+      <html>
+        <head>
+          <title>Comprovante de Fechamento de Caixa</title>
+          <style>
+            body { font-family: monospace; font-size: 12px; padding: 20px; white-space: pre-wrap; line-height: 1.4; color: #000; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>${texto.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body>
+      </html>
+    `);
+    janelaImpressao.document.close();
+    janelaImpressao.focus();
+    setTimeout(() => {
+      janelaImpressao.print();
+      janelaImpressao.close();
+    }, 250);
   };
 
   // 7. Lista unificada de transações com descrições limpas e sem duplicações (Item 8 e 4b)
@@ -1000,6 +807,101 @@ Assinatura do Supervisor: ___________________________________________
 
   const lucroLiquido = totalReceitas - totalDespesasPagas;
 
+  // Dados para Relatório Consolidado de Meios de Pagamento
+  const dadosRelatorioConsolidado = useMemo(() => {
+    const sessoesNoPeriodo = [
+      ...historicoSessoes,
+      ...(sessaoAtiva ? [sessaoAtiva] : [])
+    ].filter(s => {
+      if (!periodoRelatorioInicio && !periodoRelatorioFim) return true;
+      const dataS = s.aberto_em.split('T')[0];
+      if (periodoRelatorioInicio && dataS < periodoRelatorioInicio) return false;
+      if (periodoRelatorioFim && dataS > periodoRelatorioFim) return false;
+      return true;
+    });
+
+    let dinheiro = 0;
+    let pix = 0;
+    let debito = 0;
+    let credito = 0;
+    let outros = 0;
+    let totalBruto = 0;
+
+    sessoesNoPeriodo.forEach(s => {
+      dinheiro += Number(s.total_vendas_dinheiro || 0);
+      pix += Number(s.total_vendas_pix || 0);
+      debito += Number(s.total_vendas_debito || 0);
+      credito += Number(s.total_vendas_credito || 0);
+      outros += Number(s.total_vendas_outros || 0);
+      totalBruto += Number(s.faturamento_total || 0);
+    });
+
+    return {
+      quantidadeSessoes: sessoesNoPeriodo.length,
+      dinheiro,
+      pix,
+      debito,
+      credito,
+      outros,
+      totalBruto
+    };
+  }, [historicoSessoes, sessaoAtiva, periodoRelatorioInicio, periodoRelatorioFim]);
+
+  // Dados para Relatório de Sangrias e Despesas
+  const dadosRelatorioSangriasDespesas = useMemo(() => {
+    const sessoesNoPeriodo = [
+      ...historicoSessoes,
+      ...(sessaoAtiva ? [sessaoAtiva] : [])
+    ].filter(s => {
+      if (!periodoRelatorioInicio && !periodoRelatorioFim) return true;
+      const dataS = s.aberto_em.split('T')[0];
+      if (periodoRelatorioInicio && dataS < periodoRelatorioInicio) return false;
+      if (periodoRelatorioFim && dataS > periodoRelatorioFim) return false;
+      return true;
+    });
+
+    const itens: Array<{
+      id: string;
+      tipo: string;
+      data: string;
+      terminal: string;
+      valor: number;
+      descricao: string;
+      operador: string;
+    }> = [];
+
+    let totalSangrias = 0;
+    let totalDespesas = 0;
+
+    sessoesNoPeriodo.forEach(s => {
+      (s.movimentacoes || []).forEach(m => {
+        if (m.tipo === 'SANGRIA' || m.tipo === 'DESPESA') {
+          const val = Number(m.valor || 0);
+          if (m.tipo === 'SANGRIA') totalSangrias += val;
+          if (m.tipo === 'DESPESA') totalDespesas += val;
+          itens.push({
+            id: m.id,
+            tipo: m.tipo,
+            data: m.criado_em,
+            terminal: s.terminal_id,
+            valor: val,
+            descricao: m.descricao || (m.tipo === 'SANGRIA' ? 'Sangria de Caixa' : 'Despesa Operacional'),
+            operador: m.usuario?.nome_completo || 'Operador'
+          });
+        }
+      });
+    });
+
+    itens.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+    return {
+      itens,
+      totalSangrias,
+      totalDespesas,
+      totalGeral: totalSangrias + totalDespesas
+    };
+  }, [historicoSessoes, sessaoAtiva, periodoRelatorioInicio, periodoRelatorioFim]);
+
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
       {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 029) */}
@@ -1007,1209 +909,1953 @@ Assinatura do Supervisor: ___________________________________________
         <FinancasMobile
           transacoes={transacoes}
           pedidos={pedidos}
-          caixaAberto={caixaAberto}
+          caixaAberto={null}
           carregando={carregando}
           onRecarregar={carregarFinanceiro}
           onAbrirCaixa={() => setModalAberturaCaixa(true)}
           onSangria={() => setModalSangria(true)}
           onSuprimento={() => setModalSuprimento(true)}
           onFechamentoCego={() => setModalFechamentoCego(true)}
-          saldoEsperadoGaveta={apuracaoTurnoAtual.saldoEsperadoGaveta}
+          saldoEsperadoGaveta={resumoSessao?.saldoEsperadoDinheiro || 0}
         />
       </div>
 
-      {/* 2. VISUALIZAÇÃO DESKTOP (MANTIDA 100% INTACTA) */}
+      {/* 2. VISUALIZAÇÃO DESKTOP */}
       <div className="hidden lg:flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
         {/* ========================================================================= */}
         {/* HEADER SUPERIOR                                                           */}
         {/* ========================================================================= */}
-      <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
-              title="Voltar"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-400" />
-                <span>Finanças & Fluxo de Caixa</span>
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Controle de frente de caixa, sangrias, suprimentos, despesas e apuração cega de turnos.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {caixaAberto ? (
-              <>
-                {permissions.ehAdmin && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setModalSuprimento(true)}
-                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                      title="Adicionar Troco Extra"
-                    >
-                      <ArrowDown className="w-4 h-4 text-emerald-400" />
-                      <span>Suprimento</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setModalSangria(true)}
-                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                      title="Retirar Dinheiro para o Cofre"
-                    >
-                      <ArrowUp className="w-4 h-4 text-rose-400" />
-                      <span>Sangria</span>
-                    </button>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setModalFechamentoCego(true)}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>Fechar Caixa</span>
-                </button>
-              </>
-            ) : (
+        <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setModalAberturaCaixa(true)}
-                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 transition cursor-pointer"
+                onClick={() => navigate(-1)}
+                className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+                title="Voltar"
               >
-                <Unlock className="w-4 h-4" />
-                <span>Abrir Caixa</span>
+                <ArrowLeft className="w-5 h-5" />
               </button>
-            )}
-
-            {permissions.ehAdmin && (
-              <button
-                type="button"
-                onClick={() => setModalNovaDespesa(true)}
-                className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nova Despesa</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* CARDS DE RESUMO FINANCEIRO GERAL COMPACTOS COM BOTÃO DETALHAR */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          {/* Entradas Totais */}
-          <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
-                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> Entradas
-              </span>
-              <button
-                type="button"
-                onClick={() => setModalDetalhesMetrica('entradas')}
-                className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-500/20"
-                title="Detalhar Entradas"
-              >
-                Detalhar
-              </button>
-            </div>
-            <span className="text-base font-black text-emerald-400 block truncate">R$ {totalReceitas.toFixed(2)}</span>
-          </div>
-
-          {/* Despesas */}
-          <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
-                <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Despesas
-              </span>
-              <button
-                type="button"
-                onClick={() => setModalDetalhesMetrica('saidas')}
-                className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20"
-                title="Detalhar Despesas"
-              >
-                Detalhar
-              </button>
-            </div>
-            <span className="text-base font-black text-rose-400 block truncate">R$ {totalDespesasPagas.toFixed(2)}</span>
-          </div>
-
-          {/* Contas a Pagar */}
-          <div className="bg-slate-900/90 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-amber-400 flex items-center gap-1 font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5" /> A Pagar
-              </span>
-              <button
-                type="button"
-                onClick={() => setModalDetalhesMetrica('pagar')}
-                className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/20"
-                title="Detalhar Contas a Pagar"
-              >
-                Detalhar
-              </button>
-            </div>
-            <span className="text-base font-black text-amber-400 block truncate">R$ {totalDespesasPendentes.toFixed(2)}</span>
-          </div>
-
-          {/* Resultado Acumulado */}
-          <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 font-semibold truncate block">Resultado Acumulado</span>
-              <button
-                type="button"
-                onClick={() => setModalDetalhesMetrica('lucro')}
-                className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-[10px] font-bold transition cursor-pointer border border-indigo-500/20 shrink-0"
-                title="Detalhar Resultado Acumulado"
-              >
-                Detalhar
-              </button>
-            </div>
-            <span className={`text-base font-black block truncate ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
-              R$ {lucroLiquido.toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        {/* NAVEGAÇÃO DE ABAS (ORDEM: TURNO/GAVETA ATUAL, FLUXO GERAL, CONTAS A PAGAR, HISTÓRICO) */}
-        <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setAbaAtiva('caixa_atual')}
-            className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'caixa_atual' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Turno / Gaveta Atual {caixaAberto ? '🟢' : '⚪'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setAbaAtiva('fluxo')}
-            className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'fluxo' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Fluxo Geral ({listaTransacoesUnificada.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setAbaAtiva('pagar')}
-            className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'pagar' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setAbaAtiva('historico_caixas')}
-            className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'historico_caixas' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Histórico de Fechamentos ({historicoCaixas.length})
-          </button>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* CORPO / LISTAGEM DA ABA SELECIONADA                                       */}
-      {/* ========================================================================= */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
-        {carregando ? (
-          <div className="text-center py-16 text-slate-500 text-sm">Carregando dados financeiros...</div>
-        ) : (
-          <>
-            {/* ABA 1 & 2: FLUXO GERAL / CONTAS A PAGAR */}
-            {(abaAtiva === 'fluxo' || abaAtiva === 'pagar') && (
-              <div className="space-y-2">
-                {listaTransacoesUnificada
-                  .filter(t => (abaAtiva === 'pagar' ? t.tipo === 'SAIDA' && t.status === 'pendente' : true))
-                  .map((tr) => (
-                    <div
-                      key={tr.id}
-                      className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                          }`}
-                        >
-                          {tr.tipo === 'ENTRADA' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                        </div>
-
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-100">{tr.descricao}</h4>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
-                            <span className="font-semibold text-slate-300">{tr.categoria}</span>
-                            {tr.formaPagamento && (
-                              <>
-                                <span>•</span>
-                                <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded uppercase font-bold text-[9px]">
-                                  {tr.formaPagamento}
-                                </span>
-                              </>
-                            )}
-                            <span>•</span>
-                            <span>{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
-                            {tr.ehRecorrente && (
-                              <span className="text-indigo-400 flex items-center gap-0.5">
-                                <Repeat className="w-2.5 h-2.5" /> Mensal
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span
-                          className={`font-bold text-sm block ${
-                            tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
-                          }`}
-                        >
-                          {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] uppercase font-bold text-slate-500">
-                          {tr.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+              <div>
+                <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-emerald-400" />
+                  <span>Controle de Caixa & Sessões Transacionais</span>
+                </h1>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Ciclo de vida por turnos contínuos (sessao_caixa_id), suprimentos, sangrias, despesas e conferência cega.
+                </p>
               </div>
-            )}
+            </div>
 
-            {/* ABA 3: TURNO / GAVETA ATUAL (RESUMO EM TEMPO REAL) */}
-            {abaAtiva === 'caixa_atual' && (
-              <div className="space-y-6 max-w-4xl mx-auto">
-                {caixaAberto ? (
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                          <span className="font-bold text-xs text-emerald-400 uppercase tracking-wider">Caixa Aberto - Turno {caixaAberto.turno || 'Integral'}</span>
-                        </div>
-                        <h3 className="text-lg font-black text-slate-100 mt-1">Caixa Nº {caixaAberto.numero_caixa || '01'}</h3>
-                        <p className="text-xs text-slate-400">
-                          Aberto às {new Date(caixaAberto.data_abertura).toLocaleTimeString('pt-BR')} por {caixaAberto.usuario?.nome_completo || 'Operador'}
-                        </p>
-                      </div>
-
-                      <div className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-right">
-                        <span className="text-[11px] text-slate-400 block font-semibold">Fundo de Troco Inicial</span>
-                        <span className="text-base font-black text-emerald-400">R$ {Number(caixaAberto.saldo_inicial).toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    {/* Resumo por Forma de Pagamento */}
-                    <div>
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3">Vendas do Turno por Método de Pagamento</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-400 font-semibold">Dinheiro</span>
-                            <Banknote className="w-4 h-4 text-emerald-400" />
-                          </div>
-                          <span className="text-base font-bold text-emerald-400 block">R$ {apuracaoTurnoAtual.vendasDinheiro.toFixed(2)}</span>
-                          <span className="text-[10px] text-slate-500">{apuracaoTurnoAtual.qtdDinheiro} transações</span>
-                        </div>
-
-                        <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-400 font-semibold">Pix</span>
-                            <Zap className="w-4 h-4 text-cyan-400" />
-                          </div>
-                          <span className="text-base font-bold text-cyan-400 block">R$ {apuracaoTurnoAtual.vendasPix.toFixed(2)}</span>
-                          <span className="text-[10px] text-slate-500">{apuracaoTurnoAtual.qtdPix} transações</span>
-                        </div>
-
-                        <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-400 font-semibold">Cartão Débito</span>
-                            <CreditCard className="w-4 h-4 text-blue-400" />
-                          </div>
-                          <span className="text-base font-bold text-blue-400 block">R$ {apuracaoTurnoAtual.vendasDebito.toFixed(2)}</span>
-                          <span className="text-[10px] text-slate-500">{apuracaoTurnoAtual.qtdDebito} transações</span>
-                        </div>
-
-                        <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-400 font-semibold">Cartão Crédito</span>
-                            <CreditCard className="w-4 h-4 text-purple-400" />
-                          </div>
-                          <span className="text-base font-bold text-purple-400 block">R$ {apuracaoTurnoAtual.vendasCredito.toFixed(2)}</span>
-                          <span className="text-[10px] text-slate-500">{apuracaoTurnoAtual.qtdCredito} transações</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Movimentações da Gaveta Física */}
-                    <div className="border-t border-slate-800 pt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Movimentações de Dinheiro (Gaveta)</h4>
-                        {permissions.ehAdmin ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setModalSuprimento(true)}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
-                            >
-                              + Suprimento
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setModalSangria(true)}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
-                            >
-                              - Sangria
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 italic">Movimentações restritas a administradores</span>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        {movimentacoesCaixa.length === 0 ? (
-                          <p className="text-xs text-slate-500 py-4 text-center">Nenhuma sangria ou suprimento registrado neste turno.</p>
-                        ) : (
-                          movimentacoesCaixa.map(m => (
-                            <div key={m.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
-                              <div>
-                                <span className="font-bold text-slate-200 block">{m.descricao}</span>
-                                <span className="text-[10px] text-slate-500">{new Date(m.criado_em || '').toLocaleTimeString('pt-BR')}</span>
-                              </div>
-                              <span className={`font-bold ${m.tipo === 'sangria' || m.tipo === 'despesa' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                                {m.tipo === 'sangria' || m.tipo === 'despesa' ? '-' : '+'} R$ {Number(m.valor).toFixed(2)}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Botão de Fechar Caixa */}
-                    <div className="border-t border-slate-800 pt-4 flex items-center justify-end">
+            <div className="flex items-center gap-2 flex-wrap">
+              {sessaoAtiva ? (
+                <>
+                  {permissions.ehAdmin && (
+                    <>
                       <button
                         type="button"
-                        onClick={() => setModalFechamentoCego(true)}
-                        className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition cursor-pointer"
+                        onClick={() => setModalSuprimento(true)}
+                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        title="Adicionar Troco Extra na Gaveta"
                       >
-                        Realizar Fechamento Cego de Caixa
+                        <ArrowDown className="w-4 h-4 text-emerald-400" />
+                        <span>Suprimento</span>
                       </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-xl">
-                    <div className="w-16 h-16 rounded-3xl bg-slate-800 border border-slate-700 text-slate-400 flex items-center justify-center mx-auto">
-                      <Lock className="w-8 h-8" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base text-slate-100">Nenhum Caixa Aberto no Momento</h3>
-                      <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-                        Abra o caixa informando o fundo de troco para iniciar o turno de atendimento e registro de vendas.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setModalAberturaCaixa(true)}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/25 transition cursor-pointer"
-                    >
-                      Abrir Novo Caixa
-                    </button>
-                  </div>
-                )}
+
+                      <button
+                        type="button"
+                        onClick={() => setModalSangria(true)}
+                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        title="Retirar Dinheiro para o Cofre"
+                      >
+                        <ArrowUp className="w-4 h-4 text-rose-400" />
+                        <span>Sangria</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setModalDespesaRapida(true)}
+                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        title="Despesa Paga com Dinheiro da Gaveta"
+                      >
+                        <Banknote className="w-4 h-4 text-amber-400" />
+                        <span>Despesa Gaveta</span>
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setModalFechamentoCego(true)}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Fechar Caixa</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setModalAberturaCaixa(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Unlock className="w-4 h-4" />
+                  <span>Abrir Caixa</span>
+                </button>
+              )}
+
+              {permissions.ehAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setModalNovaDespesa(true)}
+                  className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nova Despesa (DRE)</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* CARDS DE RESUMO FINANCEIRO GERAL COM BOTÃO DETALHAR */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {/* Entradas Totais */}
+            <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> Entradas Gerais
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalDetalhesMetrica('entradas')}
+                  className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-500/20"
+                >
+                  Detalhar
+                </button>
               </div>
-            )}
-
-            {/* ABA 4: HISTÓRICO DE FECHAMENTOS DE CAIXA */}
-            {abaAtiva === 'historico_caixas' && (
-              <div className="space-y-3 max-w-5xl mx-auto">
-                {historicoCaixas.length === 0 ? (
-                  <div className="text-center py-16 text-slate-500 text-sm">Nenhum histórico de caixa fechado.</div>
-                ) : (
-                  historicoCaixas.map((cx) => (
-                    <div
-                      key={cx.id}
-                      className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-slate-100">Caixa Nº {cx.numero_caixa || '01'} • Turno {cx.turno || 'Integral'}</span>
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                            cx.status === 'ABERTO' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                          }`}>
-                            {cx.status}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400">
-                          Operador: {cx.usuario?.nome_completo || 'Operador'} • Abertura: {new Date(cx.data_abertura).toLocaleString('pt-BR')}
-                          {cx.data_fechamento && ` • Fechamento: ${new Date(cx.data_fechamento).toLocaleString('pt-BR')}`}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <span className="text-[10px] text-slate-500 block">Diferença</span>
-                          <span className={`text-xs font-bold ${
-                            Number(cx.diferenca_quebra || 0) === 0 ? 'text-emerald-400' : Number(cx.diferenca_quebra || 0) > 0 ? 'text-cyan-400' : 'text-rose-400'
-                          }`}>
-                            {Number(cx.diferenca_quebra || 0) === 0 ? 'R$ 0,00' : `R$ ${Number(cx.diferenca_quebra).toFixed(2)}`}
-                          </span>
-                        </div>
-
-                        {cx.data_fechamento && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const relCached = localStorage.getItem(`hubi_caixa_rel_${cx.id}`);
-                              if (relCached) {
-                                try {
-                                  setRelatorioDados(JSON.parse(relCached));
-                                  setModalRelatorioFechamento(true);
-                                  return;
-                                } catch (e) {
-                                  console.error(e);
-                                }
-                              }
-
-                              const rel = {
-                                caixaNumero: cx.numero_caixa || '01',
-                                turno: cx.turno || 'Integral',
-                                operadorNome: cx.usuario?.nome_completo || 'Operador',
-                                dataAbertura: cx.data_abertura,
-                                dataFechamento: cx.data_fechamento,
-                                qtdDinheiro: 0,
-                                vendasDinheiro: Number(cx.total_vendas_dinheiro || 0),
-                                qtdPix: 0,
-                                vendasPix: Number(cx.total_vendas_pix || 0),
-                                qtdDebito: 0,
-                                vendasDebito: Number(cx.total_vendas_debito || 0),
-                                qtdCredito: 0,
-                                vendasCredito: Number(cx.total_vendas_credito || 0),
-                                totalQtdVendas: 0,
-                                totalBruto: Number(cx.total_vendas_dinheiro || 0) + Number(cx.total_vendas_pix || 0) + Number(cx.total_vendas_debito || 0) + Number(cx.total_vendas_credito || 0),
-                                fundoInicial: Number(cx.saldo_inicial || 0),
-                                suprimentos: Number(cx.total_suprimentos || 0),
-                                sangrias: Number(cx.total_sangrias || 0),
-                                despesasCaixa: Number(cx.total_despesas_caixa || 0),
-                                saldoEsperadoGaveta: Number(cx.saldo_final_calculado || 0),
-                                valorContado: Number(cx.saldo_final_declarado || 0),
-                                diferenca: Number(cx.diferenca_quebra || 0),
-                                situacaoTexto: Number(cx.diferenca_quebra || 0) === 0 ? 'CAIXA CORRETO (Sem divergência)' : Number(cx.diferenca_quebra || 0) > 0 ? `SOBRA DE CAIXA (+R$ ${Number(cx.diferenca_quebra).toFixed(2)})` : `FALTA DE CAIXA (-R$ ${Math.abs(Number(cx.diferenca_quebra)).toFixed(2)})`,
-                                observacoes: cx.observacoes
-                              };
-                              setRelatorioDados(rel);
-                              setModalRelatorioFechamento(true);
-                            }}
-                            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 text-xs font-bold transition cursor-pointer"
-                            title="Visualizar Relatório de Fechamento"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ========================================================================= */}
-      {/* MODAL: LANÇAR NOVA DESPESA (ITEM 7)                                       */}
-      {/* ========================================================================= */}
-      {modalNovaDespesa && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">Lançar Nova Despesa</h3>
-              <button onClick={() => setModalNovaDespesa(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
+              <span className="text-base font-black text-emerald-400 block truncate">R$ {totalReceitas.toFixed(2)}</span>
             </div>
 
-            <form onSubmit={handleCadastrarDespesa} className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-300 font-semibold block mb-1">Descrição do Gasto *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Compra de Gelo / Limpeza / Fornecedor"
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
-                />
+            {/* Despesas */}
+            <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
+                  <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Despesas Gerais
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalDetalhesMetrica('saidas')}
+                  className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20"
+                >
+                  Detalhar
+                </button>
+              </div>
+              <span className="text-base font-black text-rose-400 block truncate">R$ {totalDespesasPagas.toFixed(2)}</span>
+            </div>
+
+            {/* Contas a Pagar */}
+            <div className="bg-slate-900/90 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-amber-400 flex items-center gap-1 font-semibold">
+                  <AlertTriangle className="w-3.5 h-3.5" /> A Pagar
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalDetalhesMetrica('pagar')}
+                  className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/20"
+                >
+                  Detalhar
+                </button>
+              </div>
+              <span className="text-base font-black text-amber-400 block truncate">R$ {totalDespesasPendentes.toFixed(2)}</span>
+            </div>
+
+            {/* Resultado Acumulado */}
+            <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-400 font-semibold truncate block">Resultado Acumulado</span>
+                <button
+                  type="button"
+                  onClick={() => setModalDetalhesMetrica('lucro')}
+                  className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-[10px] font-bold transition cursor-pointer border border-indigo-500/20 shrink-0"
+                >
+                  Detalhar
+                </button>
+              </div>
+              <span className={`text-base font-black block truncate ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
+                R$ {lucroLiquido.toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* NAVEGAÇÃO DE ABAS */}
+          <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('caixa_atual')}
+              className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+                abaAtiva === 'caixa_atual' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>Turno / Gaveta Atual</span>
+              <span className={`w-2 h-2 rounded-full ${sessaoAtiva ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('fluxo')}
+              className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
+                abaAtiva === 'fluxo' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Fluxo Geral ({listaTransacoesUnificada.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('pagar')}
+              className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
+                abaAtiva === 'pagar' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('historico_caixas')}
+              className={`pb-2 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
+                abaAtiva === 'historico_caixas' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Histórico & Auditoria ({historicoSessoes.length})
+            </button>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* CORPO / LISTAGEM DA ABA SELECIONADA                                       */}
+        {/* ========================================================================= */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
+          {carregando ? (
+            <div className="text-center py-16 text-slate-500 text-sm">Carregando dados financeiros e de caixa...</div>
+          ) : (
+            <>
+              {/* ABA 1 & 2: FLUXO GERAL / CONTAS A PAGAR */}
+              {(abaAtiva === 'fluxo' || abaAtiva === 'pagar') && (
+                <div className="space-y-2">
+                  {listaTransacoesUnificada
+                    .filter(t => (abaAtiva === 'pagar' ? t.tipo === 'SAIDA' && t.status === 'pendente' : true))
+                    .map((tr) => (
+                      <div
+                        key={tr.id}
+                        className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                            }`}
+                          >
+                            {tr.tipo === 'ENTRADA' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                          </div>
+
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-100">{tr.descricao}</h4>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
+                              <span className="font-semibold text-slate-300">{tr.categoria}</span>
+                              {tr.formaPagamento && (
+                                <>
+                                  <span>•</span>
+                                  <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded uppercase font-bold text-[9px]">
+                                    {tr.formaPagamento}
+                                  </span>
+                                </>
+                              )}
+                              <span>•</span>
+                              <span>{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
+                              {tr.ehRecorrente && (
+                                <span className="text-indigo-400 flex items-center gap-0.5">
+                                  <Repeat className="w-2.5 h-2.5" /> Mensal
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`font-bold text-sm block ${
+                              tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
+                            }`}
+                          >
+                            {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
+                          </span>
+                          <span className="text-[10px] uppercase font-bold text-slate-500">
+                            {tr.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {/* ABA 3: TURNO / GAVETA ATUAL (SESSÃO TRANSACIONAL EM TEMPO REAL) */}
+              {abaAtiva === 'caixa_atual' && (
+                <div className="space-y-5 max-w-5xl mx-auto">
+                  {sessaoAtiva && resumoSessao ? (
+                    <div className="space-y-5">
+                      {/* ALERTA DE SESSÃO ABERTA HÁ MAIS DE 24 HORAS */}
+                      {resumoSessao.abertoHaMaisDe24h && (
+                        <div className="bg-amber-500/15 border-2 border-amber-500/60 rounded-3xl p-4 flex items-center gap-3 text-amber-200 animate-pulse">
+                          <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+                          <div className="text-xs">
+                            <strong className="font-bold text-sm text-amber-300 block">
+                              Atenção: Sessão de Caixa aberta há mais de 24 horas ({resumoSessao.duracaoTexto})!
+                            </strong>
+                            <span>
+                              Este caixa foi aberto em {new Date(sessaoAtiva.aberto_em).toLocaleString('pt-BR')} e continua acumulando movimentações.
+                              Para evitar discrepâncias entre turnos, recomenda-se realizar o Fechamento Cego e abrir uma nova sessão.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CABEÇALHO DA SESSÃO ATIVA */}
+                      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span className="font-bold text-xs text-emerald-400 uppercase tracking-wider">
+                                Sessão Transacional Aberta • Terminal {sessaoAtiva.terminal_id}
+                              </span>
+                            </div>
+                            <h3 className="text-xl font-black text-slate-100 mt-1">
+                              Operador: {sessaoAtiva.usuario_abertura?.nome_completo || 'Operador'}
+                            </h3>
+                            <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                Aberto às {new Date(sessaoAtiva.aberto_em).toLocaleTimeString('pt-BR')} ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})
+                              </span>
+                              <span>•</span>
+                              <span className="font-semibold text-emerald-400">
+                                Duração: {resumoSessao.duracaoTexto}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-right shrink-0">
+                            <span className="text-[11px] text-slate-400 block font-semibold">Fundo de Troco Inicial</span>
+                            <span className="text-lg font-black text-emerald-400">
+                              R$ {Number(sessaoAtiva.fundo_troco_inicial).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* BIG KPI CARD: SALDO ESPERADO EM DINHEIRO NA GAVETA FÍSICA */}
+                        <div className="bg-gradient-to-br from-emerald-950/40 via-slate-950 to-slate-950 border border-emerald-500/30 rounded-3xl p-5 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <Banknote className="w-4 h-4" /> Saldo Esperado em Dinheiro na Gaveta Física
+                              </span>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Valor exato que deve constar em notas e moedas neste momento.
+                              </p>
+                            </div>
+                            <span className="text-3xl font-black text-emerald-300">
+                              R$ {resumoSessao.saldoEsperadoDinheiro.toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* FÓRMULA DE COMPOSIÇÃO FÍSICA DETALHADA */}
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-800 text-[11px]">
+                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                              <span className="text-slate-400 block text-[10px]">Fundo Inicial</span>
+                              <span className="font-bold text-slate-200">+ R$ {Number(sessaoAtiva.fundo_troco_inicial).toFixed(2)}</span>
+                            </div>
+                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                              <span className="text-slate-400 block text-[10px]">Vendas Dinheiro</span>
+                              <span className="font-bold text-emerald-400">+ R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}</span>
+                            </div>
+                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                              <span className="text-slate-400 block text-[10px]">Suprimentos</span>
+                              <span className="font-bold text-cyan-400">+ R$ {resumoSessao.totalSuprimentos.toFixed(2)}</span>
+                            </div>
+                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                              <span className="text-slate-400 block text-[10px]">Sangrias (Cofre)</span>
+                              <span className="font-bold text-rose-400">- R$ {resumoSessao.totalSangrias.toFixed(2)}</span>
+                            </div>
+                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                              <span className="text-slate-400 block text-[10px]">Despesas Gaveta</span>
+                              <span className="font-bold text-amber-400">- R$ {resumoSessao.totalDespesas.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* VENDAS DO TURNO POR MÉTODO DE PAGAMENTO */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                              Vendas do Turno por Meio de Pagamento
+                            </h4>
+                            <span className="text-xs font-black text-slate-300">
+                              Total Faturado: <strong className="text-emerald-400">R$ {resumoSessao.faturamentoTotalVendas.toFixed(2)}</strong>
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            {/* Dinheiro */}
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-400 font-semibold">Dinheiro</span>
+                                <Banknote className="w-4 h-4 text-emerald-400" />
+                              </div>
+                              <span className="text-base font-bold text-emerald-400 block">
+                                R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {resumoSessao.qtdVendasPorMetodo.dinheiro} vendas
+                              </span>
+                            </div>
+
+                            {/* Pix */}
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-400 font-semibold">Pix</span>
+                                <Zap className="w-4 h-4 text-cyan-400" />
+                              </div>
+                              <span className="text-base font-bold text-cyan-400 block">
+                                R$ {resumoSessao.totaisPorMetodo.pix.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {resumoSessao.qtdVendasPorMetodo.pix} vendas
+                              </span>
+                            </div>
+
+                            {/* Cartão Débito */}
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-400 font-semibold">Cartão Débito</span>
+                                <CreditCard className="w-4 h-4 text-blue-400" />
+                              </div>
+                              <span className="text-base font-bold text-blue-400 block">
+                                R$ {resumoSessao.totaisPorMetodo.cartao_debito.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {resumoSessao.qtdVendasPorMetodo.cartao_debito} vendas
+                              </span>
+                            </div>
+
+                            {/* Cartão Crédito */}
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-400 font-semibold">Cartão Crédito</span>
+                                <CreditCard className="w-4 h-4 text-purple-400" />
+                              </div>
+                              <span className="text-base font-bold text-purple-400 block">
+                                R$ {resumoSessao.totaisPorMetodo.cartao_credito.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {resumoSessao.qtdVendasPorMetodo.cartao_credito} vendas
+                              </span>
+                            </div>
+
+                            {/* Outros */}
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-400 font-semibold">Outros</span>
+                                <Layers className="w-4 h-4 text-amber-400" />
+                              </div>
+                              <span className="text-base font-bold text-amber-400 block">
+                                R$ {resumoSessao.totaisPorMetodo.outros.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {resumoSessao.qtdVendasPorMetodo.outros} vendas
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* LINHA DO TEMPO: MOVIMENTAÇÕES DESTA SESSÃO */}
+                        <div className="border-t border-slate-800 pt-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                              Movimentações da Sessão Ativa
+                            </h4>
+                            {permissions.ehAdmin && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setModalSuprimento(true)}
+                                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                                >
+                                  + Suprimento
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setModalSangria(true)}
+                                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                                >
+                                  - Sangria
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setModalDespesaRapida(true)}
+                                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                                >
+                                  - Despesa
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                            {!sessaoAtiva.movimentacoes || sessaoAtiva.movimentacoes.length === 0 ? (
+                              <p className="text-xs text-slate-500 py-6 text-center">
+                                Nenhuma movimentação registrada nesta sessão de caixa até o momento.
+                              </p>
+                            ) : (
+                              sessaoAtiva.movimentacoes.map((m) => {
+                                const ehSaida = m.tipo === 'SANGRIA' || m.tipo === 'DESPESA';
+                                return (
+                                  <div
+                                    key={m.id}
+                                    className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 flex items-center justify-between text-xs"
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <div
+                                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                                          m.tipo === 'SUPRIMENTO'
+                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                            : m.tipo === 'SANGRIA'
+                                            ? 'bg-rose-500/20 text-rose-400'
+                                            : m.tipo === 'DESPESA'
+                                            ? 'bg-amber-500/20 text-amber-400'
+                                            : 'bg-indigo-500/20 text-indigo-400'
+                                        }`}
+                                      >
+                                        {m.tipo === 'SUPRIMENTO' && <ArrowDown className="w-4 h-4" />}
+                                        {m.tipo === 'SANGRIA' && <ArrowUp className="w-4 h-4" />}
+                                        {m.tipo === 'DESPESA' && <Banknote className="w-4 h-4" />}
+                                        {m.tipo === 'VENDA' && <ShoppingCart className="w-4 h-4" />}
+                                      </div>
+                                      <div>
+                                        <span className="font-bold text-slate-200 block">{m.descricao}</span>
+                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                                          <span className="uppercase font-semibold">{m.metodo_pagamento}</span>
+                                          <span>•</span>
+                                          <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
+                                          {m.usuario?.nome_completo && (
+                                            <>
+                                              <span>•</span>
+                                              <span>{m.usuario.nome_completo}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <span
+                                      className={`font-black text-sm ${
+                                        ehSaida ? 'text-rose-400' : 'text-emerald-400'
+                                      }`}
+                                    >
+                                      {ehSaida ? '-' : '+'} R$ {Number(m.valor).toFixed(2)}
+                                    </span>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+
+                        {/* BOTÃO DE FECHAMENTO CEGO */}
+                        <div className="border-t border-slate-800 pt-4 flex items-center justify-between">
+                          <span className="text-xs text-slate-400">
+                            Pronto para fechar o turno? Realize a contagem física cega.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setModalFechamentoCego(true)}
+                            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition cursor-pointer flex items-center gap-2"
+                          >
+                            <Lock className="w-4 h-4" />
+                            <span>Realizar Fechamento Cego de Caixa</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ESTADO QUANDO NÃO HÁ SESSÃO ABERTA */
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-xl">
+                      <div className="w-16 h-16 rounded-3xl bg-slate-800 border border-slate-700 text-slate-400 flex items-center justify-center mx-auto">
+                        <Lock className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-slate-100">
+                          Nenhum Caixa Aberto no Momento (Terminal {terminalId})
+                        </h3>
+                        <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                          Abra o caixa informando o fundo de troco inicial para registrar vendas, sangrias, suprimentos e controlar o turno.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setModalAberturaCaixa(true)}
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-500/25 transition cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <Unlock className="w-4 h-4" />
+                        <span>Abrir Sessão de Caixa</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ABA 4: HISTÓRICO & AUDITORIA DE SESSÕES PASSADAS */}
+              {abaAtiva === 'historico_caixas' && (
+                <div className="space-y-4 max-w-5xl mx-auto">
+                  {/* BARRA DE FILTROS E RELATÓRIOS GERENCIAIS */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Data Início</label>
+                          <input
+                            type="date"
+                            value={filtrosHistorico.dataInicio}
+                            onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, dataInicio: e.target.value }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Data Fim</label>
+                          <input
+                            type="date"
+                            value={filtrosHistorico.dataFim}
+                            onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, dataFim: e.target.value }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Operador</label>
+                          <select
+                            value={filtrosHistorico.usuarioId}
+                            onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, usuarioId: e.target.value }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                          >
+                            <option value="todos">Todos os Operadores</option>
+                            {usuariosLoja.map(u => (
+                              <option key={u.id} value={u.id}>{u.nome_completo}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Diferença</label>
+                          <select
+                            value={filtrosHistorico.statusDiferenca}
+                            onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, statusDiferenca: e.target.value as any }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                          >
+                            <option value="todos">Todas</option>
+                            <option value="com_diferenca">Com Divergência (Sobra/Falta)</option>
+                            <option value="exato">Somente Exato (Sem Falta)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 md:pt-0 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setModalRelatorioConsolidado(true)}
+                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs rounded-xl border border-indigo-500/30 flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Meios de Pagamento</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalRelatorioSangriasDespesas(true)}
+                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs rounded-xl border border-rose-500/30 flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5" />
+                          <span>Sangrias & Despesas</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LISTAGEM DE SESSÕES */}
+                  {historicoSessoes.length === 0 ? (
+                    <div className="text-center py-16 text-slate-500 text-sm bg-slate-900 border border-slate-800 rounded-3xl">
+                      Nenhuma sessão de caixa encontrada para os filtros selecionados.
+                    </div>
+                  ) : (
+                    historicoSessoes.map((cx) => {
+                      const dif = Number(cx.diferenca_dinheiro || 0);
+                      const isExato = Math.abs(dif) < 0.01;
+                      const isSobra = dif > 0.01;
+                      const isFalta = dif < -0.01;
+
+                      return (
+                        <div
+                          key={cx.id}
+                          className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition shadow-sm"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-black text-sm text-slate-100">
+                                Terminal {cx.terminal_id}
+                              </span>
+                              <span
+                                className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
+                                  cx.status === 'ABERTO'
+                                    ? 'bg-emerald-500/20 text-emerald-400'
+                                    : 'bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                {cx.status}
+                              </span>
+                              {cx.status === 'FECHADO' && (
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    isExato
+                                      ? 'bg-emerald-500/10 text-emerald-400'
+                                      : isSobra
+                                      ? 'bg-cyan-500/10 text-cyan-400'
+                                      : 'bg-rose-500/10 text-rose-400'
+                                  }`}
+                                >
+                                  {isExato
+                                    ? '✓ Caixa Exato'
+                                    : isSobra
+                                    ? `+ R$ ${dif.toFixed(2)} (Sobra)`
+                                    : `- R$ ${Math.abs(dif).toFixed(2)} (Falta)`}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs text-slate-400">
+                              Aberto em: <span className="text-slate-200">{new Date(cx.aberto_em).toLocaleString('pt-BR')}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
+                              {cx.fechado_em && (
+                                <>
+                                  {' '}• Fechado em: <span className="text-slate-200">{new Date(cx.fechado_em).toLocaleString('pt-BR')}</span>
+                                </>
+                              )}
+                            </p>
+
+                            <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1 flex-wrap">
+                              <span>Faturamento Total: <strong className="text-slate-200">R$ {Number(cx.faturamento_total || 0).toFixed(2)}</strong></span>
+                              <span>•</span>
+                              <span>Esperado Dinheiro: <strong className="text-slate-200">R$ {Number(cx.saldo_dinheiro_calculado || 0).toFixed(2)}</strong></span>
+                              {cx.saldo_dinheiro_declarado != null && (
+                                <>
+                                  <span>•</span>
+                                  <span>Declarado Físico: <strong className="text-slate-200">R$ {Number(cx.saldo_dinheiro_declarado).toFixed(2)}</strong></span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleAbrirDrillDown(cx)}
+                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+                            >
+                              <Search className="w-3.5 h-3.5 text-indigo-400" />
+                              <span>Inspecionar (Drill-Down)</span>
+                            </button>
+
+                            {cx.fechado_em && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const { resumo } = await caixaService.obterDetalhesSessao(cx.id);
+                                    const texto = caixaService.gerarTextoComprovanteFechamento(
+                                      { ...resumo, sessao: cx },
+                                      loja?.nome_fantasia || 'HUBI GESTÃO'
+                                    );
+                                    handleImprimirRelatorioTexto(texto);
+                                  } catch (e) {
+                                    mostrarErro('Erro ao gerar comprovante de impressão.');
+                                  }
+                                }}
+                                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 cursor-pointer transition"
+                                title="Imprimir Comprovante Térmico"
+                              >
+                                <Printer className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* MODAL: LANÇAR NOVA DESPESA (DRE GERAL)                                    */}
+        {/* ========================================================================= */}
+        {modalNovaDespesa && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-slate-100">Lançar Nova Despesa (DRE)</h3>
+                <button onClick={() => setModalNovaDespesa(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleCadastrarDespesa} className="space-y-3">
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">Valor (R$) *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">Descrição do Gasto *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Compra de Insumos / Limpeza / Fornecedor"
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-300 font-semibold block mb-1">Valor (R$) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="Ex: 40.00"
+                      value={valor}
+                      onChange={(e) => setValor(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-300 font-semibold block mb-1">Categoria</label>
+                    <select
+                      value={categoria}
+                      onChange={(e) => setCategoria(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                    >
+                      <option value="Fornecedor">Fornecedor / Insumos</option>
+                      <option value="Aluguel">Aluguel / Ponto</option>
+                      <option value="Energia/Água">Energia / Água / Internet</option>
+                      <option value="Salário">Salário / Comissão</option>
+                      <option value="Marketing">Marketing / Anúncios</option>
+                      <option value="Outros">Outros / Avulso</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">Forma de Pagamento da Despesa *</label>
+                  <select
+                    value={formaPagamentoDespesa}
+                    onChange={(e) => setFormaPagamentoDespesa(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="dinheiro">Dinheiro (Gaveta do Caixa Ativo)</option>
+                    <option value="pix">Pix</option>
+                    <option value="debito">Cartão de Débito</option>
+                    <option value="credito">Cartão de Crédito</option>
+                    <option value="transferencia">Transferência Bancária / Boleto</option>
+                  </select>
+                  {formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && (
+                    <span className="text-[10px] text-amber-400 block mt-1">
+                      ℹ️ Esta despesa será debitada automaticamente da gaveta física da sessão ativa ({sessaoAtiva.terminal_id}).
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">Data</label>
+                  <input
+                    type="date"
+                    value={dataVencimento}
+                    onChange={(e) => setDataVencimento(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="chkRecorrente"
+                    checked={ehRecorrente}
+                    onChange={(e) => setEhRecorrente(e.target.checked)}
+                    className="rounded border-slate-700"
+                  />
+                  <label htmlFor="chkRecorrente" className="text-xs text-slate-300 font-medium cursor-pointer">
+                    Despesa Fixa Recorrente (Repetir mensalmente)
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={salvandoDespesa}
+                  className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 font-bold text-white text-xs shadow-lg shadow-rose-500/25 transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {salvandoDespesa ? 'Salvando...' : 'Salvar Despesa'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: ABERTURA DE SESSÃO DE CAIXA (BLOQUEIO DE CONCORRÊNCIA)              */}
+        {/* ========================================================================= */}
+        {modalAberturaCaixa && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                  <Unlock className="w-5 h-5 text-emerald-400" />
+                  <span>Abertura de Caixa</span>
+                </h3>
+                <button onClick={() => setModalAberturaCaixa(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAbrirSessao} className="space-y-4">
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Terminal de Caixa:</span>
+                    <strong className="text-slate-200 uppercase">{terminalId}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Operador:</span>
+                    <strong className="text-slate-200">{usuario?.nome_completo || 'Operador'}</strong>
+                  </div>
+                  <p className="text-[10px] text-slate-500 pt-1 border-t border-slate-800">
+                    🔒 O sistema valida a concorrência e impede a abertura simultânea de mais de uma sessão ativa neste terminal.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Fundo de Troco Inicial em Dinheiro (R$):
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     required
-                    placeholder="Ex: 40.00"
-                    value={valor}
-                    onChange={(e) => setValor(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    placeholder="Ex: 100.00"
+                    value={fundoTroco}
+                    onChange={(e) => setFundoTroco(e.target.value)}
+                    className="w-full bg-slate-800 border border-emerald-500 rounded-xl px-4 py-3 text-lg font-black text-emerald-400 text-center focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 block text-center mt-1">
+                    Valor físico inicial em cédulas e moedas na gaveta
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={abrindoCaixa}
+                  className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {abrindoCaixa ? 'Abrindo Sessão...' : 'Confirmar Abertura de Caixa'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: SUPRIMENTO (TROCO EXTRA - JUSTIFICATIVA OBRIGATÓRIA)                */}
+        {/* ========================================================================= */}
+        {modalSuprimento && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                  <ArrowDown className="w-5 h-5 text-emerald-400" />
+                  <span>Suprimento de Caixa (Troco Extra)</span>
+                </h3>
+                <button onClick={() => setModalSuprimento(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRegistrarSuprimento} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Valor a Adicionar na Gaveta (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Ex: 50.00"
+                    value={valorSuprimento}
+                    onChange={(e) => setValorSuprimento(e.target.value)}
+                    className="w-full bg-slate-800 border border-emerald-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 text-center"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">Categoria</label>
-                  <select
-                    value={categoria}
-                    onChange={(e) => setCategoria(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
-                  >
-                    <option value="Fornecedor">Fornecedor / Insumos</option>
-                    <option value="Aluguel">Aluguel / Ponto</option>
-                    <option value="Energia/Água">Energia / Água / Internet</option>
-                    <option value="Salário">Salário / Comissão</option>
-                    <option value="Marketing">Marketing / Anúncios</option>
-                    <option value="Outros">Outros / Avulso</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Forma de Pagamento da Despesa (Item 7) */}
-              <div>
-                <label className="text-xs text-slate-300 font-semibold block mb-1">Forma de Pagamento da Despesa *</label>
-                <select
-                  value={formaPagamentoDespesa}
-                  onChange={(e) => setFormaPagamentoDespesa(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="dinheiro">Dinheiro (Gaveta do Caixa Aberto)</option>
-                  <option value="pix">Pix</option>
-                  <option value="debito">Cartão de Débito</option>
-                  <option value="credito">Cartão de Crédito</option>
-                  <option value="transferencia">Transferência Bancária / Boleto</option>
-                </select>
-                {formaPagamentoDespesa === 'dinheiro' && caixaAberto && (
-                  <span className="text-[10px] text-amber-400 block mt-1">
-                    ℹ️ Esta despesa será debitada automaticamente da gaveta do caixa atual.
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-300 font-semibold block mb-1">Data</label>
-                <input
-                  type="date"
-                  value={dataVencimento}
-                  onChange={(e) => setDataVencimento(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="chkRecorrente"
-                  checked={ehRecorrente}
-                  onChange={(e) => setEhRecorrente(e.target.checked)}
-                  className="rounded border-slate-700"
-                />
-                <label htmlFor="chkRecorrente" className="text-xs text-slate-300 font-medium cursor-pointer">
-                  Despesa Fixa Recorrente (Repetir mensalmente)
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={salvandoDespesa}
-                className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 font-bold text-white text-xs shadow-lg shadow-rose-500/25 transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {salvandoDespesa ? 'Salvando...' : 'Salvar Despesa'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: ABERTURA DE CAIXA (ITEM 9)                                         */}
-      {/* ========================================================================= */}
-      {modalAberturaCaixa && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">Abertura de Caixa</h3>
-              <button onClick={() => setModalAberturaCaixa(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAbrirCaixa} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Nº do Caixa:</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Justificativa / Motivo da Entrada *
+                  </label>
                   <input
                     type="text"
-                    value={numeroCaixaAbertura}
-                    onChange={(e) => setNumeroCaixaAbertura(e.target.value)}
+                    required
+                    placeholder="Ex: Inserção de moedas para troco matutino"
+                    value={motivoSuprimento}
+                    onChange={(e) => setMotivoSuprimento(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
                   />
                 </div>
 
+                <button
+                  type="submit"
+                  disabled={processandoSuprimento}
+                  className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {processandoSuprimento ? 'Registrando...' : 'Confirmar Suprimento'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: SANGRIA (RETIRADA PARA COFRE - JUSTIFICATIVA OBRIGATÓRIA)           */}
+        {/* ========================================================================= */}
+        {modalSangria && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                  <ArrowUp className="w-5 h-5 text-rose-400" />
+                  <span>Sangria de Caixa (Retirada de Dinheiro)</span>
+                </h3>
+                <button onClick={() => setModalSangria(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRegistrarSangria} className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Turno:</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Valor a Retirar da Gaveta (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Ex: 500.00"
+                    value={valorSangria}
+                    onChange={(e) => setValorSangria(e.target.value)}
+                    className="w-full bg-slate-800 border border-rose-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-rose-400 text-center"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Justificativa Obrigatória (Destino do Valor) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Recolhimento para o cofre / Depósito bancário"
+                    value={motivoSangria}
+                    onChange={(e) => setMotivoSangria(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={processandoSangria}
+                  className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {processandoSangria ? 'Processando...' : 'Confirmar Sangria'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: DESPESA RÁPIDA DE GAVETA (PAGA EM DINHEIRO FÍSICO)                  */}
+        {/* ========================================================================= */}
+        {modalDespesaRapida && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                  <Banknote className="w-5 h-5 text-amber-400" />
+                  <span>Despesa Operacional de Gaveta</span>
+                </h3>
+                <button onClick={() => setModalDespesaRapida(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRegistrarDespesaRapida} className="space-y-4">
+                <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl text-xs text-amber-300">
+                  ⚠️ O valor informado será debitado imediatamente do dinheiro físico da gaveta do caixa atual.
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Valor Pago em Dinheiro (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Ex: 25.00"
+                    value={valorDespesaRapida}
+                    onChange={(e) => setValorDespesaRapida(e.target.value)}
+                    className="w-full bg-slate-800 border border-amber-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-amber-400 text-center"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Categoria</label>
                   <select
-                    value={turnoAbertura}
-                    onChange={(e) => setTurnoAbertura(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-semibold"
+                    value={categoriaDespesaRapida}
+                    onChange={(e) => setCategoriaDespesaRapida(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
                   >
-                    <option value="Manhã">Manhã</option>
-                    <option value="Tarde">Tarde</option>
-                    <option value="Noite">Noite</option>
-                    <option value="Integral">Integral</option>
+                    <option value="Despesas Operacionais">Despesas Operacionais</option>
+                    <option value="Alimentação Funcionários">Alimentação / Lanche</option>
+                    <option value="Insumos / Gelo">Insumos de Urgência / Gelo</option>
+                    <option value="Limpeza / Descartáveis">Limpeza / Descartáveis</option>
+                    <option value="Frete / Motoboy">Frete / Motoboy Avulso</option>
+                    <option value="Outros">Outros</option>
                   </select>
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Fundo de Troco Inicial em Dinheiro (R$):
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="Ex: 200.00"
-                  value={fundoTroco}
-                  onChange={(e) => setFundoTroco(e.target.value)}
-                  className="w-full bg-slate-800 border border-emerald-500 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 text-center"
-                />
-              </div>
-
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400">
-                Operador autenticado: <strong className="text-slate-200">{usuario?.nome_completo || 'Operador'}</strong>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer"
-              >
-                Confirmar Abertura de Caixa
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: SANGRIA (RETIRADA DE DINHEIRO)                                      */}
-      {/* ========================================================================= */}
-      {modalSangria && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <ArrowUp className="w-5 h-5 text-rose-400" />
-                <span>Sangria de Caixa (Retirada)</span>
-              </h3>
-              <button onClick={() => setModalSangria(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleRegistrarSangria} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Valor a Retirar da Gaveta (R$):</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="Ex: 500.00"
-                  value={valorSangria}
-                  onChange={(e) => setValorSangria(e.target.value)}
-                  className="w-full bg-slate-800 border border-rose-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-rose-400 text-center"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Motivo / Destino:</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Recolhimento para cofre / depósito bancário"
-                  value={motivoSangria}
-                  onChange={(e) => setMotivoSangria(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition cursor-pointer"
-              >
-                Confirmar Sangria
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: SUPRIMENTO (TROCO EXTRA)                                           */}
-      {/* ========================================================================= */}
-      {modalSuprimento && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <ArrowDown className="w-5 h-5 text-emerald-400" />
-                <span>Suprimento de Caixa (Troco Extra)</span>
-              </h3>
-              <button onClick={() => setModalSuprimento(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleRegistrarSuprimento} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Valor a Adicionar na Gaveta (R$):</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="Ex: 100.00"
-                  value={valorSuprimento}
-                  onChange={(e) => setValorSuprimento(e.target.value)}
-                  className="w-full bg-slate-800 border border-emerald-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 text-center"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Motivo / Origem:</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Adição de moedas / notas trocadas"
-                  value={motivoSuprimento}
-                  onChange={(e) => setMotivoSuprimento(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer"
-              >
-                Confirmar Suprimento
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: FECHAMENTO DE CAIXA COM CONFERÊNCIA CEGA (ITEM 9)                  */}
-      {/* ========================================================================= */}
-      {modalFechamentoCego && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-100">Fechamento Cego de Caixa</h3>
-                <p className="text-xs text-slate-400">Contagem física de dinheiro da gaveta</p>
-              </div>
-              <button onClick={() => setModalFechamentoCego(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleConferirFechamentoCego} className="space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-300 space-y-1">
-                <span className="font-bold block">🔒 Procedimento de Conferência Cega:</span>
-                <p className="text-[11px] leading-tight text-amber-200/80">
-                  Conte todo o dinheiro físico presente na gaveta e digite o total abaixo. O sistema apurará as vendas, sangrias e suprimentos automaticamente para gerar o relatório final para conferência.
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-200 block mb-1">
-                  Valor Total Contado na Gaveta em Dinheiro (R$) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                  value={valorContadoFechamento}
-                  onChange={(e) => setValorContadoFechamento(e.target.value)}
-                  className="w-full bg-slate-800 border border-amber-500 rounded-xl px-4 py-3 text-lg font-black text-amber-400 text-center focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Observações / Ocorrências do Turno:</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ex: Sangria realizada às 19:30 por Gerente Ana; comprovante de gelo anexado."
-                  value={observacaoFechamento}
-                  onChange={(e) => setObservacaoFechamento(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none resize-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition cursor-pointer"
-              >
-                Conferir e Gerar Relatório de Fechamento
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO DE CAIXA (ITEM 5 e 4c)              */}
-      {/* ========================================================================= */}
-      {modalRelatorioFechamento && relatorioDados && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
-            {/* Topo do Modal */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-100">Relatório de Fechamento de Caixa</h3>
-                  <p className="text-xs text-slate-400">
-                    Caixa Nº <span className="text-slate-200 font-bold">{relatorioDados.caixaNumero}</span> • Turno: <span className="text-slate-200 font-bold">{relatorioDados.turno}</span>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Descrição / Justificativa do Gasto *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Compra de saco de gelo emergencial"
+                    value={descricaoDespesaRapida}
+                    onChange={(e) => setDescricaoDespesaRapida(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={processandoDespesaRapida}
+                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {processandoDespesaRapida ? 'Lançando...' : 'Confirmar Saída da Gaveta'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: FECHAMENTO CEGO DE CAIXA (CONFERÊNCIA CEGA SEM VALOR ESPERADO)     */}
+        {/* ========================================================================= */}
+        {modalFechamentoCego && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-amber-400" />
+                    <span>Fechamento Cego de Caixa</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Terminal: <strong className="text-slate-200">{sessaoAtiva?.terminal_id}</strong>
                   </p>
                 </div>
-              </div>
-              <button
-                onClick={() => setModalRelatorioFechamento(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Metadados do Turno */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-500 font-semibold block">Operador Responsável</span>
-                <span className="text-slate-200 font-bold truncate block">{relatorioDados.operadorNome}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 font-semibold block">Data / Hora Abertura</span>
-                <span className="text-slate-300 font-medium">{new Date(relatorioDados.dataAbertura).toLocaleString('pt-BR')}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 font-semibold block">Data / Hora Fechamento</span>
-                <span className="text-slate-300 font-medium">{new Date(relatorioDados.dataFechamento).toLocaleString('pt-BR')}</span>
-              </div>
-            </div>
-
-            {/* Cards de Resumo Executivo */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-                <span className="text-[11px] text-slate-400 font-semibold block">Total Faturado</span>
-                <span className="text-lg font-black text-emerald-400 block">R$ {Number(relatorioDados.totalBruto).toFixed(2)}</span>
-                <span className="text-[10px] text-slate-500">{relatorioDados.totalQtdVendas} vendas registradas</span>
-              </div>
-
-              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-                <span className="text-[11px] text-slate-400 font-semibold block">Esperado em Gaveta</span>
-                <span className="text-lg font-black text-slate-100 block">R$ {Number(relatorioDados.saldoEsperadoGaveta).toFixed(2)}</span>
-                <span className="text-[10px] text-slate-500">Fundo + Dinheiro - Sangrias</span>
-              </div>
-
-              <div className={`rounded-2xl p-3.5 space-y-1 border ${
-                relatorioDados.diferenca === 0
-                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
-                  : relatorioDados.diferenca > 0
-                  ? 'bg-blue-950/30 border-blue-500/40 text-blue-300'
-                  : 'bg-rose-950/30 border-rose-500/40 text-rose-300'
-              }`}>
-                <span className="text-[11px] font-semibold block">Contado / Diferença</span>
-                <span className="text-lg font-black block">R$ {Number(relatorioDados.valorContado).toFixed(2)}</span>
-                <span className="text-[10px] font-bold block">
-                  {relatorioDados.diferenca === 0 ? '✓ Caixa Conferido' : relatorioDados.diferenca > 0 ? `+ R$ ${relatorioDados.diferenca.toFixed(2)} (Sobra)` : `- R$ ${Math.abs(relatorioDados.diferenca).toFixed(2)} (Falta)`}
-                </span>
-              </div>
-            </div>
-
-            {/* Tabela de Vendas por Meio de Pagamento */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-300 block">Vendas por Meio de Pagamento:</span>
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden text-xs">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[11px] uppercase font-semibold">
-                    <tr>
-                      <th className="p-2.5">Forma</th>
-                      <th className="p-2.5 text-center">Qtd</th>
-                      <th className="p-2.5 text-right">Total (R$)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    <tr>
-                      <td className="p-2.5 font-medium text-slate-200">Dinheiro</td>
-                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdDinheiro || 0}</td>
-                      <td className="p-2.5 text-right font-bold text-slate-100">R$ {Number(relatorioDados.vendasDinheiro || 0).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium text-slate-200">Pix</td>
-                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdPix || 0}</td>
-                      <td className="p-2.5 text-right font-bold text-cyan-400">R$ {Number(relatorioDados.vendasPix || 0).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium text-slate-200">Cartão de Débito</td>
-                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdDebito || 0}</td>
-                      <td className="p-2.5 text-right font-bold text-blue-400">R$ {Number(relatorioDados.vendasDebito || 0).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium text-slate-200">Cartão de Crédito</td>
-                      <td className="p-2.5 text-center text-slate-400">{relatorioDados.qtdCredito || 0}</td>
-                      <td className="p-2.5 text-right font-bold text-purple-400">R$ {Number(relatorioDados.vendasCredito || 0).toFixed(2)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Observações se houver */}
-            {relatorioDados.observacoes && (
-              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-2xl text-xs space-y-1">
-                <span className="text-slate-400 font-semibold block">Observações do Fechamento:</span>
-                <p className="text-slate-200">{relatorioDados.observacoes}</p>
-              </div>
-            )}
-
-            {/* Ações de Fechamento, Impressão e Compartilhamento */}
-            <div className="flex items-center justify-between gap-2 pt-2 flex-wrap border-t border-slate-800">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopiarRelatorio}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Copy className="w-4 h-4 text-slate-400" />
-                  <span>{copiadoRelatorio ? 'Copiado!' : 'Copiar Texto'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleEnviarWhatsappRelatorio}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>WhatsApp</span>
+                <button onClick={() => setModalFechamentoCego(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleImprimirRelatorio}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 transition cursor-pointer"
-                >
-                  <Printer className="w-4 h-4 text-slate-400" />
-                  <span>Imprimir</span>
-                </button>
+              <form onSubmit={handleFecharSessaoCega} className="space-y-4">
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-300 space-y-1">
+                  <span className="font-bold block">🔒 Procedimento de Conferência Cega:</span>
+                  <p className="text-[11px] leading-relaxed text-amber-200/80">
+                    Digite os valores físicos apurados em cada meio de pagamento. Os saldos teóricos calculados pelo sistema
+                    <strong> NÃO são exibidos nesta tela</strong> para garantir a integridade da conferência. O sistema confrontará
+                    as divergências (Sobra/Falta) imediatamente após o envio.
+                  </p>
+                </div>
 
-                {relatorioDados.isPendenteFechamento && caixaAberto && (
+                <div>
+                  <label className="text-xs font-black text-slate-200 block mb-1">
+                    Dinheiro Físico Contado na Gaveta (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={contagemDinheiro}
+                    onChange={(e) => setContagemDinheiro(e.target.value)}
+                    className="w-full bg-slate-800 border-2 border-amber-500 rounded-2xl px-4 py-3 text-xl font-black text-amber-400 text-center focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 block text-center mt-1">
+                    Soma de todas as cédulas e moedas físicas presentes na gaveta
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Pix Apurado (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00 (Opcional)"
+                      value={contagemPix}
+                      onChange={(e) => setContagemPix(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Cartão Débito (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00 (Opcional)"
+                      value={contagemDebito}
+                      onChange={(e) => setContagemDebito(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Cartão Crédito (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00 (Opcional)"
+                      value={contagemCredito}
+                      onChange={(e) => setContagemCredito(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Outros Meios (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00 (Opcional)"
+                      value={contagemOutros}
+                      onChange={(e) => setContagemOutros(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Observações / Justificativas do Fechamento:
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Sangria realizada para o cofre; divergência justificada por troco incorreto."
+                    value={observacaoFechamento}
+                    onChange={(e) => setObservacaoFechamento(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={processandoFechamento}
+                  className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {processandoFechamento ? 'Apurando e Encerrando...' : 'Concluir Fechamento Cego'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO (APÓS CONFERÊNCIA CEGA)             */}
+        {/* ========================================================================= */}
+        {modalRelatorioFechamento && relatorioFechamentoResumo && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8 animate-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-100">Relatório Oficial de Fechamento de Caixa</h3>
+                    <p className="text-xs text-slate-400">
+                      Terminal: <strong className="text-slate-200">{relatorioFechamentoResumo.sessao.terminal_id}</strong> • Duração: <strong className="text-slate-200">{relatorioFechamentoResumo.duracaoTexto}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setModalRelatorioFechamento(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* STATUS DA DIFERENÇA APURADA */}
+              {(() => {
+                const dif = Number(relatorioFechamentoResumo.sessao.diferenca_dinheiro || 0);
+                const isExato = Math.abs(dif) < 0.01;
+                const isSobra = dif > 0.01;
+                return (
+                  <div
+                    className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+                      isExato
+                        ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                        : isSobra
+                        ? 'bg-cyan-950/30 border-cyan-500/40 text-cyan-300'
+                        : 'bg-rose-950/30 border-rose-500/40 text-rose-300'
+                    }`}
+                  >
+                    <div>
+                      <span className="font-black text-sm block">
+                        {isExato ? '✓ Caixa Conciliado com Exatidão' : isSobra ? 'SOBRA DE CAIXA APURADA' : 'FALTA DE CAIXA APURADA'}
+                      </span>
+                      <span className="text-[11px] opacity-80">
+                        {isExato
+                          ? 'O saldo físico contado confere exatamente com o saldo esperado pelo sistema.'
+                          : isSobra
+                          ? `Constatado valor físico superior em R$ ${dif.toFixed(2)}.`
+                          : `Constatada divergência física negativa em R$ ${Math.abs(dif).toFixed(2)}.`}
+                      </span>
+                    </div>
+                    <span className="text-xl font-black shrink-0">
+                      {isExato ? 'R$ 0,00' : `${dif > 0 ? '+' : '-'} R$ ${Math.abs(dif).toFixed(2)}`}
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* CARDS DE RESUMO DO FECHAMENTO */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold block">Total Faturado (Vendas)</span>
+                  <span className="text-lg font-black text-emerald-400 block">
+                    R$ {relatorioFechamentoResumo.faturamentoTotalVendas.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold block">Esperado em Dinheiro</span>
+                  <span className="text-lg font-black text-slate-100 block">
+                    R$ {relatorioFechamentoResumo.saldoEsperadoDinheiro.toFixed(2)}
+                  </span>
+                  <span className="text-[10px] text-slate-500">Fundo + Vendas - Saídas</span>
+                </div>
+
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold block">Contado pelo Operador</span>
+                  <span className="text-lg font-black text-amber-400 block">
+                    R$ {Number(relatorioFechamentoResumo.sessao.saldo_dinheiro_declarado || 0).toFixed(2)}
+                  </span>
+                  <span className="text-[10px] text-slate-500">Valor físico declarado</span>
+                </div>
+              </div>
+
+              {/* TABELA DE VENDAS POR MEIO DE PAGAMENTO */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-300 block">Apuração por Meio de Pagamento:</span>
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[11px] uppercase font-semibold">
+                      <tr>
+                        <th className="p-2.5">Forma</th>
+                        <th className="p-2.5 text-center">Vendas</th>
+                        <th className="p-2.5 text-right">Calculado Sistema</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      <tr>
+                        <td className="p-2.5 font-medium text-slate-200">Dinheiro</td>
+                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.dinheiro}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-100">R$ {relatorioFechamentoResumo.totaisPorMetodo.dinheiro.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-medium text-slate-200">Pix</td>
+                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.pix}</td>
+                        <td className="p-2.5 text-right font-bold text-cyan-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.pix.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-medium text-slate-200">Cartão de Débito</td>
+                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_debito}</td>
+                        <td className="p-2.5 text-right font-bold text-blue-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_debito.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-medium text-slate-200">Cartão de Crédito</td>
+                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_credito}</td>
+                        <td className="p-2.5 text-right font-bold text-purple-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_credito.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 font-medium text-slate-200">Outros</td>
+                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.outros}</td>
+                        <td className="p-2.5 text-right font-bold text-amber-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.outros.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* AÇÕES DE COMPARTILHAMENTO E IMPRESSÃO */}
+              <div className="flex items-center justify-between gap-2 pt-2 flex-wrap border-t border-slate-800">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    disabled={processandoFechamento}
-                    onClick={handleConfirmarFechamentoDefinitivo}
-                    className="px-5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-black flex items-center gap-2 transition cursor-pointer shadow-lg shadow-rose-500/25 active:scale-95 disabled:opacity-50"
+                    onClick={() => handleCopiarRelatorioTexto(relatorioFechamentoTexto)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                   >
-                    <Lock className="w-4 h-4" />
-                    <span>{processandoFechamento ? 'Fechando Caixa...' : 'Fechar Caixa'}</span>
+                    <Copy className="w-4 h-4 text-slate-400" />
+                    <span>{copiadoRelatorio ? 'Copiado!' : 'Copiar Texto'}</span>
                   </button>
-                )}
 
+                  <button
+                    type="button"
+                    onClick={() => handleEnviarWhatsappRelatorioTexto(relatorioFechamentoTexto)}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleImprimirRelatorioTexto(relatorioFechamentoTexto)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4 text-slate-400" />
+                    <span>Imprimir Comprovante</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalRelatorioFechamento(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: DRILL-DOWN / AUDITORIA DE SESSÃO PASSADA                            */}
+        {/* ========================================================================= */}
+        {modalDrillDown && sessaoDrillDown && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl p-6 space-y-5 shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <Search className="w-5 h-5 text-indigo-400" />
+                    <span>Auditoria de Sessão (Drill-Down) • Terminal {sessaoDrillDown.terminal_id}</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    ID da Sessão: <span className="font-mono text-slate-300">{sessaoDrillDown.id}</span>
+                  </p>
+                </div>
+                <button onClick={() => setModalDrillDown(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {carregandoDrillDown ? (
+                <div className="py-16 text-center text-slate-400 text-sm">Carregando auditoria completa...</div>
+              ) : resumoDrillDown ? (
+                <div className="space-y-4">
+                  {/* METADADOS DA SESSÃO */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Abertura</span>
+                      <span className="font-semibold text-slate-200">{new Date(sessaoDrillDown.aberto_em).toLocaleString('pt-BR')}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Fechamento</span>
+                      <span className="font-semibold text-slate-200">
+                        {sessaoDrillDown.fechado_em ? new Date(sessaoDrillDown.fechado_em).toLocaleString('pt-BR') : 'Em Aberto'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Duração Total</span>
+                      <span className="font-semibold text-emerald-400">{resumoDrillDown.duracaoTexto}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Operador Fechamento</span>
+                      <span className="font-semibold text-slate-200">{sessaoDrillDown.usuario_fechamento?.nome_completo || '—'}</span>
+                    </div>
+                  </div>
+
+                  {/* CARDS COMPARATIVOS */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">Total Faturado</span>
+                      <span className="font-black text-sm text-emerald-400">R$ {resumoDrillDown.faturamentoTotalVendas.toFixed(2)}</span>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">Esperado Dinheiro</span>
+                      <span className="font-black text-sm text-slate-200">R$ {resumoDrillDown.saldoEsperadoDinheiro.toFixed(2)}</span>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">Declarado Físico</span>
+                      <span className="font-black text-sm text-amber-400">
+                        R$ {Number(sessaoDrillDown.saldo_dinheiro_declarado || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                      <span className="text-[10px] text-slate-500 block">Diferença Final</span>
+                      <span className={`font-black text-sm ${
+                        Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
+                          ? 'text-emerald-400'
+                          : Number(sessaoDrillDown.diferenca_dinheiro || 0) > 0
+                          ? 'text-cyan-400'
+                          : 'text-rose-400'
+                      }`}>
+                        {Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
+                          ? 'R$ 0,00'
+                          : `R$ ${Number(sessaoDrillDown.diferenca_dinheiro).toFixed(2)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* TABELA DE MOVIMENTAÇÕES AUDITADAS */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-300 block">
+                      Extrato Completo de Movimentações ({resumoDrillDown.sessao.movimentacoes?.length || 0}):
+                    </span>
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                      {!resumoDrillDown.sessao.movimentacoes || resumoDrillDown.sessao.movimentacoes.length === 0 ? (
+                        <p className="text-xs text-slate-500 text-center py-4">Nenhuma movimentação detalhada.</p>
+                      ) : (
+                        resumoDrillDown.sessao.movimentacoes.map(m => (
+                          <div
+                            key={m.id}
+                            className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 flex justify-between items-center text-xs"
+                          >
+                            <div>
+                              <span className="font-bold text-slate-200 block">{m.descricao}</span>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                <span className="uppercase font-semibold">{m.tipo}</span>
+                                <span>•</span>
+                                <span>{m.metodo_pagamento}</span>
+                                <span>•</span>
+                                <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
+                              </div>
+                            </div>
+                            <span className={`font-bold ${
+                              m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? 'text-rose-400' : 'text-emerald-400'
+                            }`}>
+                              {m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? '-' : '+'} R$ {Number(m.valor).toFixed(2)}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setModalRelatorioFechamento(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  onClick={() => setModalDrillDown(false)}
+                  className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
                 >
-                  Fechar Janela
+                  Fechar Auditoria
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ========================================================================= */}
-      {/* MODAL: DETALHAMENTO DE MÉTRICAS FINANCEIRAS (ITEM 7, 4d, 4e)                */}
-      {/* ========================================================================= */}
-      {modalDetalhesMetrica && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 font-bold flex items-center justify-center">
-                  <Info className="w-5 h-5" />
+        {/* ========================================================================= */}
+        {/* MODAL: RELATÓRIO CONSOLIDADO DE MEIOS DE PAGAMENTO (CONCILIAÇÃO BANCÁRIA)  */}
+        {/* ========================================================================= */}
+        {modalRelatorioConsolidado && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 font-bold flex items-center justify-center">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-100">Relatório Consolidado de Meios de Pagamento</h3>
+                    <p className="text-xs text-slate-400">Conciliação com Extratos Bancários e Maquininhas</p>
+                  </div>
+                </div>
+                <button onClick={() => setModalRelatorioConsolidado(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* SELEÇÃO DO PERÍODO */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodoRelatorioInicio}
+                    onChange={(e) => setPeriodoRelatorioInicio(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200"
+                  />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-100">
-                    {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
-                    {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Despesas'}
-                    {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
-                    {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
-                  </h3>
-                  <span className="text-xs text-slate-400">Composição detalhada dos valores apurados</span>
+                  <label className="text-xs text-slate-400 block mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodoRelatorioFim}
+                    onChange={(e) => setPeriodoRelatorioFim(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200"
+                  />
                 </div>
               </div>
-              <button
-                onClick={() => setModalDetalhesMetrica(null)}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Conteúdo específico para cada métrica */}
-            <div className="space-y-4">
-              {modalDetalhesMetrica === 'entradas' && (
-                <div className="space-y-3">
-                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                    <span className="text-xs text-slate-400 font-semibold">Total de Entradas Recebidas:</span>
-                    <span className="text-xl font-black text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-300 block">Últimas Transações de Entrada:</span>
-                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
-                      {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
-                        <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
-                            <span className="text-[10px] text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
-                          </div>
-                          <span className="font-bold text-emerald-400 text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+              {/* CARDS COM TOTAIS CONSOLIDADOS */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Dinheiro Físico</span>
+                  <span className="text-base font-black text-emerald-400 block">
+                    R$ {dadosRelatorioConsolidado.dinheiro.toFixed(2)}
+                  </span>
                 </div>
-              )}
-
-              {modalDetalhesMetrica === 'saidas' && (
-                <div className="space-y-3">
-                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                    <span className="text-xs text-slate-400 font-semibold">Total de Despesas:</span>
-                    <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-300 block">Últimas Despesas Registradas:</span>
-                    <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                      {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
-                        const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
-                        return (
-                          <div key={t.id} className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 flex items-start justify-between gap-4 text-xs">
-                            <div className="flex-1 min-w-0">
-                              <span className="font-bold text-slate-200 block line-clamp-2 leading-tight">
-                                {descLimpa}
-                              </span>
-                              <span className="text-[10px] text-slate-400 block mt-1">
-                                {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="font-black text-rose-400 text-xs block">
-                                - R$ {t.valor.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Pix Bancário</span>
+                  <span className="text-base font-black text-cyan-400 block">
+                    R$ {dadosRelatorioConsolidado.pix.toFixed(2)}
+                  </span>
                 </div>
-              )}
-
-              {modalDetalhesMetrica === 'pagar' && (
-                <div className="space-y-3">
-                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                    <span className="text-xs text-amber-400 font-semibold">Total de Contas Pendentes a Pagar:</span>
-                    <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar:</span>
-                    <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
-                      {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
-                        <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
-                            <span className="text-[10px] text-amber-400">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')}</span>
-                          </div>
-                          <span className="font-bold text-amber-400 text-xs shrink-0">R$ {t.valor.toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Cartão Débito</span>
+                  <span className="text-base font-black text-blue-400 block">
+                    R$ {dadosRelatorioConsolidado.debito.toFixed(2)}
+                  </span>
                 </div>
-              )}
-
-              {modalDetalhesMetrica === 'lucro' && (
-                <div className="space-y-3">
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
-                    <div className="flex justify-between items-center text-slate-300">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <ArrowUpRight className="w-4 h-4 text-emerald-400" /> (+) Entradas / Receitas Totais:
-                      </span>
-                      <span className="font-bold text-emerald-400 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-slate-300">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <ArrowDownRight className="w-4 h-4 text-rose-400" /> (-) Saídas / Despesas Pagas:
-                      </span>
-                      <span className="font-bold text-rose-400 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
-                      <span className="font-bold text-slate-100 text-sm">(=) Resultado Acumulado em Caixa:</span>
-                      <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
-                        R$ {lucroLiquido.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-                    💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
-                  </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Cartão Crédito</span>
+                  <span className="text-base font-black text-purple-400 block">
+                    R$ {dadosRelatorioConsolidado.credito.toFixed(2)}
+                  </span>
                 </div>
-              )}
-            </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Outros / Convênio</span>
+                  <span className="text-base font-black text-amber-400 block">
+                    R$ {dadosRelatorioConsolidado.outros.toFixed(2)}
+                  </span>
+                </div>
+                <div className="bg-emerald-950/30 p-3.5 rounded-2xl border border-emerald-500/40 space-y-1">
+                  <span className="text-xs text-emerald-400 font-semibold block">Total Consolidado</span>
+                  <span className="text-lg font-black text-emerald-300 block">
+                    R$ {dadosRelatorioConsolidado.totalBruto.toFixed(2)}
+                  </span>
+                </div>
+              </div>
 
-            {/* Rodapé */}
-            <div className="p-2 border-t border-slate-800 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setModalDetalhesMetrica(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
-              >
-                Fechar
-              </button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const texto = `RELATÓRIO CONSOLIDADO DE MEIOS DE PAGAMENTO\nPeríodo: ${periodoRelatorioInicio} até ${periodoRelatorioFim}\n\nDinheiro: R$ ${dadosRelatorioConsolidado.dinheiro.toFixed(2)}\nPix: R$ ${dadosRelatorioConsolidado.pix.toFixed(2)}\nCartão Débito: R$ ${dadosRelatorioConsolidado.debito.toFixed(2)}\nCartão Crédito: R$ ${dadosRelatorioConsolidado.credito.toFixed(2)}\nOutros: R$ ${dadosRelatorioConsolidado.outros.toFixed(2)}\n\nTOTAL FATURADO: R$ ${dadosRelatorioConsolidado.totalBruto.toFixed(2)}`;
+                    handleCopiarRelatorioTexto(texto);
+                  }}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                >
+                  Copiar Relatório
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalRelatorioConsolidado(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: RELATÓRIO DE SANGRIAS E DESPESAS DE GAVETA                          */}
+        {/* ========================================================================= */}
+        {modalRelatorioSangriasDespesas && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl p-6 space-y-5 shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/15 text-rose-400 font-bold flex items-center justify-center">
+                    <SlidersHorizontal className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-100">Relatório de Sangrias & Despesas de Gaveta</h3>
+                    <p className="text-xs text-slate-400">Auditoria de saídas e retiradas operacionais</p>
+                  </div>
+                </div>
+                <button onClick={() => setModalRelatorioSangriasDespesas(false)} className="text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* PERÍODO E TOTAIS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[11px] text-slate-400 block">Total de Sangrias (Cofre)</span>
+                  <span className="text-lg font-black text-rose-400 block">
+                    R$ {dadosRelatorioSangriasDespesas.totalSangrias.toFixed(2)}
+                  </span>
+                </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[11px] text-slate-400 block">Total Despesas da Gaveta</span>
+                  <span className="text-lg font-black text-amber-400 block">
+                    R$ {dadosRelatorioSangriasDespesas.totalDespesas.toFixed(2)}
+                  </span>
+                </div>
+                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                  <span className="text-[11px] text-slate-400 block">Total Geral de Saídas</span>
+                  <span className="text-lg font-black text-slate-100 block">
+                    R$ {dadosRelatorioSangriasDespesas.totalGeral.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* TABELA DE REGISTROS */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-300 block">
+                  Lançamentos de Saída ({dadosRelatorioSangriasDespesas.itens.length}):
+                </span>
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {dadosRelatorioSangriasDespesas.itens.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-6 text-center">Nenhuma sangria ou despesa no período.</p>
+                  ) : (
+                    dadosRelatorioSangriasDespesas.itens.map(item => (
+                      <div
+                        key={item.id}
+                        className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                item.tipo === 'SANGRIA'
+                                  ? 'bg-rose-500/20 text-rose-400'
+                                  : 'bg-amber-500/20 text-amber-400'
+                              }`}
+                            >
+                              {item.tipo}
+                            </span>
+                            <span className="font-bold text-slate-200">{item.descricao}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-1">
+                            <span>Terminal: {item.terminal}</span>
+                            <span>•</span>
+                            <span>{new Date(item.data).toLocaleString('pt-BR')}</span>
+                            <span>•</span>
+                            <span>Resp: {item.operador}</span>
+                          </div>
+                        </div>
+                        <span className="font-black text-sm text-rose-400 shrink-0">
+                          - R$ {item.valor.toFixed(2)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalRelatorioSangriasDespesas(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: DETALHAMENTO DE MÉTRICAS FINANCEIRAS GERAIS                        */}
+        {/* ========================================================================= */}
+        {modalDetalhesMetrica && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 font-bold flex items-center justify-center">
+                    <Info className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-100">
+                      {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
+                      {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Despesas'}
+                      {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
+                      {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
+                    </h3>
+                    <span className="text-xs text-slate-400">Composição detalhada dos valores apurados</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setModalDetalhesMetrica(null)}
+                  className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {modalDetalhesMetrica === 'entradas' && (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                      <span className="text-xs text-slate-400 font-semibold">Total de Entradas Recebidas:</span>
+                      <span className="text-xl font-black text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-300 block">Últimas Transações de Entrada:</span>
+                      <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                        {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
+                          <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
+                              <span className="text-[10px] text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                            <span className="font-bold text-emerald-400 text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {modalDetalhesMetrica === 'saidas' && (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                      <span className="text-xs text-slate-400 font-semibold">Total de Despesas:</span>
+                      <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-300 block">Últimas Despesas Registradas:</span>
+                      <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                        {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
+                          const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
+                          return (
+                            <div key={t.id} className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 flex items-start justify-between gap-4 text-xs">
+                              <div className="flex-1 min-w-0">
+                                <span className="font-bold text-slate-200 block line-clamp-2 leading-tight">
+                                  {descLimpa}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block mt-1">
+                                  {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
+                                </span>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="font-black text-rose-400 text-xs block">
+                                  - R$ {t.valor.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {modalDetalhesMetrica === 'pagar' && (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
+                      <span className="text-xs text-amber-400 font-semibold">Total de Contas Pendentes a Pagar:</span>
+                      <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar:</span>
+                      <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                        {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
+                          <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
+                              <span className="text-[10px] text-amber-400">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                            <span className="font-bold text-amber-400 text-xs shrink-0">R$ {t.valor.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {modalDetalhesMetrica === 'lucro' && (
+                  <div className="space-y-3">
+                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <ArrowUpRight className="w-4 h-4 text-emerald-400" /> (+) Entradas / Receitas Totais:
+                        </span>
+                        <span className="font-bold text-emerald-400 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <ArrowDownRight className="w-4 h-4 text-rose-400" /> (-) Saídas / Despesas Pagas:
+                        </span>
+                        <span className="font-bold text-rose-400 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
+                        <span className="font-bold text-slate-100 text-sm">(=) Resultado Acumulado em Caixa:</span>
+                        <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
+                          R$ {lucroLiquido.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                      💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-2 border-t border-slate-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModalDetalhesMetrica(null)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
 
