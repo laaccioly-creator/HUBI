@@ -294,6 +294,10 @@ export const FinancasCaixa: React.FC = () => {
   const handleAbrirSessao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loja?.id || !usuario?.id) return;
+    if (!permissions.podeAbrirFecharCaixa) {
+      mostrarAviso('Permissão restrita. Seu usuário não possui autorização para abrir ou fechar o caixa.', 'Acesso Restrito');
+      return;
+    }
     try {
       setAbrindoCaixa(true);
       const valFundo = Number(fundoTroco) || 0;
@@ -476,6 +480,10 @@ export const FinancasCaixa: React.FC = () => {
   const handleFecharSessaoCega = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sessaoAtiva?.id || !usuario?.id) return;
+    if (!permissions.podeAbrirFecharCaixa) {
+      mostrarAviso('Permissão restrita. Seu usuário não possui autorização para abrir ou fechar o caixa.', 'Acesso Restrito');
+      return;
+    }
 
     try {
       setProcessandoFechamento(true);

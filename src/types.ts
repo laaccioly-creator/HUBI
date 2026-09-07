@@ -272,6 +272,7 @@ export interface UsuarioLoja {
   pode_ver_preco_custo?: boolean;
   pode_exportar_relatorios?: boolean;
   pode_editar_vendas_passadas?: boolean;
+  pode_abrir_fechar_caixa?: boolean;
   senha_hash?: string | null;
   ultimo_login?: string | null;
   ativo: boolean;

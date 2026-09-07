@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.usuarios_loja (
     pode_ver_preco_custo BOOLEAN DEFAULT FALSE,
     pode_exportar_relatorios BOOLEAN DEFAULT FALSE,
     pode_editar_vendas_passadas BOOLEAN DEFAULT FALSE,
+    pode_abrir_fechar_caixa BOOLEAN DEFAULT FALSE,
     ativo BOOLEAN DEFAULT TRUE,
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );

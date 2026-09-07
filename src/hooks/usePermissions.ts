@@ -16,6 +16,7 @@ export interface PermissionsState {
   podeVerPrecoCusto: boolean;
   podeExportarRelatorios: boolean;
   podeEditarVendasPassadas: boolean;
+  podeAbrirFecharCaixa: boolean;
 
   // Acessos aos módulos do sistema
   podeAcessarPdv: boolean;
@@ -55,6 +56,7 @@ export const usePermissions = (): PermissionsState => {
   const podeVerPrecoCusto = ehAdmin || (usuario?.pode_ver_preco_custo ?? false);
   const podeExportarRelatorios = ehAdmin || (usuario?.pode_exportar_relatorios ?? false);
   const podeEditarVendasPassadas = ehAdmin || (usuario?.pode_editar_vendas_passadas ?? false);
+  const podeAbrirFecharCaixa = ehAdmin || (usuario?.pode_abrir_fechar_caixa ?? false);
 
   // Módulos
   const podeAcessarPdv = true; // Todos os operadores autorizados podem vender no PDV
@@ -62,7 +64,8 @@ export const usePermissions = (): PermissionsState => {
   const podeAcessarVendas = true; // Todos os operadores podem acessar histórico de vendas
   const podeAcessarProdutos = true; // Usuários comuns podem consultar produtos e preços
   const podeAcessarClientes = true; // Usuários comuns podem consultar e cadastrar clientes
-  const podeAcessarFinancas = ehGerente; // Somente Owner, Admin e Gerente
+  // A funcionalidade Finanças e Caixa só deve ficar ativa se abertura e fechamento de caixa for permitido para o usuário
+  const podeAcessarFinancas = ehOwner || podeAbrirFecharCaixa;
   const podeAcessarAnalytics = ehGerente || podeExportarRelatorios; // Gestores ou com permissão explícita
   const podeAcessarRubiIA = ehGerente; // Assistente IA estratégica para gestores
   const podeAcessarCatalogo = ehGerente; // Gestores, Admin e Owner podem gerenciar o catálogo
@@ -93,6 +96,7 @@ export const usePermissions = (): PermissionsState => {
     podeVerPrecoCusto,
     podeExportarRelatorios,
     podeEditarVendasPassadas,
+    podeAbrirFecharCaixa,
     podeAcessarPdv,
     podeAcessarPedidos,
     podeAcessarVendas,

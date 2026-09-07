@@ -18,7 +18,8 @@ import {
   Crown,
   TrendingUp,
   UserCheck,
-  Power
+  Power,
+  DollarSign
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UsuarioLoja, PerfilUsuario } from '../types';
@@ -56,6 +57,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [podeProdutos, setPodeProdutos] = useState<boolean>(false);
   const [podeEstoque, setPodeEstoque] = useState<boolean>(false);
   const [podeFiado, setPodeFiado] = useState<boolean>(false);
+  const [podeCaixa, setPodeCaixa] = useState<boolean>(false);
 
   const ehOwner = usuarioEdicao?.perfil === 'owner';
 
@@ -75,6 +77,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeProdutos(true);
         setPodeEstoque(true);
         setPodeFiado(true);
+        setPodeCaixa(true);
       } else {
         const isAdmin = usuarioEdicao.perfil === 'admin';
         setEhAdmin(isAdmin);
@@ -84,6 +87,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeProdutos(isAdmin ? true : (usuarioEdicao.pode_cadastrar_alterar_produtos ?? false));
         setPodeEstoque(isAdmin ? true : (usuarioEdicao.pode_gerenciar_estoque ?? false));
         setPodeFiado(isAdmin ? true : (usuarioEdicao.pode_ativar_fiado ?? false));
+        setPodeCaixa(isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false));
       }
     } else {
       // Novo usuário (Padrão: Comum com celular pessoal ativado)
@@ -98,6 +102,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeProdutos(false);
       setPodeEstoque(false);
       setPodeFiado(false);
+      setPodeCaixa(false);
     }
     setErro(null);
   }, [usuarioEdicao, isOpen]);
@@ -113,6 +118,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeProdutos(true);
       setPodeEstoque(true);
       setPodeFiado(true);
+      setPodeCaixa(true);
     }
   };
 
@@ -157,6 +163,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         pode_cadastrar_alterar_produtos: ehOwner ? true : (ehAdmin ? true : podeProdutos),
         pode_gerenciar_estoque: ehOwner ? true : (ehAdmin ? true : podeEstoque),
         pode_ativar_fiado: ehOwner ? true : (ehAdmin ? true : podeFiado),
+        pode_abrir_fechar_caixa: ehOwner ? true : (ehAdmin ? true : podeCaixa),
         pode_ver_preco_custo: ehOwner || ehAdmin,
         pode_exportar_relatorios: ehOwner || ehAdmin,
         pode_editar_vendas_passadas: ehOwner || ehAdmin,
@@ -581,6 +588,29 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     type="checkbox"
                     checked={ehOwner ? true : (ehAdmin ? true : podeFiado)}
                     onChange={(e) => setPodeFiado(e.target.checked)}
+                    disabled={ehOwner || ehAdmin}
+                    className="sr-only peer"
+                  />
+                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                </label>
+              </div>
+
+              {/* 8. Abertura e Fechamento de Caixa */}
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-xs font-bold text-slate-200">Abertura e Fechamento de Caixa</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-tight">
+                    Permite abrir e fechar turnos de caixa formalmente e libera o acesso à funcionalidade de Finanças & Caixa.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={ehOwner ? true : (ehAdmin ? true : podeCaixa)}
+                    onChange={(e) => setPodeCaixa(e.target.checked)}
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
