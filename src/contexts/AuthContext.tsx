@@ -124,6 +124,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
+      // Limpa filtros salvos na sessão ao trocar de operador/usuário
+      try {
+        sessionStorage.clear();
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('hubi_filtro_') || key.startsWith('hubi_mob_filtro_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
+
       setUsuario(userBuscado);
       localStorage.setItem(STORAGE_KEY_USUARIO_ID, userBuscado.id);
       return true;
@@ -415,6 +425,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Desconectar / Trocar de PDV
   const desconectarPdv = () => {
+    try {
+      sessionStorage.clear();
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('hubi_filtro_') || key.startsWith('hubi_mob_filtro_')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch {}
     localStorage.removeItem(STORAGE_KEY_LOJA_ID);
     localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
     setLoja(null);

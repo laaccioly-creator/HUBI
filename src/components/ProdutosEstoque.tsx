@@ -16,7 +16,10 @@ import {
   AlertTriangle,
   Layers,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  Filter,
+  Check,
+  X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,8 +38,33 @@ export const ProdutosEstoque: React.FC = () => {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [busca, setBusca] = useState<string>('');
-  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
-  const [filtroEstoque, setFiltroEstoque] = useState<string>('todos');
+  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>(() => {
+    try {
+      if (!usuario?.id) return [];
+      const salvo = sessionStorage.getItem(`hubi_filtro_produtos_sessao_${usuario.id}`);
+      if (salvo) {
+        const dados = JSON.parse(salvo);
+        return Array.isArray(dados.categorias) ? dados.categorias : [];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+  const [filtroEstoque, setFiltroEstoque] = useState<string>(() => {
+    try {
+      if (!usuario?.id) return 'todos';
+      const salvo = sessionStorage.getItem(`hubi_filtro_produtos_sessao_${usuario.id}`);
+      if (salvo) {
+        const dados = JSON.parse(salvo);
+        return typeof dados.estoque === 'string' ? dados.estoque : 'todos';
+      }
+      return 'todos';
+    } catch {
+      return 'todos';
+    }
+  });
+  const [modalFiltroAberto, setModalFiltroAberto] = useState<boolean>(false);
 
   // Modais
   const [modalCategorias, setModalCategorias] = useState<boolean>(false);
@@ -74,6 +102,65 @@ export const ProdutosEstoque: React.FC = () => {
   useEffect(() => {
     carregarProdutos();
   }, [loja?.id]);
+
+  // Limpeza de filtros antigos legados em localStorage permanente
+  useEffect(() => {
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('hubi_filtro_produtos_') || key.startsWith('hubi_mob_filtro_')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch {}
+  }, []);
+
+  // Quando trocar de usuário ou sair do sistema, os filtros são redefinidos/restaurados conforme o novo usuário ativo
+  useEffect(() => {
+    if (!usuario?.id) {
+      setCategoriasFiltro([]);
+      setFiltroEstoque('todos');
+      return;
+    }
+    try {
+      const salvo = sessionStorage.getItem(`hubi_filtro_produtos_sessao_${usuario.id}`);
+      if (salvo) {
+        const dados = JSON.parse(salvo);
+        setCategoriasFiltro(Array.isArray(dados.categorias) ? dados.categorias : []);
+        setFiltroEstoque(typeof dados.estoque === 'string' ? dados.estoque : 'todos');
+      } else {
+        setCategoriasFiltro([]);
+        setFiltroEstoque('todos');
+      }
+    } catch {
+      setCategoriasFiltro([]);
+      setFiltroEstoque('todos');
+    }
+  }, [usuario?.id]);
+
+  // Persistir filtros apenas na sessão atual do usuário ativo
+  useEffect(() => {
+    if (!usuario?.id) return;
+    try {
+      const dados = {
+        categorias: categoriasFiltro,
+        estoque: filtroEstoque
+      };
+      sessionStorage.setItem(`hubi_filtro_produtos_sessao_${usuario.id}`, JSON.stringify(dados));
+    } catch (e) {
+      console.error('Erro ao persistir filtros de sessão:', e);
+    }
+  }, [categoriasFiltro, filtroEstoque, usuario?.id]);
+
+  // Tecla ESC para fechar modal de filtro
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalFiltroAberto) {
+        setModalFiltroAberto(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalFiltroAberto]);
 
   const toggleExibirCatalogo = async (produtoId: string, valorAtual: boolean) => {
     try {
@@ -157,7 +244,9 @@ export const ProdutosEstoque: React.FC = () => {
       (p.codigo_interno && p.codigo_interno.toLowerCase().includes(busca.toLowerCase())) ||
       (p.codigo_barras && p.codigo_barras.includes(busca));
 
-    const matchCategoria = categoriaFiltro === 'todas' || p.categoria_id === categoriaFiltro;
+    const matchCategoria =
+      categoriasFiltro.length === 0 ||
+      (p.categoria_id && categoriasFiltro.includes(p.categoria_id));
 
     const estoqueProduto = getEstoqueReal(p);
     const matchEstoque =
@@ -167,6 +256,9 @@ export const ProdutosEstoque: React.FC = () => {
 
     return matchBusca && matchCategoria && matchEstoque;
   });
+
+  const temFiltroAtivo = categoriasFiltro.length > 0 || filtroEstoque !== 'todos';
+  const qtdFiltrosAtivos = categoriasFiltro.length + (filtroEstoque !== 'todos' ? 1 : 0);
 
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
@@ -277,38 +369,110 @@ export const ProdutosEstoque: React.FC = () => {
           );
         })()}
 
-        {/* Barra de Filtros e Busca */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
+        {/* Área dividida em duas partes iguais: Busca (esquerda) e Filtros (direita) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          {/* Parte 1: Área de Busca (50%) */}
+          <div className="relative w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar por nome, código SKU ou código de barras..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+              className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-9 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
             />
+            {busca && (
+              <button
+                type="button"
+                onClick={() => setBusca('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                title="Limpar busca"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <select
-              value={categoriaFiltro}
-              onChange={(e) => setCategoriaFiltro(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
-            >
-              <option value="todas">Todas as Categorias</option>
-              {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+          {/* Parte 2: Área reservada para Filtros (50%) */}
+          <div className="flex flex-col gap-2">
+            <div>
+              <button
+                type="button"
+                onClick={() => setModalFiltroAberto(true)}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs ${
+                  temFiltroAtivo
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                    : 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
+                }`}
+                title="Filtrar por Categoria e Estoque"
+              >
+                <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-emerald-400' : 'text-slate-400'}`} />
+                <span>Filtros</span>
+                {qtdFiltrosAtivos > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs">
+                    {qtdFiltrosAtivos}
+                  </span>
+                )}
+              </button>
+            </div>
 
-            <select
-              value={filtroEstoque}
-              onChange={(e) => setFiltroEstoque(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
-            >
-              <option value="todos">Estoque: Todos</option>
-              <option value="baixo">⚠️ Estoque Baixo ({produtosAlertaEstoque.length})</option>
-              <option value="zerado">🚫 Sem Estoque</option>
-            </select>
+            {/* Filtros ativos posicionados abaixo de Filtros, na área reservada para filtros */}
+            {temFiltroAtivo && (
+              <div className="flex items-center gap-2 flex-wrap pt-0.5 animate-in fade-in duration-150">
+                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                  Filtros ativos:
+                </span>
+
+                {categoriasFiltro.map((catId) => {
+                  const catObj = categorias.find(c => c.id === catId);
+                  const nomeCat = catObj ? `${catObj.icone ? catObj.icone + ' ' : ''}${catObj.nome}` : 'Categoria';
+                  return (
+                    <div
+                      key={catId}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium shadow-xs"
+                    >
+                      <span>Categoria: <strong>{nomeCat}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
+                        className="p-0.5 rounded-full hover:bg-emerald-500/30 text-emerald-300 hover:text-white transition cursor-pointer"
+                        title={`Desmarcar ${nomeCat}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {filtroEstoque !== 'todos' && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-medium shadow-xs">
+                    <span>
+                      Estoque: <strong>{filtroEstoque === 'baixo' ? 'Estoque Baixo' : 'Sem Estoque'}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroEstoque('todos')}
+                      className="p-0.5 rounded-full hover:bg-indigo-500/30 text-indigo-300 hover:text-white transition cursor-pointer"
+                      title="Desmarcar filtro de estoque"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoriasFiltro([]);
+                    setFiltroEstoque('todos');
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-rose-400 underline ml-1 cursor-pointer transition"
+                  title="Limpar todos os filtros"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -539,6 +703,168 @@ export const ProdutosEstoque: React.FC = () => {
         produto={produtoGradeModal}
         apenasGrade={true}
       />
+
+      {/* Modal de Filtros de Produtos & Estoque */}
+      {modalFiltroAberto && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalFiltroAberto(false);
+          }}
+        >
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl text-slate-100 animate-in zoom-in-95 duration-150">
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Filter className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-100">Filtrar Produtos & Estoque</h3>
+                  <p className="text-[11px] text-slate-400">Escolha as categorias e a situação de estoque desejadas</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalFiltroAberto(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Opções de Filtro */}
+            <div className="space-y-5">
+              {/* Categoria */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    Categoria
+                  </label>
+                  {categoriasFiltro.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCategoriasFiltro([])}
+                      className="text-[11px] text-emerald-400 hover:underline cursor-pointer"
+                    >
+                      Limpar categorias
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  <button
+                    type="button"
+                    onClick={() => setCategoriasFiltro([])}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between ${
+                      categoriasFiltro.length === 0
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>Todas as Categorias</span>
+                    {categoriasFiltro.length === 0 && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                  </button>
+
+                  {categorias.map((c) => {
+                    const isSelected = categoriasFiltro.includes(c.id);
+                    const qtdProdutosNaCat = produtos.filter(p => p.categoria_id === c.id).length;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setCategoriasFiltro(prev =>
+                            isSelected ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                          );
+                        }}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between truncate ${
+                          isSelected
+                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <span className="truncate">{c.icone ? `${c.icone} ` : ''}{c.nome} ({qtdProdutosNaCat})</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Situação do Estoque */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Situação do Estoque
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroEstoque('todos')}
+                    className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      filtroEstoque === 'todos'
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>Todos</span>
+                    <span className="text-[10px] text-slate-400">Sem restrição</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroEstoque('baixo')}
+                    className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      filtroEstoque === 'baixo'
+                        ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>⚠️ Estoque Baixo</span>
+                    <span className="text-[10px] text-amber-400/80">{produtosAlertaEstoque.length} itens</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroEstoque('zerado')}
+                    className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      filtroEstoque === 'zerado'
+                        ? 'bg-rose-500/15 border-rose-500 text-rose-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>🚫 Sem Estoque</span>
+                    <span className="text-[10px] text-rose-400/80">Zerados</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoriasFiltro([]);
+                  setFiltroEstoque('todos');
+                }}
+                className="text-xs text-slate-400 hover:text-rose-400 transition cursor-pointer"
+              >
+                Limpar Filtros
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalFiltroAberto(false)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer"
+              >
+                Aplicar e Ver ({produtosFiltrados.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

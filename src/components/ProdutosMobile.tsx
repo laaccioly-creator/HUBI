@@ -168,13 +168,111 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const recognitionRef = useRef<any>(null);
   const inputBuscaRef = useRef<HTMLInputElement>(null);
 
-  // Filtros de Estoque (TELA006)
-  const [filtroSemEstoque, setFiltroSemEstoque] = useState<boolean>(false);
-  const [filtroMinimo, setFiltroMinimo] = useState<boolean>(false);
-  const [filtroAcimaMinimo, setFiltroAcimaMinimo] = useState<boolean>(false);
-  const [filtroSemControle, setFiltroSemControle] = useState<boolean>(false);
-  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>([]);
+  // Filtros de Estoque (TELA006) com Persistência em Sessão por Usuário Ativo
+  const [filtroSemEstoque, setFiltroSemEstoque] = useState<boolean>(() => {
+    try {
+      if (!usuario?.id) return false;
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      return salvo ? Boolean(JSON.parse(salvo).semEstoque) : false;
+    } catch {
+      return false;
+    }
+  });
+  const [filtroMinimo, setFiltroMinimo] = useState<boolean>(() => {
+    try {
+      if (!usuario?.id) return false;
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      return salvo ? Boolean(JSON.parse(salvo).minimo) : false;
+    } catch {
+      return false;
+    }
+  });
+  const [filtroAcimaMinimo, setFiltroAcimaMinimo] = useState<boolean>(() => {
+    try {
+      if (!usuario?.id) return false;
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      return salvo ? Boolean(JSON.parse(salvo).acimaMinimo) : false;
+    } catch {
+      return false;
+    }
+  });
+  const [filtroSemControle, setFiltroSemControle] = useState<boolean>(() => {
+    try {
+      if (!usuario?.id) return false;
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      return salvo ? Boolean(JSON.parse(salvo).semControle) : false;
+    } catch {
+      return false;
+    }
+  });
+  const [categoriasFiltro, setCategoriasFiltro] = useState<string[]>(() => {
+    try {
+      if (!usuario?.id) return [];
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      return salvo && Array.isArray(JSON.parse(salvo).categorias) ? JSON.parse(salvo).categorias : [];
+    } catch {
+      return [];
+    }
+  });
   const [ordenacaoEstoque, setOrdenacaoEstoque] = useState<'menor_estoque' | 'maior_estoque' | 'a_z' | 'z_a'>('menor_estoque');
+
+  const qtdFiltrosAtivos = (filtroSemEstoque ? 1 : 0) +
+    (filtroMinimo ? 1 : 0) +
+    (filtroAcimaMinimo ? 1 : 0) +
+    (filtroSemControle ? 1 : 0) +
+    categoriasFiltro.length;
+
+  // Ao trocar de usuário ou deslogar, redefinir filtros imediatamente
+  useEffect(() => {
+    if (!usuario?.id) {
+      setFiltroSemEstoque(false);
+      setFiltroMinimo(false);
+      setFiltroAcimaMinimo(false);
+      setFiltroSemControle(false);
+      setCategoriasFiltro([]);
+      return;
+    }
+    try {
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      if (salvo) {
+        const d = JSON.parse(salvo);
+        setFiltroSemEstoque(Boolean(d.semEstoque));
+        setFiltroMinimo(Boolean(d.minimo));
+        setFiltroAcimaMinimo(Boolean(d.acimaMinimo));
+        setFiltroSemControle(Boolean(d.semControle));
+        setCategoriasFiltro(Array.isArray(d.categorias) ? d.categorias : []);
+      } else {
+        setFiltroSemEstoque(false);
+        setFiltroMinimo(false);
+        setFiltroAcimaMinimo(false);
+        setFiltroSemControle(false);
+        setCategoriasFiltro([]);
+      }
+    } catch {
+      setFiltroSemEstoque(false);
+      setFiltroMinimo(false);
+      setFiltroAcimaMinimo(false);
+      setFiltroSemControle(false);
+      setCategoriasFiltro([]);
+    }
+  }, [usuario?.id]);
+
+  // Persistir filtros apenas na sessão do usuário ativo
+  useEffect(() => {
+    if (!usuario?.id) return;
+    try {
+      const dados = {
+        semEstoque: filtroSemEstoque,
+        minimo: filtroMinimo,
+        acimaMinimo: filtroAcimaMinimo,
+        semControle: filtroSemControle,
+        categorias: categoriasFiltro
+      };
+      sessionStorage.setItem(`hubi_mob_filtro_sessao_${usuario.id}`, JSON.stringify(dados));
+    } catch (e) {
+      console.error('Erro ao salvar filtros mobile na sessão:', e);
+    }
+  }, [filtroSemEstoque, filtroMinimo, filtroAcimaMinimo, filtroSemControle, categoriasFiltro, usuario?.id]);
 
   // =========================================================================
   // ESTADO DO PRODUTO EM EDIÇÃO / CADASTRO
@@ -396,26 +494,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       });
     }
 
-    // Filtros avançados na aba Estoque (TELA006)
+    // Filtros de Estoque
+    if (filtroSemEstoque || filtroMinimo || filtroAcimaMinimo || filtroSemControle) {
+      list = list.filter(p => {
+        const est = getEstoqueReal(p);
+        const min = Number(p.estoque_minimo_alerta || 0);
+
+        if (filtroSemEstoque && est <= 0) return true;
+        if (filtroMinimo && est > 0 && est <= min) return true;
+        if (filtroAcimaMinimo && est > min) return true;
+        if (filtroSemControle && est === 0 && min === 0) return true;
+        return false;
+      });
+    }
+
+    // Filtros de Categorias
+    if (categoriasFiltro.length > 0) {
+      list = list.filter(p => p.categoria_id && categoriasFiltro.includes(p.categoria_id));
+    }
+
+    // Ordenação (específica da aba Estoque)
     if (abaLista === 'estoque') {
-      if (filtroSemEstoque || filtroMinimo || filtroAcimaMinimo || filtroSemControle) {
-        list = list.filter(p => {
-          const est = getEstoqueReal(p);
-          const min = Number(p.estoque_minimo_alerta || 0);
-
-          if (filtroSemEstoque && est <= 0) return true;
-          if (filtroMinimo && est > 0 && est <= min) return true;
-          if (filtroAcimaMinimo && est > min) return true;
-          if (filtroSemControle && est === 0 && min === 0) return true;
-          return false;
-        });
-      }
-
-      if (categoriasFiltro.length > 0) {
-        list = list.filter(p => p.categoria_id && categoriasFiltro.includes(p.categoria_id));
-      }
-
-      // Ordenação
       if (ordenacaoEstoque === 'menor_estoque') {
         list.sort((a, b) => getEstoqueReal(a) - getEstoqueReal(b));
       } else if (ordenacaoEstoque === 'maior_estoque') {
@@ -3471,27 +3570,138 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
         )}
 
-        {/* Botão da Direita: '+' na aba Itens ou 'Filtros' na aba Estoque */}
-        {abaLista === 'itens' ? (
-          <button
-            type="button"
-            onClick={abrirNovoProduto}
-            className="p-2 text-teal-600 hover:text-teal-700 font-extrabold transition cursor-pointer"
-            title="Novo Produto"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-        ) : (
+        {/* Botões de Ação da Direita: Filtros e '+' */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setTelaAtiva('filtros')}
-            className="p-2 text-slate-600 hover:text-slate-900 transition cursor-pointer"
-            title="Filtros de Estoque"
+            className={`p-2 rounded-xl transition relative cursor-pointer ${
+              qtdFiltrosAtivos > 0
+                ? 'text-teal-600 bg-teal-50 hover:bg-teal-100'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            title="Filtros"
           >
             <Sliders className="w-5 h-5" />
+            {qtdFiltrosAtivos > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
+                {qtdFiltrosAtivos}
+              </span>
+            )}
           </button>
-        )}
+
+          {abaLista === 'itens' && (
+            <button
+              type="button"
+              onClick={abrirNovoProduto}
+              className="p-2 text-teal-600 hover:text-teal-700 font-extrabold transition cursor-pointer"
+              title="Novo Produto"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Chips dos Filtros Ativos com 'X' para Desmarcar Imediatamente */}
+      {qtdFiltrosAtivos > 0 && (
+        <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
+          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider shrink-0 mr-0.5">
+            Filtros:
+          </span>
+
+          {categoriasFiltro.map((catId) => {
+            const catNome = mapaCategorias.get(catId) || 'Categoria';
+            return (
+              <div
+                key={catId}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-100/80 border border-teal-300 text-teal-800 text-[11px] font-semibold shrink-0"
+              >
+                <span className="truncate max-w-[120px]">{catNome}</span>
+                <button
+                  type="button"
+                  onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
+                  className="p-0.5 rounded-full hover:bg-teal-200 text-teal-700 transition cursor-pointer"
+                  title={`Remover filtro ${catNome}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          })}
+
+          {filtroSemEstoque && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-300 text-rose-800 text-[11px] font-semibold shrink-0">
+              <span>Sem estoque 🔴</span>
+              <button
+                type="button"
+                onClick={() => setFiltroSemEstoque(false)}
+                className="p-0.5 rounded-full hover:bg-rose-200 text-rose-700 transition cursor-pointer"
+                title="Remover filtro sem estoque"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {filtroMinimo && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[11px] font-semibold shrink-0">
+              <span>Mínimo 🟡</span>
+              <button
+                type="button"
+                onClick={() => setFiltroMinimo(false)}
+                className="p-0.5 rounded-full hover:bg-amber-200 text-amber-700 transition cursor-pointer"
+                title="Remover filtro estoque mínimo"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {filtroAcimaMinimo && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-semibold shrink-0">
+              <span>Acima do mínimo</span>
+              <button
+                type="button"
+                onClick={() => setFiltroAcimaMinimo(false)}
+                className="p-0.5 rounded-full hover:bg-emerald-200 text-emerald-700 transition cursor-pointer"
+                title="Remover filtro acima do mínimo"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {filtroSemControle && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-200 border border-slate-300 text-slate-700 text-[11px] font-semibold shrink-0">
+              <span>Sem controle</span>
+              <button
+                type="button"
+                onClick={() => setFiltroSemControle(false)}
+                className="p-0.5 rounded-full hover:bg-slate-300 text-slate-600 transition cursor-pointer"
+                title="Remover filtro sem controle"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setCategoriasFiltro([]);
+              setFiltroSemEstoque(false);
+              setFiltroMinimo(false);
+              setFiltroAcimaMinimo(false);
+              setFiltroSemControle(false);
+            }}
+            className="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline ml-1 shrink-0 cursor-pointer transition"
+            title="Limpar todos os filtros"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
 
       {/* Lista de Produtos (TELA001 ou TELA002) */}
       <div className={`flex-1 overflow-y-auto divide-y divide-slate-100 ${
