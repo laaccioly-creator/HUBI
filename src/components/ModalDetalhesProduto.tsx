@@ -214,12 +214,22 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
             {/* Informações Comerciais e Preços */}
             <div className="space-y-3.5">
-              {/* Categoria e Código */}
+              {/* Categoria, Status Ativo e Código */}
               <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-800">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Folder className="w-3.5 h-3.5 text-indigo-400" />
-                  {produto.categoria?.nome || 'Geral'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Folder className="w-3.5 h-3.5 text-indigo-400" />
+                    {produto.categoria?.nome || 'Geral'}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    produto.ativo !== false
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${produto.ativo !== false ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                    {produto.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
                 {produto.codigo_interno && (
                   <span className="font-mono text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">
                     SKU #{produto.codigo_interno}

@@ -64,6 +64,19 @@ export const ProdutosEstoque: React.FC = () => {
       return 'todos';
     }
   });
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>(() => {
+    try {
+      if (!usuario?.id) return 'todos';
+      const salvo = sessionStorage.getItem(`hubi_filtro_produtos_sessao_${usuario.id}`);
+      if (salvo) {
+        const dados = JSON.parse(salvo);
+        if (dados.ativo === 'ativos' || dados.ativo === 'inativos') return dados.ativo;
+      }
+      return 'todos';
+    } catch {
+      return 'todos';
+    }
+  });
   const [modalFiltroAberto, setModalFiltroAberto] = useState<boolean>(false);
 
   // Modais
@@ -119,6 +132,7 @@ export const ProdutosEstoque: React.FC = () => {
     if (!usuario?.id) {
       setCategoriasFiltro([]);
       setFiltroEstoque('todos');
+      setFiltroAtivo('todos');
       return;
     }
     try {
@@ -127,13 +141,16 @@ export const ProdutosEstoque: React.FC = () => {
         const dados = JSON.parse(salvo);
         setCategoriasFiltro(Array.isArray(dados.categorias) ? dados.categorias : []);
         setFiltroEstoque(typeof dados.estoque === 'string' ? dados.estoque : 'todos');
+        setFiltroAtivo(dados.ativo === 'ativos' || dados.ativo === 'inativos' ? dados.ativo : 'todos');
       } else {
         setCategoriasFiltro([]);
         setFiltroEstoque('todos');
+        setFiltroAtivo('todos');
       }
     } catch {
       setCategoriasFiltro([]);
       setFiltroEstoque('todos');
+      setFiltroAtivo('todos');
     }
   }, [usuario?.id]);
 
@@ -143,13 +160,14 @@ export const ProdutosEstoque: React.FC = () => {
     try {
       const dados = {
         categorias: categoriasFiltro,
-        estoque: filtroEstoque
+        estoque: filtroEstoque,
+        ativo: filtroAtivo
       };
       sessionStorage.setItem(`hubi_filtro_produtos_sessao_${usuario.id}`, JSON.stringify(dados));
     } catch (e) {
       console.error('Erro ao persistir filtros de sessão:', e);
     }
-  }, [categoriasFiltro, filtroEstoque, usuario?.id]);
+  }, [categoriasFiltro, filtroEstoque, filtroAtivo, usuario?.id]);
 
   // Tecla ESC para fechar modal de filtro
   useEffect(() => {
@@ -161,6 +179,23 @@ export const ProdutosEstoque: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [modalFiltroAberto]);
+
+  const toggleAtivo = async (produtoId: string, valorAtual: boolean) => {
+    try {
+      const novoValor = valorAtual === false ? true : false;
+      const { error } = await supabase
+        .from('produtos')
+        .update({ ativo: novoValor })
+        .eq('id', produtoId);
+
+      if (error) throw error;
+      setProdutos(prev =>
+        prev.map(p => (p.id === produtoId ? { ...p, ativo: novoValor } : p))
+      );
+    } catch (err) {
+      console.error('Erro ao alterar status ativo:', err);
+    }
+  };
 
   const toggleExibirCatalogo = async (produtoId: string, valorAtual: boolean) => {
     try {
@@ -254,11 +289,16 @@ export const ProdutosEstoque: React.FC = () => {
       (filtroEstoque === 'baixo' && estoqueProduto <= Number(p.estoque_minimo_alerta)) ||
       (filtroEstoque === 'zerado' && estoqueProduto <= 0);
 
-    return matchBusca && matchCategoria && matchEstoque;
+    const matchAtivo =
+      filtroAtivo === 'todos' ||
+      (filtroAtivo === 'ativos' && p.ativo !== false) ||
+      (filtroAtivo === 'inativos' && p.ativo === false);
+
+    return matchBusca && matchCategoria && matchEstoque && matchAtivo;
   });
 
-  const temFiltroAtivo = categoriasFiltro.length > 0 || filtroEstoque !== 'todos';
-  const qtdFiltrosAtivos = categoriasFiltro.length + (filtroEstoque !== 'todos' ? 1 : 0);
+  const temFiltroAtivo = categoriasFiltro.length > 0 || filtroEstoque !== 'todos' || filtroAtivo !== 'todos';
+  const qtdFiltrosAtivos = categoriasFiltro.length + (filtroEstoque !== 'todos' ? 1 : 0) + (filtroAtivo !== 'todos' ? 1 : 0);
 
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
@@ -370,7 +410,7 @@ export const ProdutosEstoque: React.FC = () => {
         })()}
 
         {/* Área dividida em duas partes iguais: Busca (esquerda) e Filtros (direita) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
           {/* Parte 1: Área de Busca (50%) */}
           <div className="relative w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -393,83 +433,73 @@ export const ProdutosEstoque: React.FC = () => {
             )}
           </div>
 
-          {/* Parte 2: Área reservada para Filtros (50%) */}
-          <div className="flex flex-col gap-2">
-            <div>
-              <button
-                type="button"
-                onClick={() => setModalFiltroAberto(true)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs ${
-                  temFiltroAtivo
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
-                    : 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
-                }`}
-                title="Filtrar por Categoria e Estoque"
-              >
-                <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-emerald-400' : 'text-slate-400'}`} />
-                <span>Filtros</span>
-                {qtdFiltrosAtivos > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs">
-                    {qtdFiltrosAtivos}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Filtros ativos posicionados abaixo de Filtros, na área reservada para filtros */}
-            {temFiltroAtivo && (
-              <div className="flex items-center gap-2 flex-wrap pt-0.5 animate-in fade-in duration-150">
-                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-                  Filtros ativos:
+          {/* Parte 2: Área reservada para Filtros (50%) - Botão e Chips na MESMA LINHA */}
+          <div className="flex items-center gap-2 flex-wrap min-h-[38px]">
+            <button
+              type="button"
+              onClick={() => setModalFiltroAberto(true)}
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs shrink-0 ${
+                temFiltroAtivo
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                  : 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
+              }`}
+              title="Filtrar por Categoria, Estoque e Ativo"
+            >
+              <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-emerald-400' : 'text-slate-400'}`} />
+              <span>Filtros</span>
+              {qtdFiltrosAtivos > 0 && (
+                <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs">
+                  {qtdFiltrosAtivos}
                 </span>
+              )}
+            </button>
 
-                {categoriasFiltro.map((catId) => {
-                  const catObj = categorias.find(c => c.id === catId);
-                  const nomeCat = catObj ? `${catObj.icone ? catObj.icone + ' ' : ''}${catObj.nome}` : 'Categoria';
-                  return (
-                    <div
-                      key={catId}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium shadow-xs"
-                    >
-                      <span>Categoria: <strong>{nomeCat}</strong></span>
-                      <button
-                        type="button"
-                        onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
-                        className="p-0.5 rounded-full hover:bg-emerald-500/30 text-emerald-300 hover:text-white transition cursor-pointer"
-                        title={`Desmarcar ${nomeCat}`}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
+            {/* Chips dos Filtros Selecionados na MESMA linha logo à direita de Filtros */}
+            {categoriasFiltro.map((catId) => {
+              const catObj = categorias.find(c => c.id === catId);
+              const nomeCat = catObj ? catObj.nome : 'Categoria';
+              return (
+                <div
+                  key={catId}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium shadow-xs shrink-0 animate-in fade-in"
+                >
+                  <span>{nomeCat}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
+                    className="p-0.5 rounded-md hover:bg-emerald-500/30 text-emerald-300 hover:text-white transition cursor-pointer"
+                    title={`Remover filtro ${nomeCat}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
 
-                {filtroEstoque !== 'todos' && (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-medium shadow-xs">
-                    <span>
-                      Estoque: <strong>{filtroEstoque === 'baixo' ? 'Estoque Baixo' : 'Sem Estoque'}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setFiltroEstoque('todos')}
-                      className="p-0.5 rounded-full hover:bg-indigo-500/30 text-indigo-300 hover:text-white transition cursor-pointer"
-                      title="Desmarcar filtro de estoque"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-
+            {filtroEstoque !== 'todos' && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-medium shadow-xs shrink-0 animate-in fade-in">
+                <span>{filtroEstoque === 'baixo' ? 'Estoque Baixo' : 'Sem Estoque'}</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setCategoriasFiltro([]);
-                    setFiltroEstoque('todos');
-                  }}
-                  className="text-[11px] text-slate-400 hover:text-rose-400 underline ml-1 cursor-pointer transition"
-                  title="Limpar todos os filtros"
+                  onClick={() => setFiltroEstoque('todos')}
+                  className="p-0.5 rounded-md hover:bg-indigo-500/30 text-indigo-300 hover:text-white transition cursor-pointer"
+                  title="Remover filtro de estoque"
                 >
-                  Limpar filtros
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {filtroAtivo !== 'todos' && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-medium shadow-xs shrink-0 animate-in fade-in">
+                <span>{filtroAtivo === 'ativos' ? 'Ativos' : 'Inativos'}</span>
+                <button
+                  type="button"
+                  onClick={() => setFiltroAtivo('todos')}
+                  className="p-0.5 rounded-md hover:bg-teal-500/30 text-teal-300 hover:text-white transition cursor-pointer"
+                  title="Remover filtro de status"
+                >
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -477,8 +507,8 @@ export const ProdutosEstoque: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid / Tabela de Produtos */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      {/* Grid / Tabela de Produtos com cabeçalho fixo no scroll */}
+      <div className="flex-1 min-h-0 overflow-hidden p-4 md:p-6 flex flex-col">
         {carregando ? (
           <div className="text-center py-16 text-slate-500 text-sm">Carregando estoque...</div>
         ) : produtosFiltrados.length === 0 ? (
@@ -494,21 +524,21 @@ export const ProdutosEstoque: React.FC = () => {
             </Link>
           </div>
         ) : (
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="p-3.5">Produto</th>
-                    <th className="p-3.5">Categoria</th>
-                    <th className="p-3.5">Varejo</th>
-                    <th className="p-3.5">Atacado</th>
-                    <th className="p-3.5">Estoque Atual</th>
-                    <th className="p-3.5 text-center">Catálogo</th>
-                    <th className="p-3.5 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
+          <div className="flex-1 min-h-0 bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl overflow-y-auto overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300 border-collapse">
+              <thead className="sticky top-0 z-20 bg-slate-900 shadow-sm border-b border-slate-800 uppercase text-[10px] tracking-wider text-slate-400 font-semibold">
+                <tr>
+                  <th className="p-3.5 bg-slate-900">Produto</th>
+                  <th className="p-3.5 bg-slate-900">Categoria</th>
+                  <th className="p-3.5 bg-slate-900">Varejo</th>
+                  <th className="p-3.5 bg-slate-900">Atacado</th>
+                  <th className="p-3.5 bg-slate-900">Estoque Atual</th>
+                  <th className="p-3.5 text-center bg-slate-900">Ativo</th>
+                  <th className="p-3.5 text-center bg-slate-900">Catálogo</th>
+                  <th className="p-3.5 text-right bg-slate-900">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
                   {produtosFiltrados.map((produto) => {
                     const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
                     const estoqueQtd = getEstoqueReal(produto);
@@ -604,6 +634,42 @@ export const ProdutosEstoque: React.FC = () => {
                           </div>
                         </td>
 
+                        {/* Status Ativo: Sim / Não */}
+                        <td className="p-3.5 text-center">
+                          {permissions.podeCadastrarAlterarProdutos ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleAtivo(produto.id, produto.ativo)}
+                              className="cursor-pointer"
+                              title={produto.ativo !== false ? 'Clique para desativar produto' : 'Clique para ativar produto'}
+                            >
+                              {produto.ativo !== false ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                  Sim
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                                  Não
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            produto.ativo !== false ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                Sim
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                                Não
+                              </span>
+                            )
+                          )}
+                        </td>
+
                         <td className="p-3.5 text-center">
                           {permissions.podeCadastrarAlterarProdutos ? (
                             <button
@@ -666,7 +732,6 @@ export const ProdutosEstoque: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
         )}
       </div>
       {/* Fim da visualização desktop */}
@@ -839,6 +904,53 @@ export const ProdutosEstoque: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Status do Produto (Ativo / Inativo) */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Status do Produto
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroAtivo('todos')}
+                    className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      filtroAtivo === 'todos'
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>Todos</span>
+                    <span className="text-[10px] text-slate-400">Ativos e Inativos</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroAtivo('ativos')}
+                    className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      filtroAtivo === 'ativos'
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>✅ Ativos</span>
+                    <span className="text-[10px] text-emerald-400/80">Habilitados</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroAtivo('inativos')}
+                    className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      filtroAtivo === 'inativos'
+                        ? 'bg-rose-500/15 border-rose-500 text-rose-300 font-bold'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>🚫 Inativos</span>
+                    <span className="text-[10px] text-rose-400/80">Desabilitados</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Rodapé do Modal */}
@@ -848,6 +960,7 @@ export const ProdutosEstoque: React.FC = () => {
                 onClick={() => {
                   setCategoriasFiltro([]);
                   setFiltroEstoque('todos');
+                  setFiltroAtivo('todos');
                 }}
                 className="text-xs text-slate-400 hover:text-rose-400 transition cursor-pointer"
               >

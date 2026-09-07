@@ -214,12 +214,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       return [];
     }
   });
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>(() => {
+    try {
+      if (!usuario?.id) return 'todos';
+      const salvo = sessionStorage.getItem(`hubi_mob_filtro_sessao_${usuario.id}`);
+      return salvo && JSON.parse(salvo).ativo ? JSON.parse(salvo).ativo : 'todos';
+    } catch {
+      return 'todos';
+    }
+  });
   const [ordenacaoEstoque, setOrdenacaoEstoque] = useState<'menor_estoque' | 'maior_estoque' | 'a_z' | 'z_a'>('menor_estoque');
 
   const qtdFiltrosAtivos = (filtroSemEstoque ? 1 : 0) +
     (filtroMinimo ? 1 : 0) +
     (filtroAcimaMinimo ? 1 : 0) +
     (filtroSemControle ? 1 : 0) +
+    (filtroAtivo !== 'todos' ? 1 : 0) +
     categoriasFiltro.length;
 
   // Ao trocar de usuário ou deslogar, redefinir filtros imediatamente
@@ -230,6 +240,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setFiltroAcimaMinimo(false);
       setFiltroSemControle(false);
       setCategoriasFiltro([]);
+      setFiltroAtivo('todos');
       return;
     }
     try {
@@ -241,12 +252,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         setFiltroAcimaMinimo(Boolean(d.acimaMinimo));
         setFiltroSemControle(Boolean(d.semControle));
         setCategoriasFiltro(Array.isArray(d.categorias) ? d.categorias : []);
+        setFiltroAtivo(d.ativo === 'ativos' || d.ativo === 'inativos' ? d.ativo : 'todos');
       } else {
         setFiltroSemEstoque(false);
         setFiltroMinimo(false);
         setFiltroAcimaMinimo(false);
         setFiltroSemControle(false);
         setCategoriasFiltro([]);
+        setFiltroAtivo('todos');
       }
     } catch {
       setFiltroSemEstoque(false);
@@ -254,6 +267,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setFiltroAcimaMinimo(false);
       setFiltroSemControle(false);
       setCategoriasFiltro([]);
+      setFiltroAtivo('todos');
     }
   }, [usuario?.id]);
 
@@ -266,13 +280,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         minimo: filtroMinimo,
         acimaMinimo: filtroAcimaMinimo,
         semControle: filtroSemControle,
-        categorias: categoriasFiltro
+        categorias: categoriasFiltro,
+        ativo: filtroAtivo
       };
       sessionStorage.setItem(`hubi_mob_filtro_sessao_${usuario.id}`, JSON.stringify(dados));
     } catch (e) {
       console.error('Erro ao salvar filtros mobile na sessão:', e);
     }
-  }, [filtroSemEstoque, filtroMinimo, filtroAcimaMinimo, filtroSemControle, categoriasFiltro, usuario?.id]);
+  }, [filtroSemEstoque, filtroMinimo, filtroAcimaMinimo, filtroSemControle, categoriasFiltro, filtroAtivo, usuario?.id]);
 
   // =========================================================================
   // ESTADO DO PRODUTO EM EDIÇÃO / CADASTRO
@@ -513,6 +528,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       list = list.filter(p => p.categoria_id && categoriasFiltro.includes(p.categoria_id));
     }
 
+    // Filtro de Status Ativo / Inativo
+    if (filtroAtivo === 'ativos') {
+      list = list.filter(p => p.ativo !== false);
+    } else if (filtroAtivo === 'inativos') {
+      list = list.filter(p => p.ativo === false);
+    }
+
     // Ordenação (específica da aba Estoque)
     if (abaLista === 'estoque') {
       if (ordenacaoEstoque === 'menor_estoque') {
@@ -536,6 +558,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     filtroAcimaMinimo,
     filtroSemControle,
     categoriasFiltro,
+    filtroAtivo,
     ordenacaoEstoque,
     mapaCategorias
   ]);
@@ -1402,6 +1425,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFiltroAcimaMinimo(false);
               setFiltroSemControle(false);
               setCategoriasFiltro([]);
+              setFiltroAtivo('todos');
               setOrdenacaoEstoque('menor_estoque');
             }}
             className="text-xs sm:text-sm font-extrabold text-teal-600 hover:text-teal-700 px-2 py-1"
@@ -1459,6 +1483,40 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 />
                 <span className="text-xs sm:text-sm text-slate-700 font-semibold">Sem controle de estoque</span>
               </label>
+            </div>
+          </div>
+
+          {/* Seção Status do Produto */}
+          <div className="space-y-3">
+            <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Status do Produto</h2>
+            <div className="grid grid-cols-3 gap-2 border border-slate-200 rounded-2xl p-1 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setFiltroAtivo('todos')}
+                className={`py-3 px-2 text-xs font-bold rounded-xl text-center transition ${
+                  filtroAtivo === 'todos' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroAtivo('ativos')}
+                className={`py-3 px-2 text-xs font-bold rounded-xl text-center transition ${
+                  filtroAtivo === 'ativos' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                Ativos
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroAtivo('inativos')}
+                className={`py-3 px-2 text-xs font-bold rounded-xl text-center transition ${
+                  filtroAtivo === 'inativos' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                Inativos
+              </button>
             </div>
           </div>
 
@@ -3686,6 +3744,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             </div>
           )}
 
+          {filtroAtivo !== 'todos' && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-100 border border-teal-300 text-teal-800 text-[11px] font-semibold shrink-0">
+              <span>{filtroAtivo === 'ativos' ? 'Ativos' : 'Inativos'}</span>
+              <button
+                type="button"
+                onClick={() => setFiltroAtivo('todos')}
+                className="p-0.5 rounded-full hover:bg-teal-200 text-teal-700 transition cursor-pointer"
+                title="Remover filtro status"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -3694,6 +3766,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFiltroMinimo(false);
               setFiltroAcimaMinimo(false);
               setFiltroSemControle(false);
+              setFiltroAtivo('todos');
             }}
             className="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline ml-1 shrink-0 cursor-pointer transition"
             title="Limpar todos os filtros"
