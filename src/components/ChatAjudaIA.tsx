@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   X,
   Send,
@@ -16,21 +16,16 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
-
-interface MensagemChat {
-  id: string;
-  remetente: 'usuario' | 'ia';
-  texto: string;
-  data: Date;
-}
+import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
 
 export const ChatAjudaIA: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { loja, usuario } = useAuth();
   const [aberto, setAberto] = useState<boolean>(false);
 
-  // Chat com IA
-  const [mensagens, setMensagens] = useState<MensagemChat[]>([]);
+  // Chat com IA sincronizado com AssistenteRubi (tela cheia)
+  const [mensagens, setMensagens] = useState<MensagemRubi[]>(() => rubiChatService.obterHistorico());
   const [inputMensagem, setInputMensagem] = useState<string>('');
   const [enviando, setEnviando] = useState<boolean>(false);
   const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
@@ -134,25 +129,30 @@ export const ChatAjudaIA: React.FC = () => {
     }
   };
 
-  // Mensagem inicial de boas-vindas idêntica ao Assistente Rubi
+  // Salva no localStorage compartilhado sempre que as mensagens mudarem
   useEffect(() => {
-    if (mensagens.length === 0) {
-      setMensagens([
-        {
-          id: 'welcome-1',
-          remetente: 'ia',
-          texto: `Olá! Sou a **Rubi**, sua assistente inteligente no **HUBI**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?`,
-          data: new Date()
-        }
-      ]);
+    if (mensagens.length > 0) {
+      rubiChatService.salvarHistorico(mensagens);
     }
-  }, [mensagens.length]);
+  }, [mensagens]);
 
+  // Se voltar da tela cheia com solicitação para reabrir flutuante
+  useEffect(() => {
+    if (rubiChatService.verificarESinalizarAberturaFlutuante()) {
+      setAberto(true);
+      setMensagens(rubiChatService.obterHistorico());
+    }
+  }, [location.pathname]);
+
+  // Se o usuário abrir o chat, atualiza as mensagens com o que foi conversado em tela cheia
   useEffect(() => {
     if (aberto) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setMensagens(rubiChatService.obterHistorico());
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
     }
-  }, [mensagens, aberto]);
+  }, [aberto]);
 
   // Inteligência Unificada idêntica ao Assistente Rubi do Desktop
   const handleEnviarMensagem = async (textoDireto?: string) => {
@@ -166,11 +166,11 @@ export const ChatAjudaIA: React.FC = () => {
     const texto = (textoDireto || inputMensagem).trim();
     if (!texto || enviando) return;
 
-    const novaMsgUser: MensagemChat = {
+    const novaMsgUser: MensagemRubi = {
       id: Date.now().toString(),
       remetente: 'usuario',
       texto,
-      data: new Date()
+      data: new Date().toISOString()
     };
 
     setMensagens((prev) => [...prev, novaMsgUser]);
@@ -179,8 +179,6 @@ export const ChatAjudaIA: React.FC = () => {
 
     try {
       if (!loja?.id) throw new Error('Loja não identificada');
-
-      const pLower = texto.toLowerCase();
 
       const { data: pedidos } = await supabase
         .from('pedidos')
@@ -228,7 +226,7 @@ export const ChatAjudaIA: React.FC = () => {
           id: (Date.now() + 1).toString(),
           remetente: 'ia',
           texto: resposta,
-          data: new Date()
+          data: new Date().toISOString()
         }
       ]);
     } catch (err) {
@@ -238,7 +236,7 @@ export const ChatAjudaIA: React.FC = () => {
           id: (Date.now() + 1).toString(),
           remetente: 'ia',
           texto: 'Desculpe, tive uma instabilidade momentânea ao consultar os dados da loja. Por favor, tente novamente.',
-          data: new Date()
+          data: new Date().toISOString()
         }
       ]);
     } finally {
@@ -309,6 +307,11 @@ export const ChatAjudaIA: React.FC = () => {
   const handleClickBotao = () => {
     if (!houveArrastoRef.current) setAberto((prev) => !prev);
   };
+
+  // Se já estiver na tela cheia da Rubi IA (/smart-assistant), não renderiza o widget flutuante para evitar duplicidade
+  if (location.pathname === '/smart-assistant') {
+    return null;
+  }
 
   return (
     <>

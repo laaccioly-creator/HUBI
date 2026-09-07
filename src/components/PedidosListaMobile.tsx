@@ -1063,11 +1063,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               }`}
             >
               <span>{f.label}</span>
-              <span
-                className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-black/20 text-white' : 'bg-slate-200 text-slate-700'
-                }`}
-              >
+              <span className="bg-red-600 text-white text-[10px] font-black min-w-[18px] h-[18px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
                 {count}
               </span>
             </button>
@@ -1329,7 +1325,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       />
                       <span className="font-bold">{st.label}</span>
                     </div>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    <span className="bg-red-600 text-white text-[10px] font-black min-w-[18px] h-[18px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
                       {count}
                     </span>
                   </label>

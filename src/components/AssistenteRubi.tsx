@@ -8,20 +8,18 @@ import {
   TrendingUp,
   Package,
   DollarSign,
-  ArrowLeft
+  ArrowLeft,
+  Minimize2,
+  Mic,
+  MicOff,
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
-
-interface MensagemIA {
-  id: string;
-  remetente: 'user' | 'rubi';
-  texto: string;
-  data: Date;
-}
+import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
 
 export const AssistenteRubi: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -33,20 +31,92 @@ export const AssistenteRubi: React.FC = () => {
       navigate('/pos');
     }
   }, [permissions.podeAcessarRubiIA, navigate]);
-  const [mensagens, setMensagens] = useState<MensagemIA[]>([
-    {
-      id: '1',
-      remetente: 'rubi',
-      texto: `Olá! Sou a **Rubi**, sua assistente inteligente no **HUBI**. 🚀\n\nPosso te ajudar com perguntas sobre suas vendas de hoje, estoque baixo, produtos mais vendidos ou calcular seu fluxo de caixa.\n\nComo posso ajudar o seu negócio hoje?`,
-      data: new Date()
-    }
-  ]);
+
+  // Mensagens sincronizadas com a tela reduzida (ChatAjudaIA)
+  const [mensagens, setMensagens] = useState<MensagemRubi[]>(() => rubiChatService.obterHistorico());
   const [inputTexto, setInputTexto] = useState<string>('');
   const [pensando, setPensando] = useState<boolean>(false);
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
   const endRef = useRef<HTMLDivElement>(null);
   const endMobileRef = useRef<HTMLDivElement>(null);
+
+  // Reconhecimento de Voz (Microfone em Tela Cheia)
+  const [escutandoVoz, setEscutandoVoz] = useState<boolean>(false);
+  const [suporteVoz, setSuporteVoz] = useState<boolean>(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Inicializar Web Speech API
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      setSuporteVoz(true);
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'pt-BR';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        recognition.onstart = () => {
+          setEscutandoVoz(true);
+        };
+
+        recognition.onresult = (event: any) => {
+          let transcricao = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcricao += event.results[i][0].transcript;
+          }
+          if (transcricao.trim()) {
+            setInputTexto(transcricao);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn('Erro no microfone Rubi IA:', event.error);
+          setEscutandoVoz(false);
+        };
+
+        recognition.onend = () => {
+          setEscutandoVoz(false);
+        };
+
+        recognitionRef.current = recognition;
+      } catch (err) {
+        console.warn('Falha ao instanciar SpeechRecognition na tela cheia:', err);
+      }
+    }
+  }, []);
+
+  const alternarGravacaoVoz = () => {
+    if (!recognitionRef.current) return;
+
+    if (escutandoVoz) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      setEscutandoVoz(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.warn('Erro ao acionar microfone:', e);
+      }
+    }
+  };
+
+  // Salvar no localStorage compartilhado para manter tudo sincronizado
+  useEffect(() => {
+    if (mensagens.length > 0) {
+      rubiChatService.salvarHistorico(mensagens);
+    }
+  }, [mensagens]);
+
+  const handleVoltarTelaReduzida = () => {
+    rubiChatService.solicitarAberturaFlutuante();
+    navigate(-1);
+  };
 
   // Monitora redimensionamento da tela pelo teclado virtual no Mobile
   useEffect(() => {
@@ -79,17 +149,24 @@ export const AssistenteRubi: React.FC = () => {
   }, [mensagens]);
 
   const handleEnviarMensagem = async (textoPergunta?: string) => {
+    if (escutandoVoz && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      setEscutandoVoz(false);
+    }
+
     const pergunta = (textoPergunta || inputTexto).trim();
     if (!pergunta || pensando || !loja?.id) return;
 
-    const msgUser: MensagemIA = {
+    const msgUser: MensagemRubi = {
       id: Date.now().toString(),
-      remetente: 'user',
+      remetente: 'usuario',
       texto: pergunta,
-      data: new Date()
+      data: new Date().toISOString()
     };
 
-    setMensagens(prev => [...prev, msgUser]);
+    setMensagens((prev) => [...prev, msgUser]);
     setInputTexto('');
     setPensando(true);
 
@@ -120,7 +197,7 @@ export const AssistenteRubi: React.FC = () => {
 
       const faturamento = pedidos?.reduce((acc, p) => acc + Number(p.valor_total || 0), 0) || 0;
       const totalPedidos = pedidos?.length || 0;
-      const produtosAlerta = produtos?.filter(p => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
+      const produtosAlerta = produtos?.filter((p) => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
       const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
 
       const dadosLoja: DadosLojaRubi = {
@@ -134,13 +211,13 @@ export const AssistenteRubi: React.FC = () => {
 
       const resposta = await processarPerguntaRubiIA(pergunta, usuario, loja, dadosLoja);
 
-      setMensagens(prev => [
+      setMensagens((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          remetente: 'rubi',
+          remetente: 'ia',
           texto: resposta,
-          data: new Date()
+          data: new Date().toISOString()
         }
       ]);
       setPensando(false);
@@ -159,9 +236,9 @@ export const AssistenteRubi: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={handleVoltarTelaReduzida}
               className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-              title="Voltar"
+              title="Voltar para tela reduzida"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -189,38 +266,66 @@ export const AssistenteRubi: React.FC = () => {
               </h1>
             </div>
           </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleVoltarTelaReduzida}
+              className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              title="Voltar para a tela reduzida flutuante"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>Reduzir</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Deseja iniciar uma nova conversa com a Rubi?')) {
+                  const novo = rubiChatService.limparHistorico();
+                  setMensagens(novo);
+                }
+              }}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              title="Nova conversa"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Área de Mensagens com Scroll */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {mensagens.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex items-start gap-2.5 ${msg.remetente === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.remetente === 'rubi' && (
-                <div className="w-7 h-7 rounded-xl bg-indigo-500 flex items-center justify-center text-white shrink-0 mt-0.5 shadow-xs">
-                  <Bot className="w-4 h-4" />
-                </div>
-              )}
-
+          {mensagens.map((msg) => {
+            const ehUsuario = msg.remetente === 'usuario' || (msg as any).remetente === 'user';
+            return (
               <div
-                className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed ${
-                  msg.remetente === 'user'
-                    ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
-                    : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs whitespace-pre-line'
-                }`}
+                key={msg.id}
+                className={`flex items-start gap-2.5 ${ehUsuario ? 'justify-end' : 'justify-start'}`}
               >
-                {msg.texto}
-              </div>
+                {!ehUsuario && (
+                  <div className="w-7 h-7 rounded-xl bg-indigo-500 flex items-center justify-center text-white shrink-0 mt-0.5 shadow-xs">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                )}
 
-              {msg.remetente === 'user' && (
-                <div className="w-7 h-7 rounded-xl bg-slate-200 flex items-center justify-center text-slate-700 shrink-0 mt-0.5">
-                  <User className="w-4 h-4" />
+                <div
+                  className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                    ehUsuario
+                      ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
+                      : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs whitespace-pre-line'
+                  }`}
+                >
+                  {msg.texto}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {ehUsuario && (
+                  <div className="w-7 h-7 rounded-xl bg-slate-200 flex items-center justify-center text-slate-700 shrink-0 mt-0.5">
+                    <User className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {pensando && (
             <div className="flex items-center gap-2 text-indigo-600 text-xs p-2 bg-indigo-50/50 rounded-xl border border-indigo-100">
@@ -272,9 +377,23 @@ export const AssistenteRubi: React.FC = () => {
             }}
             className="flex items-center gap-2"
           >
+            {suporteVoz && (
+              <button
+                type="button"
+                onClick={alternarGravacaoVoz}
+                className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 ${
+                  escutandoVoz
+                    ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
+                }`}
+                title={escutandoVoz ? 'Parar gravação' : 'Falar por voz via microfone'}
+              >
+                {escutandoVoz ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
             <input
               type="text"
-              placeholder="Digite uma pergunta para a Rubi..."
+              placeholder={escutandoVoz ? "Ouvindo sua voz..." : "Digite uma pergunta para a Rubi..."}
               value={inputTexto}
               onChange={(e) => setInputTexto(e.target.value)}
               onFocus={(e) => {
@@ -314,11 +433,12 @@ export const AssistenteRubi: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(-1)}
-            className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
-            title="Voltar"
+            onClick={handleVoltarTelaReduzida}
+            className="px-3 py-2 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-200 hover:text-white transition cursor-pointer flex items-center gap-2 text-xs font-bold"
+            title="Voltar para tela reduzida (widget flutuante)"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <Minimize2 className="w-4 h-4 text-indigo-400" />
+            <span>Voltar para tela reduzida</span>
           </button>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
             <Sparkles className="w-5 h-5" />
@@ -333,37 +453,55 @@ export const AssistenteRubi: React.FC = () => {
             <p className="text-[11px] text-slate-400">Pergunte sobre faturamento, produtos, alertas de estoque e dicas de crescimento.</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('Deseja iniciar uma nova conversa com a Rubi?')) {
+              const novo = rubiChatService.limparHistorico();
+              setMensagens(novo);
+            }
+          }}
+          className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
+          title="Limpar histórico da conversa"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Nova conversa</span>
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-4xl mx-auto w-full">
-        {mensagens.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex items-start gap-3 ${msg.remetente === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {msg.remetente === 'rubi' && (
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0 mt-1">
-                <Bot className="w-4 h-4" />
-              </div>
-            )}
-
+        {mensagens.map((msg) => {
+          const ehUsuario = msg.remetente === 'usuario' || (msg as any).remetente === 'user';
+          return (
             <div
-              className={`max-w-lg rounded-2xl p-4 text-xs leading-relaxed ${
-                msg.remetente === 'user'
-                  ? 'bg-emerald-600 text-white rounded-br-none shadow-md'
-                  : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm whitespace-pre-line'
-              }`}
+              key={msg.id}
+              className={`flex items-start gap-3 ${ehUsuario ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.texto}
-            </div>
+              {!ehUsuario && (
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0 mt-1">
+                  <Bot className="w-4 h-4" />
+                </div>
+              )}
 
-            {msg.remetente === 'user' && (
-              <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 shrink-0 mt-1">
-                <User className="w-4 h-4" />
+              <div
+                className={`max-w-lg rounded-2xl p-4 text-xs leading-relaxed ${
+                  ehUsuario
+                    ? 'bg-emerald-600 text-white rounded-br-none shadow-md'
+                    : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm whitespace-pre-line'
+                }`}
+              >
+                {msg.texto}
               </div>
-            )}
-          </div>
-        ))}
+
+              {ehUsuario && (
+                <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 shrink-0 mt-1">
+                  <User className="w-4 h-4" />
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {pensando && (
           <div className="flex items-center gap-2 text-indigo-400 text-xs p-2">
@@ -408,9 +546,23 @@ export const AssistenteRubi: React.FC = () => {
           }}
           className="flex items-center gap-2"
         >
+          {suporteVoz && (
+            <button
+              type="button"
+              onClick={alternarGravacaoVoz}
+              className={`p-3 rounded-2xl border transition cursor-pointer ${
+                escutandoVoz
+                  ? 'bg-rose-600 text-white border-rose-500 animate-pulse shadow-lg shadow-rose-500/25'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title={escutandoVoz ? 'Parar microfone' : 'Falar por voz via microfone'}
+            >
+              {escutandoVoz ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+          )}
           <input
             type="text"
-            placeholder="Digite uma pergunta para a Rubi..."
+            placeholder={escutandoVoz ? "Ouvindo sua voz..." : "Digite uma pergunta para a Rubi..."}
             value={inputTexto}
             onChange={(e) => setInputTexto(e.target.value)}
             style={{

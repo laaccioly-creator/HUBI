@@ -1303,13 +1303,7 @@ export const PedidosLista: React.FC = () => {
                       }`}
                     >
                       <span>{f.label}</span>
-                      <span
-                        className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                          isActive
-                            ? 'bg-slate-950/25 text-slate-950'
-                            : 'bg-slate-800 text-slate-300'
-                        }`}
-                      >
+                      <span className="bg-red-600 text-white text-[10px] font-black min-w-[18px] h-[18px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
                         {count}
                       </span>
                     </button>

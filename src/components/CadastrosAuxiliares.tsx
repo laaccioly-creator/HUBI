@@ -27,7 +27,7 @@ import {
   Zap,
   ArrowLeft
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -56,6 +56,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const { loja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
 
   useEffect(() => {
@@ -64,9 +65,18 @@ export const CadastrosAuxiliares: React.FC = () => {
     }
   }, [permissions.podeAcessarAuxiliares, navigate]);
 
+  const [modalSecaoAberta, setModalSecaoAberta] = useState<'categorias' | 'unidades' | 'fornecedores' | 'pagamentos' | 'precificacao' | null>(null);
   const [abaAtiva, setAbaAtiva] = useState<'categorias' | 'unidades' | 'fornecedores' | 'pagamentos' | 'precificacao'>('categorias');
   const [busca, setBusca] = useState<string>('');
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['categorias', 'unidades', 'fornecedores', 'pagamentos', 'precificacao'].includes(tabParam)) {
+      setModalSecaoAberta(tabParam as any);
+      setAbaAtiva(tabParam as any);
+    }
+  }, [searchParams]);
 
   // Estados de Dados
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -706,12 +716,13 @@ export const CadastrosAuxiliares: React.FC = () => {
         if (modalUnidadeAberta) { setModalUnidadeAberta(false); return; }
         if (modalFornecedorAberta) { setModalFornecedorAberta(false); return; }
         if (modalPagamentoAberta) { setModalPagamentoAberta(false); return; }
+        if (modalSecaoAberta) { setModalSecaoAberta(null); setBusca(''); return; }
         navigate(-1);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalCategoriaAberta, modalUnidadeAberta, modalFornecedorAberta, modalPagamentoAberta, navigate]);
+  }, [modalCategoriaAberta, modalUnidadeAberta, modalFornecedorAberta, modalPagamentoAberta, modalSecaoAberta, navigate]);
 
   // Filtros de busca
   const categoriasFiltradas = categorias.filter(c =>
@@ -731,12 +742,51 @@ export const CadastrosAuxiliares: React.FC = () => {
     fp.tipo.toLowerCase().includes(busca.toLowerCase())
   );
 
+  // Lista padronizada dos 5 botões de Cadastros & Tabelas
+  const itensMenuCadastros = [
+    {
+      id: 'categorias' as const,
+      label: 'Categoria',
+      icon: FolderTree,
+      badge: `${categorias.length} ${categorias.length === 1 ? 'item' : 'itens'}`,
+      descricao: 'Organize seu catálogo por departamentos e categorias'
+    },
+    {
+      id: 'unidades' as const,
+      label: 'Unidade de Medida',
+      icon: Ruler,
+      badge: `${unidades.length} ${unidades.length === 1 ? 'unidade' : 'unidades'}`,
+      descricao: 'Unidades de venda (un, kg, g, l, cx, par, kit)'
+    },
+    {
+      id: 'fornecedores' as const,
+      label: 'Fornecedores',
+      icon: Truck,
+      badge: `${fornecedores.length} ${fornecedores.length === 1 ? 'parceiro' : 'parceiros'}`,
+      descricao: 'Gestão de parceiros, contatos e faturamentos'
+    },
+    {
+      id: 'pagamentos' as const,
+      label: 'Forma de Pagamento',
+      icon: CreditCard,
+      badge: `${formasPagamento.length} ${formasPagamento.length === 1 ? 'forma' : 'formas'}`,
+      descricao: 'PIX, dinheiro, cartões, maquininhas e taxas'
+    },
+    {
+      id: 'precificacao' as const,
+      label: 'Regras de Precificação',
+      icon: Percent,
+      badge: 'Atacado & Varejo',
+      descricao: 'Descontos progressivos e regras de atacado'
+    }
+  ];
+
   return (
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
-      <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans">
+      <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
         {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
+        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -760,298 +810,37 @@ export const CadastrosAuxiliares: React.FC = () => {
             </button>
             <h1 className="font-bold text-base text-slate-800">Cadastros & Tabelas</h1>
           </div>
-
-          {abaAtiva !== 'precificacao' && (
-            <button
-              type="button"
-              onClick={() => {
-                if (abaAtiva === 'categorias') {
-                  setCatEditando(null);
-                  setCatNome('');
-                  setCatIcone('📦');
-                  setModalCategoriaAberta(true);
-                } else if (abaAtiva === 'unidades') {
-                  setUnidadeEditando(null);
-                  setUnidadeSigla('');
-                  setUnidadeNome('');
-                  setUnidadeFracionada(false);
-                  setModalUnidadeAberta(true);
-                } else if (abaAtiva === 'fornecedores') {
-                  setFornecedorEditando(null);
-                  setFornNome('');
-                  setFornContato('');
-                  setFornDoc('');
-                  setFornWhatsapp('');
-                  setFornEmail('');
-                  setFornObs('');
-                  setModalFornecedorAberta(true);
-                } else if (abaAtiva === 'pagamentos') {
-                  abrirModalNovoPagamento();
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Novo</span>
-            </button>
-          )}
         </div>
 
-        {/* Abas Horizontais em Pílula Clara */}
-        <div className="p-3 bg-white border-b border-slate-200 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-1.5">
-          {[
-            { id: 'categorias', label: 'Categorias' },
-            { id: 'unidades', label: 'Unidades' },
-            { id: 'fornecedores', label: 'Fornecedores' },
-            { id: 'pagamentos', label: 'Pagamentos' },
-            { id: 'precificacao', label: 'Precificação' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setAbaAtiva(tab.id as any)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition border ${
-                abaAtiva === tab.id
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
-                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Campo de Busca (quando aplicável) */}
-        {abaAtiva !== 'precificacao' && (
-          <div className="p-3 bg-white border-b border-slate-200 shrink-0">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Buscar registros..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
-              />
-              {busca && (
-                <button
-                  onClick={() => setBusca('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Conteúdo Mobile com Scroll */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-          {carregando ? (
-            <div className="text-center py-16 text-xs text-slate-400">Carregando dados...</div>
-          ) : (
-            <>
-              {/* ABA CATEGORIAS MOBILE */}
-              {abaAtiva === 'categorias' && (
-                categoriasFiltradas.length === 0 ? (
-                  <div className="text-center py-16 text-xs text-slate-400">Nenhuma categoria encontrada.</div>
-                ) : (
-                  categoriasFiltradas.map((cat) => (
-                    <div
-                      key={cat.id}
-                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-sm shrink-0">
-                          {cat.icone || '📦'}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-800 text-xs sm:text-sm truncate">{cat.nome}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {contagemProdutosCat[cat.id] || 0} produtos vinculados
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCatEditando(cat);
-                            setCatNome(cat.nome);
-                            setCatIcone(cat.icone || '📦');
-                            setModalCategoriaAberta(true);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => excluirCategoria(cat)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )
-              )}
-
-              {/* ABA UNIDADES MOBILE */}
-              {abaAtiva === 'unidades' && (
-                unidadesFiltradas.length === 0 ? (
-                  <div className="text-center py-16 text-xs text-slate-400">Nenhuma unidade encontrada.</div>
-                ) : (
-                  unidadesFiltradas.map((un) => (
-                    <div
-                      key={un.id}
-                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200 uppercase">
-                            {un.sigla}
-                          </span>
-                          <span className="font-bold text-slate-800 text-xs sm:text-sm truncate">{un.nome}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          {un.permite_fracionado ? 'Permite fracionamento (decimais)' : 'Apenas inteiros'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUnidadeEditando(un);
-                            setUnidadeSigla(un.sigla);
-                            setUnidadeNome(un.nome);
-                            setUnidadeFracionada(un.permite_fracionado);
-                            setModalUnidadeAberta(true);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => excluirUnidade(un)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )
-              )}
-
-              {/* ABA FORNECEDORES MOBILE */}
-              {abaAtiva === 'fornecedores' && (
-                fornecedoresFiltrados.length === 0 ? (
-                  <div className="text-center py-16 text-xs text-slate-400">Nenhum fornecedor encontrado.</div>
-                ) : (
-                  fornecedoresFiltrados.map((forn) => (
-                    <div
-                      key={forn.id}
-                      className="p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2 shadow-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 text-xs sm:text-sm">{forn.nome}</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFornecedorEditando(forn);
-                              setFornNome(forn.nome);
-                              setFornContato(forn.pessoa_contato || '');
-                              setFornDoc(forn.numero_documento || '');
-                              setFornWhatsapp(forn.whatsapp || forn.telefone || '');
-                              setFornEmail(forn.email || '');
-                              setFornObs(forn.observacoes || '');
-                              setModalFornecedorAberta(true);
-                            }}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => excluirFornecedor(forn)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="text-[11px] text-slate-500 space-y-0.5">
-                        {forn.numero_documento && <p>Doc: {forn.numero_documento}</p>}
-                        {forn.telefone && <p>Tel: {forn.telefone}</p>}
-                        {forn.email && <p>Email: {forn.email}</p>}
-                      </div>
-                    </div>
-                  ))
-                )
-              )}
-
-              {/* ABA FORMAS DE PAGAMENTO MOBILE */}
-              {abaAtiva === 'pagamentos' && (
-                formasPagamentoFiltradas.length === 0 ? (
-                  <div className="text-center py-16 text-xs text-slate-400">Nenhuma forma de pagamento encontrada.</div>
-                ) : (
-                  formasPagamentoFiltradas.map((fp) => (
-                    <div
-                      key={fp.id}
-                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs"
-                    >
-                      <div className="min-w-0">
-                        <span className="font-bold text-slate-800 text-xs sm:text-sm block truncate">{fp.nome}</span>
-                        <span className="text-[11px] text-slate-500 capitalize">Tipo: {fp.tipo}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => abrirModalEditarPagamento(fp)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )
-              )}
-
-              {/* ABA PRECIFICAÇÃO MOBILE */}
-              {abaAtiva === 'precificacao' && (
-                <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-                  <h3 className="font-bold text-sm text-slate-800">Regras de Atacado & Varejo</h3>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Desconto Padrão Atacado (%)</label>
-                    <input
-                      type="number"
-                      value={descontoAtacado}
-                      onChange={(e) => setDescontoAtacado(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:border-emerald-500 focus:bg-white"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={salvarRegrasPrecificacao}
-                    disabled={salvando}
-                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50"
-                  >
-                    {salvando ? 'Salvando...' : 'Salvar Regras'}
-                  </button>
+        {/* Grade de Botões Mobile */}
+        <div className="p-4 space-y-4 flex-1">
+          <p className="text-xs text-slate-500">
+            Selecione uma opção para abrir o painel de gerenciamento correspondente:
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {itensMenuCadastros.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setBusca('');
+                  setAbaAtiva(item.id);
+                  setModalSecaoAberta(item.id);
+                }}
+                className="p-4 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 flex flex-col items-center justify-center text-center gap-2.5 transition shadow-xs cursor-pointer relative"
+              >
+                <span className="absolute top-2.5 right-2.5 bg-emerald-50 text-emerald-700 font-bold text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200">
+                  {item.badge}
+                </span>
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-2xs">
+                  <item.icon className="w-5 h-5" />
                 </div>
-              )}
-            </>
-          )}
+                <span className="font-bold text-xs text-slate-800 leading-tight">
+                  {item.label}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Menu Gaveta Lateral */}
@@ -1061,943 +850,890 @@ export const CadastrosAuxiliares: React.FC = () => {
         />
       </div>
 
-      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
+      {/* 2. VISÃO DESKTOP (PADRÃO CONFIGURAÇÕES NO TEMA ESCURO) */}
       <div className="hidden md:flex flex-col h-full overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 font-sans">
         <div className="max-w-6xl mx-auto w-full space-y-6">
           {/* HEADER DA PÁGINA */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
-              title="Voltar"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
-                <Layers className="w-4 h-4" />
-                <span>Cadastros Base & Parâmetros</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+                title="Voltar"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
+                  <Layers className="w-4 h-4" />
+                  <span>Cadastros Base & Parâmetros</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-100">Cadastros & Tabelas</h1>
+                <p className="text-xs sm:text-sm text-slate-400">
+                  Gerencie categorias, unidades de medida, fornecedores, formas de pagamento e padronize regras da loja.
+                </p>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-100">Cadastros & Tabelas</h1>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Gerencie categorias, unidades de medida, fornecedores, formas de pagamento e padronize regras da loja.
-              </p>
             </div>
+
+            {mensagemSucesso && (
+              <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-4 py-2 rounded-2xl text-xs font-bold animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{mensagemSucesso}</span>
+              </div>
+            )}
           </div>
 
-          {mensagemSucesso && (
-            <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-4 py-2 rounded-2xl text-xs font-bold animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>{mensagemSucesso}</span>
-            </div>
-          )}
+          {/* GRID DE BOTÕES DE CADASTROS (ESTILO CONFIGURAÇÕES) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 animate-in fade-in duration-150">
+            {itensMenuCadastros.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setBusca('');
+                  setAbaAtiva(item.id);
+                  setModalSecaoAberta(item.id);
+                }}
+                className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-lg hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative min-h-[170px]"
+              >
+                <span className="absolute top-2.5 right-2.5 bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full shadow-xs">
+                  {item.badge}
+                </span>
+                <div className="w-13 h-13 rounded-2xl bg-slate-950 border border-slate-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-slate-200 group-hover:text-emerald-400 transition leading-tight block">
+                    {item.label}
+                  </span>
+                  <span className="text-[11px] text-slate-500 mt-1 block leading-snug">
+                    {item.descricao}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {/* NAVEGAÇÃO ENTRE ABAS */}
-        <div className="flex items-center gap-2 p-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl overflow-x-auto">
-          <button
-            onClick={() => setAbaAtiva('categorias')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'categorias'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <FolderTree className="w-4 h-4" />
-            <span>Categorias</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] ${abaAtiva === 'categorias' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-              {categorias.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setAbaAtiva('unidades')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'unidades'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Ruler className="w-4 h-4" />
-            <span>Unidades de Medida</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] ${abaAtiva === 'unidades' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-              {unidades.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setAbaAtiva('fornecedores')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'fornecedores'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Truck className="w-4 h-4" />
-            <span>Fornecedores</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] ${abaAtiva === 'fornecedores' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-              {fornecedores.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setAbaAtiva('pagamentos')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'pagamentos'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Formas de Pagamento</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] ${abaAtiva === 'pagamentos' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-              {formasPagamento.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setAbaAtiva('precificacao')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-              abaAtiva === 'precificacao'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Percent className="w-4 h-4" />
-            <span>Regras de Precificação</span>
-          </button>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* ABA 1: CATEGORIAS                                                        */}
-        {/* ========================================================================= */}
-        {abaAtiva === 'categorias' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Buscar categoria..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  setCatEditando(null);
-                  setCatNome('');
-                  setCatIcone('📦');
-                  setModalCategoriaAberta(true);
-                }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nova Categoria</span>
-              </button>
-            </div>
-
-            {carregando ? (
-              <div className="py-12 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin text-emerald-400" /></div>
-            ) : categoriasFiltradas.length === 0 ? (
-              <div className="text-center py-12 bg-slate-900/40 rounded-3xl border border-dashed border-slate-800 text-slate-400 text-xs">
-                Nenhuma categoria encontrada. Clique em <strong>Nova Categoria</strong> para começar.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {categoriasFiltradas.map((cat) => {
-                  const qtdProds = contagemProdutosCat[cat.id] || 0;
-                  return (
-                    <div
-                      key={cat.id}
-                      className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between hover:border-slate-700 transition group shadow-md"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg shrink-0">
-                          {cat.icone || '📦'}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-100 text-xs group-hover:text-emerald-400 transition">
-                            {cat.nome}
-                          </h3>
-                          <span className="text-[11px] text-slate-400">
-                            {qtdProds} {qtdProds === 1 ? 'produto' : 'produtos'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setCatEditando(cat);
-                            setCatNome(cat.nome);
-                            setCatIcone(cat.icone || '📦');
-                            setModalCategoriaAberta(true);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition cursor-pointer"
-                          title="Editar Categoria"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => excluirCategoria(cat)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                          title="Excluir Categoria"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ABA 2: UNIDADES DE MEDIDA                                                */}
-        {/* ========================================================================= */}
-        {abaAtiva === 'unidades' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Buscar sigla ou unidade..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  setUnidadeEditando(null);
-                  setUnidadeSigla('');
-                  setUnidadeNome('');
-                  setUnidadeFracionada(false);
-                  setModalUnidadeAberta(true);
-                }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nova Unidade</span>
-              </button>
-            </div>
-
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="p-3.5">Sigla</th>
-                    <th className="p-3.5">Descrição</th>
-                    <th className="p-3.5">Permite Fracionado (Decimais)</th>
-                    <th className="p-3.5 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {unidadesFiltradas.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-mono font-bold text-emerald-400">
-                        <span className="px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                          {u.sigla.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="p-3.5 font-semibold text-slate-200">
-                        {u.nome}
-                      </td>
-                      <td className="p-3.5">
-                        {u.permite_fracionado ? (
-                          <span className="text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded text-[11px] font-bold">
-                            Sim (ex: 1.500 kg)
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 bg-slate-800 px-2 py-0.5 rounded text-[11px]">
-                            Apenas Inteiro (ex: 1, 2, 3)
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => {
-                              setUnidadeEditando(u);
-                              setUnidadeSigla(u.sigla);
-                              setUnidadeNome(u.nome);
-                              setUnidadeFracionada(u.permite_fracionado);
-                              setModalUnidadeAberta(true);
-                            }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition cursor-pointer"
-                            title="Editar Unidade"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          {u.sigla !== 'un' && (
-                            <button
-                              onClick={() => excluirUnidade(u)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                              title="Excluir Unidade"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ABA 3: FORNECEDORES                                                      */}
-        {/* ========================================================================= */}
-        {abaAtiva === 'fornecedores' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Buscar fornecedor por nome ou tel..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  setFornecedorEditando(null);
-                  setFornNome('');
-                  setFornContato('');
-                  setFornDoc('');
-                  setFornWhatsapp('');
-                  setFornEmail('');
-                  setFornObs('');
-                  setModalFornecedorAberta(true);
-                }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Novo Fornecedor</span>
-              </button>
-            </div>
-
-            {carregando ? (
-              <div className="py-12 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin text-emerald-400" /></div>
-            ) : fornecedoresFiltrados.length === 0 ? (
-              <div className="text-center py-12 bg-slate-900/40 rounded-3xl border border-dashed border-slate-800 text-slate-400 text-xs">
-                Nenhum fornecedor cadastrado. Cadastre seus parceiros para controle de compras e estoque.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {fornecedoresFiltrados.map((forn) => (
-                  <div
-                    key={forn.id}
-                    className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-slate-700 transition shadow-md"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-                          <Truck className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-100 text-sm">{forn.nome}</h3>
-                          {forn.pessoa_contato && (
-                            <p className="text-[11px] text-slate-400">Contato: {forn.pessoa_contato}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setFornecedorEditando(forn);
-                            setFornNome(forn.nome);
-                            setFornContato(forn.pessoa_contato || '');
-                            setFornDoc(forn.numero_documento || '');
-                            setFornWhatsapp(forn.whatsapp || forn.telefone || '');
-                            setFornEmail(forn.email || '');
-                            setFornObs(forn.observacoes || '');
-                            setModalFornecedorAberta(true);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition cursor-pointer"
-                          title="Editar Fornecedor"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => excluirFornecedor(forn)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                          title="Excluir Fornecedor"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-800/80">
-                      {forn.whatsapp && (
-                        <div className="flex items-center gap-1.5 text-slate-300">
-                          <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>{forn.whatsapp}</span>
-                        </div>
-                      )}
-                      {forn.email && (
-                        <div className="flex items-center gap-1.5 text-slate-300">
-                          <Mail className="w-3.5 h-3.5 text-indigo-400" />
-                          <span className="truncate">{forn.email}</span>
-                        </div>
-                      )}
-                      {forn.numero_documento && (
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                          <FileText className="w-3.5 h-3.5 text-slate-500" />
-                          <span>CNPJ/CPF: {forn.numero_documento}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {forn.observacoes && (
-                      <p className="text-[11px] text-slate-400 italic bg-slate-950/50 p-2 rounded-xl border border-slate-800/50">
-                        "{forn.observacoes}"
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ABA: FORMAS DE PAGAMENTO & TAXAS                                         */}
-        {/* ========================================================================= */}
-        {abaAtiva === 'pagamentos' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Buscar forma de pagamento..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <button
-                onClick={abrirModalNovoPagamento}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nova Forma de Pagamento</span>
-              </button>
-            </div>
-
-            {carregando ? (
-              <div className="py-12 flex justify-center text-slate-500"><Loader2 className="w-6 h-6 animate-spin text-emerald-400" /></div>
-            ) : formasPagamentoFiltradas.length === 0 ? (
-              <div className="text-center py-12 bg-slate-900/40 rounded-3xl border border-dashed border-slate-800 text-slate-400 text-xs space-y-2">
-                <p>Nenhuma forma de pagamento encontrada.</p>
-                <button
-                  onClick={abrirModalNovoPagamento}
-                  className="text-emerald-400 font-bold hover:underline"
-                >
-                  Clique aqui para cadastrar a primeira forma de pagamento
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {formasPagamentoFiltradas.map((fp) => {
-                  const ehAtivo = fp.ativo !== false;
-
-                  return (
-                    <div
-                      key={fp.id}
-                      className={`bg-slate-900/80 border rounded-2xl p-5 space-y-4 transition shadow-md ${
-                        ehAtivo ? 'border-slate-800 hover:border-slate-700' : 'border-rose-900/30 opacity-60 bg-slate-950/60'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                            fp.tipo === 'dinheiro' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
-                            fp.tipo === 'pix' ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' :
-                            fp.tipo === 'cartao_credito' ? 'bg-purple-500/10 border-purple-500/30 text-purple-400' :
-                            fp.tipo === 'cartao_debito' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
-                            fp.tipo === 'fiado' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                            'bg-slate-800 border-slate-700 text-slate-300'
-                          }`}>
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-5 h-5" />}
-                            {fp.tipo === 'pix' && <Zap className="w-5 h-5" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-5 h-5" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-5 h-5" />}
-                            {fp.tipo === 'fiado' && <FileText className="w-5 h-5" />}
-                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'fiado' && (
-                              <CreditCard className="w-5 h-5" />
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-slate-100 text-sm flex items-center gap-1.5">
-                              <span>{fp.nome}</span>
-                            </h3>
-                            <span className="text-[10px] uppercase font-bold text-slate-400">
-                              {fp.tipo === 'dinheiro' && 'Dinheiro'}
-                              {fp.tipo === 'pix' && 'PIX Instantâneo'}
-                              {fp.tipo === 'cartao_credito' && 'Cartão de Crédito'}
-                              {fp.tipo === 'cartao_debito' && 'Cartão de Débito'}
-                              {fp.tipo === 'fiado' && 'Fiado / A Prazo'}
-                              {fp.tipo === 'outro' && 'Outro Meio'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => abrirModalEditarPagamento(fp)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-                            title="Editar Forma de Pagamento"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => excluirFormaPagamento(fp)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                            title="Excluir Forma de Pagamento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Informações de Taxas e Condições */}
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-800/80">
-                        <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
-                          <span className="text-[10px] text-slate-400 block font-medium">Taxa Maquininha:</span>
-                          <span className="font-bold text-slate-200">
-                            {Number(fp.taxa_percentual || 0) > 0 ? `${fp.taxa_percentual}%` : 'Sem taxa (0%)'}
-                            {Number(fp.taxa_fixa || 0) > 0 && ` + R$ ${Number(fp.taxa_fixa).toFixed(2)}`}
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
-                          <span className="text-[10px] text-slate-400 block font-medium">Parcelamento:</span>
-                          <span className="font-bold text-slate-200">
-                            {fp.tipo === 'cartao_credito' ? `Até ${fp.maximo_parcelas || 1}x` : 'À vista (1x)'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Switches de Status e Catálogo */}
-                      <div className="flex items-center justify-between pt-1 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${fp.exibir_catalogo ? 'bg-cyan-400' : 'bg-slate-600'}`} />
-                          <span className="text-[11px] text-slate-400">
-                            {fp.exibir_catalogo ? 'Visível no Catálogo' : 'Apenas PDV'}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => alternarStatusPagamento(fp)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-                            ehAtivo
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
-                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
-                          }`}
-                        >
-                          {ehAtivo ? 'Ativo' : 'Inativo'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ABA: REGRAS DE PRECIFICAÇÃO                                               */}
-        {/* ========================================================================= */}
-        {abaAtiva === 'precificacao' && (
-          <div className="space-y-6">
-            <form onSubmit={salvarRegrasPrecificacao} className="space-y-6">
-
-              {/* Explicação Inicial */}
-              <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-3xl flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-300 space-y-1">
-                  <h4 className="font-bold text-indigo-300 text-sm">Padronização de Sugestão de Preços no HUBI</h4>
-                  <p>
-                    Defina abaixo os percentuais de desconto padrão e a regra mínima de validação (por valor em R$ OU por quantidade de peças).
+      {/* ========================================================================= */}
+      {/* MODAL DA OPÇÃO SELECIONADA                                                */}
+      {/* ========================================================================= */}
+      {modalSecaoAberta && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 z-40 animate-in fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setModalSecaoAberta(null);
+              setBusca('');
+            }
+          }}
+        >
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 md:text-slate-100 animate-in zoom-in-95 duration-150">
+            {/* CABEÇALHO DO MODAL */}
+            <div className="p-4 sm:p-6 border-b border-slate-200 md:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 md:bg-emerald-500/10 text-emerald-600 md:text-emerald-400 border border-emerald-200 md:border-emerald-500/20 flex items-center justify-center shrink-0">
+                  {modalSecaoAberta === 'categorias' && <FolderTree className="w-5 h-5" />}
+                  {modalSecaoAberta === 'unidades' && <Ruler className="w-5 h-5" />}
+                  {modalSecaoAberta === 'fornecedores' && <Truck className="w-5 h-5" />}
+                  {modalSecaoAberta === 'pagamentos' && <CreditCard className="w-5 h-5" />}
+                  {modalSecaoAberta === 'precificacao' && <Percent className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 md:text-slate-100">
+                    {modalSecaoAberta === 'categorias' && 'Categorias'}
+                    {modalSecaoAberta === 'unidades' && 'Unidades de Medida'}
+                    {modalSecaoAberta === 'fornecedores' && 'Fornecedores'}
+                    {modalSecaoAberta === 'pagamentos' && 'Formas de Pagamento'}
+                    {modalSecaoAberta === 'precificacao' && 'Regras de Precificação'}
+                  </h2>
+                  <p className="text-xs text-slate-500 md:text-slate-400 hidden sm:block">
+                    {modalSecaoAberta === 'categorias' && 'Gerencie os departamentos e categorias do seu catálogo'}
+                    {modalSecaoAberta === 'unidades' && 'Gerencie siglas e regras de fracionamento de medidas'}
+                    {modalSecaoAberta === 'fornecedores' && 'Cadastre parceiros, contatos e faturamentos'}
+                    {modalSecaoAberta === 'pagamentos' && 'Configure meios de recebimento, taxas e prazos'}
+                    {modalSecaoAberta === 'precificacao' && 'Defina percentuais e mínimos para atacado e distribuidor'}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-center gap-2">
+                {modalSecaoAberta === 'categorias' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCatEditando(null);
+                      setCatNome('');
+                      setCatIcone('📦');
+                      setModalCategoriaAberta(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Nova Categoria</span>
+                    <span className="sm:hidden">+ Novo</span>
+                  </button>
+                )}
 
-                {/* 1. ATACADO */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div className="flex items-center gap-2 text-emerald-400">
-                      <Percent className="w-5 h-5" />
-                      <h3 className="font-bold text-base text-slate-100">Atacado</h3>
-                    </div>
-                  </div>
+                {modalSecaoAberta === 'unidades' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUnidadeEditando(null);
+                      setUnidadeSigla('');
+                      setUnidadeNome('');
+                      setUnidadeFracionada(false);
+                      setModalUnidadeAberta(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Nova Unidade</span>
+                    <span className="sm:hidden">+ Novo</span>
+                  </button>
+                )}
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-300 block mb-1">
-                        Percentual de Desconto sobre o Varejo (%):
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="90"
-                          placeholder="Ex: 20"
-                          value={descontoAtacado}
-                          onChange={(e) => setDescontoAtacado(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
-                        />
-                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">% OFF</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 mt-1 block">Desconto aplicado para compras no atacado</span>
-                    </div>
+                {modalSecaoAberta === 'fornecedores' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFornecedorEditando(null);
+                      setFornNome('');
+                      setFornContato('');
+                      setFornDoc('');
+                      setFornWhatsapp('');
+                      setFornEmail('');
+                      setFornObs('');
+                      setModalFornecedorAberta(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Novo Fornecedor</span>
+                    <span className="sm:hidden">+ Novo</span>
+                  </button>
+                )}
 
-                    <div className="space-y-3 pt-2">
-                      <label className="text-xs font-bold text-slate-300 block">
-                        Regra de Validação Mínima:
-                      </label>
-                      <p className="text-[11px] text-amber-400/90 font-medium">
-                        * Informe o valor OU a quantidade (um anula o outro).
-                      </p>
+                {modalSecaoAberta === 'pagamentos' && (
+                  <button
+                    type="button"
+                    onClick={abrirModalNovoPagamento}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Nova Forma</span>
+                    <span className="sm:hidden">+ Novo</span>
+                  </button>
+                )}
 
-                      {/* OPÇÃO 1: VALOR MÍNIMO PARA ATACADO */}
-                      <div
-                        onClick={() => {
-                          setTipoMinimoAtacado('valor');
-                          setQtdTotalMinimaAtacado('');
-                          setQtdMinimaSkuAtacado('');
-                        }}
-                        className={`p-4 rounded-2xl border transition cursor-pointer space-y-2 ${
-                          tipoMinimoAtacado === 'valor'
-                            ? 'bg-slate-950/90 border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-md'
-                            : 'bg-slate-950/40 border-slate-800 opacity-60 hover:opacity-90'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-200 flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipo_minimo_atacado"
-                              checked={tipoMinimoAtacado === 'valor'}
-                              onChange={() => {
-                                setTipoMinimoAtacado('valor');
-                                setQtdTotalMinimaAtacado('');
-                                setQtdMinimaSkuAtacado('');
-                              }}
-                              className="text-emerald-500 focus:ring-emerald-500"
-                            />
-                            <span>Valor mínimo para atacado</span>
-                          </label>
-                          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">Total do Pedido</span>
-                        </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalSecaoAberta(null);
+                    setBusca('');
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
 
-                        <div className="relative pt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">R$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            disabled={tipoMinimoAtacado !== 'valor'}
-                            placeholder="Ex: 1500.00"
-                            value={valorMinimoAtacado}
-                            onChange={(e) => {
-                              setTipoMinimoAtacado('valor');
-                              setValorMinimoAtacado(e.target.value);
-                              setQtdTotalMinimaAtacado('');
-                              setQtdMinimaSkuAtacado('');
-                            }}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold text-emerald-400 disabled:opacity-40"
-                          />
-                        </div>
-                      </div>
-
-                      {/* OPÇÃO 2: QUANTIDADE MÍNIMA PARA ATACADO */}
-                      <div
-                        onClick={() => {
-                          setTipoMinimoAtacado('quantidade');
-                          setValorMinimoAtacado('');
-                        }}
-                        className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 ${
-                          tipoMinimoAtacado === 'quantidade'
-                            ? 'bg-slate-950/90 border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-md'
-                            : 'bg-slate-950/40 border-slate-800 opacity-60 hover:opacity-90'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-200 flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipo_minimo_atacado"
-                              checked={tipoMinimoAtacado === 'quantidade'}
-                              onChange={() => {
-                                setTipoMinimoAtacado('quantidade');
-                                setValorMinimoAtacado('');
-                              }}
-                              className="text-emerald-500 focus:ring-emerald-500"
-                            />
-                            <span>Quantidade mínima para atacado</span>
-                          </label>
-                          <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-bold">Peças</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 pt-1">
-                          <div>
-                            <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                              Qtd Total de Peças:
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoAtacado !== 'quantidade'}
-                              placeholder="Ex: 50"
-                              value={qtdTotalMinimaAtacado}
-                              onChange={(e) => {
-                                setTipoMinimoAtacado('quantidade');
-                                setQtdTotalMinimaAtacado(e.target.value);
-                                setValorMinimoAtacado('');
-                              }}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold disabled:opacity-40"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                              Mínimo por SKU:
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoAtacado !== 'quantidade'}
-                              placeholder="Ex: 6"
-                              value={qtdMinimaSkuAtacado}
-                              onChange={(e) => {
-                                setTipoMinimoAtacado('quantidade');
-                                setQtdMinimaSkuAtacado(e.target.value);
-                                setValorMinimoAtacado('');
-                              }}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-bold disabled:opacity-40"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. DISTRIBUIDOR */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div className="flex items-center gap-2 text-indigo-400">
-                      <Percent className="w-5 h-5" />
-                      <h3 className="font-bold text-base text-slate-100">Distribuidor</h3>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-300 block mb-1">
-                        Percentual de Desconto sobre o Varejo (%):
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="90"
-                          placeholder="Ex: 25"
-                          value={descontoAutoatacado}
-                          onChange={(e) => setDescontoAutoatacado(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-400 focus:outline-none focus:border-indigo-500"
-                        />
-                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">% OFF</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 mt-1 block">Desconto aplicado para distribuidores / grandes volumes</span>
-                    </div>
-
-                    <div className="space-y-3 pt-2">
-                      <label className="text-xs font-bold text-slate-300 block">
-                        Regra de Validação Mínima:
-                      </label>
-                      <p className="text-[11px] text-amber-400/90 font-medium">
-                        * Informe o valor OU a quantidade (um anula o outro).
-                      </p>
-
-                      {/* OPÇÃO 1: VALOR MÍNIMO PARA DISTRIBUIDOR */}
-                      <div
-                        onClick={() => {
-                          setTipoMinimoDistribuidor('valor');
-                          setQtdTotalMinimaAutoatacado('');
-                          setQtdMinimaSkuAutoatacado('');
-                        }}
-                        className={`p-4 rounded-2xl border transition cursor-pointer space-y-2 ${
-                          tipoMinimoDistribuidor === 'valor'
-                            ? 'bg-slate-950/90 border-indigo-500/60 ring-1 ring-indigo-500/30 shadow-md'
-                            : 'bg-slate-950/40 border-slate-800 opacity-60 hover:opacity-90'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-200 flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipo_minimo_distribuidor"
-                              checked={tipoMinimoDistribuidor === 'valor'}
-                              onChange={() => {
-                                setTipoMinimoDistribuidor('valor');
-                                setQtdTotalMinimaAutoatacado('');
-                                setQtdMinimaSkuAutoatacado('');
-                              }}
-                              className="text-indigo-500 focus:ring-indigo-500"
-                            />
-                            <span>Valor mínimo para Distribuidor</span>
-                          </label>
-                          <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-bold">Total do Pedido</span>
-                        </div>
-
-                        <div className="relative pt-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">R$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            disabled={tipoMinimoDistribuidor !== 'valor'}
-                            placeholder="Ex: 3000.00"
-                            value={valorMinimoAutoatacado}
-                            onChange={(e) => {
-                              setTipoMinimoDistribuidor('valor');
-                              setValorMinimoAutoatacado(e.target.value);
-                              setQtdTotalMinimaAutoatacado('');
-                              setQtdMinimaSkuAutoatacado('');
-                            }}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold text-indigo-400 disabled:opacity-40"
-                          />
-                        </div>
-                      </div>
-
-                      {/* OPÇÃO 2: QUANTIDADE MÍNIMA PARA DISTRIBUIDOR */}
-                      <div
-                        onClick={() => {
-                          setTipoMinimoDistribuidor('quantidade');
-                          setValorMinimoAutoatacado('');
-                        }}
-                        className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 ${
-                          tipoMinimoDistribuidor === 'quantidade'
-                            ? 'bg-slate-950/90 border-indigo-500/60 ring-1 ring-indigo-500/30 shadow-md'
-                            : 'bg-slate-950/40 border-slate-800 opacity-60 hover:opacity-90'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-200 flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="tipo_minimo_distribuidor"
-                              checked={tipoMinimoDistribuidor === 'quantidade'}
-                              onChange={() => {
-                                setTipoMinimoDistribuidor('quantidade');
-                                setValorMinimoAutoatacado('');
-                              }}
-                              className="text-indigo-500 focus:ring-indigo-500"
-                            />
-                            <span>Quantidade mínima para Distribuidor</span>
-                          </label>
-                          <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-bold">Peças</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 pt-1">
-                          <div>
-                            <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                              Qtd Total de Peças:
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoDistribuidor !== 'quantidade'}
-                              placeholder="Ex: 100"
-                              value={qtdTotalMinimaAutoatacado}
-                              onChange={(e) => {
-                                setTipoMinimoDistribuidor('quantidade');
-                                setQtdTotalMinimaAutoatacado(e.target.value);
-                                setValorMinimoAutoatacado('');
-                              }}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold disabled:opacity-40"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                              Mínimo por SKU:
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoDistribuidor !== 'quantidade'}
-                              placeholder="Ex: 6"
-                              value={qtdMinimaSkuAutoatacado}
-                              onChange={(e) => {
-                                setTipoMinimoDistribuidor('quantidade');
-                                setQtdMinimaSkuAutoatacado(e.target.value);
-                                setValorMinimoAutoatacado('');
-                              }}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-bold disabled:opacity-40"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            {/* BARRA DE PESQUISA (QUANDO NÃO É PRECIFICAÇÃO) */}
+            {modalSecaoAberta !== 'precificacao' && (
+              <div className="p-3 sm:px-6 bg-slate-50 md:bg-slate-950/60 border-b border-slate-200 md:border-slate-800 shrink-0">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder={
+                      modalSecaoAberta === 'categorias'
+                        ? 'Buscar categoria por nome...'
+                        : modalSecaoAberta === 'unidades'
+                        ? 'Buscar por sigla ou nome...'
+                        : modalSecaoAberta === 'fornecedores'
+                        ? 'Buscar por nome, contato ou telefone...'
+                        : 'Buscar forma de pagamento...'
+                    }
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    className="w-full bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs text-slate-800 md:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition"
+                  />
+                  {busca && (
+                    <button
+                      onClick={() => setBusca('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 md:hover:text-slate-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
+            )}
 
-              {/* Botão Salvar Regras (Apenas quando houver alterações) */}
-              {isDirtyPrecificacao && (
-                <button
-                  type="submit"
-                  disabled={salvando}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 font-bold text-white shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer animate-in fade-in"
-                >
-                  {salvando ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      <span>Salvar Regras de Precificação</span>
-                    </>
-                  )}
-                </button>
+            {/* CORPO DO MODAL (COM SCROLL) */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {/* 1. MODAL CATEGORIAS */}
+              {modalSecaoAberta === 'categorias' && (
+                carregando ? (
+                  <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
+                ) : categoriasFiltradas.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                    Nenhuma categoria encontrada. Clique em <strong>Nova Categoria</strong> para adicionar.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {categoriasFiltradas.map((cat) => {
+                      const qtdProds = contagemProdutosCat[cat.id] || 0;
+                      return (
+                        <div
+                          key={cat.id}
+                          className="p-3.5 bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl flex items-center justify-between hover:border-slate-300 md:hover:border-slate-700 transition group shadow-2xs"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-white md:bg-slate-800 border border-slate-200 md:border-slate-700 flex items-center justify-center text-lg shrink-0">
+                              {cat.icone || '📦'}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-slate-800 md:text-slate-100 text-xs group-hover:text-emerald-500 transition truncate">
+                                {cat.nome}
+                              </h3>
+                              <span className="text-[11px] text-slate-500 md:text-slate-400">
+                                {qtdProds} {qtdProds === 1 ? 'produto' : 'produtos'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCatEditando(cat);
+                                setCatNome(cat.nome);
+                                setCatIcone(cat.icone || '📦');
+                                setModalCategoriaAberta(true);
+                              }}
+                              className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                              title="Editar Categoria"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => excluirCategoria(cat)}
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                              title="Excluir Categoria"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
               )}
-            </form>
-          </div>
-        )}
 
-      </div>
-      </div>
+              {/* 2. MODAL UNIDADES DE MEDIDA */}
+              {modalSecaoAberta === 'unidades' && (
+                carregando ? (
+                  <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
+                ) : unidadesFiltradas.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                    Nenhuma unidade encontrada.
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 md:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                    <table className="w-full text-left text-xs text-slate-700 md:text-slate-300">
+                      <thead className="bg-slate-100 md:bg-slate-950/80 text-slate-600 md:text-slate-400 font-semibold border-b border-slate-200 md:border-slate-800 uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="p-3.5">Sigla</th>
+                          <th className="p-3.5">Descrição</th>
+                          <th className="p-3.5">Permite Fracionado</th>
+                          <th className="p-3.5 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 md:divide-slate-800/60 bg-white md:bg-transparent">
+                        {unidadesFiltradas.map((u) => (
+                          <tr key={u.id} className="hover:bg-slate-50 md:hover:bg-slate-800/40 transition">
+                            <td className="p-3.5 font-mono font-bold text-emerald-600 md:text-emerald-400">
+                              <span className="px-2 py-1 rounded-lg bg-emerald-50 md:bg-emerald-500/10 border border-emerald-200 md:border-emerald-500/30">
+                                {u.sigla.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="p-3.5 font-semibold text-slate-800 md:text-slate-200">
+                              {u.nome}
+                            </td>
+                            <td className="p-3.5">
+                              {u.permite_fracionado ? (
+                                <span className="text-indigo-600 md:text-indigo-300 bg-indigo-50 md:bg-indigo-500/10 border border-indigo-200 md:border-indigo-500/20 px-2 py-0.5 rounded text-[11px] font-bold">
+                                  Sim (decimais)
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 md:text-slate-400 bg-slate-100 md:bg-slate-800 px-2 py-0.5 rounded text-[11px]">
+                                  Apenas Inteiro
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUnidadeEditando(u);
+                                    setUnidadeSigla(u.sigla);
+                                    setUnidadeNome(u.nome);
+                                    setUnidadeFracionada(u.permite_fracionado);
+                                    setModalUnidadeAberta(true);
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                                  title="Editar Unidade"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                {u.sigla !== 'un' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => excluirUnidade(u)}
+                                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                                    title="Excluir Unidade"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              )}
+
+              {/* 3. MODAL FORNECEDORES */}
+              {modalSecaoAberta === 'fornecedores' && (
+                carregando ? (
+                  <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
+                ) : fornecedoresFiltrados.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                    Nenhum fornecedor cadastrado. Clique em <strong>Novo Fornecedor</strong> para adicionar.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {fornecedoresFiltrados.map((forn) => (
+                      <div
+                        key={forn.id}
+                        className="p-4 bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 md:hover:border-slate-700 transition shadow-2xs group"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-slate-800 md:text-slate-100 text-xs sm:text-sm group-hover:text-emerald-500 transition truncate">
+                                {forn.nome}
+                              </h3>
+                              {forn.pessoa_contato && (
+                                <p className="text-[11px] text-slate-500 md:text-slate-400 flex items-center gap-1 mt-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                  Contato: {forn.pessoa_contato}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFornecedorEditando(forn);
+                                  setFornNome(forn.nome);
+                                  setFornContato(forn.pessoa_contato || '');
+                                  setFornDoc(forn.numero_documento || '');
+                                  setFornWhatsapp(forn.whatsapp || forn.telefone || '');
+                                  setFornEmail(forn.email || '');
+                                  setFornObs(forn.observacoes || '');
+                                  setModalFornecedorAberta(true);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                                title="Editar Fornecedor"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => excluirFornecedor(forn)}
+                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                                title="Excluir Fornecedor"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 md:text-slate-400 space-y-1 pt-1 border-t border-slate-200 md:border-slate-800/80">
+                            {forn.numero_documento && (
+                              <div className="flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                <span>CNPJ/CPF: {forn.numero_documento}</span>
+                              </div>
+                            )}
+                            {forn.whatsapp && (
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>{forn.whatsapp}</span>
+                              </div>
+                            )}
+                            {forn.email && (
+                              <div className="flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="truncate">{forn.email}</span>
+                              </div>
+                            )}
+                            {forn.observacoes && (
+                              <p className="text-[10px] text-slate-500 italic mt-1 bg-white md:bg-slate-900 p-2 rounded-lg border border-slate-200 md:border-slate-800 line-clamp-2">
+                                "{forn.observacoes}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {/* 4. MODAL FORMAS DE PAGAMENTO */}
+              {modalSecaoAberta === 'pagamentos' && (
+                carregando ? (
+                  <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
+                ) : formasPagamentoFiltradas.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs space-y-2">
+                    <p>Nenhuma forma de pagamento cadastrada.</p>
+                    <button
+                      onClick={abrirModalNovoPagamento}
+                      className="text-emerald-500 font-bold hover:underline"
+                    >
+                      Clique aqui para adicionar a primeira forma de pagamento
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {formasPagamentoFiltradas.map((fp) => {
+                      const ehAtivo = fp.ativo !== false;
+
+                      return (
+                        <div
+                          key={fp.id}
+                          className={`border rounded-2xl p-4 space-y-3 transition shadow-xs ${
+                            ehAtivo
+                              ? 'bg-slate-50 md:bg-slate-950/80 border-slate-200 md:border-slate-800 hover:border-slate-300 md:hover:border-slate-700'
+                              : 'bg-rose-50/50 md:bg-slate-950/40 border-rose-200 md:border-rose-950/40 opacity-70'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                                fp.tipo === 'dinheiro' ? 'bg-emerald-50 md:bg-emerald-500/10 border-emerald-200 md:border-emerald-500/30 text-emerald-600 md:text-emerald-400' :
+                                fp.tipo === 'pix' ? 'bg-cyan-50 md:bg-cyan-500/10 border-cyan-200 md:border-cyan-500/30 text-cyan-600 md:text-cyan-400' :
+                                fp.tipo === 'cartao_credito' ? 'bg-purple-50 md:bg-purple-500/10 border-purple-200 md:border-purple-500/30 text-purple-600 md:text-purple-400' :
+                                fp.tipo === 'cartao_debito' ? 'bg-blue-50 md:bg-blue-500/10 border-blue-200 md:border-blue-500/30 text-blue-600 md:text-blue-400' :
+                                fp.tipo === 'fiado' ? 'bg-amber-50 md:bg-amber-500/10 border-amber-200 md:border-amber-500/30 text-amber-600 md:text-amber-400' :
+                                'bg-slate-100 md:bg-slate-800 border-slate-200 md:border-slate-700 text-slate-600 md:text-slate-300'
+                              }`}>
+                                {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4" />}
+                                {fp.tipo === 'pix' && <Zap className="w-4 h-4" />}
+                                {fp.tipo === 'cartao_credito' && <CreditCard className="w-4 h-4" />}
+                                {fp.tipo === 'cartao_debito' && <CreditCard className="w-4 h-4" />}
+                                {fp.tipo === 'fiado' && <FileText className="w-4 h-4" />}
+                                {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'fiado' && (
+                                  <CreditCard className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <h3 className="font-bold text-slate-800 md:text-slate-100 text-xs sm:text-sm truncate">
+                                  {fp.nome}
+                                </h3>
+                                <span className="text-[10px] uppercase font-bold text-slate-400">
+                                  {fp.tipo === 'dinheiro' && 'Dinheiro'}
+                                  {fp.tipo === 'pix' && 'PIX'}
+                                  {fp.tipo === 'cartao_credito' && 'Crédito'}
+                                  {fp.tipo === 'cartao_debito' && 'Débito'}
+                                  {fp.tipo === 'fiado' && 'Fiado'}
+                                  {fp.tipo === 'outro' && 'Outro'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => abrirModalEditarPagamento(fp)}
+                                className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                                title="Editar Forma de Pagamento"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => excluirFormaPagamento(fp)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 md:hover:text-rose-400 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                                title="Excluir Forma de Pagamento"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Taxas e Prazos */}
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200 md:border-slate-800/80">
+                            <div className="bg-white md:bg-slate-900/60 p-2 rounded-xl border border-slate-200 md:border-slate-800/60">
+                              <span className="text-[10px] text-slate-400 block font-medium">Taxa:</span>
+                              <span className="font-bold text-slate-700 md:text-slate-200 text-[11px]">
+                                {Number(fp.taxa_percentual || 0) > 0 ? `${fp.taxa_percentual}%` : 'Sem taxa'}
+                              </span>
+                            </div>
+
+                            <div className="bg-white md:bg-slate-900/60 p-2 rounded-xl border border-slate-200 md:border-slate-800/60">
+                              <span className="text-[10px] text-slate-400 block font-medium">Parcelamento:</span>
+                              <span className="font-bold text-slate-700 md:text-slate-200 text-[11px]">
+                                {fp.tipo === 'cartao_credito' ? `Até ${fp.maximo_parcelas || 1}x` : 'À vista'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Switches de Status */}
+                          <div className="flex items-center justify-between pt-1 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${fp.exibir_catalogo ? 'bg-cyan-500' : 'bg-slate-400'}`} />
+                              <span className="text-[11px] text-slate-500 md:text-slate-400">
+                                {fp.exibir_catalogo ? 'No Catálogo' : 'Apenas PDV'}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => alternarStatusPagamento(fp)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                ehAtivo
+                                  ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-700 md:text-emerald-400 border border-emerald-200 md:border-emerald-500/30'
+                                  : 'bg-rose-50 md:bg-rose-500/15 text-rose-700 md:text-rose-400 border border-rose-200 md:border-rose-500/30'
+                              }`}
+                            >
+                              {ehAtivo ? 'Ativo' : 'Inativo'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              )}
+
+              {/* 5. MODAL REGRAS DE PRECIFICAÇÃO */}
+              {modalSecaoAberta === 'precificacao' && (
+                <form onSubmit={salvarRegrasPrecificacao} className="space-y-5">
+                  <div className="p-3.5 bg-indigo-50 md:bg-indigo-500/10 border border-indigo-200 md:border-indigo-500/30 rounded-2xl flex items-start gap-2.5">
+                    <Sparkles className="w-5 h-5 text-indigo-600 md:text-indigo-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-slate-700 md:text-slate-300 space-y-0.5">
+                      <h4 className="font-bold text-indigo-700 md:text-indigo-300 text-xs sm:text-sm">Sugestão de Preços no HUBI</h4>
+                      <p className="text-[11px]">
+                        Defina os descontos padrão e o critério de ativação para vendas no atacado e para distribuidores (por valor em R$ ou quantidade de peças).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* ATACADO */}
+                    <div className="bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
+                      <div className="flex items-center gap-2 text-emerald-600 md:text-emerald-400 border-b border-slate-200 md:border-slate-800 pb-2.5">
+                        <Percent className="w-5 h-5" />
+                        <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Atacado</h3>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                            Desconto Padrão (%):
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              value={descontoAtacado}
+                              onChange={(e) => setDescontoAtacado(e.target.value)}
+                              className="w-full bg-white md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-emerald-600 md:text-emerald-400 focus:outline-none focus:border-emerald-500"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                          </div>
+                        </div>
+
+                        {/* OPÇÃO 1: VALOR */}
+                        <div
+                          onClick={() => {
+                            setTipoMinimoAtacado('valor');
+                            setQtdTotalMinimaAtacado('');
+                            setQtdMinimaSkuAtacado('');
+                          }}
+                          className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
+                            tipoMinimoAtacado === 'valor'
+                              ? 'bg-white md:bg-slate-950 border-emerald-500 shadow-2xs'
+                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="tipo_minimo_atacado"
+                                checked={tipoMinimoAtacado === 'valor'}
+                                onChange={() => {
+                                  setTipoMinimoAtacado('valor');
+                                  setQtdTotalMinimaAtacado('');
+                                  setQtdMinimaSkuAtacado('');
+                                }}
+                                className="text-emerald-500 focus:ring-emerald-500"
+                              />
+                              <span>Por Valor Mínimo (R$)</span>
+                            </label>
+                          </div>
+
+                          <div className="relative pt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={tipoMinimoAtacado !== 'valor'}
+                              placeholder="1500.00"
+                              value={valorMinimoAtacado}
+                              onChange={(e) => {
+                                setTipoMinimoAtacado('valor');
+                                setValorMinimoAtacado(e.target.value);
+                              }}
+                              className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                            />
+                          </div>
+                        </div>
+
+                        {/* OPÇÃO 2: QUANTIDADE */}
+                        <div
+                          onClick={() => {
+                            setTipoMinimoAtacado('quantidade');
+                            setValorMinimoAtacado('');
+                          }}
+                          className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
+                            tipoMinimoAtacado === 'quantidade'
+                              ? 'bg-white md:bg-slate-950 border-emerald-500 shadow-2xs'
+                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="tipo_minimo_atacado"
+                                checked={tipoMinimoAtacado === 'quantidade'}
+                                onChange={() => {
+                                  setTipoMinimoAtacado('quantidade');
+                                  setValorMinimoAtacado('');
+                                }}
+                                className="text-emerald-500 focus:ring-emerald-500"
+                              />
+                              <span>Por Quantidade de Peças</span>
+                            </label>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <div>
+                              <label className="text-[10px] text-slate-500 block mb-0.5">Qtd Total:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                disabled={tipoMinimoAtacado !== 'quantidade'}
+                                placeholder="50"
+                                value={qtdTotalMinimaAtacado}
+                                onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
+                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-500 block mb-0.5">Mín por SKU:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                disabled={tipoMinimoAtacado !== 'quantidade'}
+                                placeholder="6"
+                                value={qtdMinimaSkuAtacado}
+                                onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
+                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DISTRIBUIDOR / AUTOATACADO */}
+                    <div className="bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
+                      <div className="flex items-center gap-2 text-indigo-600 md:text-indigo-400 border-b border-slate-200 md:border-slate-800 pb-2.5">
+                        <Percent className="w-5 h-5" />
+                        <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Distribuidor</h3>
+                      </div>
+
+                      <div className="space-y-3.5">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                            Desconto Padrão (%):
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              value={descontoAutoatacado}
+                              onChange={(e) => setDescontoAutoatacado(e.target.value)}
+                              className="w-full bg-white md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 md:text-indigo-400 focus:outline-none focus:border-indigo-500"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                          </div>
+                        </div>
+
+                        {/* OPÇÃO 1: VALOR */}
+                        <div
+                          onClick={() => {
+                            setTipoMinimoDistribuidor('valor');
+                            setQtdTotalMinimaAutoatacado('');
+                            setQtdMinimaSkuAutoatacado('');
+                          }}
+                          className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
+                            tipoMinimoDistribuidor === 'valor'
+                              ? 'bg-white md:bg-slate-950 border-indigo-500 shadow-2xs'
+                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="tipo_minimo_distribuidor"
+                                checked={tipoMinimoDistribuidor === 'valor'}
+                                onChange={() => {
+                                  setTipoMinimoDistribuidor('valor');
+                                  setQtdTotalMinimaAutoatacado('');
+                                  setQtdMinimaSkuAutoatacado('');
+                                }}
+                                className="text-indigo-500 focus:ring-indigo-500"
+                              />
+                              <span>Por Valor Mínimo (R$)</span>
+                            </label>
+                          </div>
+
+                          <div className="relative pt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={tipoMinimoDistribuidor !== 'valor'}
+                              placeholder="3000.00"
+                              value={valorMinimoAutoatacado}
+                              onChange={(e) => {
+                                setTipoMinimoDistribuidor('valor');
+                                setValorMinimoAutoatacado(e.target.value);
+                              }}
+                              className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                            />
+                          </div>
+                        </div>
+
+                        {/* OPÇÃO 2: QUANTIDADE */}
+                        <div
+                          onClick={() => {
+                            setTipoMinimoDistribuidor('quantidade');
+                            setValorMinimoAutoatacado('');
+                          }}
+                          className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
+                            tipoMinimoDistribuidor === 'quantidade'
+                              ? 'bg-white md:bg-slate-950 border-indigo-500 shadow-2xs'
+                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="tipo_minimo_distribuidor"
+                                checked={tipoMinimoDistribuidor === 'quantidade'}
+                                onChange={() => {
+                                  setTipoMinimoDistribuidor('quantidade');
+                                  setValorMinimoAutoatacado('');
+                                }}
+                                className="text-indigo-500 focus:ring-indigo-500"
+                              />
+                              <span>Por Quantidade de Peças</span>
+                            </label>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <div>
+                              <label className="text-[10px] text-slate-500 block mb-0.5">Qtd Total:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                disabled={tipoMinimoDistribuidor !== 'quantidade'}
+                                placeholder="100"
+                                value={qtdTotalMinimaAutoatacado}
+                                onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
+                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-500 block mb-0.5">Mín por SKU:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                disabled={tipoMinimoDistribuidor !== 'quantidade'}
+                                placeholder="6"
+                                value={qtdMinimaSkuAutoatacado}
+                                onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
+                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botão Salvar Regras */}
+                  <button
+                    type="submit"
+                    disabled={salvando}
+                    className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 font-bold text-white shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 text-xs sm:text-sm transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {salvando ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Salvando regras...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Salvar Regras de Precificação</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL CATEGORIA                                                           */}
