@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS public.sessoes_caixa (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
     terminal_id VARCHAR(50) NOT NULL DEFAULT 'PDV-01',
-    aberto_por_usuario_id UUID NOT NULL REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT,
-    fechado_por_usuario_id UUID REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT,
+    aberto_por_usuario_id UUID NOT NULL,
+    fechado_por_usuario_id UUID,
     aberto_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     fechado_em TIMESTAMPTZ,
     fundo_inicial NUMERIC(12,2) NOT NULL DEFAULT 0.00,
@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS public.sessoes_caixa (
     diferenca_dinheiro NUMERIC(12,2),
     declarado_por_metodo JSONB DEFAULT '{}'::jsonb,
     observacoes_fechamento TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT sessoes_caixa_aberto_por_usuario_id_fkey FOREIGN KEY (aberto_por_usuario_id) REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT,
+    CONSTRAINT sessoes_caixa_fechado_por_usuario_id_fkey FOREIGN KEY (fechado_por_usuario_id) REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT
 );
 
 -- 2. Tabela de Movimentações da Sessão (movimentacoes_caixa)

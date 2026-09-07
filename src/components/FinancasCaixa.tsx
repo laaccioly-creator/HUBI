@@ -305,7 +305,13 @@ export const FinancasCaixa: React.FC = () => {
       mostrarSucesso(`Sessão de caixa aberta com sucesso no terminal ${nova.terminal_id}! Fundo de troco: R$ ${valFundo.toFixed(2)}`);
       await carregarFinanceiro();
     } catch (err: any) {
-      mostrarErro(err.message || 'Erro ao abrir caixa.', 'Bloqueio de Concorrência / Erro');
+      const msg = err.message || 'Erro ao abrir caixa.';
+      const titulo = msg.includes('Bloqueio de Concorrência')
+        ? 'Bloqueio de Concorrência'
+        : msg.includes('sessoes_caixa') || msg.includes('schema cache')
+        ? 'Tabela Não Encontrada no Supabase'
+        : 'Erro ao Abrir Caixa';
+      mostrarErro(msg, titulo);
     } finally {
       setAbrindoCaixa(false);
     }

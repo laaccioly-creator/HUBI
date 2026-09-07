@@ -125,7 +125,14 @@ export const caixaService = {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('sessoes_caixa') || error.message?.includes('schema cache')) {
+        throw new Error(
+          'A tabela "sessoes_caixa" ainda não foi criada no banco de dados Supabase. Execute o script "scripts/sql_criar_modulo_sessoes_caixa.sql" no SQL Editor do Supabase para ativar o controle de caixa.'
+        );
+      }
+      throw error;
+    }
     return data as SessaoCaixa;
   },
 
@@ -171,7 +178,14 @@ export const caixaService = {
       .select('*')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.message?.includes('movimentacoes_caixa') || error.message?.includes('schema cache')) {
+        throw new Error(
+          'A tabela "movimentacoes_caixa" ainda não foi criada no banco de dados Supabase. Execute o script "scripts/sql_criar_modulo_sessoes_caixa.sql" no SQL Editor do Supabase.'
+        );
+      }
+      throw error;
+    }
     return data as MovimentacaoCaixa;
   },
 
