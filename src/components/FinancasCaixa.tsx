@@ -489,12 +489,19 @@ export const FinancasCaixa: React.FC = () => {
     try {
       setProcessandoFechamento(true);
 
+      const parseMoeda = (val: string | number) => {
+        if (!val) return 0;
+        const limpo = String(val).trim().replace(',', '.');
+        const num = parseFloat(limpo);
+        return isNaN(num) ? 0 : num;
+      };
+
       const contagem: DeclaradoPorMetodo = {
-        dinheiro: Number(contagemDinheiro) || 0,
-        pix: Number(contagemPix) || 0,
-        cartao_credito: Number(contagemCredito) || 0,
-        cartao_debito: Number(contagemDebito) || 0,
-        outros: Number(contagemOutros) || 0
+        dinheiro: parseMoeda(contagemDinheiro),
+        pix: parseMoeda(contagemPix),
+        cartao_credito: parseMoeda(contagemCredito),
+        cartao_debito: parseMoeda(contagemDebito),
+        outros: parseMoeda(contagemOutros)
       };
 
       const { sessao: sessaoFechada, resumo, statusDiferenca } = await caixaService.fecharSessao({
@@ -867,13 +874,61 @@ export const FinancasCaixa: React.FC = () => {
     let totalBruto = 0;
 
     sessoesNoPeriodo.forEach(s => {
-      dinheiro += Number(s.total_vendas_dinheiro || 0);
-      pix += Number(s.total_vendas_pix || 0);
-      debito += Number(s.total_vendas_debito || 0);
-      credito += Number(s.total_vendas_credito || 0);
-      outros += Number(s.total_vendas_outros || 0);
-      totalBruto += Number(s.faturamento_total || 0);
+      let vDinheiro = Number(s.total_vendas_dinheiro || 0);
+      let vPix = Number(s.total_vendas_pix || 0);
+      let vDebito = Number(s.total_vendas_debito || 0);
+      let vCredito = Number(s.total_vendas_credito || 0);
+      let vOutros = Number(s.total_vendas_outros || 0);
+
+      // Se não possui totais calculados mas possui movimentações detalhadas
+      if (vDinheiro === 0 && vPix === 0 && vDebito === 0 && vCredito === 0 && vOutros === 0 && s.movimentacoes && s.movimentacoes.length > 0) {
+        s.movimentacoes.forEach(m => {
+          if (m.tipo === 'VENDA') {
+            const val = Number(m.valor || 0);
+            if (m.metodo_pagamento === 'DINHEIRO') vDinheiro += val;
+            else if (m.metodo_pagamento === 'PIX') vPix += val;
+            else if (m.metodo_pagamento === 'CARTAO_DEBITO') vDebito += val;
+            else if (m.metodo_pagamento === 'CARTAO_CREDITO') vCredito += val;
+            else vOutros += val;
+          }
+        });
+      }
+
+      dinheiro += vDinheiro;
+      pix += vPix;
+      debito += vDebito;
+      credito += vCredito;
+      outros += vOutros;
+      totalBruto += Number(s.faturamento_total || (vDinheiro + vPix + vDebito + vCredito + vOutros) || 0);
     });
+
+    // Fallback de reconciliação analítica:
+    // Se o total bruto apurou vendas (ex: R$ 330.21) mas o detalhamento individual está zerado
+    // (ex: sessão fechada antes da indexação de movimentações), cruza com os pedidos pagos no período
+    if (totalBruto > 0 && dinheiro === 0 && pix === 0 && debito === 0 && credito === 0 && outros === 0) {
+      (pedidos || []).forEach(p => {
+        if (p.status === 'cancelado' || p.status === 'pendente') return;
+        const dataP = (p.data_venda || p.criado_em || '').split('T')[0];
+        if (periodoRelatorioInicio && dataP < periodoRelatorioInicio) return;
+        if (periodoRelatorioFim && dataP > periodoRelatorioFim) return;
+
+        if (p.pagamentos && p.pagamentos.length > 0) {
+          p.pagamentos.forEach(pag => {
+            const val = Number(pag.valor || 0);
+            const tipoFp = (pag.forma_pagamento?.tipo || '').toLowerCase();
+            const nomeFp = (pag.forma_pagamento?.nome || '').toLowerCase();
+
+            if (tipoFp === 'dinheiro' || nomeFp.includes('dinheiro')) dinheiro += val;
+            else if (tipoFp === 'pix' || nomeFp.includes('pix')) pix += val;
+            else if (tipoFp === 'cartao_debito' || nomeFp.includes('débito') || nomeFp.includes('debito')) debito += val;
+            else if (tipoFp === 'cartao_credito' || nomeFp.includes('crédito') || nomeFp.includes('credito')) credito += val;
+            else outros += val;
+          });
+        } else {
+          dinheiro += Number(p.valor_pago || p.valor_total || 0);
+        }
+      });
+    }
 
     return {
       quantidadeSessoes: sessoesNoPeriodo.length,
@@ -884,7 +939,7 @@ export const FinancasCaixa: React.FC = () => {
       outros,
       totalBruto
     };
-  }, [historicoSessoes, sessaoAtiva, periodoRelatorioInicio, periodoRelatorioFim]);
+  }, [historicoSessoes, sessaoAtiva, periodoRelatorioInicio, periodoRelatorioFim, pedidos]);
 
   // Dados para Relatório de Sangrias e Despesas
   const dadosRelatorioSangriasDespesas = useMemo(() => {
@@ -1687,10 +1742,10 @@ export const FinancasCaixa: React.FC = () => {
                               <span>Faturamento Total: <strong className="text-slate-200">R$ {Number(cx.faturamento_total || 0).toFixed(2)}</strong></span>
                               <span>•</span>
                               <span>Esperado Dinheiro: <strong className="text-slate-200">R$ {Number(cx.saldo_dinheiro_calculado || 0).toFixed(2)}</strong></span>
-                              {cx.saldo_dinheiro_declarado != null && (
+                              {(cx.saldo_declarado_dinheiro != null || cx.saldo_dinheiro_declarado != null) && (
                                 <>
                                   <span>•</span>
-                                  <span>Declarado Físico: <strong className="text-slate-200">R$ {Number(cx.saldo_dinheiro_declarado).toFixed(2)}</strong></span>
+                                  <span>Declarado Físico: <strong className="text-slate-200">R$ {Number(cx.saldo_declarado_dinheiro ?? cx.saldo_dinheiro_declarado).toFixed(2)}</strong></span>
                                 </>
                               )}
                             </div>
@@ -2309,7 +2364,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
                   <span className="text-[11px] text-slate-400 font-semibold block">Contado pelo Operador</span>
                   <span className="text-lg font-black text-amber-400 block">
-                    R$ {Number(relatorioFechamentoResumo.sessao.saldo_dinheiro_declarado || 0).toFixed(2)}
+                    R$ {Number(relatorioFechamentoResumo.sessao.saldo_declarado_dinheiro ?? relatorioFechamentoResumo.sessao.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                   </span>
                   <span className="text-[10px] text-slate-500">Valor físico declarado</span>
                 </div>
@@ -2463,7 +2518,7 @@ export const FinancasCaixa: React.FC = () => {
                     <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
                       <span className="text-[10px] text-slate-500 block">Declarado Físico</span>
                       <span className="font-black text-sm text-amber-400">
-                        R$ {Number(sessaoDrillDown.saldo_dinheiro_declarado || 0).toFixed(2)}
+                        R$ {Number(sessaoDrillDown.saldo_declarado_dinheiro ?? sessaoDrillDown.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                       </span>
                     </div>
                     <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">

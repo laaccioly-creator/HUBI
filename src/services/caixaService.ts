@@ -8,7 +8,7 @@ import {
   DeclaradoPorMetodo,
   Pedido
 } from '../types';
-import { obterDataOperacaoISO } from '../utils/dataOperacao';
+import { obterDataOperacao, obterDataOperacaoISO } from '../utils/dataOperacao';
 
 export const caixaService = {
   /**
@@ -435,9 +435,18 @@ export const caixaService = {
     const totalEntradas = resumo.totalVendasGeral + resumo.totalSuprimentos;
     const totalSaidas = resumo.totalSangrias + resumo.totalDespesas;
 
+    const dataAbertura = new Date(resumo.sessao.aberto_em);
+    let dataFechamento = obterDataOperacao();
+
+    // Se o fechamento resultar em horário menor ou igual à abertura (ex: horário simulado estático),
+    // ajusta para pelo menos 1 minuto após a abertura
+    if (dataFechamento.getTime() <= dataAbertura.getTime()) {
+      dataFechamento = new Date(dataAbertura.getTime() + 60 * 1000);
+    }
+
     const payload = {
       fechado_por_usuario_id: usuarioId,
-      fechado_em: obterDataOperacaoISO(),
+      fechado_em: dataFechamento.toISOString(),
       status: 'FECHADO',
       total_entradas_sistema: totalEntradas,
       total_saidas_sistema: totalSaidas,
@@ -457,8 +466,14 @@ export const caixaService = {
 
     if (error) throw error;
 
+    const sessaoAtualizada: SessaoCaixa = {
+      ...(data as SessaoCaixa),
+      saldo_declarado_dinheiro: data.saldo_declarado_dinheiro != null ? Number(data.saldo_declarado_dinheiro) : valorDeclaradoDinheiro,
+      saldo_dinheiro_declarado: data.saldo_declarado_dinheiro != null ? Number(data.saldo_declarado_dinheiro) : valorDeclaradoDinheiro
+    };
+
     return {
-      sessao: data as SessaoCaixa,
+      sessao: sessaoAtualizada,
       resumo,
       statusDiferenca
     };
@@ -526,15 +541,65 @@ export const caixaService = {
         rawList = (fallback.data || []) as SessaoCaixa[];
       }
 
-      let lista = rawList.map(s => ({
-        ...s,
-        usuario_abertura: s.aberto_por || (s as any).usuario_abertura,
-        usuario_fechamento: s.fechado_por || (s as any).usuario_fechamento,
-        fundo_troco_inicial: Number(s.fundo_inicial || 0),
-        faturamento_total: Number(s.total_entradas_sistema || 0),
-        saldo_dinheiro_calculado: Number(s.saldo_esperado_dinheiro || 0),
-        saldo_dinheiro_declarado: s.saldo_declarado_dinheiro != null ? Number(s.saldo_declarado_dinheiro) : null
-      }));
+      // Buscar movimentações de todas as sessões retornadas para garantir dados analíticos detalhados
+      const idsSessoes = rawList.map(s => s.id).filter(Boolean);
+      const mapMovs: Record<string, MovimentacaoCaixa[]> = {};
+      if (idsSessoes.length > 0) {
+        try {
+          const { data: movsData } = await supabase
+            .from('movimentacoes_caixa')
+            .select('*')
+            .in('sessao_caixa_id', idsSessoes);
+          if (movsData) {
+            movsData.forEach((m: any) => {
+              if (!mapMovs[m.sessao_caixa_id]) mapMovs[m.sessao_caixa_id] = [];
+              mapMovs[m.sessao_caixa_id].push(m);
+            });
+          }
+        } catch (e) {
+          console.warn('Aviso ao carregar movimentações do histórico:', e);
+        }
+      }
+
+      let lista = rawList.map(s => {
+        const movs = mapMovs[s.id] || (s as any).movimentacoes || [];
+        let vDinheiro = 0;
+        let vPix = 0;
+        let vDebito = 0;
+        let vCredito = 0;
+        let vOutros = 0;
+
+        movs.forEach((m: any) => {
+          if (m.tipo === 'VENDA') {
+            const val = Number(m.valor || 0);
+            switch (m.metodo_pagamento) {
+              case 'DINHEIRO': vDinheiro += val; break;
+              case 'PIX': vPix += val; break;
+              case 'CARTAO_DEBITO': vDebito += val; break;
+              case 'CARTAO_CREDITO': vCredito += val; break;
+              default: vOutros += val; break;
+            }
+          }
+        });
+
+        const faturamento = Number(s.total_entradas_sistema || (vDinheiro + vPix + vDebito + vCredito + vOutros) || 0);
+
+        return {
+          ...s,
+          usuario_abertura: s.aberto_por || (s as any).usuario_abertura,
+          usuario_fechamento: s.fechado_por || (s as any).usuario_fechamento,
+          fundo_troco_inicial: Number(s.fundo_inicial || 0),
+          faturamento_total: faturamento,
+          saldo_dinheiro_calculado: Number(s.saldo_esperado_dinheiro || 0),
+          saldo_dinheiro_declarado: s.saldo_declarado_dinheiro != null ? Number(s.saldo_declarado_dinheiro) : null,
+          total_vendas_dinheiro: vDinheiro,
+          total_vendas_pix: vPix,
+          total_vendas_debito: vDebito,
+          total_vendas_credito: vCredito,
+          total_vendas_outros: vOutros,
+          movimentacoes: movs
+        };
+      });
 
       if (filtros?.statusDiferenca === 'com_diferenca') {
         lista = lista.filter(s => s.diferenca_dinheiro != null && Math.abs(Number(s.diferenca_dinheiro)) >= 0.01);

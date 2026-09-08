@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   Clock,
@@ -37,11 +37,7 @@ export const ModalSeletorDataOperacao: React.FC = () => {
   });
 
   const [horaSelecionada, setHoraSelecionada] = useState<string>(() => {
-    if (horaSimulada) return horaSimulada;
-    const d = new Date();
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
+    return horaSimulada || '';
   });
 
   useEffect(() => {
@@ -56,14 +52,7 @@ export const ModalSeletorDataOperacao: React.FC = () => {
         setDataSelecionada(`${ano}-${mes}-${dia}`);
       }
 
-      if (horaSimulada) {
-        setHoraSelecionada(horaSimulada);
-      } else {
-        const d = new Date();
-        const h = String(d.getHours()).padStart(2, '0');
-        const m = String(d.getMinutes()).padStart(2, '0');
-        setHoraSelecionada(`${h}:${m}`);
-      }
+      setHoraSelecionada(horaSimulada || '');
     }
   }, [modalAberto, dataSimulada, horaSimulada]);
 
@@ -155,16 +144,32 @@ export const ModalSeletorDataOperacao: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                Horário Base (Opcional)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  Horário (Opcional)
+                </label>
+                {horaSelecionada && (
+                  <button
+                    type="button"
+                    onClick={() => setHoraSelecionada('')}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold cursor-pointer underline"
+                  >
+                    Usar horário contínuo
+                  </button>
+                )}
+              </div>
               <input
                 type="time"
                 value={horaSelecionada}
                 onChange={(e) => setHoraSelecionada(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:border-amber-400 font-semibold cursor-pointer"
               />
+              <span className="text-[10px] text-slate-400 block mt-1">
+                {horaSelecionada
+                  ? 'Horário fixado estaticamente.'
+                  : 'Vazio = Relógio avança continuamente em tempo real (recomendado).'}
+              </span>
             </div>
           </div>
 
