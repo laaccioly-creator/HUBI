@@ -48,6 +48,7 @@ import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
+import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
 import { PosCheckoutMobile } from './PosCheckoutMobile';
 
@@ -362,7 +363,7 @@ export const PosCheckout: React.FC = () => {
         }
       }
 
-      const dataIso = new Date().toISOString();
+      const dataIso = obterDataOperacaoISO();
 
       let vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorId) ? vendedorId : null;
       if (vendedorIdSanitizado) {
@@ -501,7 +502,7 @@ export const PosCheckout: React.FC = () => {
 
     try {
       setSalvandoPendente(true);
-      const dataIso = new Date().toISOString();
+      const dataIso = obterDataOperacaoISO();
       let vendedorIdSanitizado: string | null = usuario?.id && SyncService.isUuidValido(usuario.id) ? usuario.id : null;
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
@@ -689,7 +690,7 @@ export const PosCheckout: React.FC = () => {
 
       const taxaValor = (total * Number(fpFinal.taxa_percentual || 0)) / 100;
       const valorLiquido = total - taxaValor;
-      const dataIso = new Date().toISOString();
+      const dataIso = obterDataOperacaoISO();
 
       const obsFinal = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 

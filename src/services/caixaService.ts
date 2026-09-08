@@ -8,6 +8,7 @@ import {
   DeclaradoPorMetodo,
   Pedido
 } from '../types';
+import { obterDataOperacaoISO } from '../utils/dataOperacao';
 
 export const caixaService = {
   /**
@@ -111,7 +112,7 @@ export const caixaService = {
       loja_id: lojaId,
       terminal_id: term,
       aberto_por_usuario_id: usuarioId,
-      aberto_em: new Date().toISOString(),
+      aberto_em: obterDataOperacaoISO(),
       fundo_inicial: valorFundo,
       status: 'ABERTO',
       saldo_esperado_dinheiro: valorFundo,
@@ -169,7 +170,7 @@ export const caixaService = {
       valor: valNum,
       descricao: descricao.trim(),
       criado_por_usuario_id: usuarioId,
-      criado_em: new Date().toISOString()
+      criado_em: obterDataOperacaoISO()
     };
 
     const { data, error } = await supabase
@@ -436,7 +437,7 @@ export const caixaService = {
 
     const payload = {
       fechado_por_usuario_id: usuarioId,
-      fechado_em: new Date().toISOString(),
+      fechado_em: obterDataOperacaoISO(),
       status: 'FECHADO',
       total_entradas_sistema: totalEntradas,
       total_saidas_sistema: totalSaidas,

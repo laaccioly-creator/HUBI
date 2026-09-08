@@ -25,18 +25,21 @@ import {
   Ticket,
   Sun,
   Moon,
-  Laptop
+  Laptop,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { useDataOperacao } from '../../contexts/DataOperacaoContext';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
 import { CadastroPdv } from '../CadastroPdv';
 import { ChatAjudaIA } from '../ChatAjudaIA';
 import { DesktopAppPrompt, DesktopInstallButton } from '../DesktopAppPrompt';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
+import { ModalSeletorDataOperacao } from '../ModalSeletorDataOperacao';
 import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
@@ -46,6 +49,7 @@ export const AppLayout: React.FC = () => {
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
+  const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal: abrirModalData } = useDataOperacao();
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
@@ -484,8 +488,25 @@ export const AppLayout: React.FC = () => {
             </div>
           </nav>
 
-          {/* LADO DIREITO: MENU DO USUÁRIO */}
-          <div className="flex items-center gap-2 shrink-0 justify-end w-44 lg:w-52">
+          {/* LADO DIREITO: DATA OPERACIONAL (OWNER) & MENU DO USUÁRIO */}
+          <div className="flex items-center gap-2 shrink-0 justify-end">
+            {permissions.ehOwner && (
+              <button
+                type="button"
+                onClick={abrirModalData}
+                className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-sm border ${
+                  modoSimulacaoAtivo
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 shadow-amber-500/20'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 hover:border-slate-600'
+                }`}
+                title="Definir Data de Operação do Sistema (Exclusivo Owner)"
+              >
+                <Calendar className={`w-3.5 h-3.5 ${modoSimulacaoAtivo ? 'text-slate-950' : 'text-amber-400'}`} />
+                <span className="hidden xl:inline">{modoSimulacaoAtivo ? 'Simulando:' : 'Data:'}</span>
+                <span>{dataOperacaoFormatada}</span>
+              </button>
+            )}
+
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
@@ -507,6 +528,27 @@ export const AppLayout: React.FC = () => {
                     <p className="text-xs font-bold text-slate-100 truncate">{usuario?.nome_completo || 'Operador'}</p>
                     <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
+
+                  {permissions.ehOwner && (
+                    <div className="px-1 py-1 border-b border-slate-800 mb-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          abrirModalData();
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl hover:bg-slate-800 text-left text-xs font-bold text-amber-400 flex items-center justify-between transition cursor-pointer border border-amber-500/20"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Data Operacional</span>
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono">
+                          {dataOperacaoFormatada}
+                        </span>
+                      </button>
+                    </div>
+                  )}
 
                   <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
@@ -657,6 +699,9 @@ export const AppLayout: React.FC = () => {
           </Link>
         )}
       </nav>
+
+      {/* MODAL DE AJUSTE DA DATA OPERACIONAL (OWNER ONLY) */}
+      <ModalSeletorDataOperacao />
     </div>
   );
 };

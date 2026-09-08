@@ -180,17 +180,21 @@ const AppRotasInternas: React.FC = () => {
   );
 };
 
+import { DataOperacaoProvider } from './contexts/DataOperacaoContext';
+
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <CartProvider>
-          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <FeedbackProvider>
-              <AppRotasInternas />
-            </FeedbackProvider>
-          </Router>
-        </CartProvider>
+        <DataOperacaoProvider>
+          <CartProvider>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <FeedbackProvider>
+                <AppRotasInternas />
+              </FeedbackProvider>
+            </Router>
+          </CartProvider>
+        </DataOperacaoProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -17,11 +17,13 @@ import {
   Store,
   ExternalLink,
   LogOut,
-  X
+  X,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { useDataOperacao } from '../../contexts/DataOperacaoContext';
 import { supabase } from '../../lib/supabase';
 
 interface MobileMenuDrawerProps {
@@ -39,6 +41,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
   const location = useLocation();
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
+  const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal } = useDataOperacao();
   const [internalCount, setInternalCount] = useState<number>(0);
 
   // Monitorar contagem de pedidos confirmados em tempo real se não foi passado via prop
@@ -255,6 +258,31 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
         {/* Rodapé do Drawer */}
         <div className="p-3 border-t border-slate-200 space-y-2 bg-slate-50 shrink-0">
+          {permissions.ehOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                onFechar();
+                abrirModal();
+              }}
+              className={`flex items-center justify-between w-full p-2.5 rounded-xl text-xs font-bold border transition ${
+                modoSimulacaoAtivo
+                  ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Calendar className={`w-4 h-4 ${modoSimulacaoAtivo ? 'text-slate-950' : 'text-amber-500'}`} />
+                <span>{modoSimulacaoAtivo ? 'Simulando:' : 'Data Operacional:'}</span>
+              </div>
+              <span className={`px-2 py-0.5 rounded-lg text-[11px] font-mono ${
+                modoSimulacaoAtivo ? 'bg-slate-950 text-amber-300 font-black' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {dataOperacaoFormatada}
+              </span>
+            </button>
+          )}
+
           <a
             href={catalogUrl}
             target="_blank"

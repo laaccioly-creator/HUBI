@@ -52,6 +52,7 @@ import { PrintService } from '../services/printService';
 import { caixaService } from '../services/caixaService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -138,15 +139,15 @@ export const FinancasCaixa: React.FC = () => {
   // Relatórios Gerenciais Consolidados
   const [modalRelatorioConsolidado, setModalRelatorioConsolidado] = useState<boolean>(false);
   const [modalRelatorioSangriasDespesas, setModalRelatorioSangriasDespesas] = useState<boolean>(false);
-  const [periodoRelatorioInicio, setPeriodoRelatorioInicio] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [periodoRelatorioFim, setPeriodoRelatorioFim] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [periodoRelatorioInicio, setPeriodoRelatorioInicio] = useState<string>(obterDataOperacaoYMD());
+  const [periodoRelatorioFim, setPeriodoRelatorioFim] = useState<string>(obterDataOperacaoYMD());
 
   // Modais de Operação Geral (DRE / Nova Despesa Plano de Contas)
   const [modalNovaDespesa, setModalNovaDespesa] = useState<boolean>(false);
   const [descricao, setDescricao] = useState<string>('');
   const [categoria, setCategoria] = useState<string>('Fornecedor');
   const [valor, setValor] = useState<string>('');
-  const [dataVencimento, setDataVencimento] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dataVencimento, setDataVencimento] = useState<string>(obterDataOperacaoYMD());
   const [ehRecorrente, setEhRecorrente] = useState<boolean>(false);
   const [formaPagamentoDespesa, setFormaPagamentoDespesa] = useState<string>('dinheiro');
   const [salvandoDespesa, setSalvandoDespesa] = useState<boolean>(false);
@@ -453,8 +454,8 @@ export const FinancasCaixa: React.FC = () => {
           categoria: categoriaDespesaRapida,
           descricao: `Despesa Caixa (${sessaoAtiva.terminal_id}): ${descricaoDespesaRapida.trim()}`,
           valor: valNum,
-          data_vencimento: new Date().toISOString().split('T')[0],
-          data_pagamento: new Date().toISOString(),
+          data_vencimento: obterDataOperacaoYMD(),
+          data_pagamento: obterDataOperacaoISO(),
           status: 'pago',
           forma_pagamento: 'dinheiro'
         }]);
