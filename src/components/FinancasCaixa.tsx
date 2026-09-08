@@ -68,6 +68,8 @@ export const FinancasCaixa: React.FC = () => {
 
   const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [movimentacoesCaixaLoja, setMovimentacoesCaixaLoja] = useState<MovimentacaoCaixa[]>([]);
+  const [filtroPeriodoFluxo, setFiltroPeriodoFluxo] = useState<'sessao_atual' | 'hoje' | 'todos'>('sessao_atual');
   const [carregando, setCarregando] = useState<boolean>(true);
   const [abaAtiva, setAbaAtiva] = useState<'caixa_atual' | 'fluxo' | 'pagar' | 'historico_caixas'>('caixa_atual');
   const [modalDetalhesMetrica, setModalDetalhesMetrica] = useState<'entradas' | 'saidas' | 'pagar' | 'lucro' | null>(null);
@@ -181,6 +183,19 @@ export const FinancasCaixa: React.FC = () => {
         .order('criado_em', { ascending: false });
 
       if (pedData) setPedidos(pedData as unknown as Pedido[]);
+
+      // 2.5 Carregar movimentações de caixa da loja para indexação precisa de sessão
+      try {
+        const { data: movsData } = await supabase
+          .from('movimentacoes_caixa')
+          .select('*')
+          .eq('loja_id', loja.id)
+          .order('criado_em', { ascending: false });
+
+        if (movsData) setMovimentacoesCaixaLoja(movsData as MovimentacaoCaixa[]);
+      } catch (errMovs) {
+        console.warn('Aviso ao consultar movimentações de caixa:', errMovs);
+      }
 
       // 3. Carregar Sessão Ativa de Caixa do Terminal (Ciclo Transacional Independente de Meia-Noite)
       try {
@@ -622,12 +637,106 @@ export const FinancasCaixa: React.FC = () => {
       }
     });
 
+    // Mapeamento de pedidos para suas respectivas sessões de caixa através das movimentações
+    const pedidoSessaoMap = new Map<string, string>(); // pedido_id -> sessao_caixa_id
+    movimentacoesCaixaLoja.forEach(m => {
+      if (m.pedido_id && m.sessao_caixa_id) {
+        pedidoSessaoMap.set(m.pedido_id.toLowerCase(), m.sessao_caixa_id);
+      }
+    });
+
+    historicoSessoes.forEach(s => {
+      (s.movimentacoes || []).forEach(m => {
+        if (m.pedido_id && s.id) {
+          pedidoSessaoMap.set(m.pedido_id.toLowerCase(), s.id);
+        }
+      });
+    });
+
+    const timestampAberturaSessao = sessaoAtiva ? new Date(sessaoAtiva.aberto_em).getTime() : null;
+    const dataAberturaSessaoYMD = sessaoAtiva ? sessaoAtiva.aberto_em.split('T')[0] : null;
+    const dataOperacaoHojeYMD = obterDataOperacaoYMD();
+
+    // Filtro de escopo para pedidos
+    const pedidoPertenceAoEscopo = (p: Pedido): boolean => {
+      if (filtroPeriodoFluxo === 'todos') return true;
+
+      const sessaoDoPedido = p.id ? pedidoSessaoMap.get(p.id.toLowerCase()) : null;
+
+      if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva) {
+        // Se explicitamente vinculado a esta sessão ativa
+        if (sessaoDoPedido && sessaoDoPedido === sessaoAtiva.id) {
+          return true;
+        }
+
+        // Se registrado em outra sessão (ex: sessão anterior do dia anterior), NÃO pertence
+        if (sessaoDoPedido && sessaoDoPedido !== sessaoAtiva.id) {
+          return false;
+        }
+
+        // Se não possui registro de movimentação, verificar por data e horário de abertura
+        const dataPedidoIso = p.data_venda || p.criado_em || '';
+        const dataPedidoYMD = dataPedidoIso.split('T')[0];
+
+        // Não pode ser de data anterior à abertura da sessão
+        if (dataAberturaSessaoYMD && dataPedidoYMD < dataAberturaSessaoYMD) {
+          return false;
+        }
+
+        // Não pode ter sido criado antes da hora em que a sessão foi aberta
+        if (timestampAberturaSessao && dataPedidoIso) {
+          const timePedido = new Date(dataPedidoIso).getTime();
+          if (timePedido < timestampAberturaSessao) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      // Se filtro for 'hoje' ou se não houver sessão ativa
+      const dataPedidoIso = p.data_venda || p.criado_em || '';
+      const dataPedidoYMD = dataPedidoIso.split('T')[0];
+      return dataPedidoYMD === dataOperacaoHojeYMD;
+    };
+
+    // Filtro de escopo para transações financeiras
+    const transacaoPertenceAoEscopo = (t: TransacaoFinanceira, tipo: 'ENTRADA' | 'SAIDA'): boolean => {
+      if (filtroPeriodoFluxo === 'todos') return true;
+
+      // Contas a pagar pendentes podem ser visualizadas
+      if (tipo === 'SAIDA' && String(t.status || '').toLowerCase() === 'pendente') {
+        return true;
+      }
+
+      const dataTransacaoIso = t.data_pagamento || t.data_vencimento || t.criado_em || '';
+      const dataTransacaoYMD = dataTransacaoIso.split('T')[0];
+
+      if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva) {
+        if (dataAberturaSessaoYMD && dataTransacaoYMD < dataAberturaSessaoYMD) {
+          return false;
+        }
+        if (timestampAberturaSessao && dataTransacaoIso) {
+          const timeTr = new Date(dataTransacaoIso).getTime();
+          if (timeTr < timestampAberturaSessao) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      return dataTransacaoYMD === dataOperacaoHojeYMD;
+    };
+
     // Conjuntos para controle de duplicações estritas
     const pedidosContabilizados = new Set<string>();
     const transacoesIdsContabilizados = new Set<string>();
 
     // 1. Processar primeiro todos os pedidos válidos (Fonte de verdade oficial para VENDAS)
     pedidos.forEach(p => {
+      // Ignorar pedidos que não pertençam ao escopo do turno/dia selecionado
+      if (!pedidoPertenceAoEscopo(p)) return;
+
       // Ignorar e registrar pedidos cancelados para não puxar transações deles
       if (p.status === 'cancelado') {
         if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
@@ -729,11 +838,15 @@ export const FinancasCaixa: React.FC = () => {
     transacoes.forEach(t => {
       // Evitar duplicatas de ID na tabela de transações
       if (t.id && transacoesIdsContabilizados.has(t.id)) return;
-      if (t.id) transacoesIdsContabilizados.add(t.id);
 
       const tipo = String(t.tipo || '').toUpperCase() === 'SAIDA' || String(t.tipo || '').toLowerCase() === 'despesa'
         ? 'SAIDA'
         : 'ENTRADA';
+
+      // Ignorar transações que não pertençam ao escopo do turno/dia selecionado
+      if (!transacaoPertenceAoEscopo(t, tipo)) return;
+
+      if (t.id) transacoesIdsContabilizados.add(t.id);
 
       // SE FOR SAÍDA (Despesas, Fornecedores, Contas a Pagar):
       if (tipo === 'SAIDA') {
@@ -837,7 +950,7 @@ export const FinancasCaixa: React.FC = () => {
 
     // Ordenar por data decrescente
     return resultado.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-  }, [pedidos, transacoes]);
+  }, [pedidos, transacoes, sessaoAtiva, historicoSessoes, movimentacoesCaixaLoja, filtroPeriodoFluxo]);
 
   const totalReceitas = listaTransacoesUnificada
     .filter(t => t.tipo === 'ENTRADA' && (t.status === 'pago' || t.status === 'concluido' || t.status === 'concluído'))
@@ -1004,6 +1117,8 @@ export const FinancasCaixa: React.FC = () => {
           transacoes={transacoes}
           pedidos={pedidos}
           caixaAberto={null}
+          sessaoAtiva={sessaoAtiva}
+          historicoSessoes={historicoSessoes}
           carregando={carregando}
           onRecarregar={carregarFinanceiro}
           onAbrirCaixa={() => setModalAberturaCaixa(true)}
@@ -1234,60 +1349,123 @@ export const FinancasCaixa: React.FC = () => {
             <>
               {/* ABA 1 & 2: FLUXO GERAL / CONTAS A PAGAR */}
               {(abaAtiva === 'fluxo' || abaAtiva === 'pagar') && (
-                <div className="space-y-2">
-                  {listaTransacoesUnificada
-                    .filter(t => (abaAtiva === 'pagar' ? t.tipo === 'SAIDA' && t.status === 'pendente' : true))
-                    .map((tr) => (
-                      <div
-                        key={tr.id}
-                        className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                              tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                <div className="space-y-3">
+                  {abaAtiva === 'fluxo' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900/60 border border-slate-800/80 p-2.5 rounded-2xl">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {sessaoAtiva && (
+                          <button
+                            type="button"
+                            onClick={() => setFiltroPeriodoFluxo('sessao_atual')}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                              filtroPeriodoFluxo === 'sessao_atual'
+                                ? 'bg-emerald-500 text-white shadow-xs'
+                                : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
                             }`}
                           >
-                            {tr.tipo === 'ENTRADA' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                          </div>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span>Turno Atual ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setFiltroPeriodoFluxo('hoje')}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            filtroPeriodoFluxo === 'hoje'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Hoje
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFiltroPeriodoFluxo('todos')}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            filtroPeriodoFluxo === 'todos'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Todos os Registros
+                        </button>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-semibold px-2">
+                        {listaTransacoesUnificada.length} {listaTransacoesUnificada.length === 1 ? 'registro' : 'registros'}
+                      </span>
+                    </div>
+                  )}
 
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-100">{tr.descricao}</h4>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
-                              <span className="font-semibold text-slate-300">{tr.categoria}</span>
-                              {tr.formaPagamento && (
-                                <>
-                                  <span>•</span>
-                                  <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded uppercase font-bold text-[9px]">
-                                    {tr.formaPagamento}
+                  {listaTransacoesUnificada
+                    .filter(t => (abaAtiva === 'pagar' ? t.tipo === 'SAIDA' && t.status === 'pendente' : true)).length === 0 ? (
+                    <div className="text-center py-12 bg-slate-900/40 border border-slate-800/60 rounded-3xl p-6">
+                      <Layers className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                      <p className="text-slate-300 text-xs font-bold">
+                        {abaAtiva === 'pagar' ? 'Nenhuma conta a pagar pendente.' : 'Nenhuma movimentação registrada no período selecionado.'}
+                      </p>
+                      <p className="text-slate-500 text-[11px] mt-1 max-w-md mx-auto">
+                        {abaAtiva === 'pagar'
+                          ? 'Todas as contas e despesas operacionais estão em dia.'
+                          : sessaoAtiva && filtroPeriodoFluxo === 'sessao_atual'
+                          ? 'O caixa deste turno foi aberto com o fundo inicial informado e ainda não possui vendas ou despesas registradas.'
+                          : 'Não há entradas ou despesas cadastradas para os critérios aplicados.'}
+                      </p>
+                    </div>
+                  ) : (
+                    listaTransacoesUnificada
+                      .filter(t => (abaAtiva === 'pagar' ? t.tipo === 'SAIDA' && t.status === 'pendente' : true))
+                      .map((tr) => (
+                        <div
+                          key={tr.id}
+                          className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                              }`}
+                            >
+                              {tr.tipo === 'ENTRADA' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                            </div>
+
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-100">{tr.descricao}</h4>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
+                                <span className="font-semibold text-slate-300">{tr.categoria}</span>
+                                {tr.formaPagamento && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded uppercase font-bold text-[9px]">
+                                      {tr.formaPagamento}
+                                    </span>
+                                  </>
+                                )}
+                                <span>•</span>
+                                <span>{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
+                                {tr.ehRecorrente && (
+                                  <span className="text-indigo-400 flex items-center gap-0.5">
+                                    <Repeat className="w-2.5 h-2.5" /> Mensal
                                   </span>
-                                </>
-                              )}
-                              <span>•</span>
-                              <span>{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
-                              {tr.ehRecorrente && (
-                                <span className="text-indigo-400 flex items-center gap-0.5">
-                                  <Repeat className="w-2.5 h-2.5" /> Mensal
-                                </span>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="text-right shrink-0">
-                          <span
-                            className={`font-bold text-sm block ${
-                              tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
-                            }`}
-                          >
-                            {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
-                          </span>
-                          <span className="text-[10px] uppercase font-bold text-slate-500">
-                            {tr.status}
-                          </span>
+                          <div className="text-right shrink-0">
+                            <span
+                              className={`font-bold text-sm block ${
+                                tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
+                              }`}
+                            >
+                              {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] uppercase font-bold text-slate-500">
+                              {tr.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                  )}
                 </div>
               )}
 

@@ -44,7 +44,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { TransacaoFinanceira, Fornecedor, Pedido, Caixa } from '../types';
+import { TransacaoFinanceira, Fornecedor, Pedido, Caixa, SessaoCaixa } from '../types';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 
 export type SubTelaMobileFinance =
@@ -65,6 +65,8 @@ interface FinancasMobileProps {
   transacoes: TransacaoFinanceira[];
   pedidos: Pedido[];
   caixaAberto: Caixa | null;
+  sessaoAtiva?: SessaoCaixa | null;
+  historicoSessoes?: SessaoCaixa[];
   fornecedoresIniciais?: Fornecedor[];
   carregando: boolean;
   onRecarregar: () => Promise<void>;
@@ -120,6 +122,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
   transacoes,
   pedidos,
   caixaAberto,
+  sessaoAtiva,
+  historicoSessoes,
   carregando,
   onRecarregar,
   onAbrirCaixa,
@@ -265,12 +269,32 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
     const pedidosIds = new Set<string>();
     const pedidosNumeros = new Set<string>();
 
+    const pedidosSessoesFechadas = new Set<string>();
+    (historicoSessoes || []).forEach(s => {
+      if (s.status === 'FECHADO') {
+        (s.movimentacoes || []).forEach(m => {
+          if (m.pedido_id) pedidosSessoesFechadas.add(m.pedido_id.toLowerCase());
+        });
+      }
+    });
+
+    const timestampAbertura = sessaoAtiva ? new Date(sessaoAtiva.aberto_em).getTime() : null;
+    const dataAberturaYMD = sessaoAtiva ? sessaoAtiva.aberto_em.split('T')[0] : null;
+
     // 1. Vendas de Pedidos
     (pedidos || []).forEach(ped => {
       if (ped.id) pedidosIds.add(ped.id.toLowerCase());
       if (ped.numero_pedido != null) pedidosNumeros.add(String(ped.numero_pedido));
 
       if (ped.status === 'cancelado') return;
+
+      // Se há sessão ativa, excluir pedidos de sessões anteriores ou de dias anteriores
+      if (sessaoAtiva) {
+        if (ped.id && pedidosSessoesFechadas.has(ped.id.toLowerCase())) return;
+        const dataPed = ped.data_venda || ped.criado_em || '';
+        if (dataAberturaYMD && dataPed.split('T')[0] < dataAberturaYMD) return;
+        if (timestampAbertura && dataPed && new Date(dataPed).getTime() < timestampAbertura) return;
+      }
 
       // Status do pagamento do pedido
       const statusPag = ped.status_pagamento || (Number(ped.saldo_devedor) <= 0 && Number(ped.valor_pago) > 0 ? 'pago' : Number(ped.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
@@ -319,6 +343,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
         if ((tr.categoria === 'Venda' || tr.categoria === 'Venda Balcão / PDV') && (tr.pedido_id || uuidMatch || numMatch)) return;
 
+        // Se há sessão ativa, não trazer entradas manuais de dias anteriores
+        if (sessaoAtiva) {
+          const dataIsoTr = tr.data_pagamento || tr.data_vencimento || tr.criado_em || '';
+          if (dataAberturaYMD && dataIsoTr.split('T')[0] < dataAberturaYMD) return;
+          if (timestampAbertura && dataIsoTr && new Date(dataIsoTr).getTime() < timestampAbertura) return;
+        }
+
         const dataIso = tr.data_pagamento || tr.data_vencimento || tr.criado_em || '';
         const dataFormatada = dataIso.split('T')[0];
         list.push({
@@ -334,20 +365,31 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       });
 
     return list.sort((a, b) => b.data.localeCompare(a.data));
-  }, [pedidos, transacoes]);
+  }, [pedidos, transacoes, sessaoAtiva, historicoSessoes]);
 
   // Lista de Saídas
   const todasSaidas = useMemo(() => {
     const ids = new Set<string>();
+    const timestampAbertura = sessaoAtiva ? new Date(sessaoAtiva.aberto_em).getTime() : null;
+    const dataAberturaYMD = sessaoAtiva ? sessaoAtiva.aberto_em.split('T')[0] : null;
+
     return (transacoes || [])
       .filter(t => {
         if (t.tipo !== 'SAIDA') return false;
         if (t.id && ids.has(t.id)) return false;
+
+        // Se sessão ativa e a despesa já está paga, checar se pertence a este turno
+        if (sessaoAtiva && String(t.status || '').toLowerCase() !== 'pendente') {
+          const dataIsoTr = t.data_pagamento || t.criado_em || t.data_vencimento || '';
+          if (dataAberturaYMD && dataIsoTr.split('T')[0] < dataAberturaYMD) return false;
+          if (timestampAbertura && dataIsoTr && new Date(dataIsoTr).getTime() < timestampAbertura) return false;
+        }
+
         if (t.id) ids.add(t.id);
         return true;
       })
       .sort((a, b) => (b.data_vencimento || '').localeCompare(a.data_vencimento || ''));
-  }, [transacoes]);
+  }, [transacoes, sessaoAtiva]);
 
   // Contas a Pagar Filtradas (TELA002)
   const hojeStr = new Date().toISOString().split('T')[0];

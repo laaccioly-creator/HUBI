@@ -931,7 +931,7 @@ export const EstatisticasAnalytics: React.FC = () => {
             { id: 'ticket_medio', label: 'Ticket Médio' },
             { id: 'lucro', label: 'Lucro Real' },
             { id: 'taxa_venda', label: 'Taxa Venda' },
-            { id: 'meio_pagamento', label: 'Pagamentos' },
+            { id: 'meio_pagamento', label: 'Forma de Pagamento' },
             { id: 'ranking_produtos', label: 'Top Produtos' },
             { id: 'ranking_clientes', label: 'Top Clientes' },
             { id: 'vendas_usuario', label: 'Por Vendedor' }
@@ -954,44 +954,43 @@ export const EstatisticasAnalytics: React.FC = () => {
         {/* Conteúdo com Scroll */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Card de Destaque da Métrica Selecionada */}
-          <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {metricaSelecionada === 'faturamento' && 'Faturamento Total'}
-              {metricaSelecionada === 'vendas' && 'Número de Vendas Concluídas'}
-              {metricaSelecionada === 'ticket_medio' && 'Ticket Médio por Venda'}
-              {metricaSelecionada === 'lucro' && 'Lucro Líquido Real'}
-              {metricaSelecionada === 'taxa_venda' && 'Total em Taxas de Venda'}
-              {metricaSelecionada === 'meio_pagamento' && 'Distribuição por Meio de Pagamento'}
-              {metricaSelecionada === 'ranking_produtos' && 'Produtos Mais Vendidos'}
-              {metricaSelecionada === 'ranking_clientes' && 'Clientes Mais Fiéis'}
-              {metricaSelecionada === 'vendas_usuario' && 'Desempenho por Colaborador'}
-            </span>
+          {metricaSelecionada !== 'meio_pagamento' && (
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                {metricaSelecionada === 'faturamento' && 'Faturamento Total'}
+                {metricaSelecionada === 'vendas' && 'Número de Vendas Concluídas'}
+                {metricaSelecionada === 'ticket_medio' && 'Ticket Médio por Venda'}
+                {metricaSelecionada === 'lucro' && 'Lucro Líquido Real'}
+                {metricaSelecionada === 'taxa_venda' && 'Total em Taxas de Venda'}
+                {metricaSelecionada === 'ranking_produtos' && 'Produtos Mais Vendidos'}
+                {metricaSelecionada === 'ranking_clientes' && 'Clientes Mais Fiéis'}
+                {metricaSelecionada === 'vendas_usuario' && 'Desempenho por Colaborador'}
+              </span>
 
-            <div className="text-2xl font-black text-slate-900">
-              {metricaSelecionada === 'faturamento' && `R$ ${faturamentoTotal.toFixed(2)}`}
-              {metricaSelecionada === 'vendas' && `${totalVendas} pedidos`}
-              {metricaSelecionada === 'ticket_medio' && `R$ ${ticketMedio.toFixed(2)}`}
-              {metricaSelecionada === 'lucro' && `R$ ${lucroTotal.toFixed(2)}`}
-              {metricaSelecionada === 'taxa_venda' && `R$ ${taxasVendaTotal.toFixed(2)}`}
-              {metricaSelecionada === 'meio_pagamento' && `R$ ${faturamentoTotal.toFixed(2)}`}
-              {metricaSelecionada === 'ranking_produtos' && `${rankingProdutos.length} produtos vendidos`}
-              {metricaSelecionada === 'ranking_clientes' && `${rankingClientes.length} clientes ativos`}
-              {metricaSelecionada === 'vendas_usuario' && `${vendasPorUsuario.length} colaboradores`}
+              <div className="text-2xl font-black text-slate-900">
+                {metricaSelecionada === 'faturamento' && `R$ ${faturamentoTotal.toFixed(2)}`}
+                {metricaSelecionada === 'vendas' && `${totalVendas} pedidos`}
+                {metricaSelecionada === 'ticket_medio' && `R$ ${ticketMedio.toFixed(2)}`}
+                {metricaSelecionada === 'lucro' && `R$ ${lucroTotal.toFixed(2)}`}
+                {metricaSelecionada === 'taxa_venda' && `R$ ${taxasVendaTotal.toFixed(2)}`}
+                {metricaSelecionada === 'ranking_produtos' && `${rankingProdutos.length} produtos vendidos`}
+                {metricaSelecionada === 'ranking_clientes' && `${rankingClientes.length} clientes ativos`}
+                {metricaSelecionada === 'vendas_usuario' && `${vendasPorUsuario.length} colaboradores`}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Margem de Lucro: <strong className="text-emerald-600 font-bold">{faturamentoTotal > 0 ? ((lucroTotal / faturamentoTotal) * 100).toFixed(1) : '0.0'}%</strong></span>
+                <span>Ticket: <strong className="text-slate-700 font-bold">R$ {ticketMedio.toFixed(2)}</strong></span>
+              </div>
             </div>
+          )}
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Margem de Lucro: <strong className="text-emerald-600 font-bold">{faturamentoTotal > 0 ? ((lucroTotal / faturamentoTotal) * 100).toFixed(1) : '0.0'}%</strong></span>
-              <span>Ticket: <strong className="text-slate-700 font-bold">R$ {ticketMedio.toFixed(2)}</strong></span>
-            </div>
-          </div>
-
-          {/* PAINEL TEMPORAL (GRÁFICO DE LINHA/ÁREA + TABELA) PARA FATURAMENTO, VENDAS, TICKET, LUCRO, TAXA, PAGAMENTO */}
+          {/* PAINEL TEMPORAL (GRÁFICO DE LINHA/ÁREA + TABELA) PARA FATURAMENTO, VENDAS, TICKET, LUCRO, TAXA */}
           {(metricaSelecionada === 'faturamento' ||
             metricaSelecionada === 'vendas' ||
             metricaSelecionada === 'ticket_medio' ||
             metricaSelecionada === 'lucro' ||
-            metricaSelecionada === 'taxa_venda' ||
-            metricaSelecionada === 'meio_pagamento') && (
+            metricaSelecionada === 'taxa_venda') && (
             <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
               {/* Título do Gráfico & Seletor de Agrupamento Temporal */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
@@ -1040,7 +1039,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                         {agrupamentoSelecionado === 'mes' && 'Mês'}
                       </th>
                       <th className="py-2 px-2.5 text-right">Faturamento</th>
-                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
+                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
                         <>
                           <th className="py-2 px-2.5 text-right">Vendas</th>
                           <th className="py-2 px-2.5 text-right">Ticket</th>
@@ -1072,7 +1071,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                             <td className="py-2 px-2.5 text-right font-medium text-slate-700">
                               R$ {linha.faturamento.toFixed(2)}
                             </td>
-                            {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
+                            {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
                               <>
                                 <td className="py-2 px-2.5 text-right text-slate-600">
                                   {linha.vendas}
@@ -1101,12 +1100,12 @@ export const EstatisticasAnalytics: React.FC = () => {
             </div>
           )}
 
-          {/* CARD DE MEIO DE PAGAMENTO (DONUT + TABELA CONSOLIDADA) */}
+          {/* CARD DE FORMA DE PAGAMENTO (DONUT + TABELA CONSOLIDADA) */}
           {metricaSelecionada === 'meio_pagamento' && (
             <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
               <div className="border-b border-slate-100 pb-2">
                 <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Distribuição Consolidada por Meio de Pagamento
+                  Distribuição Consolidada por Forma de Pagamento
                 </h3>
                 <p className="text-[11px] text-slate-500">Participação de cada forma nas vendas do período.</p>
               </div>
@@ -1543,7 +1542,7 @@ export const EstatisticasAnalytics: React.FC = () => {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Meio de Pagamento</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Forma de Pagamento</span>
                 <div className="w-5 h-5 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin-slow" />
               </div>
               <div className="text-base font-black text-slate-100 mt-1">
@@ -1627,13 +1626,12 @@ export const EstatisticasAnalytics: React.FC = () => {
         {/* COLUNA DIREITA: DETALHE / GRÁFICOS / TABELAS */}
         <div className="flex-1 bg-slate-950 p-4 md:p-6 overflow-y-auto space-y-6">
           
-          {/* PAINEL PARA FATURAMENTO, VENDAS, TICKET MÉDIO, LUCRO, TAXA DE VENDA, MEIO DE PAGAMENTO */}
+          {/* PAINEL PARA FATURAMENTO, VENDAS, TICKET MÉDIO, LUCRO, TAXA DE VENDA */}
           {(metricaSelecionada === 'faturamento' ||
             metricaSelecionada === 'vendas' ||
             metricaSelecionada === 'ticket_medio' ||
             metricaSelecionada === 'lucro' ||
-            metricaSelecionada === 'taxa_venda' ||
-            metricaSelecionada === 'meio_pagamento') && (
+            metricaSelecionada === 'taxa_venda') && (
             <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 space-y-6">
               
               {/* Título & Abas de Agrupamento Temporal */}
@@ -1644,7 +1642,6 @@ export const EstatisticasAnalytics: React.FC = () => {
                   {metricaSelecionada === 'ticket_medio' && 'Ticket Médio'}
                   {metricaSelecionada === 'lucro' && 'Lucro Real'}
                   {metricaSelecionada === 'taxa_venda' && 'Taxa de Venda'}
-                  {metricaSelecionada === 'meio_pagamento' && 'Meio de Pagamento'}
                 </h2>
 
                 <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -1680,9 +1677,9 @@ export const EstatisticasAnalytics: React.FC = () => {
                         {agrupamentoSelecionado === 'mes' && 'Mês'}
                       </th>
                       <th className="py-2 px-3 text-right">
-                        {metricaSelecionada === 'meio_pagamento' ? 'Faturamento Total' : 'Faturamento'}
+                        Faturamento
                       </th>
-                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
+                      {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
                         <>
                           <th className="py-2 px-3 text-right">Vendas</th>
                           <th className="py-2 px-3 text-right">Ticket Médio</th>
@@ -1712,7 +1709,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                           <td className="py-2.5 px-3 text-right font-medium text-slate-200">
                             R$ {linha.faturamento.toFixed(2)}
                           </td>
-                          {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio' || metricaSelecionada === 'meio_pagamento') && (
+                          {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
                             <>
                               <td className="py-2.5 px-3 text-right text-slate-300">
                                 {linha.vendas}
@@ -1738,71 +1735,74 @@ export const EstatisticasAnalytics: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
 
-              {/* Se Meio de Pagamento estiver selecionado, exibir também a distribuição por forma de pagamento */}
-              {metricaSelecionada === 'meio_pagamento' && (
-                <div className="border-t border-slate-800 pt-6 space-y-6">
-                  <div className="border-b border-slate-800 pb-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-                      Distribuição Consolidada por Forma de Pagamento
-                    </h3>
-                  </div>
+          {/* PAINEL EXCLUSIVO PARA FORMA DE PAGAMENTO (APENAS DISTRIBUIÇÃO CONSOLIDADA) */}
+          {metricaSelecionada === 'meio_pagamento' && (
+            <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-5 space-y-6">
+              <div className="border-b border-slate-800 pb-3">
+                <h2 className="text-base font-extrabold text-slate-100">
+                  Distribuição Consolidada por Forma de Pagamento
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Participação de cada forma de pagamento nas vendas do período.
+                </p>
+              </div>
 
-                  {/* Gráfico Donut */}
-                  {renderDonutChart(dadosMeiosPagamento)}
+              {/* Gráfico Donut */}
+              {renderDonutChart(dadosMeiosPagamento)}
 
-                  {/* Tabela de Meios de Pagamento */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
-                          <th className="py-2 px-3">Forma de Pagamento</th>
-                          <th className="py-2 px-3 text-center">Qtd. Transações</th>
-                          <th className="py-2 px-3 text-right">Valor Total</th>
-                          <th className="py-2 px-3 text-right">Participação (%)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/60">
-                        {dadosMeiosPagamento.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="text-center py-6 text-slate-500">
-                              Nenhum pagamento registrado no período.
-                            </td>
-                          </tr>
-                        ) : (
-                          dadosMeiosPagamento.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-800/40 transition">
-                              <td className="py-2.5 px-3 font-semibold text-slate-200 flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
-                                <span>{item.nome}</span>
-                              </td>
-                              <td className="py-2.5 px-3 text-center text-slate-300">
-                                {item.qtd}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-medium text-slate-200">
-                                R$ {item.valor.toFixed(2)}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-bold text-slate-300">
-                                {item.percentual.toFixed(2)}%
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-slate-700 font-bold text-slate-100 bg-slate-900/60">
-                          <td className="py-3 px-3">Total</td>
-                          <td className="py-3 px-3 text-center">{dadosMeiosPagamento.reduce((acc, i) => acc + i.qtd, 0)}</td>
-                          <td className="py-3 px-3 text-right text-emerald-400">
-                            R$ {dadosMeiosPagamento.reduce((acc, i) => acc + i.valor, 0).toFixed(2)}
+              {/* Tabela de Formas de Pagamento */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                      <th className="py-2 px-3">Forma de Pagamento</th>
+                      <th className="py-2 px-3 text-center">Qtd. Transações</th>
+                      <th className="py-2 px-3 text-right">Valor Total</th>
+                      <th className="py-2 px-3 text-right">Participação (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {dadosMeiosPagamento.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-6 text-slate-500">
+                          Nenhum pagamento registrado no período.
+                        </td>
+                      </tr>
+                    ) : (
+                      dadosMeiosPagamento.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-800/40 transition">
+                          <td className="py-2.5 px-3 font-semibold text-slate-200 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
+                            <span>{item.nome}</span>
                           </td>
-                          <td className="py-3 px-3 text-right">100%</td>
+                          <td className="py-2.5 px-3 text-center text-slate-300">
+                            {item.qtd}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-medium text-slate-200">
+                            R$ {item.valor.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-slate-300">
+                            {item.percentual.toFixed(2)}%
+                          </td>
                         </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
+                      ))
+                    )}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-700 font-bold text-slate-100 bg-slate-900/60">
+                      <td className="py-3 px-3">Total</td>
+                      <td className="py-3 px-3 text-center">{dadosMeiosPagamento.reduce((acc, i) => acc + i.qtd, 0)}</td>
+                      <td className="py-3 px-3 text-right text-emerald-400">
+                        R$ {dadosMeiosPagamento.reduce((acc, i) => acc + i.valor, 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3 text-right">100%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           )}
 
