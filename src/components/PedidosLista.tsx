@@ -72,6 +72,8 @@ interface HistoricoItem {
   status: string;
   data: string;
   usuario?: string;
+  tipo?: 'status' | 'edicao' | 'criacao';
+  detalhes?: string;
 }
 
 export const PedidosLista: React.FC = () => {
@@ -182,42 +184,58 @@ export const PedidosLista: React.FC = () => {
   const extrairHistoricoPedido = (pedido: Pedido): HistoricoItem[] => {
     const itens: HistoricoItem[] = [];
     
-    // 1. Tentar ler do metadados.historico_status
+    // 1. Status de metadados.historico_status
     if (pedido.metadados && typeof pedido.metadados === 'object') {
       const historicoMeta = (pedido.metadados as any).historico_status;
       if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
-        return historicoMeta;
+        historicoMeta.forEach((it: any) => {
+          itens.push({
+            status: it.status,
+            data: it.data,
+            usuario: it.usuario,
+            tipo: 'status'
+          });
+        });
       }
     }
 
-    // 2. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]-->
-    try {
-      const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
-      if (match && match[1]) {
-        const parsed = JSON.parse(match[1]);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+    // 2. Fallback inicial se não houver histórico estruturado
+    if (itens.length === 0) {
+      if (pedido.criado_em) {
+        itens.push({
+          status: 'pendente',
+          data: pedido.criado_em,
+          usuario: pedido.vendedor?.nome_completo || 'Sistema',
+          tipo: 'criacao'
+        });
       }
-    } catch (e) {
-      // fallback
+      if (pedido.status && pedido.status !== 'pendente') {
+        itens.push({
+          status: pedido.status,
+          data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
+          usuario: pedido.vendedor?.nome_completo || 'Operador',
+          tipo: 'status'
+        });
+      }
     }
 
-    if (pedido.criado_em) {
-      itens.push({
-        status: 'pendente',
-        data: pedido.criado_em,
-        usuario: pedido.vendedor?.nome_completo || 'Sistema'
-      });
+    // 3. Histórico de edições do pedido (metadados.historico_edicoes)
+    if (pedido.metadados && typeof pedido.metadados === 'object') {
+      const historicoEdicoes = (pedido.metadados as any).historico_edicoes;
+      if (Array.isArray(historicoEdicoes) && historicoEdicoes.length > 0) {
+        historicoEdicoes.forEach((ed: any) => {
+          itens.push({
+            status: ed.acao || 'Edição no PDV',
+            data: ed.data,
+            usuario: ed.usuario_nome || 'Operador',
+            tipo: 'edicao',
+            detalhes: ed.detalhes
+          });
+        });
+      }
     }
-    if (pedido.status && pedido.status !== 'pendente') {
-      itens.push({
-        status: pedido.status,
-        data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
-        usuario: pedido.vendedor?.nome_completo || 'Operador'
-      });
-    }
-    return itens;
+
+    return itens.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
   };
 
   const adicionarHistoricoMetadados = (pedido: Pedido | null | undefined, novoStatus: string, usuarioNome?: string): Record<string, any> => {
@@ -225,7 +243,8 @@ export const PedidosLista: React.FC = () => {
     const novoItem: HistoricoItem = {
       status: novoStatus,
       data: new Date().toISOString(),
-      usuario: usuarioNome || 'Operador'
+      usuario: usuarioNome || 'Operador',
+      tipo: 'status'
     };
 
     const historicoAtualizado = [...historicoAtual, novoItem];
@@ -632,12 +651,12 @@ export const PedidosLista: React.FC = () => {
     setTimeout(() => setCopiado(false), 2000);
   };
 
-  const handleEditarPedido = (pedido: Pedido) => {
+  const handleEditarPedido = async (pedido: Pedido) => {
     if (pedido.status !== 'pendente') {
       mostrarAviso('A alteração completa de produtos só é permitida para pedidos com status Pendente.', 'Edição Restrita');
       return;
     }
-    carregarPedidoParaEdicao(pedido);
+    await carregarPedidoParaEdicao(pedido);
     navigate('/pos');
   };
 
@@ -829,13 +848,28 @@ export const PedidosLista: React.FC = () => {
                   <span>Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}</span>
                   <span className="text-emerald-400 font-bold text-lg">Total R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}</span>
                 </h1>
-                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                  <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
-                  {pedidoSelecionado.vendedor?.nome_completo && (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-0.5">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
+                  </span>
+                  {pedidoSelecionado.origem === 'catalogo_online' ? (
                     <>
                       <span>•</span>
-                      <span>{pedidoSelecionado.vendedor.nome_completo}</span>
+                      <span className="text-sky-400 font-semibold">Origem: Catálogo Online</span>
+                    </>
+                  ) : pedidoSelecionado.vendedor?.nome_completo ? (
+                    <>
+                      <span>•</span>
+                      <span>Vendedor: {pedidoSelecionado.vendedor.nome_completo}</span>
+                    </>
+                  ) : null}
+                  {(pedidoSelecionado.metadados as any)?.ultimo_editor?.nome && (
+                    <>
+                      <span>•</span>
+                      <span className="text-amber-400/90 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
+                        Última edição por {(pedidoSelecionado.metadados as any).ultimo_editor.nome}
+                      </span>
                     </>
                   )}
                 </div>
@@ -1220,22 +1254,30 @@ export const PedidosLista: React.FC = () => {
                 <div className="space-y-3 text-xs">
                   {extrairHistoricoPedido(pedidoSelecionado).map((item, idx, arr) => {
                     const isLast = idx === arr.length - 1;
-                    const rotuloStatus = ROTULOS_STATUS_PEDIDO[item.status] || item.status;
+                    const isEdicao = item.tipo === 'edicao';
+                    const rotuloStatus = isEdicao ? (item.status || 'Edição no Pedido') : (ROTULOS_STATUS_PEDIDO[item.status] || item.status);
                     return (
                       <div key={idx} className="flex items-start gap-2.5">
                         <div
                           className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
-                            isLast ? 'bg-emerald-400 ring-4 ring-emerald-400/20' : 'bg-slate-600'
+                            isEdicao
+                              ? 'bg-amber-400 ring-4 ring-amber-400/20'
+                              : isLast
+                              ? 'bg-emerald-400 ring-4 ring-emerald-400/20'
+                              : 'bg-slate-600'
                           }`}
                         />
                         <div>
-                          <p className={`font-bold capitalize ${isLast ? 'text-emerald-400' : 'text-slate-300'}`}>
+                          <p className={`font-bold capitalize ${isEdicao ? 'text-amber-400' : isLast ? 'text-emerald-400' : 'text-slate-300'}`}>
                             {rotuloStatus}
                           </p>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-normal">
                             <span>{formatarData(item.data)}</span>
                             {item.usuario && <span>• Por {item.usuario}</span>}
                           </div>
+                          {item.detalhes && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">{item.detalhes}</p>
+                          )}
                         </div>
                       </div>
                     );
@@ -1434,9 +1476,18 @@ export const PedidosLista: React.FC = () => {
                         </td>
 
                         <td className="py-3.5 px-4 whitespace-nowrap text-slate-400">
-                          <div className="flex items-center gap-1.5">
-                            <User className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{pedido.vendedor?.nome_completo || 'Catálogo Online'}</span>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 text-slate-500" />
+                              <span className={pedido.origem === 'catalogo_online' ? 'text-sky-400 font-semibold' : ''}>
+                                {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
+                              </span>
+                            </div>
+                            {(pedido.metadados as any)?.ultimo_editor?.nome && (
+                              <span className="text-[10px] text-amber-400/80">
+                                Editado por {(pedido.metadados as any).ultimo_editor.nome}
+                              </span>
+                            )}
                           </div>
                         </td>
 

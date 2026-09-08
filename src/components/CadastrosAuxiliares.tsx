@@ -57,7 +57,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const permissions = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
+  const { mostrarSucesso, mostrarErro, mostrarAviso, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
 
   useEffect(() => {
     if (!permissions.podeAcessarAuxiliares) {
@@ -707,22 +707,78 @@ export const CadastrosAuxiliares: React.FC = () => {
   ]);
 
   const isDirtyPrecificacao = Boolean(snapshotPrecificacaoInicial && snapshotPrecificacaoAtual !== snapshotPrecificacaoInicial);
+  const isDirtyCategoria = modalCategoriaAberta && Boolean(
+    catNome.trim() && (!catEditando || catNome.trim().toUpperCase() !== catEditando.nome || (catIcone.trim() || '📦') !== (catEditando.icone || '📦'))
+  );
+  const isDirtyUnidade = modalUnidadeAberta && Boolean(
+    (unidadeSigla.trim() || unidadeNome.trim()) && (!unidadeEditando || unidadeSigla.trim() !== unidadeEditando.sigla || unidadeNome.trim() !== unidadeEditando.nome)
+  );
+  const isDirtyFornecedor = modalFornecedorAberta && Boolean(
+    (fornNome.trim() || fornDoc.trim() || fornWhatsapp.trim()) && (!fornecedorEditando || fornNome.trim() !== fornecedorEditando.nome || fornDoc.trim() !== (fornecedorEditando.numero_documento || '') || fornWhatsapp.trim() !== (fornecedorEditando.whatsapp || ''))
+  );
+  const isDirtyPagamento = modalPagamentoAberta && Boolean(
+    (pagNome.trim() || pagTipo !== 'dinheiro') && (!pagEditando || pagNome.trim() !== pagEditando.nome || pagTipo !== pagEditando.tipo)
+  );
+
+  const isDirtyGeral = isDirtyPrecificacao || isDirtyCategoria || isDirtyUnidade || isDirtyFornecedor || isDirtyPagamento;
+
+  useEffect(() => {
+    setTemAlteracoesNaoSalvas(isDirtyGeral);
+    return () => {
+      setTemAlteracoesNaoSalvas(false);
+    };
+  }, [isDirtyGeral, setTemAlteracoesNaoSalvas]);
 
   // Esc key listener para voltar ou fechar modais
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (modalCategoriaAberta) { setModalCategoriaAberta(false); return; }
-        if (modalUnidadeAberta) { setModalUnidadeAberta(false); return; }
-        if (modalFornecedorAberta) { setModalFornecedorAberta(false); return; }
-        if (modalPagamentoAberta) { setModalPagamentoAberta(false); return; }
-        if (modalSecaoAberta) { setModalSecaoAberta(null); setBusca(''); return; }
-        navigate(-1);
+        if (modalCategoriaAberta) {
+          if (isDirtyCategoria) {
+            verificarSaidaComConfirmacao(() => { setModalCategoriaAberta(false); setCatEditando(null); setCatNome(''); });
+          } else {
+            setModalCategoriaAberta(false); setCatEditando(null); setCatNome('');
+          }
+          return;
+        }
+        if (modalUnidadeAberta) {
+          if (isDirtyUnidade) {
+            verificarSaidaComConfirmacao(() => { setModalUnidadeAberta(false); setUnidadeEditando(null); setUnidadeSigla(''); setUnidadeNome(''); });
+          } else {
+            setModalUnidadeAberta(false); setUnidadeEditando(null); setUnidadeSigla(''); setUnidadeNome('');
+          }
+          return;
+        }
+        if (modalFornecedorAberta) {
+          if (isDirtyFornecedor) {
+            verificarSaidaComConfirmacao(() => { setModalFornecedorAberta(false); setFornecedorEditando(null); setFornNome(''); setFornDoc(''); setFornWhatsapp(''); });
+          } else {
+            setModalFornecedorAberta(false); setFornecedorEditando(null); setFornNome(''); setFornDoc(''); setFornWhatsapp('');
+          }
+          return;
+        }
+        if (modalPagamentoAberta) {
+          if (isDirtyPagamento) {
+            verificarSaidaComConfirmacao(() => { setModalPagamentoAberta(false); setPagEditando(null); setPagNome(''); });
+          } else {
+            setModalPagamentoAberta(false); setPagEditando(null); setPagNome('');
+          }
+          return;
+        }
+        if (modalSecaoAberta) {
+          if (modalSecaoAberta === 'precificacao' && isDirtyPrecificacao) {
+            verificarSaidaComConfirmacao(() => { setModalSecaoAberta(null); setBusca(''); });
+          } else {
+            setModalSecaoAberta(null); setBusca('');
+          }
+          return;
+        }
+        verificarSaidaComConfirmacao(() => navigate(-1));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalCategoriaAberta, modalUnidadeAberta, modalFornecedorAberta, modalPagamentoAberta, modalSecaoAberta, navigate]);
+  }, [modalCategoriaAberta, modalUnidadeAberta, modalFornecedorAberta, modalPagamentoAberta, modalSecaoAberta, isDirtyCategoria, isDirtyUnidade, isDirtyFornecedor, isDirtyPagamento, isDirtyPrecificacao, navigate, verificarSaidaComConfirmacao]);
 
   // Filtros de busca
   const categoriasFiltradas = categorias.filter(c =>
@@ -858,7 +914,7 @@ export const CadastrosAuxiliares: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate(-1)}
+                onClick={() => verificarSaidaComConfirmacao(() => navigate(-1))}
                 className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
                 title="Voltar"
               >

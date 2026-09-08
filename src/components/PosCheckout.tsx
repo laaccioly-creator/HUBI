@@ -81,7 +81,7 @@ export const PosCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
-  const { mostrarSucesso, mostrarAviso, mostrarErro, setTemAlteracoesNaoSalvas } = useFeedbackModal();
+  const { mostrarSucesso, mostrarAviso, mostrarErro, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
   const {
     itens,
     clienteSelecionado,
@@ -96,6 +96,8 @@ export const PosCheckout: React.FC = () => {
     total,
     totalItens,
     pedidoEmEdicao,
+    temAlteracoesPedido,
+    resetarSnapshotPedido,
     adicionarItem,
     removerItem,
     atualizarQuantidade,
@@ -112,15 +114,15 @@ export const PosCheckout: React.FC = () => {
   } = useCart();
 
   useEffect(() => {
-    if (pedidoEmEdicao && itens.length > 0) {
-      setTemAlteracoesNaoSalvas(true);
+    if (pedidoEmEdicao) {
+      setTemAlteracoesNaoSalvas(temAlteracoesPedido);
     } else {
-      setTemAlteracoesNaoSalvas(false);
+      setTemAlteracoesNaoSalvas(itens.length > 0);
     }
     return () => {
       setTemAlteracoesNaoSalvas(false);
     };
-  }, [pedidoEmEdicao, itens.length, setTemAlteracoesNaoSalvas]);
+  }, [pedidoEmEdicao, temAlteracoesPedido, itens.length, setTemAlteracoesNaoSalvas]);
 
   const {
     isOnline,
@@ -397,19 +399,50 @@ export const PosCheckout: React.FC = () => {
         } catch (e) {}
       }
 
+      const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
+        ? metaExistente.historico_edicoes
+        : [];
+
+      const novaEntradaHistorico = pedidoEmEdicao ? {
+        data: dataIso,
+        usuario_id: usuario?.id || null,
+        usuario_nome: usuario?.nome_completo || 'Operador',
+        acao: 'Edição de itens/valores no PDV'
+      } : null;
+
       const novosMetadados: Record<string, any> = {
         ...metaExistente,
+        ...(pedidoEmEdicao ? {
+          ultimo_editor: {
+            usuario_id: usuario?.id || null,
+            usuario_nome: usuario?.nome_completo || 'Operador',
+            data: dataIso
+          },
+          historico_edicoes: novaEntradaHistorico ? [...historicoExistente, novaEntradaHistorico] : historicoExistente
+        } : {}),
         ...(tipoDesconto === 'percentual' && descontoPercentual > 0 ? { desconto_percentual: descontoPercentual } : {})
       };
       if (tipoDesconto !== 'percentual') {
         delete novosMetadados.desconto_percentual;
       }
 
+      const vendedorIdFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.vendedor_id ?? null)
+        : vendedorIdSanitizado;
+
+      const origemFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.origem || 'pdv_desktop')
+        : 'pdv_desktop';
+
+      const dataVendaFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.data_venda || dataIso)
+        : dataIso;
+
       const dadosBasePedido = {
         loja_id: loja.id,
-        vendedor_id: vendedorIdSanitizado,
+        vendedor_id: vendedorIdFinal,
         cliente_id: clienteIdSanitizado,
-        origem: 'pdv_desktop' as const,
+        origem: origemFinal as any,
         tabela_preco_aplicada: tabelaPrecoCalculada,
         status: statusFinal as any,
         status_pagamento: 'aguardando_pagamento' as const,
@@ -422,7 +455,7 @@ export const PosCheckout: React.FC = () => {
         fiado_quitado: false,
         observacoes: obsLimpa || null,
         metadados: Object.keys(novosMetadados).length > 0 ? novosMetadados : null,
-        data_venda: dataIso
+        data_venda: dataVendaFinal
       };
 
       const itensFormatados = itens.map(item => ({
@@ -475,6 +508,8 @@ export const PosCheckout: React.FC = () => {
 
       audioService.playBeep();
       const eraEdicao = !!pedidoEmEdicao;
+      resetarSnapshotPedido();
+      setTemAlteracoesNaoSalvas(false);
       limparCarrinho();
       mostrarSucesso('Pedido salvo com sucesso');
       if (eraEdicao) {
@@ -532,18 +567,50 @@ export const PosCheckout: React.FC = () => {
           forma_tipo: fpFinal.tipo,
           forma_nome: fpFinal.nome,
           valor_entregue: valEntregueNum > 0 ? valEntregueNum : null,
-          troco: trocoNum > 0 ? trocoNum : null,
-          parcelas: parcelasCartao || 1
+          troco: trocoNum > 0 ? trocoNum : null
         };
+      }
+
+      const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
+        ? metaExistente.historico_edicoes
+        : [];
+
+      if (pedidoEmEdicao) {
+        metaExistente.ultimo_editor = {
+          usuario_id: usuario?.id || null,
+          usuario_nome: usuario?.nome_completo || 'Operador',
+          data: dataIso
+        };
+        metaExistente.historico_edicoes = [
+          ...historicoExistente,
+          {
+            data: dataIso,
+            usuario_id: usuario?.id || null,
+            usuario_nome: usuario?.nome_completo || 'Operador',
+            acao: 'Venda vinculada a pagamento no PDV'
+          }
+        ];
       }
 
       const statusFinal = pedidoEmEdicao?.status || 'pendente';
 
+      const vendedorIdFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.vendedor_id ?? null)
+        : vendedorIdSanitizado;
+
+      const origemFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.origem || 'pdv_desktop')
+        : 'pdv_desktop';
+
+      const dataVendaFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.data_venda || dataIso)
+        : dataIso;
+
       const dadosBasePedido = {
         loja_id: loja.id,
-        vendedor_id: vendedorIdSanitizado,
+        vendedor_id: vendedorIdFinal,
         cliente_id: clienteIdSanitizado,
-        origem: 'pdv_desktop' as const,
+        origem: origemFinal as any,
         tabela_preco_aplicada: tabelaPrecoCalculada,
         status: statusFinal as any,
         status_pagamento: 'aguardando_pagamento' as const,
@@ -556,7 +623,7 @@ export const PosCheckout: React.FC = () => {
         fiado_quitado: false,
         observacoes: obsFinal || null,
         metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
-        data_venda: dataIso
+        data_venda: dataVendaFinal
       };
 
       const itensFormatados = itens.map(item => ({
@@ -636,6 +703,8 @@ export const PosCheckout: React.FC = () => {
       audioService.playBeep();
       setModalFechamento(false);
       const eraEdicao = !!pedidoEmEdicao;
+      resetarSnapshotPedido();
+      setTemAlteracoesNaoSalvas(false);
       limparCarrinho();
       mostrarSucesso('Pedido salvo com sucesso');
       if (eraEdicao) {
@@ -712,11 +781,44 @@ export const PosCheckout: React.FC = () => {
 
       const statusFinal = (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente' ? pedidoEmEdicao.status : 'confirmado');
 
+      const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
+        ? metaExistente.historico_edicoes
+        : [];
+
+      if (pedidoEmEdicao) {
+        metaExistente.ultimo_editor = {
+          usuario_id: usuario?.id || null,
+          usuario_nome: usuario?.nome_completo || 'Operador',
+          data: dataIso
+        };
+        metaExistente.historico_edicoes = [
+          ...historicoExistente,
+          {
+            data: dataIso,
+            usuario_id: usuario?.id || null,
+            usuario_nome: usuario?.nome_completo || 'Operador',
+            acao: ehFiado ? 'Venda a prazo (Fiado) no PDV' : 'Conclusão de pagamento no PDV'
+          }
+        ];
+      }
+
+      const vendedorIdFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.vendedor_id ?? null)
+        : vendedorId;
+
+      const origemFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.origem || 'pdv_desktop')
+        : 'pdv_desktop';
+
+      const dataVendaFinal = pedidoEmEdicao
+        ? (pedidoEmEdicao.data_venda || dataIso)
+        : dataIso;
+
       const dadosBasePedido = {
         loja_id: loja.id,
-        vendedor_id: vendedorId,
+        vendedor_id: vendedorIdFinal,
         cliente_id: clienteSelecionado ? clienteSelecionado.id : null,
-        origem: 'pdv_desktop' as const,
+        origem: origemFinal as any,
         tabela_preco_aplicada: tabelaPrecoCalculada,
         status: statusFinal as any,
         status_pagamento: (ehFiado ? 'aguardando_pagamento' : 'pago') as StatusPagamento,
@@ -729,7 +831,7 @@ export const PosCheckout: React.FC = () => {
         fiado_quitado: !ehFiado,
         observacoes: obsFinal || null,
         metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
-        data_venda: dataIso
+        data_venda: dataVendaFinal
       };
 
       const itensFormatados = itens.map(item => ({
@@ -768,7 +870,7 @@ export const PosCheckout: React.FC = () => {
           );
 
           // 2. Sanitizar vendedor_id (se não for UUID existente em usuarios_loja, passar null para não violar FK)
-          let vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorId) ? vendedorId : null;
+          let vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorIdFinal) ? vendedorIdFinal : null;
           if (vendedorIdSanitizado) {
             const { data: usuarioExiste } = await supabase
               .from('usuarios_loja')
@@ -866,6 +968,8 @@ export const PosCheckout: React.FC = () => {
             }
           }
 
+          resetarSnapshotPedido();
+          setTemAlteracoesNaoSalvas(false);
           setEhVendaOfflineSalva(false);
           setPedidoConcluido(pedidoCompleto);
           setModalFechamento(false);
@@ -922,6 +1026,8 @@ export const PosCheckout: React.FC = () => {
         criado_em: dataIso
       };
 
+      resetarSnapshotPedido();
+      setTemAlteracoesNaoSalvas(false);
       setEhVendaOfflineSalva(true);
       setPedidoConcluido(pedidoOfflineCompleto);
       setModalFechamento(false);
@@ -1209,8 +1315,10 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  cancelarEdicaoPedido();
-                  navigate('/orders');
+                  verificarSaidaComConfirmacao(() => {
+                    cancelarEdicaoPedido();
+                    navigate('/orders');
+                  });
                 }}
                 className="p-1.5 rounded-xl bg-slate-700/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition cursor-pointer shrink-0"
                 title="Fechar e voltar para Pedidos"
@@ -1228,7 +1336,15 @@ export const PosCheckout: React.FC = () => {
               </span>
             </h2>
             {itens.length > 0 && (
-              <button onClick={limparCarrinho} className="text-xs text-rose-400 hover:text-rose-300 font-medium">
+              <button
+                type="button"
+                onClick={() => {
+                  verificarSaidaComConfirmacao(() => {
+                    limparCarrinho();
+                  });
+                }}
+                className="text-xs text-rose-400 hover:text-rose-300 font-medium cursor-pointer"
+              >
                 Limpar
               </button>
             )}

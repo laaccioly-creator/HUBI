@@ -9,6 +9,8 @@ import {
   ResultadoAvaliacaoCarrinho
 } from '../services/pricingEngine';
 
+import { supabase } from '../lib/supabase';
+
 export interface CartItem {
   id: string;
   produto: Produto;
@@ -34,6 +36,8 @@ interface CartContextType {
   total: number;
   totalItens: number;
   pedidoEmEdicao: any | null;
+  temAlteracoesPedido: boolean;
+  resetarSnapshotPedido: () => void;
   adicionarItem: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number, observacoes?: string) => void;
   removerItem: (cartId: string) => void;
   atualizarQuantidade: (cartId: string, quantidade: number) => void;
@@ -45,7 +49,7 @@ interface CartContextType {
   setDesconto: (valor: number) => void;
   setTaxaEntrega: (valor: number) => void;
   limparCarrinho: () => void;
-  carregarPedidoParaEdicao: (pedido: any) => void;
+  carregarPedidoParaEdicao: (pedido: any) => Promise<void>;
   cancelarEdicaoPedido: () => void;
   atualizarStatusPedidoEmEdicao: (novoStatus: string) => void;
 }
@@ -111,6 +115,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     observacoes?: string
   ) => {
     const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
+    const permiteNegativo = Boolean(
+      (variacao as any)?.permite_estoque_negativo ||
+      produto.permite_estoque_negativo ||
+      loja?.configuracoes_extras?.geral?.permitir_venda_estoque_negativo ||
+      loja?.configuracoes_extras?.permitir_venda_estoque_negativo
+    );
     const estoqueDisponivel = variacao
       ? Number(variacao.quantidade_estoque ?? 0)
       : Number(produto.quantidade_estoque ?? 0);
@@ -119,7 +129,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const itemExistente = itens.find(i => i.id === cartId);
     const qtdTotalDesejada = (itemExistente ? itemExistente.quantidade : 0) + quantidade;
 
-    if (controlaEstoque && qtdTotalDesejada > estoqueDisponivel) {
+    if (controlaEstoque && !permiteNegativo && qtdTotalDesejada > estoqueDisponivel) {
       alert(`⚠️ Estoque insuficiente para "${produto.nome}${variacao ? ` - ${variacao.valor_variacao_1}` : ''}".\nEstoque disponível: ${estoqueDisponivel} un.`);
       return;
     }
@@ -173,10 +183,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
     const itemAlvo = itens.find(i => i.id === cartId);
     if (itemAlvo && controlaEstoque) {
+      const permiteNegativo = Boolean(
+        (itemAlvo.variacao as any)?.permite_estoque_negativo ||
+        itemAlvo.produto.permite_estoque_negativo ||
+        loja?.configuracoes_extras?.geral?.permitir_venda_estoque_negativo ||
+        loja?.configuracoes_extras?.permitir_venda_estoque_negativo
+      );
       const estoqueDisponivel = itemAlvo.variacao
         ? Number(itemAlvo.variacao.quantidade_estoque ?? 0)
         : Number(itemAlvo.produto.quantidade_estoque ?? 0);
-      if (quantidade > estoqueDisponivel) {
+      if (!permiteNegativo && quantidade > estoqueDisponivel) {
         alert(`⚠️ Quantidade solicitada (${quantidade} un) excede o estoque disponível (${estoqueDisponivel} un) de "${itemAlvo.produto.nome}".`);
         return;
       }
@@ -240,6 +256,53 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDescontoValor(valor);
   };
 
+  const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
+
+  const gerarSnapshotPedido = (
+    itensAtuais: CartItem[],
+    cli: Cliente | null,
+    desc: number,
+    tipoDesc: 'valor' | 'percentual',
+    taxa: number,
+    status?: string
+  ) => {
+    return JSON.stringify({
+      itens: itensAtuais
+        .map(i => ({
+          id: i.id,
+          produto_id: i.produto.id,
+          variacao_id: i.variacao?.id || null,
+          quantidade: i.quantidade,
+          precoUnitario: Number(i.precoUnitario.toFixed(2)),
+          observacoes: i.observacoes || ''
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+      clienteId: cli?.id || null,
+      desconto: Number(desc.toFixed(2)),
+      tipoDesconto: tipoDesc,
+      taxaEntrega: Number(taxa.toFixed(2)),
+      status: status || 'pendente'
+    });
+  };
+
+  const temAlteracoesPedido = useMemo(() => {
+    if (!pedidoEmEdicao) return false;
+    if (!snapshotPedidoOriginal) return false;
+    const snapshotAtual = gerarSnapshotPedido(
+      itens,
+      clienteSelecionado,
+      desconto,
+      tipoDesconto,
+      taxaEntrega,
+      pedidoEmEdicao.status
+    );
+    return snapshotAtual !== snapshotPedidoOriginal;
+  }, [pedidoEmEdicao, snapshotPedidoOriginal, itens, clienteSelecionado, desconto, tipoDesconto, taxaEntrega]);
+
+  const resetarSnapshotPedido = () => {
+    setSnapshotPedidoOriginal(null);
+  };
+
   const limparCarrinho = () => {
     setItens([]);
     setClienteSelecionadoState(null);
@@ -248,9 +311,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTipoDesconto('valor');
     setTaxaEntrega(0);
     setPedidoEmEdicao(null);
+    setSnapshotPedidoOriginal(null);
   };
 
-  const carregarPedidoParaEdicao = (pedido: any) => {
+  const carregarPedidoParaEdicao = async (pedido: any) => {
     if (!pedido) return;
     setPedidoEmEdicao(pedido);
     setClienteSelecionadoState(pedido.cliente || null);
@@ -269,42 +333,103 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       percMeta !== null ||
       Boolean(matchPerc);
 
+    let tipoDescFinal: 'valor' | 'percentual' = 'valor';
     if (ehPercentual) {
-      setTipoDesconto('percentual');
+      tipoDescFinal = 'percentual';
       const percFinal = percMeta !== null ? percMeta : (matchPerc ? parseFloat(matchPerc[1]) : (Number(pedido.desconto_percentual) || descPercCalculado));
+      setTipoDesconto('percentual');
       setDescontoPercentualState(Number(percFinal.toFixed(2)));
       setDescontoState(descVal);
     } else {
+      tipoDescFinal = 'valor';
       setTipoDesconto('valor');
       setDescontoState(descVal);
       setDescontoPercentualState(Number(descPercCalculado.toFixed(2)));
     }
 
-    setTaxaEntrega(Number(pedido.valor_frete) || 0);
+    const taxaFinal = Number(pedido.valor_frete) || 0;
+    setTaxaEntrega(taxaFinal);
 
-    const cartItens: CartItem[] = (pedido.itens || []).map((item: any) => ({
-      id: item.variacao_id ? `${item.produto_id}-${item.variacao_id}` : `${item.produto_id}`,
-      produto: {
+    // Buscar estoque real dos produtos e variações no Supabase
+    const produtoIds = Array.from(new Set((pedido.itens || []).map((it: any) => it.produto_id).filter(Boolean)));
+    const produtosDbMap: Record<string, any> = {};
+
+    if (produtoIds.length > 0) {
+      try {
+        const { data: prodsDb, error: erroProds } = await supabase
+          .from('produtos')
+          .select('*, variacoes:variacoes_produto(*)')
+          .in('id', produtoIds);
+
+        if (!erroProds && prodsDb) {
+          prodsDb.forEach((p: any) => {
+            produtosDbMap[p.id] = p;
+          });
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar dados de estoque para edição do pedido:', err);
+      }
+    }
+
+    const cartItens: CartItem[] = (pedido.itens || []).map((item: any) => {
+      const prodDb = produtosDbMap[item.produto_id];
+      const varDb = item.variacao_id && prodDb?.variacoes
+        ? prodDb.variacoes.find((v: any) => v.id === item.variacao_id)
+        : null;
+
+      const prodCompleto = prodDb ? {
+        ...prodDb,
+        nome: item.nome_produto || prodDb.nome,
+        preco_venda_varejo: Number(item.preco_venda_unitario) || prodDb.preco_venda_varejo,
+        preco_custo: Number(item.preco_custo_unitario) || prodDb.preco_custo,
+        quantidade_estoque: Number(prodDb.quantidade_estoque ?? 0)
+      } : ({
         id: item.produto_id,
         nome: item.nome_produto,
         preco_venda_varejo: item.preco_venda_unitario,
-        preco_custo: item.preco_custo_unitario
-      } as any,
-      variacao: item.variacao_id ? ({
+        preco_custo: item.preco_custo_unitario,
+        quantidade_estoque: 9999
+      } as any);
+
+      const varCompleta = item.variacao_id ? (varDb ? {
+        ...varDb,
+        valor_variacao_1: item.rotulo_variacao || varDb.valor_variacao_1,
+        preco_venda_varejo: Number(item.preco_venda_unitario) || varDb.preco_venda_varejo,
+        preco_custo: Number(item.preco_custo_unitario) || varDb.preco_custo,
+        quantidade_estoque: Number(varDb.quantidade_estoque ?? 0)
+      } : ({
         id: item.variacao_id,
         produto_id: item.produto_id,
         valor_variacao_1: item.rotulo_variacao || '',
         preco_venda_varejo: item.preco_venda_unitario,
-        preco_custo: item.preco_custo_unitario
-      } as any) : null,
-      quantidade: Number(item.quantidade) || 1,
-      tabelaPrecoUtilizada: item.tabela_preco_utilizada || pedido.tabela_preco_aplicada || 'varejo',
-      precoUnitario: Number(item.preco_venda_unitario) || 0,
-      subtotal: Number(item.subtotal) || (Number(item.preco_venda_unitario) * Number(item.quantidade)),
-      observacoes: item.observacoes || undefined
-    }));
+        preco_custo: item.preco_custo_unitario,
+        quantidade_estoque: 9999
+      } as any)) : null;
+
+      return {
+        id: item.variacao_id ? `${item.produto_id}-${item.variacao_id}` : `${item.produto_id}`,
+        produto: prodCompleto,
+        variacao: varCompleta,
+        quantidade: Number(item.quantidade) || 1,
+        tabelaPrecoUtilizada: item.tabela_preco_utilizada || pedido.tabela_preco_aplicada || 'varejo',
+        precoUnitario: Number(item.preco_venda_unitario) || 0,
+        subtotal: Number(item.subtotal) || (Number(item.preco_venda_unitario) * Number(item.quantidade)),
+        observacoes: item.observacoes || undefined
+      };
+    });
 
     setItens(cartItens);
+
+    // Registra o snapshot do pedido carregado
+    const snapshot = gerarSnapshotPedido(
+      cartItens,
+      pedido.cliente || null,
+      descVal,
+      tipoDescFinal,
+      taxaFinal,
+      pedido.status || 'pendente'
+    );
+    setSnapshotPedidoOriginal(snapshot);
   };
 
   const cancelarEdicaoPedido = () => {
@@ -339,6 +464,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         total,
         totalItens,
         pedidoEmEdicao,
+        temAlteracoesPedido,
+        resetarSnapshotPedido,
         adicionarItem,
         removerItem,
         atualizarQuantidade,

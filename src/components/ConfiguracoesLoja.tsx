@@ -87,7 +87,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const permissions = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
+  const { mostrarErro, mostrarSucesso, mostrarAviso, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
 
   useEffect(() => {
     if (!permissions.podeAcessarConfig) {
@@ -920,6 +920,13 @@ export const ConfiguracoesLoja: React.FC = () => {
 
   const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
 
+  useEffect(() => {
+    setTemAlteracoesNaoSalvas(isDirty);
+    return () => {
+      setTemAlteracoesNaoSalvas(false);
+    };
+  }, [isDirty, setTemAlteracoesNaoSalvas]);
+
   // Tecla ESC para voltar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -930,15 +937,15 @@ export const ConfiguracoesLoja: React.FC = () => {
         if (modalExportConcluido) { setModalExportConcluido(false); return; }
         if (modalNovoStatus) { setModalNovoStatus(false); return; }
         if (subTela !== 'menu') {
-          setSubTela('menu');
+          verificarSaidaComConfirmacao(() => setSubTela('menu'));
         } else {
-          navigate(-1);
+          verificarSaidaComConfirmacao(() => navigate(-1));
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalProvedor, modalTelaInicial, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate]);
+  }, [modalProvedor, modalTelaInicial, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate, verificarSaidaComConfirmacao]);
 
   // Itens do Menu Principal de Configurações em Botões
   const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
@@ -966,7 +973,7 @@ export const ConfiguracoesLoja: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={() => verificarSaidaComConfirmacao(() => navigate(-1))}
                   className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
                   title="Voltar"
                 >
@@ -974,7 +981,7 @@ export const ConfiguracoesLoja: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDrawerMenuAberto(true)}
+                  onClick={() => verificarSaidaComConfirmacao(() => setDrawerMenuAberto(true))}
                   className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
                   title="Menu Principal"
                 >
@@ -988,7 +995,7 @@ export const ConfiguracoesLoja: React.FC = () => {
             ) : (
               <button
                 type="button"
-                onClick={() => setSubTela('menu')}
+                onClick={() => verificarSaidaComConfirmacao(() => setSubTela('menu'))}
                 className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
                 title="Voltar ao menu de configurações"
               >
@@ -1507,11 +1514,13 @@ export const ConfiguracoesLoja: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              if (subTela !== 'menu') {
-                setSubTela('menu');
-              } else {
-                navigate(-1);
-              }
+              verificarSaidaComConfirmacao(() => {
+                if (subTela !== 'menu') {
+                  setSubTela('menu');
+                } else {
+                  navigate(-1);
+                }
+              });
             }}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
             title="Voltar"

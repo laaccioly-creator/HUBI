@@ -54,6 +54,8 @@ interface HistoricoItemMobile {
   status: string;
   data: string;
   usuario?: string;
+  tipo?: 'status' | 'edicao' | 'criacao';
+  detalhes?: string;
 }
 
 const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => {
@@ -63,38 +65,67 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
   if (pedido.metadados && typeof pedido.metadados === 'object') {
     const historicoMeta = (pedido.metadados as any).historico_status;
     if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
-      return historicoMeta;
+      itens.push(...historicoMeta.map((item: any) => ({
+        status: item.status,
+        data: item.data,
+        usuario: item.usuario,
+        tipo: item.tipo || 'status',
+        detalhes: item.detalhes
+      })));
     }
   }
 
-  // 2. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]-->
-  try {
-    const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
-    if (match && match[1]) {
-      const parsed = JSON.parse(match[1]);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+  // 2. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]--> se nao achou metadados.historico_status
+  if (itens.length === 0) {
+    try {
+      const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          itens.push(...parsed);
+        }
       }
+    } catch {
+      // fallback
     }
-  } catch {
-    // fallback
   }
 
-  if (pedido.criado_em) {
-    itens.push({
-      status: 'pendente',
-      data: pedido.criado_em,
-      usuario: pedido.vendedor?.nome_completo || 'Sistema'
-    });
+  if (itens.length === 0) {
+    if (pedido.criado_em) {
+      itens.push({
+        status: 'pendente',
+        data: pedido.criado_em,
+        usuario: pedido.vendedor?.nome_completo || (pedido.origem === 'catalogo_online' ? 'Catálogo Online' : 'Sistema'),
+        tipo: 'status'
+      });
+    }
+    if (pedido.status && pedido.status !== 'pendente') {
+      itens.push({
+        status: pedido.status,
+        data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
+        usuario: pedido.vendedor?.nome_completo || 'Operador',
+        tipo: 'status'
+      });
+    }
   }
-  if (pedido.status && pedido.status !== 'pendente') {
-    itens.push({
-      status: pedido.status,
-      data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
-      usuario: pedido.vendedor?.nome_completo || 'Operador'
-    });
+
+  // 3. Histórico de edições do pedido (metadados.historico_edicoes)
+  if (pedido.metadados && typeof pedido.metadados === 'object') {
+    const historicoEdicoes = (pedido.metadados as any).historico_edicoes;
+    if (Array.isArray(historicoEdicoes) && historicoEdicoes.length > 0) {
+      historicoEdicoes.forEach((ed: any) => {
+        itens.push({
+          status: ed.acao || 'Edição no PDV',
+          data: ed.data,
+          usuario: ed.usuario_nome || 'Operador',
+          tipo: 'edicao',
+          detalhes: ed.detalhes
+        });
+      });
+    }
   }
-  return itens;
+
+  return itens.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 };
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
@@ -604,6 +635,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <span className="text-[11px] text-slate-400 block">
                   {new Date(pedidoSelecionado.data_venda).toLocaleString('pt-BR')}
                 </span>
+                <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1 text-xs">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-slate-400">Origem / Vendedor:</span>
+                    <span className="font-bold text-slate-800">
+                      {pedidoSelecionado.origem === 'catalogo_online' ? 'Catálogo Online' : (mapaUsuarios.get(pedidoSelecionado.vendedor_id || '') || pedidoSelecionado.vendedor?.nome_completo || 'Vendedor')}
+                    </span>
+                  </div>
+                  {(pedidoSelecionado.metadados as any)?.ultimo_editor?.nome && (
+                    <div className="flex items-center justify-between text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                      <span>Última edição:</span>
+                      <span className="font-bold">{(pedidoSelecionado.metadados as any).ultimo_editor.nome}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Observação no Detalhe */}
@@ -631,21 +676,29 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <div className="space-y-2.5">
                       {historico.map((item, idx, arr) => {
                         const isLast = idx === arr.length - 1;
+                        const isEdicao = item.tipo === 'edicao';
                         return (
                           <div key={idx} className="flex items-start gap-2.5 text-xs">
                             <div
                               className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
-                                isLast ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-slate-400'
+                                isEdicao
+                                  ? 'bg-amber-500 ring-4 ring-amber-100'
+                                  : isLast
+                                  ? 'bg-emerald-500 ring-4 ring-emerald-100'
+                                  : 'bg-slate-400'
                               }`}
                             />
                             <div>
-                              <p className={`font-bold capitalize ${isLast ? 'text-emerald-700' : 'text-slate-700'}`}>
+                              <p className={`font-bold capitalize ${isEdicao ? 'text-amber-700' : isLast ? 'text-emerald-700' : 'text-slate-700'}`}>
                                 {item.status.replace(/_/g, ' ')}
                               </p>
                               <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-normal">
                                 <span>{new Date(item.data).toLocaleString('pt-BR')}</span>
                                 {item.usuario && <span>• {item.usuario}</span>}
                               </div>
+                              {item.detalhes && (
+                                <p className="text-[10px] text-slate-500 mt-0.5">{item.detalhes}</p>
+                              )}
                             </div>
                           </div>
                         );
@@ -862,9 +915,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setModalOpcoesPedido(false);
-                  carregarPedidoParaEdicao(pedidoSelecionado);
+                  await carregarPedidoParaEdicao(pedidoSelecionado);
                   navigate('/pos');
                 }}
                 className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left"

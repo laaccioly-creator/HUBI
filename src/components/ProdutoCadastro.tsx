@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -38,6 +38,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
@@ -731,6 +732,90 @@ export const ProdutoCadastro: React.FC = () => {
     valorMinimoAutoatacado: 1000
   });
 
+  const { setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
+  const [snapshotInicial, setSnapshotInicial] = useState<string>('');
+
+  const snapshotAtual = useMemo(() => {
+    return JSON.stringify({
+      nome,
+      codigoInterno,
+      codigoBarras,
+      categoriaId,
+      fornecedorId,
+      descricao,
+      tipoUnidade,
+      precoCusto,
+      precoVendaVarejo,
+      precoVendaAtacado,
+      tipoMinimoAtacado,
+      qtdMinimaAtacado,
+      valorMinimoAtacado,
+      precoVendaAutoatacado,
+      tipoMinimoAutoatacado,
+      qtdMinimaAutoatacado,
+      valorMinimoAutoatacado,
+      precoPromocional,
+      promocaoAtiva,
+      quantidadeEstoque,
+      estoqueMinimoAlerta,
+      dataValidade,
+      exibirCatalogo,
+      destaque,
+      ativo,
+      fotosUrls,
+      fotoPrincipal,
+      temVariacoes,
+      nomeTipoVariacao,
+      opcoesVariacao
+    });
+  }, [
+    nome,
+    codigoInterno,
+    codigoBarras,
+    categoriaId,
+    fornecedorId,
+    descricao,
+    tipoUnidade,
+    precoCusto,
+    precoVendaVarejo,
+    precoVendaAtacado,
+    tipoMinimoAtacado,
+    qtdMinimaAtacado,
+    valorMinimoAtacado,
+    precoVendaAutoatacado,
+    tipoMinimoAutoatacado,
+    qtdMinimaAutoatacado,
+    valorMinimoAutoatacado,
+    precoPromocional,
+    promocaoAtiva,
+    quantidadeEstoque,
+    estoqueMinimoAlerta,
+    dataValidade,
+    exibirCatalogo,
+    destaque,
+    ativo,
+    fotosUrls,
+    fotoPrincipal,
+    temVariacoes,
+    nomeTipoVariacao,
+    opcoesVariacao
+  ]);
+
+  useEffect(() => {
+    if (!ehEdicao && !snapshotInicial && snapshotAtual) {
+      setSnapshotInicial(snapshotAtual);
+    }
+  }, [ehEdicao, snapshotInicial, snapshotAtual]);
+
+  const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+
+  useEffect(() => {
+    setTemAlteracoesNaoSalvas(isDirty);
+    return () => {
+      setTemAlteracoesNaoSalvas(false);
+    };
+  }, [isDirty, setTemAlteracoesNaoSalvas]);
+
   const carregarAux = async () => {
     if (!loja?.id) return;
     try {
@@ -876,6 +961,47 @@ export const ProdutoCadastro: React.FC = () => {
               }))
             );
           }
+
+          const snapObj = {
+            nome: prod.nome || '',
+            codigoInterno: prod.codigo_interno || '',
+            codigoBarras: prod.codigo_barras || '',
+            categoriaId: prod.categoria_id || '',
+            fornecedorId: prod.fornecedor_id || '',
+            descricao: prod.descricao || '',
+            tipoUnidade: prod.tipo_unidade || 'un',
+            precoCusto: prod.preco_custo ? Number(prod.preco_custo).toFixed(2) : '0.00',
+            precoVendaVarejo: prod.preco_venda_varejo ? Number(prod.preco_venda_varejo).toFixed(2) : '',
+            precoVendaAtacado: prod.preco_venda_atacado ? Number(prod.preco_venda_atacado).toFixed(2) : '',
+            tipoMinimoAtacado: prod.tipo_minimo_atacado || 'quantidade',
+            qtdMinimaAtacado: prod.qtd_minima_atacado ? String(prod.qtd_minima_atacado) : '6',
+            valorMinimoAtacado: prod.valor_minimo_atacado ? String(prod.valor_minimo_atacado) : '300.00',
+            precoVendaAutoatacado: prod.preco_venda_autoatacado ? Number(prod.preco_venda_autoatacado).toFixed(2) : '',
+            tipoMinimoAutoatacado: prod.tipo_minimo_autoatacado || 'quantidade',
+            qtdMinimaAutoatacado: prod.qtd_minima_autoatacado ? String(prod.qtd_minima_autoatacado) : '24',
+            valorMinimoAutoatacado: prod.valor_minimo_autoatacado ? String(prod.valor_minimo_autoatacado) : '1000.00',
+            precoPromocional: prod.preco_promocional ? Number(prod.preco_promocional).toFixed(2) : '',
+            promocaoAtiva: Boolean(prod.promocao_ativa),
+            quantidadeEstoque: String(prod.quantidade_estoque || 0),
+            estoqueMinimoAlerta: String(prod.estoque_minimo_alerta || 5),
+            dataValidade: prod.data_validade || '',
+            exibirCatalogo: Boolean(prod.exibir_catalogo),
+            destaque: Boolean(prod.destaque),
+            ativo: prod.ativo !== false,
+            fotosUrls: fotos,
+            fotoPrincipal: fotos[0] || '',
+            temVariacoes: Boolean(prod.tem_variacoes && Array.isArray(prod.variacoes) && prod.variacoes.length > 0),
+            nomeTipoVariacao: prod.rotulo_variacao_1 || 'Opção',
+            opcoesVariacao: (prod.variacoes || []).map((v: any) => ({
+              id: v.id || '',
+              nome: v.valor_variacao_1 || '',
+              estoque: String(v.quantidade_estoque || 0),
+              precoVarejo: v.preco_venda_varejo ? Number(v.preco_venda_varejo).toFixed(2) : '',
+              precoAtacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado).toFixed(2) : '',
+              barcode: v.codigo_barras || ''
+            }))
+          };
+          setSnapshotInicial(JSON.stringify(snapObj));
         }
       } catch (err) {
         console.error('Erro ao carregar produto para alteração:', err);
@@ -1297,6 +1423,7 @@ export const ProdutoCadastro: React.FC = () => {
         }
       }
 
+      setTemAlteracoesNaoSalvas(false);
       navigate('/products');
     } catch (err: any) {
       console.error('Erro ao salvar produto:', err);
@@ -1322,7 +1449,7 @@ export const ProdutoCadastro: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/products')}
+              onClick={() => verificarSaidaComConfirmacao(() => navigate('/products'))}
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />

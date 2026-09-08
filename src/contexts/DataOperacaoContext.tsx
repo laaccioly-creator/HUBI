@@ -1,5 +1,6 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   obterDataOperacao,
   obterDataOperacaoISO,
@@ -34,7 +35,7 @@ interface DataOperacaoContextType {
 const DataOperacaoContext = createContext<DataOperacaoContextType | undefined>(undefined);
 
 export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { usuario } = useAuth();
+  const { usuario, loja } = useAuth();
   const ehOwner = usuario?.perfil === 'owner';
 
   const [dataSimulada, setDataSimulada] = useState<string | null>(() => obterDataSimuladaSalva());
@@ -111,7 +112,17 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setHoraSimulada(horaHM || null);
     setModoAtivo(true);
     setModalAberto(false);
-  }, [ehOwner]);
+
+    if (loja?.id) {
+      const extras = { ...(loja.configuracoes_extras || {}) };
+      extras.simulacao_data_operacao = {
+        ativa: true,
+        dataYMD,
+        horaHM: horaHM || null
+      };
+      supabase.from('lojas').update({ configuracoes_extras: extras }).eq('id', loja.id).then();
+    }
+  }, [ehOwner, loja]);
 
   const restaurarParaHoje = useCallback(() => {
     limparDataOperacao();
@@ -119,7 +130,13 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setHoraSimulada(null);
     setModoAtivo(false);
     setModalAberto(false);
-  }, []);
+
+    if (loja?.id) {
+      const extras = { ...(loja.configuracoes_extras || {}) };
+      delete extras.simulacao_data_operacao;
+      supabase.from('lojas').update({ configuracoes_extras: extras }).eq('id', loja.id).then();
+    }
+  }, [loja]);
 
   const dataOperacaoYMD = useMemo(() => {
     return obterDataOperacaoYMD();

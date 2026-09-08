@@ -29,6 +29,7 @@ import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContato
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
+import { obterDataOperacaoISO, definirDataOperacao } from '../utils/dataOperacao';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -175,6 +176,11 @@ export const CatalogoPublico: React.FC = () => {
         if (lojas && lojas.length > 0) {
           const l = lojas[0];
           setLoja(l);
+
+          const simLoja = l.configuracoes_extras?.simulacao_data_operacao;
+          if (simLoja?.ativa && simLoja?.dataYMD) {
+            definirDataOperacao(simLoja.dataYMD, simLoja.horaHM);
+          }
 
           // Configuração de exibição inicial
           const catConfig = l.configuracoes_extras?.catalogo;
@@ -622,7 +628,7 @@ export const CatalogoPublico: React.FC = () => {
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
             observacoes: observacoes?.trim() || null,
             metadados: metadadosPedido,
-            data_venda: new Date().toISOString()
+            data_venda: obterDataOperacaoISO()
           }
         ])
         .select()

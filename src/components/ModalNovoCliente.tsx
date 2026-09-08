@@ -20,6 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Cliente, TabelaPreco } from '../types';
 
 interface ModalNovoClienteProps {
@@ -221,9 +222,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
+  const { confirmar } = useFeedbackModal();
+  const [snapshotInicial, setSnapshotInicial] = useState<string>('');
+
   // Sincronizar dados para Edição ou Criação
   React.useEffect(() => {
     if (isOpen) {
+      let snapObj: any;
       if (clienteEditar) {
         setAtivo((clienteEditar as any).ativo !== false);
         setNome(clienteEditar.nome || '');
@@ -247,34 +252,63 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           clienteEditar.endereco_bairro
         );
 
+        let finalCep = '';
+        let finalRua = '';
+        let finalNumero = '';
+        let finalComplemento = '';
+        let finalBairro = '';
+        let finalCidade = '';
+        let finalEstado = '';
+
         if (temEstruturado) {
-          setCep(clienteEditar.endereco_cep || '');
-          setRua(clienteEditar.endereco_logradouro || '');
-          setNumero(clienteEditar.endereco_numero || '');
-          setComplemento(clienteEditar.endereco_complemento || '');
-          setBairro(clienteEditar.endereco_bairro || '');
-          setCidade(clienteEditar.endereco_cidade || '');
-          setEstado(clienteEditar.endereco_estado || '');
+          finalCep = clienteEditar.endereco_cep || '';
+          finalRua = clienteEditar.endereco_logradouro || '';
+          finalNumero = clienteEditar.endereco_numero || '';
+          finalComplemento = clienteEditar.endereco_complemento || '';
+          finalBairro = clienteEditar.endereco_bairro || '';
+          finalCidade = clienteEditar.endereco_cidade || '';
+          finalEstado = clienteEditar.endereco_estado || '';
         } else if (clienteEditar.endereco_principal) {
-          // Fallback inteligente: se tiver apenas endereco_principal em texto,
-          // extrai os campos para preencher o formulário na edição
           const extraido = extrairEnderecoEstruturado(clienteEditar.endereco_principal);
-          setCep(extraido.cep || clienteEditar.endereco_cep || '');
-          setRua(extraido.rua || clienteEditar.endereco_principal || '');
-          setNumero(extraido.numero || clienteEditar.endereco_numero || '');
-          setComplemento(extraido.complemento || clienteEditar.endereco_complemento || '');
-          setBairro(extraido.bairro || clienteEditar.endereco_bairro || '');
-          setCidade(extraido.cidade || clienteEditar.endereco_cidade || '');
-          setEstado(extraido.estado || clienteEditar.endereco_estado || '');
-        } else {
-          setCep('');
-          setRua('');
-          setNumero('');
-          setComplemento('');
-          setBairro('');
-          setCidade('');
-          setEstado('');
+          finalCep = extraido.cep || clienteEditar.endereco_cep || '';
+          finalRua = extraido.rua || clienteEditar.endereco_principal || '';
+          finalNumero = extraido.numero || clienteEditar.endereco_numero || '';
+          finalComplemento = extraido.complemento || clienteEditar.endereco_complemento || '';
+          finalBairro = extraido.bairro || clienteEditar.endereco_bairro || '';
+          finalCidade = extraido.cidade || clienteEditar.endereco_cidade || '';
+          finalEstado = extraido.estado || clienteEditar.endereco_estado || '';
         }
+
+        setCep(finalCep);
+        setRua(finalRua);
+        setNumero(finalNumero);
+        setComplemento(finalComplemento);
+        setBairro(finalBairro);
+        setCidade(finalCidade);
+        setEstado(finalEstado);
+
+        snapObj = {
+          ativo: (clienteEditar as any).ativo !== false,
+          nome: clienteEditar.nome || '',
+          cpfCnpj: clienteEditar.numero_documento || '',
+          dataAniversario: clienteEditar.data_aniversario || '',
+          email: clienteEditar.email || '',
+          observacoes: clienteEditar.observacoes || '',
+          telefone1: clienteEditar.telefone || clienteEditar.whatsapp || '',
+          telefone1IsWhatsapp: clienteEditar.telefone_is_whatsapp ?? true,
+          telefone2: clienteEditar.telefone2 || '',
+          telefone2IsWhatsapp: clienteEditar.telefone2_is_whatsapp ?? false,
+          permiteFiado: clienteEditar.permite_fiado ?? permissions.podeAtivarFiado,
+          limiteCredito: String(clienteEditar.limite_credito ?? '500.00'),
+          tabelaPreco: clienteEditar.tabela_preco_padrao || 'varejo',
+          cep: finalCep,
+          rua: finalRua,
+          numero: finalNumero,
+          complemento: finalComplemento,
+          bairro: finalBairro,
+          cidade: finalCidade,
+          estado: finalEstado
+        };
       } else {
         setAtivo(true);
         setNome('');
@@ -296,10 +330,73 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setBairro('');
         setCidade('');
         setEstado('');
+
+        snapObj = {
+          ativo: true,
+          nome: '',
+          cpfCnpj: '',
+          dataAniversario: '',
+          email: '',
+          observacoes: '',
+          telefone1: '',
+          telefone1IsWhatsapp: true,
+          telefone2: '',
+          telefone2IsWhatsapp: false,
+          permiteFiado: permissions.podeAtivarFiado,
+          limiteCredito: permissions.podeAtivarFiado ? '500.00' : '0.00',
+          tabelaPreco: 'varejo',
+          cep: '',
+          rua: '',
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: '',
+          estado: ''
+        };
       }
+      setSnapshotInicial(JSON.stringify(snapObj));
       setErroMsg(null);
     }
   }, [isOpen, clienteEditar]);
+
+  const snapshotAtual = JSON.stringify({
+    ativo,
+    nome,
+    cpfCnpj,
+    dataAniversario,
+    email,
+    observacoes,
+    telefone1,
+    telefone1IsWhatsapp,
+    telefone2,
+    telefone2IsWhatsapp,
+    permiteFiado,
+    limiteCredito,
+    tabelaPreco,
+    cep,
+    rua,
+    numero,
+    complemento,
+    bairro,
+    cidade,
+    estado
+  });
+
+  const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+
+  const handleFecharComConfirmacao = () => {
+    if (isDirty) {
+      confirmar({
+        titulo: 'Alterações Não Salvas',
+        mensagem: 'Você fez alterações no cadastro do cliente que ainda não foram salvas. Se sair agora, as alterações serão perdidas.',
+        textoConfirmar: 'Sair sem salvar',
+        textoCancelar: 'Continuar editando',
+        onConfirmar: () => onClose()
+      });
+    } else {
+      onClose();
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -633,7 +730,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleFecharComConfirmacao}
             className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-slate-100 hover:bg-slate-100 md:hover:bg-slate-800 transition"
             title="Fechar"
           >
@@ -1061,7 +1158,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         <div className="p-4 sm:p-5 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-900/90 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleFecharComConfirmacao}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
           >
             Cancelar

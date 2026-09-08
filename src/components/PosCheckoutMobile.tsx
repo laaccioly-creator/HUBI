@@ -50,9 +50,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria, TabelaPreco } from '../types';
-import { audioService } from '../services/audioService';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { getCategoriaPeso } from './PosCheckout';
+import { audioService } from '../services/audioService';
 
 interface PosCheckoutMobileProps {
   produtos: Produto[];
@@ -83,6 +84,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const navigate = useNavigate();
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
+  const { verificarSaidaComConfirmacao } = useFeedbackModal();
 
   const {
     itens,
@@ -95,6 +97,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     totalItens,
     tabelaPrecoGlobal,
     tabelaPrecoCalculada,
+    pedidoEmEdicao,
     setTabelaPrecoGlobal,
     adicionarItem,
     removerItem,
@@ -103,7 +106,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     setDescontoValor,
     setDescontoPercentual,
     setTipoDesconto,
-    limparCarrinho
+    limparCarrinho,
+    cancelarEdicaoPedido
   } = useCart();
 
   // Estados de Navegação e Visualização
@@ -983,8 +987,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  limparCarrinho();
-                  setModalOpcoesCarrinho(false);
+                  verificarSaidaComConfirmacao(() => {
+                    limparCarrinho();
+                    setModalOpcoesCarrinho(false);
+                  });
                 }}
                 className="w-full p-3 rounded-2xl bg-rose-50 text-rose-600 text-xs font-bold flex items-center gap-2 hover:bg-rose-100 transition text-left"
               >
@@ -1008,7 +1014,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              verificarSaidaComConfirmacao(() => {
+                if (pedidoEmEdicao) {
+                  cancelarEdicaoPedido();
+                }
+                navigate(-1);
+              });
+            }}
             className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
             title="Voltar"
           >

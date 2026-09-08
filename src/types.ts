@@ -38,6 +38,7 @@ export interface ConfiguracaoGeralLoja {
   controlar_estoque?: boolean;
   transacoes_canceladas?: 'riscadas' | 'ocultar';
   ordenar_produtos_pdv?: 'cadastro' | 'alfabetica';
+  permitir_venda_estoque_negativo?: boolean;
 }
 
 export interface PagamentosDigitaisConfig {
@@ -167,6 +168,12 @@ export interface ConfiguracoesExtrasLoja {
     descricao_retirada?: string;
   };
   controlar_estoque?: boolean;
+  permitir_venda_estoque_negativo?: boolean;
+  simulacao_data_operacao?: {
+    ativa: boolean;
+    dataYMD: string;
+    horaHM?: string | null;
+  };
   pagamentos?: OpcoesPagamentoDetalhes;
   pagamentos_digitais?: PagamentosDigitaisConfig;
   prazos_taxas_maquininhas?: PrazosTaxasMaquininha;
@@ -344,6 +351,7 @@ export interface Produto {
   destaque: boolean;
   cor_etiqueta?: string | null;
   ativo: boolean;
+  permite_estoque_negativo?: boolean;
   criado_em?: string;
   atualizado_em?: string;
   variacoes?: VariacaoProduto[];
@@ -365,6 +373,7 @@ export interface VariacaoProduto {
   preco_promocional?: number | null;
   quantidade_estoque: number;
   estoque_minimo_alerta: number;
+  permite_estoque_negativo?: boolean;
   ativo: boolean;
   criado_em?: string;
 }
