@@ -51,6 +51,7 @@ import { VendaOfflineFila } from '../services/offlineDb';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
 import { PosCheckoutMobile } from './PosCheckoutMobile';
+import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo } from '../utils/statusPedidoUtils';
 
 /**
  * Retorna o peso de prioridade da categoria para ordenação no PDV:
@@ -187,6 +188,10 @@ export const PosCheckout: React.FC = () => {
       (c.numero_documento && c.numero_documento.includes(termo))
     );
   }, [clientes, clienteBuscaTexto]);
+
+  const opcoesStatusPdv = useMemo(() => {
+    return obterOpcoesStatusAlteracao(loja, pedidoEmEdicao?.status, false);
+  }, [loja, pedidoEmEdicao?.status]);
 
   useEffect(() => {
     if (!loja?.id) return;
@@ -1186,17 +1191,19 @@ export const PosCheckout: React.FC = () => {
                 <span className="text-[11px] text-slate-400 font-semibold shrink-0">Status:</span>
                 <select
                   value={pedidoEmEdicao.status || 'pendente'}
-                  onChange={(e) => atualizarStatusPedidoEmEdicao(e.target.value)}
+                  onChange={(e) => {
+                    const st = e.target.value;
+                    if (isStatusPedidoAtivo(st, loja) || st === pedidoEmEdicao.status) {
+                      atualizarStatusPedidoEmEdicao(st);
+                    }
+                  }}
                   className="flex-1 bg-slate-900 border border-slate-700 text-emerald-400 font-bold text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer capitalize"
                 >
-                  <option value="pendente">Pendente</option>
-                  <option value="confirmado">Confirmado</option>
-                  <option value="em_separacao">Em separação</option>
-                  <option value="em_producao">Em produção</option>
-                  <option value="em_expedicao">Em expedição</option>
-                  <option value="saiu_para_entrega">Saiu para Entrega</option>
-                  <option value="pronto_para_retirar">Pronto para retirar</option>
-                  <option value="cancelado">Cancelado</option>
+                  {opcoesStatusPdv.map((op) => (
+                    <option key={op.id} value={op.id}>
+                      {op.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <button

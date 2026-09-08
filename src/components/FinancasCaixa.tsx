@@ -700,9 +700,58 @@ export const FinancasCaixa: React.FC = () => {
       return dataPedidoYMD === dataOperacaoHojeYMD;
     };
 
+    // Função auxiliar para verificar se uma transação financeira pertence a um pedido
+    const identificarPedidoDaTransacao = (t: TransacaoFinanceira): { pertence: boolean; pedido?: Pedido; chave?: string } => {
+      // 1. Por pedido_id
+      if (t.pedido_id) {
+        const ped = pedidosMap.get(t.pedido_id) || pedidosMap.get(t.pedido_id.toLowerCase());
+        return { pertence: true, pedido: ped, chave: t.pedido_id.toLowerCase() };
+      }
+
+      const desc = (t.descricao || '').trim();
+
+      // 2. Por UUID na descrição (ex: gerado automaticamente pelo trigger SQL: "Recebimento Pedido #<UUID>")
+      const uuidMatch = desc.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      if (uuidMatch && uuidMatch[0]) {
+        const uuid = uuidMatch[0].toLowerCase();
+        const ped = pedidosMap.get(uuid);
+        return { pertence: true, pedido: ped, chave: uuid };
+      }
+
+      // 3. Por menção a pedido ou venda numérica (ex: "Recebimento Pedido #12", "Recebimento Venda #12", "Pedido 12", "Venda 12")
+      const numMatch = desc.match(/(?:recebimento\s+)?(?:pedido|venda)\s*(?:#|\bn[ºo]\b)?\s*(\d+)/i);
+      if (numMatch && numMatch[1]) {
+        const num = Number(numMatch[1]);
+        const ped = pedidosNumMap.get(num);
+        return { pertence: true, pedido: ped, chave: String(num) };
+      }
+
+      // 4. Se a categoria é explicitamente "Venda" ou "Venda Balcão / PDV"
+      if (t.categoria === 'Venda' || t.categoria === 'Venda Balcão / PDV') {
+        return { pertence: true, chave: desc.toLowerCase() };
+      }
+
+      return { pertence: false };
+    };
+
     // Filtro de escopo para transações financeiras
     const transacaoPertenceAoEscopo = (t: TransacaoFinanceira, tipo: 'ENTRADA' | 'SAIDA'): boolean => {
       if (filtroPeriodoFluxo === 'todos') return true;
+
+      // Se a transação estiver vinculada a um pedido, segue estritamente a pertinência do pedido
+      const vinculo = identificarPedidoDaTransacao(t);
+      if (vinculo.pertence) {
+        const ped = vinculo.pedido || (t.pedido_id ? pedidosMap.get(t.pedido_id.toLowerCase()) : null);
+        if (ped) {
+          return pedidoPertenceAoEscopo(ped);
+        }
+        if (t.pedido_id) {
+          const sessaoId = pedidoSessaoMap.get(t.pedido_id.toLowerCase());
+          if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva && sessaoId && sessaoId !== sessaoAtiva.id) {
+            return false;
+          }
+        }
+      }
 
       // Contas a pagar pendentes podem ser visualizadas
       if (tipo === 'SAIDA' && String(t.status || '').toLowerCase() === 'pendente') {
@@ -800,40 +849,6 @@ export const FinancasCaixa: React.FC = () => {
       });
     });
 
-    // Função auxiliar para verificar se uma transação financeira pertence a um pedido
-    const identificarPedidoDaTransacao = (t: TransacaoFinanceira): { pertence: boolean; pedido?: Pedido; chave?: string } => {
-      // 1. Por pedido_id
-      if (t.pedido_id) {
-        const ped = pedidosMap.get(t.pedido_id) || pedidosMap.get(t.pedido_id.toLowerCase());
-        return { pertence: true, pedido: ped, chave: t.pedido_id.toLowerCase() };
-      }
-
-      const desc = (t.descricao || '').trim();
-
-      // 2. Por UUID na descrição (ex: gerado automaticamente pelo trigger SQL: "Recebimento Pedido #<UUID>")
-      const uuidMatch = desc.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-      if (uuidMatch && uuidMatch[0]) {
-        const uuid = uuidMatch[0].toLowerCase();
-        const ped = pedidosMap.get(uuid);
-        return { pertence: true, pedido: ped, chave: uuid };
-      }
-
-      // 3. Por menção a pedido ou venda numérica (ex: "Recebimento Pedido #12", "Recebimento Venda #12", "Pedido 12", "Venda 12")
-      const numMatch = desc.match(/(?:recebimento\s+)?(?:pedido|venda)\s*(?:#|\bn[ºo]\b)?\s*(\d+)/i);
-      if (numMatch && numMatch[1]) {
-        const num = Number(numMatch[1]);
-        const ped = pedidosNumMap.get(num);
-        return { pertence: true, pedido: ped, chave: String(num) };
-      }
-
-      // 4. Se a categoria é explicitamente "Venda" ou "Venda Balcão / PDV"
-      if (t.categoria === 'Venda' || t.categoria === 'Venda Balcão / PDV') {
-        return { pertence: true, chave: desc.toLowerCase() };
-      }
-
-      return { pertence: false };
-    };
-
     // 2. Processar todas as transações financeiras reais da tabela transacoes_financeiras
     transacoes.forEach(t => {
       // Evitar duplicatas de ID na tabela de transações
@@ -870,39 +885,32 @@ export const FinancasCaixa: React.FC = () => {
 
       // Se a transação pertence a uma venda/pedido:
       if (vinculo.pertence) {
-        // Se encontramos o pedido correspondente:
+        // Se encontramos o pedido no catálogo do sistema (seja desta sessão ou de outra sessão/dia),
+        // ele é de competência estrita do catálogo de pedidos. Não duplicar nem vazar sessões!
         if (vinculo.pedido) {
-          const ped = vinculo.pedido;
-          // Se o pedido está cancelado, pendente ou aguardando pagamento, IGNORAMOS a transação
-          if (
-            ped.status === 'cancelado' ||
-            ped.status === 'pendente' ||
-            ped.status_pagamento === 'aguardando_pagamento'
-          ) {
-            return;
-          }
-          // Se o pedido já foi contabilizado, IGNORAMOS a transação redundante
-          // para não duplicar o registro com a listagem oficial de pedidos
-          if (
-            pedidosContabilizados.has(ped.id.toLowerCase()) ||
-            (ped.numero_pedido != null && pedidosContabilizados.has(String(ped.numero_pedido)))
-          ) {
-            return;
-          }
-        }
-
-        // Se a transação tem um pedido_id já contabilizado:
-        if (t.pedido_id && pedidosContabilizados.has(t.pedido_id.toLowerCase())) {
           return;
         }
 
-        // Se a chave identificada já foi contabilizada:
+        // Se o pedido_id existe no sistema, também ignorar
+        if (t.pedido_id && (pedidosMap.has(t.pedido_id) || pedidosMap.has(t.pedido_id.toLowerCase()))) {
+          return;
+        }
+
+        // Se a chave já foi contabilizada em pedidos:
         if (vinculo.chave && pedidosContabilizados.has(vinculo.chave.toLowerCase())) {
           return;
         }
 
-        // Se for uma entrada de venda que NÃO estava na lista de pedidos (fallback de integridade):
-        // Garantimos que não adicionamos a mesma venda mais de uma vez
+        // Se for classificada como venda mas não encontramos o pedido e o filtro é turno atual:
+        // verificar se não é de sessão anterior
+        if (t.pedido_id && pedidoSessaoMap.has(t.pedido_id.toLowerCase())) {
+          const sessaoId = pedidoSessaoMap.get(t.pedido_id.toLowerCase());
+          if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva && sessaoId && sessaoId !== sessaoAtiva.id) {
+            return;
+          }
+        }
+
+        // Caso seja uma transação financeira de venda sem correspondência no banco de pedidos:
         const chavePedido = vinculo.chave || t.pedido_id || t.descricao;
         if (pedidosContabilizados.has(chavePedido.toLowerCase())) {
           return;
@@ -910,13 +918,7 @@ export const FinancasCaixa: React.FC = () => {
         pedidosContabilizados.add(chavePedido.toLowerCase());
 
         let descFormatada = t.descricao || 'Recebimento Venda';
-        if (vinculo.pedido) {
-          const ped = vinculo.pedido;
-          const nomeCli = ped.cliente?.nome || 'Cliente Balcão';
-          descFormatada = `Recebimento Venda #${ped.numero_pedido || ped.id.slice(0, 6)} - ${nomeCli}`;
-        } else {
-          descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
-        }
+        descFormatada = descFormatada.replace(/recebimento pedido #/gi, 'Recebimento Venda #');
 
         const status = String(t.status || 'pago').toLowerCase();
         resultado.push({

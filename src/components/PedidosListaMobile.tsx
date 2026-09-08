@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -45,6 +45,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
 import { extrairObservacaoLimpa } from '../utils/formatters';
+import {
+  obterAbasStatusVisiveis,
+  obterOpcoesStatusAlteracao
+} from '../utils/statusPedidoUtils';
 
 interface HistoricoItemMobile {
   status: string;
@@ -135,6 +139,27 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [ouvindoVoz, setOuvindoVoz] = useState<boolean>(false);
   const [modalStatusAberto, setModalStatusAberto] = useState<boolean>(false);
   const [statusSelecionados, setStatusSelecionados] = useState<string[]>(['todos']);
+
+  // Abas de status ativas da loja
+  const abasStatus = useMemo(() => {
+    return obterAbasStatusVisiveis(loja);
+  }, [loja]);
+
+  useEffect(() => {
+    if (!statusSelecionados.includes('todos')) {
+      const validos = statusSelecionados.filter((s) => abasStatus.some((a) => a.id === s));
+      if (validos.length === 0) {
+        setStatusSelecionados(['todos']);
+      } else if (validos.length !== statusSelecionados.length) {
+        setStatusSelecionados(validos);
+      }
+    }
+  }, [abasStatus, statusSelecionados]);
+
+  // Opções para o modal de alteração de status
+  const opcoesStatusAlteracao = useMemo(() => {
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, true);
+  }, [loja, pedidoSelecionado?.status]);
 
   const alternarVoz = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -763,16 +788,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               </p>
 
               <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                {[
-                  { id: 'pendente', label: 'Pendente' },
-                  { id: 'confirmado', label: 'Confirmado' },
-                  { id: 'em_producao', label: 'Em Produção' },
-                  { id: 'em_expedicao', label: 'Em Expedição' },
-                  { id: 'saiu_para_entrega', label: 'Saiu Para Entrega' },
-                  { id: 'pronto_para_retirar', label: 'Pronto Para Retirar' },
-                  { id: 'concluido', label: 'Concluído' },
-                  { id: 'cancelado', label: 'Cancelado' }
-                ].map((st) => (
+                {opcoesStatusAlteracao.map((st) => (
                   <button
                     key={st.id}
                     type="button"
@@ -1038,17 +1054,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       {/* 3. Barra de Abas de Status com Contagens */}
       <div className="px-3 py-2 border-b border-slate-200 bg-white flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 text-xs">
-        {[
-          { id: 'todos', label: 'Todos os status' },
-          { id: 'pendente', label: 'Pendente' },
-          { id: 'confirmado', label: 'Confirmado' },
-          { id: 'em_separacao', label: 'Em separação' },
-          { id: 'em_producao', label: 'Em produção' },
-          { id: 'em_expedicao', label: 'Em expedição' },
-          { id: 'saiu_para_entrega', label: 'Saiu para Entrega' },
-          { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
-          { id: 'cancelado', label: 'Cancelado' }
-        ].map((f) => {
+        {abasStatus.map((f) => {
           const count = contagensPorStatus[f.id] || 0;
           const isActive = statusSelecionados.includes(f.id);
           return (
@@ -1291,17 +1297,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
 
             <div className="space-y-2 max-h-64 overflow-y-auto text-xs text-slate-700">
-              {[
-                { id: 'todos', label: 'Todos os status' },
-                { id: 'pendente', label: 'Pendente' },
-                { id: 'confirmado', label: 'Confirmado' },
-                { id: 'em_separacao', label: 'Em separação' },
-                { id: 'em_producao', label: 'Em produção' },
-                { id: 'em_expedicao', label: 'Em expedição' },
-                { id: 'saiu_para_entrega', label: 'Saiu para entrega' },
-                { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
-                { id: 'cancelado', label: 'Cancelado' }
-              ].map((st) => {
+              {abasStatus.map((st) => {
                 const count = contagensPorStatus[st.id] || 0;
                 return (
                   <label key={st.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer">

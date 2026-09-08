@@ -58,33 +58,15 @@ import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
 import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
 import { PedidosListaMobile } from './PedidosListaMobile';
+import {
+  ROTULOS_STATUS_PEDIDO,
+  isStatusPedidoAtivo,
+  obterAbasStatusVisiveis,
+  obterOpcoesStatusAlteracao
+} from '../utils/statusPedidoUtils';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
 type OrdenacaoDirecao = 'asc' | 'desc';
-
-const ABAS_STATUS: { id: string; label: string }[] = [
-  { id: 'todos', label: 'Todos os status' },
-  { id: 'pendente', label: 'Pendente' },
-  { id: 'confirmado', label: 'Confirmado' },
-  { id: 'em_separacao', label: 'Em separação' },
-  { id: 'em_producao', label: 'Em produção' },
-  { id: 'em_expedicao', label: 'Em expedição' },
-  { id: 'saiu_para_entrega', label: 'Saiu para Entrega' },
-  { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
-  { id: 'cancelado', label: 'Cancelado' }
-];
-
-const STATUS_PEDIDO_OPCOES: { id: StatusPedido; label: string }[] = [
-  { id: 'pendente', label: 'Pendente' },
-  { id: 'confirmado', label: 'Confirmado' },
-  { id: 'em_separacao', label: 'Em separação' },
-  { id: 'em_producao', label: 'Em produção' },
-  { id: 'em_expedicao', label: 'Em expedição' },
-  { id: 'saiu_para_entrega', label: 'Saiu para Entrega' },
-  { id: 'pronto_para_retirar', label: 'Pronto para retirar' },
-  { id: 'concluido', label: 'Concluído' },
-  { id: 'cancelado', label: 'Cancelado' }
-];
 
 interface HistoricoItem {
   status: string;
@@ -105,9 +87,26 @@ export const PedidosLista: React.FC = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
   const [statusFiltro, setStatusFiltro] = useState<string>('todos');
   const [busca, setBusca] = useState<string>('');
+
+  // Abas de status ativas conforme configurações da loja
+  const abasStatus = useMemo(() => {
+    return obterAbasStatusVisiveis(loja);
+  }, [loja]);
+
+  // Se o filtro selecionado for desativado nas configurações, reseta para 'todos'
+  useEffect(() => {
+    if (statusFiltro !== 'todos' && !abasStatus.some((a) => a.id === statusFiltro)) {
+      setStatusFiltro('todos');
+    }
+  }, [abasStatus, statusFiltro]);
   
   // Modais e Detalhes
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
+
+  // Opções de status permitidas para alteração no pedido selecionado
+  const opcoesStatusSelecionado = useMemo(() => {
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, false);
+  }, [loja, pedidoSelecionado?.status]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
@@ -344,6 +343,16 @@ export const PedidosLista: React.FC = () => {
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
     try {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
+
+      // Validação estrita: não permitir alterar para status desativados nas configurações da loja
+      if (!isStatusPedidoAtivo(novoStatus, loja) && pedAlvo?.status !== novoStatus) {
+        mostrarAviso(
+          `O status "${ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus}" está desativado em Configurações > Pedidos e Vendas.`,
+          'Status Desativado'
+        );
+        return;
+      }
+
       const novosMetadados = adicionarHistoricoMetadados(
         pedAlvo,
         novoStatus,
@@ -756,6 +765,8 @@ export const PedidosLista: React.FC = () => {
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Confirmado</span>;
       case 'em_producao':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">🔵 Em produção</span>;
+      case 'em_expedicao':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">📦 Em expedição</span>;
       case 'saiu_para_entrega':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">🚚 Saiu para Entrega</span>;
       case 'pronto_para_retirar':
@@ -840,7 +851,7 @@ export const PedidosLista: React.FC = () => {
                   onChange={(e) => atualizarStatus(pedidoSelecionado.id, e.target.value as StatusPedido)}
                   className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
                 >
-                  {STATUS_PEDIDO_OPCOES.filter((op) => op.id !== 'concluido').map((op) => (
+                  {opcoesStatusSelecionado.filter((op) => op.id !== 'concluido').map((op) => (
                     <option key={op.id} value={op.id}>
                       Status: {op.label}
                     </option>
@@ -1209,7 +1220,7 @@ export const PedidosLista: React.FC = () => {
                 <div className="space-y-3 text-xs">
                   {extrairHistoricoPedido(pedidoSelecionado).map((item, idx, arr) => {
                     const isLast = idx === arr.length - 1;
-                    const rotuloStatus = STATUS_PEDIDO_OPCOES.find((s) => s.id === item.status)?.label || item.status;
+                    const rotuloStatus = ROTULOS_STATUS_PEDIDO[item.status] || item.status;
                     return (
                       <div key={idx} className="flex items-start gap-2.5">
                         <div
@@ -1293,7 +1304,7 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               <div className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-                {ABAS_STATUS.map((f) => {
+                {abasStatus.map((f) => {
                   const count = contagensPorStatus[f.id] || 0;
                   const isActive = statusFiltro === f.id;
                   return (
