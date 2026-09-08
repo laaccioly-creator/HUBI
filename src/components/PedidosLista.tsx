@@ -50,6 +50,7 @@ import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { audioService } from '../services/audioService';
+import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalItensPedido } from './ModalItensPedido';
@@ -430,7 +431,7 @@ export const PedidosLista: React.FC = () => {
     if (!pedidoSelecionado || !loja?.id) return;
     try {
       setSalvandoConclusao(true);
-      const dataIso = new Date().toISOString();
+      const dataIso = obterDataOperacaoISO();
 
       const { data: fps } = await supabase.from('formas_pagamento').select('*').eq('loja_id', loja.id);
       const listaFPs = fps && fps.length > 0 ? fps : [];
@@ -513,13 +514,15 @@ export const PedidosLista: React.FC = () => {
       }
 
       if (formaId) {
+        const dataIso = obterDataOperacaoISO();
         await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoSelecionado.id);
         await supabase.from('pagamentos_pedido').insert({
           pedido_id: pedidoSelecionado.id,
           loja_id: loja.id,
           forma_pagamento_id: formaId,
           valor: valorTotal,
-          criado_em: new Date().toISOString()
+          data_pagamento: dataIso,
+          criado_em: dataIso
         });
       }
 
@@ -530,6 +533,7 @@ export const PedidosLista: React.FC = () => {
         usuario?.nome_completo || 'Operador'
       );
 
+      const dataIsoConclusao = obterDataOperacaoISO();
       const { error } = await supabase
         .from('pedidos')
         .update({
@@ -539,7 +543,7 @@ export const PedidosLista: React.FC = () => {
           saldo_devedor: 0,
           observacoes: obsLimpa || null,
           metadados: novosMetadados,
-          atualizado_em: new Date().toISOString()
+          atualizado_em: dataIsoConclusao
         })
         .eq('id', pedidoSelecionado.id);
 

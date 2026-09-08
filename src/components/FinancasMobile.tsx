@@ -271,6 +271,21 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       if (ped.numero_pedido != null) pedidosNumeros.add(String(ped.numero_pedido));
 
       if (ped.status === 'cancelado') return;
+
+      // Status do pagamento do pedido
+      const statusPag = ped.status_pagamento || (Number(ped.saldo_devedor) <= 0 && Number(ped.valor_pago) > 0 ? 'pago' : Number(ped.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+
+      // Se o pedido está pendente ou aguardando pagamento, não entra nas entradas pagas de caixa
+      if (ped.status === 'pendente' || statusPag === 'aguardando_pagamento') return;
+
+      const valPago = Number(ped.valor_pago || 0);
+      const valTotal = Number(ped.valor_total || 0);
+      const valEfetivo = (statusPag === 'pago' || ped.status === 'concluido')
+        ? (valPago > 0 ? valPago : valTotal)
+        : (statusPag === 'parcialmente_pago' ? valPago : 0);
+
+      if (valEfetivo <= 0) return;
+
       const dataIso = ped.data_venda || ped.criado_em || '';
       const dataFormatada = dataIso.split('T')[0];
       list.push({
@@ -278,7 +293,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
         tipoOrigem: 'pdv',
         titulo: `Vendas (${ped.itens?.length || 1})`,
         subtitulo: ped.cliente?.nome ? `Cliente: ${ped.cliente.nome}` : 'Venda de Balcão / PDV',
-        valor: Number(ped.valor_total) || 0,
+        valor: valEfetivo,
         data: dataFormatada,
         formaPagamento: ped.pagamentos?.[0]?.forma_pagamento?.nome || 'Diversos',
         pedidoOriginal: ped

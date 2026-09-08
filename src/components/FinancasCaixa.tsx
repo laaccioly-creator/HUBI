@@ -628,11 +628,28 @@ export const FinancasCaixa: React.FC = () => {
         return;
       }
 
-      // Pedidos sem valor pago ou pendentes sem pagamento não entram no fluxo de caixa realizado
+      // Identificar status de pagamento do pedido
+      const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+
+      // Pedidos pendentes ou com pagamento aguardando NÃO entram nas entradas do caixa
+      if (p.status === 'pendente' || statusPag === 'aguardando_pagamento') {
+        // Bloqueia no conjunto para evitar que qualquer transação financeira órfã seja somada
+        if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
+        if (p.numero_pedido != null) pedidosContabilizados.add(String(p.numero_pedido));
+        return;
+      }
+
       const valPago = Number(p.valor_pago || 0);
       const valTotal = Number(p.valor_total || 0);
-      const valEfetivo = valPago > 0 ? valPago : (p.status === 'concluido' || p.status_pagamento === 'pago' ? valTotal : 0);
-      if (valEfetivo <= 0) return;
+      const valEfetivo = (statusPag === 'pago' || p.status === 'concluido')
+        ? (valPago > 0 ? valPago : valTotal)
+        : (statusPag === 'parcialmente_pago' ? valPago : 0);
+
+      if (valEfetivo <= 0) {
+        if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
+        if (p.numero_pedido != null) pedidosContabilizados.add(String(p.numero_pedido));
+        return;
+      }
 
       // Registrar como contabilizado para evitar que o trigger do Supabase duplique
       if (p.id) pedidosContabilizados.add(p.id.toLowerCase());
@@ -662,7 +679,7 @@ export const FinancasCaixa: React.FC = () => {
         descricao: `Recebimento Venda #${p.numero_pedido || p.id.slice(0, 6)} - ${nomeCliente}`,
         valor: valEfetivo,
         data: p.data_venda || p.criado_em || new Date().toISOString(),
-        status: p.status_pagamento === 'pago' || p.status === 'concluido' ? 'pago' : 'concluído',
+        status: 'pago',
         formaPagamento: fpNome
       });
     });
@@ -736,7 +753,15 @@ export const FinancasCaixa: React.FC = () => {
         // Se encontramos o pedido correspondente:
         if (vinculo.pedido) {
           const ped = vinculo.pedido;
-          // Se o pedido já foi contabilizado (ou é cancelado), IGNORAMOS a transação redundante
+          // Se o pedido está cancelado, pendente ou aguardando pagamento, IGNORAMOS a transação
+          if (
+            ped.status === 'cancelado' ||
+            ped.status === 'pendente' ||
+            ped.status_pagamento === 'aguardando_pagamento'
+          ) {
+            return;
+          }
+          // Se o pedido já foi contabilizado, IGNORAMOS a transação redundante
           // para não duplicar o registro com a listagem oficial de pedidos
           if (
             pedidosContabilizados.has(ped.id.toLowerCase()) ||
@@ -744,7 +769,6 @@ export const FinancasCaixa: React.FC = () => {
           ) {
             return;
           }
-          if (ped.status === 'cancelado') return;
         }
 
         // Se a transação tem um pedido_id já contabilizado:
@@ -1261,7 +1285,7 @@ export const FinancasCaixa: React.FC = () => {
                           <div className="bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-right shrink-0">
                             <span className="text-[11px] text-slate-400 block font-semibold">Fundo de Troco Inicial</span>
                             <span className="text-lg font-black text-emerald-400">
-                              R$ {Number(sessaoAtiva.fundo_troco_inicial).toFixed(2)}
+                              R$ {(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -1286,7 +1310,7 @@ export const FinancasCaixa: React.FC = () => {
                           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-800 text-[11px]">
                             <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
                               <span className="text-slate-400 block text-[10px]">Fundo Inicial</span>
-                              <span className="font-bold text-slate-200">+ R$ {Number(sessaoAtiva.fundo_troco_inicial).toFixed(2)}</span>
+                              <span className="font-bold text-slate-200">+ R$ {(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}</span>
                             </div>
                             <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
                               <span className="text-slate-400 block text-[10px]">Vendas Dinheiro</span>

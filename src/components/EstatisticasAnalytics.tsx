@@ -211,10 +211,19 @@ export const EstatisticasAnalytics: React.FC = () => {
 
   // Funções utilitárias para resolver data e valor efetivo de pagamento (Item 8)
   const obterDataPagamentoPedido = (p: Pedido): Date => {
-    if (p.pagamentos && p.pagamentos.length > 0 && p.pagamentos[0].data_pagamento) {
-      return new Date(p.pagamentos[0].data_pagamento);
+    const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
+    // Se for quitação de fiado posterior, considera a data do recebimento
+    if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
+      return new Date(pag.data_pagamento);
     }
-    return new Date(p.data_venda || p.criado_em || '');
+    // Para vendas normais do PDV/catálogo, a data oficial é a data da venda
+    if (p.data_venda) {
+      return new Date(p.data_venda);
+    }
+    if (pag && pag.data_pagamento) {
+      return new Date(pag.data_pagamento);
+    }
+    return new Date(p.criado_em || '');
   };
 
   const obterValorEfetivoPagoPedido = (p: Pedido): number => {

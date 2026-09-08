@@ -22,6 +22,7 @@ import { PrintService } from '../services/printService';
 import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
 import { caixaService } from '../services/caixaService';
+import { obterDataOperacaoISO } from '../utils/dataOperacao';
 
 interface ModalReceberPagamentoProps {
   isOpen: boolean;
@@ -249,7 +250,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
       const taxaValor = (valorInformado * Number(fpFinal.taxa_percentual || 0)) / 100;
       const valorLiquido = valorInformado - taxaValor;
-      const dataIso = new Date().toISOString();
+      const dataIso = obterDataOperacaoISO();
 
       // Resolver ID real da forma de pagamento
       const fpIdReal = await SyncService.resolverFormaPagamentoId(
