@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Store,
@@ -201,6 +201,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
+  const salvouRecenteRef = useRef<boolean>(false);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -353,6 +354,10 @@ export const ConfiguracoesLoja: React.FC = () => {
   // Inicialização com dados da Loja
   useEffect(() => {
     if (loja) {
+      if (salvouRecenteRef.current) {
+        salvouRecenteRef.current = false;
+        return;
+      }
       const extras = loja.configuracoes_extras || {};
       const geral = extras.geral || {};
       const recibo = extras.recibo || {};
@@ -509,8 +514,12 @@ export const ConfiguracoesLoja: React.FC = () => {
           telaInicialPadrao: geral.tela_inicial_padrao || 'inicio',
           moeda: geral.moeda || 'BR - R$',
           casasDecimais: geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true,
+          controlarEstoque: extras.controlar_estoque ?? geral.controlar_estoque ?? true,
           transacoesCanceladas: geral.transacoes_canceladas || extras.preferencias_gerais?.transacoes_canceladas || 'riscadas',
           ordenarProdutosPdv: geral.ordenar_produtos_pdv || 'cadastro',
+          segmentoNegocio: perfilNegocio.segmento || 'geral',
+          especialidadeNegocio: (perfilNegocio.descricao_especialidade || '').trim(),
+          tomVozRubi: perfilNegocio.tom_voz || 'consultivo',
           nomeLoja: loja.nome_fantasia || '',
           urlLogo: loja.url_logo || '',
           telefone: loja.telefone || '',
@@ -778,7 +787,9 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       if (error) throw error;
 
+      salvouRecenteRef.current = true;
       setSnapshotInicial(snapshotAtual);
+      setTemAlteracoesNaoSalvas(false);
       await recarregarDadosLoja();
       mostrarToast('Configurações salvas com sucesso!');
     } catch (err: any) {
@@ -869,7 +880,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       transacoesCanceladas,
       ordenarProdutosPdv,
       segmentoNegocio,
-      especialidadeNegocio,
+      especialidadeNegocio: especialidadeNegocio.trim(),
       tomVozRubi,
       nomeLoja,
       urlLogo,
@@ -957,6 +968,9 @@ export const ConfiguracoesLoja: React.FC = () => {
     controlarEstoque,
     transacoesCanceladas,
     ordenarProdutosPdv,
+    segmentoNegocio,
+    especialidadeNegocio,
+    tomVozRubi,
     nomeLoja,
     urlLogo,
     telefone,
