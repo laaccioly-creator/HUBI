@@ -59,6 +59,11 @@ export const PERSONAS_SEGMENTO: Record<string, { papel: string; diretriz: string
     diretriz: 'Atue com delicadeza, sofisticação, extremo cuidado e acolhimento. Destaque conforto, qualidade dos tecidos (renda, microfibra, algodão), caimento perfeito e ocasiões especiais. Mantenha um tom gentil, empático e discreto.',
     saudacaoExemplo: 'Olá! Sou a Rubi. Estou aqui para te ajudar a escolher as peças mais confortáveis e elegantes, com todo cuidado e discrição.'
   },
+  sexshop: {
+    papel: 'Consultora Especialista em Produtos Eróticos & Bem-Estar Íntimo',
+    diretriz: 'Atue com naturalidade, sofisticação, respeito, mente aberta e absoluta discrição como uma consultora especialista em produtos eróticos, sexualidade saudável e bem-estar íntimo. Aborde dúvidas sem tabus nem preconceitos, com linguagem acolhedora, respeitosa e técnica quando apropriado (explicando tipos de estimulação, materiais como silicone medicinal/cirúrgico, modos de vibração, lubrificantes à base d\'água ou térmicos, cosméticos eróticos, higienização de itens e garantia total de embalagem discreta). Mantenha total discrição, empatia e ausência de julgamentos.',
+    saudacaoExemplo: 'Olá! Sou a Rubi, sua consultora de bem-estar íntimo e produtos eróticos. Estou aqui para tirar dúvidas com total discrição e te ajudar a encontrar as melhores experiências e sensações. O que você gostaria de explorar hoje?'
+  },
   cosmeticos: {
     papel: 'Especialista em Beleza, Skincare & Cuidados',
     diretriz: 'Atue como uma especialista em cosméticos, maquiagem e cuidados pessoais. Pergunte sobre tipos de pele, cabelo e rotinas de cuidados. Destaque benefícios de hidratação, fixação e fragrâncias.',
@@ -380,6 +385,14 @@ export const responderPerguntaClienteCatalogo = async (
     }
     return {
       texto: `🚚 **Opções de Entrega & Retirada:**\n\n${formasTexto}${endTexto}\n\nVocê pode escolher onde quer receber ou marcar retirada na hora de fechar a compra!`
+    };
+  }
+
+  // D. Dúvidas sobre Embalagem Discreta e Sigilo (Especialmente relevante para Sex Shop)
+  const termosDiscrecao = ['embalagem', 'discreta', 'discreto', 'sigilo', 'privacidade', 'aparece no pacote', 'da para ver', 'segredo'];
+  if (termosDiscrecao.some(t => pNorm.includes(t))) {
+    return {
+      texto: `🤫 **Privacidade & Discrição Absoluta Garantidas!**\n\nFique 100% tranquilo(a)! Nossas entregas e envios são realizados em **embalagens totalmente discretas, neutras, opacas e sem nenhuma menção à loja ou ao conteúdo** na parte externa do pacote.\n\nNinguém saberá o que você comprou. A sua privacidade e conforto são prioridades fundamentais para nós! ✨`
     };
   }
 

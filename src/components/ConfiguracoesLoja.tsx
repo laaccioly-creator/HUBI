@@ -117,6 +117,14 @@ export const SEGMENTOS_NEGOCIO = [
     exemploFala: 'Olá! Sou a Rubi. Estou aqui para te ajudar a escolher as peças mais confortáveis e elegantes, com todo cuidado e discrição.'
   },
   {
+    id: 'sexshop',
+    nome: 'Sex Shop / Produtos Eróticos / Bem-Estar Íntimo',
+    icone: '🔥',
+    papel: 'Consultora Especialista em Produtos Eróticos',
+    descricao: 'Vibradores, cosméticos eróticos, lubrificantes, fetiches, géis, fantasias e bem-estar sexual',
+    exemploFala: 'Olá! Sou a Rubi, sua consultora de produtos eróticos e bem-estar íntimo. Estou aqui para tirar dúvidas com total discrição e te ajudar a escolher as melhores sensações e experiências!'
+  },
+  {
     id: 'cosmeticos',
     nome: 'Beleza / Cosméticos / Perfumes',
     icone: '💄',

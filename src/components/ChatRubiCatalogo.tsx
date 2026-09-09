@@ -64,6 +64,16 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   const [suporteVozSTT, setSuporteVozSTT] = useState<boolean>(false);
   const recognitionRef = useRef<any>(null);
 
+  // Refs para controle resiliente de fala (evita corte abrupto e aguarda término da frase)
+  const deveContinuarOuvindoRef = useRef<boolean>(false);
+  const silencioTimerRef = useRef<any>(null);
+  const textoCapturadoRef = useRef<string>('');
+
+  // Manter textoCapturadoRef sincronizado
+  useEffect(() => {
+    textoCapturadoRef.current = inputTexto;
+  }, [inputTexto]);
+
   // Controle de Áudio (Text-to-Speech - Rubi falando)
   const [audioAtivo, setAudioAtivo] = useState<boolean>(true);
   const [rubiFalando, setRubiFalando] = useState<boolean>(false);
@@ -108,7 +118,25 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     }
   }, [contexto.nomeClienteAtual]);
 
-  // Inicializar Web Speech Recognition (Microfone)
+  const pararGravacaoVoz = (enviarSeTiverTexto: boolean = false) => {
+    deveContinuarOuvindoRef.current = false;
+    if (silencioTimerRef.current) {
+      clearTimeout(silencioTimerRef.current);
+      silencioTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    setEscutandoVoz(false);
+
+    if (enviarSeTiverTexto && textoCapturadoRef.current.trim()) {
+      enviarMensagem(textoCapturadoRef.current.trim());
+    }
+  };
+
+  // Inicializar Web Speech Recognition (Microfone Contínuo e Sem Cortes)
   useEffect(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -118,30 +146,69 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = 'pt-BR';
-        recognition.continuous = false;
-        recognition.interimResults = true;
+        recognition.continuous = true; // ESSENCIAL: Mantém escuta contínua, sem cortar nas pausas naturais da fala
+        recognition.interimResults = true; // Transcreve em tempo real
 
         recognition.onstart = () => {
           setEscutandoVoz(true);
         };
 
         recognition.onresult = (event: any) => {
-          let transcricao = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcricao += event.results[i][0].transcript;
+          let finalTranscript = '';
+          let interimTranscript = '';
+
+          for (let i = 0; i < event.results.length; i++) {
+            const item = event.results[i];
+            if (item.isFinal) {
+              finalTranscript += (finalTranscript && !finalTranscript.endsWith(' ') ? ' ' : '') + item[0].transcript.trim();
+            } else {
+              interimTranscript += (interimTranscript && !interimTranscript.endsWith(' ') ? ' ' : '') + item[0].transcript.trim();
+            }
           }
-          if (transcricao.trim()) {
-            setInputTexto(transcricao);
+
+          const textoCompleto = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+
+          if (textoCompleto) {
+            textoCapturadoRef.current = textoCompleto;
+            setInputTexto(textoCompleto);
+
+            // Reiniciar timer de silêncio: concede 3 segundos inteiros de silêncio para terminar a frase com calma
+            if (silencioTimerRef.current) {
+              clearTimeout(silencioTimerRef.current);
+            }
+            silencioTimerRef.current = setTimeout(() => {
+              if (deveContinuarOuvindoRef.current && textoCapturadoRef.current.trim()) {
+                pararGravacaoVoz(true);
+              }
+            }, 3000); // 3 segundos de tolerância de silêncio
           }
         };
 
         recognition.onerror = (event: any) => {
           console.warn('Aviso no microfone Rubi IA:', event.error);
-          setEscutandoVoz(false);
+          if (event.error === 'no-speech') {
+            // Silêncio comum enquanto o usuário pensa; não cancela se deveContinuarOuvindoRef for true
+            return;
+          }
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            deveContinuarOuvindoRef.current = false;
+            setEscutandoVoz(false);
+            mostrarToastFeedback('Permissão de microfone negada. Ative o microfone nas permissões do navegador.');
+            return;
+          }
         };
 
         recognition.onend = () => {
-          setEscutandoVoz(false);
+          // Se o navegador desligar temporariamente a conexão mas o usuário ainda está no modo de fala
+          if (deveContinuarOuvindoRef.current) {
+            try {
+              recognition.start();
+            } catch {
+              // Conexão em reinício
+            }
+          } else {
+            setEscutandoVoz(false);
+          }
         };
 
         recognitionRef.current = recognition;
@@ -158,12 +225,14 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     }
 
     if (escutandoVoz) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      setEscutandoVoz(false);
+      // Se já estava gravando e o usuário tocou no microfone, conclui e envia se tiver texto
+      pararGravacaoVoz(true);
     } else {
       pararFalaRubi();
+      deveContinuarOuvindoRef.current = true;
+      textoCapturadoRef.current = '';
+      setInputTexto('');
+      setEscutandoVoz(true);
       try {
         recognitionRef.current.start();
       } catch (e) {
@@ -195,8 +264,8 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
       const utterance = new SpeechSynthesisUtterance(textoLimpo);
       utterance.lang = 'pt-BR';
-      utterance.rate = 1.05; // Levemente mais ágil e natural
-      utterance.pitch = 1.05;
+      utterance.rate = 1.0; // Velocidade natural, calma e compreensível
+      utterance.pitch = 1.0;
 
       const voices = window.speechSynthesis.getVoices();
       const ptVoice = voices.find(v => v.lang === 'pt-BR' || v.lang.startsWith('pt'));
@@ -226,12 +295,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   useEffect(() => {
     if (!aberto) {
       pararFalaRubi();
-      if (escutandoVoz && recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-        setEscutandoVoz(false);
-      }
+      pararGravacaoVoz(false);
     }
   }, [aberto]);
 
@@ -256,12 +320,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     if (!texto || pensando) return;
 
     pararFalaRubi();
-    if (escutandoVoz && recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      setEscutandoVoz(false);
-    }
+    pararGravacaoVoz(false);
 
     const msgUsuario: MensagemChat = {
       id: Date.now().toString(),
@@ -354,12 +413,20 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   };
 
   // Perguntas Rápidas (Organizadas em 2 Linhas Fixas, sem scroll horizontal)
-  const duvidasRapidas = [
-    'Como funciona o atacado?',
-    'Quais as formas de pagamento?',
-    'Como funciona a entrega?',
-    'Como usar cupom de desconto?'
-  ];
+  const duvidasRapidas =
+    segmento === 'sexshop'
+      ? [
+          'A embalagem é discreta?',
+          'Quais os produtos mais vendidos?',
+          'Como funciona a entrega?',
+          'Quais as formas de pagamento?'
+        ]
+      : [
+          'Como funciona o atacado?',
+          'Quais as formas de pagamento?',
+          'Como funciona a entrega?',
+          'Como usar cupom de desconto?'
+        ];
 
   return (
     <>
@@ -617,6 +684,32 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               ))}
             </div>
 
+            {/* Indicador de Escuta com Tolerância Confortável de Pausa */}
+            {escutandoVoz && (
+              <div className="px-3.5 py-2 bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-950 border-t border-rose-500/40 flex items-center justify-between text-xs text-rose-200 animate-in fade-in shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="flex h-2.5 w-2.5 relative shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                  </span>
+                  <span className="truncate font-medium text-[11px]">
+                    {inputTexto.trim()
+                      ? 'Ouvindo... Pode falar no seu ritmo (pausa de 3s envia)'
+                      : 'Gravando... Fale a sua frase com calma, estou te ouvindo!'}
+                  </span>
+                </div>
+                {inputTexto.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => pararGravacaoVoz(true)}
+                    className="ml-2 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 transition shadow-sm cursor-pointer"
+                  >
+                    Enviar Agora
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Formulário de Envio com Microfone Integrado */}
             <form
               onSubmit={(e) => {
@@ -634,14 +727,14 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                     ? 'bg-rose-600 border-rose-500 text-white animate-pulse shadow-lg shadow-rose-600/30'
                     : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50'
                 }`}
-                title={escutandoVoz ? 'Parar gravação de voz' : 'Falar com a Rubi por microfone'}
+                title={escutandoVoz ? 'Concluir gravação e enviar' : 'Falar com a Rubi por microfone'}
               >
                 {escutandoVoz ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
 
               <input
                 type="text"
-                placeholder={escutandoVoz ? 'Ouvindo você falar...' : 'Fale ou pergunte sobre produtos, preços, entrega...'}
+                placeholder={escutandoVoz ? 'Ouvindo... fale à vontade no seu ritmo' : 'Fale ou pergunte sobre produtos, preços, entrega...'}
                 value={inputTexto}
                 onChange={(e) => setInputTexto(e.target.value)}
                 disabled={pensando}
