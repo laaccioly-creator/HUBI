@@ -12,8 +12,9 @@ export interface ProdutoSugeridoIA {
 
 const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
 
-export const getGeminiApiKey = (): string => {
+export const getGeminiApiKey = (loja?: any): string => {
   return (
+    loja?.configuracoes_extras?.ia?.gemini_api_key ||
     import.meta.env.VITE_GEMINI_API_KEY ||
     localStorage.getItem(STORAGE_KEY_GEMINI_KEY) ||
     ''

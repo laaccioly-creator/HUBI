@@ -187,6 +187,9 @@ export interface ConfiguracoesExtrasLoja {
     persona_ia_personalizada?: string;
     tom_voz?: 'consultivo' | 'tecnico' | 'amigavel' | 'formal';
   };
+  ia?: {
+    gemini_api_key?: string;
+  };
 }
 
 export interface Loja {

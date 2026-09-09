@@ -241,7 +241,9 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     }
   };
 
-  // Síntese de Voz (Rubi falando verbalmente)
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Síntese de Voz (Rubi falando verbalmente com proteção contra corte e sleep no Chromium)
   const limparTextoParaAudio = (texto: string): string => {
     return texto
       .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove negrito
@@ -255,14 +257,17 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   };
 
   const falarTexto = (texto: string) => {
-    if (!audioAtivo || typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     try {
       window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+
       const textoLimpo = limparTextoParaAudio(texto);
       if (!textoLimpo) return;
 
       const utterance = new SpeechSynthesisUtterance(textoLimpo);
+      currentUtteranceRef.current = utterance; // Evita Garbage Collection no Chromium
       utterance.lang = 'pt-BR';
       utterance.rate = 1.0; // Velocidade natural, calma e compreensível
       utterance.pitch = 1.0;
@@ -274,10 +279,24 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       }
 
       utterance.onstart = () => setRubiFalando(true);
-      utterance.onend = () => setRubiFalando(false);
-      utterance.onerror = () => setRubiFalando(false);
+      utterance.onend = () => {
+        setRubiFalando(false);
+        currentUtteranceRef.current = null;
+      };
+      utterance.onerror = () => {
+        setRubiFalando(false);
+        currentUtteranceRef.current = null;
+      };
 
-      window.speechSynthesis.speak(utterance);
+      // Pequeno timeout de 50ms para desengasgar o cancel() prévio em navegadores Chromium
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.resume();
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          console.warn('Erro ao reproduzir voz:', e);
+        }
+      }, 50);
     } catch (err) {
       console.warn('Falha na síntese de voz da Rubi:', err);
       setRubiFalando(false);
@@ -285,9 +304,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   };
 
   const pararFalaRubi = () => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       setRubiFalando(false);
+      currentUtteranceRef.current = null;
     }
   };
 
@@ -337,7 +357,18 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       const contextoAtualizado: ContextoLojaCatalogo = {
         ...contexto,
         nomeClienteAtual: nomeCliente,
-        ultimoProdutoSugerido
+        ultimoProdutoSugerido,
+        historicoMensagens: mensagens.slice(-6).map(m => ({
+          autor: m.remetente === 'user' ? 'cliente' : 'rubi',
+          texto: m.texto
+        })),
+        produtosJaSugeridosIds: Array.from(
+          new Set(
+            mensagens
+              .flatMap(m => m.produtosSugeridos?.map(p => p.id) || [])
+              .filter(Boolean) as string[]
+          )
+        )
       };
 
       const respostaRubi = await responderPerguntaClienteCatalogo(texto, contextoAtualizado);
@@ -509,8 +540,15 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (audioAtivo) pararFalaRubi();
-                    setAudioAtivo(!audioAtivo);
+                    if (audioAtivo) {
+                      pararFalaRubi();
+                      setAudioAtivo(false);
+                      mostrarToastFeedback('Áudio da Rubi desativado.');
+                    } else {
+                      setAudioAtivo(true);
+                      mostrarToastFeedback('Áudio ativado! Falando no seu fone.');
+                      falarTexto('Áudio ativado! Estou pronta para falar com você.');
+                    }
                   }}
                   className={`p-2 rounded-xl transition cursor-pointer ${
                     audioAtivo
@@ -563,14 +601,31 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                       </div>
                     )}
 
-                    <div
-                      className={`max-w-[85%] rounded-2xl p-3.5 leading-relaxed whitespace-pre-wrap ${
-                        msg.remetente === 'user'
-                          ? 'bg-emerald-600 text-white rounded-br-xs shadow-md'
-                          : 'bg-slate-800 text-slate-200 rounded-bl-xs border border-slate-700/80 shadow-xs'
-                      }`}
-                    >
-                      {msg.texto}
+                    <div className="flex flex-col items-start gap-1 max-w-[85%]">
+                      <div
+                        className={`rounded-2xl p-3.5 leading-relaxed whitespace-pre-wrap ${
+                          msg.remetente === 'user'
+                            ? 'bg-emerald-600 text-white rounded-br-xs shadow-md ml-auto'
+                            : 'bg-slate-800 text-slate-200 rounded-bl-xs border border-slate-700/80 shadow-xs'
+                        }`}
+                      >
+                        {msg.texto}
+                      </div>
+
+                      {msg.remetente === 'rubi' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!audioAtivo) setAudioAtivo(true);
+                            falarTexto(msg.texto);
+                          }}
+                          className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 bg-slate-950/70 hover:bg-slate-950 px-2.5 py-1 rounded-full border border-emerald-500/30 transition cursor-pointer select-none"
+                          title="Tocar áudio desta resposta no seu fone"
+                        >
+                          <Volume2 className="w-3 h-3" />
+                          <span>🔊 Ouvir no fone</span>
+                        </button>
+                      )}
                     </div>
 
                     {msg.remetente === 'user' && (

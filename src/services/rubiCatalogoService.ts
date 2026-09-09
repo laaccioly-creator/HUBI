@@ -10,6 +10,8 @@ export interface ContextoLojaCatalogo {
   clienteAtual?: Cliente | null;
   nomeClienteAtual?: string;
   ultimoProdutoSugerido?: Produto | null;
+  historicoMensagens?: Array<{ autor: 'rubi' | 'cliente'; texto: string }>;
+  produtosJaSugeridosIds?: string[];
 }
 
 export interface RespostaRubiCatalogo {
@@ -102,18 +104,50 @@ export const PERSONAS_SEGMENTO: Record<string, { papel: string; diretriz: string
 };
 
 /**
+ * Mapeamento de Sinônimos e Termos Afins por Segmento
+ */
+export const MAPA_SINONIMOS_SEGMENTO: Record<string, Record<string, string[]>> = {
+  sexshop: {
+    apimentar: ['oleo', 'gel', 'massagem', 'vibrador', 'estimulador', 'lubrificante', 'fantasia', 'sensual', 'beijavel', 'vela'],
+    esquentar: ['oleo', 'gel', 'termico', 'massagem', 'esquenta', 'beijavel', 'calor'],
+    casal: ['oleo', 'massagem', 'jogos', 'dados', 'fantasia', 'lubrificante', 'gel', 'estimulador', 'algema', 'venda'],
+    rotina: ['oleo', 'massagem', 'vela', 'gel', 'vibrador', 'fantasia', 'surpresa'],
+    brinquedo: ['vibrador', 'estimulador', 'bullet', 'egg', 'sugador', 'dildo', 'anel'],
+    vibrador: ['vibrador', 'bullet', 'estimulador', 'sugador', 'personal'],
+    massagem: ['oleo', 'vela', 'gel', 'creme', 'beijavel'],
+    lubrificante: ['lubrificante', 'gel', 'silicone', 'agua'],
+    iniciante: ['bullet', 'oleo', 'gel', 'beijavel', 'lubrificante', 'vela'],
+    indica: ['mais vendido', 'destaque', 'oleo', 'vibrador', 'gel', 'massagem']
+  },
+  restaurante: {
+    almoco: ['prato', 'executivo', 'refeicao', 'carne', 'frango', 'massa'],
+    jantar: ['pizza', 'hamburguer', 'lanche', 'porcao', 'massa'],
+    doce: ['sobremesa', 'torta', 'sorvete', 'pudim', 'chocolate'],
+    beber: ['refrigerante', 'suco', 'cerveja', 'agua']
+  }
+};
+
+/**
  * Busca inteligente de produtos no catálogo por relevância
  */
 export const buscarProdutosPorIntencao = (
   termo: string,
   produtos: Produto[],
-  limite: number = 4
+  limite: number = 4,
+  excluirIds: string[] = [],
+  segmento: string = 'geral'
 ): Produto[] => {
   if (!produtos || produtos.length === 0) return [];
   const pNorm = normalizarTexto(termo);
 
   // Filtrar apenas produtos ativos e disponíveis
-  const produtosDisponiveis = produtos.filter(p => p.ativo !== false);
+  let produtosDisponiveis = produtos.filter(p => p.ativo !== false);
+  if (excluirIds && excluirIds.length > 0) {
+    const semExcluidos = produtosDisponiveis.filter(p => !excluirIds.includes(p.id));
+    if (semExcluidos.length > 0) {
+      produtosDisponiveis = semExcluidos;
+    }
+  }
 
   // 1. Checar se é busca por menor preço / promoção
   if (pNorm.includes('mais barato') || pNorm.includes('menor preco') || pNorm.includes('baratinho')) {
@@ -135,9 +169,18 @@ export const buscarProdutosPorIntencao = (
       .slice(0, limite);
   }
 
-  // 2. Pontuação por relevância
+  // 2. Extrair palavras e expandir sinônimos de acordo com o nicho
   const palavrasTermo = pNorm.split(/\s+/).filter(w => w.length >= 3);
-  if (palavrasTermo.length === 0) {
+  const palavrasExpandidas = new Set<string>(palavrasTermo);
+
+  const mapaSinonimos = MAPA_SINONIMOS_SEGMENTO[segmento] || {};
+  for (const [chave, sinonimos] of Object.entries(mapaSinonimos)) {
+    if (pNorm.includes(chave)) {
+      sinonimos.forEach(s => palavrasExpandidas.add(s));
+    }
+  }
+
+  if (palavrasExpandidas.size === 0) {
     return produtosDisponiveis.slice(0, limite);
   }
 
@@ -152,8 +195,8 @@ export const buscarProdutosPorIntencao = (
     if (nomeNorm.includes(pNorm)) score += 50;
     if (catNorm.includes(pNorm)) score += 30;
 
-    // Match palavra por palavra
-    for (const word of palavrasTermo) {
+    // Match palavra por palavra e sinônimos
+    for (const word of palavrasExpandidas) {
       if (nomeNorm.includes(word)) score += 15;
       if (catNorm.includes(word)) score += 10;
       if (descNorm.includes(word)) score += 5;
@@ -167,7 +210,11 @@ export const buscarProdutosPorIntencao = (
     .sort((a, b) => b.score - a.score)
     .map(item => item.prod);
 
-  return filtrados.slice(0, limite);
+  if (filtrados.length > 0) {
+    return filtrados.slice(0, limite);
+  }
+
+  return produtosDisponiveis.slice(0, limite);
 };
 
 /**
@@ -285,7 +332,18 @@ export const responderPerguntaClienteCatalogo = async (
   pergunta: string,
   contexto: ContextoLojaCatalogo
 ): Promise<RespostaRubiCatalogo> => {
-  const { loja, categorias, produtos, formasEntrega, regrasAtivas, clienteAtual, nomeClienteAtual, ultimoProdutoSugerido } = contexto;
+  const {
+    loja,
+    categorias,
+    produtos,
+    formasEntrega,
+    regrasAtivas,
+    clienteAtual,
+    nomeClienteAtual,
+    ultimoProdutoSugerido,
+    historicoMensagens = [],
+    produtosJaSugeridosIds = []
+  } = contexto;
   const pNorm = normalizarTexto(pergunta);
   const nomeLoja = loja.nome_fantasia || 'nossa loja';
 
@@ -297,7 +355,19 @@ export const responderPerguntaClienteCatalogo = async (
 
   const nomeClienteEfetivo = nomeClienteAtual || clienteAtual?.nome || '';
 
-  // 1. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À SACOLA
+  // 1. CHECAGEM DE PROBLEMA DE ÁUDIO / FONE DE OUVIDO
+  const termosAudioProblema = [
+    'nao to ouvindo', 'nao estou ouvindo', 'sem som', 'nao sai som',
+    'headphone', 'fone', 'nao escuto', 'nao ouco', 'nao to te ouvindo',
+    'nao estou te ouvindo', 'cade a voz', 'nao falou nada', 'mudo', 'nao ta saindo som'
+  ];
+  if (termosAudioProblema.some(t => pNorm.includes(t))) {
+    return {
+      texto: `Ah, me perdoe${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Para me ouvir no seu fone ou alto-falante:\n\n1. Verifique se o **botão de som 🔊** no topo do nosso chat está verde/ativado;\n2. Devido à segurança do navegador, você pode tocar no botão **"🔊 Ouvir no fone"** logo abaixo da minha mensagem para liberar minha voz instantaneamente;\n3. Dê uma olhadinha no volume do seu fone e do aparelho.\n\nProntinho! Me diga se conseguiu me ouvir! O que você gostaria de explorar hoje? 😊`
+    };
+  }
+
+  // 2. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À SACOLA
   const comandoSacola = detectarComandoSacola(pergunta, produtos, ultimoProdutoSugerido);
   if (comandoSacola) {
     const { produto, quantidade } = comandoSacola;
@@ -309,19 +379,63 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 2. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
+  // 3. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
   const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
 
   // Se o cliente acabou de falar o nome pela primeira vez
   if (dadosCadastro.nome && !nomeClienteEfetivo) {
     const nomeDetectado = dadosCadastro.nome;
     return {
-      texto: `Que prazer te conhecer, **${nomeDetectado}**! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. ${especialidade ? `Somos especialistas em ${especialidade}. ` : ''}\n\nPara facilitar sua entrega e você aproveitar ofertas exclusivas, quer me passar seu WhatsApp e endereço rapidinho? É só falar ou digitar aqui! Ou se preferir, já me conta o que você gostaria de encontrar hoje! 😊`,
+      texto: `Que prazer te conhecer, **${nomeDetectado}**! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. ${especialidade ? `Somos especialistas em ${especialidade}. ` : ''}\n\nPara agilizar suas entregas com discrição e ofertas exclusivas, quer me passar seu WhatsApp e endereço rapidinho? É só falar ou digitar aqui! Ou se preferir, já me conta o que você gostaria de encontrar hoje! 😊`,
       dadosCadastroDetectados: dadosCadastro
     };
   }
 
-  // 3. DÚVIDAS ESPECÍFICAS DE REGRAS DE NEGÓCIO DA LOJA
+  // 4. SAUDAÇÕES NATURAIS E DIÁLOGO CORDIAL (Evita repetir o cumprimento inicial roboticamente)
+  const saudacoesPuras = ['boa noite', 'bom dia', 'boa tarde', 'ola', 'oi', 'tudo bem', 'ola tudo bem', 'oi tudo bem', 'como vai', 'e ai'];
+  const ehSaudacaoPura = saudacoesPuras.some(s => pNorm === s || pNorm === `${s} rubi` || pNorm === `rubi ${s}`);
+  if (ehSaudacaoPura) {
+    const saudacaoTempo = pNorm.includes('noite') ? 'Boa noite' : pNorm.includes('tarde') ? 'Boa tarde' : 'Olá';
+    return {
+      texto: `${saudacaoTempo}${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Que alegria conversar com você! ✨\n\nEstou ótima e super à disposição. Me conta: você procura algo especial para curtir a dois, quer novidades para você ou quer que eu te indique os itens favoritos do nosso catálogo? 😊`
+    };
+  }
+
+  // 5. INTENÇÃO CONSULTIVA PARA CASAL / APIMENTAR / SAIR DA ROTINA (Especialidade Sex Shop)
+  const termosCasalApimentar = [
+    'apimentar', 'esquentar', 'casal', 'a dois', 'sair da rotina',
+    'namorados', 'surpresa', 'esposa', 'marido', 'namorada', 'namorado'
+  ];
+  const querApimentar = segmento === 'sexshop' && termosCasalApimentar.some(t => pNorm.includes(t));
+  if (querApimentar) {
+    const prodsCasal = buscarProdutosPorIntencao('massagem oleo estimulador lubrificante', produtos, 4, produtosJaSugeridosIds, segmento);
+    const listaNomes = prodsCasal.map(p => `• **${p.nome}** por **R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)}**`).join('\n');
+    return {
+      texto: `Adoro essa ideia${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 🔥 Para quebrar a rotina e viver momentos inesquecíveis a dois, uma combinação fantástica é:\n\n1. **Criar a atmosfera:** Começar com uma massagem envolvente usando um óleo térmico beijável (que aquece com o sopro e tem aroma incrível);\n2. **Novas sensações:** Um gel de pulsação ou lubrificante sensorial para despertar sensibilidade;\n3. **Cumplicidade a dois:** Um acessório ou estimulador que os dois possam curtir juntos.\n\nSeparei estas sugestões perfeitas do nosso catálogo para vocês:\n\n${listaNomes}\n\nQual dessas opções você acha que mais combina com o momento de vocês? Se quiser, posso colocar na sua sacola agora mesmo! ✨`,
+      produtosSugeridos: prodsCasal
+    };
+  }
+
+  // 6. INTENÇÃO "SÓ TEM ESSES PRODUTOS? / ME INDICA OUTRAS COISAS / O QUE MAIS TEM?"
+  const termosOutrasOpcoes = [
+    'so tem esses', 'so tem esse', 'outras coisas', 'outros produtos',
+    'o que mais tem', 'tem outros', 'alem desses', 'mais opcoes',
+    'outra opcao', 'me mostra mais', 'mostrar mais', 'outra sugestao', 'outras opcoes'
+  ];
+  const pedeOutrasOpcoes = termosOutrasOpcoes.some(t => pNorm.includes(t));
+  if (pedeOutrasOpcoes) {
+    // Busca produtos EXCLUINDO os que já foram sugeridos anteriormente
+    const prodsNovos = buscarProdutosPorIntencao('destaque novidade', produtos, 4, produtosJaSugeridosIds, segmento);
+    if (prodsNovos.length > 0) {
+      const listaNomes = prodsNovos.map(p => `• **${p.nome}** por **R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)}**`).join('\n');
+      return {
+        texto: `Temos muitas outras opções incríveis sim${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 😍 Nosso catálogo é super completo e cheio de novidades. Dá uma olhada nestas outras sugestões diferentes que selecionei para você:\n\n${listaNomes}\n\nSe gostou de alguma ou quiser saber sobre outra categoria (como brinquedos, cosméticos térmicos ou lingeries), é só me falar!`,
+        produtosSugeridos: prodsNovos
+      };
+    }
+  }
+
+  // 7. DÚVIDAS ESPECÍFICAS DE REGRAS DE NEGÓCIO DA LOJA
   // A. Atacado / Distribuidor
   const termosAtacado = ['atacado', 'autoatacado', 'distribuidor', 'comprar no atacado', 'minimo atacado', 'tabela atacado', 'preco atacado', 'desconto atacado'];
   if (termosAtacado.some(t => pNorm.includes(t))) {
@@ -396,20 +510,24 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 4. BUSCA DE PRODUTOS RECOMENDADOS
-  const produtosSugeridos = buscarProdutosPorIntencao(pergunta, produtos, 4);
+  // 8. BUSCA DE PRODUTOS RECOMENDADOS (Com suporte a sinônimos e exclusão de itens já vistos)
+  const produtosSugeridos = buscarProdutosPorIntencao(pergunta, produtos, 4, produtosJaSugeridosIds, segmento);
 
-  // 5. CONSULTA À IA GENERATIVA GEMINI (SE HOUVER CHAVE DISPONÍVEL)
-  const apiKey = getGeminiApiKey();
+  // 9. CONSULTA À IA GENERATIVA GEMINI (SE HOUVER CHAVE DISPONÍVEL NA LOJA OU AMBIENTE)
+  const apiKey = getGeminiApiKey(loja);
   if (apiKey) {
     try {
-      const catalogoResumo = produtos.slice(0, 30).map(p => ({
+      const catalogoResumo = produtos.slice(0, 40).map(p => ({
         id: p.id,
         nome: p.nome,
         categoria: p.categoria?.nome || '',
         preco: p.preco_promocional || p.preco_venda_varejo,
-        preco_atacado: p.preco_venda_atacado || null
+        descricao: p.descricao ? p.descricao.slice(0, 100) : ''
       }));
+
+      const historicoTexto = historicoMensagens.length > 0
+        ? historicoMensagens.slice(-4).map(m => `${m.autor === 'rubi' ? 'Rubi' : 'Cliente'}: ${m.texto}`).join('\n')
+        : '';
 
       const prompt = `
 Você é a **Rubi**, a ${personaInfo.papel} da loja **${nomeLoja}** no catálogo online.
@@ -420,23 +538,27 @@ ${especialidade ? `Especialidade da empresa: "${especialidade}". Destaque isso c
 DADOS DO CLIENTE:
 - Nome do cliente: ${nomeClienteEfetivo ? `"${nomeClienteEfetivo}" (chame o cliente pelo nome com gentileza e carinho)` : 'Ainda não informado (pergunte o nome de forma acolhedora se for a primeira mensagem)'}
 
+HISTÓRICO RECENTE DA CONVERSA:
+${historicoTexto || '(Início da conversa)'}
+
 CATÁLOGO RESUMIDO DA LOJA:
 ${JSON.stringify(catalogoResumo)}
 
 INSTRUÇÕES DE RESPOSTA:
-1. Converse como um(a) verdadeiro(a) vendedor(a) humano(a), simpático(a), atencioso(a) e consultivo(a).
-2. Se o cliente estiver procurando um produto, apresente as opções, explique por que são boas escolhas e destaque os preços.
-3. Se você identificar produtos correspondentes na lista acima, cite os nomes com clareza.
-4. Finalize incentivando a adicionar à sacola (ex: "Se quiser levar algum, é só tocar em Adicionar ou me falar que eu coloco na sua sacola para você!").
-5. Responda em português brasileiro com fluidez, parágrafos curtos e emojis acolhedores.
+1. Converse como um(a) verdadeiro(a) consultor(a) de vendas humano(a), empático(a), atencioso(a) e muito conhecedor(a) dos produtos.
+2. NUNCA responda com saudações robóticas repetitivas se o cliente já estiver conversando com você. Responda diretamente ao que ele perguntou.
+3. Se o cliente perguntar sobre apimentar a relação, sensações, sair da rotina ou pedir indicações, monte uma combinação inteligente e agradável de produtos da loja (ex: massagem térmica + lubrificante + acessório), explicando os benefícios de cada um.
+4. Se o cliente disser que já viu certos produtos ou pedir outras coisas, recomende produtos diferentes e mostre variedade.
+5. Finalize de forma acolhedora incentivando a adicionar à sacola (ex: "Se quiser levar algum, é só tocar em Adicionar no card ou me falar que eu coloco na sua sacola!").
+6. Responda em português brasileiro com fluidez, parágrafos curtos e emojis acolhedores.
 
-PERGUNTA DO CLIENTE:
+PERGUNTA ATUAL DO CLIENTE:
 "${pergunta}"
 `;
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 600 }
+        generationConfig: { temperature: 0.4, maxOutputTokens: 600 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -453,19 +575,19 @@ PERGUNTA DO CLIENTE:
     }
   }
 
-  // 6. MOTOR LOCAL INTELIGENTE (SE GEMINI NÃO ESTIVER DISPONÍVEL OU FALHAR)
+  // 10. MOTOR LOCAL INTELIGENTE (SE GEMINI NÃO ESTIVER DISPONÍVEL OU FALHAR)
   if (produtosSugeridos.length > 0) {
     const listaNomes = produtosSugeridos.map(p => `• **${p.nome}** por **R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)}**`).join('\n');
     return {
-      texto: `Olha só o que separei para você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! ✨\n\nEncontrei estas opções no nosso catálogo:\n\n${listaNomes}\n\nVocê pode tocar no botão **"+ Adicionar"** no card abaixo ou simplesmente me falar: *"Rubi, adiciona esse para mim"*!`,
+      texto: `Olha só o que separei com carinho para você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! ✨\n\nEncontrei estas opções no nosso catálogo que super combinam com o que você procura:\n\n${listaNomes}\n\nVocê pode tocar em **"+ Adicionar"** no card do produto abaixo ou me falar: *"Rubi, adiciona o primeiro para mim"*!`,
       produtosSugeridos,
       dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
     };
   }
 
-  // Fallback geral personalizado pelo nicho
+  // Resposta amigável e aberta quando não há match de produto específico
   return {
-    texto: `Olá${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Sou a **Rubi**, sua ${personaInfo.papel.toLowerCase()} da **${nomeLoja}**! ✨\n\n${especialidade ? `Somos especializados em **${especialidade}**. ` : ''}Me conta: o que você está procurando hoje? Posso te sugerir produtos incríveis, conferir promoções e até adicionar direto na sua sacola de compras!`,
+    texto: `Estou aqui com você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 😊\n\nMe conta: o que você tem em mente no momento? Posso te sugerir novidades, produtos para massagem e relaxamento, itens para esquentar o clima a dois ou tirar dúvidas sobre qualquer item do catálogo!`,
     dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
   };
 };

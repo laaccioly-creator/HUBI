@@ -182,6 +182,99 @@ export const SEGMENTOS_NEGOCIO = [
   }
 ];
 
+const gerarSnapshotConfig = (dados: any) => {
+  return JSON.stringify({
+    telaInicialPadrao: dados.telaInicialPadrao || 'inicio',
+    moeda: dados.moeda || 'BR - R$',
+    casasDecimais: Boolean(dados.casasDecimais),
+    controlarEstoque: Boolean(dados.controlarEstoque),
+    transacoesCanceladas: dados.transacoesCanceladas || 'riscadas',
+    ordenarProdutosPdv: dados.ordenarProdutosPdv || 'cadastro',
+    segmentoNegocio: dados.segmentoNegocio || 'geral',
+    especialidadeNegocio: (dados.especialidadeNegocio || '').trim(),
+    tomVozRubi: dados.tomVozRubi || 'consultivo',
+    geminiApiKey: (dados.geminiApiKey || '').trim(),
+    nomeLoja: (dados.nomeLoja || '').trim(),
+    urlLogo: dados.urlLogo || '',
+    telefone: (dados.telefone || '').trim(),
+    whatsapp: (dados.whatsapp || '').trim(),
+    email: (dados.email || '').trim(),
+    instagram: (dados.instagram || '').trim(),
+    sobreLoja: (dados.sobreLoja || '').trim(),
+    enderecoLogradouro: (dados.enderecoLogradouro || '').trim(),
+    enderecoNumero: (dados.enderecoNumero || '').trim(),
+    enderecoBairro: (dados.enderecoBairro || '').trim(),
+    enderecoComplemento: (dados.enderecoComplemento || '').trim(),
+    enderecoCep: (dados.enderecoCep || '').trim(),
+    enderecoCidade: (dados.enderecoCidade || '').trim(),
+    enderecoEstado: dados.enderecoEstado || 'CE',
+    documento: (dados.documento || '').trim(),
+    razaoSocial: (dados.razaoSocial || '').trim(),
+    reciboAdicionarCliente: Boolean(dados.reciboAdicionarCliente),
+    reciboExibirCodigo: Boolean(dados.reciboExibirCodigo),
+    reciboCabecalho: (dados.reciboCabecalho || '').trim(),
+    reciboRodape: (dados.reciboRodape || '').trim(),
+    tipoImpressaoPadrao: dados.tipoImpressaoPadrao || 'termica_80mm',
+    provedorDigital: dados.provedorDigital || 'nenhum',
+    mpPublicKey: (dados.mpPublicKey || '').trim(),
+    mpAccessToken: (dados.mpAccessToken || '').trim(),
+    mpTaxaCredito: Number(dados.mpTaxaCredito ?? 2.99),
+    mpTaxaPix: Number(dados.mpTaxaPix ?? 0.99),
+    mpPrazoDias: Number(dados.mpPrazoDias ?? 2),
+    mpMaxParcelas: Number(dados.mpMaxParcelas ?? 10),
+    pagseguroEmail: (dados.pagseguroEmail || '').trim(),
+    pagseguroToken: (dados.pagseguroToken || '').trim(),
+    pagseguroPublicKey: (dados.pagseguroPublicKey || '').trim(),
+    googlePayMerchantId: (dados.googlePayMerchantId || '').trim(),
+    asaasApiKey: (dados.asaasApiKey || '').trim(),
+    asaasAmbiente: dados.asaasAmbiente || 'producao',
+    stripePublishableKey: (dados.stripePublishableKey || '').trim(),
+    stripeSecretKey: (dados.stripeSecretKey || '').trim(),
+    picpayToken: (dados.picpayToken || '').trim(),
+    picpaySellerToken: (dados.picpaySellerToken || '').trim(),
+    pixAtivo: Boolean(dados.pixAtivo),
+    pixChave: (dados.pixChave || '').trim(),
+    pixOrientacoes: (dados.pixOrientacoes || '').trim(),
+    dinheiroAtivo: Boolean(dados.dinheiroAtivo),
+    dinheiroDescricao: (dados.dinheiroDescricao || '').trim(),
+    debitoAtivo: Boolean(dados.debitoAtivo),
+    debitoDescricao: (dados.debitoDescricao || '').trim(),
+    creditoAtivo: Boolean(dados.creditoAtivo),
+    creditoDescricao: (dados.creditoDescricao || '').trim(),
+    outrosAtivo: Boolean(dados.outrosAtivo),
+    outrosDescricao: (dados.outrosDescricao || '').trim(),
+    permitirFiado: Boolean(dados.permitirFiado),
+    maqCreditoAtivo: Boolean(dados.maqCreditoAtivo),
+    maqCreditoDias: Number(dados.maqCreditoDias ?? 30),
+    maqCreditoTaxa: Number(dados.maqCreditoTaxa ?? 2.99),
+    maqDebitoAtivo: Boolean(dados.maqDebitoAtivo),
+    maqDebitoDias: Number(dados.maqDebitoDias ?? 1),
+    maqDebitoTaxa: Number(dados.maqDebitoTaxa ?? 1.49),
+    usarTaxaVenda: Boolean(dados.usarTaxaVenda),
+    nomeTaxaVenda: (dados.nomeTaxaVenda || 'Taxa de Serviço').trim(),
+    valorTaxaVenda: Number(dados.valorTaxaVenda ?? 10),
+    tipoTaxaVenda: dados.tipoTaxaVenda || 'percentual',
+    aplicarTaxaVenda: dados.aplicarTaxaVenda || 'adicionar',
+    taxaVendaOpcional: Boolean(dados.taxaVendaOpcional),
+    usarTaxaCatalogo: Boolean(dados.usarTaxaCatalogo),
+    nomeTaxaCatalogo: (dados.nomeTaxaCatalogo || 'Taxa de Conveniência').trim(),
+    valorTaxaCatalogo: Number(dados.valorTaxaCatalogo ?? 5),
+    tipoTaxaCatalogo: dados.tipoTaxaCatalogo || 'percentual',
+    aplicarTaxaCatalogo: dados.aplicarTaxaCatalogo || 'adicionar',
+    taxaCatalogoSomenteEntrega: Boolean(dados.taxaCatalogoSomenteEntrega),
+    statusEmProducao: Boolean(dados.statusEmProducao),
+    statusEmExpedicao: Boolean(dados.statusEmExpedicao),
+    statusSaiuEntrega: Boolean(dados.statusSaiuEntrega),
+    statusProntoRetirar: Boolean(dados.statusProntoRetirar),
+    trabalhoComEntregas: Boolean(dados.trabalhoComEntregas),
+    descricaoEntregas: (dados.descricaoEntregas || '').trim(),
+    trabalhoComRetirada: Boolean(dados.trabalhoComRetirada),
+    descricaoRetirada: (dados.descricaoRetirada || '').trim(),
+    facebookPixelId: (dados.facebookPixelId || '').trim(),
+    tiktokPixelId: (dados.tiktokPixelId || '').trim()
+  });
+};
+
 export const ConfiguracoesLoja: React.FC = () => {
   const { loja, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
@@ -241,6 +334,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [segmentoNegocio, setSegmentoNegocio] = useState<string>('geral');
   const [especialidadeNegocio, setEspecialidadeNegocio] = useState<string>('');
   const [tomVozRubi, setTomVozRubi] = useState<'consultivo' | 'tecnico' | 'amigavel' | 'formal'>('consultivo');
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
 
   // 3. RECIBO
   const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
@@ -406,6 +500,8 @@ export const ConfiguracoesLoja: React.FC = () => {
       setSegmentoNegocio(perfilNegocio.segmento || 'geral');
       setEspecialidadeNegocio(perfilNegocio.descricao_especialidade || '');
       setTomVozRubi(perfilNegocio.tom_voz || 'consultivo');
+      const iaConfig = extras.ia || {};
+      setGeminiApiKey(iaConfig.gemini_api_key || '');
 
       // Recibo
       setReciboAdicionarCliente(recibo.adicionar_cliente ?? true);
@@ -510,7 +606,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       setTiktokPixelId(parceiros.tiktok_pixel_id || '');
 
       setSnapshotInicial(
-        JSON.stringify({
+        gerarSnapshotConfig({
           telaInicialPadrao: geral.tela_inicial_padrao || 'inicio',
           moeda: geral.moeda || 'BR - R$',
           casasDecimais: geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true,
@@ -518,8 +614,9 @@ export const ConfiguracoesLoja: React.FC = () => {
           transacoesCanceladas: geral.transacoes_canceladas || extras.preferencias_gerais?.transacoes_canceladas || 'riscadas',
           ordenarProdutosPdv: geral.ordenar_produtos_pdv || 'cadastro',
           segmentoNegocio: perfilNegocio.segmento || 'geral',
-          especialidadeNegocio: (perfilNegocio.descricao_especialidade || '').trim(),
+          especialidadeNegocio: perfilNegocio.descricao_especialidade || '',
           tomVozRubi: perfilNegocio.tom_voz || 'consultivo',
+          geminiApiKey: iaConfig.gemini_api_key || '',
           nomeLoja: loja.nome_fantasia || '',
           urlLogo: loja.url_logo || '',
           telefone: loja.telefone || '',
@@ -544,10 +641,10 @@ export const ConfiguracoesLoja: React.FC = () => {
           provedorDigital: provAtivo,
           mpPublicKey: mp.public_key || '',
           mpAccessToken: mp.access_token || '',
-          mpTaxaCredito: Number(mp.taxa_credito_percentual ?? 2.99),
-          mpTaxaPix: Number(mp.taxa_pix_percentual ?? 0.99),
-          mpPrazoDias: Number(mp.prazo_dias ?? 2),
-          mpMaxParcelas: Number(mp.max_parcelas ?? 10),
+          mpTaxaCredito: mp.taxa_credito_percentual ?? 2.99,
+          mpTaxaPix: mp.taxa_pix_percentual ?? 0.99,
+          mpPrazoDias: mp.prazo_dias ?? 2,
+          mpMaxParcelas: mp.max_parcelas ?? 10,
           pagseguroEmail: pagSeg.email || '',
           pagseguroToken: pagSeg.token || '',
           pagseguroPublicKey: pagSeg.public_key || '',
@@ -571,20 +668,20 @@ export const ConfiguracoesLoja: React.FC = () => {
           outrosDescricao: pagManuais.outros_orientacoes || '',
           permitirFiado: pagManuais.permitir_fiado ?? true,
           maqCreditoAtivo: prazosMaq.credito_ativo ?? true,
-          maqCreditoDias: Number(prazosMaq.credito_dias ?? 30),
-          maqCreditoTaxa: Number(prazosMaq.credito_taxa_percentual ?? 2.99),
+          maqCreditoDias: prazosMaq.credito_dias ?? 30,
+          maqCreditoTaxa: prazosMaq.credito_taxa_percentual ?? 2.99,
           maqDebitoAtivo: prazosMaq.debito_ativo ?? true,
-          maqDebitoDias: Number(prazosMaq.debito_dias ?? 1),
-          maqDebitoTaxa: Number(prazosMaq.debito_taxa_percentual ?? 1.49),
+          maqDebitoDias: prazosMaq.debito_dias ?? 1,
+          maqDebitoTaxa: prazosMaq.debito_taxa_percentual ?? 1.49,
           usarTaxaVenda: taxas.usar_taxa_pdv ?? false,
           nomeTaxaVenda: taxas.nome_taxa_pdv || 'Taxa de Serviço',
-          valorTaxaVenda: Number(taxas.valor_taxa_pdv ?? 10),
+          valorTaxaVenda: taxas.valor_taxa_pdv ?? 10,
           tipoTaxaVenda: taxas.tipo_taxa_pdv || 'percentual',
           aplicarTaxaVenda: taxas.aplicar_taxa_pdv || 'adicionar',
           taxaVendaOpcional: taxas.taxa_pdv_opcional ?? false,
           usarTaxaCatalogo: taxas.usar_taxa_catalogo ?? false,
           nomeTaxaCatalogo: taxas.nome_taxa_catalogo || 'Taxa de Conveniência',
-          valorTaxaCatalogo: Number(taxas.valor_taxa_catalogo ?? 5),
+          valorTaxaCatalogo: taxas.valor_taxa_catalogo ?? 5,
           tipoTaxaCatalogo: taxas.tipo_taxa_catalogo || 'percentual',
           aplicarTaxaCatalogo: taxas.aplicar_taxa_catalogo || 'adicionar',
           taxaCatalogoSomenteEntrega: taxas.taxa_catalogo_somente_entrega ?? true,
@@ -758,6 +855,9 @@ export const ConfiguracoesLoja: React.FC = () => {
           segmento: segmentoNegocio,
           descricao_especialidade: especialidadeNegocio.trim(),
           tom_voz: tomVozRubi
+        },
+        ia: {
+          gemini_api_key: geminiApiKey.trim()
         }
       };
 
@@ -775,7 +875,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           sobre_loja: sobreLoja,
           url_logo: urlLogo,
           endereco_logradouro: enderecoLogradouro,
-          endereco_numero: enderecoNumero,
+          enderecoNumero: enderecoNumero,
           endereco_bairro: enderecoBairro,
           endereco_complemento: enderecoComplemento,
           endereco_cep: enderecoCep,
@@ -872,7 +972,7 @@ export const ConfiguracoesLoja: React.FC = () => {
   };
 
   const snapshotAtual = useMemo(() => {
-    return JSON.stringify({
+    return gerarSnapshotConfig({
       telaInicialPadrao,
       moeda,
       casasDecimais,
@@ -880,8 +980,9 @@ export const ConfiguracoesLoja: React.FC = () => {
       transacoesCanceladas,
       ordenarProdutosPdv,
       segmentoNegocio,
-      especialidadeNegocio: especialidadeNegocio.trim(),
+      especialidadeNegocio,
       tomVozRubi,
+      geminiApiKey,
       nomeLoja,
       urlLogo,
       telefone,
@@ -971,6 +1072,7 @@ export const ConfiguracoesLoja: React.FC = () => {
     segmentoNegocio,
     especialidadeNegocio,
     tomVozRubi,
+    geminiApiKey,
     nomeLoja,
     urlLogo,
     telefone,
@@ -2055,6 +2157,29 @@ export const ConfiguracoesLoja: React.FC = () => {
                       "{SEGMENTOS_NEGOCIO.find(s => s.id === segmentoNegocio)?.exemploFala || SEGMENTOS_NEGOCIO[0].exemploFala}"
                     </p>
                   </div>
+                </div>
+
+                {/* Chave de API Google Gemini (Opcional) */}
+                <div className="pt-3 border-t border-slate-800">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Chave de API do Google Gemini (Opcional - Inteligência Avançada)</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                      Recomendado para Vendedora IA
+                    </span>
+                  </div>
+                  <input
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 transition font-mono"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                    Insira sua chave gratuita do <strong>Google AI Studio</strong> para que a Rubi tenha poder total de conversação natural, conheça os produtos a fundo e responda aos clientes com empatia e consultoria humana no Catálogo Online. Se não configurada, a Rubi continuará atendendo normalmente através do motor inteligente local.
+                  </p>
                 </div>
               </div>
             </div>
