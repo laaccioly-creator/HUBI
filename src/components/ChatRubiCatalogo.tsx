@@ -242,10 +242,89 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   };
 
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [vozesDisponiveis, setVozesDisponiveis] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Carregar e monitorar vozes do sistema (SpeechSynthesis)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    const carregarVozes = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v && v.length > 0) {
+        setVozesDisponiveis(v);
+      }
+    };
+
+    carregarVozes();
+    window.speechSynthesis.onvoiceschanged = carregarVozes;
+
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  // Seleciona preferencialmente vozes femininas em português para a persona Rubi
+  const selecionarMelhorVozFeminina = (voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
+    if (!voices || voices.length === 0) return null;
+
+    // Filtra vozes em português (Brasil preferencialmente)
+    const vozesPtBr = voices.filter(v => v.lang === 'pt-BR' || v.lang === 'pt_BR');
+    const vozesPt = vozesPtBr.length > 0 ? vozesPtBr : voices.filter(v => v.lang.startsWith('pt'));
+
+    if (vozesPt.length === 0) return null;
+
+    // Nomes femininos conhecidos nos motores de TTS (Windows/Edge, Google/Android, Apple/iOS)
+    const nomesFemininos = [
+      'francisca', // Microsoft Francisca (Natural) - excelente voz feminina no Edge/Windows
+      'maria',     // Microsoft Maria (Windows)
+      'leticia',   // Microsoft Leticia
+      'luciana',   // iOS / macOS / Safari / Siri
+      'fernanda',
+      'vitória',
+      'vitoria',
+      'heloisa',
+      'camila',
+      'yara',
+      'brenda',
+      'raquel',
+      'joana',
+      'female',
+      'feminina',
+      'mulher',
+      'zira'
+    ];
+
+    const nomesMasculinos = [
+      'antonio', 'antônio', 'daniel', 'felipe', 'thiago', 'tiago',
+      'ricardo', 'helio', 'hélio', 'male', 'masculino', 'homem', 'julio', 'júlio', 'yuri', 'hector'
+    ];
+
+    // 1ª Tentativa: Voz em português com nome explicitamente feminino
+    for (const pista of nomesFemininos) {
+      const voz = vozesPt.find(v => {
+        const n = v.name.toLowerCase();
+        return n.includes(pista) && !nomesMasculinos.some(m => n.includes(m));
+      });
+      if (voz) return voz;
+    }
+
+    // 2ª Tentativa: Voz em português que NÃO contenha nomes masculinos (ex: Google português do Brasil)
+    const vozNaoMasculina = vozesPt.find(v => {
+      const n = v.name.toLowerCase();
+      return !nomesMasculinos.some(m => n.includes(m));
+    });
+    if (vozNaoMasculina) return vozNaoMasculina;
+
+    // 3ª Tentativa: Qualquer voz em português disponível
+    return vozesPt[0];
+  };
 
   // Síntese de Voz (Rubi falando verbalmente com proteção contra corte e sleep no Chromium)
   const limparTextoParaAudio = (texto: string): string => {
     return texto
+      .replace(/\[PRODUTOS(?:_RECOMENDADOS)?:\s*[^\]]+\]/gi, '') // Remove tags de produtos
       .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove negrito
       .replace(/\*([^*]+)\*/g, '$1') // Remove itálico
       .replace(/###/g, '')
@@ -270,10 +349,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       currentUtteranceRef.current = utterance; // Evita Garbage Collection no Chromium
       utterance.lang = 'pt-BR';
       utterance.rate = 1.0; // Velocidade natural, calma e compreensível
-      utterance.pitch = 1.0;
+      utterance.pitch = 1.1; // Tom feminino, acolhedor e suave
 
-      const voices = window.speechSynthesis.getVoices();
-      const ptVoice = voices.find(v => v.lang === 'pt-BR' || v.lang.startsWith('pt'));
+      const voices = vozesDisponiveis.length > 0 ? vozesDisponiveis : window.speechSynthesis.getVoices();
+      const ptVoice = selecionarMelhorVozFeminina(voices);
       if (ptVoice) {
         utterance.voice = ptVoice;
       }

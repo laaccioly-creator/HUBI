@@ -875,7 +875,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           sobre_loja: sobreLoja,
           url_logo: urlLogo,
           endereco_logradouro: enderecoLogradouro,
-          enderecoNumero: enderecoNumero,
+          endereco_numero: enderecoNumero,
           endereco_bairro: enderecoBairro,
           endereco_complemento: enderecoComplemento,
           endereco_cep: enderecoCep,
