@@ -32,7 +32,8 @@ import {
   ChevronRight,
   HelpCircle,
   AlertCircle,
-  ShoppingCart
+  ShoppingCart,
+  FileSpreadsheet
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -50,6 +51,7 @@ import {
 } from '../types';
 import { PrintService } from '../services/printService';
 import { caixaService } from '../services/caixaService';
+import { financeExportService } from '../services/financeExportService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
@@ -968,6 +970,56 @@ export const FinancasCaixa: React.FC = () => {
 
   const lucroLiquido = totalReceitas - totalDespesasPagas;
 
+  // Funções de exportação para Excel (.xlsx) das métricas de Finanças & Caixa
+  const handleExportarEntradas = () => {
+    try {
+      const entradas = listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA');
+      if (entradas.length === 0) {
+        mostrarAviso('Nenhuma entrada/receita encontrada para exportar no período atual.');
+        return;
+      }
+      financeExportService.exportarEntradasXLSX(entradas, loja?.nome_fantasia);
+      mostrarSucesso(`Planilha de Entradas Gerais exportada com sucesso (${entradas.length} registros)!`);
+    } catch (err: any) {
+      console.error('Erro ao exportar entradas para Excel:', err);
+      mostrarErro('Não foi possível exportar a planilha de Entradas Gerais.');
+    }
+  };
+
+  const handleExportarDespesas = () => {
+    try {
+      const despesas = listaTransacoesUnificada.filter(
+        t => t.tipo === 'SAIDA' && (t.status === 'pago' || t.status === 'concluido' || t.status === 'concluído')
+      );
+      if (despesas.length === 0) {
+        mostrarAviso('Nenhuma despesa paga encontrada para exportar no período atual.');
+        return;
+      }
+      financeExportService.exportarDespesasXLSX(despesas, loja?.nome_fantasia);
+      mostrarSucesso(`Planilha de Despesas Gerais exportada com sucesso (${despesas.length} registros)!`);
+    } catch (err: any) {
+      console.error('Erro ao exportar despesas para Excel:', err);
+      mostrarErro('Não foi possível exportar a planilha de Despesas Gerais.');
+    }
+  };
+
+  const handleExportarContasPagar = () => {
+    try {
+      const contasPagar = listaTransacoesUnificada.filter(
+        t => t.tipo === 'SAIDA' && t.status === 'pendente'
+      );
+      if (contasPagar.length === 0) {
+        mostrarAviso('Nenhuma conta pendente a pagar encontrada para exportar.');
+        return;
+      }
+      financeExportService.exportarContasPagarXLSX(contasPagar, loja?.nome_fantasia);
+      mostrarSucesso(`Planilha de Contas a Pagar exportada com sucesso (${contasPagar.length} registros)!`);
+    } catch (err: any) {
+      console.error('Erro ao exportar contas a pagar para Excel:', err);
+      mostrarErro('Não foi possível exportar a planilha de Contas a Pagar.');
+    }
+  };
+
   // Dados para Relatório Consolidado de Meios de Pagamento
   const dadosRelatorioConsolidado = useMemo(() => {
     // 1. Unificar histórico com a sessão ativa atual em tempo real (evitando duplicidade por ID)
@@ -1292,13 +1344,24 @@ export const FinancasCaixa: React.FC = () => {
                 <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
                   <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> Entradas Gerais
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setModalDetalhesMetrica('entradas')}
-                  className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-500/20"
-                >
-                  Detalhar
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleExportarEntradas}
+                    title="Exportar Entradas Gerais para Excel (.xlsx)"
+                    className="px-1.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-500/20 flex items-center gap-1"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalDetalhesMetrica('entradas')}
+                    className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-700/60"
+                  >
+                    Detalhar
+                  </button>
+                </div>
               </div>
               <span className="text-base font-black text-emerald-400 block truncate">R$ {totalReceitas.toFixed(2)}</span>
             </div>
@@ -1309,13 +1372,24 @@ export const FinancasCaixa: React.FC = () => {
                 <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
                   <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Despesas Gerais
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setModalDetalhesMetrica('saidas')}
-                  className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20"
-                >
-                  Detalhar
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleExportarDespesas}
+                    title="Exportar Despesas Gerais para Excel (.xlsx)"
+                    className="px-1.5 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20 flex items-center gap-1"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalDetalhesMetrica('saidas')}
+                    className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-700/60"
+                  >
+                    Detalhar
+                  </button>
+                </div>
               </div>
               <span className="text-base font-black text-rose-400 block truncate">R$ {totalDespesasPagas.toFixed(2)}</span>
             </div>
@@ -1326,13 +1400,24 @@ export const FinancasCaixa: React.FC = () => {
                 <span className="text-[11px] text-amber-400 flex items-center gap-1 font-semibold">
                   <AlertTriangle className="w-3.5 h-3.5" /> A Pagar
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setModalDetalhesMetrica('pagar')}
-                  className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/20"
-                >
-                  Detalhar
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleExportarContasPagar}
+                    title="Exportar Contas a Pagar para Excel (.xlsx)"
+                    className="px-1.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/20 flex items-center gap-1"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalDetalhesMetrica('pagar')}
+                    className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-700/60"
+                  >
+                    Detalhar
+                  </button>
+                </div>
               </div>
               <span className="text-base font-black text-amber-400 block truncate">R$ {totalDespesasPendentes.toFixed(2)}</span>
             </div>
@@ -3069,9 +3154,19 @@ export const FinancasCaixa: React.FC = () => {
               <div className="space-y-4">
                 {modalDetalhesMetrica === 'entradas' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                      <span className="text-xs text-slate-400 font-semibold">Total de Entradas Recebidas:</span>
-                      <span className="text-xl font-black text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                      <div>
+                        <span className="text-xs text-slate-400 font-semibold block">Total de Entradas Recebidas:</span>
+                        <span className="text-xl font-black text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleExportarEntradas}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Exportar Excel</span>
+                      </button>
                     </div>
                     <div className="space-y-2">
                       <span className="text-xs font-bold text-slate-300 block">Últimas Transações de Entrada:</span>
@@ -3092,9 +3187,19 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'saidas' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                      <span className="text-xs text-slate-400 font-semibold">Total de Despesas:</span>
-                      <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                      <div>
+                        <span className="text-xs text-slate-400 font-semibold block">Total de Despesas:</span>
+                        <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleExportarDespesas}
+                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Exportar Excel</span>
+                      </button>
                     </div>
                     <div className="space-y-2">
                       <span className="text-xs font-bold text-slate-300 block">Últimas Despesas Registradas:</span>
@@ -3126,9 +3231,19 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'pagar' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                      <span className="text-xs text-amber-400 font-semibold">Total de Contas Pendentes a Pagar:</span>
-                      <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
+                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                      <div>
+                        <span className="text-xs text-amber-400 font-semibold block">Total de Contas Pendentes a Pagar:</span>
+                        <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleExportarContasPagar}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Exportar Excel</span>
+                      </button>
                     </div>
                     <div className="space-y-2">
                       <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar:</span>
