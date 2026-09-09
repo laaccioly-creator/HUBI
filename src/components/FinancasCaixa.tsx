@@ -52,7 +52,7 @@ import { PrintService } from '../services/printService';
 import { caixaService } from '../services/caixaService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
-import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
+import { obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -654,7 +654,7 @@ export const FinancasCaixa: React.FC = () => {
     });
 
     const timestampAberturaSessao = sessaoAtiva ? new Date(sessaoAtiva.aberto_em).getTime() : null;
-    const dataAberturaSessaoYMD = sessaoAtiva ? sessaoAtiva.aberto_em.split('T')[0] : null;
+    const dataAberturaSessaoYMD = sessaoAtiva ? formatarDataLocalYMD(sessaoAtiva.aberto_em) : null;
     const dataOperacaoHojeYMD = obterDataOperacaoYMD();
 
     // Filtro de escopo para pedidos
@@ -676,7 +676,7 @@ export const FinancasCaixa: React.FC = () => {
 
         // Se não possui registro de movimentação, verificar por data e horário de abertura
         const dataPedidoIso = p.data_venda || p.criado_em || '';
-        const dataPedidoYMD = dataPedidoIso.split('T')[0];
+        const dataPedidoYMD = formatarDataLocalYMD(dataPedidoIso);
 
         // Não pode ser de data anterior à abertura da sessão
         if (dataAberturaSessaoYMD && dataPedidoYMD < dataAberturaSessaoYMD) {
@@ -696,7 +696,7 @@ export const FinancasCaixa: React.FC = () => {
 
       // Se filtro for 'hoje' ou se não houver sessão ativa
       const dataPedidoIso = p.data_venda || p.criado_em || '';
-      const dataPedidoYMD = dataPedidoIso.split('T')[0];
+      const dataPedidoYMD = formatarDataLocalYMD(dataPedidoIso);
       return dataPedidoYMD === dataOperacaoHojeYMD;
     };
 
@@ -759,7 +759,7 @@ export const FinancasCaixa: React.FC = () => {
       }
 
       const dataTransacaoIso = t.data_pagamento || t.data_vencimento || t.criado_em || '';
-      const dataTransacaoYMD = dataTransacaoIso.split('T')[0];
+      const dataTransacaoYMD = formatarDataLocalYMD(dataTransacaoIso);
 
       if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva) {
         if (dataAberturaSessaoYMD && dataTransacaoYMD < dataAberturaSessaoYMD) {
@@ -970,12 +970,34 @@ export const FinancasCaixa: React.FC = () => {
 
   // Dados para Relatório Consolidado de Meios de Pagamento
   const dadosRelatorioConsolidado = useMemo(() => {
-    const sessoesNoPeriodo = [
-      ...historicoSessoes,
-      ...(sessaoAtiva ? [sessaoAtiva] : [])
-    ].filter(s => {
+    // 1. Unificar histórico com a sessão ativa atual em tempo real (evitando duplicidade por ID)
+    const mapaSessoes = new Map<string, SessaoCaixa>();
+    
+    (historicoSessoes || []).forEach(s => {
+      if (s?.id) mapaSessoes.set(s.id, s);
+    });
+
+    if (resumoSessao?.sessao) {
+      const sessaoAtualizada: SessaoCaixa = {
+        ...resumoSessao.sessao,
+        total_vendas_dinheiro: resumoSessao.totaisPorMetodo.dinheiro,
+        total_vendas_pix: resumoSessao.totaisPorMetodo.pix,
+        total_vendas_debito: resumoSessao.totaisPorMetodo.cartao_debito,
+        total_vendas_credito: resumoSessao.totaisPorMetodo.cartao_credito,
+        total_vendas_outros: resumoSessao.totaisPorMetodo.outros,
+        faturamento_total: resumoSessao.faturamentoTotalVendas,
+        saldo_dinheiro_calculado: resumoSessao.saldoEsperadoDinheiro,
+        movimentacoes: resumoSessao.sessao.movimentacoes
+      };
+      mapaSessoes.set(resumoSessao.sessao.id, sessaoAtualizada);
+    } else if (sessaoAtiva?.id && !mapaSessoes.has(sessaoAtiva.id)) {
+      mapaSessoes.set(sessaoAtiva.id, sessaoAtiva);
+    }
+
+    const sessoesNoPeriodo = Array.from(mapaSessoes.values()).filter(s => {
+      if (!s.aberto_em) return false;
       if (!periodoRelatorioInicio && !periodoRelatorioFim) return true;
-      const dataS = s.aberto_em.split('T')[0];
+      const dataS = formatarDataLocalYMD(s.aberto_em);
       if (periodoRelatorioInicio && dataS < periodoRelatorioInicio) return false;
       if (periodoRelatorioFim && dataS > periodoRelatorioFim) return false;
       return true;
@@ -1018,12 +1040,18 @@ export const FinancasCaixa: React.FC = () => {
     });
 
     // Fallback de reconciliação analítica:
-    // Se o total bruto apurou vendas (ex: R$ 330.21) mas o detalhamento individual está zerado
-    // (ex: sessão fechada antes da indexação de movimentações), cruza com os pedidos pagos no período
-    if (totalBruto > 0 && dinheiro === 0 && pix === 0 && debito === 0 && credito === 0 && outros === 0) {
+    // Se o total bruto apurou vendas mas o detalhamento individual está zerado ou se não houve sessões no período
+    if ((totalBruto === 0 || (dinheiro === 0 && pix === 0 && debito === 0 && credito === 0 && outros === 0)) && (pedidos || []).length > 0) {
+      let pedDinheiro = 0;
+      let pedPix = 0;
+      let pedDebito = 0;
+      let pedCredito = 0;
+      let pedOutros = 0;
+      let pedTotal = 0;
+
       (pedidos || []).forEach(p => {
         if (p.status === 'cancelado' || p.status === 'pendente') return;
-        const dataP = (p.data_venda || p.criado_em || '').split('T')[0];
+        const dataP = formatarDataLocalYMD(p.data_venda || p.criado_em);
         if (periodoRelatorioInicio && dataP < periodoRelatorioInicio) return;
         if (periodoRelatorioFim && dataP > periodoRelatorioFim) return;
 
@@ -1033,16 +1061,34 @@ export const FinancasCaixa: React.FC = () => {
             const tipoFp = (pag.forma_pagamento?.tipo || '').toLowerCase();
             const nomeFp = (pag.forma_pagamento?.nome || '').toLowerCase();
 
-            if (tipoFp === 'dinheiro' || nomeFp.includes('dinheiro')) dinheiro += val;
-            else if (tipoFp === 'pix' || nomeFp.includes('pix')) pix += val;
-            else if (tipoFp === 'cartao_debito' || nomeFp.includes('débito') || nomeFp.includes('debito')) debito += val;
-            else if (tipoFp === 'cartao_credito' || nomeFp.includes('crédito') || nomeFp.includes('credito')) credito += val;
-            else outros += val;
+            if (tipoFp === 'dinheiro' || nomeFp.includes('dinheiro')) pedDinheiro += val;
+            else if (tipoFp === 'pix' || nomeFp.includes('pix')) pedPix += val;
+            else if (tipoFp === 'cartao_debito' || nomeFp.includes('débito') || nomeFp.includes('debito')) pedDebito += val;
+            else if (tipoFp === 'cartao_credito' || nomeFp.includes('crédito') || nomeFp.includes('credito')) pedCredito += val;
+            else pedOutros += val;
+            pedTotal += val;
           });
         } else {
-          dinheiro += Number(p.valor_pago || p.valor_total || 0);
+          const val = Number(p.valor_pago || p.valor_total || 0);
+          pedDinheiro += val;
+          pedTotal += val;
         }
       });
+
+      if (totalBruto === 0 && pedTotal > 0) {
+        dinheiro = pedDinheiro;
+        pix = pedPix;
+        debito = pedDebito;
+        credito = pedCredito;
+        outros = pedOutros;
+        totalBruto = pedTotal;
+      } else if (totalBruto > 0 && dinheiro === 0 && pix === 0 && debito === 0 && credito === 0 && outros === 0 && pedTotal > 0) {
+        dinheiro = pedDinheiro;
+        pix = pedPix;
+        debito = pedDebito;
+        credito = pedCredito;
+        outros = pedOutros;
+      }
     }
 
     return {
@@ -1054,16 +1100,26 @@ export const FinancasCaixa: React.FC = () => {
       outros,
       totalBruto
     };
-  }, [historicoSessoes, sessaoAtiva, periodoRelatorioInicio, periodoRelatorioFim, pedidos]);
+  }, [historicoSessoes, sessaoAtiva, resumoSessao, periodoRelatorioInicio, periodoRelatorioFim, pedidos]);
 
   // Dados para Relatório de Sangrias e Despesas
   const dadosRelatorioSangriasDespesas = useMemo(() => {
-    const sessoesNoPeriodo = [
-      ...historicoSessoes,
-      ...(sessaoAtiva ? [sessaoAtiva] : [])
-    ].filter(s => {
+    const mapaSessoes = new Map<string, SessaoCaixa>();
+    
+    (historicoSessoes || []).forEach(s => {
+      if (s?.id) mapaSessoes.set(s.id, s);
+    });
+
+    if (resumoSessao?.sessao) {
+      mapaSessoes.set(resumoSessao.sessao.id, resumoSessao.sessao);
+    } else if (sessaoAtiva?.id && !mapaSessoes.has(sessaoAtiva.id)) {
+      mapaSessoes.set(sessaoAtiva.id, sessaoAtiva);
+    }
+
+    const sessoesNoPeriodo = Array.from(mapaSessoes.values()).filter(s => {
+      if (!s.aberto_em) return false;
       if (!periodoRelatorioInicio && !periodoRelatorioFim) return true;
-      const dataS = s.aberto_em.split('T')[0];
+      const dataS = formatarDataLocalYMD(s.aberto_em);
       if (periodoRelatorioInicio && dataS < periodoRelatorioInicio) return false;
       if (periodoRelatorioFim && dataS > periodoRelatorioFim) return false;
       return true;
@@ -1109,7 +1165,7 @@ export const FinancasCaixa: React.FC = () => {
       totalDespesas,
       totalGeral: totalSangrias + totalDespesas
     };
-  }, [historicoSessoes, sessaoAtiva, periodoRelatorioInicio, periodoRelatorioFim]);
+  }, [historicoSessoes, sessaoAtiva, resumoSessao, periodoRelatorioInicio, periodoRelatorioFim]);
 
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
@@ -1841,7 +1897,11 @@ export const FinancasCaixa: React.FC = () => {
                       <div className="flex items-center gap-2 pt-2 md:pt-0 shrink-0">
                         <button
                           type="button"
-                          onClick={() => setModalRelatorioConsolidado(true)}
+                          onClick={() => {
+                            if (filtrosHistorico.dataInicio) setPeriodoRelatorioInicio(filtrosHistorico.dataInicio);
+                            if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
+                            setModalRelatorioConsolidado(true);
+                          }}
                           className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs rounded-xl border border-indigo-500/30 flex items-center gap-1.5 transition cursor-pointer"
                         >
                           <FileText className="w-3.5 h-3.5" />
@@ -1849,7 +1909,11 @@ export const FinancasCaixa: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setModalRelatorioSangriasDespesas(true)}
+                          onClick={() => {
+                            if (filtrosHistorico.dataInicio) setPeriodoRelatorioInicio(filtrosHistorico.dataInicio);
+                            if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
+                            setModalRelatorioSangriasDespesas(true);
+                          }}
                           className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs rounded-xl border border-rose-500/30 flex items-center gap-1.5 transition cursor-pointer"
                         >
                           <SlidersHorizontal className="w-3.5 h-3.5" />

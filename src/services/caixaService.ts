@@ -8,7 +8,7 @@ import {
   DeclaradoPorMetodo,
   Pedido
 } from '../types';
-import { obterDataOperacao, obterDataOperacaoISO } from '../utils/dataOperacao';
+import { obterDataOperacao, obterDataOperacaoISO, formatarDataLocalYMD } from '../utils/dataOperacao';
 
 export const caixaService = {
   /**
@@ -515,11 +515,15 @@ export const caixaService = {
       }
 
       if (filtros?.dataInicio) {
-        query = query.gte('aberto_em', `${filtros.dataInicio}T00:00:00`);
+        const dInicio = new Date(`${filtros.dataInicio}T00:00:00`);
+        const isoInicio = !isNaN(dInicio.getTime()) ? dInicio.toISOString() : `${filtros.dataInicio}T00:00:00`;
+        query = query.gte('aberto_em', isoInicio);
       }
 
       if (filtros?.dataFim) {
-        query = query.lte('aberto_em', `${filtros.dataFim}T23:59:59.999Z`);
+        const dFim = new Date(`${filtros.dataFim}T23:59:59.999`);
+        const isoFim = !isNaN(dFim.getTime()) ? dFim.toISOString() : `${filtros.dataFim}T23:59:59.999Z`;
+        query = query.lte('aberto_em', isoFim);
       }
 
       if (filtros?.limite) {
@@ -568,10 +572,13 @@ export const caixaService = {
         let vDebito = 0;
         let vCredito = 0;
         let vOutros = 0;
+        let suprimentos = 0;
+        let sangrias = 0;
+        let despesas = 0;
 
         movs.forEach((m: any) => {
+          const val = Number(m.valor || 0);
           if (m.tipo === 'VENDA') {
-            const val = Number(m.valor || 0);
             switch (m.metodo_pagamento) {
               case 'DINHEIRO': vDinheiro += val; break;
               case 'PIX': vPix += val; break;
@@ -579,24 +586,42 @@ export const caixaService = {
               case 'CARTAO_CREDITO': vCredito += val; break;
               default: vOutros += val; break;
             }
+          } else if (m.tipo === 'SUPRIMENTO') {
+            suprimentos += val;
+          } else if (m.tipo === 'SANGRIA') {
+            sangrias += val;
+          } else if (m.tipo === 'DESPESA') {
+            despesas += val;
           }
         });
 
+        const fundoInicial = Number(s.fundo_inicial || 0);
         const faturamento = Number(s.total_entradas_sistema || (vDinheiro + vPix + vDebito + vCredito + vOutros) || 0);
+
+        // Saldo esperado em dinheiro na gaveta: Fundo Inicial + Vendas em Dinheiro + Suprimentos - Sangrias - Despesas
+        const saldoCalculadoGaveta = fundoInicial + vDinheiro + suprimentos - sangrias - despesas;
+        const saldoDinheiroEsperado = s.status === 'ABERTO'
+          ? saldoCalculadoGaveta
+          : (s.saldo_esperado_dinheiro != null && Number(s.saldo_esperado_dinheiro) !== fundoInicial
+              ? Number(s.saldo_esperado_dinheiro)
+              : saldoCalculadoGaveta);
 
         return {
           ...s,
           usuario_abertura: s.aberto_por || (s as any).usuario_abertura,
           usuario_fechamento: s.fechado_por || (s as any).usuario_fechamento,
-          fundo_troco_inicial: Number(s.fundo_inicial || 0),
+          fundo_troco_inicial: fundoInicial,
           faturamento_total: faturamento,
-          saldo_dinheiro_calculado: Number(s.saldo_esperado_dinheiro || 0),
+          saldo_dinheiro_calculado: saldoDinheiroEsperado,
           saldo_dinheiro_declarado: s.saldo_declarado_dinheiro != null ? Number(s.saldo_declarado_dinheiro) : null,
           total_vendas_dinheiro: vDinheiro,
           total_vendas_pix: vPix,
           total_vendas_debito: vDebito,
           total_vendas_credito: vCredito,
           total_vendas_outros: vOutros,
+          total_suprimentos: suprimentos,
+          total_sangrias: sangrias,
+          total_despesas: despesas,
           movimentacoes: movs
         };
       });
