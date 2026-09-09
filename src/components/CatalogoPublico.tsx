@@ -29,7 +29,7 @@ import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContato
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
-import { obterDataOperacaoISO, definirDataOperacao } from '../utils/dataOperacao';
+import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -611,6 +611,8 @@ export const CatalogoPublico: React.FC = () => {
         } : null
       };
 
+      const dataOperacaoIso = obterDataOperacaoISOParaLoja(loja);
+
       const { data: pedidoCriado, error: erroPedido } = await supabase
         .from('pedidos')
         .insert([
@@ -628,7 +630,9 @@ export const CatalogoPublico: React.FC = () => {
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
             observacoes: observacoes?.trim() || null,
             metadados: metadadosPedido,
-            data_venda: obterDataOperacaoISO()
+            data_venda: dataOperacaoIso,
+            criado_em: dataOperacaoIso,
+            atualizado_em: dataOperacaoIso
           }
         ])
         .select()
@@ -654,7 +658,8 @@ export const CatalogoPublico: React.FC = () => {
           preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
           preco_venda_unitario: precoUnitario,
           quantidade: item.quantidade,
-          subtotal: precoUnitario * item.quantidade
+          subtotal: precoUnitario * item.quantidade,
+          criado_em: dataOperacaoIso
         };
       });
 
@@ -1443,22 +1448,28 @@ Fico no aguardo da confirmação! ✨`;
                           <UserCheck className="w-4 h-4" />
                         </div>
                         <span className="text-[11px] font-bold text-slate-200 group-hover:text-emerald-400 leading-tight">
-                          Já tenho cadastro
+                          Já tenho o cadastro
                         </span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalContatoAberto(true)}
-                        className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-sky-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative"
+                        className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
+                          nomeCliente && whatsappCliente ? 'border-emerald-500/50' : 'border-slate-700'
+                        } hover:border-sky-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
                       >
                         {nomeCliente && whatsappCliente && (
                           <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
                         )}
-                        <div className="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 flex items-center justify-center transition">
+                        <div className={`w-8 h-8 rounded-xl ${
+                          nomeCliente && whatsappCliente ? 'bg-emerald-500/15 text-emerald-400' : 'bg-sky-500/15 text-sky-400'
+                        } group-hover:bg-sky-500 group-hover:text-slate-950 flex items-center justify-center transition`}>
                           <Phone className="w-4 h-4" />
                         </div>
-                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-sky-400 leading-tight">
+                        <span className={`text-[11px] font-bold ${
+                          nomeCliente && whatsappCliente ? 'text-emerald-400' : 'text-slate-200'
+                        } group-hover:text-sky-400 leading-tight`}>
                           Contato
                         </span>
                       </button>
@@ -1466,7 +1477,9 @@ Fico no aguardo da confirmação! ✨`;
                       <button
                         type="button"
                         onClick={() => setModalEnderecoAberto(true)}
-                        className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-purple-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative"
+                        className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
+                          enderecoEntrega ? 'border-purple-500/50' : 'border-slate-700'
+                        } hover:border-purple-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
                       >
                         {enderecoEntrega && (
                           <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -1474,83 +1487,12 @@ Fico no aguardo da confirmação! ✨`;
                         <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-400 group-hover:bg-purple-500 group-hover:text-slate-950 flex items-center justify-center transition">
                           <MapPin className="w-4 h-4" />
                         </div>
-                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-purple-400 leading-tight">
+                        <span className={`text-[11px] font-bold ${
+                          enderecoEntrega ? 'text-purple-400' : 'text-slate-200'
+                        } group-hover:text-purple-400 leading-tight`}>
                           Endereço
                         </span>
                       </button>
-                    </div>
-
-                    {/* CARDS COM RESUMO DOS DADOS PREENCHIDOS E OPÇÃO DE ALTERAR */}
-                    <div className="space-y-2 pt-1">
-                      {/* Resumo do Contato */}
-                      <div
-                        onClick={() => setModalContatoAberto(true)}
-                        className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700/80 hover:border-slate-600 flex items-center justify-between cursor-pointer transition"
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${nomeCliente ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/60 text-slate-400'}`}>
-                            <User className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="truncate">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Contato
-                              </span>
-                              {nomeCliente ? (
-                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300">
-                                  PREENCHIDO
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300">
-                                  OBRIGATÓRIO
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs font-semibold text-slate-200 block truncate mt-0.5">
-                              {nomeCliente ? `${nomeCliente} • ${whatsappCliente}` : 'Toque em Contato para informar Nome e WhatsApp'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-sky-400 font-bold hover:underline shrink-0 ml-2">
-                          <Edit2 className="w-3 h-3" />
-                          <span>{nomeCliente ? 'Alterar' : 'Preencher'}</span>
-                        </div>
-                      </div>
-
-                      {/* Resumo do Endereço */}
-                      <div
-                        onClick={() => setModalEnderecoAberto(true)}
-                        className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700/80 hover:border-slate-600 flex items-center justify-between cursor-pointer transition"
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${enderecoEntrega ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700/60 text-slate-400'}`}>
-                            <MapPin className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="truncate">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Endereço
-                              </span>
-                              {enderecoEntrega ? (
-                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300">
-                                  PREENCHIDO
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-medium text-slate-500">
-                                  (Opcional / Retirada)
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs font-semibold text-slate-200 block truncate mt-0.5">
-                              {enderecoEntrega || 'Toque em Endereço para informar CEP, Rua e Bairro'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-purple-400 font-bold hover:underline shrink-0 ml-2">
-                          <Edit2 className="w-3 h-3" />
-                          <span>{enderecoEntrega ? 'Alterar' : 'Preencher'}</span>
-                        </div>
-                      </div>
                     </div>
                   </div>
 
@@ -1706,14 +1648,14 @@ Fico no aguardo da confirmação! ✨`;
             </div>
 
             {/* SE PIX FOI APROVADO EM TEMPO REAL */}
-            {pixAprovadoEmTempoReal ? (
+            {pixAprovadoEmTempoReal && (
               <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 text-center space-y-2 animate-in zoom-in-95 duration-200">
                 <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h4 className="text-sm font-black text-emerald-400">Pagamento Pix Confirmado! 🎉</h4>
+                <h4 className="text-sm font-black text-emerald-400">Pagamento Confirmado! 🎉</h4>
                 <p className="text-xs text-slate-300">
-                  Identificamos o seu pagamento instantaneamente! O pedido está como <strong>PAGO</strong> e já foi enviado para a produção.
+                  Identificamos o seu pagamento com sucesso! O pedido está como <strong>PAGO</strong> e já foi enviado para a produção.
                 </p>
                 <Link
                   to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
@@ -1724,75 +1666,16 @@ Fico no aguardo da confirmação! ✨`;
                   <span>Acompanhar status do pedido</span>
                 </Link>
               </div>
-            ) : pedidoConcluidoModal.pixInfo ? (
-              /* SE HOUVER PIX DINÂMICO AGUARDANDO PAGAMENTO */
-              <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-center space-y-3">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-400">
-                  <QrCode className="w-4 h-4" />
-                  <span>Pague agora com Pix Instantâneo</span>
-                </div>
+            )}
 
-                {pedidoConcluidoModal.pixInfo.qrCodeBase64 ? (
-                  <img
-                    src={`data:image/png;base64,${pedidoConcluidoModal.pixInfo.qrCodeBase64}`}
-                    alt="QR Code Pix"
-                    className="w-44 h-44 mx-auto rounded-xl bg-white p-2 border border-emerald-500/40 shadow-lg"
-                  />
-                ) : null}
-
-                {pedidoConcluidoModal.pixInfo.qrCode && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (pedidoConcluidoModal.pixInfo?.qrCode) {
-                        await navigator.clipboard.writeText(pedidoConcluidoModal.pixInfo.qrCode);
-                        setPixCopiado(true);
-                        setTimeout(() => setPixCopiado(false), 2500);
-                      }
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix (Copia e Cola)'}</span>
-                  </button>
-                )}
-
-                <div className="pt-1 flex flex-col items-center gap-2">
-                  <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                    <span>Aguardando identificação do pagamento...</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={verificandoPixManual}
-                    onClick={handleVerificarPixManualmente}
-                    className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-                  >
-                    {verificandoPixManual ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                        <span>Verificando no Mercado Pago...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Já paguei no banco (Verificar agora)</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {/* LINK / MODAL DE PAGAMENTO MERCADO PAGO / CARTÃO */}
+            {/* BOTÃO PAGAR COM MERCADO PAGO */}
             {!pixAprovadoEmTempoReal && pedidoConcluidoModal.linkPagamento && (
               <button
                 type="button"
                 onClick={handleAbrirCheckoutMP}
-                className="w-full py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 transition cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 transition cursor-pointer"
               >
-                <span>Pagar com Cartão / Mercado Pago</span>
+                <span>Pagar com Mercado Pago</span>
                 <ExternalLink className="w-4 h-4" />
               </button>
             )}

@@ -35,7 +35,7 @@ interface DataOperacaoContextType {
 const DataOperacaoContext = createContext<DataOperacaoContextType | undefined>(undefined);
 
 export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { usuario, loja } = useAuth();
+  const { usuario, loja, recarregarDadosLoja } = useAuth();
   const ehOwner = usuario?.perfil === 'owner';
 
   const [dataSimulada, setDataSimulada] = useState<string | null>(() => obterDataSimuladaSalva());
@@ -63,22 +63,14 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Ouve eventos de alteração de data
   const sincronizarEstadosLocais = useCallback(() => {
-    const ativa = isModoSimulacaoAtivo();
     const dataSalva = obterDataSimuladaSalva();
     const horaSalva = obterHoraSimuladaSalva();
+    const ativo = isModoSimulacaoAtivo();
 
-    // Regra estrita: se não for Owner, nunca ativa simulação
-    if (!ehOwner) {
-      setModoAtivo(false);
-      setDataSimulada(null);
-      setHoraSimulada(null);
-      return;
-    }
-
-    setModoAtivo(ativa);
     setDataSimulada(dataSalva);
     setHoraSimulada(horaSalva);
-  }, [ehOwner]);
+    setModoAtivo(ativo);
+  }, []);
 
   useEffect(() => {
     sincronizarEstadosLocais();
@@ -105,7 +97,7 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setModalAberto(false);
   }, []);
 
-  const definirData = useCallback((dataYMD: string, horaHM?: string | null) => {
+  const definirData = useCallback(async (dataYMD: string, horaHM?: string | null) => {
     if (!ehOwner) return;
     definirDataOperacao(dataYMD, horaHM);
     setDataSimulada(dataYMD);
@@ -120,11 +112,20 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
         dataYMD,
         horaHM: horaHM || null
       };
-      supabase.from('lojas').update({ configuracoes_extras: extras }).eq('id', loja.id).then();
+      try {
+        const { error } = await supabase.from('lojas').update({ configuracoes_extras: extras }).eq('id', loja.id);
+        if (error) {
+          console.error('Erro ao salvar data simulada na loja:', error);
+        } else if (recarregarDadosLoja) {
+          await recarregarDadosLoja();
+        }
+      } catch (e) {
+        console.error('Erro ao atualizar simulacao_data_operacao:', e);
+      }
     }
-  }, [ehOwner, loja]);
+  }, [ehOwner, loja, recarregarDadosLoja]);
 
-  const restaurarParaHoje = useCallback(() => {
+  const restaurarParaHoje = useCallback(async () => {
     limparDataOperacao();
     setDataSimulada(null);
     setHoraSimulada(null);
@@ -134,9 +135,18 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (loja?.id) {
       const extras = { ...(loja.configuracoes_extras || {}) };
       delete extras.simulacao_data_operacao;
-      supabase.from('lojas').update({ configuracoes_extras: extras }).eq('id', loja.id).then();
+      try {
+        const { error } = await supabase.from('lojas').update({ configuracoes_extras: extras }).eq('id', loja.id);
+        if (error) {
+          console.error('Erro ao restaurar data simulada na loja:', error);
+        } else if (recarregarDadosLoja) {
+          await recarregarDadosLoja();
+        }
+      } catch (e) {
+        console.error('Erro ao restaurar simulacao_data_operacao:', e);
+      }
     }
-  }, [loja]);
+  }, [loja, recarregarDadosLoja]);
 
   const dataOperacaoYMD = useMemo(() => {
     return obterDataOperacaoYMD();

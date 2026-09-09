@@ -245,3 +245,48 @@ export function limparDataOperacao(): void {
     detail: { dataYMD: null, horaHM: null }
   }));
 }
+
+/**
+ * Retorna a data operacional considerando a simulação ativa da loja (persistida no banco)
+ * ou do operador local (persistida no localStorage), garantindo que pedidos feitos pelo catálogo
+ * público ou dispositivos de clientes assumam a data simulada pela loja.
+ */
+export function obterDataOperacaoParaLoja(lojaOuExtras?: any): Date {
+  const simLoja = lojaOuExtras?.configuracoes_extras?.simulacao_data_operacao || lojaOuExtras?.simulacao_data_operacao;
+  if (simLoja?.ativa && simLoja?.dataYMD) {
+    try {
+      const [anoStr, mesStr, diaStr] = simLoja.dataYMD.split('-');
+      const ano = parseInt(anoStr, 10);
+      const mes = parseInt(mesStr, 10) - 1;
+      const dia = parseInt(diaStr, 10);
+
+      const agoraServidor = obterHorarioServidorReal();
+      let horas = agoraServidor.getHours();
+      let minutos = agoraServidor.getMinutes();
+      let segundos = agoraServidor.getSeconds();
+      let ms = agoraServidor.getMilliseconds();
+
+      if (simLoja.horaHM && simLoja.horaHM.includes(':')) {
+        const [h, m] = simLoja.horaHM.split(':');
+        horas = parseInt(h, 10) || 0;
+        minutos = parseInt(m, 10) || 0;
+      }
+
+      const res = new Date(ano, mes, dia, horas, minutos, segundos, ms);
+      if (!isNaN(res.getTime())) return res;
+    } catch (e) {
+      console.warn('Erro ao aplicar data simulada da loja:', e);
+    }
+  }
+
+  // Fallback para a simulação do localStorage do navegador ou horário do servidor
+  return obterDataOperacao();
+}
+
+/**
+ * Retorna a data operacional da loja em formato ISO 8601
+ */
+export function obterDataOperacaoISOParaLoja(lojaOuExtras?: any): string {
+  return obterDataOperacaoParaLoja(lojaOuExtras).toISOString();
+}
+
