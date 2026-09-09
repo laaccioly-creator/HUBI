@@ -789,7 +789,7 @@ export const caixaService = {
   },
 
   /**
-   * Formata texto em formato de comprovante térmico para impressão e compartilhamento WhatsApp
+   * Formata texto em formato de comprovante térmico para compartilhamento WhatsApp e cópia
    */
   gerarTextoComprovanteFechamento(resumo: ResumoSessaoCaixa, nomeLoja?: string): string {
     const { sessao } = resumo;
@@ -797,50 +797,52 @@ export const caixaService = {
     const fechadoEm = sessao.fechado_em ? new Date(sessao.fechado_em).toLocaleString('pt-BR') : 'Em Aberto';
     const dif = Number(sessao.diferenca_dinheiro || 0);
 
-    let statusDifText = 'CAIXA EXATO (R$ 0,00)';
+    let statusDifText = '✅ *CAIXA CONCILIADO COM EXATIDÃO (R$ 0,00)*';
     if (dif > 0.009) {
-      statusDifText = `SOBRA DE CAIXA: +R$ ${dif.toFixed(2)}`;
+      statusDifText = `🔵 *SOBRA DE CAIXA: +R$ ${dif.toFixed(2)}*`;
     } else if (dif < -0.009) {
-      statusDifText = `FALTA DE CAIXA: -R$ ${Math.abs(dif).toFixed(2)}`;
+      statusDifText = `⚠️ *FALTA DE CAIXA: -R$ ${Math.abs(dif).toFixed(2)}*`;
     }
 
-    const fmt = (v: number) => `R$ ${v.toFixed(2).padStart(10, ' ')}`;
+    const fmt = (v: number) => `R$ ${Number(v || 0).toFixed(2).padStart(8, ' ')}`;
 
     return [
-      `================================================`,
-      `          ${(nomeLoja || 'HUBI GESTÃO').toUpperCase()}          `,
-      `     RELATÓRIO DE FECHAMENTO DE CAIXA           `,
-      `================================================`,
-      `Terminal: ${sessao.terminal_id} | Status: ${sessao.status}`,
-      `Sessão ID: ${sessao.id.slice(0, 8)}`,
-      `Abertura: ${abertoEm}`,
-      `Fechamento: ${fechadoEm}`,
-      `Duração do Turno: ${resumo.duracaoFormatada}`,
-      `------------------------------------------------`,
-      `1. BALANÇO DA GAVETA (DINHEIRO FÍSICO):`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `🏢 *${(nomeLoja || 'HUBI GESTÃO & PDV').toUpperCase()}*`,
+      `📑 *COMPROVANTE DE FECHAMENTO DE CAIXA*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `🖥️ *Terminal:* ${sessao.terminal_id} | *Status:* ${(sessao.status || 'FECHADO').toUpperCase()}`,
+      `🔑 *Sessão ID:* #${sessao.id.slice(0, 8)}`,
+      `👤 *Operador:* ${sessao.fechado_por?.nome_completo || sessao.aberto_por?.nome_completo || 'Operador PDV'}`,
+      `⏰ *Abertura:* ${abertoEm}`,
+      `🏁 *Fechamento:* ${fechadoEm}`,
+      `⏳ *Duração do Turno:* ${resumo.duracaoTexto || resumo.duracaoFormatada}`,
+      `────────────────────────────────────`,
+      `💵 *1. BALANÇO DA GAVETA (DINHEIRO):*`,
       `   (+) Fundo de Troco Inicial:   ${fmt(resumo.fundoInicial)}`,
       `   (+) Vendas em Dinheiro:       ${fmt(resumo.totalVendasDinheiro)}`,
-      `   (+) Suprimentos (Troco):      ${fmt(resumo.totalSuprimentos)}`,
+      `   (+) Suprimentos (Aportes):    ${fmt(resumo.totalSuprimentos)}`,
       `   (-) Sangrias (Retiradas):     ${fmt(resumo.totalSangrias)}`,
       `   (-) Despesas Pagas Gaveta:    ${fmt(resumo.totalDespesas)}`,
-      `   ---------------------------------------------`,
-      `   (=) SALDO TEÓRICO ESPERADO:   ${fmt(resumo.saldoEsperadoDinheiro)}`,
-      `   (=) VALOR FÍSICO DECLARADO:   ${fmt(Number(sessao.saldo_declarado_dinheiro || 0))}`,
-      `   ---------------------------------------------`,
-      `   RESULTADO DA CONCILIAÇÃO: ${statusDifText}`,
-      `------------------------------------------------`,
-      `2. ENTRADAS POR OUTROS MEIOS (NÃO-GAVETA):`,
-      `   • Pix / Transferência:        ${fmt(resumo.totalVendasPix)}`,
-      `   • Cartão de Crédito:          ${fmt(resumo.totalVendasCredito)}`,
-      `   • Cartão de Débito:           ${fmt(resumo.totalVendasDebito)}`,
-      `   • Outros Meios:               ${fmt(resumo.totalVendasOutros)}`,
-      `   ---------------------------------------------`,
-      `   FATURAMENTO BRUTO TOTAL:      ${fmt(resumo.totalVendasGeral)}`,
-      `================================================`,
-      sessao.observacoes_fechamento ? `Obs: ${sessao.observacoes_fechamento}\n` : '',
-      `Impresso em: ${new Date().toLocaleString('pt-BR')}`,
-      `Operador: ${sessao.fechado_por?.nome_completo || sessao.aberto_por?.nome_completo || 'Operador PDV'}`,
-      `================================================`
+      `   ─────────────────────────────────`,
+      `   (=) Saldo Teórico Esperado:   ${fmt(resumo.saldoEsperadoDinheiro)}`,
+      `   (=) Valor Físico Declarado:   ${fmt(Number(sessao.saldo_declarado_dinheiro || 0))}`,
+      `   ─────────────────────────────────`,
+      `   ${statusDifText}`,
+      `────────────────────────────────────`,
+      `💳 *2. VENDAS POR MEIO DE PAGAMENTO:*`,
+      `   • Dinheiro (${resumo.qtdVendasPorMetodo?.dinheiro ?? 0}x):          ${fmt(resumo.totalVendasDinheiro)}`,
+      `   • Pix (${resumo.qtdVendasPorMetodo?.pix ?? 0}x):               ${fmt(resumo.totalVendasPix)}`,
+      `   • Cartão Crédito (${resumo.qtdVendasPorMetodo?.cartao_credito ?? 0}x):     ${fmt(resumo.totalVendasCredito)}`,
+      `   • Cartão Débito (${resumo.qtdVendasPorMetodo?.cartao_debito ?? 0}x):      ${fmt(resumo.totalVendasDebito)}`,
+      resumo.totalVendasOutros > 0 ? `   • Outros Meios:               ${fmt(resumo.totalVendasOutros)}` : '',
+      `   ─────────────────────────────────`,
+      `💰 *FATURAMENTO BRUTO TOTAL:*    ${fmt(resumo.faturamentoTotalVendas ?? resumo.totalVendasGeral)}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      sessao.observacoes_fechamento ? `📝 *Obs:* ${sessao.observacoes_fechamento}\n────────────────────────────────────` : '',
+      `📅 *Emitido em:* ${new Date().toLocaleString('pt-BR')}`,
+      `HUBI • Sistema de Gestão & PDV`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     ].filter(Boolean).join('\n');
   }
 };

@@ -33,7 +33,9 @@ import {
   HelpCircle,
   AlertCircle,
   ShoppingCart,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,7 +73,7 @@ export const FinancasCaixa: React.FC = () => {
   const [transacoes, setTransacoes] = useState<TransacaoFinanceira[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [movimentacoesCaixaLoja, setMovimentacoesCaixaLoja] = useState<MovimentacaoCaixa[]>([]);
-  const [filtroPeriodoFluxo, setFiltroPeriodoFluxo] = useState<'sessao_atual' | 'hoje' | 'todos'>('sessao_atual');
+  const [filtroPeriodoFluxo, setFiltroPeriodoFluxo] = useState<'sessao_atual' | 'hoje' | 'mes' | 'todos'>('sessao_atual');
   const [carregando, setCarregando] = useState<boolean>(true);
   const [abaAtiva, setAbaAtiva] = useState<'caixa_atual' | 'fluxo' | 'pagar' | 'historico_caixas'>('caixa_atual');
   const [modalDetalhesMetrica, setModalDetalhesMetrica] = useState<'entradas' | 'saidas' | 'pagar' | 'lucro' | null>(null);
@@ -146,8 +148,10 @@ export const FinancasCaixa: React.FC = () => {
   const [periodoRelatorioInicio, setPeriodoRelatorioInicio] = useState<string>(obterDataOperacaoYMD());
   const [periodoRelatorioFim, setPeriodoRelatorioFim] = useState<string>(obterDataOperacaoYMD());
 
-  // Modais de Operação Geral (DRE / Nova Despesa Plano de Contas)
+  // Modais de Operação Geral (DRE / Nova Despesa Plano de Contas / Contas a Pagar)
   const [modalNovaDespesa, setModalNovaDespesa] = useState<boolean>(false);
+  const [statusLancamento, setStatusLancamento] = useState<'pago' | 'pendente'>('pago');
+  const [transacaoEditando, setTransacaoEditando] = useState<any | null>(null);
   const [descricao, setDescricao] = useState<string>('');
   const [categoria, setCategoria] = useState<string>('Fornecedor');
   const [valor, setValor] = useState<string>('');
@@ -155,6 +159,21 @@ export const FinancasCaixa: React.FC = () => {
   const [ehRecorrente, setEhRecorrente] = useState<boolean>(false);
   const [formaPagamentoDespesa, setFormaPagamentoDespesa] = useState<string>('dinheiro');
   const [salvandoDespesa, setSalvandoDespesa] = useState<boolean>(false);
+
+  // Modais de Exclusão e Baixa de Contas a Pagar
+  const [modalConfirmarExclusao, setModalConfirmarExclusao] = useState<{
+    aberta: boolean;
+    transacao: any | null;
+    processando: boolean;
+  }>({ aberta: false, transacao: null, processando: false });
+
+  const [modalBaixarConta, setModalBaixarConta] = useState<{
+    aberta: boolean;
+    transacao: any | null;
+    formaPagamento: string;
+    dataPagamento: string;
+    processando: boolean;
+  }>({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false });
 
   // Fallback de compatibilidade com estrutura legada
   const [caixaAberto, setCaixaAberto] = useState<Caixa | null>(null);
@@ -248,11 +267,53 @@ export const FinancasCaixa: React.FC = () => {
     carregarFinanceiro();
   }, [loja?.id, terminalId, filtrosHistorico.dataInicio, filtrosHistorico.dataFim, filtrosHistorico.usuarioId, filtrosHistorico.statusDiferenca]);
 
-  // 1. Cadastrar Nova Despesa Manual no DRE / Fluxo Geral
-  const handleCadastrarDespesa = async (e: React.FormEvent) => {
+  // Abrir Modal de Nova Despesa (Paga)
+  const abrirModalNovaDespesa = () => {
+    setTransacaoEditando(null);
+    setStatusLancamento('pago');
+    setDescricao('');
+    setValor('');
+    setCategoria('Fornecedor');
+    setDataVencimento(obterDataOperacaoYMD());
+    setEhRecorrente(false);
+    setFormaPagamentoDespesa('dinheiro');
+    setModalNovaDespesa(true);
+  };
+
+  // Abrir Modal de Nova Conta a Pagar (Pendente)
+  const abrirModalNovaContaPagar = () => {
+    setTransacaoEditando(null);
+    setStatusLancamento('pendente');
+    setDescricao('');
+    setValor('');
+    setCategoria('Fornecedor');
+    setDataVencimento(obterDataOperacaoYMD());
+    setEhRecorrente(false);
+    setFormaPagamentoDespesa('transferencia');
+    setModalNovaDespesa(true);
+  };
+
+  // Abrir Modal para Edição de Lançamento Financeiro Manual
+  const abrirModalEditarTransacao = (tr: any) => {
+    setTransacaoEditando(tr);
+    const ehPendente = tr.status === 'pendente';
+    setStatusLancamento(ehPendente ? 'pendente' : 'pago');
+    const descLimpa = (tr.descricao || '').replace(/\s*\(entrada manual\)/gi, '').trim();
+    setDescricao(descLimpa);
+    setValor(tr.valor != null ? String(tr.valor) : '');
+    setCategoria(tr.categoria || 'Fornecedor');
+    const rawData = tr.dataVencimento || tr.data || tr.criado_em;
+    setDataVencimento(rawData ? formatarDataLocalYMD(rawData) : obterDataOperacaoYMD());
+    setEhRecorrente(Boolean(tr.ehRecorrente));
+    setFormaPagamentoDespesa(tr.formaPagamento || (ehPendente ? 'transferencia' : 'dinheiro'));
+    setModalNovaDespesa(true);
+  };
+
+  // 1. Cadastrar / Editar Despesa ou Conta a Pagar Manual no DRE / Fluxo Geral
+  const handleSalvarDespesaOuContaPagar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!permissions.ehAdmin) {
-      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem lançar despesas.', 'Acesso Restrito');
+      mostrarAviso('Permissão restrita. Apenas usuários Proprietários (Owner) ou Administradores (Admin) podem lançar ou alterar despesas e contas a pagar.', 'Acesso Restrito');
       return;
     }
     if (!loja?.id || !descricao.trim() || !valor || salvandoDespesa) return;
@@ -260,51 +321,190 @@ export const FinancasCaixa: React.FC = () => {
     try {
       setSalvandoDespesa(true);
       const valNum = Number(valor);
-      const { data, error } = await supabase.from('transacoes_financeiras').insert([
-        {
+      if (isNaN(valNum) || valNum <= 0) {
+        mostrarAviso('Informe um valor numérico válido maior que zero.');
+        return;
+      }
+
+      const ehPendente = statusLancamento === 'pendente';
+
+      if (transacaoEditando && transacaoEditando.id) {
+        // MODO ATUALIZAÇÃO (UPDATE)
+        const updatePayload: any = {
+          tipo: 'SAIDA',
+          categoria,
+          descricao: descricao.trim(),
+          valor: valNum,
+          data_vencimento: dataVencimento,
+          status: ehPendente ? 'pendente' : 'pago',
+          eh_recorrente: ehRecorrente,
+          frequencia_recorrencia: ehRecorrente ? 'mensal' : null,
+          forma_pagamento: formaPagamentoDespesa || null
+        };
+
+        if (!ehPendente && !transacaoEditando.data_pagamento) {
+          updatePayload.data_pagamento = new Date().toISOString();
+        }
+
+        const { data, error } = await supabase
+          .from('transacoes_financeiras')
+          .update(updatePayload)
+          .eq('id', transacaoEditando.id)
+          .select('*, fornecedor:fornecedores(*)')
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setTransacoes(prev => prev.map(item => item.id === data.id ? data : item));
+        }
+
+        mostrarSucesso(ehPendente ? 'Conta a pagar atualizada com sucesso!' : 'Despesa atualizada com sucesso!');
+      } else {
+        // MODO INSERÇÃO (NOVO REGISTRO)
+        const insertPayload: any = {
           loja_id: loja.id,
           tipo: 'SAIDA',
           categoria,
-          descricao,
+          descricao: descricao.trim(),
           valor: valNum,
           data_vencimento: dataVencimento,
-          status: 'pago',
+          status: ehPendente ? 'pendente' : 'pago',
           eh_recorrente: ehRecorrente,
           frequencia_recorrencia: ehRecorrente ? 'mensal' : null,
-          forma_pagamento: formaPagamentoDespesa
+          forma_pagamento: formaPagamentoDespesa || null
+        };
+
+        if (!ehPendente) {
+          insertPayload.data_pagamento = new Date().toISOString();
         }
-      ]).select().single();
+
+        const { data, error } = await supabase
+          .from('transacoes_financeiras')
+          .insert([insertPayload])
+          .select('*, fornecedor:fornecedores(*)')
+          .single();
+
+        if (error) throw error;
+        if (data) setTransacoes(prev => [data, ...prev]);
+
+        // Se paga em dinheiro físico na gaveta e houver sessão de caixa aberta, registrar como despesa da gaveta
+        if (!ehPendente && formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && usuario?.id) {
+          try {
+            await caixaService.registrarMovimentacao({
+              lojaId: loja.id,
+              sessaoId: sessaoAtiva.id,
+              tipo: 'DESPESA',
+              metodoPagamento: 'DINHEIRO',
+              valor: valNum,
+              descricao: `Despesa Gaveta: ${descricao.trim()} (${categoria})`,
+              usuarioId: usuario.id
+            });
+            const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
+            setResumoSessao(res);
+          } catch (errMov) {
+            console.warn('Aviso ao registrar despesa na sessão de caixa:', errMov);
+          }
+        }
+
+        mostrarSucesso(ehPendente ? 'Conta a pagar cadastrada com sucesso!' : 'Despesa lançada com sucesso!');
+      }
+
+      setModalNovaDespesa(false);
+      setTransacaoEditando(null);
+      setDescricao('');
+      setValor('');
+    } catch (err: any) {
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao salvar lançamento financeiro');
+    } finally {
+      setSalvandoDespesa(false);
+    }
+  };
+
+  // Excluir Lançamento Financeiro Manual
+  const handleExcluirTransacao = async () => {
+    if (!permissions.ehAdmin) {
+      mostrarAviso('Permissão restrita. Apenas administradores podem excluir lançamentos financeiros.', 'Acesso Restrito');
+      return;
+    }
+    const tr = modalConfirmarExclusao.transacao;
+    if (!tr?.id) return;
+
+    try {
+      setModalConfirmarExclusao(prev => ({ ...prev, processando: true }));
+      const { error } = await supabase
+        .from('transacoes_financeiras')
+        .delete()
+        .eq('id', tr.id);
 
       if (error) throw error;
-      if (data) setTransacoes(prev => [data, ...prev]);
 
-      // Se paga em dinheiro físico e houver sessão de caixa aberta, registrar como despesa da gaveta
-      if (formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && usuario?.id) {
+      setTransacoes(prev => prev.filter(item => item.id !== tr.id));
+      setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false });
+      mostrarSucesso('Lançamento financeiro excluído com sucesso!');
+    } catch (err: any) {
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao excluir');
+      setModalConfirmarExclusao(prev => ({ ...prev, processando: false }));
+    }
+  };
+
+  // Dar Baixa / Liquidar Conta a Pagar
+  const handleLiquidarContaPagar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!permissions.ehAdmin) {
+      mostrarAviso('Permissão restrita. Apenas administradores podem dar baixa em contas a pagar.', 'Acesso Restrito');
+      return;
+    }
+    const tr = modalBaixarConta.transacao;
+    if (!tr?.id) return;
+
+    try {
+      setModalBaixarConta(prev => ({ ...prev, processando: true }));
+      const forma = modalBaixarConta.formaPagamento || 'dinheiro';
+      const dataIso = modalBaixarConta.dataPagamento
+        ? new Date(`${modalBaixarConta.dataPagamento}T12:00:00`).toISOString()
+        : new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('transacoes_financeiras')
+        .update({
+          status: 'pago',
+          forma_pagamento: forma,
+          data_pagamento: dataIso
+        })
+        .eq('id', tr.id)
+        .select('*, fornecedor:fornecedores(*)')
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setTransacoes(prev => prev.map(item => item.id === data.id ? data : item));
+      }
+
+      // Se pago em dinheiro e caixa aberto, debitar da gaveta
+      if (forma === 'dinheiro' && sessaoAtiva && usuario?.id && loja?.id) {
         try {
           await caixaService.registrarMovimentacao({
             lojaId: loja.id,
             sessaoId: sessaoAtiva.id,
             tipo: 'DESPESA',
             metodoPagamento: 'DINHEIRO',
-            valor: valNum,
-            descricao: `Despesa Gaveta: ${descricao} (${categoria})`,
+            valor: Number(tr.valor || 0),
+            descricao: `Baixa Conta a Pagar: ${tr.descricao} (${tr.categoria || 'Geral'})`,
             usuarioId: usuario.id
           });
           const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
           setResumoSessao(res);
         } catch (errMov) {
-          console.warn('Aviso ao registrar despesa na sessão de caixa:', errMov);
+          console.warn('Aviso ao registrar baixa na sessão de caixa:', errMov);
         }
       }
 
-      setModalNovaDespesa(false);
-      setDescricao('');
-      setValor('');
-      mostrarSucesso('Despesa lançada com sucesso!');
+      setModalBaixarConta({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false });
+      mostrarSucesso('Conta a pagar baixada com sucesso como PAGA!');
     } catch (err: any) {
-      mostrarErro(err.message || 'Tente novamente.', 'Erro ao lançar despesa');
-    } finally {
-      setSalvandoDespesa(false);
+      mostrarErro(err.message || 'Tente novamente.', 'Erro ao dar baixa na conta');
+      setModalBaixarConta(prev => ({ ...prev, processando: false }));
     }
   };
 
@@ -588,27 +788,16 @@ export const FinancasCaixa: React.FC = () => {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
   };
 
-  const handleImprimirRelatorioTexto = (texto: string) => {
-    const janelaImpressao = window.open('', '_blank');
-    if (!janelaImpressao) return;
-    janelaImpressao.document.write(`
-      <html>
-        <head>
-          <title>Comprovante de Fechamento de Caixa</title>
-          <style>
-            body { font-family: monospace; font-size: 12px; padding: 20px; white-space: pre-wrap; line-height: 1.4; color: #000; }
-            @media print { body { padding: 0; } }
-          </style>
-        </head>
-        <body>${texto.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body>
-      </html>
-    `);
-    janelaImpressao.document.close();
-    janelaImpressao.focus();
-    setTimeout(() => {
-      janelaImpressao.print();
-      janelaImpressao.close();
-    }, 250);
+  const handleImprimirRelatorioTexto = (textoOuResumo?: any) => {
+    if (textoOuResumo && typeof textoOuResumo === 'object') {
+      PrintService.printFechamentoCaixa(textoOuResumo, loja);
+      return;
+    }
+    if (relatorioFechamentoResumo) {
+      PrintService.printFechamentoCaixa(relatorioFechamentoResumo, loja);
+      return;
+    }
+    PrintService.printFechamentoCaixa({ sessao: sessaoAtiva || {}, textoRecibo: textoOuResumo }, loja);
   };
 
   // 7. Lista unificada de transações com descrições limpas e sem duplicações (Item 8 e 4b)
@@ -623,6 +812,9 @@ export const FinancasCaixa: React.FC = () => {
       status: string;
       ehRecorrente?: boolean;
       formaPagamento?: string;
+      dataVencimento?: string | null;
+      dataPagamento?: string | null;
+      raw?: any;
     }> = [];
 
     // Mapeamento e identificadores de pedidos
@@ -694,6 +886,12 @@ export const FinancasCaixa: React.FC = () => {
         }
 
         return true;
+      }
+
+      if (filtroPeriodoFluxo === 'mes') {
+        const dataPedidoIso = p.data_venda || p.criado_em || '';
+        const dataPedidoYMD = formatarDataLocalYMD(dataPedidoIso);
+        return dataPedidoYMD.slice(0, 7) === dataOperacaoHojeYMD.slice(0, 7);
       }
 
       // Se filtro for 'hoje' ou se não houver sessão ativa
@@ -774,6 +972,10 @@ export const FinancasCaixa: React.FC = () => {
           }
         }
         return true;
+      }
+
+      if (filtroPeriodoFluxo === 'mes') {
+        return dataTransacaoYMD.slice(0, 7) === dataOperacaoHojeYMD.slice(0, 7);
       }
 
       return dataTransacaoYMD === dataOperacaoHojeYMD;
@@ -877,7 +1079,10 @@ export const FinancasCaixa: React.FC = () => {
           data: t.data_vencimento || t.data_pagamento || t.criado_em || new Date().toISOString(),
           status: status === 'pago' ? 'pago' : status === 'pendente' ? 'pendente' : status,
           ehRecorrente: t.eh_recorrente,
-          formaPagamento: t.forma_pagamento || undefined
+          formaPagamento: t.forma_pagamento || undefined,
+          dataVencimento: t.data_vencimento,
+          dataPagamento: t.data_pagamento,
+          raw: t
         });
         return;
       }
@@ -1324,14 +1529,27 @@ export const FinancasCaixa: React.FC = () => {
               )}
 
               {permissions.ehAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setModalNovaDespesa(true)}
-                  className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Nova Despesa (DRE)</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={abrirModalNovaContaPagar}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5 cursor-pointer"
+                    title="Cadastrar uma conta ou obrigação futura a pagar"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Conta a Pagar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={abrirModalNovaDespesa}
+                    className="px-3.5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
+                    title="Lançar despesa já realizada"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nova Despesa (DRE)</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1401,6 +1619,17 @@ export const FinancasCaixa: React.FC = () => {
                   <AlertTriangle className="w-3.5 h-3.5" /> A Pagar
                 </span>
                 <div className="flex items-center gap-1">
+                  {permissions.ehAdmin && (
+                    <button
+                      type="button"
+                      onClick={abrirModalNovaContaPagar}
+                      title="Lançar Nova Conta a Pagar"
+                      className="px-1.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/30 flex items-center gap-0.5"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Nova</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handleExportarContasPagar}
@@ -1425,7 +1654,12 @@ export const FinancasCaixa: React.FC = () => {
             {/* Resultado Acumulado */}
             <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 font-semibold truncate block">Resultado Acumulado</span>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-semibold truncate block">Resultado Acumulado</span>
+                  <span className="text-[9px] text-indigo-400 font-bold block">
+                    {filtroPeriodoFluxo === 'sessao_atual' ? '• Turno Atual' : filtroPeriodoFluxo === 'hoje' ? '• Hoje' : filtroPeriodoFluxo === 'mes' ? '• Este Mês' : '• Todos'}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica('lucro')}
@@ -1523,6 +1757,17 @@ export const FinancasCaixa: React.FC = () => {
                         </button>
                         <button
                           type="button"
+                          onClick={() => setFiltroPeriodoFluxo('mes')}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            filtroPeriodoFluxo === 'mes'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Este Mês
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setFiltroPeriodoFluxo('todos')}
                           className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
                             filtroPeriodoFluxo === 'todos'
@@ -1536,6 +1781,37 @@ export const FinancasCaixa: React.FC = () => {
                       <span className="text-[11px] text-slate-400 font-semibold px-2">
                         {listaTransacoesUnificada.length} {listaTransacoesUnificada.length === 1 ? 'registro' : 'registros'}
                       </span>
+                    </div>
+                  )}
+
+                  {abaAtiva === 'pagar' && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900/60 border border-slate-800/80 p-2.5 rounded-2xl">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-amber-400 font-bold flex items-center gap-1.5 px-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span>Contas e Despesas Pendentes a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length})</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleExportarContasPagar}
+                          className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                          <span>Exportar Excel</span>
+                        </button>
+                        {permissions.ehAdmin && (
+                          <button
+                            type="button"
+                            onClick={abrirModalNovaContaPagar}
+                            className="px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md shadow-amber-500/20 flex items-center gap-1 transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Nova Conta a Pagar</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1562,7 +1838,7 @@ export const FinancasCaixa: React.FC = () => {
                           key={tr.id}
                           className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-sm"
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             <div
                               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                                 tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
@@ -1571,8 +1847,8 @@ export const FinancasCaixa: React.FC = () => {
                               {tr.tipo === 'ENTRADA' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                             </div>
 
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-100">{tr.descricao}</h4>
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-slate-100 truncate">{tr.descricao}</h4>
                               <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
                                 <span className="font-semibold text-slate-300">{tr.categoria}</span>
                                 {tr.formaPagamento && (
@@ -1594,17 +1870,59 @@ export const FinancasCaixa: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <span
-                              className={`font-bold text-sm block ${
-                                tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
-                              }`}
-                            >
-                              {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
-                            </span>
-                            <span className="text-[10px] uppercase font-bold text-slate-500">
-                              {tr.status}
-                            </span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="text-right">
+                              <span
+                                className={`font-bold text-sm block ${
+                                  tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
+                                }`}
+                              >
+                                {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
+                              </span>
+                              <span className={`text-[10px] uppercase font-bold ${tr.status === 'pendente' ? 'text-amber-400' : 'text-slate-500'}`}>
+                                {tr.status}
+                              </span>
+                            </div>
+
+                            {/* AÇÕES DE GESTÃO: BAIXAR CONTA, EDITAR, EXCLUIR */}
+                            {permissions.ehAdmin && !tr.id.startsWith('ped_') && (
+                              <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+                                {tr.tipo === 'SAIDA' && tr.status === 'pendente' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setModalBaixarConta({
+                                      aberta: true,
+                                      transacao: tr,
+                                      formaPagamento: tr.formaPagamento || 'dinheiro',
+                                      dataPagamento: obterDataOperacaoYMD(),
+                                      processando: false
+                                    })}
+                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                                    title="Dar Baixa / Marcar como Paga"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Pagar</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => abrirModalEditarTransacao(tr)}
+                                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer border border-slate-700/60"
+                                  title="Editar Lançamento"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setModalConfirmarExclusao({ aberta: true, transacao: tr, processando: false })}
+                                  className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition cursor-pointer border border-rose-500/20"
+                                  title="Excluir Lançamento"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))
@@ -2096,17 +2414,13 @@ export const FinancasCaixa: React.FC = () => {
                                 onClick={async () => {
                                   try {
                                     const { resumo } = await caixaService.obterDetalhesSessao(cx.id);
-                                    const texto = caixaService.gerarTextoComprovanteFechamento(
-                                      { ...resumo, sessao: cx },
-                                      loja?.nome_fantasia || 'HUBI GESTÃO'
-                                    );
-                                    handleImprimirRelatorioTexto(texto);
+                                    PrintService.printFechamentoCaixa({ ...resumo, sessao: cx }, loja);
                                   } catch (e) {
                                     mostrarErro('Erro ao gerar comprovante de impressão.');
                                   }
                                 }}
-                                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 cursor-pointer transition"
-                                title="Imprimir Comprovante Térmico"
+                                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
+                                title="Imprimir Comprovante Oficial de Fechamento"
                               >
                                 <Printer className="w-4 h-4" />
                               </button>
@@ -2126,22 +2440,76 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: LANÇAR NOVA DESPESA (DRE GERAL)                                    */}
         {/* ========================================================================= */}
         {modalNovaDespesa && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl my-8">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-slate-100">Lançar Nova Despesa (DRE)</h3>
-                <button onClick={() => setModalNovaDespesa(false)} className="text-slate-400 hover:text-white">
+                <div className="flex items-center gap-2">
+                  {statusLancamento === 'pendente' ? (
+                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <ArrowDownRight className="w-5 h-5 text-rose-400" />
+                  )}
+                  <div>
+                    <h3 className="font-bold text-base text-slate-100">
+                      {transacaoEditando
+                        ? (statusLancamento === 'pendente' ? 'Editar Conta a Pagar' : 'Editar Despesa')
+                        : (statusLancamento === 'pendente' ? 'Nova Conta a Pagar' : 'Lançar Nova Despesa (DRE)')}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      {statusLancamento === 'pendente'
+                        ? 'Programe contas ou despesas futuras a pagar'
+                        : 'Lance despesas operacionais ou compras já pagas'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setModalNovaDespesa(false);
+                    setTransacaoEditando(null);
+                  }}
+                  className="text-slate-400 hover:text-white cursor-pointer"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleCadastrarDespesa} className="space-y-3">
+              {/* SELETOR DE TIPO: DESPESA PAGA vs CONTA A PAGAR */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setStatusLancamento('pago')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    statusLancamento === 'pago'
+                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <ArrowDownRight className="w-3.5 h-3.5" />
+                  <span>Despesa Paga</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusLancamento('pendente')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    statusLancamento === 'pendente'
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Conta a Pagar</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleSalvarDespesaOuContaPagar} className="space-y-3.5">
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">Descrição do Gasto *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    Descrição / Fornecedor / Título *
+                  </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Compra de Insumos / Limpeza / Fornecedor"
+                    placeholder={statusLancamento === 'pendente' ? "Ex: Boleto Aluguel Março / Fornecedor Bebidas" : "Ex: Compra de Insumos / Limpeza / Fornecedor"}
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
@@ -2155,10 +2523,10 @@ export const FinancasCaixa: React.FC = () => {
                       type="number"
                       step="0.01"
                       required
-                      placeholder="Ex: 40.00"
+                      placeholder="Ex: 150.00"
                       value={valor}
                       onChange={(e) => setValor(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold"
                     />
                   </div>
 
@@ -2170,17 +2538,21 @@ export const FinancasCaixa: React.FC = () => {
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
                     >
                       <option value="Fornecedor">Fornecedor / Insumos</option>
-                      <option value="Aluguel">Aluguel / Ponto</option>
+                      <option value="Aluguel">Aluguel / Ponto Comercial</option>
                       <option value="Energia/Água">Energia / Água / Internet</option>
                       <option value="Salário">Salário / Comissão</option>
+                      <option value="Impostos">Impostos / Guias Fiscais</option>
                       <option value="Marketing">Marketing / Anúncios</option>
+                      <option value="Manutenção">Manutenção / Equipamentos</option>
                       <option value="Outros">Outros / Avulso</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">Forma de Pagamento da Despesa *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    {statusLancamento === 'pendente' ? 'Forma Prevista de Pagamento' : 'Forma de Pagamento Utilizada *'}
+                  </label>
                   <select
                     value={formaPagamentoDespesa}
                     onChange={(e) => setFormaPagamentoDespesa(e.target.value)}
@@ -2192,17 +2564,25 @@ export const FinancasCaixa: React.FC = () => {
                     <option value="credito">Cartão de Crédito</option>
                     <option value="transferencia">Transferência Bancária / Boleto</option>
                   </select>
-                  {formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && (
+                  {statusLancamento === 'pago' && formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && (
                     <span className="text-[10px] text-amber-400 block mt-1">
                       ℹ️ Esta despesa será debitada automaticamente da gaveta física da sessão ativa ({sessaoAtiva.terminal_id}).
+                    </span>
+                  )}
+                  {statusLancamento === 'pendente' && (
+                    <span className="text-[10px] text-slate-500 block mt-1">
+                      💡 Contas pendentes NÃO debitam do resultado financeiro até serem baixadas/pagas.
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">Data</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    {statusLancamento === 'pendente' ? 'Data de Vencimento *' : 'Data do Pagamento *'}
+                  </label>
                   <input
                     type="date"
+                    required
                     value={dataVencimento}
                     onChange={(e) => setDataVencimento(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
@@ -2225,10 +2605,164 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvandoDespesa}
-                  className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 font-bold text-white text-xs shadow-lg shadow-rose-500/25 transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    statusLancamento === 'pendente'
+                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20 font-black'
+                      : 'bg-rose-500 hover:bg-rose-400 text-white shadow-rose-500/25'
+                  }`}
                 >
-                  {salvandoDespesa ? 'Salvando...' : 'Salvar Despesa'}
+                  {salvandoDespesa
+                    ? 'Salvando...'
+                    : transacaoEditando
+                    ? (statusLancamento === 'pendente' ? 'Salvar Alterações da Conta' : 'Salvar Alterações da Despesa')
+                    : (statusLancamento === 'pendente' ? 'Cadastrar Conta a Pagar' : 'Confirmar Lançamento de Despesa')}
                 </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: CONFIRMAR EXCLUSÃO DE LANÇAMENTO FINANCEIRO                        */}
+        {/* ========================================================================= */}
+        {modalConfirmarExclusao.aberta && modalConfirmarExclusao.transacao && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-rose-400 flex items-center gap-2">
+                  <Trash2 className="w-5 h-5" />
+                  <span>Confirmar Exclusão</span>
+                </h3>
+                <button
+                  onClick={() => setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false })}
+                  className="text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                <span className="text-slate-400 block">Lançamento a ser excluído permanentemente:</span>
+                <p className="font-black text-sm text-slate-100">
+                  {modalConfirmarExclusao.transacao.descricao}
+                </p>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-slate-400">
+                  <span>Categoria: <strong className="text-slate-200">{modalConfirmarExclusao.transacao.categoria}</strong></span>
+                  <span className="text-sm font-black text-rose-400">
+                    R$ {Number(modalConfirmarExclusao.transacao.valor || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 leading-relaxed">
+                ⚠️ Esta ação não pode ser desfeita. O registro será removido das contas a pagar, DRE e dos relatórios financeiros.
+              </p>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false })}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={modalConfirmarExclusao.processando}
+                  onClick={handleExcluirTransacao}
+                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {modalConfirmarExclusao.processando ? 'Excluindo...' : 'Sim, Excluir'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL: BAIXAR / LIQUIDAR CONTA A PAGAR                                     */}
+        {/* ========================================================================= */}
+        {modalBaixarConta.aberta && modalBaixarConta.transacao && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-base text-emerald-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Baixar / Liquidar Conta a Pagar</span>
+                </h3>
+                <button
+                  onClick={() => setModalBaixarConta({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false })}
+                  className="text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">Título / Conta:</span>
+                    <strong className="text-slate-100 text-sm block font-bold">{modalBaixarConta.transacao.descricao}</strong>
+                    <span className="text-[10px] text-slate-500">{modalBaixarConta.transacao.categoria}</span>
+                  </div>
+                  <span className="text-base font-black text-amber-400 shrink-0">
+                    R$ {Number(modalBaixarConta.transacao.valor || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleLiquidarContaPagar} className="space-y-3.5">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Forma de Pagamento Efetiva *
+                  </label>
+                  <select
+                    value={modalBaixarConta.formaPagamento}
+                    onChange={(e) => setModalBaixarConta(prev => ({ ...prev, formaPagamento: e.target.value }))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="dinheiro">Dinheiro (Gaveta do Caixa Ativo)</option>
+                    <option value="pix">Pix Bancário</option>
+                    <option value="debito">Cartão de Débito</option>
+                    <option value="credito">Cartão de Crédito</option>
+                    <option value="transferencia">Transferência Bancária / Boleto</option>
+                  </select>
+                  {modalBaixarConta.formaPagamento === 'dinheiro' && sessaoAtiva && (
+                    <span className="text-[10px] text-amber-400 block mt-1">
+                      ℹ️ O valor será debitado automaticamente da gaveta do caixa atual ({sessaoAtiva.terminal_id}).
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Data do Pagamento *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={modalBaixarConta.dataPagamento}
+                    onChange={(e) => setModalBaixarConta(prev => ({ ...prev, dataPagamento: e.target.value }))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalBaixarConta({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false })}
+                    className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={modalBaixarConta.processando}
+                    className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {modalBaixarConta.processando ? 'Processando...' : 'Confirmar Pagamento'}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -2767,10 +3301,10 @@ export const FinancasCaixa: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleImprimirRelatorioTexto(relatorioFechamentoTexto)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 transition cursor-pointer"
+                    onClick={() => handleImprimirRelatorioTexto(relatorioFechamentoResumo)}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-600/20"
                   >
-                    <Printer className="w-4 h-4 text-slate-400" />
+                    <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
                   </button>
 
@@ -2903,11 +3437,25 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
               ) : null}
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                {sessaoDrillDown.fechado_em ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (resumoDrillDown) {
+                        PrintService.printFechamentoCaixa({ ...resumoDrillDown, sessao: sessaoDrillDown }, loja);
+                      }
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Imprimir Comprovante</span>
+                  </button>
+                ) : <div />}
                 <button
                   type="button"
                   onClick={() => setModalDrillDown(false)}
-                  className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer ml-auto"
                 >
                   Fechar Auditoria
                 </button>
@@ -3207,19 +3755,45 @@ export const FinancasCaixa: React.FC = () => {
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
                           const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
                           return (
-                            <div key={t.id} className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 flex items-start justify-between gap-4 text-xs">
+                            <div key={t.id} className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 flex items-center justify-between gap-3 text-xs">
                               <div className="flex-1 min-w-0">
-                                <span className="font-bold text-slate-200 block line-clamp-2 leading-tight">
+                                <span className="font-bold text-slate-200 block truncate leading-tight">
                                   {descLimpa}
                                 </span>
                                 <span className="text-[10px] text-slate-400 block mt-1">
                                   {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
-                              <div className="text-right shrink-0">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <span className="font-black text-rose-400 text-xs block">
                                   - R$ {t.valor.toFixed(2)}
                                 </span>
+                                {permissions.ehAdmin && !t.id.startsWith('ped_') && (
+                                  <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setModalDetalhesMetrica(null);
+                                        abrirModalEditarTransacao(t);
+                                      }}
+                                      className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                      title="Editar Despesa"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setModalDetalhesMetrica(null);
+                                        setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
+                                      }}
+                                      className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                                      title="Excluir Despesa"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
@@ -3236,25 +3810,86 @@ export const FinancasCaixa: React.FC = () => {
                         <span className="text-xs text-amber-400 font-semibold block">Total de Contas Pendentes a Pagar:</span>
                         <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleExportarContasPagar}
-                        className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" />
-                        <span>Exportar Excel</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleExportarContasPagar}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                          <span>Exportar Excel</span>
+                        </button>
+                        {permissions.ehAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalDetalhesMetrica(null);
+                              abrirModalNovaContaPagar();
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-amber-500/20 transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Nova Conta</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar:</span>
+                      <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length}):</span>
                       <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
                           <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
-                            <div>
+                            <div className="min-w-0 flex-1 pr-2">
                               <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
-                              <span className="text-[10px] text-amber-400">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                              <span className="text-[10px] text-amber-400">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}</span>
                             </div>
-                            <span className="font-bold text-amber-400 text-xs shrink-0">R$ {t.valor.toFixed(2)}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-bold text-amber-400 text-xs">R$ {t.valor.toFixed(2)}</span>
+                              {permissions.ehAdmin && (
+                                <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setModalDetalhesMetrica(null);
+                                      setModalBaixarConta({
+                                        aberta: true,
+                                        transacao: t,
+                                        formaPagamento: t.formaPagamento || 'dinheiro',
+                                        dataPagamento: obterDataOperacaoYMD(),
+                                        processando: false
+                                      });
+                                    }}
+                                    className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10px] flex items-center gap-0.5 cursor-pointer"
+                                    title="Pagar / Baixar Conta"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    <span>Pagar</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setModalDetalhesMetrica(null);
+                                      abrirModalEditarTransacao(t);
+                                    }}
+                                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                    title="Editar Conta"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setModalDetalhesMetrica(null);
+                                      setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
+                                    }}
+                                    className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                                    title="Excluir Conta"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

@@ -807,102 +807,445 @@ Agradecemos a sua preferência! ✨`;
   }
 
   /**
-   * Dispara a impressão do Relatório de Fechamento de Caixa
+  /**
+   * Dispara a impressão do Relatório Oficial de Fechamento de Caixa com layout executivo de alta fidelidade
    */
   static printFechamentoCaixa(dados: any, loja?: Loja | null, format: '58mm' | '80mm' | 'a4' = '80mm'): void {
     if (!dados) return;
 
     try {
+      const sessao = dados.sessao || dados;
       const isA4 = format === 'a4';
       const is58 = format === '58mm';
       const pageWidth = isA4 ? '210mm' : is58 ? '58mm' : '80mm';
-      const maxCssWidth = isA4 ? '680px' : is58 ? '320px' : '380px';
-      const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
-      const formatMoeda = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const dtAbertura = dados.dataAbertura ? new Date(dados.dataAbertura).toLocaleString('pt-BR') : '-';
-      const dtFechamento = dados.dataFechamento ? new Date(dados.dataFechamento).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+      const maxCssWidth = isA4 ? '680px' : is58 ? '320px' : '400px';
+
+      const nomeLoja = loja?.nome_fantasia || 'HUBI GESTÃO & PDV';
+      const razaoSocial = loja?.razao_social && loja.razao_social !== nomeLoja ? loja.razao_social : '';
+      const docLoja = loja?.numero_documento || (loja as any)?.cnpj || (loja as any)?.cpf;
+      const telLoja = loja?.whatsapp || loja?.telefone;
+      const enderecoLoja = [
+        loja?.endereco_logradouro,
+        loja?.endereco_numero,
+        loja?.endereco_bairro,
+        loja?.endereco_cidade,
+        loja?.endereco_estado
+      ].filter(Boolean).join(', ');
+
+      const formatMoeda = (n: number) =>
+        Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      // Dados de turno e operadores
+      const terminalId = sessao.terminal_id || dados.terminal_id || dados.caixaNumero || 'PDV-01';
+      const sessaoId = sessao.id ? String(sessao.id).slice(0, 8) : (dados.sessaoId || '00000000');
+      const statusSessao = String(sessao.status || dados.status || 'FECHADO').toUpperCase();
+      const dtAberturaRaw = sessao.aberto_em || dados.aberto_em || dados.dataAbertura;
+      const dtFechamentoRaw = sessao.fechado_em || dados.fechado_em || dados.dataFechamento;
+      const dtAbertura = dtAberturaRaw ? new Date(dtAberturaRaw).toLocaleString('pt-BR') : '-';
+      const dtFechamento = dtFechamentoRaw ? new Date(dtFechamentoRaw).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+      const duracaoTexto = dados.duracaoTexto || dados.duracaoFormatada || dados.turno || 'Turno Normal';
+      const operadorAbertura = sessao.aberto_por?.nome_completo || sessao.usuario_abertura?.nome_completo || dados.operadorAbertura || 'Operador PDV';
+      const operadorFechamento = sessao.fechado_por?.nome_completo || sessao.usuario_fechamento?.nome_completo || dados.operadorNome || operadorAbertura;
+
+      // Balanço de gaveta (Dinheiro)
+      const fundoInicial = Number(dados.fundoInicial ?? sessao.fundo_inicial ?? sessao.fundo_troco_inicial ?? dados.fundo_inicial ?? 0);
+      const vendasDinheiro = Number(dados.totalVendasDinheiro ?? sessao.total_vendas_dinheiro ?? dados.vendasDinheiro ?? 0);
+      const suprimentos = Number(dados.totalSuprimentos ?? sessao.total_suprimentos ?? dados.suprimentos ?? 0);
+      const sangrias = Number(dados.totalSangrias ?? sessao.total_sangrias ?? dados.sangrias ?? 0);
+      const despesasCaixa = Number(dados.totalDespesas ?? sessao.total_despesas ?? dados.despesasCaixa ?? 0);
+
+      const saldoEsperado = Number(dados.saldoEsperadoDinheiro ?? sessao.saldo_esperado_dinheiro ?? sessao.saldo_dinheiro_calculado ?? dados.saldoEsperadoGaveta ?? 0);
+      const valorDeclarado = Number(sessao.saldo_declarado_dinheiro ?? sessao.saldo_dinheiro_declarado ?? dados.saldo_declarado_dinheiro ?? dados.valorContado ?? 0);
+      const dif = Number(sessao.diferenca_dinheiro ?? (valorDeclarado - saldoEsperado));
+
+      const isExato = Math.abs(dif) < 0.01;
+      const isSobra = dif >= 0.01;
+      const isFalta = dif <= -0.01;
+
+      // Apuração por forma de pagamento
+      const vendasPix = Number(dados.totalVendasPix ?? sessao.total_vendas_pix ?? dados.vendasPix ?? 0);
+      const vendasCredito = Number(dados.totalVendasCredito ?? sessao.total_vendas_credito ?? dados.vendasCredito ?? 0);
+      const vendasDebito = Number(dados.totalVendasDebito ?? sessao.total_vendas_debito ?? dados.vendasDebito ?? 0);
+      const vendasOutros = Number(dados.totalVendasOutros ?? sessao.total_vendas_outros ?? dados.vendasOutros ?? 0);
+      const totalFaturado = Number(dados.faturamentoTotalVendas ?? dados.totalVendasGeral ?? sessao.faturamento_total ?? dados.totalBruto ?? (vendasDinheiro + vendasPix + vendasCredito + vendasDebito + vendasOutros));
+
+      const qtdDinheiro = dados.qtdVendasPorMetodo?.dinheiro ?? dados.qtdDinheiro ?? 0;
+      const qtdPix = dados.qtdVendasPorMetodo?.pix ?? dados.qtdPix ?? 0;
+      const qtdCredito = dados.qtdVendasPorMetodo?.cartao_credito ?? dados.qtdCredito ?? 0;
+      const qtdDebito = dados.qtdVendasPorMetodo?.cartao_debito ?? dados.qtdDebito ?? 0;
+      const qtdOutros = dados.qtdVendasPorMetodo?.outros ?? dados.qtdOutros ?? 0;
+      const totalQtdVendas = qtdDinheiro + qtdPix + qtdCredito + qtdDebito + qtdOutros || dados.totalQtdVendas || 0;
+
+      // Movimentações operacionais registradas no turno
+      const movimentacoes: any[] = Array.isArray(sessao.movimentacoes) ? sessao.movimentacoes : [];
+      const observacoes = sessao.observacoes_fechamento || dados.observacoes || '';
+
+      const logoHtml = loja?.url_logo ? `
+        <div style="text-align: center; margin-bottom: 12px;">
+          <img src="${loja.url_logo}" alt="${nomeLoja}" style="max-height: ${isA4 ? '56px' : '42px'}; max-width: 180px; object-fit: contain;" />
+        </div>
+      ` : '';
 
       const htmlContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #ffffff; font-size: ${isA4 ? '13px' : '11px'}; line-height: 1.4; padding: ${isA4 ? '30px' : '10px 6px'}; max-width: ${maxCssWidth}; margin: 0 auto;">
-          <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">
-            <h2 style="margin: 0; font-size: ${isA4 ? '18px' : '14px'}; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">${nomeLoja}</h2>
-            <h3 style="margin: 3px 0 0 0; font-size: ${isA4 ? '14px' : '12px'}; font-weight: 700; color: #334155;">FECHAMENTO DE CAIXA</h3>
+        <div class="comprovante-caixa" style="
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Helvetica, Arial, sans-serif;
+          color: #0f172a;
+          background: #ffffff;
+          font-size: ${isA4 ? '12.5px' : '11px'};
+          line-height: 1.45;
+          padding: ${isA4 ? '32px 28px' : '14px 10px'};
+          max-width: ${maxCssWidth};
+          margin: 0 auto;
+          box-sizing: border-box;
+        ">
+          <!-- CABEÇALHO DA LOJA -->
+          ${logoHtml}
+          <div style="text-align: center; margin-bottom: 10px;">
+            <h1 style="margin: 0; font-size: ${isA4 ? '19px' : '15px'}; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a;">
+              ${nomeLoja}
+            </h1>
+            ${razaoSocial ? `<div style="font-size: ${isA4 ? '11px' : '9.5px'}; color: #64748b; margin-top: 1px;">${razaoSocial}</div>` : ''}
+            ${docLoja ? `<div style="font-size: ${isA4 ? '11px' : '9.5px'}; color: #475569; margin-top: 1px;"><strong>CNPJ/CPF:</strong> ${docLoja}</div>` : ''}
+            ${telLoja ? `<div style="font-size: ${isA4 ? '11px' : '9.5px'}; color: #475569; margin-top: 1px;"><strong>Contato:</strong> ${telLoja}</div>` : ''}
+            ${enderecoLoja ? `<div style="font-size: ${isA4 ? '10.5px' : '9px'}; color: #64748b; margin-top: 2px;">${enderecoLoja}</div>` : ''}
           </div>
 
-          <table style="width: 100%; font-size: ${isA4 ? '12px' : '10px'}; margin-bottom: 10px; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 2px 0;"><strong>Caixa Nº:</strong> ${dados.caixaNumero}</td>
-              <td style="padding: 2px 0; text-align: right;"><strong>Turno:</strong> ${dados.turno}</td>
-            </tr>
-            <tr>
-              <td style="padding: 2px 0;" colspan="2"><strong>Operador:</strong> ${dados.operadorNome}</td>
-            </tr>
-            <tr>
-              <td style="padding: 2px 0;" colspan="2"><strong>Abertura:</strong> ${dtAbertura}</td>
-            </tr>
-            <tr>
-              <td style="padding: 2px 0;" colspan="2"><strong>Fechamento:</strong> ${dtFechamento}</td>
-            </tr>
-          </table>
-
-          <div style="border-top: 1px dashed #64748b; margin: 8px 0;"></div>
-          <div style="font-weight: 700; font-size: ${isA4 ? '13px' : '11px'}; text-transform: uppercase; margin-bottom: 6px;">Vendas por Meio de Pagamento</div>
-          <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '12px' : '10px'};">
-            <thead>
-              <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #475569;">
-                <th style="padding: 4px 0;">Forma</th>
-                <th style="padding: 4px 0; text-align: center;">Qtd</th>
-                <th style="padding: 4px 0; text-align: right;">Total (R$)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td style="padding: 3px 0;">Dinheiro</td><td style="text-align: center;">${dados.qtdDinheiro || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasDinheiro)}</td></tr>
-              <tr><td style="padding: 3px 0;">Pix</td><td style="text-align: center;">${dados.qtdPix || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasPix)}</td></tr>
-              <tr><td style="padding: 3px 0;">Cartão de Débito</td><td style="text-align: center;">${dados.qtdDebito || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasDebito)}</td></tr>
-              <tr><td style="padding: 3px 0;">Cartão de Crédito</td><td style="text-align: center;">${dados.qtdCredito || 0}</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasCredito)}</td></tr>
-              <tr style="border-top: 1.5px solid #0f172a; font-weight: 800;">
-                <td style="padding: 4px 0;">TOTAL FATURADO</td>
-                <td style="text-align: center;">${dados.totalQtdVendas || 0}</td>
-                <td style="text-align: right;">R$ ${formatMoeda(dados.totalBruto)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div style="border-top: 1px dashed #64748b; margin: 8px 0;"></div>
-          <div style="font-weight: 700; font-size: ${isA4 ? '13px' : '11px'}; text-transform: uppercase; margin-bottom: 6px;">Movimentação da Gaveta (Dinheiro)</div>
-          <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '12px' : '10px'};">
-            <tr><td style="padding: 2px 0;">(+) Fundo de Troco Inicial:</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.fundoInicial)}</td></tr>
-            <tr><td style="padding: 2px 0;">(+) Vendas em Dinheiro:</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.vendasDinheiro)}</td></tr>
-            <tr><td style="padding: 2px 0;">(+) Suprimentos Extras:</td><td style="text-align: right; font-weight: 600;">R$ ${formatMoeda(dados.suprimentos)}</td></tr>
-            <tr><td style="padding: 2px 0;">(-) Sangrias (Retiradas):</td><td style="text-align: right; font-weight: 600; color: #b91c1c;">- R$ ${formatMoeda(dados.sangrias)}</td></tr>
-            <tr><td style="padding: 2px 0;">(-) Despesas Pagas no Caixa:</td><td style="text-align: right; font-weight: 600; color: #b91c1c;">- R$ ${formatMoeda(dados.despesasCaixa)}</td></tr>
-            <tr style="border-top: 1px solid #cbd5e1; font-weight: 700;">
-              <td style="padding: 4px 0;">(=) Saldo Esperado em Gaveta:</td>
-              <td style="text-align: right;">R$ ${formatMoeda(dados.saldoEsperadoGaveta)}</td>
-            </tr>
-            <tr style="font-weight: 700;">
-              <td style="padding: 2px 0;">Valor Declarado / Contado:</td>
-              <td style="text-align: right;">R$ ${formatMoeda(dados.valorContado)}</td>
-            </tr>
-            <tr style="border-top: 1.5px solid #0f172a; font-weight: 800;">
-              <td style="padding: 4px 0;">DIFERENÇA (QUEBRA/SOBRA):</td>
-              <td style="text-align: right; color: ${dados.diferenca < 0 ? '#b91c1c' : dados.diferenca > 0 ? '#047857' : '#0f172a'};">
-                R$ ${formatMoeda(dados.diferenca)} (${dados.situacaoTexto || (dados.diferenca === 0 ? 'Conferido' : dados.diferenca > 0 ? 'Sobra' : 'Falta')})
-              </td>
-            </tr>
-          </table>
-
-          ${dados.observacoes ? `
-            <div style="border-top: 1px dashed #64748b; margin: 8px 0;"></div>
-            <div style="font-size: ${isA4 ? '11px' : '9.5px'}; color: #475569;">
-              <strong>Obs:</strong> ${dados.observacoes}
+          <!-- FAIXA DE IDENTIFICAÇÃO DO COMPROVANTE -->
+          <div style="
+            background: #0f172a;
+            color: #ffffff;
+            border-radius: 6px;
+            padding: 7px 10px;
+            text-align: center;
+            margin-bottom: 12px;
+          ">
+            <div style="font-size: ${isA4 ? '13px' : '11.5px'}; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;">
+              COMPROVANTE DE FECHAMENTO DE CAIXA
             </div>
+            <div style="font-size: ${isA4 ? '10px' : '8.5px'}; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px;">
+              Prestação de Contas & Conferência de Turno
+            </div>
+          </div>
+
+          <!-- METADADOS DO TURNO -->
+          <div style="
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            font-size: ${isA4 ? '11.5px' : '10px'};
+          ">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 2px 0; color: #64748b; width: 50%;">
+                  Terminal: <strong style="color: #0f172a;">${terminalId}</strong>
+                </td>
+                <td style="padding: 2px 0; text-align: right;">
+                  <span style="
+                    background: #0f172a;
+                    color: #ffffff;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-size: ${isA4 ? '10px' : '8.5px'};
+                    letter-spacing: 0.5px;
+                  ">
+                    ${statusSessao}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 2px 0; color: #64748b;" colspan="2">
+                  Sessão ID: <code style="font-family: monospace; font-size: 10px; color: #0f172a; font-weight: 700;">#${sessaoId}</code>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 2px 0; color: #64748b;" colspan="2">
+                  Operador: <strong style="color: #0f172a;">${operadorFechamento}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 2px 0; color: #64748b;" colspan="2">
+                  Abertura: <strong style="color: #0f172a;">${dtAbertura}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 2px 0; color: #64748b;" colspan="2">
+                  Fechamento: <strong style="color: #0f172a;">${dtFechamento}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 2px 0; color: #64748b;" colspan="2">
+                  Duração do Turno: <strong style="color: #0f172a;">${duracaoTexto}</strong>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- SEÇÃO 1: BALANÇO DA GAVETA (DINHEIRO FÍSICO) -->
+          <div style="margin-bottom: 12px;">
+            <div style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 3px;
+              margin-bottom: 6px;
+            ">
+              <span style="font-weight: 800; font-size: ${isA4 ? '12px' : '10.5px'}; text-transform: uppercase; color: #0f172a; letter-spacing: 0.3px;">
+                1. BALANÇO DA GAVETA (DINHEIRO)
+              </span>
+              <span style="font-size: 9.5px; color: #64748b; font-weight: 600;">Espécie</span>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '11.5px' : '10px'};">
+              <tbody>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155;">(+) Fundo de Troco Inicial</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0f172a;">R$ ${formatMoeda(fundoInicial)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155;">(+) Vendas em Dinheiro</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #047857;">+ R$ ${formatMoeda(vendasDinheiro)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155;">(+) Suprimentos (Aportes)</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0284c7;">+ R$ ${formatMoeda(suprimentos)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155;">(-) Sangrias (Retiradas)</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #b91c1c;">- R$ ${formatMoeda(sangrias)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155;">(-) Despesas Pagas na Gaveta</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #b91c1c;">- R$ ${formatMoeda(despesasCaixa)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- CARD DE CONCILIAÇÃO & RESULTADO -->
+            <div style="
+              margin-top: 8px;
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              background: #f8fafc;
+              padding: 8px 10px;
+              font-size: ${isA4 ? '11.5px' : '10px'};
+            ">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                <span style="color: #475569; font-weight: 600;">(=) Saldo Teórico Esperado:</span>
+                <strong style="color: #0f172a; font-size: ${isA4 ? '12px' : '10.5px'};">R$ ${formatMoeda(saldoEsperado)}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: #475569; font-weight: 600;">(=) Valor Declarado (Contagem):</span>
+                <strong style="color: #0f172a; font-size: ${isA4 ? '12px' : '10.5px'};">R$ ${formatMoeda(valorDeclarado)}</strong>
+              </div>
+
+              <!-- STATUS DIFERENÇA -->
+              <div style="
+                border-top: 1px solid #e2e8f0;
+                padding-top: 6px;
+                text-align: center;
+              ">
+                <div style="
+                  padding: 6px 8px;
+                  border-radius: 6px;
+                  font-weight: 800;
+                  font-size: ${isA4 ? '11.5px' : '10px'};
+                  letter-spacing: 0.3px;
+                  text-transform: uppercase;
+                  ${isExato ? 'background: #dcfce7; border: 1.5px solid #86efac; color: #166534;' : ''}
+                  ${isSobra ? 'background: #e0f2fe; border: 1.5px solid #7dd3fc; color: #0369a1;' : ''}
+                  ${isFalta ? 'background: #fee2e2; border: 1.5px solid #fca5a5; color: #991b1b;' : ''}
+                ">
+                  ${isExato ? '✓ CAIXA CONCILIADO COM EXATIDÃO (R$ 0,00)' : ''}
+                  ${isSobra ? `SOBRA DE CAIXA: +R$ ${formatMoeda(Math.abs(dif))}` : ''}
+                  ${isFalta ? `FALTA DE CAIXA: -R$ ${formatMoeda(Math.abs(dif))}` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEÇÃO 2: VENDAS POR FORMA DE PAGAMENTO -->
+          <div style="margin-bottom: 12px;">
+            <div style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 3px;
+              margin-bottom: 6px;
+            ">
+              <span style="font-weight: 800; font-size: ${isA4 ? '12px' : '10.5px'}; text-transform: uppercase; color: #0f172a; letter-spacing: 0.3px;">
+                2. VENDAS POR MEIO DE PAGAMENTO
+              </span>
+              <span style="font-size: 9.5px; color: #64748b; font-weight: 600;">Faturamento</span>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '11.5px' : '10px'};">
+              <thead>
+                <tr style="border-bottom: 1.5px solid #cbd5e1; color: #64748b; text-transform: uppercase; font-size: 9px;">
+                  <th style="padding: 3px 0; text-align: left; font-weight: 700;">Meio / Forma</th>
+                  <th style="padding: 3px 0; text-align: center; font-weight: 700; width: 40px;">Qtd</th>
+                  <th style="padding: 3px 0; text-align: right; font-weight: 700;">Total (R$)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155; font-weight: 600;">Dinheiro</td>
+                  <td style="padding: 3px 0; text-align: center; color: #64748b;">${qtdDinheiro}</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0f172a;">R$ ${formatMoeda(vendasDinheiro)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155; font-weight: 600;">Pix / Transferência</td>
+                  <td style="padding: 3px 0; text-align: center; color: #64748b;">${qtdPix}</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0f172a;">R$ ${formatMoeda(vendasPix)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155; font-weight: 600;">Cartão de Crédito</td>
+                  <td style="padding: 3px 0; text-align: center; color: #64748b;">${qtdCredito}</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0f172a;">R$ ${formatMoeda(vendasCredito)}</td>
+                </tr>
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155; font-weight: 600;">Cartão de Débito</td>
+                  <td style="padding: 3px 0; text-align: center; color: #64748b;">${qtdDebito}</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0f172a;">R$ ${formatMoeda(vendasDebito)}</td>
+                </tr>
+                ${vendasOutros > 0 || qtdOutros > 0 ? `
+                <tr style="border-bottom: 1px dashed #e2e8f0;">
+                  <td style="padding: 3px 0; color: #334155; font-weight: 600;">Outros Meios</td>
+                  <td style="padding: 3px 0; text-align: center; color: #64748b;">${qtdOutros}</td>
+                  <td style="padding: 3px 0; text-align: right; font-weight: 600; color: #0f172a;">R$ ${formatMoeda(vendasOutros)}</td>
+                </tr>
+                ` : ''}
+                <!-- TOTAL GERAL -->
+                <tr style="border-top: 2px solid #0f172a; background: #f8fafc;">
+                  <td style="padding: 6px 4px; font-weight: 800; color: #0f172a; text-transform: uppercase; font-size: ${isA4 ? '12px' : '10.5px'};">
+                    TOTAL FATURADO
+                  </td>
+                  <td style="padding: 6px 0; text-align: center; font-weight: 800; color: #0f172a;">
+                    ${totalQtdVendas}
+                  </td>
+                  <td style="padding: 6px 4px; text-align: right; font-weight: 900; color: #0f172a; font-size: ${isA4 ? '13px' : '11.5px'};">
+                    R$ ${formatMoeda(totalFaturado)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SEÇÃO 3: MOVIMENTAÇÕES DE GAVETA REGISTRADAS (SE HOUVER) -->
+          ${movimentacoes.length > 0 ? `
+          <div style="margin-bottom: 12px;">
+            <div style="
+              border-bottom: 1.5px solid #0f172a;
+              padding-bottom: 3px;
+              margin-bottom: 6px;
+              font-weight: 800;
+              font-size: ${isA4 ? '11.5px' : '10px'};
+              text-transform: uppercase;
+              color: #0f172a;
+            ">
+              3. EXTRATO DE MOVIMENTAÇÕES DO TURNO (${movimentacoes.length})
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: ${isA4 ? '11px' : '9.5px'};">
+              <thead>
+                <tr style="border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 8.5px; text-transform: uppercase;">
+                  <th style="padding: 2px 0; text-align: left;">Hora</th>
+                  <th style="padding: 2px 0; text-align: left;">Tipo</th>
+                  <th style="padding: 2px 0; text-align: left;">Motivo / Descrição</th>
+                  <th style="padding: 2px 0; text-align: right;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${movimentacoes.map(m => {
+                  const hora = m.criado_em ? new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
+                  const ehSaida = m.tipo === 'sangria' || m.tipo === 'despesa';
+                  return `
+                    <tr style="border-bottom: 1px dotted #f1f5f9;">
+                      <td style="padding: 2.5px 0; color: #64748b;">${hora}</td>
+                      <td style="padding: 2.5px 0; font-weight: 700; text-transform: uppercase; color: ${ehSaida ? '#b91c1c' : '#0284c7'};">
+                        ${m.tipo}
+                      </td>
+                      <td style="padding: 2.5px 4px; color: #334155; word-break: break-word;">
+                        ${m.descricao || '-'}
+                      </td>
+                      <td style="padding: 2.5px 0; text-align: right; font-weight: 600; color: ${ehSaida ? '#b91c1c' : '#0f172a'}; white-space: nowrap;">
+                        ${ehSaida ? '-' : '+'} R$ ${formatMoeda(m.valor)}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
           ` : ''}
 
-          <div style="border-top: 1px dashed #64748b; margin: 16px 0 10px 0;"></div>
-          <div style="text-align: center; margin-top: 24px; font-size: ${isA4 ? '11px' : '9px'}; color: #475569;">
-            <div style="margin-bottom: 20px;">_________________________________________<br/>Assinatura do Operador</div>
-            <div>_________________________________________<br/>Assinatura do Supervisor</div>
+          <!-- SEÇÃO 4: OBSERVAÇÕES DO FECHAMENTO (SE HOUVER) -->
+          ${observacoes ? `
+          <div style="margin-bottom: 12px;">
+            <div style="
+              border-bottom: 1.5px solid #0f172a;
+              padding-bottom: 3px;
+              margin-bottom: 6px;
+              font-weight: 800;
+              font-size: ${isA4 ? '11.5px' : '10px'};
+              text-transform: uppercase;
+              color: #0f172a;
+            ">
+              Observações do Operador
+            </div>
+            <div style="
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              padding: 6px 8px;
+              font-size: ${isA4 ? '11px' : '9.5px'};
+              color: #334155;
+              white-space: pre-wrap;
+            ">
+              ${observacoes}
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- SEÇÃO 5: ASSINATURAS E PROTOCOLO DE AUDITORIA -->
+          <div style="margin-top: 18px; border-top: 1.5px dashed #94a3b8; padding-top: 14px;">
+            <div style="text-align: center; margin-bottom: 22px;">
+              <div style="font-size: 10px; color: #64748b; margin-bottom: 14px;">
+                Declaro para os devidos fins que os valores físicos e documentos acima foram conferidos e encerram este turno.
+              </div>
+
+              <!-- ASSINATURAS LADO A LADO OU EMPILHADAS -->
+              <div style="display: flex; flex-direction: ${isA4 ? 'row' : 'column'}; justify-content: space-around; gap: ${isA4 ? '30px' : '16px'};">
+                <div style="flex: 1; text-align: center;">
+                  <div style="border-bottom: 1px solid #0f172a; margin-bottom: 4px; height: 26px;"></div>
+                  <div style="font-size: ${isA4 ? '11px' : '9.5px'}; font-weight: 700; color: #0f172a;">${operadorFechamento}</div>
+                  <div style="font-size: ${isA4 ? '10px' : '8.5px'}; color: #64748b;">Operador do Caixa</div>
+                </div>
+
+                <div style="flex: 1; text-align: center;">
+                  <div style="border-bottom: 1px solid #0f172a; margin-bottom: 4px; height: 26px;"></div>
+                  <div style="font-size: ${isA4 ? '11px' : '9.5px'}; font-weight: 700; color: #0f172a;">Supervisor / Gerente</div>
+                  <div style="font-size: ${isA4 ? '10px' : '8.5px'}; color: #64748b;">Conferência & Auditoria</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RODAPÉ DE AUDITORIA -->
+            <div style="
+              text-align: center;
+              font-size: ${isA4 ? '10px' : '8.5px'};
+              color: #64748b;
+              border-top: 1px solid #f1f5f9;
+              padding-top: 6px;
+            ">
+              <div>Emitido em: ${new Date().toLocaleString('pt-BR')}</div>
+              <div style="font-weight: 600; color: #0f172a; margin-top: 1px;">
+                HUBI • Sistema de Gestão & PDV
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -913,49 +1256,168 @@ Agradecemos a sua preferência! ✨`;
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Fechamento de Caixa #${dados.caixaNumero} - ${nomeLoja}</title>
+          <title>Fechamento de Caixa #${sessaoId} - ${nomeLoja}</title>
           <style>
-            @page { size: ${pageWidth} auto; margin: ${isA4 ? '10mm' : '2mm'}; }
-            * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            body { margin: 0; padding: 0; background: #f1f5f9; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-            .action-bar { position: sticky; top: 0; left: 0; right: 0; background: #0f172a; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; }
-            .btn { padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-            .btn-primary { background: #10b981; color: #fff; }
-            .btn-primary:hover { background: #059669; }
-            .btn-secondary { background: #334155; color: #f8fafc; }
-            .paper-wrapper { background: #fff; max-width: ${maxCssWidth}; margin: 20px auto; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
+            @page {
+              size: ${pageWidth} auto;
+              margin: ${isA4 ? '8mm' : '2mm'};
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: #0f172a;
+              color: #0f172a;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Helvetica, Arial, sans-serif;
+            }
+            .action-bar {
+              position: sticky;
+              top: 0;
+              left: 0;
+              right: 0;
+              background: #0f172a;
+              color: #ffffff;
+              padding: 10px 16px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              z-index: 1000;
+              border-bottom: 1px solid #1e293b;
+            }
+            .btn {
+              padding: 7px 14px;
+              border-radius: 8px;
+              font-weight: 700;
+              font-size: 12px;
+              border: none;
+              cursor: pointer;
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              transition: 0.15s ease;
+            }
+            .btn-primary {
+              background: #10b981;
+              color: #ffffff;
+            }
+            .btn-primary:hover {
+              background: #059669;
+            }
+            .btn-secondary {
+              background: #1e293b;
+              color: #cbd5e1;
+              border: 1px solid #334155;
+            }
+            .btn-secondary:hover {
+              background: #334155;
+              color: #ffffff;
+            }
+            .btn-format {
+              background: #1e293b;
+              color: #94a3b8;
+              border: 1px solid #334155;
+              padding: 5px 10px;
+              font-size: 11px;
+            }
+            .btn-format.active {
+              background: #3b82f6;
+              color: #ffffff;
+              border-color: #3b82f6;
+            }
+            .paper-wrapper {
+              background: #ffffff;
+              max-width: ${maxCssWidth};
+              margin: 20px auto;
+              box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+              border-radius: 10px;
+              overflow: hidden;
+              transition: max-width 0.2s ease;
+            }
             @media print {
-              .action-bar { display: none !important; }
-              body { background: #fff !important; }
-              .paper-wrapper { box-shadow: none !important; margin: 0 !important; max-width: 100% !important; border-radius: 0 !important; }
+              .action-bar {
+                display: none !important;
+              }
+              body {
+                background: #ffffff !important;
+              }
+              .paper-wrapper {
+                box-shadow: none !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                border-radius: 0 !important;
+              }
             }
           </style>
+          <script>
+            function trocarFormato(formato) {
+              const wrapper = document.querySelector('.paper-wrapper');
+              const btns = document.querySelectorAll('.btn-format');
+              btns.forEach(b => b.classList.remove('active'));
+              if (formato === 'a4') {
+                wrapper.style.maxWidth = '680px';
+                document.getElementById('btn-a4').classList.add('active');
+              } else {
+                wrapper.style.maxWidth = '400px';
+                document.getElementById('btn-termica').classList.add('active');
+              }
+            }
+          </script>
         </head>
         <body>
           <div class="action-bar">
-            <span style="font-size: 13px; font-weight: 600;">Fechamento de Caixa #${dados.caixaNumero}</span>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
-              <button class="btn btn-secondary" onclick="window.close()">✕ Fechar</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 700; letter-spacing: 0.3px;">
+                Fechamento #${sessaoId} • Terminal ${terminalId}
+              </span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; gap: 4px; background: #1e293b; padding: 2px; border-radius: 6px;">
+                <button id="btn-termica" class="btn btn-format ${!isA4 ? 'active' : ''}" onclick="trocarFormato('80mm')">
+                  Térmica 80mm
+                </button>
+                <button id="btn-a4" class="btn btn-format ${isA4 ? 'active' : ''}" onclick="trocarFormato('a4')">
+                  Folha A4 / PDF
+                </button>
+              </div>
+
+              <button class="btn btn-primary" onclick="window.print()">
+                🖨️ Imprimir / Salvar PDF
+              </button>
+              <button class="btn btn-secondary" onclick="window.close()">
+                ✕ Fechar
+              </button>
             </div>
           </div>
-          <div class="paper-wrapper">${htmlContent}</div>
+
+          <div class="paper-wrapper">
+            ${htmlContent}
+          </div>
+
           <script>
             window.addEventListener('load', function() {
-              setTimeout(function() { window.focus(); window.print(); }, 300);
+              setTimeout(function() {
+                window.focus();
+                window.print();
+              }, 350);
             });
           </script>
         </body>
         </html>
       `;
 
-      const printWindow = window.open('', '_blank', 'width=600,height=750');
+      const printWindow = window.open('', '_blank', 'width=680,height=850');
       if (printWindow) {
         printWindow.document.open();
         printWindow.document.write(fullDocHtml);
         printWindow.document.close();
       } else {
-        // Fallback para iframe invisível se popup for bloqueado
+        // Fallback caso popup seja bloqueado pelo navegador
         let iframe = document.getElementById('hubi-print-iframe') as HTMLIFrameElement;
         if (!iframe) {
           iframe = document.createElement('iframe');
