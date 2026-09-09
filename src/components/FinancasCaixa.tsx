@@ -56,7 +56,7 @@ import { caixaService } from '../services/caixaService';
 import { financeExportService } from '../services/financeExportService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
-import { obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
+import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -309,6 +309,21 @@ export const FinancasCaixa: React.FC = () => {
     setModalNovaDespesa(true);
   };
 
+  // Utilitário para gerar data ISO operacional compatível com a data YMD selecionada
+  const gerarDataIsoOperacional = (ymd: string) => {
+    if (!ymd) return obterDataOperacaoISO();
+    const opYmd = obterDataOperacaoYMD();
+    if (ymd === opYmd) {
+      return obterDataOperacaoISO();
+    }
+    const dOp = obterDataOperacao();
+    const hora = String(dOp.getHours()).padStart(2, '0');
+    const min = String(dOp.getMinutes()).padStart(2, '0');
+    const sec = String(dOp.getSeconds()).padStart(2, '0');
+    const d = new Date(`${ymd}T${hora}:${min}:${sec}`);
+    return isNaN(d.getTime()) ? `${ymd}T12:00:00.000Z` : d.toISOString();
+  };
+
   // 1. Cadastrar / Editar Despesa ou Conta a Pagar Manual no DRE / Fluxo Geral
   const handleSalvarDespesaOuContaPagar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,8 +357,10 @@ export const FinancasCaixa: React.FC = () => {
           forma_pagamento: formaPagamentoDespesa || null
         };
 
-        if (!ehPendente && !transacaoEditando.data_pagamento) {
-          updatePayload.data_pagamento = new Date().toISOString();
+        if (!ehPendente) {
+          if (!transacaoEditando.data_pagamento || formatarDataLocalYMD(transacaoEditando.data_vencimento) !== dataVencimento) {
+            updatePayload.data_pagamento = gerarDataIsoOperacional(dataVencimento);
+          }
         }
 
         const { data, error } = await supabase
@@ -375,7 +392,7 @@ export const FinancasCaixa: React.FC = () => {
         };
 
         if (!ehPendente) {
-          insertPayload.data_pagamento = new Date().toISOString();
+          insertPayload.data_pagamento = gerarDataIsoOperacional(dataVencimento);
         }
 
         const { data, error } = await supabase
@@ -390,7 +407,7 @@ export const FinancasCaixa: React.FC = () => {
         // Se paga em dinheiro físico na gaveta e houver sessão de caixa aberta, registrar como despesa da gaveta
         if (!ehPendente && formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && usuario?.id) {
           try {
-            await caixaService.registrarMovimentacao({
+            const mov = await caixaService.registrarMovimentacao({
               lojaId: loja.id,
               sessaoId: sessaoAtiva.id,
               tipo: 'DESPESA',
@@ -399,6 +416,7 @@ export const FinancasCaixa: React.FC = () => {
               descricao: `Despesa Gaveta: ${descricao.trim()} (${categoria})`,
               usuarioId: usuario.id
             });
+            if (mov) setMovimentacoesCaixaLoja(prev => [mov, ...prev]);
             const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
             setResumoSessao(res);
           } catch (errMov) {
@@ -461,8 +479,8 @@ export const FinancasCaixa: React.FC = () => {
       setModalBaixarConta(prev => ({ ...prev, processando: true }));
       const forma = modalBaixarConta.formaPagamento || 'dinheiro';
       const dataIso = modalBaixarConta.dataPagamento
-        ? new Date(`${modalBaixarConta.dataPagamento}T12:00:00`).toISOString()
-        : new Date().toISOString();
+        ? gerarDataIsoOperacional(modalBaixarConta.dataPagamento)
+        : obterDataOperacaoISO();
 
       const { data, error } = await supabase
         .from('transacoes_financeiras')
@@ -484,7 +502,7 @@ export const FinancasCaixa: React.FC = () => {
       // Se pago em dinheiro e caixa aberto, debitar da gaveta
       if (forma === 'dinheiro' && sessaoAtiva && usuario?.id && loja?.id) {
         try {
-          await caixaService.registrarMovimentacao({
+          const mov = await caixaService.registrarMovimentacao({
             lojaId: loja.id,
             sessaoId: sessaoAtiva.id,
             tipo: 'DESPESA',
@@ -493,6 +511,7 @@ export const FinancasCaixa: React.FC = () => {
             descricao: `Baixa Conta a Pagar: ${tr.descricao} (${tr.categoria || 'Geral'})`,
             usuarioId: usuario.id
           });
+          if (mov) setMovimentacoesCaixaLoja(prev => [mov, ...prev]);
           const res = await caixaService.obterResumoSessao(sessaoAtiva.id);
           setResumoSessao(res);
         } catch (errMov) {
@@ -958,27 +977,70 @@ export const FinancasCaixa: React.FC = () => {
         return true;
       }
 
-      const dataTransacaoIso = t.data_pagamento || t.data_vencimento || t.criado_em || '';
-      const dataTransacaoYMD = formatarDataLocalYMD(dataTransacaoIso);
+      // Para despesas manuais / gerais: se houver movimentação correspondente na gaveta do caixa,
+      // a pertinência da sessão do caixa é soberana e estrita
+      if (tipo === 'SAIDA') {
+        const movAssociada = movimentacoesCaixaLoja.find(m => {
+          if (m.tipo !== 'DESPESA') return false;
+          if (Math.abs(Number(m.valor) - Number(t.valor)) > 0.01) return false;
+          const descTr = (t.descricao || '').toLowerCase().trim();
+          const descMov = (m.descricao || '').toLowerCase();
+          return descMov.includes(descTr) || (t.categoria && descMov.includes(t.categoria.toLowerCase()));
+        });
 
-      if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva) {
-        if (dataAberturaSessaoYMD && dataTransacaoYMD < dataAberturaSessaoYMD) {
-          return false;
-        }
-        if (timestampAberturaSessao && dataTransacaoIso) {
-          const timeTr = new Date(dataTransacaoIso).getTime();
-          if (timeTr < timestampAberturaSessao) {
-            return false;
+        if (movAssociada && movAssociada.sessao_caixa_id) {
+          if (filtroPeriodoFluxo === 'sessao_atual' && sessaoAtiva) {
+            if (movAssociada.sessao_caixa_id !== sessaoAtiva.id) {
+              return false;
+            }
+            return true;
           }
         }
-        return true;
+      }
+
+      // Extrai datas de competência da transação
+      const dataVencYMD = t.data_vencimento ? formatarDataLocalYMD(t.data_vencimento) : '';
+      const dataPagYMD = t.data_pagamento ? formatarDataLocalYMD(t.data_pagamento) : '';
+      const dataCriadoYMD = t.criado_em ? formatarDataLocalYMD(t.criado_em) : '';
+
+      const dataTransacaoIso = t.data_pagamento || t.criado_em || (t.data_vencimento ? `${t.data_vencimento}T12:00:00.000Z` : '');
+      const dataTransacaoYMD = dataPagYMD || dataVencYMD || dataCriadoYMD;
+
+      if (filtroPeriodoFluxo === 'sessao_atual') {
+        if (sessaoAtiva) {
+          // Não pode ser de data anterior à data de abertura da sessão ativa
+          if (dataVencYMD && dataAberturaSessaoYMD && dataVencYMD < dataAberturaSessaoYMD) {
+            return false;
+          }
+          if (dataTransacaoYMD && dataAberturaSessaoYMD && dataTransacaoYMD < dataAberturaSessaoYMD) {
+            return false;
+          }
+          // Não pode ter sido efetuada antes da hora exata em que a sessão abriu
+          if (timestampAberturaSessao && dataTransacaoIso) {
+            const timeTr = new Date(dataTransacaoIso).getTime();
+            if (timeTr < timestampAberturaSessao) {
+              return false;
+            }
+          }
+          // Se a data de competência da despesa for posterior à data da sessão, não pertence a este turno
+          if (dataVencYMD && dataAberturaSessaoYMD && dataVencYMD > dataAberturaSessaoYMD) {
+            return false;
+          }
+          return true;
+        }
+
+        // Se o caixa estiver fechado, exibe apenas os lançamentos da data operacional de hoje
+        const dataRefYMD = dataVencYMD || dataTransacaoYMD;
+        return dataRefYMD === dataOperacaoHojeYMD;
       }
 
       if (filtroPeriodoFluxo === 'mes') {
-        return dataTransacaoYMD.slice(0, 7) === dataOperacaoHojeYMD.slice(0, 7);
+        const dataRefYMD = dataVencYMD || dataTransacaoYMD;
+        return dataRefYMD.slice(0, 7) === dataOperacaoHojeYMD.slice(0, 7);
       }
 
-      return dataTransacaoYMD === dataOperacaoHojeYMD;
+      const dataRefYMD = dataVencYMD || dataTransacaoYMD;
+      return dataRefYMD === dataOperacaoHojeYMD;
     };
 
     // Conjuntos para controle de duplicações estritas

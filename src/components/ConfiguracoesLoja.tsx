@@ -40,7 +40,8 @@ import {
   X,
   Check,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -81,6 +82,97 @@ type SubTelaConfig =
   | 'importar-exportar'
   | 'importar-exportar-produtos'
   | 'parceiros';
+
+export const SEGMENTOS_NEGOCIO = [
+  {
+    id: 'restaurante',
+    nome: 'Restaurante / Bar / Gastronomia',
+    icone: '🍽️',
+    papel: 'Maître & Atendente Gourmet',
+    descricao: 'Pizzarias, lanchonetes, bares, confeitarias e delivery',
+    exemploFala: 'Olá! Sou a Rubi, sua maître virtual! O que gostaria de saborear hoje? Temos pratos deliciosos, porções e bebidas especiais!'
+  },
+  {
+    id: 'motepecas',
+    nome: 'Motopeças / Autopeças / Oficina',
+    icone: '🏍️',
+    papel: 'Consultor Técnico Especialista',
+    descricao: 'Peças para motos, carros, ferramentas e acessórios mecânicos',
+    exemploFala: 'E aí, tudo bem? Sou a Rubi, especialista em peças automotivas e de motos. Qual o modelo e ano do seu veículo para eu indicar a peça certa?'
+  },
+  {
+    id: 'moda',
+    nome: 'Moda / Vestuário / Calçados',
+    icone: '👗',
+    papel: 'Consultora de Estilo e Moda',
+    descricao: 'Roupas masculinas, femininas, infantis, sapatos e acessórios',
+    exemploFala: 'Olá, que alegria ter você aqui! Sou a Rubi, sua consultora de moda e estilo. Procurando um look para o dia a dia ou para uma ocasião especial?'
+  },
+  {
+    id: 'lingerie',
+    nome: 'Lingerie / Moda Íntima / Praia',
+    icone: '👙',
+    papel: 'Consultora Íntima e Delicadeza',
+    descricao: 'Lingeries, moda íntima, pijamas, moda praia e fitness',
+    exemploFala: 'Olá! Sou a Rubi. Estou aqui para te ajudar a escolher as peças mais confortáveis e elegantes, com todo cuidado e discrição.'
+  },
+  {
+    id: 'cosmeticos',
+    nome: 'Beleza / Cosméticos / Perfumes',
+    icone: '💄',
+    papel: 'Especialista em Beleza e Cuidados',
+    descricao: 'Maquiagens, skincare, perfumes e produtos capilares',
+    exemploFala: 'Olá! Sou a Rubi, sua consultora de beleza. Me conta: qual tipo de cuidado para pele, cabelo ou maquiagem você procura hoje?'
+  },
+  {
+    id: 'mercado',
+    nome: 'Mercado / Mercearia / Empório',
+    icone: '🛒',
+    papel: 'Atendente Prático de Compras',
+    descricao: 'Alimentos, bebidas, hortifrúti, despensa e itens de limpeza',
+    exemploFala: 'Olá! Sou a Rubi, pronta para te ajudar a encher a cesta com os melhores produtos e ofertas da nossa loja!'
+  },
+  {
+    id: 'petshop',
+    nome: 'Pet Shop / Veterinária / Agro',
+    icone: '🐾',
+    papel: 'Consultor Amigo dos Pets',
+    descricao: 'Rações, brinquedos, medicamentos, petiscos e acessórios',
+    exemploFala: 'Olá! Sou a Rubi, apaixonada por pets! Seu melhor amigo é um cãozinho, gato ou outro pet? Me conta o que ele está precisando!'
+  },
+  {
+    id: 'eletronicos',
+    nome: 'Eletrônicos / Celulares / Informática',
+    icone: '📱',
+    papel: 'Especialista em Tecnologia',
+    descricao: 'Smartphones, cabos, carregadores, fones e periféricos',
+    exemploFala: 'Fala aí! Sou a Rubi, especialista em eletrônicos. Qual aparelho ou acessório você precisa? Garanto compatibilidade e máxima performance!'
+  },
+  {
+    id: 'farmacia',
+    nome: 'Farmácia / Suplementos / Saúde',
+    icone: '💊',
+    papel: 'Consultor de Bem-Estar e Saúde',
+    descricao: 'Suplementos esportivos, vitaminas e cuidados diários',
+    exemploFala: 'Olá! Sou a Rubi, sua parceira de saúde e bem-estar. Posso te indicar as melhores opções em suplementos, vitaminas e cuidados diários!'
+  },
+  {
+    id: 'construcao',
+    nome: 'Construção / Ferramentas / Tintas',
+    icone: '🛠️',
+    papel: 'Consultor Prático de Reformas',
+    descricao: 'Materiais elétricos, hidráulicos, ferramentas e reparos',
+    exemploFala: 'Olá! Sou a Rubi, especialista em materiais e ferramentas. Qual reforma, conserto ou projeto você está executando hoje?'
+  },
+  {
+    id: 'geral',
+    nome: 'Varejo Geral / Outro Segmento',
+    icone: '🏪',
+    papel: 'Vendedora Consultiva Dedicada',
+    descricao: 'Presentes, utilidades, papelaria e comércio variado',
+    exemploFala: 'Olá! Sou a Rubi, sua consultora de compras. O que você gostaria de encontrar hoje? Posso te sugerir os melhores produtos e novidades!'
+  }
+];
 
 export const ConfiguracoesLoja: React.FC = () => {
   const { loja, recarregarDadosLoja } = useAuth();
@@ -135,6 +227,11 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [enderecoEstado, setEnderecoEstado] = useState<string>('CE');
   const [documento, setDocumento] = useState<string>('');
   const [razaoSocial, setRazaoSocial] = useState<string>('');
+
+  // 2.1 PERFIL DO NEGÓCIO & ESPECIALIZAÇÃO DA RUBI IA
+  const [segmentoNegocio, setSegmentoNegocio] = useState<string>('geral');
+  const [especialidadeNegocio, setEspecialidadeNegocio] = useState<string>('');
+  const [tomVozRubi, setTomVozRubi] = useState<'consultivo' | 'tecnico' | 'amigavel' | 'formal'>('consultivo');
 
   // 3. RECIBO
   const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
@@ -290,6 +387,12 @@ export const ConfiguracoesLoja: React.FC = () => {
       setEnderecoEstado(loja.endereco_estado || 'CE');
       setDocumento(loja.numero_documento || '');
       setRazaoSocial(loja.razao_social || '');
+
+      // Perfil do Negócio & Rubi IA
+      const perfilNegocio = extras.perfil_negocio || {};
+      setSegmentoNegocio(perfilNegocio.segmento || 'geral');
+      setEspecialidadeNegocio(perfilNegocio.descricao_especialidade || '');
+      setTomVozRubi(perfilNegocio.tom_voz || 'consultivo');
 
       // Recibo
       setReciboAdicionarCliente(recibo.adicionar_cliente ?? true);
@@ -633,6 +736,11 @@ export const ConfiguracoesLoja: React.FC = () => {
           tiktok_pixel_id: tiktokPixelId,
           facebook_catalog_feed_ativo: true,
           google_merchant_feed_ativo: true
+        },
+        perfil_negocio: {
+          segmento: segmentoNegocio,
+          descricao_especialidade: especialidadeNegocio.trim(),
+          tom_voz: tomVozRubi
         }
       };
 
@@ -752,6 +860,9 @@ export const ConfiguracoesLoja: React.FC = () => {
       controlarEstoque,
       transacoesCanceladas,
       ordenarProdutosPdv,
+      segmentoNegocio,
+      especialidadeNegocio,
+      tomVozRubi,
       nomeLoja,
       urlLogo,
       telefone,
@@ -1810,6 +1921,118 @@ export const ConfiguracoesLoja: React.FC = () => {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
                     placeholder="60000-000"
                   />
+                </div>
+              </div>
+
+              {/* SEÇÃO: SEGMENTO DO NEGÓCIO & ESPECIALIZAÇÃO DA RUBI IA */}
+              <div className="pt-6 border-t border-slate-800 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
+                      <h3 className="font-extrabold text-sm text-slate-100">
+                        Segmento de Atuação & Especialização da Rubi IA
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Direcione o comportamento, vocabulário e papel de vendedora da IA para o nicho da sua empresa no Catálogo Online!
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                    Especialização IA
+                  </span>
+                </div>
+
+                {/* Grade de Segmentos */}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-2">
+                    Selecione o Ramo do seu Negócio:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {SEGMENTOS_NEGOCIO.map((seg) => {
+                      const isSelected = segmentoNegocio === seg.id;
+                      return (
+                        <button
+                          key={seg.id}
+                          type="button"
+                          onClick={() => setSegmentoNegocio(seg.id)}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative group ${
+                            isSelected
+                              ? 'bg-emerald-950/40 border-emerald-500 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500'
+                              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-xl shrink-0 p-1.5 rounded-xl bg-slate-900 border border-slate-800">
+                              {seg.icone}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className={`font-bold text-xs truncate ${isSelected ? 'text-emerald-300' : 'text-slate-200'}`}>
+                                  {seg.nome}
+                                </span>
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-400 block mt-0.5 font-medium leading-tight">
+                                {seg.papel}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-slate-500 line-clamp-2 mt-2 leading-relaxed">
+                            {seg.descricao}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Especialidade ou Foco da Empresa */}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Especialidade ou Foco Principal da Loja (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={especialidadeNegocio}
+                    onChange={(e) => setEspecialidadeNegocio(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 transition"
+                    placeholder="Ex: Especializados em vestidos de festa femininos / Peças originais Honda e Yamaha / Pizzas artesanais..."
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    A Rubi usará essa descrição para destacar seus produtos favoritos e diferenciais exclusivos nas conversas.
+                  </span>
+                </div>
+
+                {/* Tom de Voz da IA & Prévia */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                      Estilo e Tom de Voz da Rubi:
+                    </label>
+                    <select
+                      value={tomVozRubi}
+                      onChange={(e) => setTomVozRubi(e.target.value as any)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 cursor-pointer focus:border-emerald-500"
+                    >
+                      <option value="consultivo">🤝 Consultivo & Atencioso (Recomendado)</option>
+                      <option value="tecnico">🔧 Técnico & Especialista (Foco em compatibilidade e precisão)</option>
+                      <option value="amigavel">✨ Amigável & Descontraído (Linguagem leve e calorosa)</option>
+                      <option value="formal">👔 Formal & Elegante (Atendimento requintado e polido)</option>
+                    </select>
+                  </div>
+
+                  {/* Prévia da Abordagem */}
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" /> Exemplo de Saudação da Rubi
+                    </span>
+                    <p className="text-[11px] text-slate-300 italic mt-1 leading-snug">
+                      "{SEGMENTOS_NEGOCIO.find(s => s.id === segmentoNegocio)?.exemploFala || SEGMENTOS_NEGOCIO[0].exemploFala}"
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

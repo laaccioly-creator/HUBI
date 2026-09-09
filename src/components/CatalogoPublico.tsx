@@ -155,6 +155,64 @@ export const CatalogoPublico: React.FC = () => {
     setEnderecoEntrega(formatado);
   };
 
+  const handleClienteAtualizadoPelaRubi = async (dados: { nome?: string; telefone?: string; endereco?: string }) => {
+    if (dados.nome) {
+      setNomeCliente(dados.nome);
+      setDadosContato(prev => ({ ...prev, nome: dados.nome! }));
+    }
+    if (dados.telefone) {
+      setWhatsappCliente(dados.telefone);
+      setDadosContato(prev => ({ ...prev, telefone: dados.telefone!, telefoneIsWhatsapp: true }));
+    }
+    if (dados.endereco) {
+      setEnderecoEntrega(dados.endereco);
+      setDadosEndereco(prev => ({ ...prev, rua: dados.endereco! }));
+    }
+
+    if (loja?.id && (dados.nome || nomeCliente)) {
+      const nomeFinal = (dados.nome || nomeCliente).trim();
+      const telFinal = (dados.telefone || whatsappCliente || '').trim();
+      const endFinal = (dados.endereco || enderecoEntrega || '').trim();
+
+      if (nomeFinal) {
+        try {
+          const { data: rpcCli, error: rpcCliErr } = await supabase.rpc('salvar_cliente_catalogo', {
+            p_loja_id: loja.id,
+            p_nome: nomeFinal,
+            p_telefone: telFinal || null,
+            p_email: dadosContato.email?.trim() || null,
+            p_cpf_cnpj: dadosContato.cpfCnpj?.trim() || null,
+            p_aniversario: dadosContato.dataAniversario || null,
+            p_endereco: endFinal || null,
+            p_cliente_id: clienteSelecionado?.id || null
+          });
+
+          if (!rpcCliErr && rpcCli?.sucesso && rpcCli?.cliente_id) {
+            if (rpcCli.cliente) setClienteSelecionado(rpcCli.cliente);
+          } else if (!clienteSelecionado?.id && telFinal) {
+            const { data: novoCli } = await supabase
+              .from('clientes')
+              .insert([{
+                loja_id: loja.id,
+                nome: nomeFinal,
+                telefone: telFinal,
+                whatsapp: telFinal,
+                endereco_principal: endFinal || null,
+                tabela_preco_padrao: 'varejo'
+              }])
+              .select()
+              .single();
+            if (novoCli) {
+              setClienteSelecionado(novoCli);
+            }
+          }
+        } catch (err) {
+          console.warn('Não foi possível sincronizar cliente detectado pela Rubi:', err);
+        }
+      }
+    }
+  };
+
   // Estados de Cupom de Desconto
   const [codigoCupomInput, setCodigoCupomInput] = useState<string>('');
   const [cupomAplicado, setCupomAplicado] = useState<Cupom | null>(null);
@@ -386,9 +444,11 @@ export const CatalogoPublico: React.FC = () => {
       categorias,
       produtos,
       formasEntrega,
-      regrasAtivas
+      regrasAtivas,
+      clienteAtual: clienteSelecionado,
+      nomeClienteAtual: nomeCliente
     };
-  }, [loja, categorias, produtos, formasEntrega, regrasAtivas]);
+  }, [loja, categorias, produtos, formasEntrega, regrasAtivas, clienteSelecionado, nomeCliente]);
 
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
@@ -1793,7 +1853,15 @@ Fico no aguardo da confirmação! ✨`;
       />
 
       {/* ASSISTENTE VIRTUAL RUBI IA NO CATÁLOGO */}
-      {contextoRubi && <ChatRubiCatalogo contexto={contextoRubi} />}
+      {contextoRubi && (
+        <ChatRubiCatalogo
+          contexto={contextoRubi}
+          onAdicionarAoCarrinho={adicionarAoCarrinho}
+          onAbrirModalVariacao={(prod) => setProdutoModalVariacao(prod)}
+          onClienteAtualizado={handleClienteAtualizadoPelaRubi}
+          corTema={loja?.cor_primaria || '#6366f1'}
+        />
+      )}
     </div>
   );
 };

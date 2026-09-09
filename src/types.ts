@@ -180,6 +180,13 @@ export interface ConfiguracoesExtrasLoja {
   integracoes_parceiros?: IntegracoesParceiros;
   cores_produtos?: { [produto_id: string]: string };
   cor_padrao_etiqueta_produtos?: string;
+  perfil_negocio?: {
+    segmento?: string;
+    subsegmento?: string;
+    descricao_especialidade?: string;
+    persona_ia_personalizada?: string;
+    tom_voz?: 'consultivo' | 'tecnico' | 'amigavel' | 'formal';
+  };
 }
 
 export interface Loja {
