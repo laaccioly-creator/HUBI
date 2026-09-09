@@ -1528,29 +1528,6 @@ export const FinancasCaixa: React.FC = () => {
                 </button>
               )}
 
-              {permissions.ehAdmin && (
-                <>
-                  <button
-                    type="button"
-                    onClick={abrirModalNovaContaPagar}
-                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5 cursor-pointer"
-                    title="Cadastrar uma conta ou obrigação futura a pagar"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Conta a Pagar</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={abrirModalNovaDespesa}
-                    className="px-3.5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition flex items-center gap-1.5 cursor-pointer"
-                    title="Lançar despesa já realizada"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Nova Despesa (DRE)</span>
-                  </button>
-                </>
-              )}
             </div>
           </div>
 
@@ -1591,15 +1568,17 @@ export const FinancasCaixa: React.FC = () => {
                   <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Despesas Gerais
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={handleExportarDespesas}
-                    title="Exportar Despesas Gerais para Excel (.xlsx)"
-                    className="px-1.5 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold transition cursor-pointer border border-rose-500/20 flex items-center gap-1"
-                  >
-                    <FileSpreadsheet className="w-3 h-3" />
-                    <span>Excel</span>
-                  </button>
+                  {permissions.ehAdmin && (
+                    <button
+                      type="button"
+                      onClick={abrirModalNovaDespesa}
+                      title="Lançar Nova Despesa"
+                      className="px-1.5 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold transition cursor-pointer border border-rose-500/30 flex items-center gap-0.5"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Nova</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('saidas')}
@@ -1630,15 +1609,6 @@ export const FinancasCaixa: React.FC = () => {
                       <span>Nova</span>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleExportarContasPagar}
-                    title="Exportar Contas a Pagar para Excel (.xlsx)"
-                    className="px-1.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/20 flex items-center gap-1"
-                  >
-                    <FileSpreadsheet className="w-3 h-3" />
-                    <span>Excel</span>
-                  </button>
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('pagar')}
@@ -3740,14 +3710,29 @@ export const FinancasCaixa: React.FC = () => {
                         <span className="text-xs text-slate-400 font-semibold block">Total de Despesas:</span>
                         <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleExportarDespesas}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" />
-                        <span>Exportar Excel</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleExportarDespesas}
+                          className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                          <span>Exportar Excel</span>
+                        </button>
+                        {permissions.ehAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalDetalhesMetrica(null);
+                              abrirModalNovaDespesa();
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-rose-500/25 transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Nova Despesa</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <span className="text-xs font-bold text-slate-300 block">Últimas Despesas Registradas:</span>
