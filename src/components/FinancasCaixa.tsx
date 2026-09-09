@@ -1008,88 +1008,88 @@ export const FinancasCaixa: React.FC = () => {
     let debito = 0;
     let credito = 0;
     let outros = 0;
-    let totalBruto = 0;
 
-    sessoesNoPeriodo.forEach(s => {
-      let vDinheiro = Number(s.total_vendas_dinheiro || 0);
-      let vPix = Number(s.total_vendas_pix || 0);
-      let vDebito = Number(s.total_vendas_debito || 0);
-      let vCredito = Number(s.total_vendas_credito || 0);
-      let vOutros = Number(s.total_vendas_outros || 0);
+    const pedidosProcessados = new Set<string>();
 
-      // Se não possui totais calculados mas possui movimentações detalhadas
-      if (vDinheiro === 0 && vPix === 0 && vDebito === 0 && vCredito === 0 && vOutros === 0 && s.movimentacoes && s.movimentacoes.length > 0) {
-        s.movimentacoes.forEach(m => {
-          if (m.tipo === 'VENDA') {
-            const val = Number(m.valor || 0);
-            if (m.metodo_pagamento === 'DINHEIRO') vDinheiro += val;
-            else if (m.metodo_pagamento === 'PIX') vPix += val;
-            else if (m.metodo_pagamento === 'CARTAO_DEBITO') vDebito += val;
-            else if (m.metodo_pagamento === 'CARTAO_CREDITO') vCredito += val;
-            else vOutros += val;
+    // 1. Processar todos os pedidos pagos no período (Fonte canônica oficial de todas as vendas da loja: PDV e Catálogo Online)
+    (pedidos || []).forEach(p => {
+      if (p.status === 'cancelado' || p.status === 'pendente') return;
+      const statusPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : '');
+      if (statusPag !== 'pago' && p.status !== 'concluido') return;
+
+      const dataP = formatarDataLocalYMD(p.data_venda || p.criado_em);
+      if (periodoRelatorioInicio && dataP < periodoRelatorioInicio) return;
+      if (periodoRelatorioFim && dataP > periodoRelatorioFim) return;
+
+      if (p.id) pedidosProcessados.add(p.id.toLowerCase());
+
+      if (p.pagamentos && p.pagamentos.length > 0) {
+        p.pagamentos.forEach(pag => {
+          const val = Number(pag.valor || 0);
+          const tipoFp = (pag.forma_pagamento?.tipo || '').toLowerCase();
+          const nomeFp = (pag.forma_pagamento?.nome || '').toLowerCase();
+
+          if (tipoFp === 'dinheiro' || nomeFp.includes('dinheiro')) {
+            dinheiro += val;
+          } else if (tipoFp === 'pix' || nomeFp.includes('pix')) {
+            pix += val;
+          } else if (tipoFp === 'cartao_debito' || nomeFp.includes('débito') || nomeFp.includes('debito')) {
+            debito += val;
+          } else if (tipoFp === 'cartao_credito' || nomeFp.includes('crédito') || nomeFp.includes('credito')) {
+            credito += val;
+          } else {
+            outros += val;
           }
         });
+      } else {
+        const val = Number(p.valor_pago || p.valor_total || 0);
+        const fp = ((p as any).forma_pagamento_padrao || (p as any).forma_pagamento || '').toLowerCase();
+        if (fp.includes('pix')) {
+          pix += val;
+        } else if (fp.includes('débito') || fp.includes('debito')) {
+          debito += val;
+        } else if (fp.includes('crédito') || fp.includes('credito')) {
+          credito += val;
+        } else if (fp.includes('dinheiro')) {
+          dinheiro += val;
+        } else if (p.origem === 'catalogo_online') {
+          credito += val; // Mercado pago padrão
+        } else {
+          dinheiro += val;
+        }
       }
-
-      dinheiro += vDinheiro;
-      pix += vPix;
-      debito += vDebito;
-      credito += vCredito;
-      outros += vOutros;
-      totalBruto += Number(s.faturamento_total || (vDinheiro + vPix + vDebito + vCredito + vOutros) || 0);
     });
 
-    // Fallback de reconciliação analítica:
-    // Se o total bruto apurou vendas mas o detalhamento individual está zerado ou se não houve sessões no período
-    if ((totalBruto === 0 || (dinheiro === 0 && pix === 0 && debito === 0 && credito === 0 && outros === 0)) && (pedidos || []).length > 0) {
-      let pedDinheiro = 0;
-      let pedPix = 0;
-      let pedDebito = 0;
-      let pedCredito = 0;
-      let pedOutros = 0;
-      let pedTotal = 0;
-
-      (pedidos || []).forEach(p => {
-        if (p.status === 'cancelado' || p.status === 'pendente') return;
-        const dataP = formatarDataLocalYMD(p.data_venda || p.criado_em);
-        if (periodoRelatorioInicio && dataP < periodoRelatorioInicio) return;
-        if (periodoRelatorioFim && dataP > periodoRelatorioFim) return;
-
-        if (p.pagamentos && p.pagamentos.length > 0) {
-          p.pagamentos.forEach(pag => {
-            const val = Number(pag.valor || 0);
-            const tipoFp = (pag.forma_pagamento?.tipo || '').toLowerCase();
-            const nomeFp = (pag.forma_pagamento?.nome || '').toLowerCase();
-
-            if (tipoFp === 'dinheiro' || nomeFp.includes('dinheiro')) pedDinheiro += val;
-            else if (tipoFp === 'pix' || nomeFp.includes('pix')) pedPix += val;
-            else if (tipoFp === 'cartao_debito' || nomeFp.includes('débito') || nomeFp.includes('debito')) pedDebito += val;
-            else if (tipoFp === 'cartao_credito' || nomeFp.includes('crédito') || nomeFp.includes('credito')) pedCredito += val;
-            else pedOutros += val;
-            pedTotal += val;
-          });
-        } else {
-          const val = Number(p.valor_pago || p.valor_total || 0);
-          pedDinheiro += val;
-          pedTotal += val;
-        }
-      });
-
-      if (totalBruto === 0 && pedTotal > 0) {
-        dinheiro = pedDinheiro;
-        pix = pedPix;
-        debito = pedDebito;
-        credito = pedCredito;
-        outros = pedOutros;
-        totalBruto = pedTotal;
-      } else if (totalBruto > 0 && dinheiro === 0 && pix === 0 && debito === 0 && credito === 0 && outros === 0 && pedTotal > 0) {
-        dinheiro = pedDinheiro;
-        pix = pedPix;
-        debito = pedDebito;
-        credito = pedCredito;
-        outros = pedOutros;
-      }
+    // 2. Adicionar movimentações de vendas avulsas de sessões que não tenham vindo de pedidos
+    const todasMovs: MovimentacaoCaixa[] = [];
+    if (resumoSessao?.sessao?.movimentacoes) {
+      todasMovs.push(...resumoSessao.sessao.movimentacoes);
     }
+    (historicoSessoes || []).forEach(s => {
+      if (s.id !== resumoSessao?.sessao?.id && s.movimentacoes) {
+        todasMovs.push(...s.movimentacoes);
+      }
+    });
+
+    todasMovs.forEach(m => {
+      if (m.tipo !== 'VENDA') return;
+      if (m.pedido_id && pedidosProcessados.has(m.pedido_id.toLowerCase())) return;
+
+      const dataM = formatarDataLocalYMD(m.criado_em);
+      if (periodoRelatorioInicio && dataM < periodoRelatorioInicio) return;
+      if (periodoRelatorioFim && dataM > periodoRelatorioFim) return;
+
+      const val = Number(m.valor || 0);
+      switch (m.metodo_pagamento) {
+        case 'DINHEIRO': dinheiro += val; break;
+        case 'PIX': pix += val; break;
+        case 'CARTAO_DEBITO': debito += val; break;
+        case 'CARTAO_CREDITO': credito += val; break;
+        default: outros += val; break;
+      }
+    });
+
+    const totalBruto = dinheiro + pix + debito + credito + outros;
 
     return {
       quantidadeSessoes: sessoesNoPeriodo.length,

@@ -87,6 +87,44 @@ export const caixaService = {
   },
 
   /**
+   * Localiza qualquer sessão de caixa aberta na loja (para atribuir vendas do catálogo online / Mercado Pago)
+   */
+  async obterQualquerSessaoAtiva(lojaId: string): Promise<SessaoCaixa | null> {
+    if (!lojaId) return null;
+    try {
+      const { data, error } = await supabase
+        .from('sessoes_caixa')
+        .select(`
+          *,
+          aberto_por:usuarios_loja!sessoes_caixa_aberto_por_usuario_id_fkey(*),
+          fechado_por:usuarios_loja!sessoes_caixa_fechado_por_usuario_id_fkey(*)
+        `)
+        .eq('loja_id', lojaId)
+        .eq('status', 'ABERTO')
+        .order('aberto_em', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        return data[0] as SessaoCaixa;
+      }
+
+      // Fallback simples
+      const { data: fallback } = await supabase
+        .from('sessoes_caixa')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .eq('status', 'ABERTO')
+        .order('aberto_em', { ascending: false })
+        .limit(1);
+
+      return fallback && fallback.length > 0 ? (fallback[0] as SessaoCaixa) : null;
+    } catch (err) {
+      console.error('Erro ao consultar qualquer sessão ativa da loja:', err);
+      return null;
+    }
+  },
+
+  /**
    * Bloqueio de Concorrência e Abertura formal de Sessão de Caixa
    */
   async abrirSessao(
@@ -149,8 +187,9 @@ export const caixaService = {
     descricao: string;
     usuarioId: string;
     pedidoId?: string | null;
+    criadoEm?: string;
   }): Promise<MovimentacaoCaixa> {
-    const { lojaId, sessaoId, tipo, metodoPagamento, valor, descricao, usuarioId, pedidoId } = params;
+    const { lojaId, sessaoId, tipo, metodoPagamento, valor, descricao, usuarioId, pedidoId, criadoEm } = params;
 
     const valNum = Number(valor);
     if (isNaN(valNum) || valNum <= 0) {
@@ -170,7 +209,7 @@ export const caixaService = {
       valor: valNum,
       descricao: descricao.trim(),
       criado_por_usuario_id: usuarioId,
-      criado_em: obterDataOperacaoISO()
+      criado_em: criadoEm || obterDataOperacaoISO()
     };
 
     const { data, error } = await supabase
@@ -198,19 +237,42 @@ export const caixaService = {
     lojaId: string;
     pedido: Pedido;
     pagamentos?: Array<{ forma_nome?: string; forma_tipo?: string; valor: number }>;
-    usuarioId: string;
+    usuarioId?: string;
     terminalId?: string;
   }): Promise<MovimentacaoCaixa[]> {
     const { lojaId, pedido, pagamentos, usuarioId, terminalId } = params;
 
-    // Localiza a sessão aberta para este terminal
-    const sessaoAtiva = await this.obterSessaoAtiva(lojaId, terminalId);
+    // Localiza a sessão aberta (pelo terminal específico ou qualquer sessão ativa da loja)
+    let sessaoAtiva: SessaoCaixa | null = null;
+    if (terminalId) {
+      sessaoAtiva = await this.obterSessaoAtiva(lojaId, terminalId);
+    }
+    if (!sessaoAtiva) {
+      sessaoAtiva = await this.obterQualquerSessaoAtiva(lojaId);
+    }
+
     if (!sessaoAtiva) {
       // Se não houver sessão de caixa aberta, não gera movimentações automáticas de gaveta
       return [];
     }
 
+    // 1. Evitar duplicação: verifica se já existem movimentações registradas para este pedido nesta sessão
+    if (pedido.id) {
+      const { data: movsExistentes } = await supabase
+        .from('movimentacoes_caixa')
+        .select('id')
+        .eq('sessao_caixa_id', sessaoAtiva.id)
+        .eq('pedido_id', pedido.id);
+
+      if (movsExistentes && movsExistentes.length > 0) {
+        return [];
+      }
+    }
+
+    const usuarioEfetivoId = usuarioId || sessaoAtiva.aberto_por_usuario_id || '00000000-0000-0000-0000-000000000000';
     const numPedidoStr = pedido.numero_pedido ? `#${pedido.numero_pedido}` : pedido.id.slice(0, 8);
+    const dataCriacaoIso = pedido.data_venda || pedido.criado_em || undefined;
+    const descOrigem = pedido.origem === 'catalogo_online' ? 'Catálogo' : 'Venda';
     const movsCriadas: MovimentacaoCaixa[] = [];
 
     // Se temos pagamentos divididos especificados
@@ -225,9 +287,10 @@ export const caixaService = {
           tipo: 'VENDA',
           metodoPagamento: metodo,
           valor: val,
-          descricao: `Venda ${numPedidoStr} (${pag.forma_nome || metodo})`,
-          usuarioId,
-          pedidoId: pedido.id
+          descricao: `${descOrigem} ${numPedidoStr} (${pag.forma_nome || metodo})`,
+          usuarioId: usuarioEfetivoId,
+          pedidoId: pedido.id,
+          criadoEm: dataCriacaoIso
         });
         movsCriadas.push(mov);
       }
@@ -235,16 +298,17 @@ export const caixaService = {
       // Pagamento único usando o valor total pago do pedido
       const valTotal = Number(pedido.valor_pago || pedido.valor_total || 0);
       if (valTotal > 0) {
-        const metodo = this.mapearMetodoPagamento((pedido as any).forma_pagamento_padrao || (pedido as any).forma_pagamento);
+        const metodo = this.mapearMetodoPagamento((pedido as any).forma_pagamento_padrao || (pedido as any).forma_pagamento || (pedido.origem === 'catalogo_online' ? 'CARTAO_CREDITO' : 'DINHEIRO'));
         const mov = await this.registrarMovimentacao({
           lojaId,
           sessaoId: sessaoAtiva.id,
           tipo: 'VENDA',
           metodoPagamento: metodo,
           valor: valTotal,
-          descricao: `Venda ${numPedidoStr}`,
-          usuarioId,
-          pedidoId: pedido.id
+          descricao: `${descOrigem} ${numPedidoStr}`,
+          usuarioId: usuarioEfetivoId,
+          pedidoId: pedido.id,
+          criadoEm: dataCriacaoIso
         });
         movsCriadas.push(mov);
       }
@@ -278,7 +342,84 @@ export const caixaService = {
       .order('criado_em', { ascending: true });
 
     if (errMovs) throw errMovs;
-    const movimentacoes = (movsData || []) as MovimentacaoCaixa[];
+    let movimentacoes = (movsData || []) as MovimentacaoCaixa[];
+
+    // 2.1 Sincronização automática: verificar se há vendas pagas (ex: Catálogo Online / Mercado Pago)
+    // ocorridas durante o período desta sessão que ainda não possuem movimentação registrada no caixa
+    try {
+      const tsAbertura = new Date(sessao.aberto_em).getTime();
+      const tsFechamento = sessao.fechado_em ? new Date(sessao.fechado_em).getTime() : Infinity;
+
+      const { data: pedsLoja } = await supabase
+        .from('pedidos')
+        .select('*, pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+        .eq('loja_id', sessao.loja_id)
+        .eq('status_pagamento', 'pago');
+
+      if (pedsLoja && pedsLoja.length > 0) {
+        const pedidosComMov = new Set(
+          movimentacoes.filter(m => m.pedido_id).map(m => m.pedido_id!.toLowerCase())
+        );
+
+        const pedsPendentes = pedsLoja.filter(p => {
+          if (!p.id || pedidosComMov.has(p.id.toLowerCase())) return false;
+          const dataIso = p.data_venda || p.criado_em;
+          if (!dataIso) return false;
+          const tsP = new Date(dataIso).getTime();
+          // Permite pedidos ocorridos desde a abertura da sessão (com tolerância de 5 minutos antes para checkout iniciado antes da abertura formal)
+          return tsP >= (tsAbertura - 5 * 60 * 1000) && tsP <= tsFechamento;
+        });
+
+        for (const p of pedsPendentes) {
+          const usuarioId = sessao.aberto_por_usuario_id;
+          const dataCriacaoIso = p.data_venda || p.criado_em || obterDataOperacaoISO();
+          const numPedidoStr = p.numero_pedido ? `#${p.numero_pedido}` : p.id.slice(0, 6);
+          const descOrigem = p.origem === 'catalogo_online' ? 'Catálogo' : 'Venda';
+
+          if (p.pagamentos && p.pagamentos.length > 0) {
+            for (const pag of p.pagamentos) {
+              const val = Number(pag.valor || 0);
+              if (val <= 0) continue;
+              const metodo = this.mapearMetodoPagamento(pag.forma_pagamento?.tipo || pag.forma_pagamento?.nome);
+              const descFp = pag.forma_pagamento?.nome || metodo;
+
+              const novaMov = await this.registrarMovimentacao({
+                lojaId: sessao.loja_id,
+                sessaoId: sessao.id,
+                tipo: 'VENDA',
+                metodoPagamento: metodo,
+                valor: val,
+                descricao: `${descOrigem} ${numPedidoStr} (${descFp})`,
+                usuarioId: usuarioId || '00000000-0000-0000-0000-000000000000',
+                pedidoId: p.id,
+                criadoEm: dataCriacaoIso
+              });
+              movimentacoes.push(novaMov);
+            }
+          } else {
+            const valTotal = Number(p.valor_pago || p.valor_total || 0);
+            if (valTotal > 0) {
+              const metodo = p.origem === 'catalogo_online' ? 'CARTAO_CREDITO' : 'DINHEIRO';
+              const novaMov = await this.registrarMovimentacao({
+                lojaId: sessao.loja_id,
+                sessaoId: sessao.id,
+                tipo: 'VENDA',
+                metodoPagamento: metodo,
+                valor: valTotal,
+                descricao: `${descOrigem} ${numPedidoStr} (Online)`,
+                usuarioId: usuarioId || '00000000-0000-0000-0000-000000000000',
+                pedidoId: p.id,
+                criadoEm: dataCriacaoIso
+              });
+              movimentacoes.push(novaMov);
+            }
+          }
+          pedidosComMov.add(p.id.toLowerCase());
+        }
+      }
+    } catch (errSync) {
+      console.warn('Aviso ao sincronizar vendas online na sessão de caixa:', errSync);
+    }
 
     let totalVendasDinheiro = 0;
     let totalVendasPix = 0;

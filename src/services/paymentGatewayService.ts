@@ -5,6 +5,7 @@
 
 import { Loja, PagamentosDigitaisConfig, PrazosTaxasMaquininha } from '../types';
 import { supabase } from '../lib/supabase';
+import { caixaService } from './caixaService';
 
 export interface PixDinamicoResponse {
   sucesso: boolean;
@@ -351,6 +352,32 @@ class PaymentGatewayService {
           sucesso: false,
           mensagem: error.message || 'Erro ao confirmar pagamento no banco.'
         };
+      }
+
+      if (data?.sucesso) {
+        // Vincula a venda paga do catálogo online à sessão de caixa aberta da loja (se houver)
+        try {
+          const { data: pedData } = await supabase
+            .from('pedidos')
+            .select('*, pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+            .eq('loja_id', lojaId)
+            .eq('numero_pedido', pedidoNumero)
+            .maybeSingle();
+
+          if (pedData) {
+            await caixaService.registrarVendaPedido({
+              lojaId,
+              pedido: pedData as any,
+              pagamentos: pedData.pagamentos?.map((pg: any) => ({
+                forma_nome: pg.forma_pagamento?.nome,
+                forma_tipo: pg.forma_pagamento?.tipo,
+                valor: Number(pg.valor || 0)
+              }))
+            });
+          }
+        } catch (errCaixa) {
+          console.warn('Aviso ao registrar venda do catálogo online no turno do caixa:', errCaixa);
+        }
       }
 
       return {

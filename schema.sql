@@ -807,6 +807,8 @@ DECLARE
     v_parcelas INTEGER := COALESCE(p_parcelas, 1);
     v_tipo_db VARCHAR(30) := 'cartao_credito';
     v_nome_padrao VARCHAR(100) := 'Cartão de Crédito (Mercado Pago)';
+    v_sessao_id UUID := NULL;
+    v_usuario_sessao_id UUID := NULL;
     v_response extensions.http_response;
     v_headers extensions.http_header[];
     v_body JSONB;
@@ -968,6 +970,48 @@ BEGIN
         saldo_devedor = 0,
         atualizado_em = NOW()
     WHERE id = v_pedido.id;
+
+    -- 9. Se houver sessão de caixa aberta para esta loja, vincula movimentação no turno do caixa
+    SELECT id, aberto_por_usuario_id INTO v_sessao_id, v_usuario_sessao_id
+    FROM public.sessoes_caixa
+    WHERE loja_id = p_loja_id AND status = 'ABERTO'
+    ORDER BY aberto_em DESC
+    LIMIT 1;
+
+    IF v_sessao_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.movimentacoes_caixa
+            WHERE sessao_caixa_id = v_sessao_id AND pedido_id = v_pedido.id
+        ) THEN
+            INSERT INTO public.movimentacoes_caixa (
+                loja_id,
+                sessao_caixa_id,
+                pedido_id,
+                tipo,
+                metodo_pagamento,
+                valor,
+                descricao,
+                criado_por_usuario_id,
+                criado_em
+            ) VALUES (
+                p_loja_id,
+                v_sessao_id,
+                v_pedido.id,
+                'VENDA',
+                CASE 
+                    WHEN v_tipo_db = 'pix' THEN 'PIX'
+                    WHEN v_tipo_db = 'cartao_credito' THEN 'CARTAO_CREDITO'
+                    WHEN v_tipo_db = 'cartao_debito' THEN 'CARTAO_DEBITO'
+                    WHEN v_tipo_db = 'dinheiro' THEN 'DINHEIRO'
+                    ELSE 'OUTROS'
+                END,
+                v_valor_recebido,
+                'Venda Catálogo #' || p_pedido_numero || ' (' || v_nome_padrao || ')',
+                COALESCE(v_usuario_sessao_id, '00000000-0000-0000-0000-000000000000'::UUID),
+                NOW()
+            );
+        END IF;
+    END IF;
 
     RETURN jsonb_build_object(
         'sucesso', true,
