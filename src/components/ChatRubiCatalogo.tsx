@@ -15,7 +15,9 @@ import {
   ShoppingBag,
   Plus,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  Info,
+  Eye
 } from 'lucide-react';
 import {
   responderPerguntaClienteCatalogo,
@@ -53,6 +55,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   const [inputTexto, setInputTexto] = useState<string>('');
   const [pensando, setPensando] = useState<boolean>(false);
   const [ultimoProdutoSugerido, setUltimoProdutoSugerido] = useState<Produto | null>(null);
+  const [produtoModalDetalhe, setProdutoModalDetalhe] = useState<Produto | null>(null);
 
   // Nome do cliente e identificação
   const [nomeCliente, setNomeCliente] = useState<string>(
@@ -728,14 +731,18 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                           return (
                             <div
                               key={prod.id}
-                              className="bg-slate-950/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-2.5 flex items-center justify-between gap-3 shadow-md group transition"
+                              className="bg-slate-950/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-md group transition"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                onClick={() => setProdutoModalDetalhe(prod)}
+                                className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                                title="Toque para ver detalhes completos deste produto"
+                              >
                                 {fotoUrl ? (
                                   <img
                                     src={fotoUrl}
                                     alt={prod.nome}
-                                    className="w-12 h-12 object-cover rounded-xl shrink-0 bg-slate-900 border border-slate-800"
+                                    className="w-12 h-12 object-cover rounded-xl shrink-0 bg-slate-900 border border-slate-800 group-hover:border-emerald-500/50 transition"
                                   />
                                 ) : (
                                   <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shrink-0">
@@ -759,15 +766,27 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                                 </div>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => handleAdicionarProdutoClick(prod)}
-                                className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm hover:scale-105"
-                                title="Adicionar este produto à sacola"
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Adicionar</span>
-                              </button>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setProdutoModalDetalhe(prod)}
+                                  className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer border border-slate-700"
+                                  title="Ver fotos e descrição detalhada"
+                                >
+                                  <Info className="w-3 h-3 text-slate-400" />
+                                  <span>Detalhes</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdicionarProdutoClick(prod)}
+                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm hover:scale-105"
+                                  title="Adicionar este produto à sacola"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Adicionar</span>
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
@@ -884,6 +903,96 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 <Send className="w-4 h-4" />
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes do Produto Selecionado na conversa com a Rubi */}
+      {produtoModalDetalhe && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={() => setProdutoModalDetalhe(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-800 transition cursor-pointer"
+              title="Fechar detalhes"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Foto em destaque */}
+            <div className="w-full h-44 rounded-2xl bg-slate-950 overflow-hidden border border-slate-800 flex items-center justify-center relative">
+              {produtoModalDetalhe.fotos_urls && produtoModalDetalhe.fotos_urls.length > 0 ? (
+                <img
+                  src={produtoModalDetalhe.fotos_urls[0]}
+                  alt={produtoModalDetalhe.nome}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <ShoppingBag className="w-12 h-12 text-slate-600" />
+              )}
+            </div>
+
+            {/* Informações básicas */}
+            <div className="space-y-1.5">
+              {produtoModalDetalhe.categoria?.nome && (
+                <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full inline-block">
+                  {produtoModalDetalhe.categoria.nome}
+                </span>
+              )}
+              <h3 className="font-bold text-sm text-slate-100 leading-snug">
+                {produtoModalDetalhe.nome}
+              </h3>
+              <div className="flex items-baseline gap-2 pt-0.5">
+                <span className="text-base font-black text-emerald-400">
+                  R$ {Number(produtoModalDetalhe.preco_promocional || produtoModalDetalhe.preco_venda_varejo || 0).toFixed(2)}
+                </span>
+                {Number(produtoModalDetalhe.preco_venda_atacado || 0) > 0 && (
+                  <span className="text-[11px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-md border border-amber-500/30">
+                    Atacado R$ {Number(produtoModalDetalhe.preco_venda_atacado).toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Descrição detalhada */}
+            <div className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800/80 max-h-36 overflow-y-auto space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Detalhes do Produto:
+              </span>
+              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                {produtoModalDetalhe.descricao?.trim() || 'Produto de alta qualidade selecionado especialmente para você no catálogo da loja.'}
+              </p>
+            </div>
+
+            {/* Ações */}
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const prod = produtoModalDetalhe;
+                  setProdutoModalDetalhe(null);
+                  handleAdicionarProdutoClick(prod);
+                }}
+                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Adicionar à Sacola</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const prod = produtoModalDetalhe;
+                  setProdutoModalDetalhe(null);
+                  enviarMensagem(`Rubi, me explica melhor sobre o produto ${prod.nome}?`);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 border border-emerald-500/30 transition cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Pedir para a Rubi explicar por voz</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

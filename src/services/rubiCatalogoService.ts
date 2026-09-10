@@ -371,10 +371,10 @@ export const extrairProdutosDaResposta = (
     }
   }
 
-  // 3. Fallback ordenado caso nenhum produto específico tenha sido detectado
+  // 3. Retorna apenas os produtos efetivamente recomendados na resposta (sem forçar produtos aleatórios se não foram pedidos)
   const produtosFinais = produtosEncontrados.length > 0
     ? produtosEncontrados.slice(0, 3)
-    : produtosFallback.slice(0, 3);
+    : (produtosFallback.length > 0 ? produtosFallback.slice(0, 3) : []);
 
   return { textoLimpo, produtos: produtosFinais };
 };
@@ -445,13 +445,18 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 4. SAUDAÇÕES NATURAIS E DIÁLOGO CORDIAL (Evita repetir o cumprimento inicial roboticamente)
+  // 4. SAUDAÇÕES NATURAIS E DIÁLOGO CORDIAL (Cumprimenta e pede o nome na 1ª interação)
   const saudacoesPuras = ['boa noite', 'bom dia', 'boa tarde', 'ola', 'oi', 'tudo bem', 'ola tudo bem', 'oi tudo bem', 'como vai', 'e ai'];
-  const ehSaudacaoPura = saudacoesPuras.some(s => pNorm === s || pNorm === `${s} rubi` || pNorm === `rubi ${s}`);
+  const ehSaudacaoPura = saudacoesPuras.some(s => pNorm === s || pNorm === `${s} rubi` || pNorm === `rubi ${s}` || pNorm.startsWith(`${s} `));
   if (ehSaudacaoPura) {
     const saudacaoTempo = pNorm.includes('noite') ? 'Boa noite' : pNorm.includes('tarde') ? 'Boa tarde' : 'Olá';
+    if (!nomeClienteEfetivo) {
+      return {
+        texto: `${saudacaoTempo}! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. Antes de começarmos, **como posso te chamar? Me conta o seu nome!** 😊`
+      };
+    }
     return {
-      texto: `${saudacaoTempo}${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Que alegria falar com você! ✨\n\nComo posso te ajudar hoje? Está procurando algo especial para curtir a dois, novidades ou quer sugestões dos mais vendidos? 😊`
+      texto: `${saudacaoTempo}, **${nomeClienteEfetivo}**! Que alegria falar com você novamente! ✨\n\nComo posso te ajudar hoje? Está procurando algo especial para curtir a dois, novidades ou quer sugestões dos mais vendidos? 😊`
     };
   }
 
@@ -530,6 +535,35 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
+  // E. Dúvidas sobre Como se Cadastrar / Cadastro
+  const termosCadastroDuvida = [
+    'como eu faco para me cadastrar', 'como faco para me cadastrar', 'como me cadastrar',
+    'como faco o cadastro', 'como fazer cadastro', 'como me cadastro', 'quero me cadastrar',
+    'onde me cadastro', 'precisa de cadastro', 'como faco meu cadastro', 'fazer cadastro',
+    'como cadastrar', 'como se cadastrar', 'preciso me cadastrar', 'fazer o cadastro'
+  ];
+  if (termosCadastroDuvida.some(t => pNorm.includes(t))) {
+    const saudacaoTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
+    return {
+      texto: `Se cadastrar é super simples, rápido e discreto${saudacaoTratamento}! ✨\n\nVocê tem duas formas bem práticas:\n\n1. **Comigo agora mesmo:** É só me passar aqui por áudio ou texto o seu **Nome**, **WhatsApp** e **Endereço de entrega** que eu já deixo seu cadastro prontinho no sistema!\n\n2. **Ao fechar o pedido:** Escolha seus produtos no catálogo e toque na sacola. No momento de concluir, você preenche seus dados em poucos segundos!\n\nSe quiser, já pode me ditar ou digitar seus dados por aqui agora mesmo! Como você prefere? 😊`
+    };
+  }
+
+  // F. Intenção de Fechar Pedido / Finalizar Compra / Fazer o Pedido
+  const termosIntencaoPedido = [
+    'fazer o pedido', 'fazer pedido', 'fechar pedido', 'fechar o pedido',
+    'finalizar pedido', 'finalizar compra', 'concluir pedido', 'concluir compra',
+    'quero pedir', 'como peco', 'como peço', 'onde peco', 'onde peço',
+    'como faco o pedido', 'como faco pra pedir', 'quero comprar', 'como comprar',
+    'fechar a sacola', 'vou querer esses', 'quero fechar', 'pode fechar', 'quero finalizar'
+  ];
+  if (termosIntencaoPedido.some(t => pNorm.includes(t))) {
+    const saudacaoTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
+    return {
+      texto: `Que maravilha${saudacaoTratamento}! Vamos preparar seu pedido com todo carinho e total discrição! 🎉\n\nPara eu já deixar seu cadastro pronto e organizar a sua entrega, por favor me envie:\n\n• Seu **Nome completo**\n• Seu **WhatsApp**\n• Seu **Endereço com número e bairro**\n\nVocê pode me ditar falando no microfone 🎙️ ou digitar aqui! Se já colocou os produtos na sacola, após me passar os dados é só tocar na **Sacola** no topo da tela para confirmar! ✨`
+    };
+  }
+
   // 6. BUSCA PRELIMINAR DE PRODUTOS RECOMENDADOS (Fallback local)
   const produtosSugeridosPre = buscarProdutosPorIntencao(pergunta, produtos, 3, produtosJaSugeridosIds, segmento);
 
@@ -563,14 +597,19 @@ CATÁLOGO RESUMIDO DA LOJA (Produtos disponíveis):
 ${JSON.stringify(catalogoResumo)}
 
 DIRETRIZES CRÍTICAS DE RESPOSTA:
-1. SEJA SUCINTA E DIRETA: O cliente está ouvindo sua voz no fone de ouvido! NUNCA faça textos longos ou apresentações cansativas.
-2. Apresente no máximo 2 a 3 produtos recomendados. Para cada produto, fale apenas 1 frase curta explicando o benefício principal e mencione o valor.
-3. Se o cliente pedir sugestões para casal, apimentar a relação ou sair da rotina, indique um combo rápido (ex: um óleo de massagem e um estimulador).
-4. Se o cliente pedir outras opções ou disser que já viu alguns produtos, recomende produtos de outras categorias do catálogo para dar variedade.
-5. CITE APENAS PRODUTOS REAIS DO CATÁLOGO ACIMA com seus nomes exatos.
-6. OBRIGATÓRIO PARA SINCRONIA: Na última linha da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]
-7. Termine de forma rápida e simpática convidando a adicionar à sacola (ex: "Se quiser algum, é só tocar em Adicionar no card ou me pedir!").
-8. Responda em português brasileiro fluido, sem rodeios.
+1. IDENTIFICAÇÃO DO CLIENTE: Se o nome do cliente ainda NÃO foi informado (CLIENTE: Não informado) e a mensagem dele for uma saudação ou início de conversa (ex: 'boa noite', 'olá', 'oi'), cumprimente de acordo com o horário, dê as boas-vindas e OBRIGATORIAMENTE pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
+2. SEJA SUCINTA E DIRETA: O cliente está ouvindo sua voz no fone de ouvido! NUNCA faça textos longos ou apresentações cansativas. Responda em 2 a 3 parágrafos curtos.
+3. CADASTRO E PEDIDO:
+   - Se o cliente perguntar como se cadastrar, explique que ele pode me ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola. NUNCA sugira produtos nessa resposta!
+   - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega (Nome, WhatsApp, Endereço com número e bairro) para organizar o envio e cadastro.
+4. PRODUTOS RECOMENDADOS:
+   - Apresente no máximo 2 a 3 produtos APENAS quando o cliente pedir indicações, novidades ou itens específicos.
+   - Para cada produto, fale apenas 1 frase curta explicando o benefício principal e mencione o valor.
+   - Se o cliente pedir sugestões para casal, apimentar a relação ou sair da rotina, indique um combo rápido (ex: um óleo de massagem e um estimulador).
+   - CITE APENAS PRODUTOS REAIS DO CATÁLOGO ACIMA com seus nomes exatos.
+   - OBRIGATÓRIO PARA SINCRONIA: Na última linha da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
+5. Termine de forma rápida e simpática convidando a adicionar à sacola quando houver produtos recomendados.
+6. Responda em português brasileiro fluido, sem rodeios.
 
 PERGUNTA ATUAL DO CLIENTE:
 "${pergunta}"
@@ -578,7 +617,7 @@ PERGUNTA ATUAL DO CLIENTE:
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 350 }
+        generationConfig: { temperature: 0.3, maxOutputTokens: 600 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -586,8 +625,7 @@ PERGUNTA ATUAL DO CLIENTE:
       if (respostaIA && respostaIA.trim()) {
         const { textoLimpo, produtos: prodsSincronizados } = extrairProdutosDaResposta(
           respostaIA.trim(),
-          produtos,
-          produtosSugeridosPre
+          produtos
         );
 
         return {
