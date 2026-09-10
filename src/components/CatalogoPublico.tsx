@@ -60,6 +60,35 @@ export const CatalogoPublico: React.FC = () => {
   const [drawerCarrinhoAberto, setDrawerCarrinhoAberto] = useState<boolean>(false);
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
 
+  // Referência para medir altura dinâmica do cabeçalho
+  const headerRef = React.useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState<number>(64);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+
+    updateHeight();
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(updateHeight);
+      resizeObserver.observe(el);
+    }
+
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, [loja]);
+
   // Modo de exibição
   const [modoExibicaoPublico, setModoExibicaoPublico] = useState<ModoExibicaoCatalogo>('grade');
   const [pedidoConcluidoModal, setPedidoConcluidoModal] = useState<PedidoConcluidoInfo | null>(null);
@@ -931,32 +960,44 @@ Fico no aguardo da confirmação! ✨`;
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
       {/* HEADER PRINCIPAL DO CATÁLOGO COM COR DO TEMA */}
-      <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header
+        ref={headerRef}
+        className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4"
+      >
+        {/* Identidade da Loja (Esquerda) */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0">
           {loja?.url_logo ? (
-            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-10 h-10 rounded-xl object-contain bg-slate-900 border border-slate-800" />
+            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain bg-slate-900 border border-slate-800 shrink-0" />
           ) : (
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow text-base"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0"
               style={{ backgroundColor: corTema }}
             >
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
           )}
-          <div>
-            <h1 className="font-extrabold text-sm text-slate-100 leading-tight">
+          <div className="min-w-0 hidden sm:block">
+            <h1 className="font-extrabold text-xs sm:text-sm text-slate-100 leading-tight truncate">
               {loja?.nome_fantasia || 'Catálogo Online'}
             </h1>
-            <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: aceitaPedidos ? corTema : '#94A3B8' }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: aceitaPedidos ? corTema : '#64748B' }}></span>
-              {aceitaPedidos ? 'Aberto para pedidos' : 'Modo Mostruário / Consulta'}
+            <span className="text-[10px] sm:text-[11px] font-medium flex items-center gap-1 truncate" style={{ color: aceitaPedidos ? corTema : '#94A3B8' }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: aceitaPedidos ? corTema : '#64748B' }}></span>
+              {aceitaPedidos ? 'Aberto para pedidos' : 'Modo Mostruário'}
             </span>
           </div>
         </div>
 
+        {/* Mensagem solicitada na mesma linha do cabeçalho */}
+        <div className="flex-1 px-1.5 sm:px-4 text-center min-w-0">
+          <p className="text-[11px] sm:text-xs md:text-sm text-slate-200 font-medium leading-snug">
+            Bem-vindo ao catálogo da <strong className="font-bold text-white">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
+          </p>
+        </div>
+
+        {/* Botão do Carrinho (Direita) */}
         <button
           onClick={() => setDrawerCarrinhoAberto(true)}
-          className="relative px-3.5 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-2 shadow-lg transition hover:brightness-110 cursor-pointer"
+          className="relative px-3 sm:px-3.5 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-lg transition hover:brightness-110 cursor-pointer shrink-0"
           style={{ backgroundColor: corTema }}
         >
           <ShoppingBag className="w-4 h-4" />
@@ -990,7 +1031,7 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      {loja?.sobre_loja && (
+      {loja?.sobre_loja && !loja.sobre_loja.toLowerCase().includes('faça seus pedidos online') && (
         <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 p-4 border-b border-slate-800/80 text-center">
           <p className="text-xs text-slate-300 max-w-xl mx-auto italic">
             "{loja.sobre_loja}"
@@ -998,83 +1039,92 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto w-full p-4 space-y-4">
-        {/* BUSCA E SELETORES DE MODO DE EXIBIÇÃO */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="O que você está procurando hoje?"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-            />
+      {/* BARRA FIXA: PESQUISA E ABAS DE CATEGORIAS (PERMANECE FIXA MESMO COM ROLAGEM VERTICAL) */}
+      <div
+        className="sticky z-20 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 shadow-md py-2.5 sm:py-3 transition-all"
+        style={{ top: `${headerHeight}px` }}
+      >
+        <div className="max-w-6xl mx-auto px-4 space-y-2.5">
+          {/* BUSCA E SELETORES DE MODO DE EXIBIÇÃO */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="O que você está procurando hoje?"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            {/* BOTÕES DE ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE / INSTAVIEW) */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setModoExibicaoPublico('lista')}
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  modoExibicaoPublico === 'lista' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                }`}
+                title="Modo Lista"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoExibicaoPublico('grade')}
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  modoExibicaoPublico === 'grade' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                }`}
+                title="Modo Grade"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoExibicaoPublico('instaview')}
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  modoExibicaoPublico === 'instaview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                }`}
+                title="Modo Instaview"
+              >
+                <Smartphone className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          {/* BOTÕES DE ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE / INSTAVIEW) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0">
+          {/* ABAS DE CATEGORIAS */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
-              type="button"
-              onClick={() => setModoExibicaoPublico('lista')}
-              className={`p-2 rounded-xl transition cursor-pointer ${
-                modoExibicaoPublico === 'lista' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
-              }`}
-              title="Modo Lista"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setModoExibicaoPublico('grade')}
-              className={`p-2 rounded-xl transition cursor-pointer ${
-                modoExibicaoPublico === 'grade' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
-              }`}
-              title="Modo Grade"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setModoExibicaoPublico('instaview')}
-              className={`p-2 rounded-xl transition cursor-pointer ${
-                modoExibicaoPublico === 'instaview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
-              }`}
-              title="Modo Instaview"
-            >
-              <Smartphone className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* ABAS DE CATEGORIAS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setCategoriaSelecionada('todas')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-              categoriaSelecionada === 'todas'
-                ? 'text-white shadow'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-            }`}
-            style={{ backgroundColor: categoriaSelecionada === 'todas' ? corTema : undefined }}
-          >
-            Todos
-          </button>
-          {categoriasOrdenadas.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setCategoriaSelecionada(cat.id)}
+              onClick={() => setCategoriaSelecionada('todas')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                categoriaSelecionada === cat.id
+                categoriaSelecionada === 'todas'
                   ? 'text-white shadow'
                   : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
               }`}
-              style={{ backgroundColor: categoriaSelecionada === cat.id ? corTema : undefined }}
+              style={{ backgroundColor: categoriaSelecionada === 'todas' ? corTema : undefined }}
             >
-              {cat.nome}
+              Todos
             </button>
-          ))}
+            {categoriasOrdenadas.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setCategoriaSelecionada(cat.id)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                  categoriaSelecionada === cat.id
+                    ? 'text-white shadow'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                }`}
+                style={{ backgroundColor: categoriaSelecionada === cat.id ? corTema : undefined }}
+              >
+                {cat.nome}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto w-full p-4 space-y-4 flex-1">
 
         {/* LISTAGEM DE PRODUTOS NOS 3 MODOS */}
         {carregando ? (
@@ -1113,11 +1163,6 @@ Fico no aguardo da confirmação! ✨`;
                         <span className="font-black text-sm" style={{ color: corTema }}>
                           R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
                         </span>
-                        {produto.preco_venda_atacado && (
-                          <span className="text-[10px] text-indigo-400 hidden sm:inline">
-                            Atacado ({produto.qtd_minima_atacado}+): R$ {Number(produto.preco_venda_atacado).toFixed(2)}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -1181,7 +1226,6 @@ Fico no aguardo da confirmação! ✨`;
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-800">
                       <div>
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">A partir de</span>
                         <span className="text-base font-black" style={{ color: corTema }}>
                           R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
                         </span>
@@ -1247,12 +1291,6 @@ Fico no aguardo da confirmação! ✨`;
                     <h3 className="font-bold text-xs text-slate-100 line-clamp-2 leading-snug">
                       {produto.nome}
                     </h3>
-
-                    {produto.preco_venda_atacado && (
-                      <span className="text-[10px] text-indigo-400 block mt-1">
-                        A partir de {produto.qtd_minima_atacado} un: <b>R$ {Number(produto.preco_venda_atacado).toFixed(2)}</b>
-                      </span>
-                    )}
                   </div>
 
                   <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between">
