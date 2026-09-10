@@ -27,6 +27,7 @@ import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 export const ClientesFiado: React.FC = () => {
@@ -44,6 +45,8 @@ export const ClientesFiado: React.FC = () => {
   const [clientePerfilMobile, setClientePerfilMobile] = useState<Cliente | null>(null);
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
+  const [clienteHistoricoFiado, setClienteHistoricoFiado] = useState<Cliente | null>(null);
+  const [filtroApenasFiado, setFiltroApenasFiado] = useState<boolean>(false);
 
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
@@ -221,9 +224,15 @@ export const ClientesFiado: React.FC = () => {
     return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
   };
 
-  // Filtragem de clientes pela busca
+  const totalClientesComFiado = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length;
+
+  // Filtragem de clientes pela busca e pelo botão (FIADO)
   const clientesFiltrados = clientes.filter(c => {
-    const termo = busca.toLowerCase();
+    if (filtroApenasFiado && !(Number(c.saldo_devedor_fiado || 0) > 0)) {
+      return false;
+    }
+    const termo = busca.toLowerCase().trim();
+    if (!termo) return true;
     return (
       c.nome.toLowerCase().includes(termo) ||
       (c.whatsapp && c.whatsapp.includes(termo)) ||
@@ -281,17 +290,39 @@ export const ClientesFiado: React.FC = () => {
             <h1 className="font-bold text-base text-slate-800">Clientes ({clientes.length})</h1>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setClienteEditar(null);
-              setModalNovoCliente(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Cliente</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* Botão (FIADO) */}
+            <button
+              type="button"
+              onClick={() => setFiltroApenasFiado(prev => !prev)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                filtroApenasFiado
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                  : 'bg-white border-amber-300 text-amber-600 hover:bg-amber-50'
+              }`}
+              title="Filtrar clientes com fiado em aberto"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>(FIADO)</span>
+              {totalClientesComFiado > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-800">
+                  {totalClientesComFiado}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setClienteEditar(null);
+                setModalNovoCliente(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Cliente</span>
+            </button>
+          </div>
         </div>
 
         {/* Campo de Busca Integrado */}
@@ -346,7 +377,13 @@ export const ClientesFiado: React.FC = () => {
               return (
                 <div
                   key={cliente.id}
-                  onClick={() => setClientePerfilMobile(cliente)}
+                  onClick={() => {
+                    if (emDebito) {
+                      setClienteHistoricoFiado(cliente);
+                    } else {
+                      setClientePerfilMobile(cliente);
+                    }
+                  }}
                   className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-2 shadow-xs"
                 >
                   <div className="flex items-center justify-between">
@@ -369,7 +406,7 @@ export const ClientesFiado: React.FC = () => {
                     <div className="text-right shrink-0">
                       {emDebito ? (
                         <div>
-                          <span className="text-[10px] text-amber-600 font-bold block">Pendente</span>
+                          <span className="text-[10px] text-amber-600 font-bold block">Valor Fiado</span>
                           <span className="font-black text-amber-600 text-xs sm:text-sm">
                             R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
                           </span>
@@ -458,6 +495,28 @@ export const ClientesFiado: React.FC = () => {
               <Plus className="w-4 h-4" />
               <span>+ Cliente</span>
             </button>
+
+            {/* Botão (FIADO) do lado do botão + Cliente */}
+            <button
+              type="button"
+              onClick={() => setFiltroApenasFiado(prev => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 border ${
+                filtroApenasFiado
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20'
+                  : 'bg-slate-800/80 hover:bg-slate-800 border-amber-500/40 text-amber-400 hover:text-amber-300'
+              }`}
+              title="Listar apenas clientes que possuem fiado em aberto"
+            >
+              <FileText className="w-4 h-4" />
+              <span>(FIADO)</span>
+              {totalClientesComFiado > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  filtroApenasFiado ? 'bg-slate-950 text-amber-400' : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                  {totalClientesComFiado}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -483,7 +542,7 @@ export const ClientesFiado: React.FC = () => {
                   </th>
                   <th className="py-3.5 px-4">Celular/WhatsApp</th>
                   <th className="py-3.5 px-4 hidden md:table-cell">E-mail</th>
-                  <th className="py-3.5 px-4">Valor Pendente</th>
+                  <th className="py-3.5 px-4">Valor Fiado</th>
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>
@@ -527,7 +586,7 @@ export const ClientesFiado: React.FC = () => {
                         key={cliente.id}
                         className="hover:bg-slate-800/50 transition duration-150 group"
                       >
-                        {/* Coluna 1: Avatar + Nome Apenas (Sem documento para visual limpo) */}
+                        {/* Coluna 1: Avatar + Nome */}
                         <td className="py-3 px-4 sm:px-6">
                           <div className="flex items-center gap-3">
                             {/* Avatar com Iniciais */}
@@ -537,7 +596,9 @@ export const ClientesFiado: React.FC = () => {
                             <div className="min-w-0">
                               <span
                                 onClick={() => {
-                                  if (window.innerWidth < 1024) {
+                                  if (emDebito) {
+                                    setClienteHistoricoFiado(cliente);
+                                  } else if (window.innerWidth < 1024) {
                                     setClientePerfilMobile(cliente);
                                   } else {
                                     setClienteEditar(cliente);
@@ -545,7 +606,7 @@ export const ClientesFiado: React.FC = () => {
                                   }
                                 }}
                                 className="font-bold text-slate-100 group-hover:text-emerald-400 cursor-pointer block truncate text-xs sm:text-sm"
-                                title="Clique para ver perfil e créditos deste cliente"
+                                title={emDebito ? "Clique para ver histórico de compras fiado e receber" : "Clique para ver perfil do cliente"}
                               >
                                 {cliente.nome}
                               </span>
@@ -575,20 +636,37 @@ export const ClientesFiado: React.FC = () => {
                           {cliente.email || '-'}
                         </td>
 
-                        {/* Coluna 4: Saldo */}
+                        {/* Coluna 4: Valor Fiado */}
                         <td className="py-3 px-4 font-bold">
                           {emDebito ? (
-                            <span className="text-amber-400">
-                              R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setClienteHistoricoFiado(cliente)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 transition cursor-pointer text-xs font-black shadow-xs active:scale-95"
+                              title="Clique para abrir histórico de fiado e receber"
+                            >
+                              <span>R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}</span>
+                            </button>
                           ) : (
                             <span className="text-slate-400">R$ 0,00</span>
                           )}
                         </td>
 
-                        {/* Coluna 5: Ações (Ver Endereço / Alterar / Excluir) */}
+                        {/* Coluna 5: Ações (Ver Fiado / Ver Endereço / Alterar / Excluir) */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Botão Ver Fiado se houver débito */}
+                            {emDebito && (
+                              <button
+                                type="button"
+                                onClick={() => setClienteHistoricoFiado(cliente)}
+                                className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/15 transition cursor-pointer"
+                                title="Ver Histórico de Fiado e Receber"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </button>
+                            )}
+
                             {/* Botão Ver Endereço / Detalhes */}
                             {(cliente.endereco_principal || cliente.endereco_cidade) && (
                               <button
@@ -831,6 +909,21 @@ export const ClientesFiado: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL HISTÓRICO DE FIADO DO CLIENTE                                       */}
+      {/* ========================================================================= */}
+      {clienteHistoricoFiado && (
+        <ModalHistoricoFiadoCliente
+          isOpen={!!clienteHistoricoFiado}
+          onClose={() => setClienteHistoricoFiado(null)}
+          cliente={clienteHistoricoFiado}
+          onClienteAtualizado={(cliAtualizado) => {
+            handleClienteCadastrado(cliAtualizado);
+            setClienteHistoricoFiado(cliAtualizado);
+          }}
+        />
       )}
     </div>
   );

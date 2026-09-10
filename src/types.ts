@@ -449,6 +449,7 @@ export interface FormaPagamento {
   taxa_percentual: number;
   taxa_fixa: number;
   maximo_parcelas: number;
+  prazo_dias?: number | null;
   ativo: boolean;
   exibir_catalogo: boolean;
   descricao?: string | null;
@@ -489,6 +490,15 @@ export interface Pedido {
   observacoes?: string | null;
   metadados?: Record<string, any> | string | null;
   data_venda: string;
+  data_vencimento_fiado?: string | null;
+  forma_entrega_id?: string | null;
+  forma_entrega?: FormaEntrega | null;
+  atualizado_por?: string | null;
+  atualizado_por_usuario?: UsuarioLoja | null;
+  cliente_nome_avulso?: string | null;
+  cliente_telefone_avulso?: string | null;
+  cliente_documento_avulso?: string | null;
+  cliente_email_avulso?: string | null;
   data_entrega_agendada?: string | null;
   motivo_cancelamento?: string | null;
   criado_em?: string;
@@ -501,6 +511,21 @@ export interface Pedido {
   itens?: ItemPedido[];
   itens_pedido?: ItemPedido[];
   pagamentos?: PagamentoPedido[];
+  historico?: HistoricoPedido[];
+}
+
+export interface HistoricoPedido {
+  id: string;
+  loja_id: string;
+  pedido_id: string;
+  usuario_id?: string | null;
+  tipo_evento: 'status_alterado' | 'pedido_editado' | 'edicao_pdv' | 'criacao' | 'pagamento_recebido' | 'cancelado';
+  status_anterior?: string | null;
+  status_novo?: string | null;
+  descricao?: string | null;
+  detalhes?: Record<string, any> | null;
+  criado_em: string;
+  usuario?: UsuarioLoja | null;
 }
 
 export interface ItemPedido {

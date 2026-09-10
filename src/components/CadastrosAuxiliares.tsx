@@ -145,6 +145,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [pagTaxaPercentual, setPagTaxaPercentual] = useState<string>('0');
   const [pagTaxaFixa, setPagTaxaFixa] = useState<string>('0');
   const [pagMaximoParcelas, setPagMaximoParcelas] = useState<string>('1');
+  const [pagPrazoDias, setPagPrazoDias] = useState<string>('30');
   const [pagAtivo, setPagAtivo] = useState<boolean>(true);
   const [pagExibirCatalogo, setPagExibirCatalogo] = useState<boolean>(true);
 
@@ -548,6 +549,7 @@ export const CadastrosAuxiliares: React.FC = () => {
     setPagTaxaPercentual('0');
     setPagTaxaFixa('0');
     setPagMaximoParcelas('1');
+    setPagPrazoDias('30');
     setPagAtivo(true);
     setPagExibirCatalogo(true);
     setModalPagamentoAberta(true);
@@ -560,6 +562,7 @@ export const CadastrosAuxiliares: React.FC = () => {
     setPagTaxaPercentual(String(fp.taxa_percentual || 0));
     setPagTaxaFixa(String(fp.taxa_fixa || 0));
     setPagMaximoParcelas(String(fp.maximo_parcelas || 1));
+    setPagPrazoDias(String(fp.prazo_dias || 30));
     setPagAtivo(fp.ativo ?? true);
     setPagExibirCatalogo(fp.exibir_catalogo ?? true);
     setModalPagamentoAberta(true);
@@ -571,30 +574,54 @@ export const CadastrosAuxiliares: React.FC = () => {
 
     try {
       setSalvando(true);
-      const payload = {
+      const payload: any = {
         loja_id: loja.id,
         nome: pagNome.trim(),
         tipo: pagTipo,
         taxa_percentual: Number(pagTaxaPercentual) || 0,
         taxa_fixa: Number(pagTaxaFixa) || 0,
         maximo_parcelas: Number(pagMaximoParcelas) || 1,
+        prazo_dias: pagTipo === 'fiado' ? (Number(pagPrazoDias) || 30) : null,
         ativo: pagAtivo,
         exibir_catalogo: pagExibirCatalogo
       };
 
-      if (pagEditando && !pagEditando.id.startsWith('padrao_') && !pagEditando.id.startsWith('fp_')) {
-        const { error } = await supabase
-          .from('formas_pagamento')
-          .update(payload)
-          .eq('id', pagEditando.id);
-        if (error) throw error;
-        exibirAlertaSucesso('Forma de pagamento atualizada com sucesso!');
-      } else {
-        const { error } = await supabase
-          .from('formas_pagamento')
-          .insert([payload]);
-        if (error) throw error;
-        exibirAlertaSucesso('Nova forma de pagamento criada com sucesso!');
+      try {
+        if (pagEditando && !pagEditando.id.startsWith('padrao_') && !pagEditando.id.startsWith('fp_')) {
+          const { error } = await supabase
+            .from('formas_pagamento')
+            .update(payload)
+            .eq('id', pagEditando.id);
+          if (error) throw error;
+          exibirAlertaSucesso('Forma de pagamento atualizada com sucesso!');
+        } else {
+          const { error } = await supabase
+            .from('formas_pagamento')
+            .insert([payload]);
+          if (error) throw error;
+          exibirAlertaSucesso('Nova forma de pagamento criada com sucesso!');
+        }
+      } catch (dbErr: any) {
+        // Se a coluna prazo_dias ainda não foi adicionada no Supabase, tenta salvar sem a coluna para não quebrar a aplicação
+        if (dbErr?.message?.includes('prazo_dias')) {
+          delete payload.prazo_dias;
+          if (pagEditando && !pagEditando.id.startsWith('padrao_') && !pagEditando.id.startsWith('fp_')) {
+            const { error: errRetry } = await supabase
+              .from('formas_pagamento')
+              .update(payload)
+              .eq('id', pagEditando.id);
+            if (errRetry) throw errRetry;
+            exibirAlertaSucesso('Forma de pagamento atualizada com sucesso!');
+          } else {
+            const { error: errRetry } = await supabase
+              .from('formas_pagamento')
+              .insert([payload]);
+            if (errRetry) throw errRetry;
+            exibirAlertaSucesso('Nova forma de pagamento criada com sucesso!');
+          }
+        } else {
+          throw dbErr;
+        }
       }
 
       setModalPagamentoAberta(false);
@@ -1533,9 +1560,15 @@ export const CadastrosAuxiliares: React.FC = () => {
                             </div>
 
                             <div className="bg-white md:bg-slate-900/60 p-2 rounded-xl border border-slate-200 md:border-slate-800/60">
-                              <span className="text-[10px] text-slate-400 block font-medium">Parcelamento:</span>
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                {fp.tipo === 'fiado' ? 'Prazo de Pagamento:' : 'Parcelamento:'}
+                              </span>
                               <span className="font-bold text-slate-700 md:text-slate-200 text-[11px]">
-                                {fp.tipo === 'cartao_credito' ? `Até ${fp.maximo_parcelas || 1}x` : 'À vista'}
+                                {fp.tipo === 'fiado'
+                                  ? `${fp.prazo_dias || 30} dias`
+                                  : fp.tipo === 'cartao_credito'
+                                  ? `Até ${fp.maximo_parcelas || 1}x`
+                                  : 'À vista'}
                               </span>
                             </div>
                           </div>
@@ -2182,6 +2215,28 @@ export const CadastrosAuxiliares: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Se for fiado, solicita obrigatoriamente o prazo para pagamento em dias */}
+              {pagTipo === 'fiado' && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1.5 animate-in fade-in duration-150">
+                  <label className="text-xs font-bold text-amber-300 block">
+                    Prazo para Pagamento do Fiado (em dias):*
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    placeholder="30"
+                    value={pagPrazoDias}
+                    onChange={(e) => setPagPrazoDias(e.target.value)}
+                    className="w-full bg-slate-950 border border-amber-500/50 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-bold"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-400 block">
+                    Ao realizar uma venda com fiado, a data de vencimento será calculada automaticamente: <b>Data da Compra + este prazo em dias</b>.
+                  </span>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

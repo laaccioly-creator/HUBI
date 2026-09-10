@@ -718,6 +718,11 @@ export const CatalogoPublico: React.FC = () => {
             saldo_devedor: total,
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
             observacoes: observacoes?.trim() || null,
+            forma_entrega_id: formaEntregaEscolhida?.id || null,
+            cliente_nome_avulso: nomeCliente || null,
+            cliente_telefone_avulso: whatsappCliente || null,
+            cliente_documento_avulso: dadosContato.cpfCnpj || null,
+            cliente_email_avulso: dadosContato.email || null,
             metadados: metadadosPedido,
             data_venda: dataOperacaoIso,
             criado_em: dataOperacaoIso,
@@ -728,6 +733,21 @@ export const CatalogoPublico: React.FC = () => {
         .single();
 
       if (erroPedido || !pedidoCriado) throw erroPedido;
+
+      // Inserir registro inicial de auditoria na tabela relacional historico_pedidos
+      try {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: loja.id,
+          pedido_id: pedidoCriado.id,
+          usuario_id: null,
+          tipo_evento: 'criacao',
+          status_anterior: null,
+          status_novo: 'pendente',
+          descricao: 'Pedido recebido via Catálogo Online'
+        });
+      } catch (errAudit) {
+        console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+      }
 
       const itensFormatados = carrinho.map(item => {
         const precoUnitario = calcularPrecoUnitarioPorTabela(

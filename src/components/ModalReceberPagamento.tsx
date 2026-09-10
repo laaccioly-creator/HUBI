@@ -45,21 +45,29 @@ const extrairInfoPagamentoPedido = (ped: Pedido | null): InfoPagamentoPrevisto =
 
   let info: InfoPagamentoPrevisto = {};
 
-  // 1. Verificar localStorage
-  try {
-    const salvoLocal = localStorage.getItem(`hubi_pag_previsto_${ped.id}`);
-    if (salvoLocal) {
-      const parsed = JSON.parse(salvoLocal);
-      if (parsed && typeof parsed === 'object') {
-        info = { ...parsed };
+  // 1. Prioridade Máxima: tabela relacional pagamentos_pedido
+  if (ped.pagamentos && ped.pagamentos.length > 0) {
+    const ultPag = ped.pagamentos[ped.pagamentos.length - 1];
+    if (ultPag) {
+      if (ultPag.forma_pagamento_id) {
+        info.forma_pagamento_id = ultPag.forma_pagamento_id;
+      }
+      if (ultPag.forma_pagamento?.tipo) {
+        info.forma_tipo = ultPag.forma_pagamento.tipo;
+      }
+      if (ultPag.forma_pagamento?.nome) {
+        info.forma_nome = ultPag.forma_pagamento.nome;
+      }
+      if (ultPag.parcelas) {
+        info.parcelas = ultPag.parcelas;
       }
     }
-  } catch (e) {}
+  }
 
   // 2. Verificar metadados estruturados ou fallback para tag [PAG_PREVISTO:...] nas observações
-  if (ped.metadados && typeof ped.metadados === 'object' && ped.metadados.pagamento_previsto) {
+  if (!info.forma_pagamento_id && ped.metadados && typeof ped.metadados === 'object' && ped.metadados.pagamento_previsto) {
     info = { ...info, ...ped.metadados.pagamento_previsto };
-  } else if (typeof ped.observacoes === 'string') {
+  } else if (!info.forma_pagamento_id && typeof ped.observacoes === 'string') {
     const match = ped.observacoes.match(/\[PAG_PREVISTO:(.*?)\]/);
     if (match && match[1]) {
       try {
@@ -71,23 +79,17 @@ const extrairInfoPagamentoPedido = (ped: Pedido | null): InfoPagamentoPrevisto =
     }
   }
 
-  // 3. Se não tiver forma definida ou se tiver pagamentos_pedido vinculado
-  if (ped.pagamentos && ped.pagamentos.length > 0) {
-    const ultPag = ped.pagamentos[ped.pagamentos.length - 1];
-    if (ultPag) {
-      if (!info.forma_pagamento_id && ultPag.forma_pagamento_id) {
-        info.forma_pagamento_id = ultPag.forma_pagamento_id;
+  // 3. Fallback: localStorage
+  if (!info.forma_pagamento_id) {
+    try {
+      const salvoLocal = localStorage.getItem(`hubi_pag_previsto_${ped.id}`);
+      if (salvoLocal) {
+        const parsed = JSON.parse(salvoLocal);
+        if (parsed && typeof parsed === 'object') {
+          info = { ...info, ...parsed };
+        }
       }
-      if (!info.forma_tipo && ultPag.forma_pagamento?.tipo) {
-        info.forma_tipo = ultPag.forma_pagamento.tipo;
-      }
-      if (!info.forma_nome && ultPag.forma_pagamento?.nome) {
-        info.forma_nome = ultPag.forma_pagamento.nome;
-      }
-      if (!info.parcelas && ultPag.parcelas) {
-        info.parcelas = ultPag.parcelas;
-      }
-    }
+    } catch (e) {}
   }
 
   return info;
@@ -153,6 +155,8 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         if (!error && data && data.length > 0) {
           lista = data;
         }
+        // REGRA DE OURO: NUNCA permitir fiado para receber pagamento
+        lista = lista.filter(f => f.tipo !== 'fiado');
         setFormasPagamento(lista);
 
         if (pedido) {
@@ -171,16 +175,17 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         }
       } catch (err) {
         console.warn('Fallback formas de pagamento:', err);
-        setFormasPagamento(FORMAS_PADRAO);
+        const listaFallback = FORMAS_PADRAO.filter(f => f.tipo !== 'fiado');
+        setFormasPagamento(listaFallback);
         if (pedido) {
           const info = extrairInfoPagamentoPedido(pedido);
-          const formaAlvo = resolverFormaCorrespondente(FORMAS_PADRAO, info);
+          const formaAlvo = resolverFormaCorrespondente(listaFallback, info);
           setFormaEscolhida(formaAlvo);
           if (info.valor_entregue && Number(info.valor_entregue) > 0) {
             setValorEntregueDinheiro(Number(info.valor_entregue).toFixed(2));
           }
         } else {
-          setFormaEscolhida(FORMAS_PADRAO.find(f => f.tipo === 'dinheiro') || FORMAS_PADRAO[0]);
+          setFormaEscolhida(listaFallback.find(f => f.tipo === 'dinheiro') || listaFallback[0]);
         }
       }
     };
@@ -321,25 +326,29 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
       if (erroUpd) throw erroUpd;
 
-      // 3. Atualizar saldo devedor do cliente se for fiado/abatimento
+      // 3. Atualizar saldo devedor do cliente e devolver limite de crédito
       if (pedido.cliente_id) {
         try {
           const { data: cliData } = await supabase
             .from('clientes')
-            .select('saldo_devedor_fiado')
+            .select('saldo_devedor_fiado, limite_credito')
             .eq('id', pedido.cliente_id)
             .single();
 
           if (cliData) {
             const debitoCli = Number(cliData.saldo_devedor_fiado || 0);
             const novoDebitoCli = Math.max(0, debitoCli - valorInformado);
+            const novoLimite = Number(cliData.limite_credito || 0) + valorInformado;
             await supabase
               .from('clientes')
-              .update({ saldo_devedor_fiado: novoDebitoCli })
+              .update({
+                saldo_devedor_fiado: novoDebitoCli,
+                limite_credito: novoLimite
+              })
               .eq('id', pedido.cliente_id);
           }
         } catch (cliErr) {
-          console.warn('Aviso ao abater fiado do cliente:', cliErr);
+          console.warn('Aviso ao abater fiado do cliente e devolver limite:', cliErr);
         }
       }
 

@@ -29,6 +29,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Cliente, Pedido, MovimentacaoSaldoCliente } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
+import { caixaService } from '../services/caixaService';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -106,11 +107,15 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     try {
       setProcessandoQuitar(true);
       const novoSaldo = Math.max(0, Number(saldoDevedorFiado) - valorNum);
+      const novoLimite = Number(cliente.limite_credito || 0) + valorNum;
 
-      // 1. Atualiza na tabela clientes
+      // 1. Atualiza na tabela clientes (saldo devedor E devolve limite de crédito)
       const { error: errCli } = await supabase
         .from('clientes')
-        .update({ saldo_devedor_fiado: novoSaldo })
+        .update({
+          saldo_devedor_fiado: novoSaldo,
+          limite_credito: novoLimite
+        })
         .eq('id', cliente.id);
 
       if (errCli) throw errCli;
@@ -133,12 +138,36 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         console.warn('Aviso ao registrar transação financeira da quitação:', errFin);
       }
 
+      // 3. REGRA DE CAIXA: Registrar na sessão de caixa ativa
+      try {
+        await caixaService.registrarVendaPedido({
+          lojaId: loja.id,
+          pedido: {
+            id: 'quit_fiado_' + Date.now(),
+            numero_pedido: 888888,
+            valor_total: valorNum
+          } as any,
+          pagamentos: [{
+            forma_nome: formaQuitar,
+            forma_tipo: formaQuitar,
+            valor: valorNum
+          }],
+          usuarioId: usuario?.id || ''
+        });
+      } catch (errCaixa) {
+        console.warn('Aviso ao registrar quitação no caixa:', errCaixa);
+      }
+
       setSaldoDevedorFiado(novoSaldo);
       setModalQuitarFiado(false);
       setValorQuitarStr('');
       setObsQuitar('');
-      onClienteAtualizado({ ...cliente, saldo_devedor_fiado: novoSaldo });
-      alert(`Abatimento de R$ ${valorNum.toFixed(2)} realizado com sucesso! Novo saldo devedor: R$ ${novoSaldo.toFixed(2)}`);
+      onClienteAtualizado({
+        ...cliente,
+        saldo_devedor_fiado: novoSaldo,
+        limite_credito: novoLimite
+      });
+      alert(`Abatimento de R$ ${valorNum.toFixed(2)} realizado com sucesso! Limite de crédito restabelecido.`);
     } catch (err: any) {
       console.error('Erro ao quitar fiado:', err);
       alert('Erro ao quitar fiado: ' + (err.message || 'Tente novamente.'));

@@ -61,7 +61,20 @@ interface HistoricoItemMobile {
 const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => {
   const itens: HistoricoItemMobile[] = [];
 
-  // 1. Tentar ler do metadados.historico_status
+  // 1. Tabela relacional historico_pedidos (Prioridade Máxima)
+  if (Array.isArray(pedido.historico) && pedido.historico.length > 0) {
+    pedido.historico.forEach(h => {
+      itens.push({
+        status: h.status_novo || h.tipo_evento,
+        data: h.criado_em,
+        usuario: h.usuario?.nome_completo || 'Operador',
+        tipo: (h.tipo_evento === 'pedido_editado' || h.tipo_evento === 'edicao_pdv') ? 'edicao' : 'status',
+        detalhes: h.descricao || (h.detalhes ? JSON.stringify(h.detalhes) : undefined)
+      });
+    });
+  }
+
+  // 2. Tentar ler do metadados.historico_status (Fallback retrocompatível)
   if (pedido.metadados && typeof pedido.metadados === 'object') {
     const historicoMeta = (pedido.metadados as any).historico_status;
     if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
@@ -75,7 +88,7 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
     }
   }
 
-  // 2. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]--> se nao achou metadados.historico_status
+  // 3. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]--> se nao achou metadados.historico_status
   if (itens.length === 0) {
     try {
       const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
@@ -87,6 +100,22 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
       }
     } catch {
       // fallback
+    }
+  }
+
+  // 4. Histórico de edições do pedido (metadados.historico_edicoes)
+  if (pedido.metadados && typeof pedido.metadados === 'object') {
+    const historicoEdicoes = (pedido.metadados as any).historico_edicoes;
+    if (Array.isArray(historicoEdicoes) && historicoEdicoes.length > 0) {
+      historicoEdicoes.forEach((ed: any) => {
+        itens.push({
+          status: ed.acao || 'Edição no PDV',
+          data: ed.data,
+          usuario: ed.usuario_nome || 'Operador',
+          tipo: 'edicao',
+          detalhes: ed.detalhes
+        });
+      });
     }
   }
 
@@ -109,23 +138,15 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
     }
   }
 
-  // 3. Histórico de edições do pedido (metadados.historico_edicoes)
-  if (pedido.metadados && typeof pedido.metadados === 'object') {
-    const historicoEdicoes = (pedido.metadados as any).historico_edicoes;
-    if (Array.isArray(historicoEdicoes) && historicoEdicoes.length > 0) {
-      historicoEdicoes.forEach((ed: any) => {
-        itens.push({
-          status: ed.acao || 'Edição no PDV',
-          data: ed.data,
-          usuario: ed.usuario_nome || 'Operador',
-          tipo: 'edicao',
-          detalhes: ed.detalhes
-        });
-      });
-    }
-  }
+  const vistos = new Set<string>();
+  const itensUnicos = itens.filter(item => {
+    const chave = `${item.data}_${item.status}_${item.usuario}`;
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
 
-  return itens.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  return itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 };
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
@@ -642,12 +663,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       {pedidoSelecionado.origem === 'catalogo_online' ? 'Catálogo Online' : (mapaUsuarios.get(pedidoSelecionado.vendedor_id || '') || pedidoSelecionado.vendedor?.nome_completo || 'Vendedor')}
                     </span>
                   </div>
-                  {(pedidoSelecionado.metadados as any)?.ultimo_editor?.nome && (
-                    <div className="flex items-center justify-between text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
-                      <span>Última edição:</span>
-                      <span className="font-bold">{(pedidoSelecionado.metadados as any).ultimo_editor.nome}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const editorNome = pedidoSelecionado.atualizado_por_usuario?.nome_completo ||
+                      mapaUsuarios.get(pedidoSelecionado.atualizado_por || '') ||
+                      (pedidoSelecionado.metadados as any)?.ultimo_editor?.usuario_nome ||
+                      (pedidoSelecionado.metadados as any)?.ultimo_editor?.nome;
+                    if (!editorNome) return null;
+                    return (
+                      <div className="flex items-center justify-between text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                        <span>Última edição:</span>
+                        <span className="font-bold">{editorNome}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

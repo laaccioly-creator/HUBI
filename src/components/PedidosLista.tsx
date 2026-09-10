@@ -184,7 +184,20 @@ export const PedidosLista: React.FC = () => {
   const extrairHistoricoPedido = (pedido: Pedido): HistoricoItem[] => {
     const itens: HistoricoItem[] = [];
     
-    // 1. Status de metadados.historico_status
+    // 1. Tabela relacional historico_pedidos (Prioridade Máxima)
+    if (Array.isArray(pedido.historico) && pedido.historico.length > 0) {
+      pedido.historico.forEach(h => {
+        itens.push({
+          status: h.status_novo || h.tipo_evento,
+          data: h.criado_em,
+          usuario: h.usuario?.nome_completo || 'Operador',
+          tipo: (h.tipo_evento === 'pedido_editado' || h.tipo_evento === 'edicao_pdv') ? 'edicao' : 'status',
+          detalhes: h.descricao || (h.detalhes ? JSON.stringify(h.detalhes) : undefined)
+        });
+      });
+    }
+
+    // 2. Status de metadados.historico_status (Fallback retrocompatível)
     if (pedido.metadados && typeof pedido.metadados === 'object') {
       const historicoMeta = (pedido.metadados as any).historico_status;
       if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
@@ -195,26 +208,6 @@ export const PedidosLista: React.FC = () => {
             usuario: it.usuario,
             tipo: 'status'
           });
-        });
-      }
-    }
-
-    // 2. Fallback inicial se não houver histórico estruturado
-    if (itens.length === 0) {
-      if (pedido.criado_em) {
-        itens.push({
-          status: 'pendente',
-          data: pedido.criado_em,
-          usuario: pedido.vendedor?.nome_completo || 'Sistema',
-          tipo: 'criacao'
-        });
-      }
-      if (pedido.status && pedido.status !== 'pendente') {
-        itens.push({
-          status: pedido.status,
-          data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
-          usuario: pedido.vendedor?.nome_completo || 'Operador',
-          tipo: 'status'
         });
       }
     }
@@ -235,7 +228,36 @@ export const PedidosLista: React.FC = () => {
       }
     }
 
-    return itens.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+    // 4. Fallback inicial se não houver histórico estruturado
+    if (itens.length === 0) {
+      if (pedido.criado_em) {
+        itens.push({
+          status: 'pendente',
+          data: pedido.criado_em,
+          usuario: pedido.vendedor?.nome_completo || 'Sistema',
+          tipo: 'criacao'
+        });
+      }
+      if (pedido.status && pedido.status !== 'pendente') {
+        itens.push({
+          status: pedido.status,
+          data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
+          usuario: pedido.vendedor?.nome_completo || 'Operador',
+          tipo: 'status'
+        });
+      }
+    }
+
+    // Remove duplicatas exatas se houver sobreposição entre tabela e metadados antigos
+    const vistos = new Set<string>();
+    const itensUnicos = itens.filter(item => {
+      const chave = `${item.data}_${item.status}_${item.usuario}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+
+    return itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
   };
 
   const adicionarHistoricoMetadados = (pedido: Pedido | null | undefined, novoStatus: string, usuarioNome?: string): Record<string, any> => {
@@ -276,7 +298,8 @@ export const PedidosLista: React.FC = () => {
           cliente:clientes(*),
           vendedor:usuarios_loja(*),
           itens:itens_pedido(*),
-          pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
+          pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+          historico:historico_pedidos(*, usuario:usuarios_loja(*))
         `)
         .eq('loja_id', loja.id);
 
@@ -284,7 +307,28 @@ export const PedidosLista: React.FC = () => {
         query = query.eq('vendedor_id', usuario.id);
       }
 
-      const { data, error } = await query.order('criado_em', { ascending: false });
+      let { data, error } = await query.order('criado_em', { ascending: false });
+
+      // Fallback retrocompatível se a tabela historico_pedidos ainda não tiver sido criada no Supabase
+      if (error && (error.message?.includes('historico_pedidos') || error.code === 'PGRST200')) {
+        let fallbackQuery = supabase
+          .from('pedidos')
+          .select(`
+            *,
+            cliente:clientes(*),
+            vendedor:usuarios_loja(*),
+            itens:itens_pedido(*),
+            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
+          `)
+          .eq('loja_id', loja.id);
+
+        if (usuario && !permissions.podeVerTransacoesOutros) {
+          fallbackQuery = fallbackQuery.eq('vendedor_id', usuario.id);
+        }
+        const fallbackRes = await fallbackQuery.order('criado_em', { ascending: false });
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
 
       if (error) throw error;
       if (data) {
@@ -386,12 +430,30 @@ export const PedidosLista: React.FC = () => {
         .update({
           status: novoStatus,
           observacoes: obsLimpa || null,
+          atualizado_por: usuario?.id || null,
           metadados: novosMetadados,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', pedidoId);
 
       if (error) throw error;
+
+      // Inserir registro relacional na tabela historico_pedidos
+      if (loja?.id) {
+        try {
+          await supabase.from('historico_pedidos').insert({
+            loja_id: loja.id,
+            pedido_id: pedidoId,
+            usuario_id: usuario?.id || null,
+            tipo_evento: 'status_alterado',
+            status_anterior: pedAlvo?.status || null,
+            status_novo: novoStatus,
+            descricao: `Status alterado para ${ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus}`
+          });
+        } catch (errAudit) {
+          console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+        }
+      }
 
       setPedidos((prev) =>
         prev.map((p) =>
@@ -570,12 +632,28 @@ export const PedidosLista: React.FC = () => {
           valor_pago: valorTotal,
           saldo_devedor: 0,
           observacoes: obsLimpa || null,
+          atualizado_por: usuario?.id || null,
           metadados: novosMetadados,
           atualizado_em: dataIsoConclusao
         })
         .eq('id', pedidoSelecionado.id);
 
       if (error) throw error;
+
+      // Inserir registro relacional na tabela historico_pedidos
+      try {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: loja.id,
+          pedido_id: pedidoSelecionado.id,
+          usuario_id: usuario?.id || null,
+          tipo_evento: 'status_alterado',
+          status_anterior: pedidoSelecionado.status || null,
+          status_novo: 'concluido',
+          descricao: `Venda concluída e pagamento confirmado por ${usuario?.nome_completo || 'Operador'}`
+        });
+      } catch (errAudit) {
+        console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+      }
 
       setGavetaConcluirVendaAberta(false);
       setPedidoSelecionado(null);
@@ -864,14 +942,21 @@ export const PedidosLista: React.FC = () => {
                       <span>Vendedor: {pedidoSelecionado.vendedor.nome_completo}</span>
                     </>
                   ) : null}
-                  {(pedidoSelecionado.metadados as any)?.ultimo_editor?.nome && (
-                    <>
-                      <span>•</span>
-                      <span className="text-amber-400/90 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
-                        Última edição por {(pedidoSelecionado.metadados as any).ultimo_editor.nome}
-                      </span>
-                    </>
-                  )}
+                  {(() => {
+                    const editorNome = pedidoSelecionado.atualizado_por_usuario?.nome_completo ||
+                      usuarios.find(u => u.id === pedidoSelecionado.atualizado_por)?.nome_completo ||
+                      (pedidoSelecionado.metadados as any)?.ultimo_editor?.usuario_nome ||
+                      (pedidoSelecionado.metadados as any)?.ultimo_editor?.nome;
+                    if (!editorNome) return null;
+                    return (
+                      <>
+                        <span>•</span>
+                        <span className="text-amber-400/90 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
+                          Última edição por {editorNome}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1483,11 +1568,18 @@ export const PedidosLista: React.FC = () => {
                                 {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
                               </span>
                             </div>
-                            {(pedido.metadados as any)?.ultimo_editor?.nome && (
-                              <span className="text-[10px] text-amber-400/80">
-                                Editado por {(pedido.metadados as any).ultimo_editor.nome}
-                              </span>
-                            )}
+                            {(() => {
+                              const editorNome = pedido.atualizado_por_usuario?.nome_completo ||
+                                usuarios.find(u => u.id === pedido.atualizado_por)?.nome_completo ||
+                                (pedido.metadados as any)?.ultimo_editor?.usuario_nome ||
+                                (pedido.metadados as any)?.ultimo_editor?.nome;
+                              if (!editorNome) return null;
+                              return (
+                                <span className="text-[10px] text-amber-400/80">
+                                  Editado por {editorNome}
+                                </span>
+                              );
+                            })()}
                           </div>
                         </td>
 
