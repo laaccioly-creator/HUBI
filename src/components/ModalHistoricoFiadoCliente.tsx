@@ -114,13 +114,12 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
       if (error) throw error;
 
       if (peds) {
-        // Filtrar pedidos que tenham saldo devedor ou fiado pendente
+        // Filtrar apenas pedidos que possuam pagamento na modalidade Fiado em aberto
         const pedidosComFiado = peds.filter((p: any) => {
           const saldo = Number(p.saldo_devedor ?? 0);
           const fiadoNaoQuitado = p.fiado_quitado === false;
-          const statusAberto = p.status_pagamento === 'aguardando_pagamento' || p.status_pagamento === 'parcialmente_pago';
           const temLinhaFiado = p.pagamentos && p.pagamentos.some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
-          return (saldo > 0) || (fiadoNaoQuitado && temLinhaFiado) || (statusAberto && temLinhaFiado);
+          return temLinhaFiado && fiadoNaoQuitado && saldo > 0;
         });
 
         setPedidos(pedidosComFiado);

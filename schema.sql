@@ -382,24 +382,10 @@ AFTER INSERT ON public.itens_pedido
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_atualizar_estoque_pedido();
 
--- B) Atualização de Saldo Devedor do Cliente (Fiado)
-CREATE OR REPLACE FUNCTION public.fn_atualizar_saldo_fiado_cliente()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.cliente_id IS NOT NULL AND NEW.saldo_devedor > 0 THEN
-        UPDATE public.clientes
-        SET saldo_devedor_fiado = saldo_devedor_fiado + (NEW.saldo_devedor - COALESCE(OLD.saldo_devedor, 0))
-        WHERE id = NEW.cliente_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
+-- B) Nota: O saldo fiado é gerenciado estritamente através dos pagamentos do pedido (eh_pagamento_fiado = true)
+-- Triggers baseadas exclusivamente em saldo_devedor de pedidos causavam falsos débitos de fiado para compras pagas ou orçamentos.
 DROP TRIGGER IF EXISTS trg_atualizar_saldo_fiado ON public.pedidos;
-CREATE TRIGGER trg_atualizar_saldo_fiado
-AFTER INSERT OR UPDATE OF saldo_devedor ON public.pedidos
-FOR EACH ROW
-EXECUTE FUNCTION public.fn_atualizar_saldo_fiado_cliente();
+DROP FUNCTION IF EXISTS public.fn_atualizar_saldo_fiado_cliente();
 
 -- C) Geração Automática de Lançamento Financeiro por Pagamento
 CREATE OR REPLACE FUNCTION public.fn_gerar_financeiro_pagamento()
