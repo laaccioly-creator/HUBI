@@ -78,6 +78,21 @@ export const CadastrosAuxiliares: React.FC = () => {
     }
   }, [searchParams]);
 
+  // Suporte a retorno automático para criação/edição de produto
+  const origemParam = searchParams.get('origem');
+  const rotaOrigem = origemParam === 'produto'
+    ? (sessionStorage.getItem('hubi_origem_cadastro_produto') || '/products/create')
+    : null;
+
+  const handleVoltar = () => {
+    if (rotaOrigem) {
+      sessionStorage.removeItem('hubi_origem_cadastro_produto');
+      navigate(rotaOrigem);
+    } else {
+      navigate(-1);
+    }
+  };
+
   // Estados de Dados
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [unidades, setUnidades] = useState<UnidadeMedida[]>([]);
@@ -327,10 +342,11 @@ export const CadastrosAuxiliares: React.FC = () => {
           })
           .eq('id', catEditando.id);
         if (error) throw error;
+        sessionStorage.setItem('hubi_recem_criado_categoria', catEditando.id);
         exibirAlertaSucesso('Categoria atualizada com sucesso!');
       } else {
         const maxOrdem = categorias.length > 0 ? Math.max(...categorias.map(c => c.ordem_exibicao || 0)) + 1 : 1;
-        const { error } = await supabase
+        const { data: novaCat, error } = await supabase
           .from('categorias')
           .insert([{
             loja_id: loja.id,
@@ -338,8 +354,13 @@ export const CadastrosAuxiliares: React.FC = () => {
             icone: catIcone.trim() || '📦',
             ordem_exibicao: maxOrdem,
             ativo: true
-          }]);
+          }])
+          .select()
+          .single();
         if (error) throw error;
+        if (novaCat?.id) {
+          sessionStorage.setItem('hubi_recem_criado_categoria', novaCat.id);
+        }
         exibirAlertaSucesso('Nova categoria criada com sucesso!');
       }
 
@@ -413,6 +434,7 @@ export const CadastrosAuxiliares: React.FC = () => {
         }
       }
 
+      sessionStorage.setItem('hubi_recem_criado_unidade', siglaLimpa);
       exibirAlertaSucesso('Unidade de medida salva com sucesso!');
       setModalUnidadeAberta(false);
       setUnidadeEditando(null);
@@ -472,12 +494,18 @@ export const CadastrosAuxiliares: React.FC = () => {
           .update(payload)
           .eq('id', fornecedorEditando.id);
         if (error) throw error;
+        sessionStorage.setItem('hubi_recem_criado_fornecedor', fornecedorEditando.id);
         exibirAlertaSucesso('Fornecedor atualizado com sucesso!');
       } else {
-        const { error } = await supabase
+        const { data: novoForn, error } = await supabase
           .from('fornecedores')
-          .insert([payload]);
+          .insert([payload])
+          .select()
+          .single();
         if (error) throw error;
+        if (novoForn?.id) {
+          sessionStorage.setItem('hubi_recem_criado_fornecedor', novoForn.id);
+        }
         exibirAlertaSucesso('Fornecedor cadastrado com sucesso!');
       }
 
@@ -846,11 +874,12 @@ export const CadastrosAuxiliares: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-              title="Voltar"
+              onClick={handleVoltar}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer flex items-center gap-1.5"
+              title={rotaOrigem ? "Voltar ao Produto" : "Voltar"}
             >
               <ArrowLeft className="w-5 h-5" />
+              {rotaOrigem && <span className="text-xs font-semibold text-emerald-600">Voltar ao Produto</span>}
             </button>
             <button
               type="button"
@@ -914,11 +943,12 @@ export const CadastrosAuxiliares: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => verificarSaidaComConfirmacao(() => navigate(-1))}
-                className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
-                title="Voltar"
+                onClick={() => verificarSaidaComConfirmacao(handleVoltar)}
+                className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer flex items-center gap-2"
+                title={rotaOrigem ? "Voltar ao Cadastro de Produto" : "Voltar"}
               >
                 <ArrowLeft className="w-5 h-5" />
+                {rotaOrigem && <span className="text-xs font-bold text-emerald-400 pr-1">Voltar ao Produto</span>}
               </button>
               <div>
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
@@ -1118,14 +1148,31 @@ export const CadastrosAuxiliares: React.FC = () => {
                   </button>
                 )}
 
+                {rotaOrigem && (
+                  <button
+                    type="button"
+                    onClick={handleVoltar}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                    title="Concluir e voltar ao cadastro do produto"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Voltar ao Produto</span>
+                    <span className="sm:hidden">Produto</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
-                    setModalSecaoAberta(null);
-                    setBusca('');
+                    if (rotaOrigem) {
+                      handleVoltar();
+                    } else {
+                      setModalSecaoAberta(null);
+                      setBusca('');
+                    }
                   }}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
-                  title="Fechar"
+                  title={rotaOrigem ? "Voltar ao Produto" : "Fechar"}
                 >
                   <X className="w-5 h-5" />
                 </button>

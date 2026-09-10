@@ -686,13 +686,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     setModalRadarAberto(true);
     setErroMercado(null);
 
-    if (!dadosMercado) {
-      if (!formData.nome.trim()) {
-        setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
-        return;
-      }
-      await buscarConcorrentesMercado();
+    if (!formData.nome.trim()) {
+      setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
+      return;
     }
+
+    // Executa a pesquisa completa e aprofundada de mercado desde o primeiro clique
+    await buscarConcorrentesMercado();
   };
 
   const buscarConcorrentesMercado = async () => {

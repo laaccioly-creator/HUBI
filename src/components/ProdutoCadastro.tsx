@@ -645,51 +645,63 @@ export const ProdutoCadastro: React.FC = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  const CHAVE_RASCUNHO = `hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`;
+
+  // Recupera rascunho salvo do formulário ao retornar para a página
+  const rascunhoSalvo = useMemo(() => {
+    if (ehEdicao) return null;
+    try {
+      const salvo = sessionStorage.getItem(`hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`);
+      if (salvo) return JSON.parse(salvo);
+    } catch {}
+    return null;
+  }, [ehEdicao, loja?.id]);
+
   // Estados do Produto (Fotos - até 7)
-  const [fotosUrls, setFotosUrls] = useState<string[]>([]);
-  const [fotoPrincipal, setFotoPrincipal] = useState<string>('');
+  const [fotosUrls, setFotosUrls] = useState<string[]>(() => rascunhoSalvo?.fotosUrls || []);
+  const [fotoPrincipal, setFotoPrincipal] = useState<string>(() => rascunhoSalvo?.fotoPrincipal || '');
   const [novaFotoUrl, setNovaFotoUrl] = useState<string>('');
   const [mostrarUrlInput, setMostrarUrlInput] = useState<boolean>(false);
   const [fazendoUploadFoto, setFazendoUploadFoto] = useState<boolean>(false);
   const [uploadStatusMsg, setUploadStatusMsg] = useState<string>('');
 
-  const [ativo, setAtivo] = useState<boolean>(true);
-  const [nome, setNome] = useState<string>('');
-  const [codigoInterno, setCodigoInterno] = useState<string>('');
-  const [codigoBarras, setCodigoBarras] = useState<string>('');
-  const [categoriaId, setCategoriaId] = useState<string>('');
-  const [fornecedorId, setFornecedorId] = useState<string>('');
-  const [descricao, setDescricao] = useState<string>('');
-  const [tipoUnidade, setTipoUnidade] = useState<string>('un');
+  const [ativo, setAtivo] = useState<boolean>(() => rascunhoSalvo?.ativo ?? true);
+  const [nome, setNome] = useState<string>(() => rascunhoSalvo?.nome || '');
+  const [codigoInterno, setCodigoInterno] = useState<string>(() => rascunhoSalvo?.codigoInterno || '');
+  const [codigoBarras, setCodigoBarras] = useState<string>(() => rascunhoSalvo?.codigoBarras || '');
+  const [categoriaId, setCategoriaId] = useState<string>(() => rascunhoSalvo?.categoriaId || '');
+  const [fornecedorId, setFornecedorId] = useState<string>(() => rascunhoSalvo?.fornecedorId || '');
+  const [descricao, setDescricao] = useState<string>(() => rascunhoSalvo?.descricao || '');
+  const [tipoUnidade, setTipoUnidade] = useState<string>(() => rascunhoSalvo?.tipoUnidade || 'un');
 
   // Preços
-  const [precoCusto, setPrecoCusto] = useState<string>('0.00');
-  const [precoVendaVarejo, setPrecoVendaVarejo] = useState<string>('');
+  const [precoCusto, setPrecoCusto] = useState<string>(() => rascunhoSalvo?.precoCusto || '0.00');
+  const [precoVendaVarejo, setPrecoVendaVarejo] = useState<string>(() => rascunhoSalvo?.precoVendaVarejo || '');
 
-  const [precoVendaAtacado, setPrecoVendaAtacado] = useState<string>('');
-  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'quantidade' | 'valor'>('quantidade');
-  const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState<string>('6');
-  const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>('300.00');
+  const [precoVendaAtacado, setPrecoVendaAtacado] = useState<string>(() => rascunhoSalvo?.precoVendaAtacado || '');
+  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'quantidade' | 'valor'>(() => rascunhoSalvo?.tipoMinimoAtacado || 'quantidade');
+  const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState<string>(() => rascunhoSalvo?.qtdMinimaAtacado || '6');
+  const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>(() => rascunhoSalvo?.valorMinimoAtacado || '300.00');
 
-  const [precoVendaAutoatacado, setPrecoVendaAutoatacado] = useState<string>('');
-  const [tipoMinimoAutoatacado, setTipoMinimoAutoatacado] = useState<'quantidade' | 'valor'>('quantidade');
-  const [qtdMinimaAutoatacado, setQtdMinimaAutoatacado] = useState<string>('24');
-  const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('1000.00');
+  const [precoVendaAutoatacado, setPrecoVendaAutoatacado] = useState<string>(() => rascunhoSalvo?.precoVendaAutoatacado || '');
+  const [tipoMinimoAutoatacado, setTipoMinimoAutoatacado] = useState<'quantidade' | 'valor'>(() => rascunhoSalvo?.tipoMinimoAutoatacado || 'quantidade');
+  const [qtdMinimaAutoatacado, setQtdMinimaAutoatacado] = useState<string>(() => rascunhoSalvo?.qtdMinimaAutoatacado || '24');
+  const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>(() => rascunhoSalvo?.valorMinimoAutoatacado || '1000.00');
 
-  const [precoPromocional, setPrecoPromocional] = useState<string>('');
-  const [promocaoAtiva, setPromocaoAtiva] = useState<boolean>(false);
+  const [precoPromocional, setPrecoPromocional] = useState<string>(() => rascunhoSalvo?.precoPromocional || '');
+  const [promocaoAtiva, setPromocaoAtiva] = useState<boolean>(() => rascunhoSalvo?.promocaoAtiva ?? false);
 
   // Estoque & Visibilidade
-  const [quantidadeEstoque, setQuantidadeEstoque] = useState<string>('0');
-  const [estoqueMinimoAlerta, setEstoqueMinimoAlerta] = useState<string>('5');
-  const [dataValidade, setDataValidade] = useState<string>('');
-  const [exibirCatalogo, setExibirCatalogo] = useState<boolean>(true);
-  const [destaque, setDestaque] = useState<boolean>(false);
+  const [quantidadeEstoque, setQuantidadeEstoque] = useState<string>(() => rascunhoSalvo?.quantidadeEstoque || '0');
+  const [estoqueMinimoAlerta, setEstoqueMinimoAlerta] = useState<string>(() => rascunhoSalvo?.estoqueMinimoAlerta || '5');
+  const [dataValidade, setDataValidade] = useState<string>(() => rascunhoSalvo?.dataValidade || '');
+  const [exibirCatalogo, setExibirCatalogo] = useState<boolean>(() => rascunhoSalvo?.exibirCatalogo ?? true);
+  const [destaque, setDestaque] = useState<boolean>(() => rascunhoSalvo?.destaque ?? false);
 
   // Variações Simplificadas
-  const [temVariacoes, setTemVariacoes] = useState<boolean>(false);
-  const [nomeTipoVariacao, setNomeTipoVariacao] = useState<string>(''); // Ex: "Cor", "Tamanho", "Sabor"
-  const [etapaVariacao, setEtapaVariacao] = useState<number>(1); // 1: Nome do Tipo, 2: Opções e Estoques
+  const [temVariacoes, setTemVariacoes] = useState<boolean>(() => rascunhoSalvo?.temVariacoes ?? false);
+  const [nomeTipoVariacao, setNomeTipoVariacao] = useState<string>(() => rascunhoSalvo?.nomeTipoVariacao || ''); // Ex: "Cor", "Tamanho", "Sabor"
+  const [etapaVariacao, setEtapaVariacao] = useState<number>(() => rascunhoSalvo?.etapaVariacao || 1); // 1: Nome do Tipo, 2: Opções e Estoques
   const [opcoesVariacao, setOpcoesVariacao] = useState<Array<{
     id: string;
     nome: string;
@@ -697,7 +709,7 @@ export const ProdutoCadastro: React.FC = () => {
     precoVarejo: string;
     precoAtacado: string;
     barcode: string;
-  }>>([]);
+  }>>(() => rascunhoSalvo?.opcoesVariacao || []);
   const [novaOpcaoNome, setNovaOpcaoNome] = useState<string>('');
   const [novaOpcaoEstoque, setNovaOpcaoEstoque] = useState<string>('');
 
@@ -707,7 +719,7 @@ export const ProdutoCadastro: React.FC = () => {
 
   // Radar de Preços de Mercado (IA)
   const [modalRadarAberto, setModalRadarAberto] = useState<boolean>(false);
-  const [dadosMercado, setDadosMercado] = useState<DadosMercadoIA | null>(null);
+  const [dadosMercado, setDadosMercado] = useState<DadosMercadoIA | null>(() => rascunhoSalvo?.dadosMercado || null);
   const [buscandoMercado, setBuscandoMercado] = useState<boolean>(false);
   const [erroMercado, setErroMercado] = useState<string | null>(null);
 
@@ -816,19 +828,150 @@ export const ProdutoCadastro: React.FC = () => {
     };
   }, [isDirty, setTemAlteracoesNaoSalvas]);
 
+  // Salva o rascunho em sessionStorage para que, se o usuário for para Cadastros & Tabelas, volte com tudo preenchido
+  const salvarRascunhoFormulario = () => {
+    if (ehEdicao) return;
+    try {
+      const payload = {
+        nome,
+        codigoInterno,
+        codigoBarras,
+        categoriaId,
+        fornecedorId,
+        descricao,
+        tipoUnidade,
+        precoCusto,
+        precoVendaVarejo,
+        precoVendaAtacado,
+        tipoMinimoAtacado,
+        qtdMinimaAtacado,
+        valorMinimoAtacado,
+        precoVendaAutoatacado,
+        tipoMinimoAutoatacado,
+        qtdMinimaAutoatacado,
+        valorMinimoAutoatacado,
+        precoPromocional,
+        promocaoAtiva,
+        quantidadeEstoque,
+        estoqueMinimoAlerta,
+        dataValidade,
+        exibirCatalogo,
+        destaque,
+        temVariacoes,
+        nomeTipoVariacao,
+        etapaVariacao,
+        opcoesVariacao,
+        fotosUrls,
+        fotoPrincipal,
+        dadosMercado,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem(CHAVE_RASCUNHO, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Erro ao salvar rascunho de produto:', e);
+    }
+  };
+
+  // Navegar para Cadastros & Tabelas (Unidades, Fornecedores, etc.) garantindo preservação de todos os dados
+  const handleNavegarParaAuxiliares = (tab: 'unidades' | 'fornecedores' | 'categorias') => {
+    salvarRascunhoFormulario();
+    sessionStorage.setItem('hubi_origem_cadastro_produto', ehEdicao && id ? `/products/edit/${id}` : '/products/create');
+    navigate(`/auxiliares?tab=${tab}&origem=produto`);
+  };
+
+  // Auto-salvar rascunho sempre que o usuário preenche qualquer dado
+  useEffect(() => {
+    if (ehEdicao) return;
+    const temAlgumDado = Boolean(
+      nome.trim() ||
+      codigoInterno.trim() ||
+      codigoBarras.trim() ||
+      categoriaId ||
+      fornecedorId ||
+      descricao.trim() ||
+      (precoVendaVarejo && precoVendaVarejo !== '0.00') ||
+      fotosUrls.length > 0 ||
+      temVariacoes
+    );
+    if (temAlgumDado) {
+      salvarRascunhoFormulario();
+    }
+  }, [
+    ehEdicao,
+    nome,
+    codigoInterno,
+    codigoBarras,
+    categoriaId,
+    fornecedorId,
+    descricao,
+    tipoUnidade,
+    precoCusto,
+    precoVendaVarejo,
+    precoVendaAtacado,
+    tipoMinimoAtacado,
+    qtdMinimaAtacado,
+    valorMinimoAtacado,
+    precoVendaAutoatacado,
+    tipoMinimoAutoatacado,
+    qtdMinimaAutoatacado,
+    valorMinimoAutoatacado,
+    precoPromocional,
+    promocaoAtiva,
+    quantidadeEstoque,
+    estoqueMinimoAlerta,
+    dataValidade,
+    exibirCatalogo,
+    destaque,
+    temVariacoes,
+    nomeTipoVariacao,
+    etapaVariacao,
+    opcoesVariacao,
+    fotosUrls,
+    fotoPrincipal,
+    dadosMercado
+  ]);
+
   const carregarAux = async () => {
     if (!loja?.id) return;
     try {
       const { data: c } = await supabase.from('categorias').select('*').eq('loja_id', loja.id).order('ordem_exibicao');
-      if (c) setCategorias(c);
+      if (c) {
+        setCategorias(c);
+        const recemCriadaCat = sessionStorage.getItem('hubi_recem_criado_categoria');
+        if (recemCriadaCat) {
+          setCategoriaId(recemCriadaCat);
+          sessionStorage.removeItem('hubi_recem_criado_categoria');
+        }
+      }
       const { data: f } = await supabase.from('fornecedores').select('*').eq('loja_id', loja.id);
-      if (f) setFornecedores(f);
+      if (f) {
+        setFornecedores(f);
+        const recemCriadoForn = sessionStorage.getItem('hubi_recem_criado_fornecedor');
+        if (recemCriadoForn) {
+          setFornecedorId(recemCriadoForn);
+          sessionStorage.removeItem('hubi_recem_criado_fornecedor');
+        }
+      }
 
       // Carregar unidades de medida do banco ou padrão
       try {
         const { data: u } = await supabase.from('unidades_medida').select('sigla, nome').eq('loja_id', loja.id).order('sigla');
+        const combinadas: Array<{ sigla: string; nome: string }> = [];
         if (u && u.length > 0) {
-          setUnidadesLista(u);
+          combinadas.push(...u);
+        }
+        UNIDADES_PADRAO.forEach(up => {
+          if (!combinadas.some(item => item.sigla.toLowerCase() === up.sigla.toLowerCase())) {
+            combinadas.push({ sigla: up.sigla, nome: up.nome });
+          }
+        });
+        setUnidadesLista(combinadas);
+
+        // Se uma unidade acabou de ser criada em Cadastros & Tabelas, auto-seleciona
+        const recemCriadaUnidade = sessionStorage.getItem('hubi_recem_criado_unidade');
+        if (recemCriadaUnidade) {
+          setTipoUnidade(recemCriadaUnidade);
+          sessionStorage.removeItem('hubi_recem_criado_unidade');
         }
       } catch (e) {
         // Fallback já inicializado com UNIDADES_PADRAO
@@ -1227,14 +1370,12 @@ export const ProdutoCadastro: React.FC = () => {
     setModalRadarAberto(true);
     setErroMercado(null);
 
-    // Se ainda não temos dados ou se o usuário deseja consultar
-    if (!dadosMercado) {
-      if (!nome.trim()) {
-        setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
-        return;
-      }
-      await buscarConcorrentesMercado();
+    if (!nome.trim()) {
+      setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
+      return;
     }
+    // Executa a pesquisa completa e aprofundada de mercado desde o primeiro clique
+    await buscarConcorrentesMercado();
   };
 
   const buscarConcorrentesMercado = async () => {
@@ -1423,6 +1564,8 @@ export const ProdutoCadastro: React.FC = () => {
         }
       }
 
+      sessionStorage.removeItem(CHAVE_RASCUNHO);
+      sessionStorage.removeItem('hubi_origem_cadastro_produto');
       setTemAlteracoesNaoSalvas(false);
       navigate('/products');
     } catch (err: any) {
@@ -1975,7 +2118,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <label className="text-xs font-semibold text-slate-300">Unidade de Medida</label>
                   <button
                     type="button"
-                    onClick={() => navigate('/auxiliares')}
+                    onClick={() => handleNavegarParaAuxiliares('unidades')}
                     className="text-[10px] text-slate-400 hover:text-emerald-400 font-semibold cursor-pointer"
                     title="Gerenciar Unidades de Medida"
                   >
@@ -2029,7 +2172,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <label className="text-xs font-semibold text-slate-300">Fornecedor (Opcional)</label>
                   <button
                     type="button"
-                    onClick={() => navigate('/auxiliares')}
+                    onClick={() => handleNavegarParaAuxiliares('fornecedores')}
                     className="text-[10px] text-slate-400 hover:text-emerald-400 font-semibold cursor-pointer"
                     title="Gerenciar Fornecedores"
                   >
