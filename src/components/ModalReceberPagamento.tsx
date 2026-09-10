@@ -318,7 +318,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         .select(`
           *,
           cliente:clientes(*),
-          vendedor:usuarios_loja(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(*)
         `)

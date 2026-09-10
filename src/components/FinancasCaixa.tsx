@@ -199,7 +199,7 @@ export const FinancasCaixa: React.FC = () => {
       // 2. Carregar pedidos e pagamentos para unificação do fluxo geral
       const { data: pedData } = await supabase
         .from('pedidos')
-        .select('*, cliente:clientes(*), vendedor:usuarios_loja(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+        .select('*, cliente:clientes(*), vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
         .eq('loja_id', loja.id)
         .order('criado_em', { ascending: false });
 

@@ -296,7 +296,8 @@ export const PedidosLista: React.FC = () => {
         .select(`
           *,
           cliente:clientes(*),
-          vendedor:usuarios_loja(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+          atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
           historico:historico_pedidos(*, usuario:usuarios_loja(*))
@@ -316,7 +317,8 @@ export const PedidosLista: React.FC = () => {
           .select(`
             *,
             cliente:clientes(*),
-            vendedor:usuarios_loja(*),
+            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+            atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
             itens:itens_pedido(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
           `)
@@ -557,7 +559,8 @@ export const PedidosLista: React.FC = () => {
         .select(`
           *,
           cliente:clientes(*),
-          vendedor:usuarios_loja(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+          atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
         `)

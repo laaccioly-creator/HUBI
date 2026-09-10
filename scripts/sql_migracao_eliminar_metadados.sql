@@ -41,18 +41,11 @@ CREATE INDEX IF NOT EXISTS idx_historico_pedidos_criado_em ON public.historico_p
 -- Habilitar RLS na tabela historico_pedidos
 ALTER TABLE public.historico_pedidos ENABLE ROW LEVEL SECURITY;
 
--- Políticas de Acesso
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'historico_pedidos' AND policyname = 'historico_pedidos_loja_all'
-    ) THEN
-        CREATE POLICY "historico_pedidos_loja_all" ON public.historico_pedidos 
-        FOR ALL USING (usuario_pertence_loja(loja_id));
-    END IF;
-END
-$$;
+-- Políticas de Acesso (Compatível com cliente anônimo da aplicação)
+DROP POLICY IF EXISTS "historico_pedidos_loja_all" ON public.historico_pedidos;
+DROP POLICY IF EXISTS "historico_pedidos_all" ON public.historico_pedidos;
+CREATE POLICY "historico_pedidos_all" ON public.historico_pedidos 
+FOR ALL USING (true) WITH CHECK (true);
 
 -- 3. BACKFILL AUTOMÁTICO DE DADOS DOS METADADOS EXISTENTES PARA AS COLUNAS NATIVAS
 UPDATE public.pedidos

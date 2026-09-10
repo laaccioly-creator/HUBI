@@ -169,7 +169,8 @@ export const VendasHistorico: React.FC = () => {
         .select(`
           *,
           cliente:clientes(*),
-          vendedor:usuarios_loja(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+          atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(
             *,
