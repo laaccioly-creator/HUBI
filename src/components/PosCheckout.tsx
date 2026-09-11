@@ -1560,7 +1560,9 @@ export const PosCheckout: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
               {produtosFiltrados.map((produto) => {
                 const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-                const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
+                const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
+                const isEsgotado = estoqueQtd <= 0;
+                const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
 
                 let precoExibido = produto.preco_venda_varejo;
                 if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) precoExibido = produto.preco_venda_atacado;
@@ -1581,11 +1583,17 @@ export const PosCheckout: React.FC = () => {
                     <div>
                       <div className="relative aspect-square rounded-lg overflow-hidden bg-slate-950 mb-1.5">
                         <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                        {temEstoqueBaixo && (
+                        {isEsgotado ? (
+                          <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
+                            <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
+                              Esgotado
+                            </span>
+                          </div>
+                        ) : temEstoqueBaixo ? (
                           <span className="absolute top-1 right-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
-                            Est: {produto.quantidade_estoque}
+                            Est: {estoqueQtd}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       <h3 className="font-bold text-[11px] sm:text-xs text-slate-100 line-clamp-2 leading-tight">
@@ -2193,28 +2201,6 @@ export const PosCheckout: React.FC = () => {
                           className="w-28 bg-transparent text-right text-sm font-black text-white focus:outline-none placeholder:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
-                    </div>
-
-                    {/* Chips Rápidos de Valor */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span className="text-[10px] text-slate-400 font-semibold mr-1">Rápido:</span>
-                      {[10, 20, 50, 100].map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => handleAlterarValorLinha(linha.id, Number(((linha.valor || 0) + val).toFixed(2)))}
-                          className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-[10px] border border-slate-700 transition cursor-pointer"
-                        >
-                          +R$ {val}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => handleAlterarValorLinha(linha.id, Number(total.toFixed(2)))}
-                        className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[10px] border border-emerald-500/40 transition cursor-pointer"
-                      >
-                        Valor Total
-                      </button>
                     </div>
 
                     {/* Dinheiro: Troco */}

@@ -1253,7 +1253,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 precoFinal = produto.preco_promocional;
               }
               const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
-              const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
+              const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
+              const isEsgotado = estoqueQtd <= 0;
+              const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
 
               return (
                 <div
@@ -1269,12 +1271,18 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       loading="lazy"
                     />
 
-                    {/* Indicador de Estoque Baixo */}
-                    {temEstoqueBaixo && (
+                    {/* Indicador de Esgotado ou Estoque Baixo */}
+                    {isEsgotado ? (
+                      <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
+                        <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
+                          Esgotado
+                        </span>
+                      </div>
+                    ) : temEstoqueBaixo ? (
                       <span className="absolute top-1 left-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
-                        Est: {produto.quantidade_estoque}
+                        Est: {estoqueQtd}
                       </span>
-                    )}
+                    ) : null}
 
                     {/* Badge Verde de Quantidade Acumulada */}
                     {qtdNoCarrinho > 0 && (
@@ -1325,7 +1333,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 precoFinal = produto.preco_promocional;
               }
               const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
-              const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
+              const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
+              const isEsgotado = estoqueQtd <= 0;
+              const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
 
               return (
                 <div
@@ -1336,11 +1346,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                       <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover" />
-                      {temEstoqueBaixo && (
-                        <span className="absolute top-0.5 left-0.5 bg-amber-500/90 text-slate-950 font-black text-[7px] px-0.5 rounded shadow leading-none">
-                          {produto.quantidade_estoque}
+                      {isEsgotado ? (
+                        <span className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center text-[7px] font-black text-rose-300">
+                          ESGOTADO
                         </span>
-                      )}
+                      ) : temEstoqueBaixo ? (
+                        <span className="absolute top-0.5 left-0.5 bg-amber-500/90 text-slate-950 font-black text-[7px] px-0.5 rounded shadow leading-none">
+                          {estoqueQtd}
+                        </span>
+                      ) : null}
                       {qtdNoCarrinho > 0 && (
                         <span className="absolute top-0.5 right-0.5 bg-emerald-500 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
                           {qtdNoCarrinho}
