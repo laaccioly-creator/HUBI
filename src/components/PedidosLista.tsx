@@ -999,7 +999,10 @@ export const PedidosLista: React.FC = () => {
           carregando={carregando}
           onAlterarStatus={atualizarStatus}
           onCancelarPedido={(ped) => atualizarStatus(ped.id, 'cancelado')}
-          onAbrirReceberPagamento={(ped) => setPedidoReceberModal(ped)}
+          onAbrirReceberPagamento={(ped) => {
+            setPedidoReceberModal(ped);
+            setConcluirAposReceber(true);
+          }}
           onAbrirDrawerMenu={() => {}}
           onClienteAtualizado={() => carregarPedidos()}
           onRecarregar={carregarPedidos}
@@ -2174,6 +2177,8 @@ export const PedidosLista: React.FC = () => {
         onConsultarProduto={handleConsultarProduto}
       />
 
+      </div>
+
       {/* MODAL DE DETALHES DO PRODUTO */}
       <ModalDetalhesProduto
         isOpen={!!produtoDetalhesModal}
@@ -2206,7 +2211,6 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setModalNovoClienteAberto(false)}
         onClienteCadastrado={handleClienteCriado}
       />
-      </div>
     </>
   );
 };

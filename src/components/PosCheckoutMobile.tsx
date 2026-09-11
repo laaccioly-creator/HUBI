@@ -1253,6 +1253,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 precoFinal = produto.preco_promocional;
               }
               const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
+              const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
 
               return (
                 <div
@@ -1267,6 +1268,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
+
+                    {/* Indicador de Estoque Baixo */}
+                    {temEstoqueBaixo && (
+                      <span className="absolute top-1 left-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
+                        Est: {produto.quantidade_estoque}
+                      </span>
+                    )}
 
                     {/* Badge Verde de Quantidade Acumulada */}
                     {qtdNoCarrinho > 0 && (
@@ -1317,6 +1325,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 precoFinal = produto.preco_promocional;
               }
               const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
+              const temEstoqueBaixo = Number(produto.quantidade_estoque) <= Number(produto.estoque_minimo_alerta);
 
               return (
                 <div
@@ -1327,6 +1336,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                       <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover" />
+                      {temEstoqueBaixo && (
+                        <span className="absolute top-0.5 left-0.5 bg-amber-500/90 text-slate-950 font-black text-[7px] px-0.5 rounded shadow leading-none">
+                          {produto.quantidade_estoque}
+                        </span>
+                      )}
                       {qtdNoCarrinho > 0 && (
                         <span className="absolute top-0.5 right-0.5 bg-emerald-500 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
                           {qtdNoCarrinho}
