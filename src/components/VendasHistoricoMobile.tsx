@@ -373,7 +373,6 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
           {/* Ações de Compartilhamento do Recibo */}
           <div className="space-y-2 pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Comprovante</h3>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"

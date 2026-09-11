@@ -296,6 +296,69 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // ESTADO DO PRODUTO EM EDIÇÃO / CADASTRO
   // =========================================================================
   const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null);
+
+  // Regras de Precificação ativas da Loja (sincronização Atacado & Distribuidor)
+  const regrasPrecificacaoLoja = useMemo(() => {
+    let tipoMinAtacado: 'valor' | 'quantidade' = 'quantidade';
+    let valMinAtacado = 0;
+    let qtdMinAtacado = 6;
+
+    let tipoMinDistribuidor: 'valor' | 'quantidade' = 'quantidade';
+    let valMinDistribuidor = 0;
+    let qtdMinDistribuidor = 24;
+
+    if (loja?.id) {
+      try {
+        const raw = localStorage.getItem(`hubi_regras_precificacao_${loja.id}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.tipoMinimoAtacado === 'valor' || parsed.tipoMinimoAtacado === 'quantidade') {
+            tipoMinAtacado = parsed.tipoMinimoAtacado;
+          } else if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade') {
+            tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
+          }
+
+          valMinAtacado = Number(parsed.valorMinimoAtacado) || Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
+          qtdMinAtacado = Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
+
+          if (parsed.tipoMinimoDistribuidor === 'valor' || parsed.tipoMinimoDistribuidor === 'quantidade') {
+            tipoMinDistribuidor = parsed.tipoMinimoDistribuidor;
+          } else if (parsed.tipoMinimoAutoatacado === 'valor' || parsed.tipoMinimoAutoatacado === 'quantidade') {
+            tipoMinDistribuidor = parsed.tipoMinimoAutoatacado;
+          } else if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade') {
+            tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
+          }
+
+          valMinDistribuidor = Number(parsed.valorMinimoAutoatacado) || Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
+          qtdMinDistribuidor = Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
+        } else {
+          if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade') {
+            tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
+          }
+          valMinAtacado = Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
+          qtdMinAtacado = Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
+
+          if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade') {
+            tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
+          }
+          valMinDistribuidor = Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
+          qtdMinDistribuidor = Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
+        }
+      } catch (e) {
+        console.error('Erro ao ler regras de precificação:', e);
+      }
+    }
+
+    return {
+      tipoMinAtacado,
+      valMinAtacado,
+      qtdMinAtacado,
+      tipoMinDistribuidor,
+      valMinDistribuidor,
+      qtdMinDistribuidor
+    };
+  }, [loja]);
+
   const [formData, setFormData] = useState<{
     nome: string;
     precoVenda: string;
@@ -317,6 +380,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     estoqueMinimo: number;
     gerenciarEstoque: boolean;
     quantidadeEstoque: number;
+    dataValidade: string;
     variacoes: Partial<VariacaoProduto>[];
   }>({
     nome: '',
@@ -339,6 +403,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     estoqueMinimo: 0,
     gerenciarEstoque: true,
     quantidadeEstoque: 0,
+    dataValidade: '',
     variacoes: []
   });
 
@@ -633,6 +698,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       estoqueMinimo: 0,
       gerenciarEstoque: true,
       quantidadeEstoque: 0,
+      dataValidade: '',
       variacoes: []
     };
     setFormData(initialData);
@@ -784,6 +850,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       estoqueMinimo: Number(p.estoque_minimo_alerta || 0),
       gerenciarEstoque: true,
       quantidadeEstoque: getEstoqueReal(p),
+      dataValidade: p.data_validade ? p.data_validade.split('T')[0] : '',
       variacoes: p.variacoes ? [...p.variacoes] : []
     };
     setFormData(initialEditData);
@@ -809,9 +876,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const precoPromoNum = formData.precoPromocional ? parseFloat(formData.precoPromocional.replace(',', '.')) : null;
       const precoCustoNum = formData.precoCusto ? parseFloat(formData.precoCusto.replace(',', '.')) : 0;
       const precoAtacadoNum = formData.precoAtacado ? parseFloat(formData.precoAtacado.replace(',', '.')) : null;
-      const qtdMinAtacadoNum = Number(formData.qtdMinimaAtacado) || null;
       const precoAutoatacadoNum = formData.precoAutoatacado ? parseFloat(formData.precoAutoatacado.replace(',', '.')) : null;
-      const qtdMinAutoatacadoNum = Number(formData.qtdMinimaAutoatacado) || null;
+      const qtdMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'quantidade'
+        ? (regrasPrecificacaoLoja.qtdMinAtacado || 6)
+        : (Number(formData.qtdMinimaAtacado) || 6);
+      const valMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'valor'
+        ? (regrasPrecificacaoLoja.valMinAtacado || 300)
+        : null;
+
+      const qtdMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'quantidade'
+        ? (regrasPrecificacaoLoja.qtdMinDistribuidor || 24)
+        : (Number(formData.qtdMinimaAutoatacado) || 24);
+      const valMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor'
+        ? (regrasPrecificacaoLoja.valMinDistribuidor || 1000)
+        : null;
 
       const payload: Partial<Produto> = {
         loja_id: loja.id,
@@ -822,9 +900,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         promocao_ativa: Boolean(precoPromoNum && precoPromoNum > 0 && precoPromoNum < precoVendaNum),
         preco_custo: precoCustoNum,
         preco_venda_atacado: precoAtacadoNum,
-        qtd_minima_atacado: qtdMinAtacadoNum || undefined,
+        tipo_minimo_atacado: regrasPrecificacaoLoja.tipoMinAtacado,
+        qtd_minima_atacado: qtdMinAtacadoNum,
+        valor_minimo_atacado: valMinAtacadoNum,
         preco_venda_autoatacado: precoAutoatacadoNum,
-        qtd_minima_autoatacado: qtdMinAutoatacadoNum || undefined,
+        tipo_minimo_autoatacado: regrasPrecificacaoLoja.tipoMinDistribuidor,
+        qtd_minima_autoatacado: qtdMinAutoatacadoNum,
+        valor_minimo_autoatacado: valMinAutoatacadoNum,
         descricao: formData.descricao.trim() || null,
         codigo_barras: formData.codigoBarras.trim() || null,
         tipo_unidade: formData.tipoUnidade,
@@ -834,6 +916,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         fotos_urls: formData.fotos,
         estoque_minimo_alerta: formData.tipoItem === 'servico' ? 0 : formData.estoqueMinimo,
         quantidade_estoque: formData.tipoItem === 'servico' ? 0 : formData.quantidadeEstoque,
+        data_validade: formData.tipoItem === 'servico' ? null : (formData.dataValidade || null),
         cor_etiqueta: formData.corEtiqueta,
         ativo: true
       };
@@ -2628,7 +2711,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         <TrendingUp className="w-3.5 h-3.5 text-teal-600" />
                         <span>Tabelas de Atacado & Distribuidor</span>
                       </span>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Preços diferenciados ativados por volume no PDV</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Preços diferenciados ativados por regra da loja no PDV</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -2645,15 +2728,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mín. Atacado</label>
-                        <input
-                          type="number"
-                          value={formData.qtdMinimaAtacado}
-                          onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAtacado: parseInt(e.target.value) || 0 }))}
-                          className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
-                        />
-                      </div>
+
+                      {regrasPrecificacaoLoja.tipoMinAtacado === 'valor' ? (
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Valor Mínimo (R$)</label>
+                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-xs font-bold text-slate-400 mr-1">R$</span>
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              value={regrasPrecificacaoLoja.valMinAtacado > 0 ? regrasPrecificacaoLoja.valMinAtacado.toFixed(2).replace('.', ',') : '300,00'}
+                              className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-500 border-b border-dashed border-slate-300 bg-transparent cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mínima (Unidades)</label>
+                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              value={`${regrasPrecificacaoLoja.qtdMinAtacado || 6} un`}
+                              className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-500 border-b border-dashed border-slate-300 bg-transparent cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <div>
                         <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Distribuidor</label>
                         <div className="flex items-center">
@@ -2667,17 +2777,106 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           />
                         </div>
                       </div>
+
+                      {regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor' ? (
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Valor Mínimo (R$)</label>
+                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-xs font-bold text-slate-400 mr-1">R$</span>
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              value={regrasPrecificacaoLoja.valMinDistribuidor > 0 ? regrasPrecificacaoLoja.valMinDistribuidor.toFixed(2).replace('.', ',') : '1.000,00'}
+                              className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-500 border-b border-dashed border-slate-300 bg-transparent cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mínima (Unidades)</label>
+                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              value={`${regrasPrecificacaoLoja.qtdMinDistribuidor || 24} un`}
+                              className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-500 border-b border-dashed border-slate-300 bg-transparent cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 italic">
+                      * Condições de ativação mínima são definidas exclusivamente nas Regras de Precificação da loja (somente leitura).
+                    </p>
+                  </div>
+
+                  {/* Seção 4: Controle de Estoque & Entrada Inicial (Equivalente ao Desktop) */}
+                  {formData.tipoItem === 'servico' ? (
+                    <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-2xl space-y-1">
+                      <div className="flex items-center gap-1.5 text-indigo-700 font-bold text-xs">
+                        <Wrench className="w-3.5 h-3.5" />
+                        <span>Controle de Estoque (Dispensado para Serviços / Taxas)</span>
+                      </div>
+                      <p className="text-[11px] text-indigo-600/80">
+                        Itens de serviço não movimentam estoque físico. Vendas são ilimitadas e não bloqueiam por falta de saldo.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mín. Distribuidor</label>
+                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Package className="w-3.5 h-3.5 text-teal-600" />
+                          <span>4. Controle de Estoque & Entrada Inicial</span>
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Informe a quantidade inicial em loja e parâmetros de estoque
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-teal-700 uppercase">Estoque Inicial em Loja</label>
+                          <input
+                            type="number"
+                            value={formData.quantidadeEstoque}
+                            onChange={(e) => setFormData(prev => ({ ...prev, quantidadeEstoque: parseFloat(e.target.value) || 0 }))}
+                            className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                          />
+                          <span className="text-[9px] text-slate-400 block mt-0.5">Saldo inicial para venda</span>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">Alerta Estoque Mínimo</label>
+                          <input
+                            type="number"
+                            value={formData.estoqueMinimo}
+                            onChange={(e) => setFormData(prev => ({ ...prev, estoqueMinimo: parseFloat(e.target.value) || 0 }))}
+                            className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                          />
+                          <span className="text-[9px] text-slate-400 block mt-0.5">Avisa quando estiver acabando</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Data de Validade (Opcional)</label>
                         <input
-                          type="number"
-                          value={formData.qtdMinimaAutoatacado}
-                          onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAutoatacado: parseInt(e.target.value) || 0 }))}
-                          className="w-full py-1.5 text-xs sm:text-sm font-extrabold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
+                          type="date"
+                          value={formData.dataValidade || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, dataValidade: e.target.value }))}
+                          className="w-full py-1.5 text-xs sm:text-sm font-bold text-slate-800 border-b border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                         />
+                        <span className="text-[9px] text-slate-400 block mt-0.5">Para perecíveis / cosméticos</span>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Vender por (TELA019) */}
                   <div
@@ -2807,6 +3006,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <span>Estoque mínimo: {formData.estoqueMinimo}</span>
                   <ChevronRight className="w-5 h-5 text-slate-400" />
                 </button>
+
+                <div className="w-full p-4 rounded-2xl border border-slate-200 bg-white flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 shadow-sm">
+                  <div>
+                    <span className="block">Data de Validade (Opcional)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Para perecíveis / cosméticos</span>
+                  </div>
+                  <input
+                    type="date"
+                    value={formData.dataValidade || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dataValidade: e.target.value }))}
+                    className="p-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-teal-500"
+                  />
+                </div>
               </div>
             </div>
           </div>
