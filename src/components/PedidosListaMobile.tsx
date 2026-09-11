@@ -850,9 +850,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const ehFiado = (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
-                  const estaPago = pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0);
-                  if (estaPago || ehFiado) {
+                  const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                  const estaQuitado = saldoDevedor <= 0.009;
+                  if (estaQuitado) {
                     onAlterarStatus(pedidoSelecionado.id, 'concluido');
                     setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                   } else {
@@ -862,9 +862,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
               >
                 {(() => {
-                  const ehFiado = (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
-                  const estaPago = pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0);
-                  return (estaPago || ehFiado) ? 'Concluir Pedido' : 'Receber e Concluir';
+                  const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                  const estaQuitado = saldoDevedor <= 0.009;
+                  return estaQuitado ? 'Concluir Pedido' : 'Receber e Concluir';
                 })()}
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -897,6 +897,14 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     key={st.id}
                     type="button"
                     onClick={() => {
+                      if (st.id === 'concluido') {
+                        const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                        if (saldoDevedor > 0.009) {
+                          setModalAlterarStatus(false);
+                          onAbrirReceberPagamento(pedidoSelecionado);
+                          return;
+                        }
+                      }
                       onAlterarStatus(pedidoSelecionado.id, st.id as StatusPedido);
                       setPedidoSelecionado({ ...pedidoSelecionado, status: st.id as StatusPedido });
                       setModalAlterarStatus(false);
