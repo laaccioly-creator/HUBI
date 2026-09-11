@@ -302,10 +302,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     let tipoMinAtacado: 'valor' | 'quantidade' = 'quantidade';
     let valMinAtacado = 0;
     let qtdMinAtacado = 6;
+    let descontoAtacado = 20;
 
     let tipoMinDistribuidor: 'valor' | 'quantidade' = 'quantidade';
     let valMinDistribuidor = 0;
     let qtdMinDistribuidor = 24;
+    let descontoAutoatacado = 25;
 
     if (loja?.id) {
       try {
@@ -320,6 +322,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
           valMinAtacado = Number(parsed.valorMinimoAtacado) || Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
           qtdMinAtacado = Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
+          descontoAtacado = Number(parsed.descontoAtacado) || Number((loja as any)?.desconto_padrao_atacado_percentual) || 20;
 
           if (parsed.tipoMinimoDistribuidor === 'valor' || parsed.tipoMinimoDistribuidor === 'quantidade') {
             tipoMinDistribuidor = parsed.tipoMinimoDistribuidor;
@@ -331,18 +334,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
           valMinDistribuidor = Number(parsed.valorMinimoAutoatacado) || Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
           qtdMinDistribuidor = Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
+          descontoAutoatacado = Number(parsed.descontoAutoatacado) || Number((loja as any)?.desconto_padrao_autoatacado_percentual) || 25;
         } else {
           if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade') {
             tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
           }
           valMinAtacado = Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
           qtdMinAtacado = Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
+          descontoAtacado = Number((loja as any)?.desconto_padrao_atacado_percentual) || 20;
 
           if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade') {
             tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
           }
           valMinDistribuidor = Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
           qtdMinDistribuidor = Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
+          descontoAutoatacado = Number((loja as any)?.desconto_padrao_autoatacado_percentual) || 25;
         }
       } catch (e) {
         console.error('Erro ao ler regras de precificação:', e);
@@ -350,14 +356,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     }
 
     return {
+      descontoAtacado,
       tipoMinAtacado,
       valMinAtacado,
       qtdMinAtacado,
+      descontoAutoatacado,
       tipoMinDistribuidor,
       valMinDistribuidor,
       qtdMinDistribuidor
     };
   }, [loja]);
+
+  // Sugestão automática de Preço Atacado e Preço Distribuidor baseada no Preço de Venda
+  const handlePrecoVendaChange = (novoPrecoVendaStr: string) => {
+    const raw = novoPrecoVendaStr.replace(',', '.');
+    const num = parseFloat(raw);
+
+    if (!isNaN(num) && num > 0) {
+      const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
+      const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
+
+      const atacadoCalc = (num * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+      const autoCalc = (num * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+
+      setFormData(prev => ({
+        ...prev,
+        precoVenda: novoPrecoVendaStr,
+        precoAtacado: atacadoCalc,
+        precoAutoatacado: autoCalc
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        precoVenda: novoPrecoVendaStr
+      }));
+    }
+  };
 
   const [formData, setFormData] = useState<{
     nome: string;
@@ -819,7 +853,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   const handleAplicarPrecoMercado = (novoPreco: number) => {
-    setFormData(prev => ({ ...prev, precoVenda: novoPreco.toFixed(2).replace('.', ',') }));
+    const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
+    const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
+
+    const atacadoCalc = (novoPreco * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+    const autoCalc = (novoPreco * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+
+    setFormData(prev => ({
+      ...prev,
+      precoVenda: novoPreco.toFixed(2).replace('.', ','),
+      precoAtacado: atacadoCalc,
+      precoAutoatacado: autoCalc
+    }));
     setModalRadarAberto(false);
     setMensagemFeedback({ texto: `Preço R$ ${novoPreco.toFixed(2)} aplicado com sucesso!`, tipo: 'sucesso' });
   };
@@ -1201,11 +1246,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           if (achouCat) categoriaMatchId = achouCat.id;
         }
 
+        let atacadoSugerido: string | undefined = undefined;
+        let autoSugerido: string | undefined = undefined;
+        if (sugestao.preco_venda_estimado) {
+          const num = Number(sugestao.preco_venda_estimado);
+          if (!isNaN(num) && num > 0) {
+            const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
+            const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
+            atacadoSugerido = (num * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+            autoSugerido = (num * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+          }
+        }
+
         setFormData(prev => ({
           ...prev,
           nome: sugestao.nome ? sugestao.nome.toUpperCase() : prev.nome,
           categoriaId: categoriaMatchId || prev.categoriaId,
           precoVenda: sugestao.preco_venda_estimado ? String(sugestao.preco_venda_estimado).replace('.', ',') : prev.precoVenda,
+          precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
+          precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
           precoCusto: sugestao.preco_custo_estimado ? String(sugestao.preco_custo_estimado).replace('.', ',') : prev.precoCusto,
           descricao: sugestao.descricao || prev.descricao,
           codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
@@ -2441,73 +2500,106 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {/* CORPO DA ABA CADASTRO (TELA008 & TELA008A) */}
         {abaFormulario === 'cadastro' && (
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {/* Card Preview Superior com Seletor de Cor e Acesso a Mídia */}
-            <div className="flex items-center justify-center gap-4 py-3 bg-slate-50/80 rounded-3xl p-3.5 border border-slate-100 shadow-inner">
-              {/* Botão Cor da Etiqueta / Tarja (TELA013) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setCorSelecionadaModal(formData.corEtiqueta);
-                  setAplicarCorEmMassa(false);
-                  setModalCorEtiquetaAberto(true);
-                }}
-                className="w-8 h-8 rounded-xl border-2 border-white shadow-md transition active:scale-95 shrink-0"
-                style={{ backgroundColor: formData.corEtiqueta }}
-                title="Alterar Cor da Tarja Inferior"
-              />
-
-              {/* Preview do Card: Fundo neutro/foto mantido, e Tarja Inferior colorida estritamente embaixo */}
-              <div
-                onClick={() => formData.fotos[0] && setModalFotoFullscreen(formData.fotos[0])}
-                className="w-36 h-40 rounded-2xl bg-white border border-slate-200 p-0 flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer"
-              >
-                {/* Imagem do Produto (Ocupa a área visual superior/central sem alteração de fundo) */}
-                <div className="flex-1 w-full bg-slate-50 flex items-center justify-center overflow-hidden">
-                  {formData.fotos[0] ? (
-                    <img
-                      src={formData.fotos[0]}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Tag className="w-8 h-8 text-slate-300" />
-                  )}
-                </div>
-
-                {/* Tarja Inferior do Card (Modificada exclusivamente pela cor de etiqueta, contendo ~20 caracteres resumidos) */}
-                <div
-                  className="w-full px-2.5 py-1.5 text-white flex flex-col justify-center shrink-0"
+            {/* Card Superior: Mídia à Esquerda e Destaque de Cadastro com IA à Direita */}
+            <div className="flex items-center justify-between gap-2 sm:gap-3 py-3 bg-slate-50/90 rounded-3xl p-3 border border-slate-100 shadow-inner">
+              {/* Lado Esquerdo: Cor, Foto do Produto Ampliada e Câmera */}
+              <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                {/* Botão Cor da Etiqueta / Tarja (TELA013) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCorSelecionadaModal(formData.corEtiqueta);
+                    setAplicarCorEmMassa(false);
+                    setModalCorEtiquetaAberto(true);
+                  }}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border-2 border-white shadow-md transition active:scale-95 shrink-0 cursor-pointer"
                   style={{ backgroundColor: formData.corEtiqueta }}
+                  title="Alterar Cor da Tarja Inferior"
+                />
+
+                {/* Preview do Card Ampliado */}
+                <div
+                  onClick={() => formData.fotos[0] && setModalFotoFullscreen(formData.fotos[0])}
+                  className="w-32 sm:w-36 h-36 sm:h-40 rounded-2xl bg-white border border-slate-200 p-0 flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer shrink-0"
                 >
-                  <p className="text-[10px] font-extrabold uppercase truncate leading-tight">
-                    {textoTarjaResumo}
-                  </p>
-                  <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                    <p className="text-xs font-black text-white">
-                      R$ {precoPromoFmt || precoVendaFmt}
-                    </p>
-                    {precoPromoFmt && (
-                      <p className="text-[9px] text-white/70 line-through">
-                        R$ {precoVendaFmt}
-                      </p>
+                  {/* Imagem do Produto */}
+                  <div className="flex-1 w-full bg-slate-50 flex items-center justify-center overflow-hidden">
+                    {formData.fotos[0] ? (
+                      <img
+                        src={formData.fotos[0]}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Tag className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
                     )}
                   </div>
+
+                  {/* Tarja Inferior do Card */}
+                  <div
+                    className="w-full px-2 py-1 text-white flex flex-col justify-center shrink-0"
+                    style={{ backgroundColor: formData.corEtiqueta }}
+                  >
+                    <p className="text-[10px] font-extrabold uppercase truncate leading-tight">
+                      {textoTarjaResumo}
+                    </p>
+                    <div className="flex items-baseline justify-between gap-1 mt-0.5">
+                      <p className="text-xs font-black text-white">
+                        R$ {precoPromoFmt || precoVendaFmt}
+                      </p>
+                      {precoPromoFmt && (
+                        <p className="text-[9px] text-white/70 line-through">
+                          R$ {precoVendaFmt}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Botão de Opções de Foto (Câmera ao vivo / Galeria / Gerenciador) */}
+                <button
+                  type="button"
+                  onClick={() => setModalOpcoesFotoAberto(true)}
+                  className="relative p-2 sm:p-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+                  title="Tirar Foto ou Escolher da Galeria"
+                >
+                  <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
+                  {formData.fotos.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 text-white rounded-full text-[9px] flex items-center justify-center font-black shadow">
+                      {formData.fotos.length}
+                    </span>
+                  )}
+                </button>
               </div>
 
-              {/* Botão de Opções de Foto (Câmera ao vivo / Galeria / Gerenciador) */}
+              {/* Lado Direito: Botão Compacto de Cadastro com IA */}
               <button
                 type="button"
-                onClick={() => setModalOpcoesFotoAberto(true)}
-                className="relative p-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm transition active:scale-95 cursor-pointer shrink-0"
-                title="Tirar Foto ou Escolher da Galeria"
+                onClick={() => setModalCriarComIAAberto(true)}
+                className="w-28 sm:w-32 h-36 sm:h-40 rounded-2xl bg-gradient-to-br from-indigo-600 via-teal-600 to-emerald-600 p-[1.5px] shadow-md shadow-indigo-500/15 active:scale-95 transition duration-200 group text-center cursor-pointer overflow-hidden relative shrink-0"
+                title="Cadastre usando nossa Inteligência Artificial"
               >
-                <Camera className="w-6 h-6 text-teal-600" />
-                {formData.fotos.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-teal-500 text-white rounded-full text-[10px] flex items-center justify-center font-black shadow">
-                    {formData.fotos.length}
-                  </span>
-                )}
+                <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[14px] p-2.5 flex flex-col items-center justify-center gap-2 relative overflow-hidden">
+                  {/* Fundo com efeito visual de aura de IA */}
+                  <div className="absolute -right-3 -top-3 w-12 h-12 bg-teal-400/20 rounded-full blur-md group-hover:bg-teal-400/30 transition" />
+                  <div className="absolute -left-3 -bottom-3 w-12 h-12 bg-indigo-500/20 rounded-full blur-md" />
+
+                  <div className="relative z-10 w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-teal-400 to-emerald-300 flex items-center justify-center shadow-md shadow-teal-500/20 group-hover:scale-105 transition transform">
+                    <Sparkles className="w-5 h-5 text-slate-950 fill-slate-950" />
+                  </div>
+
+                  <div className="relative z-10 flex flex-col items-center leading-tight">
+                    <span className="text-[11px] sm:text-xs font-black text-white">
+                      Cadastre usando
+                    </span>
+                    <span className="text-[12px] sm:text-[13px] font-black text-teal-300 group-hover:text-teal-200 transition flex items-center gap-1 mt-0.5">
+                      <span>nossa IA</span>
+                      <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-teal-400/20 text-teal-200 border border-teal-400/30">
+                        IA
+                      </span>
+                    </span>
+                  </div>
+                </div>
               </button>
             </div>
 
@@ -2573,7 +2665,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <input
                     type="text"
                     value={formData.precoVenda}
-                    onChange={(e) => setFormData(prev => ({ ...prev, precoVenda: e.target.value }))}
+                    onChange={(e) => handlePrecoVendaChange(e.target.value)}
                     placeholder="0,00"
                     className="w-full py-2 text-sm sm:text-base font-extrabold text-slate-800 border-b-2 border-slate-300 focus:border-teal-500 focus:outline-none bg-transparent"
                   />
@@ -2716,7 +2808,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Atacado</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Atacado</label>
+                          {formData.precoVenda && (
+                            <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded font-extrabold">
+                              -{regrasPrecificacaoLoja.descontoAtacado}%
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center">
                           <span className="text-xs font-bold text-slate-500 mr-1">R$</span>
                           <input
@@ -2731,10 +2830,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                       {regrasPrecificacaoLoja.tipoMinAtacado === 'valor' ? (
                         <div>
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Valor Mínimo (R$)</label>
-                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
-                          </div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block">Valor Mínimo (R$)</label>
                           <div className="flex items-center">
                             <span className="text-xs font-bold text-slate-400 mr-1">R$</span>
                             <input
@@ -2748,10 +2844,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         </div>
                       ) : (
                         <div>
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mínima (Unidades)</label>
-                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
-                          </div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block">Qtd Mínima (Unidades)</label>
                           <div className="flex items-center">
                             <input
                               type="text"
@@ -2765,7 +2858,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       )}
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Distribuidor</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">Preço Distribuidor</label>
+                          {formData.precoVenda && (
+                            <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-extrabold">
+                              -{regrasPrecificacaoLoja.descontoAutoatacado}%
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center">
                           <span className="text-xs font-bold text-slate-500 mr-1">R$</span>
                           <input
@@ -2780,10 +2880,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                       {regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor' ? (
                         <div>
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Valor Mínimo (R$)</label>
-                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
-                          </div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block">Valor Mínimo (R$)</label>
                           <div className="flex items-center">
                             <span className="text-xs font-bold text-slate-400 mr-1">R$</span>
                             <input
@@ -2797,10 +2894,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         </div>
                       ) : (
                         <div>
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Qtd Mínima (Unidades)</label>
-                            <span className="text-[8px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded font-bold">REQUISITO</span>
-                          </div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block">Qtd Mínima (Unidades)</label>
                           <div className="flex items-center">
                             <input
                               type="text"
