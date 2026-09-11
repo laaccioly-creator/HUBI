@@ -13,6 +13,7 @@ import {
   Tag,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   ArrowLeft,
   Store,
   ShoppingCart,
@@ -1195,40 +1196,29 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         </div>
       )}
 
-      {/* 3. Abas de Categorias Horizontais */}
-      <div className="px-3 border-b border-slate-200 bg-white flex items-center gap-4 overflow-x-auto scrollbar-none shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">
-        <button
-          type="button"
-          onClick={() => setCategoriaAtiva('tudo')}
-          className={`py-2.5 border-b-2 whitespace-nowrap transition cursor-pointer ${
-            categoriaAtiva === 'tudo' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
-          }`}
-        >
-          TUDO
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setCategoriaAtiva('destaques')}
-          className={`py-2.5 border-b-2 whitespace-nowrap transition cursor-pointer ${
-            categoriaAtiva === 'destaques' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
-          }`}
-        >
-          DESTAQUES
-        </button>
-
-        {categoriasOrdenadas.map(cat => (
-          <button
-            key={cat.id}
-            type="button"
-            onClick={() => setCategoriaAtiva(cat.id)}
-            className={`py-2.5 border-b-2 whitespace-nowrap transition cursor-pointer ${
-              categoriaAtiva === cat.id ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
-            }`}
+      {/* 3. Menu Dropdown Seletor de Categorias */}
+      <div className="px-3 py-2 border-b border-slate-200 bg-white flex items-center gap-2 shrink-0">
+        <div className="relative flex-1">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 flex items-center">
+            <Tag className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <select
+            value={categoriaAtiva}
+            onChange={(e) => setCategoriaAtiva(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl pl-9 pr-9 py-2 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition"
           >
-            {cat.nome}
-          </button>
-        ))}
+            <option value="tudo">Todas as Categorias</option>
+            <option value="destaques">⭐ Destaques</option>
+            {categoriasOrdenadas.map(cat => (
+              <option key={cat.id} value={cat.id}>
+                {cat.nome}
+              </option>
+            ))}
+          </select>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 flex items-center">
+            <ChevronDown className="w-4 h-4" />
+          </div>
+        </div>
       </div>
 
       {/* 4. Catálogo de Produtos */}
