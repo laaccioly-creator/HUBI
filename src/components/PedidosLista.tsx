@@ -63,7 +63,8 @@ import {
   isStatusPedidoAtivo,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
-  obterInfoVencimentoFiado
+  obterInfoVencimentoFiado,
+  validarTransicaoStatusPedido
 } from '../utils/statusPedidoUtils';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
@@ -113,6 +114,7 @@ export const PedidosLista: React.FC = () => {
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
+  const [concluirAposReceber, setConcluirAposReceber] = useState<boolean>(false);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
   
@@ -438,13 +440,38 @@ export const PedidosLista: React.FC = () => {
   const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
     try {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
+      if (!pedAlvo) return;
 
       // Validação estrita: não permitir alterar para status desativados nas configurações da loja
-      if (!isStatusPedidoAtivo(novoStatus, loja) && pedAlvo?.status !== novoStatus) {
+      if (!isStatusPedidoAtivo(novoStatus, loja) && pedAlvo.status !== novoStatus) {
         mostrarAviso(
           `O status "${ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus}" está desativado em Configurações > Pedidos e Vendas.`,
           'Status Desativado'
         );
+        return;
+      }
+
+      // Condicionamento estrito: Conclusão exige que o saldo devedor seja R$ 0,00
+      const saldoDevedor = Number(pedAlvo.saldo_devedor ?? (Number(pedAlvo.valor_total || 0) - Number(pedAlvo.valor_pago || 0)));
+      const estaQuitado = saldoDevedor <= 0.009;
+
+      if (novoStatus === 'concluido' && !estaQuitado) {
+        setPedidoReceberModal(pedAlvo);
+        setConcluirAposReceber(true);
+        mostrarAviso(
+          `Para marcar o pedido #${pedAlvo.numero_pedido} como Concluído, liquide o saldo pendente de R$ ${saldoDevedor.toFixed(2)}.`,
+          'Recebimento Obrigatório'
+        );
+        return;
+      }
+
+      const validacaoCiclo = validarTransicaoStatusPedido(pedAlvo.status, novoStatus, estaQuitado);
+      if (!validacaoCiclo.permitido) {
+        if (validacaoCiclo.requerPagamento) {
+          setPedidoReceberModal(pedAlvo);
+          setConcluirAposReceber(true);
+        }
+        mostrarAviso(validacaoCiclo.motivo || 'Transição de status não permitida.', 'Ação Bloqueada');
         return;
       }
 
@@ -972,7 +999,10 @@ export const PedidosLista: React.FC = () => {
           carregando={carregando}
           onAlterarStatus={atualizarStatus}
           onCancelarPedido={(ped) => atualizarStatus(ped.id, 'cancelado')}
-          onAbrirReceberPagamento={(ped) => setPedidoReceberModal(ped)}
+          onAbrirReceberPagamento={(ped) => {
+            setPedidoReceberModal(ped);
+            setConcluirAposReceber(true);
+          }}
           onAbrirDrawerMenu={() => {}}
           onClienteAtualizado={() => carregarPedidos()}
           onRecarregar={carregarPedidos}
@@ -2147,6 +2177,8 @@ export const PedidosLista: React.FC = () => {
         onConsultarProduto={handleConsultarProduto}
       />
 
+      </div>
+
       {/* MODAL DE DETALHES DO PRODUTO */}
       <ModalDetalhesProduto
         isOpen={!!produtoDetalhesModal}
@@ -2158,9 +2190,14 @@ export const PedidosLista: React.FC = () => {
       <ModalReceberPagamento
         isOpen={!!pedidoReceberModal}
         pedido={pedidoReceberModal}
-        onClose={() => setPedidoReceberModal(null)}
+        concluirAoQuitar={concluirAposReceber}
+        onClose={() => {
+          setPedidoReceberModal(null);
+          setConcluirAposReceber(false);
+        }}
         onPagamentoConcluido={(pedidoAtualizado) => {
           setPedidoReceberModal(null);
+          setConcluirAposReceber(false);
           if (pedidoAtualizado && pedidoSelecionado?.id === pedidoAtualizado.id) {
             setPedidoSelecionado(pedidoAtualizado);
           }
@@ -2174,7 +2211,6 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setModalNovoClienteAberto(false)}
         onClienteCadastrado={handleClienteCriado}
       />
-      </div>
     </>
   );
 };

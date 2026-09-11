@@ -20,7 +20,7 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2 } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
@@ -56,9 +56,41 @@ export const CatalogoPublico: React.FC = () => {
 
   const [busca, setBusca] = useState<string>('');
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>('todas');
-  const [carrinho, setCarrinho] = useState<ItemCarrinhoPublico[]>([]);
+  const [carrinho, setCarrinho] = useState<ItemCarrinhoPublico[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
+      const salvo = sessionStorage.getItem(`hubi_carrinho_catalogo_${slugKey}`);
+      if (salvo) {
+        const parsed = JSON.parse(salvo);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar carrinho do sessionStorage:', e);
+    }
+    return [];
+  });
   const [drawerCarrinhoAberto, setDrawerCarrinhoAberto] = useState<boolean>(false);
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
+
+  // Forma de pagamento selecionada no catálogo e troco
+  const [formaPagamentoCatalogo, setFormaPagamentoCatalogo] = useState<'pix' | 'dinheiro' | 'cartao_maquininha'>('pix');
+  const [trocoParaInput, setTrocoParaInput] = useState<string>('');
+  const [chavePixCopiada, setChavePixCopiada] = useState<boolean>(false);
+
+  // Sincronizar carrinho com sessionStorage para preservar estado contra recarregamentos
+  useEffect(() => {
+    try {
+      const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
+      if (carrinho.length > 0) {
+        sessionStorage.setItem(`hubi_carrinho_catalogo_${slugKey}`, JSON.stringify(carrinho));
+      } else {
+        sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
+      }
+    } catch (e) {
+      console.warn('Erro ao salvar carrinho no sessionStorage:', e);
+    }
+  }, [carrinho, slug]);
 
   // Referência para medir altura dinâmica do cabeçalho
   const headerRef = React.useRef<HTMLElement>(null);
@@ -587,9 +619,12 @@ export const CatalogoPublico: React.FC = () => {
     e.preventDefault();
     if (!loja?.id || carrinho.length === 0) return;
 
-    if (!nomeCliente.trim() || !whatsappCliente.trim()) {
+    const nomeLimpo = nomeCliente.trim();
+    const telNumeros = whatsappCliente.replace(/\D/g, '');
+
+    if (!nomeLimpo || telNumeros.length < 10) {
       setModalContatoAberto(true);
-      alert('Por favor, informe seu nome e WhatsApp clicando no botão "Contato" para finalizar o pedido.');
+      alert('Identificação obrigatória: Por favor, informe seu Nome e um WhatsApp válido com DDD (mínimo 10 dígitos) no botão "Contato" para finalizar o pedido.');
       return;
     }
 
@@ -681,6 +716,8 @@ export const CatalogoPublico: React.FC = () => {
 
       const metadadosPedido = {
         origem_detalhes: 'catalogo_online',
+        forma_pagamento_catalogo: formaPagamentoCatalogo,
+        troco_para: formaPagamentoCatalogo === 'dinheiro' ? (trocoParaInput.trim() || null) : null,
         cupom: cupomAplicado ? {
           id: cupomAplicado.id,
           codigo: cupomAplicado.codigo,
@@ -710,6 +747,7 @@ export const CatalogoPublico: React.FC = () => {
             cliente_id: clienteFinalId,
             origem: 'catalogo_online',
             status: 'pendente',
+            forma_pagamento: formaPagamentoCatalogo === 'pix' ? 'pix' : formaPagamentoCatalogo === 'dinheiro' ? 'dinheiro' : 'cartao_maquininha',
             tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
             subtotal,
             valor_frete: valorFreteEfetivo,
@@ -794,6 +832,12 @@ export const CatalogoPublico: React.FC = () => {
           ? '🏷️ Atacado'
           : '🛒 Varejo';
 
+      const textoFormaPagamento = formaPagamentoCatalogo === 'pix'
+        ? '⚡ PIX'
+        : formaPagamentoCatalogo === 'dinheiro'
+        ? `💵 Dinheiro${trocoParaInput.trim() ? ` (Troco para R$ ${trocoParaInput.trim()})` : ' (Não precisa de troco)'}`
+        : '💳 Cartão (Maquininha na Entrega / Retirada)';
+
       const msgWhatsApp = `🛍️ *NOVO PEDIDO ONLINE #${pedidoCriado.numero_pedido}*
 
 Olá, ${loja.nome_fantasia}! Gostaria de confirmar meu pedido feito pelo catálogo online:
@@ -804,6 +848,7 @@ ${itensMsg}
 🏷️ *Tabela Aplicada:* ${tabelaTexto}
 ${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoCarrinho.economiaTotal.toFixed(2)}\n` : ''}💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
 🛵 *Entrega:* ${formaEntregaEscolhida?.nome || 'A combinar'} (+ R$ ${valorFrete.toFixed(2)})
+💳 *Pagamento:* ${textoFormaPagamento}
 💵 *TOTAL A PAGAR:* R$ ${total.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Nome:* ${nomeCliente}
@@ -870,6 +915,10 @@ Fico no aguardo da confirmação! ✨`;
       setCarrinho([]);
       setDrawerCarrinhoAberto(false);
       setPixAprovadoEmTempoReal(false);
+      try {
+        const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
+        sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
+      } catch (e) {}
 
       setPedidoConcluidoModal({
         numeroPedido: pedidoCriado.numero_pedido,
@@ -922,6 +971,20 @@ Fico no aguardo da confirmação! ✨`;
     return Number(p.quantidade_estoque || 0);
   };
 
+  const isProdutoEsgotado = (p: Produto): boolean => {
+    if (p.tipo_item === 'servico') return false;
+    const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false;
+    if (!controlaEstoque) return false;
+    return getEstoqueTotal(p) <= 0;
+  };
+
+  const isVariacaoEsgotada = (p: Produto, v: VariacaoProduto): boolean => {
+    if (p.tipo_item === 'servico') return false;
+    const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false;
+    if (!controlaEstoque) return false;
+    return Number(v.quantidade_estoque || 0) <= 0;
+  };
+
   const catConfig = loja?.configuracoes_extras?.catalogo;
   const semEstoqueModo = catConfig?.produtos_sem_estoque || 'exibir';
   const exibirSemFoto = catConfig?.exibir_produtos_sem_foto ?? false;
@@ -955,8 +1018,10 @@ Fico no aguardo da confirmação! ✨`;
 
       // Regra de produtos sem estoque
       if (semEstoqueModo === 'ocultar') {
-        const est = getEstoqueTotal(p);
-        if (est <= 0) return false;
+        if (p.tipo_item !== 'servico') {
+          const est = getEstoqueTotal(p);
+          if (est <= 0) return false;
+        }
       }
 
       // Regra de produtos sem foto (padrão desligado / false)
@@ -1156,8 +1221,7 @@ Fico no aguardo da confirmação! ✨`;
           <div className="space-y-2.5 pt-2">
             {produtosFiltrados.map((produto) => {
               const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-              const estoqueTotal = getEstoqueTotal(produto);
-              const esgotado = estoqueTotal <= 0 && semEstoqueModo === 'indisponivel';
+              const esgotado = isProdutoEsgotado(produto);
 
               return (
                 <div
@@ -1191,17 +1255,28 @@ Fico no aguardo da confirmação! ✨`;
                     type="button"
                     disabled={esgotado}
                     onClick={() => {
+                      if (esgotado) return;
                       if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                         setProdutoModalVariacao(produto);
                       } else {
                         adicionarAoCarrinho(produto);
                       }
                     }}
-                    className="px-3 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer disabled:opacity-40 shrink-0"
-                    style={{ backgroundColor: corTema }}
+                    className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm shrink-0 ${
+                      esgotado
+                        ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                        : 'text-white cursor-pointer hover:brightness-110'
+                    }`}
+                    style={{ backgroundColor: esgotado ? undefined : corTema }}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Adicionar</span>
+                    {esgotado ? (
+                      <span>Esgotado</span>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Adicionar</span>
+                      </>
+                    )}
                   </button>
                 </div>
               );
@@ -1212,8 +1287,7 @@ Fico no aguardo da confirmação! ✨`;
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2 max-w-4xl mx-auto">
             {produtosFiltrados.map((produto) => {
               const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80';
-              const estoqueTotal = getEstoqueTotal(produto);
-              const esgotado = estoqueTotal <= 0 && semEstoqueModo === 'indisponivel';
+              const esgotado = isProdutoEsgotado(produto);
 
               return (
                 <div
@@ -1255,17 +1329,28 @@ Fico no aguardo da confirmação! ✨`;
                         type="button"
                         disabled={esgotado}
                         onClick={() => {
+                          if (esgotado) return;
                           if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                             setProdutoModalVariacao(produto);
                           } else {
                             adicionarAoCarrinho(produto);
                           }
                         }}
-                        className="px-4 py-2.5 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer disabled:opacity-40"
-                        style={{ backgroundColor: corTema }}
+                        className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition ${
+                          esgotado
+                            ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                            : 'text-white cursor-pointer hover:brightness-110'
+                        }`}
+                        style={{ backgroundColor: esgotado ? undefined : corTema }}
                       >
-                        <ShoppingBag className="w-4 h-4" />
-                        <span>Adicionar ao Pedido</span>
+                        {esgotado ? (
+                          <span>Esgotado</span>
+                        ) : (
+                          <>
+                            <ShoppingBag className="w-4 h-4" />
+                            <span>Adicionar ao Pedido</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1278,8 +1363,7 @@ Fico no aguardo da confirmação! ✨`;
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 pt-2">
             {produtosFiltrados.map((produto) => {
               const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-              const estoqueTotal = getEstoqueTotal(produto);
-              const esgotado = estoqueTotal <= 0 && semEstoqueModo === 'indisponivel';
+              const esgotado = isProdutoEsgotado(produto);
 
               return (
                 <div
@@ -1329,16 +1413,22 @@ Fico no aguardo da confirmação! ✨`;
                       type="button"
                       disabled={esgotado}
                       onClick={() => {
+                        if (esgotado) return;
                         if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                           setProdutoModalVariacao(produto);
                         } else {
                           adicionarAoCarrinho(produto);
                         }
                       }}
-                      className="w-8 h-8 rounded-xl text-white flex items-center justify-center transition shadow-sm font-bold cursor-pointer disabled:opacity-40"
-                      style={{ backgroundColor: corTema }}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-sm font-bold ${
+                        esgotado
+                          ? 'bg-slate-800 text-slate-600 border border-slate-700 cursor-not-allowed opacity-50'
+                          : 'text-white cursor-pointer hover:brightness-110'
+                      }`}
+                      style={{ backgroundColor: esgotado ? undefined : corTema }}
+                      title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
                     >
-                      <Plus className="w-4 h-4" />
+                      {esgotado ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
@@ -1359,23 +1449,40 @@ Fico no aguardo da confirmação! ✨`;
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {produtoModalVariacao.variacoes?.map((variacao) => (
-                <button
-                  key={variacao.id}
-                  onClick={() => {
-                    adicionarAoCarrinho(produtoModalVariacao, variacao);
-                    setProdutoModalVariacao(null);
-                  }}
-                  className="w-full p-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 flex items-center justify-between text-left transition"
-                >
-                  <span className="font-bold text-xs text-slate-100">
-                    {variacao.valor_variacao_1} {variacao.valor_variacao_2 ? `- ${variacao.valor_variacao_2}` : ''}
-                  </span>
-                  <span className="font-bold text-emerald-400 text-xs">
-                    R$ {Number(variacao.preco_venda_varejo).toFixed(2)}
-                  </span>
-                </button>
-              ))}
+              {produtoModalVariacao.variacoes?.map((variacao) => {
+                const varEsgotada = isVariacaoEsgotada(produtoModalVariacao, variacao);
+
+                return (
+                  <button
+                    key={variacao.id}
+                    disabled={varEsgotada}
+                    onClick={() => {
+                      if (varEsgotada) return;
+                      adicionarAoCarrinho(produtoModalVariacao, variacao);
+                      setProdutoModalVariacao(null);
+                    }}
+                    className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition ${
+                      varEsgotada
+                        ? 'bg-slate-800/40 border-slate-800/80 opacity-50 cursor-not-allowed'
+                        : 'bg-slate-800 hover:bg-slate-700/80 border-slate-700 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold text-xs ${varEsgotada ? 'text-slate-400 line-through' : 'text-slate-100'}`}>
+                        {variacao.valor_variacao_1} {variacao.valor_variacao_2 ? `- ${variacao.valor_variacao_2}` : ''}
+                      </span>
+                      {varEsgotada && (
+                        <span className="text-[10px] font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30">
+                          Esgotado
+                        </span>
+                      )}
+                    </div>
+                    <span className={`font-bold text-xs ${varEsgotada ? 'text-slate-500' : 'text-emerald-400'}`}>
+                      R$ {Number(variacao.preco_venda_varejo).toFixed(2)}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1612,6 +1719,23 @@ Fico no aguardo da confirmação! ✨`;
                         </span>
                       </button>
                     </div>
+
+                    {/* AVISO VISUAL DE IDENTIFICAÇÃO OBRIGATÓRIA */}
+                    {(!nomeCliente.trim() || whatsappCliente.replace(/\D/g, '').length < 10) && (
+                      <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-2 text-xs text-amber-300">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span className="truncate">Preencha Nome e WhatsApp para liberar o pedido</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setModalContatoAberto(true)}
+                          className="px-2.5 py-1 rounded-xl bg-amber-500 text-slate-950 font-black text-[10px] hover:bg-amber-400 transition shrink-0 cursor-pointer shadow"
+                        >
+                          Preencher
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -1622,6 +1746,69 @@ Fico no aguardo da confirmação! ✨`;
                       onChange={(e) => setObservacoes(e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
                     />
+                  </div>
+
+                  {/* FORMAS DE PAGAMENTO */}
+                  <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                    <span className="text-[11px] font-bold text-slate-300 block">Forma de Pagamento:</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormaPagamentoCatalogo('pix')}
+                        className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          formaPagamentoCatalogo === 'pix'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow'
+                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-750'
+                        }`}
+                      >
+                        <Zap className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[11px]">PIX</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormaPagamentoCatalogo('dinheiro')}
+                        className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          formaPagamentoCatalogo === 'dinheiro'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow'
+                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-750'
+                        }`}
+                      >
+                        <Banknote className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[11px]">Dinheiro</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormaPagamentoCatalogo('cartao_maquininha')}
+                        className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          formaPagamentoCatalogo === 'cartao_maquininha'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow'
+                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-750'
+                        }`}
+                      >
+                        <CreditCard className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[11px] text-center leading-tight">Cartão</span>
+                      </button>
+                    </div>
+
+                    {formaPagamentoCatalogo === 'dinheiro' && (
+                      <div className="p-3 bg-slate-800/80 rounded-2xl border border-slate-700 space-y-1.5 animate-in fade-in">
+                        <label className="text-[11px] text-slate-300 font-medium block">
+                          Precisa de troco? Informe para quanto:
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                          <input
+                            type="text"
+                            placeholder="Ex: 50,00 (ou em branco se não precisar)"
+                            value={trocoParaInput}
+                            onChange={(e) => setTrocoParaInput(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* CAMPO DE CUPOM DE DESCONTO */}
@@ -1764,6 +1951,78 @@ Fico no aguardo da confirmação! ✨`;
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 text-left whitespace-pre-wrap leading-relaxed">
               {loja?.instrucoes_pos_pedido || 'Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!'}
             </div>
+
+            {/* DETALHES DA FORMA DE PAGAMENTO SELECIONADA */}
+            {formaPagamentoCatalogo === 'pix' && !pixAprovadoEmTempoReal && (() => {
+              const chavePixLoja = loja?.configuracoes_extras?.pagamentos?.pix_chave || (loja?.configuracoes_extras as any)?.pagamentos_manuais?.pix_chave || (loja as any)?.pix_chave || loja?.whatsapp || '';
+              if (!chavePixLoja) return null;
+              return (
+                <div className="p-4 bg-slate-950 rounded-2xl border border-emerald-500/40 text-left space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Chave PIX da Loja</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">Pagamento Imediato</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-slate-200 truncate select-all">
+                      {chavePixLoja}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(chavePixLoja);
+                        setChavePixCopiada(true);
+                        setTimeout(() => setChavePixCopiada(false), 3000);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow"
+                    >
+                      {chavePixCopiada ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copiar Chave</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    Faça a transferência via PIX e envie o comprovante pelo WhatsApp da loja para agilizar a preparação.
+                  </p>
+                </div>
+              );
+            })()}
+
+            {formaPagamentoCatalogo === 'dinheiro' && (
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                  <Banknote className="w-4 h-4 text-emerald-400" />
+                  <span>Pagamento em Dinheiro</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {trocoParaInput.trim()
+                    ? `Troco informado para R$ ${trocoParaInput.trim()}. Por favor, tenha o valor em mãos na entrega/retirada.`
+                    : 'Pagamento em dinheiro na entrega/retirada.'}
+                </p>
+              </div>
+            )}
+
+            {formaPagamentoCatalogo === 'cartao_maquininha' && (
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                  <CreditCard className="w-4 h-4 text-emerald-400" />
+                  <span>Cartão na Entrega / Retirada</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  O entregador/atendente levará a maquininha para você efetuar o pagamento.
+                </p>
+              </div>
+            )}
 
             {/* SE PIX FOI APROVADO EM TEMPO REAL */}
             {pixAprovadoEmTempoReal && (

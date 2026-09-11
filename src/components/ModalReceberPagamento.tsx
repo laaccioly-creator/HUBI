@@ -29,6 +29,7 @@ interface ModalReceberPagamentoProps {
   onClose: () => void;
   pedido: Pedido | null;
   onPagamentoConcluido: (pedidoAtualizado?: Pedido) => void;
+  concluirAoQuitar?: boolean;
 }
 
 interface InfoPagamentoPrevisto {
@@ -116,7 +117,8 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
   isOpen,
   onClose,
   pedido,
-  onPagamentoConcluido
+  onPagamentoConcluido,
+  concluirAoQuitar = false
 }) => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
@@ -130,6 +132,19 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
   const [erroMsg, setErroMsg] = useState<string | null>(null);
   const [sucessoModal, setSucessoModal] = useState<boolean>(false);
   const [pedidoAtualizado, setPedidoAtualizado] = useState<Pedido | null>(null);
+  const inputValorRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && !sucessoModal) {
+      const timer = setTimeout(() => {
+        if (inputValorRef.current) {
+          inputValorRef.current.focus();
+          inputValorRef.current.select();
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, sucessoModal]);
 
   const FORMAS_PADRAO: FormaPagamento[] = [
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
@@ -307,8 +322,12 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         atualizado_em: dataIso
       };
 
-      if (pedido.status === 'pendente' && quitado) {
-        payloadUpdate.status = 'confirmado';
+      if (quitado) {
+        if (concluirAoQuitar) {
+          payloadUpdate.status = 'concluido';
+        } else if (pedido.status === 'pendente') {
+          payloadUpdate.status = 'confirmado';
+        }
       }
 
       const { data: pedUpd, error: erroUpd } = await supabase
@@ -548,6 +567,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
                 <input
+                  ref={inputValorRef}
                   type="number"
                   step="0.01"
                   required
@@ -558,6 +578,32 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                   style={{ color: '#34d399', WebkitTextFillColor: '#34d399' }}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-emerald-500/50 rounded-2xl text-lg font-black text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                 />
+              </div>
+
+              {/* Botões de Valores Rápidos / Sugestão */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <button
+                  type="button"
+                  onClick={() => setValorReceber((saldoDevedorAtual > 0 ? saldoDevedorAtual : valorTotal).toFixed(2))}
+                  className="px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px] transition cursor-pointer border border-emerald-500/40"
+                >
+                  Valor Exato
+                </button>
+                {[10, 20, 50, 100].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => {
+                      const cur = parseFloat(valorReceber.replace(',', '.')) || 0;
+                      const maxVal = saldoDevedorAtual > 0 ? saldoDevedorAtual : valorTotal;
+                      const novo = Math.min(maxVal, cur + val);
+                      setValorReceber(novo.toFixed(2));
+                    }}
+                    className="px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[11px] transition cursor-pointer border border-slate-700"
+                  >
+                    +R$ {val}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -576,6 +622,31 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                     className="w-28 bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 text-right text-xs font-bold text-slate-100 focus:outline-none"
                   />
                 </div>
+
+                {/* Sugestões de Dinheiro Entregue */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setValorEntregueDinheiro(valorInformado.toFixed(2))}
+                    className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-[10px] transition cursor-pointer border border-slate-700"
+                  >
+                    Exato (R$ {valorInformado.toFixed(2)})
+                  </button>
+                  {[10, 20, 50, 100].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => {
+                        const cur = parseFloat(valorEntregueDinheiro.replace(',', '.')) || valorInformado || 0;
+                        setValorEntregueDinheiro((cur + val).toFixed(2));
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-[10px] transition cursor-pointer border border-slate-700"
+                    >
+                      +R$ {val}
+                    </button>
+                  ))}
+                </div>
+
                 {valorEntregueNum > 0 && (
                   <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-xs">
                     <span className="text-slate-400 font-medium">Troco a Devolver:</span>
