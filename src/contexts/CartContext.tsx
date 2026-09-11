@@ -10,6 +10,7 @@ import {
 } from '../services/pricingEngine';
 
 import { supabase } from '../lib/supabase';
+import { podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
 
 export interface CartItem {
   id: string;
@@ -114,7 +115,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantidade: number = 1,
     observacoes?: string
   ) => {
-    const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
+    if (pedidoEmEdicao && !podeEditarItensPedido(pedidoEmEdicao.status)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem adicionar itens. Apenas pedidos em aberto (pendente) permitem alteração de itens.`);
+      return;
+    }
+
+    const isServico = produto.tipo_item === 'servico';
+    const controlaEstoque = !isServico && loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
     const permiteNegativo = Boolean(
       (variacao as any)?.permite_estoque_negativo ||
       produto.permite_estoque_negativo ||
@@ -171,17 +178,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removerItem = (cartId: string) => {
+    if (pedidoEmEdicao && !podeEditarItensPedido(pedidoEmEdicao.status)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem remover itens. Apenas pedidos em aberto (pendente) permitem alteração de itens.`);
+      return;
+    }
     setItens(prev => prev.filter(i => i.id !== cartId));
   };
 
   const atualizarQuantidade = (cartId: string, quantidade: number) => {
+    if (pedidoEmEdicao && !podeEditarItensPedido(pedidoEmEdicao.status)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alterar quantidades de itens.`);
+      return;
+    }
+
     if (quantidade <= 0) {
       removerItem(cartId);
       return;
     }
 
-    const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
     const itemAlvo = itens.find(i => i.id === cartId);
+    const isServico = itemAlvo?.produto?.tipo_item === 'servico';
+    const controlaEstoque = !isServico && loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
     if (itemAlvo && controlaEstoque) {
       const permiteNegativo = Boolean(
         (itemAlvo.variacao as any)?.permite_estoque_negativo ||
@@ -233,6 +250,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [itensComPrecoDinamico]);
 
   const setDescontoValor = (valor: number) => {
+    if (pedidoEmEdicao && !podeEditarDescontoPedido(pedidoEmEdicao.status)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alteração de desconto.`);
+      return;
+    }
     const val = Math.max(0, valor);
     setDescontoState(val);
     if (subtotal > 0) {
@@ -243,6 +264,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setDescontoPercentual = (percentual: number) => {
+    if (pedidoEmEdicao && !podeEditarDescontoPedido(pedidoEmEdicao.status)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alteração de desconto.`);
+      return;
+    }
     const perc = Math.max(0, Math.min(100, percentual));
     setDescontoPercentualState(perc);
     if (subtotal > 0) {

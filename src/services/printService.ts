@@ -8,6 +8,7 @@
  */
 
 import { Pedido, Loja, ItemPedido } from '../types';
+import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 export const formatarDataRecibo = (dataIso?: string | null): string => {
   if (!dataIso) return '';
@@ -337,9 +338,14 @@ export class PrintService {
           </div>
 
           ${(pagamentoInfo.ehFiado && Number(pedido.saldo_devedor || 0) > 0) ? `
-            <div style="text-align: right; margin-bottom: 6px; font-size: ${isA4 ? '13px' : '11px'}; font-weight: 600; color: #b45309;">
+            <div style="text-align: right; margin-bottom: 2px; font-size: ${isA4 ? '13px' : '11px'}; font-weight: 600; color: #b45309;">
               Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}
             </div>
+            ${obterInfoVencimentoFiado(pedido).temVencimento ? `
+              <div style="text-align: right; margin-bottom: 6px; font-size: ${isA4 ? '12px' : '10px'}; font-weight: 700; color: #dc2626;">
+                Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}
+              </div>
+            ` : ''}
           ` : ''}
 
           <!-- Dados do Pagamento (Após o Valor Total) -->
@@ -744,7 +750,7 @@ export class PrintService {
       (Number(pedido.valor_desconto) > 0 ? `Desconto: - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : '') +
       (Number(pedido.valor_frete) > 0 ? `Taxa Entrega: + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : '') +
       `Total: R$ ${Number(pedido.valor_total).toFixed(2)}\n` +
-      (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : '') +
+      (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : '') +
       pagStr +
       `--------------------------------------------------\n` +
       `${dataFormatada}\n\n` +
@@ -800,7 +806,7 @@ ${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}` : ''}
 ${itensTexto}
 ━━━━━━━━━━━━━━━━━━━━
 ${Number(pedido.valor_desconto) > 0 ? `🏷️ *Desconto:* - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : ''}${Number(pedido.valor_frete) > 0 ? `🛵 *Taxa de Entrega:* + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : ''}💵 *TOTAL:* R$ ${Number(pedido.valor_total).toFixed(2)}
-${pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
+${pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `📅 *Data de Vencimento:* ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
 ${dataFormatada}
 
 Agradecemos a sua preferência! ✨`;

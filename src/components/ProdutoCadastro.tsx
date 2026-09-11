@@ -18,6 +18,7 @@ import {
   X,
   AlertCircle,
   Package,
+  Wrench,
   Boxes,
   Eye,
   Star,
@@ -666,6 +667,7 @@ export const ProdutoCadastro: React.FC = () => {
   const [uploadStatusMsg, setUploadStatusMsg] = useState<string>('');
 
   const [ativo, setAtivo] = useState<boolean>(() => rascunhoSalvo?.ativo ?? true);
+  const [tipoItem, setTipoItem] = useState<'produto' | 'servico'>(() => (rascunhoSalvo?.tipoItem as any) || 'produto');
   const [nome, setNome] = useState<string>(() => rascunhoSalvo?.nome || '');
   const [codigoInterno, setCodigoInterno] = useState<string>(() => rascunhoSalvo?.codigoInterno || '');
   const [codigoBarras, setCodigoBarras] = useState<string>(() => rascunhoSalvo?.codigoBarras || '');
@@ -774,6 +776,7 @@ export const ProdutoCadastro: React.FC = () => {
       exibirCatalogo,
       destaque,
       ativo,
+      tipoItem,
       fotosUrls,
       fotoPrincipal,
       temVariacoes,
@@ -806,6 +809,7 @@ export const ProdutoCadastro: React.FC = () => {
     exibirCatalogo,
     destaque,
     ativo,
+    tipoItem,
     fotosUrls,
     fotoPrincipal,
     temVariacoes,
@@ -840,6 +844,7 @@ export const ProdutoCadastro: React.FC = () => {
         fornecedorId,
         descricao,
         tipoUnidade,
+        tipoItem,
         precoCusto,
         precoVendaVarejo,
         precoVendaAtacado,
@@ -1061,6 +1066,7 @@ export const ProdutoCadastro: React.FC = () => {
           setFornecedorId(prod.fornecedor_id || '');
           setDescricao(prod.descricao || '');
           setTipoUnidade(prod.tipo_unidade || 'un');
+          setTipoItem((prod.tipo_item as any) || 'produto');
 
           setPrecoCusto(prod.preco_custo ? Number(prod.preco_custo).toFixed(2) : '0.00');
           setPrecoVendaVarejo(prod.preco_venda_varejo ? Number(prod.preco_venda_varejo).toFixed(2) : '');
@@ -1487,6 +1493,7 @@ export const ProdutoCadastro: React.FC = () => {
         fornecedor_id: fornecedorId || null,
         descricao,
         tipo_unidade: tipoUnidade,
+        tipo_item: tipoItem,
         fotos_urls: todasFotos.slice(0, 7),
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
@@ -1500,8 +1507,8 @@ export const ProdutoCadastro: React.FC = () => {
         valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : null,
         preco_promocional: precoPromocional ? Number(precoPromocional) : null,
         promocao_ativa: promocaoAtiva,
-        quantidade_estoque: estoqueFinal,
-        estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
+        quantidade_estoque: tipoItem === 'servico' ? 0 : estoqueFinal,
+        estoque_minimo_alerta: tipoItem === 'servico' ? 0 : (Number(estoqueMinimoAlerta) || 0),
         tem_variacoes: temVariacoes && opcoesVariacao.length > 0,
         rotulo_variacao_1: temVariacoes ? nomeTipoVariacao || 'Opção' : null,
         rotulo_variacao_2: null,
@@ -2077,6 +2084,42 @@ export const ProdutoCadastro: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Seletor Tipo de Item (Fase 1: Produto Físico vs Serviço / Taxa) */}
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 block">Tipo do Item *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTipoItem('produto')}
+                    className={`py-2.5 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      tipoItem === 'produto'
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" />
+                    <span>Produto Físico</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoItem('servico');
+                      setQuantidadeEstoque('0');
+                      setEstoqueMinimoAlerta('0');
+                      setTemVariacoes(false);
+                    }}
+                    className={`py-2.5 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      tipoItem === 'servico'
+                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-sm'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Wrench className="w-4 h-4" />
+                    <span>Serviço / Taxa</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Nome do Produto */}
               <div className="md:col-span-2 space-y-1">
                 <label className="text-xs font-semibold text-slate-300">Nome do Produto *</label>
@@ -2296,52 +2339,64 @@ export const ProdutoCadastro: React.FC = () => {
           </div>
 
           {/* SEÇÃO 4: ESTOQUE & VALIDADE */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
-            <div>
-              <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <Boxes className="w-4 h-4 text-emerald-400" />
-                <span>4. Controle de Estoque & Entrada Inicial</span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Informe a quantidade inicial que você tem agora em loja. Você poderá dar entrada em novas compras a qualquer momento.
+          {tipoItem === 'servico' ? (
+            <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-3xl p-5 md:p-6 space-y-2 shadow-xl">
+              <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+                <Wrench className="w-4 h-4" />
+                <span>4. Controle de Estoque (Dispensado para Serviços / Taxas)</span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Itens do tipo Serviço / Taxa não movimentam saldo de estoque físico. Vendas são ilimitadas e não bloqueiam no PDV ou carrinho por falta de quantidade.
               </p>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-emerald-400">Estoque Inicial em Loja</label>
-                <input
-                  type="number"
-                  value={quantidadeEstoque}
-                  onChange={(e) => setQuantidadeEstoque(e.target.value)}
-                  className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400"
-                />
-                <span className="text-[10px] text-slate-500">Saldo inicial para venda</span>
+          ) : (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+              <div>
+                <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                  <Boxes className="w-4 h-4 text-emerald-400" />
+                  <span>4. Controle de Estoque & Entrada Inicial</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Informe a quantidade inicial que você tem agora em loja. Você poderá dar entrada em novas compras a qualquer momento.
+                </p>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Alerta de Estoque Mínimo</label>
-                <input
-                  type="number"
-                  value={estoqueMinimoAlerta}
-                  onChange={(e) => setEstoqueMinimoAlerta(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
-                />
-                <span className="text-[10px] text-slate-500">Avisa quando estiver acabando</span>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-emerald-400">Estoque Inicial em Loja</label>
+                  <input
+                    type="number"
+                    value={quantidadeEstoque}
+                    onChange={(e) => setQuantidadeEstoque(e.target.value)}
+                    className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400"
+                  />
+                  <span className="text-[10px] text-slate-500">Saldo inicial para venda</span>
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Data de Validade (Opcional)</label>
-                <input
-                  type="date"
-                  value={dataValidade}
-                  onChange={(e) => setDataValidade(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
-                />
-                <span className="text-[10px] text-slate-500">Para perecíveis / cosméticos</span>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">Alerta de Estoque Mínimo</label>
+                  <input
+                    type="number"
+                    value={estoqueMinimoAlerta}
+                    onChange={(e) => setEstoqueMinimoAlerta(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  />
+                  <span className="text-[10px] text-slate-500">Avisa quando estiver acabando</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">Data de Validade (Opcional)</label>
+                  <input
+                    type="date"
+                    value={dataValidade}
+                    onChange={(e) => setDataValidade(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                  />
+                  <span className="text-[10px] text-slate-500">Para perecíveis / cosméticos</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* SEÇÃO 5: GRADE DE VARIAÇÕES (SIMPLIFICADA E INTUITIVA) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">

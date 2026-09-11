@@ -353,12 +353,29 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         }
 
         await supabase.from('pedidos').update({
+          status: quitado ? 'concluido' : ped.status,
           valor_pago: novoValorPago,
           saldo_devedor: novoSaldoDevedor,
           fiado_quitado: quitado,
           status_pagamento: novoStatusPag,
           atualizado_em: dataIso
         }).eq('id', ped.id);
+
+        if (quitado && loja?.id) {
+          try {
+            await supabase.from('historico_pedidos').insert([{
+              loja_id: loja.id,
+              pedido_id: ped.id,
+              usuario_id: usuario?.id || null,
+              tipo_evento: 'status_alterado',
+              status_anterior: ped.status,
+              status_novo: 'concluido',
+              descricao: `Fiado quitado (R$ ${valorRecebido.toFixed(2)}) - Pedido concluído e transferido para Vendas`
+            }]);
+          } catch (eH) {
+            console.warn('Aviso ao registrar historico_pedidos:', eH);
+          }
+        }
       } else {
         // Abatimento em múltiplos pedidos em aberto do cliente
         let saldoParaAbater = valorRecebido;
@@ -372,12 +389,29 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
             const quitado = novoSaldo <= 0;
 
             await supabase.from('pedidos').update({
+              status: quitado ? 'concluido' : ped.status,
               valor_pago: novoPago,
               saldo_devedor: novoSaldo,
               fiado_quitado: quitado,
               status_pagamento: quitado ? 'pago' : 'parcialmente_pago',
               atualizado_em: dataIso
             }).eq('id', ped.id);
+
+            if (quitado && loja?.id) {
+              try {
+                await supabase.from('historico_pedidos').insert([{
+                  loja_id: loja.id,
+                  pedido_id: ped.id,
+                  usuario_id: usuario?.id || null,
+                  tipo_evento: 'status_alterado',
+                  status_anterior: ped.status,
+                  status_novo: 'concluido',
+                  descricao: `Fiado quitado (R$ ${abaterDeste.toFixed(2)}) - Pedido concluído e transferido para Vendas`
+                }]);
+              } catch (eH) {
+                console.warn('Aviso ao registrar historico_pedidos:', eH);
+              }
+            }
 
             saldoParaAbater -= abaterDeste;
           }
@@ -667,7 +701,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
       {/* ========================================================================= */}
       {modalReceberAberto && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-60 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-emerald-400" />
@@ -732,8 +766,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                       )}
                     </div>
 
-                    {/* Botões de Seleção do Meio (Fiado excluído) */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {/* Botões de Seleção do Meio em 2 colunas com texto completo */}
+                    <div className="grid grid-cols-2 gap-2">
                       {formasValidasRecebimento.map((fp) => {
                         const sel = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
                         return (
@@ -741,17 +775,17 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                             key={fp.id}
                             type="button"
                             onClick={() => handleAlterarFormaLinha(linha.id, fp)}
-                            className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                            className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 ${
                               sel
-                                ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40'
-                                : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800'
+                                ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 shadow-sm'
+                                : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white'
                             }`}
                           >
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                            <span className="truncate">{fp.nome}</span>
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />}
+                            {fp.tipo === 'pix' && <Zap className="w-4 h-4 text-cyan-400 shrink-0" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-4 h-4 text-blue-400 shrink-0" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-4 h-4 text-purple-400 shrink-0" />}
+                            <span className="whitespace-normal text-center">{fp.nome}</span>
                           </button>
                         );
                       })}
@@ -769,7 +803,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                           value={linha.valor > 0 ? linha.valor : ''}
                           onChange={(e) => handleAlterarValorLinha(linha.id, parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
-                          className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none"
+                          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+                          className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
                         />
                       </div>
                     </div>
@@ -787,7 +822,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                               placeholder="0.00"
                               value={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : ''}
                               onChange={(e) => handleAlterarEntregueLinha(linha.id, parseFloat(e.target.value) || 0)}
-                              className="w-28 bg-transparent text-right text-xs font-bold text-slate-100 focus:outline-none"
+                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
                             />
                           </div>
                         </div>

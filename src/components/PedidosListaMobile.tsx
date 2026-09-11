@@ -47,7 +47,8 @@ import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import {
   obterAbasStatusVisiveis,
-  obterOpcoesStatusAlteracao
+  obterOpcoesStatusAlteracao,
+  obterInfoVencimentoFiado
 } from '../utils/statusPedidoUtils';
 
 interface HistoricoItemMobile {
@@ -345,7 +346,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       // 2. Filtro de Status
       if (!statusSelecionados.includes('todos')) {
-        if (!statusSelecionados.includes(p.status)) return false;
+        const matchStatusDireto = statusSelecionados.includes(p.status);
+        const querVencido = statusSelecionados.includes('vencido');
+        const infoVenc = obterInfoVencimentoFiado(p);
+        const temFiadoEmAberto = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado') && !p.fiado_quitado;
+        const matchVencido = querVencido && (p.status === 'vencido' || (temFiadoEmAberto && p.status !== 'concluido' && p.status !== 'cancelado' && infoVenc.estaVencido));
+
+        if (!matchStatusDireto && !matchVencido) return false;
       }
 
       // 3. Filtro de Vendedores
@@ -533,8 +540,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             {/* Pílula de Pagamento Real */}
             {(() => {
               const pagInfo = obterDadosPagamentoRecibo(pedidoSelecionado);
+              const ehFiado = pagInfo.ehFiado;
               const ehPago = pagInfo.foiPago;
               const nomeForma = pagInfo.pagamentosDetalhados?.[0]?.forma;
+
+              if (ehFiado) {
+                return (
+                  <div className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 flex items-center gap-1.5 text-xs font-bold">
+                    <DollarSign className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Fiado</span>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
@@ -832,8 +850,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  const ehFiado = (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
                   const estaPago = pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0);
-                  if (estaPago) {
+                  if (estaPago || ehFiado) {
                     onAlterarStatus(pedidoSelecionado.id, 'concluido');
                     setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                   } else {
@@ -842,7 +861,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 }}
                 className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
               >
-                {(pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0)) ? 'Concluir Pedido' : 'Receber e Concluir'}
+                {(() => {
+                  const ehFiado = (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
+                  const estaPago = pedidoSelecionado.status_pagamento === 'pago' || (Number(pedidoSelecionado.saldo_devedor) <= 0 && Number(pedidoSelecionado.valor_pago) > 0);
+                  return (estaPago || ehFiado) ? 'Concluir Pedido' : 'Receber e Concluir';
+                })()}
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
@@ -1244,6 +1267,24 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           <span>{cli.nome}</span>
                         </div>
                       )}
+
+                      {(() => {
+                        const infoVenc = obterInfoVencimentoFiado(ped);
+                        const temFiadoEmAberto = (ped.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado') && !ped.fiado_quitado;
+                        const estaVencido = ped.status === 'vencido' || (temFiadoEmAberto && ped.status !== 'concluido' && ped.status !== 'cancelado' && infoVenc.estaVencido);
+                        if (!estaVencido) return null;
+                        return (
+                          <div className="flex items-center justify-between pt-1 border-t border-rose-100 text-[10px]">
+                            <span className="inline-flex items-center gap-1 font-bold text-rose-600">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              Vencido
+                            </span>
+                            <span className="font-semibold text-rose-500">
+                              Vencimento: {infoVenc.formatada}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

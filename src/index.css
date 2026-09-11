@@ -175,10 +175,10 @@ html.light textarea {
   color: #0f172a !important;
 }
 
-/* Correção Global: Previne Tarja Preta do Navegador em Inputs Móveis e Transparentes */
-input.bg-transparent,
-textarea.bg-transparent,
-select.bg-transparent,
+/* Correção Global: Previne Tarja Preta do Navegador em Inputs Móveis e Transparentes (Apenas no Modo Claro) */
+html.light input.bg-transparent,
+html.light textarea.bg-transparent,
+html.light select.bg-transparent,
 .bg-white input:not([class*="bg-slate-"]):not([class*="bg-black"]):not([class*="bg-emerald-"]):not([class*="bg-teal-"]):not([class*="bg-indigo-"]),
 .bg-white textarea:not([class*="bg-slate-"]):not([class*="bg-black"]) {
   background-color: transparent !important;
@@ -187,8 +187,19 @@ select.bg-transparent,
 
 html.light input::placeholder,
 html.light textarea::placeholder,
-input.bg-transparent::placeholder {
+html.light input.bg-transparent::placeholder {
   color: #94a3b8 !important;
+}
+
+/* Preserva a visibilidade e nitidez de inputs com texto claro em containers escuros */
+.bg-slate-900 input.bg-transparent,
+.bg-slate-950 input.bg-transparent,
+.bg-slate-800 input.bg-transparent,
+input.text-white,
+input.text-slate-100,
+input.text-slate-200,
+input.text-emerald-400 {
+  color: inherit;
 }
 
 /* ==========================================================================
@@ -351,5 +362,41 @@ html.light .bg-gradient-to-r.from-emerald-950 span.text-slate-300 {
     width: 100% !important;
     visibility: visible !important;
   }
+}
+
+/* ==========================================================================
+   GLOBAL CHECKBOX STYLING (Diretrizes Globais: Checkboxes em Filtros e Formulários)
+   ========================================================================== */
+input[type="checkbox"]:not(.sr-only):not(.hidden) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: all 0.15s ease-in-out;
+}
+
+input[type="checkbox"]:not(.sr-only):not(.hidden):hover {
+  border-color: #94a3b8;
+}
+
+input[type="checkbox"]:not(.sr-only):not(.hidden):checked {
+  background-color: #10b981;
+  border-color: #10b981;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+input[type="checkbox"]:not(.sr-only):not(.hidden):focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 

@@ -51,7 +51,7 @@ import { VendaOfflineFila } from '../services/offlineDb';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
 import { PosCheckoutMobile } from './PosCheckoutMobile';
-import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo } from '../utils/statusPedidoUtils';
+import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 /**
  * Retorna o peso de prioridade da categoria para ordenação no PDV:
@@ -1181,32 +1181,80 @@ export const PosCheckout: React.FC = () => {
             console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
           }
 
-          // Atualizar o Limite de Crédito e Saldo Devedor do Cliente se houve compra no Fiado
-          if (valorFiadoTotal > 0 && clienteSelecionado) {
-            const novoLimite = Math.max(0, Number(clienteSelecionado.limite_credito || 0) - valorFiadoTotal);
-            const novoSaldo = Number(clienteSelecionado.saldo_devedor_fiado || 0) + valorFiadoTotal;
+          // Atualizar o Limite de Crédito e Saldo Devedor do Cliente se houve compra no Fiado ou alteração em pedido existente
+          if (clienteSelecionado) {
+            // Calcular quanto este pedido JÁ possuía de fiado anterior não quitado
+            const valorFiadoAnterior = pedidoEmEdicao
+              ? (pedidoEmEdicao.pagamentos || [])
+                  .filter((p: any) => (p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado') && !p.fiado_quitado)
+                  .reduce((sum: number, p: any) => sum + Number(p.valor || 0), 0)
+              : 0;
 
-            try {
-              await supabase.from('clientes').update({
-                limite_credito: novoLimite,
-                saldo_devedor_fiado: novoSaldo
-              }).eq('id', clienteSelecionado.id);
-            } catch (errCli) {
-              console.warn('Erro ao atualizar limite de crédito do cliente:', errCli);
+            const diferencaFiado = valorFiadoTotal - valorFiadoAnterior;
+
+            // Se o cliente foi alterado durante a edição do pedido, estornar do cliente anterior
+            if (pedidoEmEdicao && pedidoEmEdicao.cliente_id && pedidoEmEdicao.cliente_id !== clienteSelecionado.id && valorFiadoAnterior > 0) {
+              try {
+                const { data: cliAntigo } = await supabase
+                  .from('clientes')
+                  .select('saldo_devedor_fiado, limite_credito')
+                  .eq('id', pedidoEmEdicao.cliente_id)
+                  .single();
+                if (cliAntigo) {
+                  await supabase.from('clientes').update({
+                    saldo_devedor_fiado: Math.max(0, Number(cliAntigo.saldo_devedor_fiado || 0) - valorFiadoAnterior),
+                    limite_credito: Number(cliAntigo.limite_credito || 0) + valorFiadoAnterior
+                  }).eq('id', pedidoEmEdicao.cliente_id);
+                }
+              } catch (eCliAntigo) {
+                console.warn('Erro ao reverter fiado do cliente anterior:', eCliAntigo);
+              }
             }
 
-            const clienteAtualizado: Cliente = {
-              ...clienteSelecionado,
-              limite_credito: novoLimite,
-              saldo_devedor_fiado: novoSaldo
-            };
-            setClienteSelecionado(clienteAtualizado);
+            // Aplicar o delta no cliente selecionado apenas se houver diferença líquida
+            if (diferencaFiado !== 0) {
+              let saldoAtual = Number(clienteSelecionado.saldo_devedor_fiado || 0);
+              let limiteAtual = Number(clienteSelecionado.limite_credito || 0);
 
-            setClientes(prev => prev.map(c => c.id === clienteSelecionado.id ? {
-              ...c,
-              limite_credito: novoLimite,
-              saldo_devedor_fiado: novoSaldo
-            } : c));
+              try {
+                const { data: cliDb } = await supabase
+                  .from('clientes')
+                  .select('saldo_devedor_fiado, limite_credito')
+                  .eq('id', clienteSelecionado.id)
+                  .single();
+                if (cliDb) {
+                  saldoAtual = Number(cliDb.saldo_devedor_fiado || 0);
+                  limiteAtual = Number(cliDb.limite_credito || 0);
+                }
+              } catch (eCliFetch) {
+                console.warn('Aviso ao buscar dados atualizados do cliente:', eCliFetch);
+              }
+
+              const novoLimite = Math.max(0, limiteAtual - diferencaFiado);
+              const novoSaldo = Math.max(0, saldoAtual + diferencaFiado);
+
+              try {
+                await supabase.from('clientes').update({
+                  limite_credito: novoLimite,
+                  saldo_devedor_fiado: novoSaldo
+                }).eq('id', clienteSelecionado.id);
+              } catch (errCli) {
+                console.warn('Erro ao atualizar limite de crédito do cliente:', errCli);
+              }
+
+              const clienteAtualizado: Cliente = {
+                ...clienteSelecionado,
+                limite_credito: novoLimite,
+                saldo_devedor_fiado: novoSaldo
+              };
+              setClienteSelecionado(clienteAtualizado);
+
+              setClientes(prev => prev.map(c => c.id === clienteSelecionado.id ? {
+                ...c,
+                limite_credito: novoLimite,
+                saldo_devedor_fiado: novoSaldo
+              } : c));
+            }
           }
 
           const pedidoCompleto: Pedido = {
@@ -2129,9 +2177,9 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Valor deste pagamento */}
                     <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-                      <span className="text-xs text-slate-400 font-medium">Valor a pagar:</span>
-                      <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 focus-within:border-emerald-500">
-                        <span className="text-xs text-slate-500 font-bold">R$</span>
+                      <span className="text-xs text-slate-300 font-bold">Valor a pagar:</span>
+                      <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30">
+                        <span className="text-xs text-emerald-400 font-black">R$</span>
                         <input
                           type="number"
                           step="0.01"
@@ -2139,7 +2187,8 @@ export const PosCheckout: React.FC = () => {
                           value={linha.valor > 0 ? linha.valor : ''}
                           onChange={(e) => handleAlterarValorLinha(linha.id, parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
-                          className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+                          className="w-28 bg-transparent text-right text-sm font-black text-white focus:outline-none placeholder:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
                     </div>
@@ -2148,16 +2197,17 @@ export const PosCheckout: React.FC = () => {
                     {linha.forma_tipo === 'dinheiro' && (
                       <div className="space-y-1.5 pt-1.5 border-t border-slate-800/60 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Valor Entregue pelo Cliente:</span>
-                          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 focus-within:border-emerald-500">
-                            <span className="text-xs text-slate-500 font-bold">R$</span>
+                          <span className="text-slate-300 font-medium">Valor Entregue pelo Cliente:</span>
+                          <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30">
+                            <span className="text-xs text-emerald-400 font-bold">R$</span>
                             <input
                               type="number"
                               step="0.01"
                               placeholder="0.00"
                               value={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : ''}
                               onChange={(e) => handleAlterarEntregueLinha(linha.id, parseFloat(e.target.value) || 0)}
-                              className="w-28 bg-transparent text-right text-xs font-bold text-slate-100 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </div>
                         </div>
@@ -2452,6 +2502,11 @@ export const PosCheckout: React.FC = () => {
                         <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
                           <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
                           <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
+                          {obterInfoVencimentoFiado(pedidoConcluido).temVencimento && (
+                            <span className="text-[11px] font-bold text-red-700 block pt-0.5">
+                              Data de Vencimento: {obterInfoVencimentoFiado(pedidoConcluido).formatada}
+                            </span>
+                          )}
                         </div>
                       )}
 

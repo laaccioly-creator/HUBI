@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
-  SlidersHorizontal,
+  Filter,
   ChevronLeft,
   ChevronDown,
   Clock,
@@ -456,7 +456,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
           }`}
           title="Filtros"
         >
-          <SlidersHorizontal className="w-4 h-4" />
+          <Filter className="w-4 h-4" />
         </button>
       </div>
 

@@ -62,7 +62,8 @@ import {
   ROTULOS_STATUS_PEDIDO,
   isStatusPedidoAtivo,
   obterAbasStatusVisiveis,
-  obterOpcoesStatusAlteracao
+  obterOpcoesStatusAlteracao,
+  obterInfoVencimentoFiado
 } from '../utils/statusPedidoUtils';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
@@ -174,6 +175,12 @@ export const PedidosLista: React.FC = () => {
   };
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
+    const temFiado = (pedido.pagamentos || []).some(
+      (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
+    );
+    if (temFiado && !pedido.fiado_quitado) {
+      return 'fiado';
+    }
     if (pedido.status_pagamento === 'pago') return 'pago';
     if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
     if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
@@ -334,6 +341,29 @@ export const PedidosLista: React.FC = () => {
 
       if (error) throw error;
       if (data) {
+        // Sincronizar pedidos com fiado vencido não quitado que ainda não estejam com status 'vencido'
+        const pedidosVencidosParaAtualizar = (data as any[]).filter((p: any) => {
+          if (p.status === 'concluido' || p.status === 'cancelado' || p.status === 'vencido') return false;
+          const temFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+          return temFiado && !p.fiado_quitado && obterInfoVencimentoFiado(p).estaVencido;
+        });
+
+        if (pedidosVencidosParaAtualizar.length > 0) {
+          const ids = pedidosVencidosParaAtualizar.map(p => p.id);
+          supabase
+            .from('pedidos')
+            .update({ status: 'vencido', atualizado_em: new Date().toISOString() })
+            .in('id', ids)
+            .then(() => {});
+          
+          // Refletir imediatamente no estado em memória
+          data.forEach((p: any) => {
+            if (ids.includes(p.id)) {
+              p.status = 'vencido';
+            }
+          });
+        }
+
         setPedidos(data as unknown as Pedido[]);
         if (tocarAlerta && somAtivo) {
           audioService.playNewOrderSound();
@@ -440,20 +470,39 @@ export const PedidosLista: React.FC = () => {
 
       if (error) throw error;
 
-      // Inserir registro relacional na tabela historico_pedidos
-      if (loja?.id) {
-        try {
-          await supabase.from('historico_pedidos').insert({
-            loja_id: loja.id,
-            pedido_id: pedidoId,
-            usuario_id: usuario?.id || null,
-            tipo_evento: 'status_alterado',
-            status_anterior: pedAlvo?.status || null,
-            status_novo: novoStatus,
-            descricao: `Status alterado para ${ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus}`
-          });
-        } catch (errAudit) {
-          console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+      // Se o pedido cancelado continha fiado não quitado, estornar o saldo devedor e devolver o limite de crédito do cliente
+      if (novoStatus === 'cancelado' && pedAlvo?.cliente_id && !pedAlvo.fiado_quitado) {
+        const fiadoDoPedido = (pedAlvo.pagamentos || [])
+          .filter((p: any) => (p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado') && !p.fiado_quitado)
+          .reduce((sum: number, p: any) => sum + Number(p.valor || 0), 0);
+
+        if (fiadoDoPedido > 0) {
+          try {
+            const { data: cliDb } = await supabase
+              .from('clientes')
+              .select('saldo_devedor_fiado, limite_credito')
+              .eq('id', pedAlvo.cliente_id)
+              .single();
+
+            if (cliDb) {
+              const novoSaldo = Math.max(0, Number(cliDb.saldo_devedor_fiado || 0) - fiadoDoPedido);
+              const novoLimite = Number(cliDb.limite_credito || 0) + fiadoDoPedido;
+              await supabase.from('clientes').update({
+                saldo_devedor_fiado: novoSaldo,
+                limite_credito: novoLimite
+              }).eq('id', pedAlvo.cliente_id);
+
+              setClientes((prev) =>
+                prev.map((c) =>
+                  c.id === pedAlvo.cliente_id
+                    ? { ...c, saldo_devedor_fiado: novoSaldo, limite_credito: novoLimite }
+                    : c
+                )
+              );
+            }
+          } catch (errEstorno) {
+            console.warn('Falha ao estornar fiado do cliente ao cancelar pedido:', errEstorno);
+          }
         }
       }
 
@@ -779,7 +828,11 @@ export const PedidosLista: React.FC = () => {
         if (p.status === 'concluido') return false;
 
         let matchStatus = true;
-        if (statusFiltro !== 'todos') {
+        if (statusFiltro === 'vencido') {
+          const infoVenc = obterInfoVencimentoFiado(p);
+          const temFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+          matchStatus = p.status === 'vencido' || (temFiado && !p.fiado_quitado && infoVenc.estaVencido);
+        } else if (statusFiltro !== 'todos') {
           matchStatus = p.status === statusFiltro;
         }
 
@@ -857,7 +910,7 @@ export const PedidosLista: React.FC = () => {
 
   const logoLojaUrl = loja?.url_logo || (loja as any)?.logo_url;
 
-  const getStatusBadge = (status: StatusPedido) => {
+  const getStatusBadge = (status: StatusPedido, pedido?: Pedido) => {
     switch (status) {
       case 'pendente':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🟡 Pendente</span>;
@@ -871,6 +924,22 @@ export const PedidosLista: React.FC = () => {
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">🚚 Saiu para Entrega</span>;
       case 'pronto_para_retirar':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/15 text-teal-400 border border-teal-500/30">🏪 Pronto Retirada</span>;
+      case 'vencido': {
+        const infoVenc = pedido ? obterInfoVencimentoFiado(pedido) : null;
+        return (
+          <div className="inline-flex flex-col items-center">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              ⏰ Vencido
+            </span>
+            {infoVenc && (
+              <span className="text-[10px] text-rose-400/90 font-semibold mt-0.5 whitespace-nowrap">
+                Vencimento: {infoVenc.formatada}
+              </span>
+            )}
+          </div>
+        );
+      }
       case 'cancelado':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">❌ Cancelado</span>;
       default:
@@ -881,12 +950,14 @@ export const PedidosLista: React.FC = () => {
   const getStatusPagamentoBadge = (status: StatusPagamento) => {
     switch (status) {
       case 'pago':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Pago</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Pago</span>;
+      case 'fiado':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">🏷️ Fiado</span>;
       case 'parcialmente_pago':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🟡 Parcial</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🟡 Parcial</span>;
       case 'aguardando_pagamento':
       default:
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🕒 Aguardando pagamento</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🕒 Aguardando pagamento</span>;
     }
   };
 
@@ -1014,7 +1085,7 @@ export const PedidosLista: React.FC = () => {
               </button>
 
               {/* Botão Principal Concluir Venda (TELA005) */}
-              {resolverStatusPagamento(pedidoSelecionado) !== 'pago' ? (
+              {resolverStatusPagamento(pedidoSelecionado) !== 'pago' && resolverStatusPagamento(pedidoSelecionado) !== 'fiado' ? (
                 <button
                   type="button"
                   onClick={() => setPedidoReceberModal(pedidoSelecionado)}
@@ -1571,18 +1642,6 @@ export const PedidosLista: React.FC = () => {
                                 {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
                               </span>
                             </div>
-                            {(() => {
-                              const editorNome = pedido.atualizado_por_usuario?.nome_completo ||
-                                usuarios.find(u => u.id === pedido.atualizado_por)?.nome_completo ||
-                                (pedido.metadados as any)?.ultimo_editor?.usuario_nome ||
-                                (pedido.metadados as any)?.ultimo_editor?.nome;
-                              if (!editorNome) return null;
-                              return (
-                                <span className="text-[10px] text-amber-400/80">
-                                  Editado por {editorNome}
-                                </span>
-                              );
-                            })()}
                           </div>
                         </td>
 
@@ -1604,7 +1663,12 @@ export const PedidosLista: React.FC = () => {
                         </td>
 
                         <td className="py-3.5 px-4 whitespace-nowrap text-center">
-                          {getStatusBadge(pedido.status)}
+                          {(() => {
+                            const infoVenc = obterInfoVencimentoFiado(pedido);
+                            const temFiadoEmAberto = (pedido.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado') && !pedido.fiado_quitado;
+                            const estaVencido = pedido.status === 'vencido' || (temFiadoEmAberto && pedido.status !== 'concluido' && pedido.status !== 'cancelado' && infoVenc.estaVencido);
+                            return getStatusBadge(estaVencido ? 'vencido' : pedido.status, pedido);
+                          })()}
                         </td>
 
                         <td className="py-3.5 px-4 whitespace-nowrap text-center">
@@ -1626,7 +1690,7 @@ export const PedidosLista: React.FC = () => {
                                 <Edit className="w-3.5 h-3.5" />
                                 <span>Alterar</span>
                               </button>
-                            ) : statusPag !== 'pago' ? (
+                            ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1947,7 +2011,10 @@ export const PedidosLista: React.FC = () => {
                         {pagInfo.ehFiado && Number(pedidoReciboModal.saldo_devedor || 0) > 0 && (
                           <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center space-y-0.5">
                             <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                            <span className="text-sm font-black text-red-600">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
+                            <span className="text-sm font-black text-red-600 block">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
+                            <span className="text-[11px] font-bold text-red-700 block pt-0.5">
+                              Data de Vencimento: {obterInfoVencimentoFiado(pedidoReciboModal).formatada}
+                            </span>
                           </div>
                         )}
 

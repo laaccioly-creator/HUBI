@@ -7,7 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  Sliders,
+  Filter,
   Share2,
   Copy,
   Trash2,
@@ -28,6 +28,8 @@ import {
   AlertCircle,
   ShoppingCart,
   ShoppingBag,
+  Package,
+  Wrench,
   Users,
   DollarSign,
   BarChart3,
@@ -55,6 +57,7 @@ import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
@@ -306,6 +309,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     descricao: string;
     codigoBarras: string;
     tipoUnidade: TipoUnidade;
+    tipoItem?: 'produto' | 'servico';
     destaque: boolean;
     exibirCatalogo: boolean;
     corEtiqueta: string; // Cor da tarja de descrição/valor
@@ -327,6 +331,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     descricao: '',
     codigoBarras: '',
     tipoUnidade: 'un',
+    tipoItem: 'produto',
     destaque: false,
     exibirCatalogo: true,
     corEtiqueta: '#1F2937',
@@ -336,6 +341,37 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     quantidadeEstoque: 0,
     variacoes: []
   });
+
+  const { confirmar } = useFeedbackModal();
+  const [snapshotInicialForm, setSnapshotInicialForm] = useState<string>('');
+
+  const snapshotAtualForm = useMemo(() => {
+    return JSON.stringify(formData);
+  }, [formData]);
+
+  const temAlteracoesFormulario = Boolean(
+    (telaAtiva === 'novo' || telaAtiva === 'detalhes') &&
+    snapshotInicialForm &&
+    snapshotAtualForm !== snapshotInicialForm
+  );
+
+  const fecharFormularioComConfirmacao = () => {
+    if (temAlteracoesFormulario) {
+      confirmar({
+        titulo: 'Descartar Alterações?',
+        mensagem: 'Você tem dados alterados no produto que não foram salvos. Deseja sair e descartar as alterações?',
+        textoConfirmar: 'Descartar e Sair',
+        textoCancelar: 'Continuar Editando',
+        onConfirmar: () => {
+          setSnapshotInicialForm('');
+          setTelaAtiva('lista');
+        }
+      });
+    } else {
+      setSnapshotInicialForm('');
+      setTelaAtiva('lista');
+    }
+  };
 
   const [opcionaisExpandido, setOpcionaisExpandido] = useState<boolean>(true);
   const [salvandoProduto, setSalvandoProduto] = useState<boolean>(false);
@@ -576,7 +612,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // =========================================================================
   const abrirNovoProduto = () => {
     setProdutoEditando(null);
-    setFormData({
+    const initialData = {
       nome: '',
       precoVenda: '',
       precoPromocional: '',
@@ -588,7 +624,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       categoriaId: '',
       descricao: '',
       codigoBarras: '',
-      tipoUnidade: 'un',
+      tipoUnidade: 'un' as TipoUnidade,
+      tipoItem: 'produto' as 'produto' | 'servico',
       destaque: false,
       exibirCatalogo: true,
       corEtiqueta: '#1F2937',
@@ -597,7 +634,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       gerenciarEstoque: true,
       quantidadeEstoque: 0,
       variacoes: []
-    });
+    };
+    setFormData(initialData);
+    setSnapshotInicialForm(JSON.stringify(initialData));
     setAbaFormulario('cadastro');
     setTelaAtiva('novo');
   };
@@ -724,7 +763,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     setDadosMercado(null);
     setErroMercado(null);
     const corSalva = obterCorProduto(p);
-    setFormData({
+    const initialEditData = {
       nome: p.nome || '',
       precoVenda: p.preco_venda_varejo !== undefined && p.preco_venda_varejo !== null ? String(p.preco_venda_varejo) : '',
       precoPromocional: p.preco_promocional ? String(p.preco_promocional) : '',
@@ -737,6 +776,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
       tipoUnidade: p.tipo_unidade || 'un',
+      tipoItem: (p.tipo_item as any) || 'produto',
       destaque: Boolean(p.destaque),
       exibirCatalogo: p.exibir_catalogo !== false,
       corEtiqueta: corSalva,
@@ -745,7 +785,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       gerenciarEstoque: true,
       quantidadeEstoque: getEstoqueReal(p),
       variacoes: p.variacoes ? [...p.variacoes] : []
-    });
+    };
+    setFormData(initialEditData);
+    setSnapshotInicialForm(JSON.stringify(initialEditData));
     setAbaFormulario(aba);
     setTelaAtiva('detalhes');
   };
@@ -786,11 +828,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         descricao: formData.descricao.trim() || null,
         codigo_barras: formData.codigoBarras.trim() || null,
         tipo_unidade: formData.tipoUnidade,
+        tipo_item: formData.tipoItem || 'produto',
         destaque: formData.destaque,
         exibir_catalogo: formData.exibirCatalogo,
         fotos_urls: formData.fotos,
-        estoque_minimo_alerta: formData.estoqueMinimo,
-        quantidade_estoque: formData.quantidadeEstoque,
+        estoque_minimo_alerta: formData.tipoItem === 'servico' ? 0 : formData.estoqueMinimo,
+        quantidade_estoque: formData.tipoItem === 'servico' ? 0 : formData.quantidadeEstoque,
         cor_etiqueta: formData.corEtiqueta,
         ativo: true
       };
@@ -828,6 +871,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       }
 
       await onRecarregar();
+      setSnapshotInicialForm('');
       setTelaAtiva('lista');
     } catch (err: any) {
       console.error('Erro ao salvar produto:', err);
@@ -1628,7 +1672,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             type="button"
             className="p-2 text-slate-600 hover:text-slate-900"
           >
-            <Sliders className="w-5 h-5" />
+            <Filter className="w-5 h-5" />
           </button>
         </div>
 
@@ -2233,7 +2277,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setTelaAtiva('lista')}
+              onClick={fecharFormularioComConfirmacao}
               className="p-1 text-slate-600 hover:text-slate-900"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -2386,6 +2430,37 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
             {/* Campos Obrigatórios */}
             <div className="space-y-4">
+              {/* Tipo do Item (Produto Físico vs Serviço / Taxa) */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Tipo do Item</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tipoItem: 'produto' }))}
+                    className={`py-2 px-3 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition ${
+                      formData.tipoItem !== 'servico'
+                        ? 'bg-teal-50 border-teal-500 text-teal-700 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" />
+                    <span>Produto Físico</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tipoItem: 'servico', quantidadeEstoque: 0, estoqueMinimo: 0 }))}
+                    className={`py-2 px-3 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition ${
+                      formData.tipoItem === 'servico'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Wrench className="w-4 h-4" />
+                    <span>Serviço / Taxa</span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nome do Produto</label>
                 <input
@@ -3640,7 +3715,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             }`}
             title="Filtros"
           >
-            <Sliders className="w-5 h-5" />
+            <Filter className="w-5 h-5" />
             {qtdFiltrosAtivos > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
                 {qtdFiltrosAtivos}

@@ -14,8 +14,9 @@ export type StatusPedido =
   | 'saiu_para_entrega'
   | 'pronto_para_retirar'
   | 'concluido'
+  | 'vencido'
   | 'cancelado';
-export type StatusPagamento = 'aguardando_pagamento' | 'pago' | 'parcialmente_pago';
+export type StatusPagamento = 'aguardando_pagamento' | 'pago' | 'parcialmente_pago' | 'fiado';
 export type TipoTransacao = 'ENTRADA' | 'SAIDA';
 export type StatusTransacao = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual';
@@ -327,12 +328,15 @@ export interface Fornecedor {
   criado_em?: string;
 }
 
+export type TipoItem = 'produto' | 'servico';
+
 export interface Produto {
   id: string;
   loja_id: string;
   categoria_id?: string | null;
   fornecedor_id?: string | null;
   nome: string;
+  tipo_item?: TipoItem;
   codigo_interno?: string | null;
   codigo_barras?: string | null;
   descricao?: string | null;

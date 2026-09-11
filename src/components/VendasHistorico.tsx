@@ -34,7 +34,6 @@ import {
   MapPin,
   Ban,
   ShoppingBag,
-  SlidersHorizontal,
   Wallet,
   Coins
 } from 'lucide-react';
@@ -47,6 +46,7 @@ import { extrairObservacaoLimpa } from '../utils/formatters';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
+import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 // Helper para limpar prefixos repetidos de endereço (ex: "Entrega: Entrega - " -> limpo)
 const limparEnderecoRecibo = (end?: string | null) => {
@@ -672,7 +672,7 @@ export const VendasHistorico: React.FC = () => {
                     : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
                 }`}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <Filter className="w-3.5 h-3.5" />
                 <span>Filtros</span>
                 {totalFiltrosAtivos > 0 && (
                   <span className="w-4 h-4 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black flex items-center justify-center ml-0.5">
@@ -1022,7 +1022,7 @@ export const VendasHistorico: React.FC = () => {
             {/* Header da Gaveta */}
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+                <Filter className="w-4 h-4 text-emerald-400" />
                 <h3 className="font-bold text-base text-slate-100">Filtros</h3>
               </div>
               <button
@@ -1445,6 +1445,11 @@ export const VendasHistorico: React.FC = () => {
                         <div className="mt-2 p-2 bg-amber-950/40 border border-amber-500/30 rounded-lg text-center space-y-0.5">
                           <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
                           <span className="text-sm font-black text-amber-300">R$ {Number(vendaReciboModal.saldo_devedor).toFixed(2)}</span>
+                          {obterInfoVencimentoFiado(vendaReciboModal).temVencimento && (
+                            <span className="text-[11px] font-bold text-amber-400 block pt-0.5">
+                              Data de Vencimento: {obterInfoVencimentoFiado(vendaReciboModal).formatada}
+                            </span>
+                          )}
                         </div>
                       )}
 

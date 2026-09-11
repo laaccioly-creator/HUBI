@@ -396,28 +396,28 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-      <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 my-8 text-slate-800 md:text-slate-100">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 my-8 text-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 font-bold flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100 flex items-center gap-2">
+              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
                 <span>Pagamento e Fechamento</span>
                 <span className="text-xs text-slate-400 font-normal">
                   #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 md:text-slate-400">
-                Cliente: <span className="text-slate-800 md:text-slate-200 font-semibold">{pedido.cliente?.nome || 'Cliente Balcão'}</span>
+              <p className="text-xs text-slate-400">
+                Cliente: <span className="text-slate-200 font-semibold">{pedido.cliente?.nome || 'Cliente Balcão'}</span>
               </p>
             </div>
           </div>
           <button
             onClick={handleFecharTudo}
-            className="p-1.5 rounded-xl hover:bg-slate-100 md:hover:bg-slate-800 text-slate-400 hover:text-slate-700 md:hover:text-white transition cursor-pointer"
+            className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -555,6 +555,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                   max={valorTotal}
                   value={valorReceber}
                   onChange={(e) => setValorReceber(e.target.value)}
+                  style={{ color: '#34d399', WebkitTextFillColor: '#34d399' }}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-emerald-500/50 rounded-2xl text-lg font-black text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                 />
               </div>
@@ -571,6 +572,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                     placeholder="0.00"
                     value={valorEntregueDinheiro}
                     onChange={(e) => setValorEntregueDinheiro(e.target.value)}
+                    style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                     className="w-28 bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 text-right text-xs font-bold text-slate-100 focus:outline-none"
                   />
                 </div>

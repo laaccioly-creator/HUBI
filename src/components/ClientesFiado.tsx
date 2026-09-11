@@ -14,6 +14,7 @@ import {
   MessageCircle,
   ArrowUpDown,
   FileText,
+  Filter,
   Calendar,
   CreditCard,
   Mail,
@@ -302,7 +303,7 @@ export const ClientesFiado: React.FC = () => {
               }`}
               title="Filtrar clientes com fiado em aberto"
             >
-              <FileText className="w-3.5 h-3.5" />
+              <Filter className="w-3.5 h-3.5" />
               <span>(FIADO)</span>
               {totalClientesComFiado > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-800">
@@ -507,7 +508,7 @@ export const ClientesFiado: React.FC = () => {
               }`}
               title="Listar apenas clientes que possuem fiado em aberto"
             >
-              <FileText className="w-4 h-4" />
+              <Filter className="w-4 h-4" />
               <span>(FIADO)</span>
               {totalClientesComFiado > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${

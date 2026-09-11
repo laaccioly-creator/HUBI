@@ -30,6 +30,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Cliente, Pedido, MovimentacaoSaldoCliente } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 import { caixaService } from '../services/caixaService';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -47,6 +48,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   onClienteExcluido
 }) => {
   const { loja, usuario } = useAuth();
+  const { confirmar } = useFeedbackModal();
 
   const [abaAtiva, setAbaAtiva] = useState<TabCliente>('dados');
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -74,6 +76,75 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [numeroDocumento, setNumeroDocumento] = useState(cliente.numero_documento || '');
   const [observacoes, setObservacoes] = useState(cliente.observacoes || '');
   const [permiteFiado, setPermiteFiado] = useState(cliente.permite_fiado !== false);
+
+  const snapshotInicial = useMemo(() => {
+    return JSON.stringify({
+      nome: cliente.nome || '',
+      whatsapp: cliente.whatsapp || cliente.telefone || '',
+      enderecoLogradouro: cliente.endereco_logradouro || endExtraido?.rua || cliente.endereco_principal || '',
+      enderecoNumero: cliente.endereco_numero || endExtraido?.numero || '',
+      enderecoBairro: cliente.endereco_bairro || endExtraido?.bairro || '',
+      enderecoCidade: cliente.endereco_cidade || endExtraido?.cidade || '',
+      enderecoEstado: cliente.endereco_estado || endExtraido?.estado || '',
+      enderecoCep: cliente.endereco_cep || endExtraido?.cep || '',
+      dataAniversario: cliente.data_aniversario || '',
+      email: cliente.email || '',
+      telefone: cliente.telefone2 || cliente.telefone || '',
+      numeroDocumento: cliente.numero_documento || '',
+      observacoes: cliente.observacoes || '',
+      permiteFiado: cliente.permite_fiado !== false
+    });
+  }, [cliente.id]);
+
+  const snapshotAtual = useMemo(() => {
+    return JSON.stringify({
+      nome,
+      whatsapp,
+      enderecoLogradouro,
+      enderecoNumero,
+      enderecoBairro,
+      enderecoCidade,
+      enderecoEstado,
+      enderecoCep,
+      dataAniversario,
+      email,
+      telefone,
+      numeroDocumento,
+      observacoes,
+      permiteFiado
+    });
+  }, [
+    nome,
+    whatsapp,
+    enderecoLogradouro,
+    enderecoNumero,
+    enderecoBairro,
+    enderecoCidade,
+    enderecoEstado,
+    enderecoCep,
+    dataAniversario,
+    email,
+    telefone,
+    numeroDocumento,
+    observacoes,
+    permiteFiado
+  ]);
+
+  const temAlteracoesForm = snapshotAtual !== snapshotInicial;
+
+  const handleVoltar = () => {
+    if (temAlteracoesForm) {
+      confirmar({
+        titulo: 'Descartar Alterações?',
+        mensagem: 'Você tem alterações não salvas no perfil deste cliente. Deseja sair e descartar as alterações?',
+        textoConfirmar: 'Descartar e Sair',
+        textoCancelar: 'Continuar Editando',
+        onConfirmar: () => onVoltar()
+      });
+    } else {
+      onVoltar();
+    }
+  };
 
   // Estados da aba VENDAS e PEDIDOS
   const [pedidosCliente, setPedidosCliente] = useState<Pedido[]>([]);
@@ -348,7 +419,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         <div className="flex items-center gap-2 max-w-[280px]">
           <button
             type="button"
-            onClick={onVoltar}
+            onClick={handleVoltar}
             className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />

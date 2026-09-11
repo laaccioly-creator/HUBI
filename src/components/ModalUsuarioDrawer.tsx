@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Eye,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UsuarioLoja, PerfilUsuario } from '../types';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 
 interface ModalUsuarioDrawerProps {
   isOpen: boolean;
@@ -59,7 +60,73 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [podeFiado, setPodeFiado] = useState<boolean>(false);
   const [podeCaixa, setPodeCaixa] = useState<boolean>(false);
 
+  const { confirmar } = useFeedbackModal();
   const ehOwner = usuarioEdicao?.perfil === 'owner';
+
+  const snapshotInicial = useMemo(() => {
+    if (!isOpen) return '';
+    const isAdmin = usuarioEdicao ? (usuarioEdicao.perfil === 'admin' || usuarioEdicao.perfil === 'owner') : false;
+    return JSON.stringify({
+      nome: usuarioEdicao?.nome_completo || '',
+      email: usuarioEdicao?.email || '',
+      senha: '',
+      ativo: usuarioEdicao ? (usuarioEdicao.ativo ?? true) : true,
+      ehAdmin: isAdmin,
+      podeCelular: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_uso_celular_pessoal ?? true)) : true,
+      podeVerOutros: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_ver_transacoes_outros ?? false)) : false,
+      podeDesconto: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_dar_desconto ?? false)) : false,
+      podeProdutos: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_cadastrar_alterar_produtos ?? false)) : false,
+      podeEstoque: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_gerenciar_estoque ?? false)) : false,
+      podeFiado: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_ativar_fiado ?? false)) : false,
+      podeCaixa: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false)) : false
+    });
+  }, [usuarioEdicao, isOpen]);
+
+  const snapshotAtual = useMemo(() => {
+    return JSON.stringify({
+      nome,
+      email,
+      senha,
+      ativo,
+      ehAdmin,
+      podeCelular,
+      podeVerOutros,
+      podeDesconto,
+      podeProdutos,
+      podeEstoque,
+      podeFiado,
+      podeCaixa
+    });
+  }, [
+    nome,
+    email,
+    senha,
+    ativo,
+    ehAdmin,
+    podeCelular,
+    podeVerOutros,
+    podeDesconto,
+    podeProdutos,
+    podeEstoque,
+    podeFiado,
+    podeCaixa
+  ]);
+
+  const temAlteracoesForm = snapshotAtual !== snapshotInicial;
+
+  const handleFecharComConfirmacao = () => {
+    if (temAlteracoesForm) {
+      confirmar({
+        titulo: 'Descartar Alterações?',
+        mensagem: 'Você fez alterações neste usuário que ainda não foram salvas. Deseja fechar e descartá-las?',
+        textoConfirmar: 'Descartar e Fechar',
+        textoCancelar: 'Continuar Editando',
+        onConfirmar: () => onClose()
+      });
+    } else {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     if (usuarioEdicao) {
@@ -276,7 +343,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleFecharComConfirmacao}
               className="p-1.5 rounded-xl hover:bg-slate-100 md:hover:bg-slate-800 text-slate-400 hover:text-slate-700 md:hover:text-white transition cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -639,7 +706,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
           ) : (
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleFecharComConfirmacao}
               className="px-4 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
             >
               Cancelar
