@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
   Camera,
@@ -83,6 +83,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   pendentesCount = 0
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
@@ -132,6 +133,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const [tochaAtiva, setTochaAtiva] = useState<boolean>(false);
   const [erroCamera, setErroCamera] = useState<string | null>(null);
   const [ultimoCodigoBipado, setUltimoCodigoBipado] = useState<string | null>(null);
+  const isScanningLockedRef = useRef<boolean>(false);
   const animFrameRef = useRef<number | null>(null);
   const detectorRef = useRef<any>(null);
 
@@ -143,10 +145,18 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // Estados da Tela 008: Carrinho
   const [modalDescontoAberto, setModalDescontoAberto] = useState<boolean>(false);
   const [modalOpcoesCarrinho, setModalOpcoesCarrinho] = useState<boolean>(false);
+  const [modalConfirmarLimparCarrinho, setModalConfirmarLimparCarrinho] = useState<boolean>(false);
   const [descontoTempValor, setDescontoTempValor] = useState<string>('');
   const [descontoTempTipo, setDescontoTempTipo] = useState<'valor' | 'percentual'>('valor');
 
   const inputBuscaRef = useRef<HTMLInputElement>(null);
+
+  // Ao entrar para editar pedido ou com rota para carrinho, direcionar diretamente para o carrinho
+  useEffect(() => {
+    if ((location.state as any)?.subTela === 'carrinho' || pedidoEmEdicao) {
+      setSubTela('carrinho');
+    }
+  }, [location.state, pedidoEmEdicao]);
 
   // Focar no campo de busca ao abrir tela004
   useEffect(() => {
@@ -262,11 +272,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     }
     setTochaAtiva(false);
     setUltimoCodigoBipado(null);
+    isScanningLockedRef.current = false;
   };
 
   const iniciarCameraScanner = async () => {
     try {
       setErroCamera(null);
+      isScanningLockedRef.current = false;
       if ('BarcodeDetector' in window) {
         try {
           detectorRef.current = new (window as any).BarcodeDetector({
@@ -304,15 +316,20 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         return;
       }
 
-      if (detectorRef.current) {
+      if (detectorRef.current && !isScanningLockedRef.current) {
         try {
           const barcodes = await detectorRef.current.detect(video);
-          if (barcodes && barcodes.length > 0) {
+          if (barcodes && barcodes.length > 0 && !isScanningLockedRef.current) {
             const rawValue = barcodes[0].rawValue;
-            if (rawValue && rawValue !== ultimoCodigoBipado) {
-              setUltimoCodigoBipado(rawValue);
-              handleCodigoBarrasDetectado(rawValue);
-              setTimeout(() => setUltimoCodigoBipado(null), 1500);
+            if (rawValue && rawValue.trim()) {
+              const codigoTrim = rawValue.trim();
+              isScanningLockedRef.current = true;
+              setUltimoCodigoBipado(codigoTrim);
+              handleCodigoBarrasDetectado(codigoTrim);
+              setTimeout(() => {
+                isScanningLockedRef.current = false;
+                setUltimoCodigoBipado(null);
+              }, 1500);
             }
           }
         } catch (e) {
@@ -840,7 +857,47 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* Resumo de Valores e Desconto */}
         {itens.length > 0 && (
-          <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2">
+          <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2.5">
+            {/* Identificação de Cliente e Tabela de Preço Ativa */}
+            <div className="pb-2.5 border-b border-slate-200 flex items-center justify-between gap-2">
+              {/* Cliente Vinculado ou Cliente Balcão */}
+              <button
+                type="button"
+                onClick={() => setSubTela('clientes')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 font-bold text-xs transition shadow-2xs cursor-pointer min-w-0 flex-1 truncate"
+                title="Toque para alterar ou vincular cliente"
+              >
+                <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="truncate">
+                  {clienteSelecionado ? clienteSelecionado.nome : 'Cliente Balcão'}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-auto" />
+              </button>
+
+              {/* Tabela de Preço Ativa */}
+              <button
+                type="button"
+                onClick={() => setModalTabelaPrecoAberto(true)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
+                  tabelaPrecoCalculada === 'autoatacado'
+                    ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
+                    : tabelaPrecoCalculada === 'atacado'
+                    ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+                title="Toque para alterar tabela de preços"
+              >
+                <Tag className="w-3 h-3 text-current" />
+                <span>
+                  {tabelaPrecoCalculada === 'autoatacado'
+                    ? 'Distribuidor'
+                    : tabelaPrecoCalculada === 'atacado'
+                    ? 'Atacado'
+                    : 'Varejo'}
+                </span>
+              </button>
+            </div>
+
             <div className="flex justify-between text-xs text-slate-500">
               <span>Subtotal:</span>
               <span>R$ {subtotal.toFixed(2)}</span>
@@ -988,16 +1045,50 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  verificarSaidaComConfirmacao(() => {
-                    limparCarrinho();
-                    setModalOpcoesCarrinho(false);
-                  });
+                  setModalOpcoesCarrinho(false);
+                  setModalConfirmarLimparCarrinho(true);
                 }}
-                className="w-full p-3 rounded-2xl bg-rose-50 text-rose-600 text-xs font-bold flex items-center gap-2 hover:bg-rose-100 transition text-left"
+                className="w-full p-3 rounded-2xl bg-rose-50 text-rose-600 text-xs font-bold flex items-center gap-2 hover:bg-rose-100 transition text-left cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Limpar todos os itens do carrinho</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Contextual de Confirmação: Limpar Carrinho */}
+        {modalConfirmarLimparCarrinho && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-sm text-slate-800">Limpar Carrinho</h3>
+                <p className="text-xs text-slate-500">
+                  Deseja realmente limpar todos os itens do carrinho?
+                </p>
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalConfirmarLimparCarrinho(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    limparCarrinho();
+                    setModalConfirmarLimparCarrinho(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  Confirmar
+                </button>
+              </div>
             </div>
           </div>
         )}

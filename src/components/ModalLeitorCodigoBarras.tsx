@@ -19,6 +19,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
   const [codigoManual, setCodigoManual] = useState<string>('');
   const [iniciando, setIniciando] = useState<boolean>(true);
   const [lidoSucesso, setLidoSucesso] = useState<string | null>(null);
+  const isScanningLockedRef = useRef<boolean>(false);
   const animFrameRef = useRef<number | null>(null);
   const detectorRef = useRef<any>(null);
 
@@ -36,6 +37,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
   }, [isOpen]);
 
   const encerrarCamera = () => {
+    isScanningLockedRef.current = false;
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
@@ -101,10 +103,10 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
         return;
       }
 
-      if (detectorRef.current) {
+      if (detectorRef.current && !isScanningLockedRef.current) {
         try {
           const barcodes = await detectorRef.current.detect(video);
-          if (barcodes && barcodes.length > 0) {
+          if (barcodes && barcodes.length > 0 && !isScanningLockedRef.current) {
             const rawValue = barcodes[0].rawValue;
             if (rawValue && rawValue.trim()) {
               processarCodigoLido(rawValue.trim());
@@ -123,6 +125,8 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
   };
 
   const processarCodigoLido = (codigo: string) => {
+    if (isScanningLockedRef.current) return;
+    isScanningLockedRef.current = true;
     audioService.playBeep();
     setLidoSucesso(codigo);
     setTimeout(() => {

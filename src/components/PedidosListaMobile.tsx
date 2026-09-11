@@ -10,6 +10,7 @@ import {
   Clock,
   DollarSign,
   User,
+  UserPlus,
   Share2,
   MoreVertical,
   X,
@@ -46,6 +47,7 @@ import { useCart } from '../contexts/CartContext';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import {
+  ROTULOS_STATUS_PEDIDO,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
   obterInfoVencimentoFiado
@@ -257,6 +259,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [modalOpcoesPedido, setModalOpcoesPedido] = useState<boolean>(false);
   const [modalAlterarVendedor, setModalAlterarVendedor] = useState<boolean>(false);
   const [salvandoVendedor, setSalvandoVendedor] = useState<boolean>(false);
+  const [modalVincularCliente, setModalVincularCliente] = useState<boolean>(false);
+  const [buscaVincularCliente, setBuscaVincularCliente] = useState<string>('');
 
   // Mapa de Clientes e Usuários para exibição rápida
   const mapaClientes = useMemo(() => {
@@ -301,6 +305,24 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       alert('Erro ao alterar vendedor do pedido.');
     } finally {
       setSalvandoVendedor(false);
+    }
+  };
+
+  const handleVincularClienteAoPedido = async (clienteId: string) => {
+    if (!pedidoSelecionado) return;
+    try {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ cliente_id: clienteId, atualizado_em: new Date().toISOString() })
+        .eq('id', pedidoSelecionado.id);
+      if (error) throw error;
+      setPedidoSelecionado(prev => prev ? ({ ...prev, cliente_id: clienteId }) : null);
+      setModalVincularCliente(false);
+      setBuscaVincularCliente('');
+      if (onRecarregar) await onRecarregar();
+    } catch (err) {
+      console.error('Erro ao vincular cliente ao pedido:', err);
+      alert('Erro ao vincular cliente ao pedido.');
     }
   };
 
@@ -480,25 +502,40 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150 select-none">
         {/* Top Header */}
         <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
-          <div className="flex items-center gap-2 max-w-[260px]">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
               onClick={() => setPedidoSelecionado(null)}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition"
+              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <div className="text-xs font-bold text-slate-800 truncate">
-              {new Date(pedidoSelecionado.data_venda).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+              {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Status textual informativo no canto superior direito */}
+            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wide border ${
+              pedidoSelecionado.status === 'concluido'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : pedidoSelecionado.status === 'cancelado'
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : pedidoSelecionado.status === 'confirmado'
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : pedidoSelecionado.status === 'em_producao' || pedidoSelecionado.status === 'em_expedicao'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}>
+              {ROTULOS_STATUS_PEDIDO[pedidoSelecionado.status] || pedidoSelecionado.status.replace(/_/g, ' ')}
+            </span>
+
             {cli && (
               <button
                 type="button"
                 onClick={() => setClientePerfilSelecionado(cli)}
-                className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold uppercase truncate max-w-[100px] flex items-center gap-1"
+                className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold uppercase truncate max-w-[90px] flex items-center gap-1"
               >
                 <span className="truncate">{cli.nome}</span>
                 <User className="w-3 h-3 text-slate-400 shrink-0" />
@@ -508,7 +545,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => PrintService.printReceipt(pedidoSelecionado, loja)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 cursor-pointer"
               title="Compartilhar"
             >
               <Share2 className="w-5 h-5" />
@@ -816,7 +853,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="text-slate-400 text-xs">Venda avulsa (Cliente não cadastrado).</div>
+                <div className="space-y-4 py-4 px-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-slate-700">Venda Avulsa</h4>
+                    <p className="text-xs text-slate-400">Nenhum cliente está vinculado a este pedido.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalVincularCliente(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Vincular Cliente</span>
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -832,9 +885,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalOpcoesPedido(true)}
-              className="w-12 h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-lg cursor-pointer"
+              className="h-12 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+              title="Opções do Pedido"
             >
-              ...
+              <MoreVertical className="w-4 h-4 text-slate-500" />
+              <span>Opções</span>
             </button>
 
             {pedidoSelecionado.status === 'pendente' ? (
@@ -980,9 +1035,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 onClick={async () => {
                   setModalOpcoesPedido(false);
                   await carregarPedidoParaEdicao(pedidoSelecionado);
-                  navigate('/pos');
+                  navigate('/pos', { state: { subTela: 'carrinho' } });
                 }}
-                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left"
+                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left cursor-pointer"
               >
                 <Edit2 className="w-4 h-4 text-slate-500" />
                 <span>Editar pedido</span>
@@ -1076,6 +1131,79 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL VINCULAR CLIENTE AO PEDIDO AVULSO */}
+        {modalVincularCliente && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center animate-in fade-in">
+            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom text-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-emerald-600" />
+                  <h3 className="font-bold text-sm text-slate-800">Vincular Cliente ao Pedido</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalVincularCliente(false);
+                    setBuscaVincularCliente('');
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Barra de Busca de Clientes */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome ou telefone..."
+                  value={buscaVincularCliente}
+                  onChange={(e) => setBuscaVincularCliente(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 font-medium"
+                  autoFocus
+                />
+              </div>
+
+              {/* Lista de Clientes */}
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                {clientes
+                  .filter((c) => {
+                    if (!buscaVincularCliente.trim()) return true;
+                    const t = buscaVincularCliente.toLowerCase().trim();
+                    return (
+                      c.nome.toLowerCase().includes(t) ||
+                      (c.whatsapp && c.whatsapp.includes(t)) ||
+                      (c.telefone && c.telefone.includes(t))
+                    );
+                  })
+                  .slice(0, 30)
+                  .map((cliItem) => (
+                    <button
+                      key={cliItem.id}
+                      type="button"
+                      onClick={() => handleVincularClienteAoPedido(cliItem.id)}
+                      className="w-full p-2.5 rounded-xl border border-slate-100 hover:border-emerald-500 hover:bg-emerald-50/40 text-left transition flex items-center justify-between cursor-pointer"
+                    >
+                      <div>
+                        <span className="font-bold text-xs text-slate-800 block">{cliItem.nome}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {cliItem.whatsapp || cliItem.telefone || 'Sem telefone'}
+                        </span>
+                      </div>
+                      <User className="w-4 h-4 text-slate-400" />
+                    </button>
+                  ))}
+                {clientes.length === 0 && (
+                  <div className="text-center py-6 text-xs text-slate-400">
+                    Nenhum cliente cadastrado.
+                  </div>
+                )}
               </div>
             </div>
           </div>
