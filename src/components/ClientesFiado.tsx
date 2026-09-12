@@ -30,6 +30,7 @@ import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -48,6 +49,8 @@ export const ClientesFiado: React.FC = () => {
   const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
   const [clienteHistoricoFiado, setClienteHistoricoFiado] = useState<Cliente | null>(null);
   const [filtroApenasFiado, setFiltroApenasFiado] = useState<boolean>(false);
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'fiado' | 'vencido'>('todos');
+  const [vencidosClienteIds, setVencidosClienteIds] = useState<Set<string>>(new Set());
 
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
@@ -56,6 +59,51 @@ export const ClientesFiado: React.FC = () => {
   const [clienteDetalhes, setClienteDetalhes] = useState<Cliente | null>(null);
   const [clienteExcluir, setClienteExcluir] = useState<Cliente | null>(null);
   const [excluindo, setExcluindo] = useState<boolean>(false);
+
+  const carregarFiadosVencidos = async () => {
+    if (!loja?.id) return;
+    try {
+      const { data: peds } = await supabase
+        .from('pedidos')
+        .select(`
+          id,
+          cliente_id,
+          data_venda,
+          criado_em,
+          data_vencimento_fiado,
+          metadados,
+          saldo_devedor,
+          fiado_quitado,
+          valor_total,
+          valor_pago,
+          pagamentos:pagamentos_pedido(
+            eh_pagamento_fiado,
+            forma_pagamento:formas_pagamento(tipo, prazo_dias)
+          )
+        `)
+        .eq('loja_id', loja.id)
+        .neq('status', 'cancelado');
+
+      if (peds) {
+        const vSet = new Set<string>();
+        peds.forEach((p: any) => {
+          if (!p.cliente_id) return;
+          const fiadoNaoQuitado = p.fiado_quitado === false;
+          const saldo = Number(p.saldo_devedor ?? (Number(p.valor_total || 0) - Number(p.valor_pago || 0)));
+          const temLinhaFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+          if (fiadoNaoQuitado && (temLinhaFiado || saldo > 0)) {
+            const info = obterInfoVencimentoFiado(p);
+            if (info.estaVencido) {
+              vSet.add(p.cliente_id);
+            }
+          }
+        });
+        setVencidosClienteIds(vSet);
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar fiados vencidos:', err);
+    }
+  };
 
   const carregarClientes = async () => {
     if (!loja?.id) return;
@@ -78,6 +126,7 @@ export const ClientesFiado: React.FC = () => {
 
   useEffect(() => {
     carregarClientes();
+    carregarFiadosVencidos();
   }, [loja?.id, ordemCrescente]);
 
   const handleClienteCadastrado = (clienteSalvo: Cliente) => {
@@ -226,9 +275,16 @@ export const ClientesFiado: React.FC = () => {
   };
 
   const totalClientesComFiado = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length;
+  const totalClientesVencidos = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0 && vencidosClienteIds.has(c.id)).length;
 
-  // Filtragem de clientes pela busca e pelo botão (FIADO)
+  // Filtragem de clientes pela busca e pelos cards/botão (TODOS / FIADO / VENCIDO)
   const clientesFiltrados = clientes.filter(c => {
+    if (filtroStatus === 'fiado' && !(Number(c.saldo_devedor_fiado || 0) > 0)) {
+      return false;
+    }
+    if (filtroStatus === 'vencido' && !(Number(c.saldo_devedor_fiado || 0) > 0 && vencidosClienteIds.has(c.id))) {
+      return false;
+    }
     if (filtroApenasFiado && !(Number(c.saldo_devedor_fiado || 0) > 0)) {
       return false;
     }
@@ -252,10 +308,12 @@ export const ClientesFiado: React.FC = () => {
         onClienteAtualizado={(c) => {
           setClientePerfilMobile(c);
           handleClienteCadastrado(c);
+          carregarFiadosVencidos();
         }}
         onClienteExcluido={(id) => {
           setClientes(prev => prev.filter(c => c.id !== id));
           setClientePerfilMobile(null);
+          carregarFiadosVencidos();
         }}
       />
     );
@@ -295,9 +353,12 @@ export const ClientesFiado: React.FC = () => {
             {/* Botão (FIADO) */}
             <button
               type="button"
-              onClick={() => setFiltroApenasFiado(prev => !prev)}
+              onClick={() => {
+                setFiltroStatus(prev => prev === 'fiado' ? 'todos' : 'fiado');
+                setFiltroApenasFiado(false);
+              }}
               className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
-                filtroApenasFiado
+                filtroStatus === 'fiado'
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
                   : 'bg-white border-amber-300 text-amber-600 hover:bg-amber-50'
               }`}
@@ -348,18 +409,71 @@ export const ClientesFiado: React.FC = () => {
           </div>
         </div>
 
-        {/* Resumo de Débito / Fiado */}
-        <div className="p-3 grid grid-cols-2 gap-2 bg-slate-50 shrink-0">
-          <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Total a Receber</span>
-            <p className="text-base font-black text-amber-600">
+        {/* Resumo de Débito / Fiado: 3 Indicadores de Topo */}
+        <div className="p-3 grid grid-cols-3 gap-2 bg-slate-50 shrink-0">
+          {/* Card 1: Total a Receber */}
+          <div
+            onClick={() => {
+              setFiltroStatus('todos');
+              setFiltroApenasFiado(false);
+            }}
+            className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+              filtroStatus === 'todos'
+                ? 'bg-white border-slate-300 shadow-xs ring-1 ring-slate-200'
+                : 'bg-white/80 border-slate-200 hover:bg-white'
+            }`}
+          >
+            <span className="text-[9px] font-bold text-slate-400 uppercase truncate">Total a Receber</span>
+            <p className="text-xs sm:text-sm font-black text-amber-600 truncate">
               R$ {clientes.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0).toFixed(2)}
             </p>
           </div>
-          <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Em Débito</span>
-            <p className="text-base font-black text-slate-800">
-              {clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length} clientes
+
+          {/* Card 2: Fiado (contagem) */}
+          <div
+            onClick={() => {
+              const novo = filtroStatus === 'fiado' ? 'todos' : 'fiado';
+              setFiltroStatus(novo);
+              setFiltroApenasFiado(false);
+            }}
+            className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+              filtroStatus === 'fiado'
+                ? 'bg-amber-50 border-amber-400 shadow-sm ring-2 ring-amber-400/30'
+                : 'bg-white border-slate-200 hover:bg-amber-50/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-bold text-amber-700 uppercase">Fiado</span>
+              {filtroStatus === 'fiado' && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm font-black text-slate-800">
+              {totalClientesComFiado} <span className="text-[10px] font-normal text-slate-500">cli.</span>
+            </p>
+          </div>
+
+          {/* Card 3: Vencido (contagem após 30 dias) */}
+          <div
+            onClick={() => {
+              const novo = filtroStatus === 'vencido' ? 'todos' : 'vencido';
+              setFiltroStatus(novo);
+              setFiltroApenasFiado(false);
+            }}
+            className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+              filtroStatus === 'vencido'
+                ? 'bg-rose-50 border-rose-400 shadow-sm ring-2 ring-rose-400/30'
+                : 'bg-white border-slate-200 hover:bg-rose-50/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-bold text-rose-600 uppercase">Vencido</span>
+              {filtroStatus === 'vencido' && (
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm font-black text-rose-600">
+              {totalClientesVencidos} <span className="text-[10px] font-normal text-slate-500">cli.</span>
             </p>
           </div>
         </div>
@@ -373,17 +487,14 @@ export const ClientesFiado: React.FC = () => {
           ) : (
             clientesFiltrados.map((cliente) => {
               const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
+              const estaVencido = emDebito && vencidosClienteIds.has(cliente.id);
               const phoneWhatsapp = cliente.whatsapp || cliente.telefone;
 
               return (
                 <div
                   key={cliente.id}
                   onClick={() => {
-                    if (emDebito) {
-                      setClienteHistoricoFiado(cliente);
-                    } else {
-                      setClientePerfilMobile(cliente);
-                    }
+                    setClientePerfilMobile(cliente);
                   }}
                   className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-2 shadow-xs"
                 >
@@ -407,8 +518,15 @@ export const ClientesFiado: React.FC = () => {
                     <div className="text-right shrink-0">
                       {emDebito ? (
                         <div>
-                          <span className="text-[10px] text-amber-600 font-bold block">Valor Fiado</span>
-                          <span className="font-black text-amber-600 text-xs sm:text-sm">
+                          <div className="flex items-center justify-end gap-1">
+                            {estaVencido && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-100 text-rose-700">
+                                Vencido
+                              </span>
+                            )}
+                            <span className="text-[10px] text-amber-600 font-bold block">Valor Fiado</span>
+                          </div>
+                          <span className={`font-black text-xs sm:text-sm ${estaVencido ? 'text-rose-600' : 'text-amber-600'}`}>
                             R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
                           </span>
                         </div>

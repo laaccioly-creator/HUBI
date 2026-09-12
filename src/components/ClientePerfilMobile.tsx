@@ -31,6 +31,8 @@ import { Cliente, Pedido, MovimentacaoSaldoCliente } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 import { caixaService } from '../services/caixaService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
+import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -150,6 +152,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [pedidosCliente, setPedidosCliente] = useState<Pedido[]>([]);
   const [carregandoPedidos, setCarregandoPedidos] = useState<boolean>(false);
   const [buscaVendas, setBuscaVendas] = useState<string>('');
+  const [buscaPedidos, setBuscaPedidos] = useState<string>('');
+  const [modalHistoricoFiadoAberto, setModalHistoricoFiadoAberto] = useState<boolean>(false);
 
   // Estados da aba CONTA / CRÉDITOS (TELA13)
   const [saldoCredito, setSaldoCredito] = useState<number>(Number(cliente.saldo_credito || 0));
@@ -253,23 +257,32 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [carregandoExtrato, setCarregandoExtrato] = useState<boolean>(false);
 
   // Carregar pedidos do cliente ao montar
-  useEffect(() => {
+  const carregarPedidos = async () => {
     if (!cliente.id || !loja?.id) return;
-    const carregarPedidos = async () => {
-      try {
-        setCarregandoPedidos(true);
-        const { data } = await supabase
-          .from('pedidos')
-          .select('*, itens_pedido(*)')
-          .eq('cliente_id', cliente.id)
-          .order('data_venda', { ascending: false });
-        if (data) setPedidosCliente(data);
-      } catch (err) {
-        console.warn('Erro ao carregar pedidos do cliente:', err);
-      } finally {
-        setCarregandoPedidos(false);
-      }
-    };
+    try {
+      setCarregandoPedidos(true);
+      const { data } = await supabase
+        .from('pedidos')
+        .select(`
+          *,
+          itens:itens_pedido(*),
+          itens_pedido(*),
+          pagamentos:pagamentos_pedido(
+            *,
+            forma_pagamento:formas_pagamento(*)
+          )
+        `)
+        .eq('cliente_id', cliente.id)
+        .order('data_venda', { ascending: false });
+      if (data) setPedidosCliente(data);
+    } catch (err) {
+      console.warn('Erro ao carregar pedidos do cliente:', err);
+    } finally {
+      setCarregandoPedidos(false);
+    }
+  };
+
+  useEffect(() => {
     carregarPedidos();
   }, [cliente.id, loja?.id]);
 
@@ -397,9 +410,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     }
   };
 
-  // Filtragem de Vendas e Pedidos
+  // Filtragem de Vendas (apenas concluídas)
   const vendasFiltradas = useMemo(() => {
-    const concluidos = pedidosCliente.filter(p => p.status === 'concluido' || p.status === 'confirmado');
+    const concluidos = pedidosCliente.filter(p => p.status === 'concluido');
     if (!buscaVendas.trim()) return concluidos;
     const t = buscaVendas.toLowerCase().trim();
     return concluidos.filter(p => {
@@ -408,9 +421,42 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     });
   }, [pedidosCliente, buscaVendas]);
 
+  // Filtragem de Pedidos (todos, exceto concluídos e cancelados)
+  const pedidosFiltrados = useMemo(() => {
+    const naoConcluidos = pedidosCliente.filter(p => p.status !== 'concluido' && p.status !== 'cancelado');
+    if (!buscaPedidos.trim()) return naoConcluidos;
+    const t = buscaPedidos.toLowerCase().trim();
+    return naoConcluidos.filter(p => {
+      const its = p.itens || p.itens_pedido || [];
+      return String(p.numero_pedido).includes(t) || its.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
+    });
+  }, [pedidosCliente, buscaPedidos]);
+
+  // Cálculo do valor vencido (> 30 dias)
+  const valorVencido = useMemo(() => {
+    let total = 0;
+    pedidosCliente.forEach((p: any) => {
+      if (p.status === 'cancelado') return;
+      const fiadoNaoQuitado = p.fiado_quitado === false;
+      const saldo = Number(p.saldo_devedor ?? (Number(p.valor_total || 0) - Number(p.valor_pago || 0)));
+      const temLinhaFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+      if (fiadoNaoQuitado && (temLinhaFiado || saldo > 0)) {
+        const info = obterInfoVencimentoFiado(p);
+        if (info.estaVencido) {
+          total += (saldo > 0 ? saldo : Number(p.valor_total || 0));
+        }
+      }
+    });
+    return saldoDevedorFiado > 0 ? Math.min(saldoDevedorFiado, total) : total;
+  }, [pedidosCliente, saldoDevedorFiado]);
+
   const totalVendasPeriodo = useMemo(() => {
     return vendasFiltradas.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
   }, [vendasFiltradas]);
+
+  const totalPedidosPeriodo = useMemo(() => {
+    return pedidosFiltrados.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
+  }, [pedidosFiltrados]);
 
   return (
     <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col animate-in slide-in-from-right duration-150 select-none">
@@ -633,8 +679,63 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               </div>
             </div>
 
+            {/* Blocos de Valor Fiado e Valor Vencido */}
+            <div className="pt-2">
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* Bloco Valor Fiado */}
+                <button
+                  type="button"
+                  onClick={() => setModalHistoricoFiadoAberto(true)}
+                  className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 hover:bg-amber-100/60 active:scale-[0.98] transition cursor-pointer text-left shadow-xs"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                      Valor Fiado
+                    </span>
+                    <Receipt className="w-3.5 h-3.5 text-amber-600" />
+                  </div>
+                  <div className="text-base font-black text-amber-700 truncate">
+                    R$ {Number(saldoDevedorFiado || 0).toFixed(2)}
+                  </div>
+                  <span className="text-[9px] text-amber-600/90 font-bold block mt-0.5">
+                    Ver histórico fiado →
+                  </span>
+                </button>
+
+                {/* Bloco Valor Vencido */}
+                <button
+                  type="button"
+                  onClick={() => setModalHistoricoFiadoAberto(true)}
+                  className={`p-3 rounded-2xl border transition cursor-pointer text-left shadow-xs active:scale-[0.98] ${
+                    valorVencido > 0
+                      ? 'bg-rose-50 border-rose-200 hover:bg-rose-100/60'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+                      valorVencido > 0 ? 'text-rose-800' : 'text-slate-500'
+                    }`}>
+                      Valor Vencido
+                    </span>
+                    <Clock className={`w-3.5 h-3.5 ${valorVencido > 0 ? 'text-rose-500' : 'text-slate-400'}`} />
+                  </div>
+                  <div className={`text-base font-black truncate ${
+                    valorVencido > 0 ? 'text-rose-600' : 'text-slate-700'
+                  }`}>
+                    R$ {valorVencido.toFixed(2)}
+                  </div>
+                  <span className={`text-[9px] font-bold block mt-0.5 ${
+                    valorVencido > 0 ? 'text-rose-600' : 'text-slate-400'
+                  }`}>
+                    {valorVencido > 0 ? 'Expirou > 30 dias →' : 'Em dia'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* Botão Salvar */}
-            <div className="pt-4">
+            <div className="pt-2">
               <button
                 type="button"
                 onClick={handleSalvarDados}
@@ -648,7 +749,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         )}
 
         {/* ================================================================= */}
-        {/* ABA 2: VENDAS (TELA11) */}
+        {/* ABA 2: VENDAS (TELA11) - APENAS CONCLUÍDAS */}
         {/* ================================================================= */}
         {abaAtiva === 'vendas' && (
           <div className="flex flex-col h-full">
@@ -671,7 +772,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
                     <Receipt className="w-8 h-8 stroke-1" />
                   </div>
-                  <p className="text-xs text-slate-500 font-medium">Sem vendas neste período</p>
+                  <p className="text-xs text-slate-500 font-medium">Sem vendas concluídas para este cliente</p>
                 </div>
               ) : (
                 vendasFiltradas.map((pedido) => (
@@ -692,7 +793,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
             {/* Rodapé da Aba Vendas */}
             <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs shrink-0">
-              <span className="text-slate-400">Últimos 30 dias</span>
+              <span className="text-slate-400">Total em vendas concluídas</span>
               <span className="font-black text-emerald-400">
                 R$ {totalVendasPeriodo.toFixed(2)} em {vendasFiltradas.length} venda(s)
               </span>
@@ -701,7 +802,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         )}
 
         {/* ================================================================= */}
-        {/* ABA 3: PEDIDOS (TELA12) */}
+        {/* ABA 3: PEDIDOS (TELA12) - TODOS EXCETO CONCLUÍDOS */}
         {/* ================================================================= */}
         {abaAtiva === 'pedidos' && (
           <div className="flex flex-col h-full">
@@ -711,20 +812,20 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 <input
                   type="text"
                   placeholder="Item, cliente ou código"
-                  value={buscaVendas}
-                  onChange={(e) => setBuscaVendas(e.target.value)}
+                  value={buscaPedidos}
+                  onChange={(e) => setBuscaPedidos(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="flex-1 p-4 space-y-3">
-              {pedidosCliente.length === 0 ? (
+              {pedidosFiltrados.length === 0 ? (
                 <div className="text-center py-20 text-xs text-slate-400">
-                  Nenhum pedido encontrado para este cliente.
+                  Nenhum pedido em andamento para este cliente.
                 </div>
               ) : (
-                pedidosCliente.map((pedido) => {
+                pedidosFiltrados.map((pedido) => {
                   const its = pedido.itens || pedido.itens_pedido || [];
                   return (
                     <div key={pedido.id} className="p-3.5 rounded-2xl border border-slate-200 space-y-1 bg-white">
@@ -741,7 +842,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       <p className="text-[10px] text-slate-500 truncate">
                         {its.length} itens: {its.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                       </p>
-                      <span className="text-[9px] text-slate-400 block">#{pedido.numero_pedido}</span>
+                      <div className="flex items-center justify-between text-[9px] text-slate-400">
+                        <span>#{pedido.numero_pedido}</span>
+                        <span className="font-semibold text-emerald-600 uppercase">{pedido.status}</span>
+                      </div>
                     </div>
                   );
                 })
@@ -750,9 +854,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
             {/* Rodapé da Aba Pedidos */}
             <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs shrink-0">
-              <span className="text-slate-400">Total em pedidos</span>
+              <span className="text-slate-400">Total em pedidos ativos</span>
               <span className="font-black text-emerald-400">
-                R$ {pedidosCliente.reduce((acc, p) => acc + Number(p.valor_total || 0), 0).toFixed(2)} em {pedidosCliente.length} pedido(s)
+                R$ {totalPedidosPeriodo.toFixed(2)} em {pedidosFiltrados.length} pedido(s)
               </span>
             </div>
           </div>
@@ -1223,6 +1327,18 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Histórico de Fiado Detalhado */}
+      <ModalHistoricoFiadoCliente
+        isOpen={modalHistoricoFiadoAberto}
+        onClose={() => setModalHistoricoFiadoAberto(false)}
+        cliente={cliente}
+        onClienteAtualizado={(c) => {
+          setSaldoDevedorFiado(Number(c.saldo_devedor_fiado || 0));
+          onClienteAtualizado(c);
+          carregarPedidos();
+        }}
+      />
     </div>
   );
 };
