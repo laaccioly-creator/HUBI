@@ -14,10 +14,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
-  MessageCircle,
-  Package,
-  ArrowRight,
-  Receipt
+  Package
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,13 +46,14 @@ interface LinhaRecebimentoFiado {
 export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProps> = ({
   isOpen,
   onClose,
-  cliente,
+  cliente: clienteProp,
   onClienteAtualizado,
   filtroInicial = 'todos'
 }) => {
   const { loja, usuario } = useAuth();
   const { mostrarSucesso, mostrarAviso, mostrarErro } = useFeedbackModal();
 
+  const [cliente, setCliente] = useState<Cliente | null>(clienteProp);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'vencidos' | 'a_vencer'>(filtroInicial || 'todos');
   const [carregando, setCarregando] = useState<boolean>(false);
@@ -83,11 +81,25 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
 
   // Carregar dados de pedidos e formas de pagamento
   const carregarDados = async () => {
-    if (!loja?.id || !cliente?.id) return;
+    const cId = clienteProp?.id || cliente?.id;
+    if (!loja?.id || !cId) return;
     try {
       setCarregando(true);
 
-      // Buscar formas de pagamento
+      // Buscar cliente atualizado do banco
+      const { data: cliData } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', cId)
+        .single();
+
+      if (cliData) {
+        setCliente(cliData);
+      } else if (clienteProp) {
+        setCliente(clienteProp);
+      }
+
+      // Buscar formas de pagamento ativas
       const { data: fps } = await supabase
         .from('formas_pagamento')
         .select('*')
@@ -111,18 +123,18 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           )
         `)
         .eq('loja_id', loja.id)
-        .eq('cliente_id', cliente.id)
+        .eq('cliente_id', cId)
         .neq('status', 'cancelado')
         .order('data_venda', { ascending: false });
 
       if (error) throw error;
 
       if (peds) {
-        // Filtrar apenas pedidos que possuam pagamento na modalidade Fiado em aberto
+        // Filtrar apenas pedidos que possuam modalidade Fiado em aberto
         const pedidosComFiado = peds.filter((p: any) => {
-          const saldo = Number(p.saldo_devedor ?? 0);
-          const fiadoNaoQuitado = p.fiado_quitado === false;
-          const temLinhaFiado = p.pagamentos && p.pagamentos.some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+          const saldo = Number(p.saldo_devedor ?? (Number(p.valor_total || 0) - Number(p.valor_pago || 0)));
+          const fiadoNaoQuitado = p.fiado_quitado !== true;
+          const temLinhaFiado = (p.pagamentos && p.pagamentos.some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado')) || p.status_pagamento === 'fiado';
           return temLinhaFiado && fiadoNaoQuitado && saldo > 0;
         });
 
@@ -137,13 +149,14 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
   };
 
   useEffect(() => {
-    if (isOpen && cliente) {
+    if (isOpen && (clienteProp || cliente)) {
+      setCliente(clienteProp);
       carregarDados();
       setModalReceberAberto(false);
       setPedidoSelecionadoReceber(null);
       setFiltroStatus(filtroInicial || 'todos');
     }
-  }, [isOpen, cliente?.id, filtroInicial]);
+  }, [isOpen, clienteProp?.id, filtroInicial]);
 
   const alternarExpansaoItens = (pedidoId: string) => {
     setItensExpandidos(prev => ({
@@ -433,9 +446,10 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         limite_credito: novoLimiteCredito,
         saldo_devedor_fiado: novoSaldoDevedorFiado
       };
+      setCliente(clienteAtualizado);
       onClienteAtualizado(clienteAtualizado);
 
-      // 3. REGRA DE CAIXA: Somente agora lançar os valores recebidos na sessão de caixa ativa
+      // 3. REGRA DE CAIXA: Lançar os valores recebidos na sessão de caixa ativa
       try {
         await caixaService.registrarVendaPedido({
           lojaId: loja.id,
@@ -496,51 +510,53 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
   if (!isOpen || !cliente) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[70] animate-in fade-in">
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 text-slate-800">
         
         {/* Cabeçalho */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-          <div>
-            <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-amber-400" />
-              <span>
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-slate-900 leading-tight">
                 {filtroStatus === 'vencidos'
                   ? 'Compras Fiado Vencidas'
                   : filtroStatus === 'a_vencer'
                   ? 'Compras Fiado a Vencer'
                   : 'Histórico de Compras Fiado'}
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Cliente: <span className="font-bold text-slate-200">{cliente.nome}</span>
-            </p>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Cliente: <span className="font-bold text-slate-800">{cliente.nome}</span>
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Resumo do Cliente (Saldo Devedor e Limite de Crédito) */}
-        <div className="p-4 sm:p-5 bg-slate-950/60 border-b border-slate-800 grid grid-cols-2 gap-3">
-          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1">
-            <span className="text-xs text-amber-300/80 font-semibold block">Total Fiado (Saldo Devedor)</span>
-            <span className="text-xl sm:text-2xl font-black text-amber-400 block">
+        <div className="p-4 sm:p-5 bg-slate-50/80 border-b border-slate-200 grid grid-cols-2 gap-3">
+          <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-2xl space-y-1 shadow-xs">
+            <span className="text-xs text-amber-800 font-bold block">Total Fiado (Saldo Devedor)</span>
+            <span className="text-xl sm:text-2xl font-black text-amber-700 block">
               R$ {Number(cliente.saldo_devedor_fiado || 0).toFixed(2)}
             </span>
-            <span className="text-[11px] text-amber-200/70">
+            <span className="text-[11px] text-amber-600 font-medium">
               {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? 'compra listada' : 'compras listadas'}
             </span>
           </div>
 
-          <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl space-y-1 flex flex-col justify-between">
+          <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl space-y-1 flex flex-col justify-between shadow-xs">
             <div>
-              <span className="text-xs text-emerald-300/80 font-semibold block">Limite de Crédito Disponível</span>
-              <span className="text-xl sm:text-2xl font-black text-emerald-400 block">
+              <span className="text-xs text-emerald-800 font-bold block">Limite de Crédito Disponível</span>
+              <span className="text-xl sm:text-2xl font-black text-emerald-700 block">
                 R$ {Number(cliente.limite_credito || 0).toFixed(2)}
               </span>
             </div>
@@ -548,7 +564,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={handleAbrirReceberTotalCliente}
-                className="w-full mt-2 py-1.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-xl shadow transition cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full mt-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>Receber Total</span>
@@ -558,14 +574,14 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         </div>
 
         {/* Filtros rápidos: Todas | A Vencer | Vencidas */}
-        <div className="px-4 sm:px-5 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center gap-2 shrink-0">
+        <div className="px-4 sm:px-5 py-2.5 bg-white border-b border-slate-100 flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setFiltroStatus('todos')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               filtroStatus === 'todos'
-                ? 'bg-slate-700 text-white shadow-xs'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
             }`}
           >
             Todas ({pedidos.length})
@@ -573,10 +589,10 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           <button
             type="button"
             onClick={() => setFiltroStatus('a_vencer')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               filtroStatus === 'a_vencer'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'text-amber-400 hover:bg-amber-500/10'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/60'
             }`}
           >
             A Vencer ({pedidosAVencer.length})
@@ -584,10 +600,10 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           <button
             type="button"
             onClick={() => setFiltroStatus('vencidos')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               filtroStatus === 'vencidos'
                 ? 'bg-rose-500 text-white shadow-xs'
-                : 'text-rose-400 hover:bg-rose-500/10'
+                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'
             }`}
           >
             Vencidas ({pedidosVencidos.length})
@@ -595,23 +611,23 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         </div>
 
         {/* Lista de Compras / Pedidos de Fiado */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-slate-50/40">
           {carregando ? (
             <div className="py-16 text-center space-y-2">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-400 mx-auto" />
-              <p className="text-xs text-slate-400">Carregando compras no fiado...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto" />
+              <p className="text-xs text-slate-500 font-medium">Carregando compras no fiado...</p>
             </div>
           ) : pedidosFiltrados.length === 0 ? (
-            <div className="py-16 text-center space-y-2">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400/50 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-200">
+            <div className="py-16 text-center space-y-2 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800">
                 {filtroStatus === 'vencidos'
                   ? 'Nenhuma compra vencida!'
                   : filtroStatus === 'a_vencer'
                   ? 'Nenhuma compra a vencer!'
                   : 'Nenhum fiado pendente!'}
               </h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 {filtroStatus === 'vencidos'
                   ? 'Todas as compras deste cliente estão com o pagamento em dia.'
                   : filtroStatus === 'a_vencer'
@@ -628,29 +644,29 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               return (
                 <div
                   key={pedido.id}
-                  className="bg-slate-950/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-4 space-y-3 transition shadow-sm"
+                  className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4 space-y-3 transition shadow-xs"
                 >
                   {/* Topo do Pedido */}
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-100">
+                        <span className="font-bold text-sm text-slate-900">
                           Pedido #{pedido.numero_pedido || pedido.id.slice(0, 8)}
                         </span>
                         {/* Vencimento com destaque se vencido */}
                         {infoVenc.estaVencido ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
                             ⚠️ VENCIDO ({infoVenc.formatada})
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                             Vence em: {infoVenc.formatada}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                      <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           Compra: {formatarData(pedido.data_venda)}
                         </span>
                       </div>
@@ -660,7 +676,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                     <button
                       type="button"
                       onClick={() => handleAbrirReceberPedido(pedido)}
-                      className="py-2 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+                      className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95"
                     >
                       <DollarSign className="w-4 h-4" />
                       <span>Receber</span>
@@ -668,22 +684,22 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                   </div>
 
                   {/* Valores */}
-                  <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-slate-900/90 rounded-xl border border-slate-800/80 text-center">
+                  <div className="grid grid-cols-3 gap-2 py-2.5 px-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
                     <div>
-                      <span className="text-[10px] text-slate-400 block">Total Compra</span>
-                      <span className="text-xs font-bold text-slate-200">
+                      <span className="text-[10px] text-slate-400 block font-medium">Total Compra</span>
+                      <span className="text-xs font-bold text-slate-800">
                         R$ {Number(pedido.valor_total).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 block">Valor Pago</span>
-                      <span className="text-xs font-bold text-emerald-400">
+                      <span className="text-[10px] text-slate-400 block font-medium">Valor Pago</span>
+                      <span className="text-xs font-bold text-emerald-700">
                         R$ {Number(pedido.valor_pago || 0).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-amber-400/90 block font-semibold">Valor Fiado</span>
-                      <span className="text-xs font-black text-amber-400">
+                      <span className="text-[10px] text-amber-800 block font-bold">Valor Fiado</span>
+                      <span className="text-xs font-black text-amber-700">
                         R$ {saldoPed.toFixed(2)}
                       </span>
                     </div>
@@ -695,30 +711,30 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                       <button
                         type="button"
                         onClick={() => alternarExpansaoItens(pedido.id)}
-                        className="w-full flex items-center justify-between text-xs font-semibold text-slate-400 hover:text-slate-200 transition py-1 cursor-pointer"
+                        className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-800 transition py-1 cursor-pointer"
                       >
                         <span className="flex items-center gap-1.5">
-                          <Package className="w-3.5 h-3.5 text-slate-500" />
+                          <Package className="w-3.5 h-3.5 text-slate-400" />
                           <span>{pedido.itens.length} {pedido.itens.length === 1 ? 'produto nesta compra' : 'produtos nesta compra'}</span>
                         </span>
                         {expandido ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
 
                       {expandido && (
-                        <div className="mt-2 divide-y divide-slate-800/60 bg-slate-900/60 rounded-xl border border-slate-800/60 p-2.5 space-y-1.5">
+                        <div className="mt-2 divide-y divide-slate-100 bg-slate-50 rounded-xl border border-slate-200 p-2.5 space-y-1.5">
                           {pedido.itens.map((item: any, itIdx: number) => (
                             <div key={item.id || itIdx} className="flex items-center justify-between text-xs pt-1.5 first:pt-0">
                               <div>
-                                <span className="font-bold text-slate-200 block">
+                                <span className="font-bold text-slate-800 block">
                                   {item.quantidade}x {item.nome_produto}
                                 </span>
                                 {item.rotulo_variacao && (
-                                  <span className="text-[10px] text-slate-400 block">
+                                  <span className="text-[10px] text-slate-500 block">
                                     Var: {item.rotulo_variacao}
                                   </span>
                                 )}
                               </div>
-                              <span className="font-bold text-slate-300">
+                              <span className="font-bold text-slate-700">
                                 R$ {Number(item.subtotal || item.quantidade * item.preco_venda_unitario).toFixed(2)}
                               </span>
                             </div>
@@ -734,11 +750,11 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-slate-800 flex justify-end bg-slate-900/90">
+        <div className="p-4 border-t border-slate-100 flex justify-end bg-white">
           <button
             type="button"
             onClick={onClose}
-            className="py-2.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+            className="py-2.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition cursor-pointer"
           >
             Fechar
           </button>
@@ -749,41 +765,43 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
       {/* SUBMODAL RECEBER (MULTI-PAGAMENTO - NUNCA FIADO - LANÇA NO CAIXA) */}
       {/* ========================================================================= */}
       {modalReceberAberto && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-60 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-400" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[80] animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto text-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <CreditCard className="w-4 h-4" />
+                </div>
                 <span>Receber Pagamento do Fiado</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setModalReceberAberto(false)}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Informações do Recebimento */}
-            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-1">
-              <span className="text-xs text-slate-400 font-medium block">
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-center space-y-1">
+              <span className="text-xs text-slate-500 font-medium block">
                 {pedidoSelecionadoReceber
                   ? `Receber Pedido #${pedidoSelecionadoReceber.numero_pedido || pedidoSelecionadoReceber.id.slice(0, 8)}`
                   : 'Recebimento de Fiado (Saldo do Cliente)'}
               </span>
-              <span className="text-3xl font-black text-emerald-400 block">
+              <span className="text-3xl font-black text-emerald-600 block">
                 R$ {valorTotalReceber.toFixed(2)}
               </span>
-              <span className="text-[11px] text-slate-400 block">
-                Cliente: <span className="text-white font-bold">{cliente.nome}</span>
+              <span className="text-[11px] text-slate-500 block">
+                Cliente: <span className="text-slate-900 font-bold">{cliente.nome}</span>
               </span>
             </div>
 
             {/* Linhas de Multi-Pagamento */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300">
+                <span className="text-xs font-bold text-slate-700">
                   Meios de Pagamento ({linhasRecebimento.length}):
                 </span>
                 <span className="text-[11px] text-slate-400">
@@ -796,10 +814,10 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                 const maxParc = formaSel?.maximo_parcelas || 12;
 
                 return (
-                  <div key={linha.id} className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2.5">
+                  <div key={linha.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px]">
+                      <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[10px]">
                           {idx + 1}
                         </span>
                         Meio #{idx + 1}
@@ -808,7 +826,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                         <button
                           type="button"
                           onClick={() => handleRemoverLinha(linha.id)}
-                          className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -826,14 +844,14 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                             onClick={() => handleAlterarFormaLinha(linha.id, fp)}
                             className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 ${
                               sel
-                                ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 shadow-sm'
-                                : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white'
+                                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/40 shadow-xs'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                             }`}
                           >
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />}
-                            {fp.tipo === 'pix' && <Zap className="w-4 h-4 text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-4 h-4 text-blue-400 shrink-0" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-4 h-4 text-purple-400 shrink-0" />}
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />}
+                            {fp.tipo === 'pix' && <Zap className="w-4 h-4 text-cyan-600 shrink-0" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-4 h-4 text-blue-600 shrink-0" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-4 h-4 text-purple-600 shrink-0" />}
                             <span className="whitespace-normal text-center">{fp.nome}</span>
                           </button>
                         );
@@ -841,10 +859,10 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                     </div>
 
                     {/* Valor deste meio */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-                      <span className="text-xs text-slate-400 font-medium">Valor pago:</span>
-                      <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 focus-within:border-emerald-500">
-                        <span className="text-xs text-slate-500 font-bold">R$</span>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200">
+                      <span className="text-xs text-slate-500 font-medium">Valor pago:</span>
+                      <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl px-2.5 py-1 focus-within:border-emerald-500">
+                        <span className="text-xs text-slate-400 font-bold">R$</span>
                         <input
                           type="number"
                           step="0.01"
@@ -852,32 +870,30 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                           value={linha.valor > 0 ? linha.valor : ''}
                           onChange={(e) => handleAlterarValorLinha(linha.id, parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
-                          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
-                          className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
+                          className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
 
                     {/* Troco se for dinheiro */}
                     {linha.forma_tipo === 'dinheiro' && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-800/60 text-xs">
+                      <div className="space-y-1.5 pt-1.5 border-t border-slate-200 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Valor Entregue pelo Cliente:</span>
-                          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1">
-                            <span className="text-xs text-slate-500 font-bold">R$</span>
+                          <span className="text-slate-500">Valor Entregue pelo Cliente:</span>
+                          <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl px-2.5 py-1">
+                            <span className="text-xs text-slate-400 font-bold">R$</span>
                             <input
                               type="number"
                               step="0.01"
                               placeholder="0.00"
                               value={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : ''}
                               onChange={(e) => handleAlterarEntregueLinha(linha.id, parseFloat(e.target.value) || 0)}
-                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
-                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
+                              className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 focus:outline-none placeholder:text-slate-400"
                             />
                           </div>
                         </div>
                         {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                          <div className="flex justify-between font-bold text-amber-400">
+                          <div className="flex justify-between font-bold text-amber-700">
                             <span>Troco a devolver:</span>
                             <span>R$ {(linha.valor_entregue - linha.valor).toFixed(2)}</span>
                           </div>
@@ -887,12 +903,12 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
 
                     {/* Parcelas se for cartão de crédito */}
                     {linha.forma_tipo === 'cartao_credito' && (
-                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-800/60 text-xs">
-                        <span className="text-slate-400">Parcelas:</span>
+                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200 text-xs">
+                        <span className="text-slate-500">Parcelas:</span>
                         <select
                           value={linha.parcelas || 1}
                           onChange={(e) => handleAlterarParcelasLinha(linha.id, parseInt(e.target.value) || 1)}
-                          className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                          className="bg-white border border-slate-300 rounded-xl px-2 py-1 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
                         >
                           {Array.from({ length: Math.min(12, maxParc) }, (_, i) => i + 1).map(num => (
                             <option key={num} value={num}>
@@ -910,7 +926,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={handleAdicionarLinha}
-                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-800/40 hover:bg-slate-800/80 text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4" />
                 <span>
@@ -920,32 +936,32 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
             </div>
 
             {/* Resumo de Conferência */}
-            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400">
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-500">
                 <span>Total a Receber:</span>
-                <span className="font-bold text-white">R$ {valorTotalReceber.toFixed(2)}</span>
+                <span className="font-bold text-slate-800">R$ {valorTotalReceber.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500">
                 <span>Total dos Meios Informados:</span>
-                <span className="font-bold text-white">R$ {totalLinhasRecebimento.toFixed(2)}</span>
+                <span className="font-bold text-slate-800">R$ {totalLinhasRecebimento.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800/80">
+              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200">
                 {Math.abs(diferencaRecebimento) < 0.01 ? (
                   <>
-                    <span className="text-emerald-400 flex items-center gap-1">
+                    <span className="text-emerald-700 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Total Conferido
                     </span>
-                    <span className="text-emerald-400">R$ 0,00</span>
+                    <span className="text-emerald-700">R$ 0,00</span>
                   </>
                 ) : diferencaRecebimento > 0 ? (
                   <>
-                    <span className="text-amber-400">Falta informar:</span>
-                    <span className="text-amber-400">R$ {diferencaRecebimento.toFixed(2)}</span>
+                    <span className="text-amber-700">Falta informar:</span>
+                    <span className="text-amber-700">R$ {diferencaRecebimento.toFixed(2)}</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-rose-400">Excedente:</span>
-                    <span className="text-rose-400">R$ {Math.abs(diferencaRecebimento).toFixed(2)}</span>
+                    <span className="text-rose-700">Excedente:</span>
+                    <span className="text-rose-700">R$ {Math.abs(diferencaRecebimento).toFixed(2)}</span>
                   </>
                 )}
               </div>
@@ -956,7 +972,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={() => setModalReceberAberto(false)}
-                className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+                className="py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -965,7 +981,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                 type="button"
                 disabled={processandoRecebimento || Math.abs(diferencaRecebimento) > 0.01}
                 onClick={handleConfirmarRecebimento}
-                className="flex-1 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-xs shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className="flex-1 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {processandoRecebimento ? (
                   <>

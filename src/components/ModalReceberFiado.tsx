@@ -386,41 +386,43 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-60 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-emerald-400" />
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[80] animate-in fade-in">
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto text-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+              <CreditCard className="w-4 h-4" />
+            </div>
             <span>Receber Pagamento do Fiado</span>
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Informações do Recebimento */}
-        <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-1">
-          <span className="text-xs text-slate-400 font-medium block">
+        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-center space-y-1">
+          <span className="text-xs text-slate-500 font-medium block">
             {pedido
               ? `Receber Pedido #${pedido.numero_pedido || pedido.id.slice(0, 8)}`
               : 'Recebimento de Fiado (Saldo do Cliente)'}
           </span>
-          <span className="text-3xl font-black text-emerald-400 block">
+          <span className="text-3xl font-black text-emerald-600 block">
             R$ {valorTotalReceber.toFixed(2)}
           </span>
-          <span className="text-[11px] text-slate-400 block">
-            Cliente: <span className="text-white font-bold">{cliente?.nome || pedido?.cliente?.nome || 'Cliente não identificado'}</span>
+          <span className="text-[11px] text-slate-500 block">
+            Cliente: <span className="text-slate-900 font-bold">{cliente?.nome || pedido?.cliente?.nome || 'Cliente não identificado'}</span>
           </span>
         </div>
 
         {/* Linhas de Multi-Pagamento */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-300">
+            <span className="text-xs font-bold text-slate-700">
               Meios de Pagamento ({linhasRecebimento.length}):
             </span>
             <span className="text-[11px] text-slate-400">
@@ -433,10 +435,10 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
             const maxParc = formaSel?.maximo_parcelas || 12;
 
             return (
-              <div key={linha.id} className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2.5">
+              <div key={linha.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px]">
+                  <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[10px]">
                       {idx + 1}
                     </span>
                     Meio #{idx + 1}
@@ -445,7 +447,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoverLinha(linha.id)}
-                      className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -463,14 +465,14 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
                         onClick={() => handleAlterarFormaLinha(linha.id, fp)}
                         className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 ${
                           sel
-                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 shadow-sm'
-                            : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white'
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/40 shadow-xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                         }`}
                       >
-                        {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />}
-                        {fp.tipo === 'pix' && <Zap className="w-4 h-4 text-cyan-400 shrink-0" />}
-                        {fp.tipo === 'cartao_debito' && <CreditCard className="w-4 h-4 text-blue-400 shrink-0" />}
-                        {fp.tipo === 'cartao_credito' && <CreditCard className="w-4 h-4 text-purple-400 shrink-0" />}
+                        {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />}
+                        {fp.tipo === 'pix' && <Zap className="w-4 h-4 text-cyan-600 shrink-0" />}
+                        {fp.tipo === 'cartao_debito' && <CreditCard className="w-4 h-4 text-blue-600 shrink-0" />}
+                        {fp.tipo === 'cartao_credito' && <CreditCard className="w-4 h-4 text-purple-600 shrink-0" />}
                         <span className="whitespace-normal text-center">{fp.nome}</span>
                       </button>
                     );
@@ -478,10 +480,10 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
                 </div>
 
                 {/* Valor deste meio */}
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-                  <span className="text-xs text-slate-400 font-medium">Valor pago:</span>
-                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 focus-within:border-emerald-500">
-                    <span className="text-xs text-slate-500 font-bold">R$</span>
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200">
+                  <span className="text-xs text-slate-500 font-medium">Valor pago:</span>
+                  <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl px-2.5 py-1 focus-within:border-emerald-500">
+                    <span className="text-xs text-slate-400 font-bold">R$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -489,32 +491,30 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
                       value={linha.valor > 0 ? linha.valor : ''}
                       onChange={(e) => handleAlterarValorLinha(linha.id, parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
-                      style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
-                      className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
+                      className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 focus:outline-none placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 {/* Troco se for dinheiro */}
                 {linha.forma_tipo === 'dinheiro' && (
-                  <div className="space-y-1.5 pt-1.5 border-t border-slate-800/60 text-xs">
+                  <div className="space-y-1.5 pt-1.5 border-t border-slate-200 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Valor Entregue pelo Cliente:</span>
-                      <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1">
-                        <span className="text-xs text-slate-500 font-bold">R$</span>
+                      <span className="text-slate-500">Valor Entregue pelo Cliente:</span>
+                      <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl px-2.5 py-1">
+                        <span className="text-xs text-slate-400 font-bold">R$</span>
                         <input
                           type="number"
                           step="0.01"
                           placeholder="0.00"
                           value={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : ''}
                           onChange={(e) => handleAlterarEntregueLinha(linha.id, parseFloat(e.target.value) || 0)}
-                          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
-                          className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
+                          className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
                     {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                      <div className="flex justify-between font-bold text-amber-400">
+                      <div className="flex justify-between font-bold text-amber-700">
                         <span>Troco a devolver:</span>
                         <span>R$ {(linha.valor_entregue - linha.valor).toFixed(2)}</span>
                       </div>
@@ -524,12 +524,12 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
 
                 {/* Parcelas se for cartão de crédito */}
                 {linha.forma_tipo === 'cartao_credito' && (
-                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-800/60 text-xs">
-                    <span className="text-slate-400">Parcelas:</span>
+                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200 text-xs">
+                    <span className="text-slate-500">Parcelas:</span>
                     <select
                       value={linha.parcelas || 1}
                       onChange={(e) => handleAlterarParcelasLinha(linha.id, parseInt(e.target.value) || 1)}
-                      className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                      className="bg-white border border-slate-300 rounded-xl px-2 py-1 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
                     >
                       {Array.from({ length: Math.min(12, maxParc) }, (_, i) => i + 1).map(num => (
                         <option key={num} value={num}>
@@ -547,7 +547,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           <button
             type="button"
             onClick={handleAdicionarLinha}
-            className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-800/40 hover:bg-slate-800/80 text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+            className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
           >
             <Plus className="w-4 h-4" />
             <span>
@@ -557,32 +557,32 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
         </div>
 
         {/* Resumo de Conferência */}
-        <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
-          <div className="flex justify-between text-slate-400">
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 text-xs">
+          <div className="flex justify-between text-slate-500">
             <span>Total a Receber:</span>
-            <span className="font-bold text-white">R$ {valorTotalReceber.toFixed(2)}</span>
+            <span className="font-bold text-slate-800">R$ {valorTotalReceber.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-slate-400">
+          <div className="flex justify-between text-slate-500">
             <span>Total dos Meios Informados:</span>
-            <span className="font-bold text-white">R$ {totalLinhasRecebimento.toFixed(2)}</span>
+            <span className="font-bold text-slate-800">R$ {totalLinhasRecebimento.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800/80">
+          <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200">
             {Math.abs(diferencaRecebimento) < 0.01 ? (
               <>
-                <span className="text-emerald-400 flex items-center gap-1">
+                <span className="text-emerald-700 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Total Conferido
                 </span>
-                <span className="text-emerald-400">R$ 0,00</span>
+                <span className="text-emerald-700">R$ 0,00</span>
               </>
             ) : diferencaRecebimento > 0 ? (
               <>
-                <span className="text-amber-400">Falta informar:</span>
-                <span className="text-amber-400">R$ {diferencaRecebimento.toFixed(2)}</span>
+                <span className="text-amber-700">Falta informar:</span>
+                <span className="text-amber-700">R$ {diferencaRecebimento.toFixed(2)}</span>
               </>
             ) : (
               <>
-                <span className="text-rose-400">Excedente:</span>
-                <span className="text-rose-400">R$ {Math.abs(diferencaRecebimento).toFixed(2)}</span>
+                <span className="text-rose-700">Excedente:</span>
+                <span className="text-rose-700">R$ {Math.abs(diferencaRecebimento).toFixed(2)}</span>
               </>
             )}
           </div>
@@ -593,7 +593,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+            className="py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition cursor-pointer"
           >
             Cancelar
           </button>
@@ -602,7 +602,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
             type="button"
             disabled={processandoRecebimento || Math.abs(diferencaRecebimento) > 0.01}
             onClick={handleConfirmarRecebimento}
-            className="flex-1 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-xs shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+            className="flex-1 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
           >
             {processandoRecebimento ? (
               <>

@@ -154,6 +154,7 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 
 interface PedidosListaMobileProps {
   pedidos: Pedido[];
@@ -190,6 +191,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [clientePerfilSelecionado, setClientePerfilSelecionado] = useState<Cliente | null>(null);
   const [drawerInternoAberto, setDrawerInternoAberto] = useState<boolean>(false);
+  const [clienteHistoricoFiadoModal, setClienteHistoricoFiadoModal] = useState<Cliente | null>(null);
+  const [filtroHistoricoFiadoModal, setFiltroHistoricoFiadoModal] = useState<'todos' | 'vencidos' | 'a_vencer'>('a_vencer');
 
   // Estados de Busca e Filtros Rápidos (TELA001, TELA003, TELA004)
   const [busca, setBusca] = useState<string>('');
@@ -932,11 +935,26 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               })() ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (onAbrirReceberFiado) {
-                    onAbrirReceberFiado(pedidoSelecionado);
+                onClick={async () => {
+                  let cli = pedidoSelecionado.cliente_id ? (mapaClientes.get(pedidoSelecionado.cliente_id) || null) : ((pedidoSelecionado.cliente as Cliente) || null);
+                  if (!cli && pedidoSelecionado.cliente_id) {
+                    try {
+                      const { data } = await supabase.from('clientes').select('*').eq('id', pedidoSelecionado.cliente_id).single();
+                      if (data) cli = data as Cliente;
+                    } catch (e) {
+                      console.warn('Erro ao buscar cliente:', e);
+                    }
+                  }
+
+                  if (cli) {
+                    setFiltroHistoricoFiadoModal('a_vencer');
+                    setClienteHistoricoFiadoModal(cli);
                   } else {
-                    onAbrirReceberPagamento(pedidoSelecionado);
+                    if (onAbrirReceberFiado) {
+                      onAbrirReceberFiado(pedidoSelecionado);
+                    } else {
+                      onAbrirReceberPagamento(pedidoSelecionado);
+                    }
                   }
                 }}
                 className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
@@ -1249,6 +1267,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
           </div>
         )}
+
+        {/* Modal de Histórico de Fiado Detalhado (Compras Fiado a Vencer) */}
+        <ModalHistoricoFiadoCliente
+          isOpen={!!clienteHistoricoFiadoModal}
+          onClose={() => setClienteHistoricoFiadoModal(null)}
+          cliente={clienteHistoricoFiadoModal}
+          filtroInicial={filtroHistoricoFiadoModal}
+          onClienteAtualizado={(c) => {
+            onClienteAtualizado(c);
+            if (onRecarregar) onRecarregar();
+          }}
+        />
       </div>
     );
   }
@@ -1734,6 +1764,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         aberto={drawerInternoAberto}
         onFechar={() => setDrawerInternoAberto(false)}
         pedidosConfirmadosCount={pedidos.filter(p => p.status === 'confirmado').length}
+      />
+
+      {/* MODAL HISTORICO FIADO DO CLIENTE (COMPRAS FIADO A VENCER) */}
+      <ModalHistoricoFiadoCliente
+        isOpen={!!clienteHistoricoFiadoModal}
+        onClose={() => setClienteHistoricoFiadoModal(null)}
+        cliente={clienteHistoricoFiadoModal}
+        filtroInicial={filtroHistoricoFiadoModal}
+        onClienteAtualizado={(c) => {
+          onClienteAtualizado(c);
+          if (onRecarregar) onRecarregar();
+        }}
       />
     </div>
   );
