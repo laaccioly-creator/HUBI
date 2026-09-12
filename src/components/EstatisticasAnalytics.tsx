@@ -17,7 +17,8 @@ import {
   Percent,
   Check,
   ChevronDown,
-  ArrowLeft
+  ArrowLeft,
+  X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -47,6 +48,7 @@ type TipoPeriodo =
   | 'este_mes'
   | 'mes_passado'
   | 'este_ano'
+  | 'ano_passado'
   | 'personalizado';
 
 const PERIODOS_OPCOES: { id: TipoPeriodo; label: string }[] = [
@@ -57,6 +59,7 @@ const PERIODOS_OPCOES: { id: TipoPeriodo; label: string }[] = [
   { id: 'este_mes', label: 'Este mês' },
   { id: 'mes_passado', label: 'Mês passado' },
   { id: 'este_ano', label: 'Este ano' },
+  { id: 'ano_passado', label: 'Ano passado' },
   { id: 'personalizado', label: 'Personalizado' }
 ];
 
@@ -103,6 +106,8 @@ export const EstatisticasAnalytics: React.FC = () => {
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [dataInicioCustom, setDataInicioCustom] = useState<string>('');
   const [dataFimCustom, setDataFimCustom] = useState<string>('');
+  const [metricaAtivaMobile, setMetricaAtivaMobile] = useState<TipoMetrica | null>(null);
+  const [modalPeriodoMobile, setModalPeriodoMobile] = useState<boolean>(false);
 
   // 1. Carregar todos os pedidos da loja
   useEffect(() => {
@@ -191,16 +196,17 @@ export const EstatisticasAnalytics: React.FC = () => {
 
       const inicio = new Date(ref.getFullYear(), ref.getMonth(), 1, 0, 0, 0);
       const fim = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
-      const label = MESES_NOMES[ref.getMonth()] || 'Mês Selecionado';
+      const label = `${MESES_COMPLETOS[ref.getMonth()]} de ${ref.getFullYear()}`;
       return { dataInicio: inicio, dataFim: fim, labelExibicaoPeriodo: label };
     }
 
-    if (tipoPeriodo === 'este_ano') {
+    if (tipoPeriodo === 'este_ano' || tipoPeriodo === 'ano_passado') {
       const ref = new Date();
-      ref.setFullYear(ref.getFullYear() + periodoOffset);
+      const baseOffset = tipoPeriodo === 'ano_passado' ? -1 : 0;
+      ref.setFullYear(ref.getFullYear() + baseOffset + periodoOffset);
       const inicio = new Date(ref.getFullYear(), 0, 1, 0, 0, 0);
       const fim = new Date(ref.getFullYear(), 11, 31, 23, 59, 59, 999);
-      const label = `Ano ${ref.getFullYear()}`;
+      const label = tipoPeriodo === 'ano_passado' && periodoOffset === 0 ? `Ano Passado (${ref.getFullYear()})` : `Ano ${ref.getFullYear()}`;
       return { dataInicio: inicio, dataFim: fim, labelExibicaoPeriodo: label };
     }
 
@@ -834,6 +840,102 @@ export const EstatisticasAnalytics: React.FC = () => {
     );
   };
 
+  const titulosMetricas: Record<TipoMetrica, string> = {
+    faturamento: 'Faturamento',
+    vendas: 'Vendas',
+    ticket_medio: 'Ticket Médio',
+    lucro: 'Lucro Real',
+    taxa_venda: 'Taxa de Venda',
+    meio_pagamento: 'Meios de Pagamento',
+    ranking_produtos: 'Ranking de Produtos',
+    ranking_clientes: 'Ranking de Clientes',
+    vendas_usuario: 'Vendas por Usuário'
+  };
+
+  const cardsIndicadores = [
+    {
+      id: 'faturamento',
+      label: 'Faturamento',
+      valor: `R$ ${faturamentoTotal.toFixed(2)}`,
+      subtexto: `${totalVendas} vendas no período`,
+      icone: DollarSign,
+      corBg: 'bg-emerald-500/10',
+      corTexto: 'text-emerald-600',
+    },
+    {
+      id: 'vendas',
+      label: 'Vendas',
+      valor: `${totalVendas}`,
+      subtexto: 'pedidos concluídos',
+      icone: ShoppingBag,
+      corBg: 'bg-blue-500/10',
+      corTexto: 'text-blue-600',
+    },
+    {
+      id: 'ticket_medio',
+      label: 'Ticket Médio',
+      valor: `R$ ${ticketMedio.toFixed(2)}`,
+      subtexto: 'média por venda',
+      icone: TrendingUp,
+      corBg: 'bg-indigo-500/10',
+      corTexto: 'text-indigo-600',
+    },
+    {
+      id: 'lucro',
+      label: 'Lucro Real',
+      valor: `R$ ${lucroTotal.toFixed(2)}`,
+      subtexto: faturamentoTotal > 0 ? `Margem ${((lucroTotal / faturamentoTotal) * 100).toFixed(1)}%` : 'Margem 0.0%',
+      icone: ArrowUpRight,
+      corBg: 'bg-teal-500/10',
+      corTexto: 'text-teal-600',
+    },
+    {
+      id: 'taxa_venda',
+      label: 'Taxa de Venda',
+      valor: `R$ ${taxasVendaTotal.toFixed(2)}`,
+      subtexto: 'taxas e comissões',
+      icone: Percent,
+      corBg: 'bg-rose-500/10',
+      corTexto: 'text-rose-600',
+    },
+    {
+      id: 'meio_pagamento',
+      label: 'Meios de Pagamento',
+      valor: `R$ ${dadosMeiosPagamento.reduce((acc, i) => acc + i.valor, 0).toFixed(2)}`,
+      subtexto: `${dadosMeiosPagamento.length} formas usadas`,
+      icone: CreditCard,
+      corBg: 'bg-amber-500/10',
+      corTexto: 'text-amber-600',
+    },
+    {
+      id: 'ranking_produtos',
+      label: 'Ranking de Produtos',
+      valor: `${rankingProdutos.length}`,
+      subtexto: 'produtos vendidos',
+      icone: Package,
+      corBg: 'bg-cyan-500/10',
+      corTexto: 'text-cyan-600',
+    },
+    {
+      id: 'ranking_clientes',
+      label: 'Ranking de Clientes',
+      valor: `${rankingClientes.length}`,
+      subtexto: 'clientes ativos',
+      icone: Users,
+      corBg: 'bg-violet-500/10',
+      corTexto: 'text-violet-600',
+    },
+    {
+      id: 'vendas_usuario',
+      label: 'Vendas por Usuário',
+      valor: `${vendasPorUsuario.length}`,
+      subtexto: 'colaboradores ativos',
+      icone: Award,
+      corBg: 'bg-orange-500/10',
+      corTexto: 'text-orange-600',
+    },
+  ];
+
   return (
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
@@ -843,7 +945,13 @@ export const EstatisticasAnalytics: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                if (metricaAtivaMobile) {
+                  setMetricaAtivaMobile(null);
+                } else {
+                  navigate(-1);
+                }
+              }}
               className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
               title="Voltar"
             >
@@ -861,100 +969,98 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
               </div>
             </button>
-            <h1 className="font-bold text-base text-slate-800">Estatísticas</h1>
+            <h1 className="font-bold text-base text-slate-800 truncate max-w-[150px]">
+              {metricaAtivaMobile ? titulosMetricas[metricaAtivaMobile] : 'Estatísticas'}
+            </h1>
           </div>
 
+          {/* Filtro Temporal de Topo - Badge Interativo */}
           <button
             type="button"
-            onClick={() => {
-              setPeriodoOffset(0);
-              setTipoPeriodo('este_mes');
-            }}
-            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition"
+            onClick={() => setModalPeriodoMobile(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold transition hover:bg-emerald-100 cursor-pointer shadow-xs max-w-[180px]"
+            title="Selecionar período"
           >
-            Hoje
+            <Calendar className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+            <span className="truncate">{labelExibicaoPeriodo}</span>
+            <ChevronDown className="w-3 h-3 shrink-0 opacity-70" />
           </button>
         </div>
 
-        {/* Seletor de Período Horizontal Claro */}
-        <div className="p-3 bg-white border-b border-slate-200 shrink-0 space-y-2">
-          <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-1">
-            <button
-              type="button"
-              onClick={() => setPeriodoOffset(prev => prev - 1)}
-              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+        {/* Barra de Navegação Rápida de Período */}
+        <div className="px-4 py-2 bg-white border-b border-slate-200 shrink-0 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setPeriodoOffset(prev => prev - 1)}
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+            title="Período anterior"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
 
-            <span className="text-xs font-bold text-slate-800">
-              {PERIODOS_OPCOES.find(p => p.id === tipoPeriodo)?.label}
-              {periodoOffset !== 0 && ` (${periodoOffset > 0 ? `+${periodoOffset}` : periodoOffset})`}
-            </span>
+          <button
+            type="button"
+            onClick={() => setModalPeriodoMobile(true)}
+            className="text-xs font-bold text-slate-800 hover:text-emerald-600 transition flex items-center gap-1 cursor-pointer"
+          >
+            <span>{labelExibicaoPeriodo}</span>
+            {periodoOffset !== 0 && (
+              <span className="text-[10px] text-emerald-600 font-semibold">
+                ({periodoOffset > 0 ? `+${periodoOffset}` : periodoOffset})
+              </span>
+            )}
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setPeriodoOffset(prev => prev + 1)}
-              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Pílulas de Seleção Rápida de Período */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            {PERIODOS_OPCOES.slice(0, 6).map((op) => (
-              <button
-                key={op.id}
-                type="button"
-                onClick={() => {
-                  setTipoPeriodo(op.id);
-                  setPeriodoOffset(0);
-                }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition border ${
-                  tipoPeriodo === op.id
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold'
-                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-                }`}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setPeriodoOffset(prev => prev + 1)}
+            disabled={periodoOffset >= 0}
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            title="Próximo período"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Pílulas de Seleção de Métrica */}
-        <div className="px-3 py-2 bg-slate-100/60 border-b border-slate-200 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-1.5">
-          {[
-            { id: 'faturamento', label: 'Faturamento' },
-            { id: 'vendas', label: 'Qtd Vendas' },
-            { id: 'ticket_medio', label: 'Ticket Médio' },
-            { id: 'lucro', label: 'Lucro Real' },
-            { id: 'taxa_venda', label: 'Taxa Venda' },
-            { id: 'meio_pagamento', label: 'Forma de Pagamento' },
-            { id: 'ranking_produtos', label: 'Top Produtos' },
-            { id: 'ranking_clientes', label: 'Top Clientes' },
-            { id: 'vendas_usuario', label: 'Por Vendedor' }
-          ].map((met) => (
-            <button
-              key={met.id}
-              type="button"
-              onClick={() => setMetricaSelecionada(met.id as TipoMetrica)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border cursor-pointer ${
-                metricaSelecionada === met.id
-                  ? 'bg-white text-slate-900 border-slate-300 shadow-xs font-bold'
-                  : 'bg-transparent text-slate-500 border-transparent hover:bg-white/50'
-              }`}
-            >
-              {met.label}
-            </button>
-          ))}
-        </div>
+        {!metricaAtivaMobile ? (
+          /* Grid de Navegação Modular em 2 Colunas */
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Indicadores de Desempenho
+              </h2>
+              <span className="text-[11px] text-slate-400 font-medium">Toque para detalhar</span>
+            </div>
 
-        {/* Conteúdo com Scroll */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Card de Destaque da Métrica Selecionada */}
-          {metricaSelecionada !== 'meio_pagamento' && (
+            <div className="grid grid-cols-2 gap-3 pb-6">
+              {cardsIndicadores.map((card) => {
+                const Icone = card.icone;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => {
+                      setMetricaSelecionada(card.id as TipoMetrica);
+                      setMetricaAtivaMobile(card.id as TipoMetrica);
+                    }}
+                    className="bg-white border-2 border-slate-300 hover:border-emerald-400 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-xs transition active:scale-[0.98] cursor-pointer min-h-[140px]"
+                  >
+                    <div className={`w-11 h-11 rounded-2xl ${card.corBg} flex items-center justify-center ${card.corTexto} mb-2.5 shrink-0 shadow-2xs`}>
+                      <Icone className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-600 block truncate max-w-full">{card.label}</span>
+                    <span className="text-base font-black text-slate-900 block truncate max-w-full mt-0.5">{card.valor}</span>
+                    <span className="text-[10px] font-medium text-slate-400 block truncate max-w-full mt-0.5">{card.subtexto}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Visualização Detalhada da Métrica Selecionada */
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Card de Destaque da Métrica Selecionada */}
+            {metricaSelecionada !== 'meio_pagamento' && (
             <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 {metricaSelecionada === 'faturamento' && 'Faturamento Total'}
@@ -1296,6 +1402,90 @@ export const EstatisticasAnalytics: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+        {/* Modal Bottom-Sheet de Intervalos Temporais */}
+        {modalPeriodoMobile && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex flex-col justify-end animate-in fade-in duration-150">
+            <div
+              className="fixed inset-0"
+              onClick={() => setModalPeriodoMobile(false)}
+            />
+            <div className="relative bg-white rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl z-10 animate-in slide-in-from-bottom duration-200">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Filtrar Período</h3>
+                  <p className="text-xs text-slate-400">Ativo: {labelExibicaoPeriodo}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalPeriodoMobile(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-1.5">
+                {PERIODOS_OPCOES.map((op) => (
+                  <button
+                    key={op.id}
+                    type="button"
+                    onClick={() => {
+                      setTipoPeriodo(op.id);
+                      setPeriodoOffset(0);
+                      if (op.id !== 'personalizado') {
+                        setModalPeriodoMobile(false);
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                      tipoPeriodo === op.id
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold'
+                        : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{op.label}</span>
+                    {tipoPeriodo === op.id && <Check className="w-4 h-4 text-emerald-600" />}
+                  </button>
+                ))}
+              </div>
+
+              {/* Seletor Customizado se 'personalizado' */}
+              {tipoPeriodo === 'personalizado' && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 animate-in fade-in">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-bold block mb-1">Data Início:</label>
+                      <input
+                        type="date"
+                        value={dataInicioCustom}
+                        onChange={(e) => setDataInicioCustom(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-bold block mb-1">Data Fim:</label>
+                      <input
+                        type="date"
+                        value={dataFimCustom}
+                        onChange={(e) => setDataFimCustom(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-medium"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalPeriodoMobile(false)}
+                    className="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition cursor-pointer shadow-xs"
+                  >
+                    Aplicar Período
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Menu Gaveta Lateral */}
         <MobileMenuDrawer
