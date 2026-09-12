@@ -450,6 +450,13 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     return saldoDevedorFiado > 0 ? Math.min(saldoDevedorFiado, total) : total;
   }, [pedidosCliente, saldoDevedorFiado]);
 
+  // Cálculo do valor fiado a vencer (em dia)
+  const valorFiadoAVencer = useMemo(() => {
+    return Math.max(0, Number(saldoDevedorFiado || 0) - valorVencido);
+  }, [saldoDevedorFiado, valorVencido]);
+
+  const [filtroHistoricoFiado, setFiltroHistoricoFiado] = useState<'todos' | 'vencidos' | 'a_vencer'>('todos');
+
   const totalVendasPeriodo = useMemo(() => {
     return vendasFiltradas.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
   }, [vendasFiltradas]);
@@ -685,50 +692,72 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 {/* Bloco Valor Fiado */}
                 <button
                   type="button"
-                  onClick={() => setModalHistoricoFiadoAberto(true)}
-                  className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 hover:bg-amber-100/60 active:scale-[0.98] transition cursor-pointer text-left shadow-xs"
+                  disabled={valorFiadoAVencer === 0}
+                  onClick={() => {
+                    if (valorFiadoAVencer > 0) {
+                      setFiltroHistoricoFiado('a_vencer');
+                      setModalHistoricoFiadoAberto(true);
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border transition text-left shadow-xs ${
+                    valorFiadoAVencer > 0
+                      ? 'bg-amber-50/80 border-amber-200/80 hover:bg-amber-100/60 active:scale-[0.98] cursor-pointer'
+                      : 'bg-slate-50 border-slate-200 opacity-70 cursor-default'
+                  }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                      valorFiadoAVencer > 0 ? 'text-amber-800' : 'text-slate-400'
+                    }`}>
                       Valor Fiado
                     </span>
-                    <Receipt className="w-3.5 h-3.5 text-amber-600" />
+                    <Receipt className={`w-3.5 h-3.5 ${valorFiadoAVencer > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
                   </div>
-                  <div className="text-base font-black text-amber-700 truncate">
-                    R$ {Number(saldoDevedorFiado || 0).toFixed(2)}
+                  <div className={`text-base font-black truncate ${
+                    valorFiadoAVencer > 0 ? 'text-amber-700' : 'text-slate-500'
+                  }`}>
+                    R$ {valorFiadoAVencer.toFixed(2)}
                   </div>
-                  <span className="text-[9px] text-amber-600/90 font-bold block mt-0.5">
-                    Ver histórico fiado →
+                  <span className={`text-[9px] font-bold block mt-0.5 ${
+                    valorFiadoAVencer > 0 ? 'text-amber-600/90' : 'text-slate-400'
+                  }`}>
+                    {valorFiadoAVencer > 0 ? 'A vencer →' : 'Em dia'}
                   </span>
                 </button>
 
                 {/* Bloco Valor Vencido */}
                 <button
                   type="button"
-                  onClick={() => setModalHistoricoFiadoAberto(true)}
-                  className={`p-3 rounded-2xl border transition cursor-pointer text-left shadow-xs active:scale-[0.98] ${
+                  disabled={valorVencido === 0}
+                  onClick={() => {
+                    if (valorVencido > 0) {
+                      setFiltroHistoricoFiado('vencidos');
+                      setModalHistoricoFiadoAberto(true);
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border transition text-left shadow-xs ${
                     valorVencido > 0
-                      ? 'bg-rose-50 border-rose-200 hover:bg-rose-100/60'
-                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100/60'
+                      ? 'bg-rose-50 border-rose-200 hover:bg-rose-100/60 active:scale-[0.98] cursor-pointer'
+                      : 'bg-slate-50 border-slate-200 opacity-70 cursor-default'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${
-                      valorVencido > 0 ? 'text-rose-800' : 'text-slate-500'
+                      valorVencido > 0 ? 'text-rose-800' : 'text-slate-400'
                     }`}>
                       Valor Vencido
                     </span>
                     <Clock className={`w-3.5 h-3.5 ${valorVencido > 0 ? 'text-rose-500' : 'text-slate-400'}`} />
                   </div>
                   <div className={`text-base font-black truncate ${
-                    valorVencido > 0 ? 'text-rose-600' : 'text-slate-700'
+                    valorVencido > 0 ? 'text-rose-600' : 'text-slate-500'
                   }`}>
                     R$ {valorVencido.toFixed(2)}
                   </div>
                   <span className={`text-[9px] font-bold block mt-0.5 ${
                     valorVencido > 0 ? 'text-rose-600' : 'text-slate-400'
                   }`}>
-                    {valorVencido > 0 ? 'Expirou > 30 dias →' : 'Em dia'}
+                    {valorVencido > 0 ? 'Expirou vencimento →' : 'Tudo em dia'}
                   </span>
                 </button>
               </div>
@@ -1333,6 +1362,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         isOpen={modalHistoricoFiadoAberto}
         onClose={() => setModalHistoricoFiadoAberto(false)}
         cliente={cliente}
+        filtroInicial={filtroHistoricoFiado}
         onClienteAtualizado={(c) => {
           setSaldoDevedorFiado(Number(c.saldo_devedor_fiado || 0));
           onClienteAtualizado(c);

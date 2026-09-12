@@ -26,12 +26,14 @@ import { Cliente, Pedido, FormaPagamento, TipoPagamento, StatusPagamento } from 
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
+import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 interface ModalHistoricoFiadoClienteProps {
   isOpen: boolean;
   onClose: () => void;
   cliente: Cliente | null;
   onClienteAtualizado: (cliente: Cliente) => void;
+  filtroInicial?: 'todos' | 'vencidos' | 'a_vencer';
 }
 
 interface LinhaRecebimentoFiado {
@@ -48,12 +50,14 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
   isOpen,
   onClose,
   cliente,
-  onClienteAtualizado
+  onClienteAtualizado,
+  filtroInicial = 'todos'
 }) => {
   const { loja, usuario } = useAuth();
   const { mostrarSucesso, mostrarAviso, mostrarErro } = useFeedbackModal();
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'vencidos' | 'a_vencer'>(filtroInicial || 'todos');
   const [carregando, setCarregando] = useState<boolean>(false);
   const [itensExpandidos, setItensExpandidos] = useState<Record<string, boolean>>({});
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
@@ -137,8 +141,9 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
       carregarDados();
       setModalReceberAberto(false);
       setPedidoSelecionadoReceber(null);
+      setFiltroStatus(filtroInicial || 'todos');
     }
-  }, [isOpen, cliente?.id]);
+  }, [isOpen, cliente?.id, filtroInicial]);
 
   const alternarExpansaoItens = (pedidoId: string) => {
     setItensExpandidos(prev => ({
@@ -162,31 +167,22 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
   };
 
   const obterInfoVencimento = (pedido: Pedido) => {
-    let dataVenc: string | null = pedido.data_vencimento_fiado || null;
-    if (!dataVenc && pedido.metadados) {
-      try {
-        const meta = typeof pedido.metadados === 'string' ? JSON.parse(pedido.metadados) : pedido.metadados;
-        dataVenc = meta?.data_vencimento_fiado || null;
-      } catch (e) {}
-    }
-    if (!dataVenc && pedido.data_venda) {
-      const dv = new Date(pedido.data_venda);
-      dv.setDate(dv.getDate() + 30);
-      dataVenc = dv.toISOString().split('T')[0];
-    }
-    if (!dataVenc) {
-      dataVenc = new Date().toISOString().split('T')[0];
-    }
-
-    const hoje = new Date().toISOString().split('T')[0];
-    const estaVencido = dataVenc < hoje;
-
-    return {
-      dataIso: dataVenc,
-      formatada: formatarData(dataVenc),
-      estaVencido
-    };
+    return obterInfoVencimentoFiado(pedido);
   };
+
+  const pedidosAVencer = useMemo(() => {
+    return pedidos.filter(p => !obterInfoVencimento(p).estaVencido);
+  }, [pedidos]);
+
+  const pedidosVencidos = useMemo(() => {
+    return pedidos.filter(p => obterInfoVencimento(p).estaVencido);
+  }, [pedidos]);
+
+  const pedidosFiltrados = useMemo(() => {
+    if (filtroStatus === 'vencidos') return pedidosVencidos;
+    if (filtroStatus === 'a_vencer') return pedidosAVencer;
+    return pedidos;
+  }, [pedidos, filtroStatus, pedidosVencidos, pedidosAVencer]);
 
   // Abrir Modal Receber para um pedido específico
   const handleAbrirReceberPedido = (pedido: Pedido) => {
@@ -508,7 +504,13 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           <div>
             <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
               <FileText className="w-5 h-5 text-amber-400" />
-              <span>Histórico de Compras Fiado</span>
+              <span>
+                {filtroStatus === 'vencidos'
+                  ? 'Compras Fiado Vencidas'
+                  : filtroStatus === 'a_vencer'
+                  ? 'Compras Fiado a Vencer'
+                  : 'Histórico de Compras Fiado'}
+              </span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
               Cliente: <span className="font-bold text-slate-200">{cliente.nome}</span>
@@ -531,7 +533,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               R$ {Number(cliente.saldo_devedor_fiado || 0).toFixed(2)}
             </span>
             <span className="text-[11px] text-amber-200/70">
-              {pedidos.length} {pedidos.length === 1 ? 'compra em aberto' : 'compras em aberto'}
+              {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? 'compra listada' : 'compras listadas'}
             </span>
           </div>
 
@@ -555,6 +557,43 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           </div>
         </div>
 
+        {/* Filtros rápidos: Todas | A Vencer | Vencidas */}
+        <div className="px-4 sm:px-5 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('todos')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+              filtroStatus === 'todos'
+                ? 'bg-slate-700 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            Todas ({pedidos.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('a_vencer')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+              filtroStatus === 'a_vencer'
+                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                : 'text-amber-400 hover:bg-amber-500/10'
+            }`}
+          >
+            A Vencer ({pedidosAVencer.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroStatus('vencidos')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+              filtroStatus === 'vencidos'
+                ? 'bg-rose-500 text-white shadow-xs'
+                : 'text-rose-400 hover:bg-rose-500/10'
+            }`}
+          >
+            Vencidas ({pedidosVencidos.length})
+          </button>
+        </div>
+
         {/* Lista de Compras / Pedidos de Fiado */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
           {carregando ? (
@@ -562,16 +601,26 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <Loader2 className="w-8 h-8 animate-spin text-amber-400 mx-auto" />
               <p className="text-xs text-slate-400">Carregando compras no fiado...</p>
             </div>
-          ) : pedidos.length === 0 ? (
+          ) : pedidosFiltrados.length === 0 ? (
             <div className="py-16 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 text-emerald-400/50 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-200">Nenhum fiado pendente!</h4>
+              <h4 className="text-sm font-bold text-slate-200">
+                {filtroStatus === 'vencidos'
+                  ? 'Nenhuma compra vencida!'
+                  : filtroStatus === 'a_vencer'
+                  ? 'Nenhuma compra a vencer!'
+                  : 'Nenhum fiado pendente!'}
+              </h4>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Este cliente não possui compras a prazo em aberto no momento.
+                {filtroStatus === 'vencidos'
+                  ? 'Todas as compras deste cliente estão com o pagamento em dia.'
+                  : filtroStatus === 'a_vencer'
+                  ? 'Não há compras no fiado a vencer para este cliente.'
+                  : 'Este cliente não possui compras a prazo em aberto no momento.'}
               </p>
             </div>
           ) : (
-            pedidos.map((pedido) => {
+            pedidosFiltrados.map((pedido) => {
               const infoVenc = obterInfoVencimento(pedido);
               const saldoPed = Number(pedido.saldo_devedor ?? (Number(pedido.valor_total) - Number(pedido.valor_pago || 0)));
               const expandido = !!itensExpandidos[pedido.id];

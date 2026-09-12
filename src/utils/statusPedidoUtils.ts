@@ -1,4 +1,5 @@
 import { StatusPedido, Loja } from '../types';
+import { obterDataOperacaoYMD } from './dataOperacao';
 
 export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
   todos: 'Todos os status',
@@ -244,14 +245,19 @@ export function obterInfoVencimentoFiado(pedido: any): {
     }
     const dataRef = new Date(pedido.data_venda || pedido.criado_em);
     dataRef.setDate(dataRef.getDate() + diasPrazo);
-    dataVenc = dataRef.toISOString().split('T')[0];
+    const ano = dataRef.getFullYear();
+    const mes = String(dataRef.getMonth() + 1).padStart(2, '0');
+    const dia = String(dataRef.getDate()).padStart(2, '0');
+    dataVenc = `${ano}-${mes}-${dia}`;
   }
 
+  const hoje = obterDataOperacaoYMD();
   if (!dataVenc) {
-    dataVenc = new Date().toISOString().split('T')[0];
+    dataVenc = hoje;
   }
 
-  const hoje = new Date().toISOString().split('T')[0];
+  // Regra: Vencido apenas a partir do dia seguinte ao vencimento.
+  // Exemplo: Se vence dia 10, no dia 10 ainda está a vencer. Só considera vencido no dia 11 (dataVenc < hoje).
   const estaVencido = dataVenc < hoje;
 
   let formatada = '-';

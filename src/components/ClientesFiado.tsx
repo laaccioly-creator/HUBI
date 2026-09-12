@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -51,6 +51,8 @@ export const ClientesFiado: React.FC = () => {
   const [filtroApenasFiado, setFiltroApenasFiado] = useState<boolean>(false);
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'fiado' | 'vencido'>('todos');
   const [vencidosClienteIds, setVencidosClienteIds] = useState<Set<string>>(new Set());
+  const [vencidosPorCliente, setVencidosPorCliente] = useState<Record<string, number>>({});
+  const [aVencerPorCliente, setAVencerPorCliente] = useState<Record<string, number>>({});
 
   const [clienteQuitar, setClienteQuitar] = useState<Cliente | null>(null);
   const [valorAbatimento, setValorAbatimento] = useState<string>('');
@@ -86,19 +88,29 @@ export const ClientesFiado: React.FC = () => {
 
       if (peds) {
         const vSet = new Set<string>();
+        const vMap: Record<string, number> = {};
+        const avMap: Record<string, number> = {};
+
         peds.forEach((p: any) => {
           if (!p.cliente_id) return;
           const fiadoNaoQuitado = p.fiado_quitado === false;
           const saldo = Number(p.saldo_devedor ?? (Number(p.valor_total || 0) - Number(p.valor_pago || 0)));
           const temLinhaFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
           if (fiadoNaoQuitado && (temLinhaFiado || saldo > 0)) {
+            const valorEmAberto = saldo > 0 ? saldo : Number(p.valor_total || 0);
             const info = obterInfoVencimentoFiado(p);
             if (info.estaVencido) {
               vSet.add(p.cliente_id);
+              vMap[p.cliente_id] = (vMap[p.cliente_id] || 0) + valorEmAberto;
+            } else {
+              avMap[p.cliente_id] = (avMap[p.cliente_id] || 0) + valorEmAberto;
             }
           }
         });
+
         setVencidosClienteIds(vSet);
+        setVencidosPorCliente(vMap);
+        setAVencerPorCliente(avMap);
       }
     } catch (err) {
       console.warn('Erro ao carregar fiados vencidos:', err);
@@ -274,18 +286,37 @@ export const ClientesFiado: React.FC = () => {
     return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
   };
 
+  const { totalFiadoVencido, totalFiadoAVencer } = useMemo(() => {
+    let vencido = 0;
+    let aVencer = 0;
+    clientes.forEach(c => {
+      const saldo = Number(c.saldo_devedor_fiado || 0);
+      if (saldo > 0) {
+        const v = Math.min(saldo, vencidosPorCliente[c.id] || 0);
+        const av = Math.max(0, saldo - v);
+        vencido += v;
+        aVencer += av;
+      }
+    });
+    return { totalFiadoVencido: vencido, totalFiadoAVencer: aVencer };
+  }, [clientes, vencidosPorCliente]);
+
   const totalClientesComFiado = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length;
-  const totalClientesVencidos = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0 && vencidosClienteIds.has(c.id)).length;
+  const totalClientesVencidos = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0 && ((vencidosPorCliente[c.id] || 0) > 0 || vencidosClienteIds.has(c.id))).length;
 
   // Filtragem de clientes pela busca e pelos cards/botão (TODOS / FIADO / VENCIDO)
   const clientesFiltrados = clientes.filter(c => {
-    if (filtroStatus === 'fiado' && !(Number(c.saldo_devedor_fiado || 0) > 0)) {
+    const saldo = Number(c.saldo_devedor_fiado || 0);
+    const vencidoCli = Math.min(saldo, vencidosPorCliente[c.id] || 0);
+    const aVencerCli = Math.max(0, saldo - vencidoCli);
+
+    if (filtroStatus === 'fiado' && aVencerCli <= 0) {
       return false;
     }
-    if (filtroStatus === 'vencido' && !(Number(c.saldo_devedor_fiado || 0) > 0 && vencidosClienteIds.has(c.id))) {
+    if (filtroStatus === 'vencido' && vencidoCli <= 0) {
       return false;
     }
-    if (filtroApenasFiado && !(Number(c.saldo_devedor_fiado || 0) > 0)) {
+    if (filtroApenasFiado && saldo <= 0) {
       return false;
     }
     const termo = busca.toLowerCase().trim();
@@ -411,7 +442,7 @@ export const ClientesFiado: React.FC = () => {
 
         {/* Resumo de Débito / Fiado: 3 Indicadores de Topo */}
         <div className="p-3 grid grid-cols-3 gap-2 bg-slate-50 shrink-0">
-          {/* Card 1: Total a Receber */}
+          {/* Card 1: Clientes */}
           <div
             onClick={() => {
               setFiltroStatus('todos');
@@ -423,13 +454,18 @@ export const ClientesFiado: React.FC = () => {
                 : 'bg-white/80 border-slate-200 hover:bg-white'
             }`}
           >
-            <span className="text-[9px] font-bold text-slate-400 uppercase truncate">Total a Receber</span>
-            <p className="text-xs sm:text-sm font-black text-amber-600 truncate">
-              R$ {clientes.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0).toFixed(2)}
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-bold text-slate-500 uppercase truncate">Clientes</span>
+              {filtroStatus === 'todos' && (
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm font-black text-slate-800">
+              {clientes.length}
             </p>
           </div>
 
-          {/* Card 2: Fiado (contagem) */}
+          {/* Card 2: Fiado (somatório a vencer) */}
           <div
             onClick={() => {
               const novo = filtroStatus === 'fiado' ? 'todos' : 'fiado';
@@ -448,12 +484,12 @@ export const ClientesFiado: React.FC = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-black text-slate-800">
-              {totalClientesComFiado} <span className="text-[10px] font-normal text-slate-500">cli.</span>
+            <p className="text-xs sm:text-sm font-black text-amber-600 truncate">
+              R$ {totalFiadoAVencer.toFixed(2)}
             </p>
           </div>
 
-          {/* Card 3: Vencido (contagem após 30 dias) */}
+          {/* Card 3: Vencido (somatório vencidos e não pagos) */}
           <div
             onClick={() => {
               const novo = filtroStatus === 'vencido' ? 'todos' : 'vencido';
@@ -472,8 +508,8 @@ export const ClientesFiado: React.FC = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-black text-rose-600">
-              {totalClientesVencidos} <span className="text-[10px] font-normal text-slate-500">cli.</span>
+            <p className="text-xs sm:text-sm font-black text-rose-600 truncate">
+              R$ {totalFiadoVencido.toFixed(2)}
             </p>
           </div>
         </div>
