@@ -712,15 +712,34 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   <Clock className="w-4 h-4 text-emerald-500" />
                 </div>
                 <span className="text-[11px] text-slate-400 block">
-                  {new Date(pedidoSelecionado.data_venda).toLocaleString('pt-BR')}
+                  {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
                 </span>
-                <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1 text-xs">
+                <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1.5 text-xs">
                   <div className="flex items-center justify-between text-slate-600">
                     <span className="text-slate-400">Origem / Vendedor:</span>
                     <span className="font-bold text-slate-800">
                       {pedidoSelecionado.origem === 'catalogo_online' ? 'Catálogo Online' : (mapaUsuarios.get(pedidoSelecionado.vendedor_id || '') || pedidoSelecionado.vendedor?.nome_completo || 'Vendedor')}
                     </span>
                   </div>
+                  {(() => {
+                    const pagInfo = obterDadosPagamentoRecibo(pedidoSelecionado);
+                    const ehFiado = pagInfo.ehFiado || (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
+                    if (!ehFiado) return null;
+                    const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
+                    return (
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/40">
+                        <span className="text-slate-400">Data Vencimento:</span>
+                        <div className="text-right">
+                          <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-600' : 'text-slate-800'}`}>
+                            {infoVenc.formatada}
+                          </span>
+                          {infoVenc.estaVencido && (
+                            <span className="text-[10px] font-bold text-rose-600 block">Vencido</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {(() => {
                     const editorNome = pedidoSelecionado.atualizado_por_usuario?.nome_completo ||
                       mapaUsuarios.get(pedidoSelecionado.atualizado_por || '') ||
@@ -903,6 +922,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               >
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>Confirmar Pedido</span>
+              </button>
+            ) : (() => {
+                const pagInfo = obterDadosPagamentoRecibo(pedidoSelecionado);
+                const ehFiado = pagInfo.ehFiado || (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
+                return ehFiado && pedidoSelecionado.status === 'confirmado';
+              })() ? (
+              <button
+                type="button"
+                onClick={() => onAbrirReceberPagamento(pedidoSelecionado)}
+                className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                title="Receber pagamento do fiado"
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Receber Fiado</span>
               </button>
             ) : pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' ? (
               <button

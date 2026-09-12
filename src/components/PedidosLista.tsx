@@ -907,7 +907,7 @@ export const PedidosLista: React.FC = () => {
   const formatarData = (dataStr: string) => {
     try {
       const d = new Date(dataStr);
-      return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}, ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
       return dataStr;
     }
@@ -1114,8 +1114,21 @@ export const PedidosLista: React.FC = () => {
                 <Ban className="w-4 h-4" />
               </button>
 
-              {/* Botão Principal Concluir Venda (TELA005) */}
-              {resolverStatusPagamento(pedidoSelecionado) !== 'pago' && resolverStatusPagamento(pedidoSelecionado) !== 'fiado' ? (
+              {/* Botão Principal Concluir Venda / Receber Fiado (TELA005) */}
+              {resolverStatusPagamento(pedidoSelecionado) === 'fiado' && pedidoSelecionado.status === 'confirmado' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConcluirAposReceber(true);
+                    setPedidoReceberModal(pedidoSelecionado);
+                  }}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-purple-500/20 cursor-pointer active:scale-95"
+                  title="Receber pagamento do fiado"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span>Receber Fiado</span>
+                </button>
+              ) : resolverStatusPagamento(pedidoSelecionado) !== 'pago' && resolverStatusPagamento(pedidoSelecionado) !== 'fiado' ? (
                 <button
                   type="button"
                   onClick={() => setPedidoReceberModal(pedidoSelecionado)}
@@ -1360,6 +1373,25 @@ export const PedidosLista: React.FC = () => {
                     R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
                   </span>
                 </div>
+
+                {resolverStatusPagamento(pedidoSelecionado) === 'fiado' && (() => {
+                  const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
+                  return (
+                    <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-semibold">Data de Vencimento:</span>
+                      <div className="text-right">
+                        <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-400' : 'text-slate-200'}`}>
+                          {infoVenc.formatada}
+                        </span>
+                        {infoVenc.estaVencido && (
+                          <span className="text-[9px] font-black uppercase text-rose-300 bg-rose-500/20 border border-rose-500/30 px-1.5 py-0.2 rounded ml-1.5">
+                            Vencido
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Card Recibo Preview (TELA002A) */}
@@ -1576,7 +1608,7 @@ export const PedidosLista: React.FC = () => {
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold text-[11px] tracking-wider bg-slate-900/60 sticky top-0 z-10 backdrop-blur">
                     <th
-                      className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[120px]"
+                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('codigo')}
                     >
                       <div className="flex items-center gap-1">
@@ -1585,7 +1617,7 @@ export const PedidosLista: React.FC = () => {
                       </div>
                     </th>
                     <th
-                      className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[140px]"
+                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[95px]"
                       onClick={() => toggleOrdenacao('data')}
                     >
                       <div className="flex items-center gap-1">
@@ -1593,11 +1625,11 @@ export const PedidosLista: React.FC = () => {
                         <ArrowUpDown className="w-3 h-3" />
                       </div>
                     </th>
-                    <th className="py-3 px-4 font-semibold min-w-[160px]">Cliente</th>
-                    <th className="py-3 px-4 font-semibold min-w-[130px]">Vendedor</th>
-                    <th className="py-3 px-4 font-semibold text-center min-w-[90px]">Itens</th>
+                    <th className="py-2.5 px-2.5 font-semibold min-w-[130px]">Cliente</th>
+                    <th className="py-2.5 px-2 font-semibold min-w-[110px]">Vendedor</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[70px]">Itens</th>
                     <th
-                      className="py-3 px-4 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[110px]"
+                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('valor')}
                     >
                       <div className="flex items-center gap-1">
@@ -1605,10 +1637,11 @@ export const PedidosLista: React.FC = () => {
                         <ArrowUpDown className="w-3 h-3" />
                       </div>
                     </th>
-                    <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Status Pedido</th>
-                    <th className="py-3 px-4 font-semibold text-center min-w-[160px]">Status Pagamento</th>
-                    <th className="py-3 px-4 font-semibold text-center min-w-[130px]">Tipo da Venda</th>
-                    <th className="py-3 px-4 font-semibold text-center min-w-[150px]">Ações</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[120px]">Status Pedido</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Status Pagamento</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[115px]">Data Vencimento</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[95px]">Tipo da Venda</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -1623,8 +1656,8 @@ export const PedidosLista: React.FC = () => {
                         key={pedido.id}
                         className={`transition group hover:bg-slate-900/60 ${isCancelado ? 'opacity-60' : ''}`}
                       >
-                        <td className="py-3.5 px-4 whitespace-nowrap font-medium">
-                          <div className="flex items-center gap-2">
+                        <td className="py-2.5 px-2 whitespace-nowrap font-medium">
+                          <div className="flex items-center gap-1.5">
                             <button
                               type="button"
                               title="Ver Recibo do Pedido"
@@ -1634,7 +1667,7 @@ export const PedidosLista: React.FC = () => {
                               }}
                               className="p-1 rounded-lg hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
                             >
-                              <Receipt className="w-4 h-4" />
+                              <Receipt className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
@@ -1652,19 +1685,19 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-slate-300">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-slate-300">
                           <span className={isCancelado ? 'line-through' : ''}>
                             {formatarData(pedido.data_venda || pedido.criado_em || '')}
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap">
+                        <td className="py-2.5 px-2.5 whitespace-nowrap">
                           <span className="font-semibold text-slate-200">
                             {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-slate-400">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-slate-400">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5">
                               <User className="w-3.5 h-3.5 text-slate-500" />
@@ -1675,24 +1708,24 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           <button
                             type="button"
                             onClick={() => setPedidoItensModal(pedido)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer"
                           >
                             <Package className="w-3 h-3" />
                             <span>{totalItens} itens</span>
                           </button>
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap">
+                        <td className="py-2.5 px-2 whitespace-nowrap">
                           <span className="font-black text-slate-100">
                             R$ {Number(pedido.valor_total || 0).toFixed(2)}
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           {(() => {
                             const infoVenc = obterInfoVencimentoFiado(pedido);
                             const temFiadoEmAberto = (pedido.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado') && !pedido.fiado_quitado;
@@ -1701,15 +1734,40 @@ export const PedidosLista: React.FC = () => {
                           })()}
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           {getStatusPagamentoBadge(statusPag)}
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-center text-slate-300 capitalize font-medium">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
+                          {statusPag === 'fiado' ? (() => {
+                            const infoVenc = obterInfoVencimentoFiado(pedido);
+                            if (infoVenc.estaVencido) {
+                              return (
+                                <div className="inline-flex flex-col items-center">
+                                  <span className="font-bold text-rose-400 text-xs">
+                                    {infoVenc.formatada}
+                                  </span>
+                                  <span className="text-[9px] font-black uppercase text-rose-300 bg-rose-500/20 border border-rose-500/30 px-1.5 py-0.2 rounded mt-0.5 tracking-wider">
+                                    Vencido
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return (
+                              <span className="font-medium text-slate-300 text-xs">
+                                {infoVenc.formatada}
+                              </span>
+                            );
+                          })() : (
+                            <span className="text-slate-600 font-mono text-xs">-</span>
+                          )}
+                        </td>
+
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center text-slate-300 capitalize font-medium">
                           {pedido.tabela_preco_aplicada || 'Varejo'}
                         </td>
 
-                        <td className="py-3.5 px-4 whitespace-nowrap text-center">
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             {pedido.status === 'pendente' ? (
                               <button
@@ -1719,6 +1777,19 @@ export const PedidosLista: React.FC = () => {
                               >
                                 <Edit className="w-3.5 h-3.5" />
                                 <span>Alterar</span>
+                              </button>
+                            ) : (statusPag === 'fiado' && pedido.status === 'confirmado') ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConcluirAposReceber(true);
+                                  setPedidoReceberModal(pedido);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                title="Receber pagamento do fiado"
+                              >
+                                <DollarSign className="w-3.5 h-3.5" />
+                                <span>Receber Fiado</span>
                               </button>
                             ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
                               <button
