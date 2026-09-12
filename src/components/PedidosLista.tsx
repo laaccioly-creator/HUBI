@@ -56,6 +56,7 @@ import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
+import { ModalReceberFiado } from './ModalReceberFiado';
 import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
 import { PedidosListaMobile } from './PedidosListaMobile';
 import {
@@ -114,6 +115,7 @@ export const PedidosLista: React.FC = () => {
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
+  const [pedidoReceberFiadoModal, setPedidoReceberFiadoModal] = useState<Pedido | null>(null);
   const [concluirAposReceber, setConcluirAposReceber] = useState<boolean>(false);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
@@ -1003,6 +1005,9 @@ export const PedidosLista: React.FC = () => {
             setPedidoReceberModal(ped);
             setConcluirAposReceber(true);
           }}
+          onAbrirReceberFiado={(ped) => {
+            setPedidoReceberFiadoModal(ped);
+          }}
           onAbrirDrawerMenu={() => {}}
           onClienteAtualizado={() => carregarPedidos()}
           onRecarregar={carregarPedidos}
@@ -1119,8 +1124,7 @@ export const PedidosLista: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setConcluirAposReceber(true);
-                    setPedidoReceberModal(pedidoSelecionado);
+                    setPedidoReceberFiadoModal(pedidoSelecionado);
                   }}
                   className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-purple-500/20 cursor-pointer active:scale-95"
                   title="Receber pagamento do fiado"
@@ -1782,8 +1786,7 @@ export const PedidosLista: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setConcluirAposReceber(true);
-                                  setPedidoReceberModal(pedido);
+                                  setPedidoReceberFiadoModal(pedido);
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition cursor-pointer active:scale-95"
                                 title="Receber pagamento do fiado"
@@ -2257,7 +2260,7 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setProdutoDetalhesModal(null)}
       />
 
-      {/* MODAL DE RECEBER PAGAMENTO */}
+      {/* MODAL DE RECEBER PAGAMENTO NORMAL */}
       <ModalReceberPagamento
         isOpen={!!pedidoReceberModal}
         pedido={pedidoReceberModal}
@@ -2269,6 +2272,21 @@ export const PedidosLista: React.FC = () => {
         onPagamentoConcluido={(pedidoAtualizado) => {
           setPedidoReceberModal(null);
           setConcluirAposReceber(false);
+          if (pedidoAtualizado && pedidoSelecionado?.id === pedidoAtualizado.id) {
+            setPedidoSelecionado(pedidoAtualizado);
+          }
+          carregarPedidos();
+        }}
+      />
+
+      {/* MODAL DE RECEBER PAGAMENTO DO FIADO (COM DEVOLUÇÃO DE CRÉDITO) */}
+      <ModalReceberFiado
+        isOpen={!!pedidoReceberFiadoModal}
+        pedido={pedidoReceberFiadoModal}
+        cliente={clientes.find(c => c.id === pedidoReceberFiadoModal?.cliente_id) || (pedidoReceberFiadoModal?.cliente as any) || null}
+        onClose={() => setPedidoReceberFiadoModal(null)}
+        onRecebimentoConcluido={(pedidoAtualizado) => {
+          setPedidoReceberFiadoModal(null);
           if (pedidoAtualizado && pedidoSelecionado?.id === pedidoAtualizado.id) {
             setPedidoSelecionado(pedidoAtualizado);
           }

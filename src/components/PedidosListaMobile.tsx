@@ -163,6 +163,7 @@ interface PedidosListaMobileProps {
   onAlterarStatus: (pedidoId: string, novoStatus: StatusPedido) => void;
   onCancelarPedido: (pedido: Pedido) => void;
   onAbrirReceberPagamento: (pedido: Pedido) => void;
+  onAbrirReceberFiado?: (pedido: Pedido) => void;
   onAbrirDrawerMenu: () => void;
   onClienteAtualizado: (cliente: Cliente) => void;
   onRecarregar?: () => void;
@@ -176,6 +177,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   onAlterarStatus,
   onCancelarPedido,
   onAbrirReceberPagamento,
+  onAbrirReceberFiado,
   onAbrirDrawerMenu,
   onClienteAtualizado,
   onRecarregar
@@ -930,7 +932,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               })() ? (
               <button
                 type="button"
-                onClick={() => onAbrirReceberPagamento(pedidoSelecionado)}
+                onClick={() => {
+                  if (onAbrirReceberFiado) {
+                    onAbrirReceberFiado(pedidoSelecionado);
+                  } else {
+                    onAbrirReceberPagamento(pedidoSelecionado);
+                  }
+                }}
                 className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
                 title="Receber pagamento do fiado"
               >
