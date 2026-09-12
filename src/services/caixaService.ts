@@ -45,13 +45,57 @@ export const caixaService = {
   },
 
   /**
-   * Consulta a sessão ativa (ABERTO) para o terminal e loja
+   * Consulta a sessão ativa (ABERTO) para o terminal, operador e loja.
+   * Identifica turnos abertos pelo mesmo operador no Desktop ou em outro dispositivo.
    */
-  async obterSessaoAtiva(lojaId: string, terminalId?: string): Promise<SessaoCaixa | null> {
+  async obterSessaoAtiva(lojaId: string, terminalId?: string, usuarioId?: string): Promise<SessaoCaixa | null> {
     if (!lojaId) return null;
     const term = terminalId || this.obterTerminalId();
 
     try {
+      // 1. Se usuarioId for informado, buscar prioritariamente a sessão aberta por este mesmo operador
+      if (usuarioId) {
+        const { data: dataUser, error: errorUser } = await supabase
+          .from('sessoes_caixa')
+          .select(`
+            *,
+            aberto_por:usuarios_loja!sessoes_caixa_aberto_por_usuario_id_fkey(*),
+            fechado_por:usuarios_loja!sessoes_caixa_fechado_por_usuario_id_fkey(*)
+          `)
+          .eq('loja_id', lojaId)
+          .eq('aberto_por_usuario_id', usuarioId)
+          .eq('status', 'ABERTO')
+          .order('aberto_em', { ascending: false })
+          .limit(1);
+
+        if (!errorUser && dataUser && dataUser.length > 0) {
+          const sessao = dataUser[0] as SessaoCaixa;
+          if (sessao.terminal_id && sessao.terminal_id !== term) {
+            this.definirTerminalId(sessao.terminal_id);
+          }
+          return sessao;
+        }
+
+        // Fallback simples sem junção explícita
+        const { data: fbUser } = await supabase
+          .from('sessoes_caixa')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .eq('aberto_por_usuario_id', usuarioId)
+          .eq('status', 'ABERTO')
+          .order('aberto_em', { ascending: false })
+          .limit(1);
+
+        if (fbUser && fbUser.length > 0) {
+          const sessao = fbUser[0] as SessaoCaixa;
+          if (sessao.terminal_id && sessao.terminal_id !== term) {
+            this.definirTerminalId(sessao.terminal_id);
+          }
+          return sessao;
+        }
+      }
+
+      // 2. Consulta pelo terminal ativo
       const { data, error } = await supabase
         .from('sessoes_caixa')
         .select(`
@@ -135,12 +179,12 @@ export const caixaService = {
   ): Promise<SessaoCaixa> {
     const term = terminalId || this.obterTerminalId();
 
-    // 1. Bloqueio de Concorrência: verifica se já existe sessão aberta no terminal
-    const sessaoExistente = await this.obterSessaoAtiva(lojaId, term);
+    // 1. Bloqueio de Concorrência: verifica se já existe sessão aberta no terminal ou pelo operador
+    const sessaoExistente = await this.obterSessaoAtiva(lojaId, term, usuarioId);
     if (sessaoExistente) {
       const abertoEmStr = new Date(sessaoExistente.aberto_em).toLocaleString('pt-BR');
       throw new Error(
-        `Bloqueio de Concorrência: O terminal "${term}" já possui uma sessão aberta iniciada em ${abertoEmStr}. É obrigatório realizar o fechamento formal antes de abrir uma nova sessão.`
+        `Bloqueio de Concorrência: Já existe uma sessão aberta no terminal "${sessaoExistente.terminal_id || term}" iniciada em ${abertoEmStr}. É obrigatório realizar o fechamento formal antes de abrir uma nova sessão.`
       );
     }
 

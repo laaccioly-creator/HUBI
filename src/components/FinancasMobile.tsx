@@ -813,98 +813,99 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               </button>
               <h1 className="font-black text-base text-slate-800 tracking-tight">Finanças & Caixa</h1>
             </div>
-
-            <button
-              type="button"
-              onClick={() => abrirNovaSaida('a_pagar')}
-              className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
-              title="Nova saída"
-            >
-              <Plus className="w-5 h-5 stroke-[2.5]" />
-            </button>
           </div>
 
           {/* Conteúdo: Seção Finanças e Grid de Botões */}
           <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-slate-50">
             {/* CARD FRENTE DE CAIXA / TURNO */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                    caixaAberto ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    <Store className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-xs text-slate-800">
-                      Frente de Caixa
-                    </h3>
-                    <p className="text-[10px] text-slate-400">
-                      {caixaAberto ? `Turno ${caixaAberto.turno || '1'} • Caixa ativo` : 'Nenhum turno aberto no momento'}
-                    </p>
-                  </div>
-                </div>
+            {(() => {
+              const turnoAberto = !!(sessaoAtiva || caixaAberto);
+              const saldoGaveta = saldoEsperadoGaveta !== undefined
+                ? saldoEsperadoGaveta
+                : (sessaoAtiva?.saldo_esperado_dinheiro ?? (caixaAberto as any)?.saldo_inicial ?? 0);
+              const labelTurno = sessaoAtiva?.terminal_id || (caixaAberto as any)?.turno || 'PDV';
 
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
-                  caixaAberto
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-rose-50 text-rose-700 border-rose-200'
-                }`}>
-                  {caixaAberto ? '● ABERTO' : '● FECHADO'}
-                </span>
-              </div>
+              return (
+                <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                        turnoAberto ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        <Store className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-xs text-slate-800">
+                          Frente de Caixa
+                        </h3>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          {turnoAberto ? `Turno ${labelTurno} • Caixa ativo` : 'Nenhum turno aberto no momento'}
+                        </p>
+                      </div>
+                    </div>
 
-              {caixaAberto ? (
-                <div className="space-y-3 pt-1 border-t border-slate-100">
-                  <div className="flex items-baseline justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <span className="text-[11px] font-bold text-slate-500">Saldo em Dinheiro Esperado</span>
-                    <span className="text-sm font-black text-slate-900">
-                      R$ {Number(saldoEsperadoGaveta !== undefined ? saldoEsperadoGaveta : caixaAberto.saldo_inicial).toFixed(2)}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                      turnoAberto
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}>
+                      {turnoAberto ? '● ABERTO' : '● FECHADO'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={onSangria}
-                      className="py-2.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
-                    >
-                      <ArrowUp className="w-4 h-4 text-rose-600" />
-                      <span>Sangria</span>
-                    </button>
+                  {turnoAberto ? (
+                    <div className="space-y-3 pt-1 border-t border-slate-100">
+                      <div className="flex items-baseline justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                        <span className="text-[11px] font-bold text-slate-500">Saldo em Dinheiro Esperado</span>
+                        <span className="text-sm font-black text-slate-900">
+                          R$ {Number(saldoGaveta).toFixed(2)}
+                        </span>
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={onSuprimento}
-                      className="py-2.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
-                    >
-                      <ArrowDown className="w-4 h-4 text-emerald-600" />
-                      <span>Suprimento</span>
-                    </button>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={onSangria}
+                          className="py-2.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+                        >
+                          <ArrowUp className="w-4 h-4 text-rose-600" />
+                          <span>Sangria</span>
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={onFechamentoCego}
-                      className="py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
-                    >
-                      <LogOut className="w-4 h-4 text-amber-400" />
-                      <span>Fechar</span>
-                    </button>
-                  </div>
+                        <button
+                          type="button"
+                          onClick={onSuprimento}
+                          className="py-2.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+                        >
+                          <ArrowDown className="w-4 h-4 text-emerald-600" />
+                          <span>Suprimento</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onFechamentoCego}
+                          className="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-[11px] flex flex-col items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+                        >
+                          <LogOut className="w-4 h-4 text-amber-400" />
+                          <span>Fechar</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={onAbrirCaixa}
+                        className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                        <span>Abrir Novo Turno de Caixa</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="pt-1 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={onAbrirCaixa}
-                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                    <span>Abrir Novo Turno de Caixa</span>
-                  </button>
-                </div>
-              )}
-            </div>
+              );
+            })()}
 
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 block mb-3">
@@ -916,14 +917,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('contas_pagar')}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left relative group shadow-xs"
+                  className="p-4 rounded-2xl bg-white border border-slate-300 hover:border-emerald-500/60 hover:bg-slate-50 active:scale-98 flex flex-col items-center justify-center gap-2.5 transition cursor-pointer text-center relative group shadow-xs"
                 >
                   {saidasAtrasadas.length > 0 && (
-                    <span className="absolute top-3 right-3 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                    <span className="absolute top-2.5 right-2.5 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
                       {saidasAtrasadas.length}
                     </span>
                   )}
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <Receipt className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
@@ -935,9 +936,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('fluxo_caixa')}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
+                  className="p-4 rounded-2xl bg-white border border-slate-300 hover:border-emerald-500/60 hover:bg-slate-50 active:scale-98 flex flex-col items-center justify-center gap-2.5 transition cursor-pointer text-center group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <TrendingUp className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
@@ -949,9 +950,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('entradas')}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
+                  className="p-4 rounded-2xl bg-white border border-slate-300 hover:border-emerald-500/60 hover:bg-slate-50 active:scale-98 flex flex-col items-center justify-center gap-2.5 transition cursor-pointer text-center group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <ArrowDownLeft className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
@@ -963,9 +964,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('saidas')}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
+                  className="p-4 rounded-2xl bg-white border border-slate-300 hover:border-rose-500/60 hover:bg-slate-50 active:scale-98 flex flex-col items-center justify-center gap-2.5 transition cursor-pointer text-center group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center group-hover:scale-105 transition">
                     <ArrowUpRight className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-rose-600 transition">
@@ -977,9 +978,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setSubTela('fornecedores')}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
+                  className="p-4 rounded-2xl bg-white border border-slate-300 hover:border-emerald-500/60 hover:bg-slate-50 active:scale-98 flex flex-col items-center justify-center gap-2.5 transition cursor-pointer text-center group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <Building2 className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
@@ -990,10 +991,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* 6. Vendas */}
                 <button
                   type="button"
-                  onClick={() => navigate('/sales')}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500/40 hover:bg-slate-50 active:scale-98 flex flex-col items-start gap-3 transition cursor-pointer text-left group shadow-xs"
+                  onClick={() => navigate('/sales', { state: { turnoAtual: true, sessaoId: sessaoAtiva?.id, abertoEm: sessaoAtiva?.aberto_em } })}
+                  className="p-4 rounded-2xl bg-white border border-slate-300 hover:border-emerald-500/60 hover:bg-slate-50 active:scale-98 flex flex-col items-center justify-center gap-2.5 transition cursor-pointer text-center group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition">
                     <Receipt className="w-5 h-5" />
                   </div>
                   <span className="font-bold text-xs text-slate-800 group-hover:text-emerald-600 transition">
@@ -1012,12 +1013,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <Store className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-xs text-slate-100">Vendas e catálogo</h4>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
+                <h4 className="font-bold text-xs text-slate-900">Vendas e catálogo</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">
                   Controle suas vendas, estoque e crie um catálogo online para sua loja
                 </p>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
             </div>
           </div>
         </div>
@@ -1029,41 +1030,41 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'contas_pagar' && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('hub')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">Contas a pagar</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">Contas a pagar</h2>
             </div>
 
             <button
               type="button"
               onClick={() => abrirNovaSaida('a_pagar')}
-              className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/20"
+              className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition"
             >
               <Plus className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {/* Card Principal: Total Atrasados */}
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-1 shadow-lg">
-              <span className="text-xs font-semibold text-slate-400 block">Atrasados</span>
-              <div className="text-2xl font-black text-slate-100 tracking-tight">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 text-center space-y-1 shadow-xs">
+              <span className="text-xs font-semibold text-slate-500 block">Atrasados</span>
+              <div className="text-2xl font-black text-slate-900 tracking-tight">
                 {formatarMoeda(totalAtrasadas)}
               </div>
-              <span className="text-[11px] text-slate-400 block">
+              <span className="text-[11px] text-slate-500 block">
                 em {saidasAtrasadas.length} {saidasAtrasadas.length === 1 ? 'saída' : 'saídas'}
               </span>
             </div>
 
             {/* Segmented Filter Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl overflow-x-auto no-scrollbar">
               {[
                 { id: 'atrasados', label: `ATRASADOS (${saidasAtrasadas.length})` },
                 { id: 'hoje', label: 'HOJE' },
@@ -1076,8 +1077,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   onClick={() => setFiltroContasPagar(tab.id as any)}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition shrink-0 ${
                     filtroContasPagar === tab.id
-                      ? 'bg-slate-800 text-slate-100 shadow-sm border border-slate-700'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                      : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   {tab.label}
@@ -1088,9 +1089,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             {/* Lista de Saídas a Pagar */}
             <div className="space-y-2 pt-1">
               {contasPagarExibicao.length === 0 ? (
-                <div className="p-8 rounded-3xl bg-slate-900/40 border border-dashed border-slate-800 text-center space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400/60 mx-auto" />
-                  <p className="text-xs font-bold text-slate-300">Nenhuma conta pendente neste período</p>
+                <div className="p-8 rounded-3xl bg-white border border-dashed border-slate-300 text-center space-y-2">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                  <p className="text-xs font-bold text-slate-800">Nenhuma conta pendente neste período</p>
                   <p className="text-[11px] text-slate-500">Tudo em dia com suas contas a pagar.</p>
                 </div>
               ) : (
@@ -1100,29 +1101,29 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     <div
                       key={saida.id}
                       onClick={() => abrirEditarSaida(saida)}
-                      className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 active:bg-slate-850 transition cursor-pointer flex items-center justify-between gap-3 shadow-sm"
+                      className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 active:bg-slate-50 transition cursor-pointer flex items-center justify-between gap-3 shadow-xs"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-lg shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-lg shrink-0">
                           🏠
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-slate-100 truncate">
+                            <span className="font-bold text-xs text-slate-900 truncate">
                               {saida.descricao}
                             </span>
                             {saida.eh_recorrente && (
                               <Repeat className="w-3 h-3 text-slate-400 shrink-0" />
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400 block truncate">
+                          <span className="text-[11px] text-slate-500 block truncate">
                             {forn?.nome || saida.categoria || 'Gasto Operacional'}
                           </span>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <div className="font-black text-xs text-rose-400">
+                        <div className="font-black text-xs text-rose-600">
                           {formatarMoeda(saida.valor)}
                         </div>
                         <span className="text-[10px] text-slate-400 block mt-0.5">
@@ -1144,22 +1145,22 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'fluxo_caixa' && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('hub')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">Fluxo de caixa</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">Fluxo de caixa</h2>
             </div>
 
             <button
               type="button"
               onClick={() => setModalComoCalculado(true)}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-emerald-400"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-emerald-600 transition"
               title="Como é calculado?"
             >
               <HelpCircle className="w-4 h-4" />
@@ -1169,42 +1170,42 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           {/* Seletor de Período Superior */}
           <div
             onClick={() => setModalPeriodo(true)}
-            className="px-4 py-2.5 bg-slate-900 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-300 cursor-pointer hover:bg-slate-850 transition shrink-0"
+            className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:bg-slate-100 transition shrink-0"
           >
             <div className="flex items-center gap-2">
-              <ChevronLeft className="w-4 h-4 text-slate-500" />
+              <ChevronLeft className="w-4 h-4 text-slate-400" />
               <span className="font-bold">{periodoLabel}</span>
-              <ChevronRight className="w-4 h-4 text-slate-500" />
+              <ChevronRight className="w-4 h-4 text-slate-400" />
             </div>
-            <Calendar className="w-4 h-4 text-emerald-400" />
+            <Calendar className="w-4 h-4 text-emerald-600" />
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {/* Card Saldo Líquido */}
-            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 text-center shadow-lg">
-              <span className="text-xs font-semibold text-slate-400 block">Fluxo de caixa líquido</span>
-              <div className="text-3xl font-black text-slate-100 tracking-tight">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-3 text-center shadow-xs">
+              <span className="text-xs font-semibold text-slate-500 block">Fluxo de caixa líquido</span>
+              <div className="text-3xl font-black text-slate-900 tracking-tight">
                 {formatarMoeda(saldoLiquidoFluxo)}
               </div>
               <button
                 type="button"
                 onClick={() => setModalComoCalculado(true)}
-                className="text-[11px] font-bold text-emerald-400 hover:underline"
+                className="text-[11px] font-bold text-emerald-600 hover:underline"
               >
-                Entenda, como este valor é calculado
+                Entenda como este valor é calculado
               </button>
 
               {/* Progress Bar de Entradas vs Saídas */}
               <div className="pt-2 space-y-1.5">
-                <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden flex">
+                <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden flex border border-slate-200/60">
                   <div
-                    className="h-full bg-emerald-500"
+                    className="h-full bg-emerald-500 transition-all"
                     style={{
                       width: `${totalEntradasCalculado + totalSaidasPagas > 0 ? (totalEntradasCalculado / (totalEntradasCalculado + totalSaidasPagas)) * 100 : 50}%`
                     }}
                   />
                   <div
-                    className="h-full bg-rose-500"
+                    className="h-full bg-rose-500 transition-all"
                     style={{
                       width: `${totalEntradasCalculado + totalSaidasPagas > 0 ? (totalSaidasPagas / (totalEntradasCalculado + totalSaidasPagas)) * 100 : 50}%`
                     }}
@@ -1215,23 +1216,23 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
             {/* Boxes Entradas x Saídas */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-                <span className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3 h-3" /> ENTRADAS
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 space-y-1 shadow-xs">
+                <span className="text-[10px] font-black uppercase text-emerald-700 flex items-center gap-1">
+                  <Check className="w-3 h-3 stroke-[3]" /> ENTRADAS
                 </span>
-                <div className="font-black text-sm text-emerald-300">
+                <div className="font-black text-sm text-emerald-800">
                   {formatarMoeda(totalEntradasCalculado)}
                 </div>
               </div>
 
               <div
                 onClick={() => setSubTela('saidas')}
-                className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-1 cursor-pointer hover:bg-rose-500/15 transition"
+                className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 space-y-1 cursor-pointer hover:bg-rose-100/60 transition shadow-xs"
               >
-                <span className="text-[10px] font-black uppercase text-rose-400 flex items-center gap-1">
-                  <ArrowUpRight className="w-3 h-3" /> SAÍDAS
+                <span className="text-[10px] font-black uppercase text-rose-700 flex items-center gap-1">
+                  <ArrowUpRight className="w-3 h-3 stroke-[3]" /> SAÍDAS
                 </span>
-                <div className="font-black text-sm text-rose-300">
+                <div className="font-black text-sm text-rose-800">
                   - {formatarMoeda(totalSaidasPagas)}
                 </div>
               </div>
@@ -1239,17 +1240,17 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
             {/* Seção ENTRADAS NO PDV / BREAKDOWN */}
             <div className="space-y-2 pt-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block px-1">
                 Entradas por Meio de Pagamento
               </span>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl divide-y divide-slate-800/80">
+              <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100 shadow-xs">
                 {breakdownLiquidacao.map((item, idx) => (
                   <div key={idx} className="p-3.5 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-200">
+                    <span className="text-xs font-bold text-slate-700">
                       {item.forma} ({item.count})
                     </span>
-                    <span className="text-xs font-black text-slate-100">
+                    <span className="text-xs font-black text-slate-900">
                       {formatarMoeda(item.total)}
                     </span>
                   </div>
@@ -1258,25 +1259,25 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             </div>
           </div>
 
-            {/* Bottom Floating Bar */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => setSubTela('entradas')}
-                className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5"
-              >
-                <span>→≡ Ver todas as entradas</span>
-              </button>
+          {/* Bottom Floating Bar */}
+          <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setSubTela('entradas')}
+              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1.5 transition"
+            >
+              <span>Ver todas as entradas →</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={abrirNovaEntrada}
-                className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Entrada</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={abrirNovaEntrada}
+              className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Entrada</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1286,30 +1287,31 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'entradas' && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('hub')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">Entradas</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">Entradas</h2>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setModalPeriodo(true)}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                title="Filtrar período"
               >
                 <Filter className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={abrirNovaEntrada}
-                className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/20"
+                className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -1317,11 +1319,11 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           </div>
 
           {/* Lista de Entradas Agrupadas por Data */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {todasEntradas.length === 0 ? (
-              <div className="p-8 rounded-3xl bg-slate-900/40 border border-dashed border-slate-800 text-center space-y-2">
-                <ArrowDownLeft className="w-8 h-8 text-emerald-400/60 mx-auto" />
-                <p className="text-xs font-bold text-slate-300">Nenhuma entrada registrada</p>
+              <div className="p-8 rounded-3xl bg-white border border-dashed border-slate-300 text-center space-y-2">
+                <ArrowDownLeft className="w-8 h-8 text-emerald-500 mx-auto" />
+                <p className="text-xs font-bold text-slate-800">Nenhuma entrada registrada</p>
                 <p className="text-[11px] text-slate-500">Adicione novas entradas manuais ou registre vendas no PDV.</p>
               </div>
             ) : (
@@ -1336,33 +1338,33 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         exibirToast('Vendas do PDV são registradas automaticamente e não podem ser editadas diretamente');
                       }
                     }}
-                    className={`p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 transition shadow-sm ${
-                      item.tipoOrigem === 'manual' ? 'hover:border-slate-700 cursor-pointer active:bg-slate-850' : 'opacity-90'
+                    className={`p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 transition shadow-xs ${
+                      item.tipoOrigem === 'manual' ? 'hover:border-slate-300 cursor-pointer active:bg-slate-50' : 'opacity-90'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base shrink-0 border ${
                         item.tipoOrigem === 'manual'
-                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                          : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          ? 'bg-amber-50 border-amber-200 text-amber-600'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-600'
                       }`}>
                         {item.tipoOrigem === 'manual' ? '📁' : '📱'}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-bold text-xs text-slate-100 truncate block">
+                        <span className="font-bold text-xs text-slate-900 truncate block">
                           {item.titulo}
                         </span>
-                        <span className="text-[11px] text-slate-400 block truncate">
+                        <span className="text-[11px] text-slate-500 block truncate">
                           {item.subtitulo}
                         </span>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <div className="font-black text-xs text-emerald-400">
+                      <div className="font-black text-xs text-emerald-600">
                         {formatarMoeda(item.valor)}
                       </div>
-                      <span className="text-[10px] text-slate-500 block mt-0.5">
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
                         {item.data.split('-').reverse().join('/')}
                       </span>
                     </div>
@@ -1375,11 +1377,11 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           {/* Bottom Navigator Bar */}
           <div
             onClick={() => setModalPeriodo(true)}
-            className="p-3.5 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300 cursor-pointer hover:bg-slate-850 transition shrink-0"
+            className="p-3.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:bg-slate-50 transition shrink-0"
           >
-            <ChevronLeft className="w-4 h-4 text-slate-500" />
+            <ChevronLeft className="w-4 h-4 text-slate-400" />
             <span className="font-bold">{periodoLabel}</span>
-            <ChevronRight className="w-4 h-4 text-slate-500" />
+            <ChevronRight className="w-4 h-4 text-slate-400" />
           </div>
         </div>
       )}
@@ -1390,30 +1392,31 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'saidas' && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('hub')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">Saídas</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">Saídas</h2>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setModalPeriodo(true)}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                title="Filtrar período"
               >
                 <Filter className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => abrirNovaSaida('pago')}
-                className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/20"
+                className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -1421,35 +1424,35 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           </div>
 
           {/* Search Bar */}
-          <div className="px-4 pt-3 pb-2 shrink-0">
+          <div className="px-4 pt-3 pb-2 bg-slate-50 shrink-0">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Nome, fornecedor ou categoria"
                 value={buscaTermo}
                 onChange={e => setBuscaTermo(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
               />
             </div>
           </div>
 
           {/* Lista de Saídas */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {todasSaidas.length === 0 ? (
               /* TELA 017: Empty State Ilustrado */
-              <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 text-center space-y-4 my-auto">
-                <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-800 text-3xl flex items-center justify-center mx-auto shadow-inner">
+              <div className="p-8 rounded-3xl bg-white border border-slate-200 text-center space-y-4 my-auto shadow-xs">
+                <div className="w-16 h-16 rounded-3xl bg-slate-50 border border-slate-200 text-3xl flex items-center justify-center mx-auto shadow-xs">
                   💸
                 </div>
                 <div className="space-y-1">
-                  <h3 className="font-extrabold text-sm text-slate-100">Registre suas saídas</h3>
-                  <p className="text-xs text-slate-400">Mantenha o controle financeiro do seu negócio</p>
+                  <h3 className="font-extrabold text-sm text-slate-900">Registre suas saídas</h3>
+                  <p className="text-xs text-slate-500">Mantenha o controle financeiro do seu negócio</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => abrirNovaSaida('pago')}
-                  className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20"
+                  className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition"
                 >
                   Adicionar saída
                 </button>
@@ -1472,32 +1475,32 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       <div
                         key={saida.id}
                         onClick={() => abrirEditarSaida(saida)}
-                        className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 active:bg-slate-850 transition cursor-pointer flex items-center justify-between gap-3 shadow-sm"
+                        className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 active:bg-slate-50 transition cursor-pointer flex items-center justify-between gap-3 shadow-xs"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-lg shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-lg shrink-0">
                             🏠
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-xs text-slate-100 truncate">
+                              <span className="font-bold text-xs text-slate-900 truncate">
                                 {saida.descricao}
                               </span>
                               {saida.eh_recorrente && (
                                 <Repeat className="w-3 h-3 text-slate-400 shrink-0" />
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-400 block truncate">
+                            <span className="text-[11px] text-slate-500 block truncate">
                               {forn?.nome || saida.categoria || 'Aluguel'}
                             </span>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <div className="font-black text-xs text-rose-400">
+                          <div className="font-black text-xs text-rose-600">
                             {formatarMoeda(saida.valor)}
                           </div>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
                             {saida.data_vencimento ? saida.data_vencimento.split('-').reverse().join('/') : ''}
                           </span>
                         </div>
@@ -1511,16 +1514,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           {/* Bottom Navigator Bar */}
           <div
             onClick={() => setModalPeriodo(true)}
-            className="p-3.5 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300 cursor-pointer hover:bg-slate-850 transition shrink-0"
+            className="p-3.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:bg-slate-50 transition shrink-0"
           >
-            <ChevronLeft className="w-4 h-4 text-slate-500" />
+            <ChevronLeft className="w-4 h-4 text-slate-400" />
             <div className="text-center font-bold">
               <span>{periodoLabel}</span>
               <span className="text-[10px] text-slate-500 block">
                 {formatarMoeda(totalSaidasPagas)} em {todasSaidas.length} saídas
               </span>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-500" />
+            <ChevronRight className="w-4 h-4 text-slate-400" />
           </div>
         </div>
       )}
@@ -1531,70 +1534,70 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'fornecedores' && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('hub')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">Fornecedores</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">Fornecedores</h2>
             </div>
 
             <button
               type="button"
               onClick={abrirNovoFornecedor}
-              className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/20"
+              className="w-8 h-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition"
             >
               <Plus className="w-4 h-4" />
             </button>
           </div>
 
           {/* Search Bar */}
-          <div className="px-4 pt-3 pb-2 shrink-0">
+          <div className="px-4 pt-3 pb-2 bg-slate-50 shrink-0">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Nome do fornecedor"
                 value={buscaTermo}
                 onChange={e => setBuscaTermo(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
               />
             </div>
           </div>
 
           {/* Alphabetical List of Suppliers */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {fornecedores.length === 0 ? (
-              <div className="p-8 rounded-3xl bg-slate-900/40 border border-dashed border-slate-800 text-center space-y-2">
-                <Building2 className="w-8 h-8 text-emerald-400/60 mx-auto" />
-                <p className="text-xs font-bold text-slate-300">Nenhum fornecedor cadastrado</p>
+              <div className="p-8 rounded-3xl bg-white border border-dashed border-slate-300 text-center space-y-2">
+                <Building2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                <p className="text-xs font-bold text-slate-800">Nenhum fornecedor cadastrado</p>
                 <p className="text-[11px] text-slate-500">Cadastre seus parceiros e fornecedores de insumos.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {fornecedores
                   .filter(f => !buscaTermo.trim() || f.nome.toLowerCase().includes(buscaTermo.toLowerCase()))
                   .map(forn => (
                     <div
                       key={forn.id}
                       onClick={() => abrirDetalhesFornecedor(forn)}
-                      className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 active:bg-slate-850 transition cursor-pointer flex items-center justify-between shadow-sm"
+                      className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 active:bg-slate-50 transition cursor-pointer flex items-center justify-between shadow-xs"
                     >
                       <div className="space-y-0.5">
-                        <span className="font-bold text-xs text-slate-100 block">
+                        <span className="font-bold text-xs text-slate-900 block">
                           {forn.nome}
                         </span>
                         {forn.pessoa_contato && (
-                          <span className="text-[11px] text-slate-400 block">
+                          <span className="text-[11px] text-slate-500 block">
                             Contato: {forn.pessoa_contato}
                           </span>
                         )}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
                     </div>
                   ))}
               </div>
@@ -1609,16 +1612,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {(subTela === 'adicionar_saida' || subTela === 'editar_saida') && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('saidas')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">
+              <h2 className="font-extrabold text-sm text-slate-900">
                 {subTela === 'editar_saida' ? 'Editar saída' : 'Adicionar saída'}
               </h2>
             </div>
@@ -1628,7 +1631,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalDuplicarSaida(true)}
-                  className="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-emerald-400"
+                  className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:text-emerald-600 hover:bg-slate-200 transition"
                   title="Duplicar saída"
                 >
                   <Copy className="w-4 h-4" />
@@ -1636,7 +1639,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalExcluirSaida(true)}
-                  className="p-2 rounded-xl bg-slate-800/80 text-rose-400 hover:bg-rose-500/10"
+                  className="p-2 rounded-xl bg-slate-100 text-rose-600 hover:bg-rose-50 transition"
                   title="Excluir saída"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1645,16 +1648,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-slate-50">
             {/* Top Toggle: A pagar | Pago */}
-            <div className="p-1 bg-slate-900 border border-slate-800 rounded-2xl flex">
+            <div className="p-1 bg-slate-100 border border-slate-200 rounded-2xl flex shadow-xs">
               <button
                 type="button"
                 onClick={() => setSaidaTipoStatus('a_pagar')}
                 className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs transition ${
                   saidaTipoStatus === 'a_pagar'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm border border-slate-700'
-                    : 'text-slate-400'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                    : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 A pagar
@@ -1664,81 +1667,81 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 onClick={() => setSaidaTipoStatus('pago')}
                 className={`flex-1 py-2.5 rounded-xl font-extrabold text-xs transition flex items-center justify-center gap-1.5 ${
                   saidaTipoStatus === 'pago'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                    : 'text-slate-400'
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <Check className="w-3.5 h-3.5" /> Pago
+                <Check className="w-3.5 h-3.5 stroke-[3]" /> Pago
               </button>
             </div>
 
             {/* Big Value Input */}
             <div className="space-y-1 text-center py-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Valor</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Valor</span>
               <div className="relative inline-flex items-center justify-center">
-                <span className="text-xl font-black text-emerald-400 mr-1.5">R$</span>
+                <span className="text-xl font-black text-emerald-600 mr-1.5">R$</span>
                 <input
                   type="text"
                   placeholder="0,00"
                   value={saidaValor}
                   onChange={e => setSaidaValor(e.target.value)}
-                  className="text-3xl font-black text-slate-100 bg-transparent border-b-2 border-slate-700 focus:border-emerald-500 focus:outline-none text-center w-48 tracking-tight"
+                  className="text-3xl font-black text-slate-900 bg-transparent border-b-2 border-slate-300 focus:border-emerald-500 focus:outline-none text-center w-48 tracking-tight"
                 />
               </div>
             </div>
 
             {/* Vencimento & Categoria Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                   Vencimento
                 </span>
                 <input
                   type="date"
                   value={saidaVencimento}
                   onChange={e => setSaidaVencimento(e.target.value)}
-                  className="w-full bg-transparent text-xs font-bold text-slate-200 focus:outline-none"
+                  className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
                 />
               </div>
 
               <div
                 onClick={() => setModalCategoriaGastos(true)}
-                className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1 cursor-pointer hover:border-slate-700"
+                className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 cursor-pointer hover:border-slate-300 shadow-xs transition"
               >
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                   Categoria
                 </span>
-                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                   <span className="truncate">{saidaCategoria}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </div>
               </div>
             </div>
 
             {/* Mais Informações Section */}
             <div className="space-y-3 pt-2">
-              <span className="text-xs font-black text-slate-300 block">Mais informações</span>
+              <span className="text-xs font-black text-slate-800 block">Mais informações</span>
 
               {/* Nome da saída */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Nome da saída*</label>
+                <label className="text-[11px] font-bold text-slate-600">Nome da saída*</label>
                 <input
                   type="text"
                   placeholder="Ex: Aluguel da loja, Compra de bebidas"
                   value={saidaNome}
                   onChange={e => setSaidaNome(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               {/* Fornecedor */}
               <div
                 onClick={() => setModalSelecionarFornecedor(true)}
-                className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700"
+                className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between cursor-pointer hover:border-slate-300 shadow-xs transition"
               >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Fornecedor</span>
-                  <span className="text-xs font-bold text-slate-200 block mt-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Fornecedor</span>
+                  <span className="text-xs font-bold text-slate-900 block mt-0.5">
                     {fornecedores.find(f => f.id === saidaFornecedorId)?.nome || 'Selecionar fornecedor'}
                   </span>
                 </div>
@@ -1749,40 +1752,40 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       e.stopPropagation();
                       setSaidaFornecedorId('');
                     }}
-                    className="p-1 text-slate-500 hover:text-rose-400"
+                    className="p-1 text-slate-400 hover:text-rose-600"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
                 )}
               </div>
 
               {/* Se Pago: Data de Pagamento e Meio */}
               {saidaTipoStatus === 'pago' && (
                 <>
-                  <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Pago em</span>
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-xs">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Pago em</span>
                     <input
                       type="date"
                       value={saidaPagoEm}
                       onChange={e => setSaidaPagoEm(e.target.value)}
-                      className="w-full bg-transparent text-xs font-bold text-slate-200 focus:outline-none"
+                      className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-slate-400">Meio de Pagamento da Despesa</label>
+                    <label className="text-[11px] font-bold text-slate-600">Meio de Pagamento da Despesa</label>
                     <div className="grid grid-cols-2 gap-2">
                       {FORMAS_LIQUIDACAO.map(f => (
                         <button
                           key={f.id}
                           type="button"
                           onClick={() => setSaidaMeioPagamento(f.id)}
-                          className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition text-left ${
+                          className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition text-left shadow-xs ${
                             saidaMeioPagamento === f.id
-                              ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
-                              : 'bg-slate-900 border-slate-800 text-slate-400'
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                           }`}
                         >
                           <span>{f.icone}</span>
@@ -1796,41 +1799,41 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
               {/* Observações */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Observações</label>
+                <label className="text-[11px] font-bold text-slate-600">Observações</label>
                 <input
                   type="text"
                   placeholder="Informações complementares (opcional)"
                   value={saidaObservacoes}
                   onChange={e => setSaidaObservacoes(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               {/* Repetir Saída (TELA012 / TELA023 / TELA024 / TELA025) */}
               <div
                 onClick={() => setModalRepetirSaida(true)}
-                className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700"
+                className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between cursor-pointer hover:border-slate-300 shadow-xs transition"
               >
                 <div>
-                  <span className="font-bold text-xs text-slate-100 block">Repetir saída</span>
-                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                  <span className="font-bold text-xs text-slate-900 block">Repetir saída</span>
+                  <span className="text-[11px] text-slate-500 block mt-0.5">
                     {saidaRepetirAtivo
                       ? `${saidaRepetirTipo === 'gasto_fixo' ? 'Gasto Fixo' : 'Parcelas'} (${saidaFrequencia}, dia ${saidaTodoDia})`
                       : 'Não recorrente'}
                   </span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               </div>
             </div>
           </div>
 
           {/* Action Button Footer */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900/90 backdrop-blur shrink-0">
+          <div className="p-4 border-t border-slate-200 bg-white shrink-0">
             <button
               type="button"
               disabled={salvando}
               onClick={salvarSaida}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/25 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-98 text-white font-black text-sm shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2"
             >
               {salvando ? 'Salvando...' : subTela === 'editar_saida' ? 'Salvar alterações' : 'Adicionar saída'}
             </button>
@@ -1844,16 +1847,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {(subTela === 'adicionar_entrada' || subTela === 'editar_entrada') && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('entradas')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">
+              <h2 className="font-extrabold text-sm text-slate-900">
                 {subTela === 'editar_entrada' ? 'Editar entrada' : 'Adicionar entrada'}
               </h2>
             </div>
@@ -1862,7 +1865,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalExcluirEntrada(true)}
-                className="p-2 rounded-xl bg-slate-800/80 text-rose-400 hover:bg-rose-500/10"
+                className="p-2 rounded-xl bg-slate-100 text-rose-600 hover:bg-rose-50 transition"
                 title="Excluir entrada"
               >
                 <Trash2 className="w-4 h-4" />
@@ -1870,60 +1873,60 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-slate-50">
             {/* Big Value Input */}
             <div className="space-y-1 text-center py-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Valor</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Valor</span>
               <div className="relative inline-flex items-center justify-center">
-                <span className="text-xl font-black text-emerald-400 mr-1.5">R$</span>
+                <span className="text-xl font-black text-emerald-600 mr-1.5">R$</span>
                 <input
                   type="text"
                   placeholder="0,00"
                   value={entradaValor}
                   onChange={e => setEntradaValor(e.target.value)}
-                  className="text-3xl font-black text-slate-100 bg-transparent border-b-2 border-slate-700 focus:border-emerald-500 focus:outline-none text-center w-48 tracking-tight"
+                  className="text-3xl font-black text-slate-900 bg-transparent border-b-2 border-slate-300 focus:border-emerald-500 focus:outline-none text-center w-48 tracking-tight"
                 />
               </div>
             </div>
 
             {/* Recebido em & Origem Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Recebido em</span>
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Recebido em</span>
                 <input
                   type="date"
                   value={entradaRecebidoEm}
                   onChange={e => setEntradaRecebidoEm(e.target.value)}
-                  className="w-full bg-transparent text-xs font-bold text-slate-200 focus:outline-none"
+                  className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
                 />
               </div>
 
               {/* Categorização por Origem (Dimensão 1) */}
               <div
                 onClick={() => setModalOrigemReceita(true)}
-                className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1 cursor-pointer hover:border-slate-700"
+                className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 cursor-pointer hover:border-slate-300 shadow-xs transition"
               >
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Origem</span>
-                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Origem</span>
+                <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                   <span className="truncate">{entradaOrigem}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </div>
               </div>
             </div>
 
             {/* Categorização por Forma de Liquidação (Dimensão 2) */}
             <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400">Forma de Liquidação (Meio de Pagamento)</label>
+              <label className="text-[11px] font-bold text-slate-600">Forma de Liquidação (Meio de Pagamento)</label>
               <div className="grid grid-cols-2 gap-2">
                 {FORMAS_LIQUIDACAO.map(f => (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => setEntradaFormaLiquidacao(f.id)}
-                    className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition text-left ${
+                    className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 transition text-left shadow-xs ${
                       entradaFormaLiquidacao === f.id
-                        ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
-                        : 'bg-slate-900 border-slate-800 text-slate-400'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <span>{f.icone}</span>
@@ -1935,39 +1938,39 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
             {/* Mais Informações */}
             <div className="space-y-3 pt-2">
-              <span className="text-xs font-black text-slate-300 block">Mais informações</span>
+              <span className="text-xs font-black text-slate-800 block">Mais informações</span>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Nome da entrada*</label>
+                <label className="text-[11px] font-bold text-slate-600">Nome da entrada*</label>
                 <input
                   type="text"
                   placeholder="Ex: Fundo de troco matutino, Aluguel de espaço"
                   value={entradaNome}
                   onChange={e => setEntradaNome(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Observações</label>
+                <label className="text-[11px] font-bold text-slate-600">Observações</label>
                 <input
                   type="text"
                   placeholder="Informações adicionais (opcional)"
                   value={entradaObservacoes}
                   onChange={e => setEntradaObservacoes(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
             </div>
           </div>
 
           {/* Action Button Footer */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900/90 backdrop-blur shrink-0">
+          <div className="p-4 border-t border-slate-200 bg-white shrink-0">
             <button
               type="button"
               disabled={salvando}
               onClick={salvarEntrada}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/25 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-98 text-white font-black text-sm shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2"
             >
               {salvando ? 'Salvando...' : subTela === 'editar_entrada' ? 'Salvar alterações' : 'Adicionar entrada'}
             </button>
@@ -1981,61 +1984,61 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'adicionar_fornecedor' && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('fornecedores')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">Adicionar fornecedor</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">Adicionar fornecedor</h2>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
             {/* Seção 1: Dados do Fornecedor */}
             <div className="space-y-3">
-              <span className="text-xs font-black text-slate-300 block">Dados do fornecedor</span>
+              <span className="text-xs font-black text-slate-800 block">Dados do fornecedor</span>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Nome ou Razão social*</label>
+                <label className="text-[11px] font-bold text-slate-600">Nome ou Razão social*</label>
                 <input
                   type="text"
                   placeholder="Nome comercial do fornecedor"
                   value={fornNome}
                   onChange={e => setFornNome(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">CPF ou CNPJ</label>
+                <label className="text-[11px] font-bold text-slate-600">CPF ou CNPJ</label>
                 <input
                   type="text"
                   placeholder="00.000.000/0000-00"
                   value={fornDoc}
                   onChange={e => setFornDoc(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Endereço</label>
+                <label className="text-[11px] font-bold text-slate-600">Endereço</label>
                 <input
                   type="text"
                   placeholder="Rua, número, bairro e cidade"
                   value={fornEndereco}
                   onChange={e => setFornEndereco(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Telefone</label>
+                <label className="text-[11px] font-bold text-slate-600">Telefone</label>
                 <div className="flex gap-2">
-                  <div className="px-3 py-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-xs text-slate-300">
+                  <div className="px-3 py-3 rounded-2xl bg-slate-100 border border-slate-200 flex items-center gap-1.5 text-xs text-slate-700 shadow-xs">
                     <span>🇧🇷</span>
                     <span>+55</span>
                   </div>
@@ -2044,53 +2047,53 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     placeholder="(85) 99999-9999"
                     value={fornTelefone}
                     onChange={e => setFornTelefone(e.target.value)}
-                    className="flex-1 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="flex-1 p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">E-mail</label>
+                <label className="text-[11px] font-bold text-slate-600">E-mail</label>
                 <input
                   type="email"
                   placeholder="fornecedor@email.com"
                   value={fornEmail}
                   onChange={e => setFornEmail(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Observações</label>
+                <label className="text-[11px] font-bold text-slate-600">Observações</label>
                 <input
                   type="text"
                   placeholder="Condições de entrega, prazos, etc."
                   value={fornObs}
                   onChange={e => setFornObs(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
             </div>
 
             {/* Seção 2: Dados da Pessoa de Contato */}
             <div className="space-y-3 pt-2">
-              <span className="text-xs font-black text-slate-300 block">Dados da pessoa de contato</span>
+              <span className="text-xs font-black text-slate-800 block">Dados da pessoa de contato</span>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Nome do contato</label>
+                <label className="text-[11px] font-bold text-slate-600">Nome do contato</label>
                 <input
                   type="text"
                   placeholder="Ex: João Silva (Representante)"
                   value={fornContatoNome}
                   onChange={e => setFornContatoNome(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Celular/WhatsApp</label>
+                <label className="text-[11px] font-bold text-slate-600">Celular/WhatsApp</label>
                 <div className="flex gap-2">
-                  <div className="px-3 py-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-xs text-slate-300">
+                  <div className="px-3 py-3 rounded-2xl bg-slate-100 border border-slate-200 flex items-center gap-1.5 text-xs text-slate-700 shadow-xs">
                     <span>🇧🇷</span>
                     <span>+55</span>
                   </div>
@@ -2099,7 +2102,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     placeholder="(85) 99999-9999"
                     value={fornContatoWhats}
                     onChange={e => setFornContatoWhats(e.target.value)}
-                    className="flex-1 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="flex-1 p-3.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs"
                   />
                 </div>
               </div>
@@ -2107,12 +2110,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           </div>
 
           {/* Action Button Footer */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900/90 backdrop-blur shrink-0">
+          <div className="p-4 border-t border-slate-200 bg-white shrink-0">
             <button
               type="button"
               disabled={salvando}
               onClick={salvarFornecedor}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/25 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-98 text-white font-black text-sm shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2"
             >
               {salvando ? 'Salvando...' : 'Adicionar fornecedor'}
             </button>
@@ -2126,64 +2129,64 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {subTela === 'detalhes_fornecedor' && fornecedorSelecionado && (
         <div className="flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between shrink-0">
+          <div className="px-4 py-3.5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSubTela('fornecedores')}
-                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-extrabold text-sm text-slate-100">{fornecedorSelecionado.nome}</h2>
+              <h2 className="font-extrabold text-sm text-slate-900">{fornecedorSelecionado.nome}</h2>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {/* Card 1: Dados do Fornecedor */}
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-200">Dados do fornecedor</span>
+                <span className="font-bold text-xs text-slate-900">Dados do fornecedor</span>
                 <button
                   type="button"
                   onClick={() => setSubTela('adicionar_fornecedor')}
-                  className="text-xs font-bold text-emerald-400 flex items-center gap-1 hover:underline"
+                  className="text-xs font-bold text-emerald-600 flex items-center gap-1 hover:underline"
                 >
                   <Edit2 className="w-3.5 h-3.5" /> Editar
                 </button>
               </div>
 
-              <div className="space-y-1.5 text-xs text-slate-400">
+              <div className="space-y-1.5 text-xs text-slate-500">
                 {fornecedorSelecionado.numero_documento && (
-                  <p>Documento: <span className="text-slate-200">{fornecedorSelecionado.numero_documento}</span></p>
+                  <p>Documento: <span className="text-slate-800 font-medium">{fornecedorSelecionado.numero_documento}</span></p>
                 )}
                 {fornecedorSelecionado.telefone && (
-                  <p>Telefone: <span className="text-slate-200">{fornecedorSelecionado.telefone}</span></p>
+                  <p>Telefone: <span className="text-slate-800 font-medium">{fornecedorSelecionado.telefone}</span></p>
                 )}
                 {fornecedorSelecionado.email && (
-                  <p>E-mail: <span className="text-slate-200">{fornecedorSelecionado.email}</span></p>
+                  <p>E-mail: <span className="text-slate-800 font-medium">{fornecedorSelecionado.email}</span></p>
                 )}
                 {fornecedorSelecionado.endereco && (
-                  <p>Endereço: <span className="text-slate-200">{fornecedorSelecionado.endereco}</span></p>
+                  <p>Endereço: <span className="text-slate-800 font-medium">{fornecedorSelecionado.endereco}</span></p>
                 )}
               </div>
             </div>
 
             {/* Card 2: Contato */}
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
-              <span className="font-bold text-xs text-slate-200 block">Pessoa de Contato</span>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2 shadow-xs">
+              <span className="font-bold text-xs text-slate-900 block">Pessoa de Contato</span>
               {fornecedorSelecionado.pessoa_contato ? (
-                <div className="space-y-1 text-xs text-slate-400">
-                  <p>Nome: <span className="text-slate-200">{fornecedorSelecionado.pessoa_contato}</span></p>
+                <div className="space-y-1 text-xs text-slate-500">
+                  <p>Nome: <span className="text-slate-800 font-medium">{fornecedorSelecionado.pessoa_contato}</span></p>
                   {fornecedorSelecionado.whatsapp && (
-                    <p>WhatsApp: <span className="text-slate-200">{fornecedorSelecionado.whatsapp}</span></p>
+                    <p>WhatsApp: <span className="text-slate-800 font-medium">{fornecedorSelecionado.whatsapp}</span></p>
                   )}
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => setSubTela('adicionar_fornecedor')}
-                  className="w-full py-2.5 rounded-xl border border-dashed border-slate-700 text-xs font-bold text-emerald-400 hover:bg-slate-850 transition"
+                  className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-emerald-600 hover:bg-slate-50 transition"
                 >
                   Adicionar um contato
                 </button>
@@ -2191,8 +2194,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             </div>
 
             {/* Toggle: Inativar Fornecedor */}
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
-              <span className="font-bold text-xs text-slate-200">Inativar fornecedor</span>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between shadow-xs">
+              <span className="font-bold text-xs text-slate-900">Inativar fornecedor</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -2203,7 +2206,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   }}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
               </label>
             </div>
           </div>
@@ -2214,14 +2217,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: CATEGORIAS DE GASTOS (TELA010 / TELA022)                           */}
       {/* ========================================================================= */}
       {modalCategoriaGastos && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl p-4 max-h-[85vh] flex flex-col space-y-4 animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
-              <h3 className="font-extrabold text-sm text-slate-100">Categoria de gastos</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-4 max-h-[85vh] flex flex-col space-y-4 animate-in slide-in-from-bottom shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 shrink-0">
+              <h3 className="font-extrabold text-sm text-slate-900">Categoria de gastos</h3>
               <button
                 type="button"
                 onClick={() => setModalCategoriaGastos(false)}
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="p-1 text-slate-400 hover:text-slate-600 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2236,10 +2239,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     setSaidaCategoria(cat.nome);
                     setModalCategoriaGastos(false);
                   }}
-                  className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 active:bg-slate-850 flex items-center gap-3 text-left transition"
+                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-emerald-500/40 active:bg-slate-100 flex items-center gap-3 text-left transition"
                 >
                   <span className="text-xl">{cat.icone}</span>
-                  <span className="font-bold text-xs text-slate-200">{cat.nome}</span>
+                  <span className="font-bold text-xs text-slate-800">{cat.nome}</span>
                 </button>
               ))}
             </div>
@@ -2251,17 +2254,17 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: ORIGEM DA RECEITA (DIMENSÃO 1 DE ENTRADAS)                          */}
       {/* ========================================================================= */}
       {modalOrigemReceita && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl p-4 max-h-[85vh] flex flex-col space-y-4 animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-4 max-h-[85vh] flex flex-col space-y-4 animate-in slide-in-from-bottom shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 shrink-0">
               <div>
-                <h3 className="font-extrabold text-sm text-slate-100">Origem Financeira</h3>
-                <p className="text-[10px] text-slate-400">Pelo que o dinheiro está entrando</p>
+                <h3 className="font-extrabold text-sm text-slate-900">Origem Financeira</h3>
+                <p className="text-[10px] text-slate-500">Pelo que o dinheiro está entrando</p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalOrigemReceita(false)}
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="p-1 text-slate-400 hover:text-slate-600 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2270,7 +2273,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <div className="flex-1 overflow-y-auto space-y-4">
               {/* Operacionais */}
               <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase text-emerald-400 block px-1">
+                <span className="text-[10px] font-black uppercase text-emerald-700 block px-1">
                   Receitas Operacionais (Vendas e Serviços)
                 </span>
                 <div className="space-y-1.5">
@@ -2282,12 +2285,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         setEntradaOrigem(op.nome);
                         setModalOrigemReceita(false);
                       }}
-                      className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 active:bg-slate-850 flex items-center gap-3 text-left transition"
+                      className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-emerald-500/40 active:bg-slate-100 flex items-center gap-3 text-left transition"
                     >
                       <span className="text-lg">{op.icone}</span>
                       <div>
-                        <span className="font-bold text-xs text-slate-100 block">{op.nome}</span>
-                        <span className="text-[10px] text-slate-400 block">{op.desc}</span>
+                        <span className="font-bold text-xs text-slate-900 block">{op.nome}</span>
+                        <span className="text-[10px] text-slate-500 block">{op.desc}</span>
                       </div>
                     </button>
                   ))}
@@ -2296,7 +2299,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
               {/* Não Operacionais */}
               <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase text-amber-400 block px-1">
+                <span className="text-[10px] font-black uppercase text-amber-700 block px-1">
                   Receitas Não-Operacionais e Ajustes
                 </span>
                 <div className="space-y-1.5">
@@ -2308,12 +2311,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         setEntradaOrigem(op.nome);
                         setModalOrigemReceita(false);
                       }}
-                      className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-amber-500/40 active:bg-slate-850 flex items-center gap-3 text-left transition"
+                      className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-amber-500/40 active:bg-slate-100 flex items-center gap-3 text-left transition"
                     >
                       <span className="text-lg">{op.icone}</span>
                       <div>
-                        <span className="font-bold text-xs text-slate-100 block">{op.nome}</span>
-                        <span className="text-[10px] text-slate-400 block">{op.desc}</span>
+                        <span className="font-bold text-xs text-slate-900 block">{op.nome}</span>
+                        <span className="text-[10px] text-slate-500 block">{op.desc}</span>
                       </div>
                     </button>
                   ))}
@@ -2328,14 +2331,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: SELECIONAR FORNECEDOR (TELA011)                                    */}
       {/* ========================================================================= */}
       {modalSelecionarFornecedor && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl p-4 max-h-[85vh] flex flex-col space-y-4 animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
-              <h3 className="font-extrabold text-sm text-slate-100">Selecionar Fornecedor</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-4 max-h-[85vh] flex flex-col space-y-4 animate-in slide-in-from-bottom shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 shrink-0">
+              <h3 className="font-extrabold text-sm text-slate-900">Selecionar Fornecedor</h3>
               <button
                 type="button"
                 onClick={() => setModalSelecionarFornecedor(false)}
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="p-1 text-slate-400 hover:text-slate-600 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2350,10 +2353,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     setSaidaFornecedorId(forn.id);
                     setModalSelecionarFornecedor(false);
                   }}
-                  className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 active:bg-slate-850 flex items-center justify-between text-left transition"
+                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-emerald-500/40 active:bg-slate-100 flex items-center justify-between text-left transition"
                 >
-                  <span className="font-bold text-xs text-slate-200">{forn.nome}</span>
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                  <span className="font-bold text-xs text-slate-800">{forn.nome}</span>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
               ))}
             </div>
@@ -2365,28 +2368,28 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: REPETIR SAÍDA (TELA012 / TELA023 / TELA024 / TELA025)             */}
       {/* ========================================================================= */}
       {modalRepetirSaida && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl p-4 space-y-4 animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-100">Repetir saída</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-4 space-y-4 animate-in slide-in-from-bottom shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-sm text-slate-900">Repetir saída</h3>
               <button
                 type="button"
                 onClick={() => setModalRepetirSaida(false)}
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="p-1 text-slate-400 hover:text-slate-600 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Segmented Control: GASTO FIXO | PARCELAS */}
-            <div className="p-1 bg-slate-950 border border-slate-800 rounded-2xl flex">
+            <div className="p-1 bg-slate-100 border border-slate-200 rounded-2xl flex shadow-xs">
               <button
                 type="button"
                 onClick={() => setSaidaRepetirTipo('gasto_fixo')}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
                   saidaRepetirTipo === 'gasto_fixo'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm'
-                    : 'text-slate-400'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                    : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 GASTO FIXO
@@ -2396,8 +2399,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 onClick={() => setSaidaRepetirTipo('parcelas')}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
                   saidaRepetirTipo === 'parcelas'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm'
-                    : 'text-slate-400'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
+                    : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 PARCELAS
@@ -2407,11 +2410,11 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             {/* Campos Gasto Fixo / Parcelas */}
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Frequência</label>
+                <label className="text-[11px] font-bold text-slate-600">Frequência</label>
                 <select
                   value={saidaFrequencia}
                   onChange={e => setSaidaFrequencia(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 focus:outline-none"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500 shadow-xs"
                 >
                   <option value="mensal">Mensal</option>
                   <option value="semanal">Semanal</option>
@@ -2420,27 +2423,27 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Todo dia</label>
+                <label className="text-[11px] font-bold text-slate-600">Todo dia</label>
                 <input
                   type="number"
                   min="1"
                   max="31"
                   value={saidaTodoDia}
                   onChange={e => setSaidaTodoDia(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 focus:outline-none"
+                  className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               {saidaRepetirTipo === 'parcelas' && (
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-400">Número de parcelas</label>
+                  <label className="text-[11px] font-bold text-slate-600">Número de parcelas</label>
                   <input
                     type="number"
                     min="2"
                     max="48"
                     value={saidaNumParcelas}
                     onChange={e => setSaidaNumParcelas(parseInt(e.target.value) || 2)}
-                    className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 focus:outline-none"
+                    className="w-full p-3.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500 shadow-xs"
                   />
                 </div>
               )}
@@ -2452,7 +2455,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 setSaidaRepetirAtivo(true);
                 setModalRepetirSaida(false);
               }}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition"
             >
               Aplicar configuração
             </button>
@@ -2464,35 +2467,35 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: COMO O FLUXO DE CAIXA É CALCULADO? (TELA015)                      */}
       {/* ========================================================================= */}
       {modalComoCalculado && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto space-y-5 animate-in slide-in-from-bottom">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto space-y-5 animate-in slide-in-from-bottom shadow-2xl">
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-3xl bg-slate-950 border border-slate-800 text-3xl flex items-center justify-center mx-auto shadow-inner">
+              <div className="w-14 h-14 rounded-3xl bg-slate-50 border border-slate-200 text-3xl flex items-center justify-center mx-auto shadow-xs">
                 👛
               </div>
-              <h3 className="font-extrabold text-base text-slate-100">
+              <h3 className="font-extrabold text-base text-slate-900">
                 Como o fluxo de caixa líquido é calculado?
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                <strong className="text-slate-200">O cálculo é simples:</strong> juntamos todo o dinheiro que entrou e subtraímos o dinheiro que saiu.
+              <p className="text-xs text-slate-600 leading-relaxed">
+                <strong className="text-slate-900">O cálculo é simples:</strong> juntamos todo o dinheiro que entrou e subtraímos o dinheiro que saiu.
               </p>
             </div>
 
             <div className="space-y-2.5">
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <Check className="w-4 h-4" /> Dinheiro que entra:
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 space-y-1 shadow-xs">
+                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                  <Check className="w-4 h-4 stroke-[3]" /> Dinheiro que entra:
                 </span>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-slate-600">
                   Entradas lançadas, considerando a data do recebimento e vendas realizadas.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-1">
-                <span className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
-                  <ArrowUpRight className="w-4 h-4" /> Dinheiro que sai:
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 space-y-1 shadow-xs">
+                <span className="text-xs font-bold text-rose-700 flex items-center gap-1.5">
+                  <ArrowUpRight className="w-4 h-4 stroke-[3]" /> Dinheiro que sai:
                 </span>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-slate-600">
                   Saídas marcadas como pagas, considerando a data de pagamento.
                 </p>
               </div>
@@ -2501,7 +2504,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalComoCalculado(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition"
             >
               Ok, entendi
             </button>
@@ -2513,21 +2516,21 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: SELETOR DE PERÍODO (TELA016)                                      */}
       {/* ========================================================================= */}
       {modalPeriodo && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl p-4 space-y-4 animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-100">Período</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white border-t border-slate-200 rounded-t-3xl p-4 space-y-4 animate-in slide-in-from-bottom shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-sm text-slate-900">Período</h3>
               <button
                 type="button"
                 onClick={() => setModalPeriodo(false)}
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="p-1 text-slate-400 hover:text-slate-600 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Abas: Dia | Semana | Mês | Ano */}
-            <div className="p-1 bg-slate-950 border border-slate-800 rounded-2xl flex">
+            <div className="p-1 bg-slate-100 border border-slate-200 rounded-2xl flex shadow-xs">
               {(['dia', 'semana', 'mes', 'ano'] as const).map(tab => (
                 <button
                   key={tab}
@@ -2535,8 +2538,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   onClick={() => setTipoPeriodoTab(tab)}
                   className={`flex-1 py-1.5 rounded-xl text-xs font-bold uppercase transition ${
                     tipoPeriodoTab === tab
-                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : 'text-slate-400'
+                      ? 'bg-emerald-500 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {tab}
@@ -2559,17 +2562,17 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     setPeriodoPreset(opt.id);
                     setPeriodoLabel(opt.label);
                   }}
-                  className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition shadow-xs ${
                     periodoPreset === opt.id
-                      ? 'bg-emerald-500/10 border-emerald-500/40 text-slate-100'
-                      : 'bg-slate-950 border-slate-800 text-slate-400'
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   <span className="font-bold text-xs">{opt.label}</span>
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                    periodoPreset === opt.id ? 'border-emerald-500 bg-emerald-500' : 'border-slate-700'
+                    periodoPreset === opt.id ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
                   }`}>
-                    {periodoPreset === opt.id && <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
+                    {periodoPreset === opt.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                   </div>
                 </label>
               ))}
@@ -2578,7 +2581,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalPeriodo(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition"
             >
               Selecionar período
             </button>
@@ -2590,22 +2593,22 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: DUPLICAR SAÍDA (TELA013)                                          */}
       {/* ========================================================================= */}
       {modalDuplicarSaida && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center shadow-2xl">
-            <h3 className="font-extrabold text-sm text-slate-100">Atenção</h3>
-            <p className="text-xs text-slate-400">Deseja duplicar esta saída?</p>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center shadow-2xl">
+            <h3 className="font-extrabold text-sm text-slate-900">Atenção</h3>
+            <p className="text-xs text-slate-600">Deseja duplicar esta saída?</p>
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setModalDuplicarSaida(false)}
-                className="flex-1 py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition"
               >
                 CANCELAR
               </button>
               <button
                 type="button"
                 onClick={confirmarDuplicarSaida}
-                className="flex-1 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20"
+                className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition"
               >
                 SIM
               </button>
@@ -2618,10 +2621,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: EXCLUIR SAÍDA (TELA014)                                           */}
       {/* ========================================================================= */}
       {modalExcluirSaida && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center shadow-2xl">
-            <h3 className="font-extrabold text-sm text-slate-100">Excluir saída</h3>
-            <p className="text-xs text-slate-400">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center shadow-2xl">
+            <h3 className="font-extrabold text-sm text-slate-900">Excluir saída</h3>
+            <p className="text-xs text-slate-600">
               {saidaEditando?.eh_recorrente
                 ? 'Esta saída faz parte de uma série de gastos recorrentes. O que deseja fazer?'
                 : 'Tem certeza que deseja excluir esta saída?'}
@@ -2631,14 +2634,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               <button
                 type="button"
                 onClick={confirmarExcluirSaida}
-                className="w-full py-3 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs shadow-lg shadow-rose-500/20"
+                className="w-full py-3 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs shadow-md shadow-rose-500/20 transition"
               >
                 Excluir saída
               </button>
               <button
                 type="button"
                 onClick={() => setModalExcluirSaida(false)}
-                className="w-full py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition"
               >
                 Cancelar
               </button>
@@ -2651,22 +2654,22 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* MODAL: EXCLUIR ENTRADA (TELA027)                                         */}
       {/* ========================================================================= */}
       {modalExcluirEntrada && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center shadow-2xl">
-            <h3 className="font-extrabold text-sm text-slate-100">Excluir entrada</h3>
-            <p className="text-xs text-slate-400">Tem certeza que deseja excluir este lançamento de entrada?</p>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center shadow-2xl">
+            <h3 className="font-extrabold text-sm text-slate-900">Excluir entrada</h3>
+            <p className="text-xs text-slate-600">Tem certeza que deseja excluir este lançamento de entrada?</p>
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setModalExcluirEntrada(false)}
-                className="flex-1 py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold text-xs"
+                className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={confirmarExcluirEntrada}
-                className="flex-1 py-3 rounded-2xl bg-rose-500 text-white font-black text-xs shadow-lg shadow-rose-500/20"
+                className="flex-1 py-3 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs shadow-md shadow-rose-500/20 transition"
               >
                 Excluir
               </button>

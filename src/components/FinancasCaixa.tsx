@@ -220,9 +220,12 @@ export const FinancasCaixa: React.FC = () => {
 
       // 3. Carregar Sessão Ativa de Caixa do Terminal (Ciclo Transacional Independente de Meia-Noite)
       try {
-        const sessao = await caixaService.obterSessaoAtiva(loja.id, terminalId);
+        const sessao = await caixaService.obterSessaoAtiva(loja.id, terminalId, usuario?.id);
         setSessaoAtiva(sessao);
         if (sessao) {
+          if (sessao.terminal_id && sessao.terminal_id !== terminalId) {
+            setTerminalId(sessao.terminal_id);
+          }
           const res = await caixaService.obterResumoSessao(sessao.id);
           setResumoSessao(res);
         } else {
@@ -1493,7 +1496,7 @@ export const FinancasCaixa: React.FC = () => {
         <FinancasMobile
           transacoes={transacoes}
           pedidos={pedidos}
-          caixaAberto={null}
+          caixaAberto={sessaoAtiva ? { ...sessaoAtiva, turno: sessaoAtiva.terminal_id, saldo_inicial: sessaoAtiva.fundo_inicial } as any : null}
           sessaoAtiva={sessaoAtiva}
           historicoSessoes={historicoSessoes}
           carregando={carregando}

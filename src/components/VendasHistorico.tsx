@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { caixaService } from '../services/caixaService';
+import { SessaoCaixa } from '../types';
 import {
   Search,
   Printer,
@@ -76,9 +78,40 @@ export const VendasHistorico: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filtro de Turno Ativo do Caixa (quando chamado do módulo financeiro)
+  const [filtroTurnoAtual, setFiltroTurnoAtual] = useState<boolean>(() => {
+    return searchParams.get('turno') === 'atual' || !!(location.state as any)?.turnoAtual;
+  });
+  const [sessaoTurnoAtivo, setSessaoTurnoAtivo] = useState<SessaoCaixa | null>(null);
+
+  useEffect(() => {
+    if (filtroTurnoAtual && loja?.id) {
+      caixaService.obterSessaoAtiva(loja.id, undefined, usuario?.id).then(sessao => {
+        setSessaoTurnoAtivo(sessao);
+      });
+    }
+  }, [filtroTurnoAtual, loja?.id, usuario?.id]);
 
   // Estados principais de dados
   const [vendas, setVendas] = useState<Pedido[]>([]);
+
+  const vendasParaExibir = useMemo(() => {
+    if (!filtroTurnoAtual || !sessaoTurnoAtivo) return vendas;
+    const tsAbertura = sessaoTurnoAtivo.aberto_em ? new Date(sessaoTurnoAtivo.aberto_em).getTime() : 0;
+    const tsFechamento = sessaoTurnoAtivo.fechado_em ? new Date(sessaoTurnoAtivo.fechado_em).getTime() : Infinity;
+
+    return vendas.filter(v => {
+      const vAny = v as any;
+      if (vAny.sessao_caixa_id && vAny.sessao_caixa_id === sessaoTurnoAtivo.id) return true;
+      const dtIso = v.data_venda || v.criado_em;
+      if (!dtIso) return false;
+      const t = new Date(dtIso).getTime();
+      return t >= tsAbertura && t <= tsFechamento;
+    });
+  }, [vendas, filtroTurnoAtual, sessaoTurnoAtivo]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [formasPagamentoLoja, setFormasPagamentoLoja] = useState<FormaPagamento[]>([]);
@@ -596,7 +629,7 @@ export const VendasHistorico: React.FC = () => {
       {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full overflow-hidden">
         <VendasHistoricoMobile
-          vendas={vendas}
+          vendas={vendasParaExibir}
           clientes={clientes}
           usuarios={usuarios}
           carregando={carregando}
@@ -605,6 +638,12 @@ export const VendasHistorico: React.FC = () => {
           onCancelarVenda={(pedido) => {
             setMotivoCancelamento('');
             setVendaCancelarModal(pedido);
+          }}
+          filtroTurnoAtivo={filtroTurnoAtual && !!sessaoTurnoAtivo}
+          onLimparFiltroTurno={() => {
+            setFiltroTurnoAtual(false);
+            searchParams.delete('turno');
+            setSearchParams(searchParams);
           }}
         />
       </div>

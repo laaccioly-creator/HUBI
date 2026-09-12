@@ -38,6 +38,8 @@ interface VendasHistoricoMobileProps {
   onVerItens: (pedido: Pedido) => void;
   onVerRecibo: (pedido: Pedido) => void;
   onCancelarVenda: (pedido: Pedido) => void;
+  filtroTurnoAtivo?: boolean;
+  onLimparFiltroTurno?: () => void;
 }
 
 export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
@@ -47,7 +49,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   carregando,
   onVerItens,
   onVerRecibo,
-  onCancelarVenda
+  onCancelarVenda,
+  filtroTurnoAtivo,
+  onLimparFiltroTurno
 }) => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
@@ -480,6 +484,27 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
           )}
         </div>
       </div>
+
+      {/* Indicador de Filtro: Turno Atual do Caixa */}
+      {filtroTurnoAtivo && (
+        <div className="mx-3 mt-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between shadow-xs shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Filtrando: Vendas do Turno Atual</span>
+          </div>
+          {onLimparFiltroTurno && (
+            <button
+              type="button"
+              onClick={onLimparFiltroTurno}
+              className="px-2 py-0.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
+              title="Exibir todas as vendas"
+            >
+              <span>Ver todas</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 3. Lista Agrupada por Data */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
