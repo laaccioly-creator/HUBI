@@ -549,8 +549,21 @@ export const PosCheckout: React.FC = () => {
         acao: 'Edição de itens/valores no PDV'
       } : null;
 
+      const historicoStatusExistente = Array.isArray(metaExistente.historico_status)
+        ? metaExistente.historico_status
+        : [];
+
+      const novoItemStatus = {
+        data: dataIso,
+        tipo: 'status',
+        status: statusFinal,
+        usuario: usuario?.nome_completo || 'Operador',
+        detalhes: pedidoEmEdicao ? 'Edição de pedido pendente no PDV' : 'Pedido pendente criado no PDV'
+      };
+
       const novosMetadados: Record<string, any> = {
         ...metaExistente,
+        historico_status: [...historicoStatusExistente, novoItemStatus],
         ...(pedidoEmEdicao ? {
           ultimo_editor: {
             usuario_id: usuario?.id || null,
@@ -756,6 +769,21 @@ export const PosCheckout: React.FC = () => {
       }
 
       const statusFinal = pedidoEmEdicao?.status || 'pendente';
+
+      const historicoStatusExistente = Array.isArray(metaExistente.historico_status)
+        ? metaExistente.historico_status
+        : [];
+
+      metaExistente.historico_status = [
+        ...historicoStatusExistente,
+        {
+          data: dataIso,
+          tipo: 'status',
+          status: statusFinal,
+          usuario: usuario?.nome_completo || 'Operador',
+          detalhes: pedidoEmEdicao ? 'Venda atualizada com pagamentos no PDV' : 'Pedido pendente criado com formas de pagamento vinculadas'
+        }
+      ];
 
       const vendedorIdFinal = pedidoEmEdicao
         ? (pedidoEmEdicao.vendedor_id ?? null)
@@ -1424,6 +1452,8 @@ export const PosCheckout: React.FC = () => {
           formasPagamento={formasPagamento}
           pedidosConfirmadosCount={0}
           onAbrirFechamento={handleAbrirFechamento}
+          onSalvarPedidoPendente={handleSalvarPedidoPendente}
+          salvandoPendente={salvandoPendente}
           onAbrirNovoCliente={() => setModalNovoCliente(true)}
           onAbrirVariacoesModal={(produto) => setProdutoModalVariacao(produto)}
           isOnline={isOnline}

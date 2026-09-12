@@ -342,10 +342,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={onFechamentoCego}
-              className="py-2 px-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 font-black text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
+              className="py-2 px-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
               title="Fechar Turno / Conferência Cega"
             >
-              <Lock className="w-4 h-4 text-amber-400" />
+              <Lock className="w-4 h-4 text-white" />
               <span className="truncate">Fechar Caixa</span>
             </button>
           </div>
@@ -491,14 +491,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('caixa_atual')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'caixa_atual'
-              ? 'bg-slate-900 text-white shadow-2xs'
+              ? 'bg-emerald-600 text-white shadow-xs'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
           <span>Turno / Gaveta</span>
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              sessaoAtiva ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+              sessaoAtiva ? 'bg-emerald-300 animate-pulse' : 'bg-slate-400'
             }`}
           />
         </button>
@@ -509,12 +509,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('fluxo')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'fluxo'
-              ? 'bg-slate-900 text-white shadow-2xs'
+              ? 'bg-emerald-600 text-white shadow-xs'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
           <span>Fluxo Geral</span>
-          <span className="text-[10px] font-bold opacity-75">
+          <span className="text-[10px] font-bold opacity-80">
             ({listaTransacoesUnificada.length})
           </span>
         </button>
@@ -525,7 +525,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('pagar')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'pagar'
-              ? 'bg-slate-900 text-white shadow-2xs'
+              ? 'bg-emerald-600 text-white shadow-xs'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
@@ -543,12 +543,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('historico_caixas')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'historico_caixas'
-              ? 'bg-slate-900 text-white shadow-2xs'
+              ? 'bg-emerald-600 text-white shadow-xs'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >
           <span>Histórico</span>
-          <span className="text-[10px] font-bold opacity-75">
+          <span className="text-[10px] font-bold opacity-80">
             ({historicoSessoes.length})
           </span>
         </button>
@@ -584,50 +584,50 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     )}
 
                     {/* KPI PRINCIPAL: SALDO ESPERADO EM DINHEIRO NA GAVETA FÍSICA */}
-                    <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white p-4 rounded-2xl shadow-sm space-y-3">
+                    <div className="bg-emerald-50/80 border border-emerald-200 text-slate-800 p-4 rounded-2xl shadow-xs space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 flex items-center gap-1.5">
-                            <Banknote className="w-4 h-4" /> Saldo Esperado em Dinheiro na Gaveta
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800 flex items-center gap-1.5">
+                            <Banknote className="w-4 h-4 text-emerald-600" /> Saldo Esperado em Dinheiro na Gaveta
                           </span>
-                          <span className="text-2xl font-black text-emerald-200 block">
+                          <span className="text-2xl font-black text-emerald-700 block">
                             R$ {saldoDinheiroExibicao.toFixed(2)}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-300 bg-white/10 px-2 py-1 rounded-xl">
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-xl">
                           Físico na Gaveta
                         </span>
                       </div>
 
                       {/* FÓRMULA DETALHADA DA GAVETA */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-2 border-t border-white/15 text-[10px]">
-                        <div className="bg-black/25 p-2 rounded-xl">
-                          <span className="text-slate-300 block text-[9px]">Fundo Inicial</span>
-                          <span className="font-bold text-slate-100">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-2 border-t border-emerald-200/80 text-[10px]">
+                        <div className="bg-white border border-emerald-100 p-2 rounded-xl shadow-2xs">
+                          <span className="text-slate-500 block text-[9px] font-medium">Fundo Inicial</span>
+                          <span className="font-bold text-slate-800">
                             + R$ {(resumoSessao.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}
                           </span>
                         </div>
-                        <div className="bg-black/25 p-2 rounded-xl">
-                          <span className="text-slate-300 block text-[9px]">Vendas em Dinheiro</span>
-                          <span className="font-bold text-emerald-300">
+                        <div className="bg-white border border-emerald-100 p-2 rounded-xl shadow-2xs">
+                          <span className="text-slate-500 block text-[9px] font-medium">Vendas em Dinheiro</span>
+                          <span className="font-bold text-emerald-700">
                             + R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
                           </span>
                         </div>
-                        <div className="bg-black/25 p-2 rounded-xl">
-                          <span className="text-slate-300 block text-[9px]">Suprimentos</span>
-                          <span className="font-bold text-cyan-300">
+                        <div className="bg-white border border-emerald-100 p-2 rounded-xl shadow-2xs">
+                          <span className="text-slate-500 block text-[9px] font-medium">Suprimentos</span>
+                          <span className="font-bold text-cyan-700">
                             + R$ {resumoSessao.totalSuprimentos.toFixed(2)}
                           </span>
                         </div>
-                        <div className="bg-black/25 p-2 rounded-xl">
-                          <span className="text-slate-300 block text-[9px]">Sangrias (Cofre)</span>
-                          <span className="font-bold text-rose-300">
+                        <div className="bg-white border border-emerald-100 p-2 rounded-xl shadow-2xs">
+                          <span className="text-slate-500 block text-[9px] font-medium">Sangrias (Cofre)</span>
+                          <span className="font-bold text-rose-600">
                             - R$ {resumoSessao.totalSangrias.toFixed(2)}
                           </span>
                         </div>
-                        <div className="bg-black/25 p-2 rounded-xl">
-                          <span className="text-slate-300 block text-[9px]">Despesas de Gaveta</span>
-                          <span className="font-bold text-amber-300">
+                        <div className="bg-white border border-emerald-100 p-2 rounded-xl shadow-2xs">
+                          <span className="text-slate-500 block text-[9px] font-medium">Despesas de Gaveta</span>
+                          <span className="font-bold text-amber-700">
                             - R$ {resumoSessao.totalDespesas.toFixed(2)}
                           </span>
                         </div>
@@ -1027,7 +1027,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       onClick={() => setFiltroStatusPagar(st)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                         filtroStatusPagar === st
-                          ? 'bg-amber-500 text-slate-950 shadow-2xs font-black'
+                          ? 'bg-amber-500 text-white shadow-xs font-bold'
                           : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
@@ -1054,7 +1054,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   <button
                     type="button"
                     onClick={onNovaContaPagar}
-                    className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs"
+                    className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" />
                     <span>Nova</span>

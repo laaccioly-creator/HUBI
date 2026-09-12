@@ -29,6 +29,7 @@ import {
   ShoppingCart,
   ShoppingBag,
   Package,
+  PackagePlus,
   Wrench,
   Users,
   DollarSign,
@@ -56,6 +57,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
@@ -161,6 +163,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalEstoqueMinimoAberto, setModalEstoqueMinimoAberto] = useState<boolean>(false); // TELA012
   const [modalPublicCardAberto, setModalPublicCardAberto] = useState<boolean>(false); // TELA009
   const [modalCriarComIAAberto, setModalCriarComIAAberto] = useState<boolean>(false); // Criar / Preencher com IA completo
+  const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false); // Entrada / Ajuste de Estoque
+  const [produtoEntradaAlvo, setProdutoEntradaAlvo] = useState<Produto | null>(null);
 
   // =========================================================================
   // ESTADOS DE BUSCA E VOZ (PESQUISA POR VOZ)
@@ -4039,6 +4043,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <Plus className="w-6 h-6" />
             </button>
           )}
+
+          {abaLista === 'estoque' && permissions.podeGerenciarEstoque && (
+            <button
+              type="button"
+              onClick={() => {
+                setProdutoEntradaAlvo(null);
+                setModalEntradaAberto(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-bold text-xs transition cursor-pointer shadow-2xs"
+              title="Entrada / Ajuste de Estoque"
+            >
+              <PackagePlus className="w-4 h-4 text-teal-600" />
+              <span>Entrada</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -4270,8 +4289,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </h2>
                 </div>
 
-                {/* Quantidade em Estoque com Alto Destaque Visual */}
-                <div className="text-right shrink-0">
+                {/* Quantidade em Estoque e Botão Entrada (igual ao Desktop) */}
+                <div className="flex items-center gap-2 shrink-0">
                   <span className={`font-black text-sm sm:text-base px-3 py-1.5 rounded-xl shadow-sm inline-block min-w-[3.2rem] text-center ${
                     isSemEstoque
                       ? 'bg-rose-50 text-rose-600 border border-rose-200'
@@ -4281,6 +4300,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   }`}>
                     {estoque}
                   </span>
+                  {permissions.podeGerenciarEstoque && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProdutoEntradaAlvo(p);
+                        setModalEntradaAberto(true);
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                      title="Dar entrada / ajustar estoque"
+                    >
+                      <PackagePlus className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Entrada</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -4426,6 +4460,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       <MobileMenuDrawer
         aberto={drawerMenuAberto}
         onFechar={() => setDrawerMenuAberto(false)}
+      />
+
+      {/* MODAL ENTRADA / AJUSTE DE ESTOQUE */}
+      <ModalEntradaEstoque
+        isOpen={modalEntradaAberto}
+        onClose={() => {
+          setModalEntradaAberto(false);
+          setProdutoEntradaAlvo(null);
+        }}
+        produto={produtoEntradaAlvo}
+        produtos={produtos}
+        onEstoqueAtualizado={onRecarregar}
       />
     </div>
   );

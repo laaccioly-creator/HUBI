@@ -45,7 +45,9 @@ import {
   Download,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -63,6 +65,8 @@ interface PosCheckoutMobileProps {
   formasPagamento: FormaPagamento[];
   pedidosConfirmadosCount: number;
   onAbrirFechamento: () => void;
+  onSalvarPedidoPendente?: () => void;
+  salvandoPendente?: boolean;
   onAbrirNovoCliente: () => void;
   onAbrirVariacoesModal: (produto: Produto) => void;
   isOnline?: boolean;
@@ -77,6 +81,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   clientes,
   pedidosConfirmadosCount,
   onAbrirFechamento,
+  onSalvarPedidoPendente,
+  salvandoPendente = false,
   onAbrirNovoCliente,
   onAbrirVariacoesModal,
   isOnline = true,
@@ -929,25 +935,43 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           </div>
         )}
 
-        {/* Barra Inferior com Botão de Cobrança */}
+        {/* Barra Inferior com Botões de Salvar Pedido (Pendente) & Cobrança */}
         <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
           <button
             type="button"
             onClick={() => setModalOpcoesCarrinho(true)}
-            className="w-12 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-lg cursor-pointer"
+            className="w-11 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-lg cursor-pointer shrink-0"
             title="Mais Opções"
           >
             ...
           </button>
 
+          {onSalvarPedidoPendente && (
+            <button
+              type="button"
+              disabled={itens.length === 0 || salvandoPendente}
+              onClick={onSalvarPedidoPendente}
+              className="flex-1 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95"
+              title="Salva o pedido como Pendente sem concluir pagamento"
+            >
+              {salvandoPendente ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              ) : (
+                <FileText className="w-4 h-4 text-emerald-600" />
+              )}
+              <span className="truncate">{pedidoEmEdicao ? 'Atualizar' : 'Salvar Pedido'}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => onAbrirFechamento()}
-            disabled={itens.length === 0}
-            className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm flex items-center justify-between px-4 shadow-md transition cursor-pointer disabled:opacity-50"
+            disabled={itens.length === 0 || salvandoPendente}
+            className="flex-[1.2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs flex items-center justify-between px-3 shadow-md transition cursor-pointer disabled:opacity-50 active:scale-95"
+            title="Avançar para pagamento e concluir venda"
           >
-            <span>{totalItens} {totalItens === 1 ? 'item' : 'itens'} = R$ {total.toFixed(2)}</span>
-            <ChevronRight className="w-5 h-5" />
+            <span className="truncate">{totalItens} {totalItens === 1 ? 'item' : 'itens'} • R$ {total.toFixed(2)}</span>
+            <ChevronRight className="w-4 h-4 shrink-0" />
           </button>
         </div>
 
@@ -1041,6 +1065,21 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <X className="w-4 h-4" />
                 </button>
               </div>
+
+              {onSalvarPedidoPendente && (
+                <button
+                  type="button"
+                  disabled={itens.length === 0 || salvandoPendente}
+                  onClick={() => {
+                    setModalOpcoesCarrinho(false);
+                    onSalvarPedidoPendente();
+                  }}
+                  className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold flex items-center gap-2 transition text-left cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  <span>{pedidoEmEdicao ? 'Atualizar Pedido (Pendente)' : 'Salvar Pedido como Pendente'}</span>
+                </button>
+              )}
 
               <button
                 type="button"

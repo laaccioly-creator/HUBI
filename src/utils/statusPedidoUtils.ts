@@ -105,11 +105,12 @@ export function obterOpcoesStatusAlteracao(
   statusAtual?: string,
   incluirConcluido: boolean = false
 ): { id: StatusPedido; label: string }[] {
-  // 1. Ciclo estrito para pedidos Pendentes: só pode evoluir para Confirmado ou Cancelado
+  // 1. Ciclo estrito para pedidos Pendentes: status atual é Pendente, e só pode evoluir para Confirmado ou Cancelado
   if (statusAtual === 'pendente') {
     return [
-      { id: 'confirmado', label: 'Confirmar Pedido' },
-      { id: 'cancelado', label: 'Cancelar Pedido' }
+      { id: 'pendente', label: 'Pendente' },
+      { id: 'confirmado', label: 'Confirmado' },
+      { id: 'cancelado', label: 'Cancelado' }
     ];
   }
 

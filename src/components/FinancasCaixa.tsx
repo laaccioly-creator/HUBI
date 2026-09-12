@@ -2528,22 +2528,28 @@ export const FinancasCaixa: React.FC = () => {
       {/* MODAL: LANÇAR NOVA DESPESA (DRE GERAL)                                    */}
         {/* ========================================================================= */}
         {modalNovaDespesa && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl my-8">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  {statusLancamento === 'pendente' ? (
-                    <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  ) : (
-                    <ArrowDownRight className="w-5 h-5 text-rose-400" />
-                  )}
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl my-8 text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold border ${
+                    statusLancamento === 'pendente'
+                      ? 'bg-amber-50 border-amber-200 text-amber-600'
+                      : 'bg-rose-50 border-rose-200 text-rose-600'
+                  }`}>
+                    {statusLancamento === 'pendente' ? (
+                      <AlertTriangle className="w-5 h-5" />
+                    ) : (
+                      <ArrowDownRight className="w-5 h-5" />
+                    )}
+                  </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-100">
+                    <h3 className="font-bold text-base text-slate-800">
                       {transacaoEditando
                         ? (statusLancamento === 'pendente' ? 'Editar Conta a Pagar' : 'Editar Despesa')
                         : (statusLancamento === 'pendente' ? 'Nova Conta a Pagar' : 'Lançar Nova Despesa (DRE)')}
                     </h3>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       {statusLancamento === 'pendente'
                         ? 'Programe contas ou despesas futuras a pagar'
                         : 'Lance despesas operacionais ou compras já pagas'}
@@ -2551,25 +2557,27 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setModalNovaDespesa(false);
                     setTransacaoEditando(null);
                   }}
-                  className="text-slate-400 hover:text-white cursor-pointer"
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* SELETOR DE TIPO: DESPESA PAGA vs CONTA A PAGAR */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setStatusLancamento('pago')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     statusLancamento === 'pago'
-                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <ArrowDownRight className="w-3.5 h-3.5" />
@@ -2580,8 +2588,8 @@ export const FinancasCaixa: React.FC = () => {
                   onClick={() => setStatusLancamento('pendente')}
                   className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     statusLancamento === 'pendente'
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <AlertTriangle className="w-3.5 h-3.5" />
@@ -2591,7 +2599,7 @@ export const FinancasCaixa: React.FC = () => {
 
               <form onSubmit={handleSalvarDespesaOuContaPagar} className="space-y-3.5">
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                  <label className="text-xs text-slate-600 font-bold block mb-1">
                     Descrição / Fornecedor / Título *
                   </label>
                   <input
@@ -2600,13 +2608,13 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder={statusLancamento === 'pendente' ? "Ex: Boleto Aluguel Março / Fornecedor Bebidas" : "Ex: Compra de Insumos / Limpeza / Fornecedor"}
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-medium"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-slate-300 font-semibold block mb-1">Valor (R$) *</label>
+                    <label className="text-xs text-slate-600 font-bold block mb-1">Valor (R$) *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -2614,16 +2622,16 @@ export const FinancasCaixa: React.FC = () => {
                       placeholder="Ex: 150.00"
                       value={valor}
                       onChange={(e) => setValor(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-300 font-semibold block mb-1">Categoria</label>
+                    <label className="text-xs text-slate-600 font-bold block mb-1">Categoria</label>
                     <select
                       value={categoria}
                       onChange={(e) => setCategoria(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500"
                     >
                       <option value="Fornecedor">Fornecedor / Insumos</option>
                       <option value="Aluguel">Aluguel / Ponto Comercial</option>
@@ -2638,13 +2646,13 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                  <label className="text-xs text-slate-600 font-bold block mb-1">
                     {statusLancamento === 'pendente' ? 'Forma Prevista de Pagamento' : 'Forma de Pagamento Utilizada *'}
                   </label>
                   <select
                     value={formaPagamentoDespesa}
                     onChange={(e) => setFormaPagamentoDespesa(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500"
                   >
                     <option value="dinheiro">Dinheiro (Gaveta do Caixa Ativo)</option>
                     <option value="pix">Pix</option>
@@ -2653,9 +2661,10 @@ export const FinancasCaixa: React.FC = () => {
                     <option value="transferencia">Transferência Bancária / Boleto</option>
                   </select>
                   {statusLancamento === 'pago' && formaPagamentoDespesa === 'dinheiro' && sessaoAtiva && (
-                    <span className="text-[10px] text-amber-400 block mt-1">
-                      ℹ️ Esta despesa será debitada automaticamente da gaveta física da sessão ativa ({sessaoAtiva.terminal_id}).
-                    </span>
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 mt-1.5 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Esta despesa será debitada da gaveta física da sessão ativa ({sessaoAtiva.terminal_id}).</span>
+                    </div>
                   )}
                   {statusLancamento === 'pendente' && (
                     <span className="text-[10px] text-slate-500 block mt-1">
@@ -2665,7 +2674,7 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                  <label className="text-xs text-slate-600 font-bold block mb-1">
                     {statusLancamento === 'pendente' ? 'Data de Vencimento *' : 'Data do Pagamento *'}
                   </label>
                   <input
@@ -2673,7 +2682,7 @@ export const FinancasCaixa: React.FC = () => {
                     required
                     value={dataVencimento}
                     onChange={(e) => setDataVencimento(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -2683,9 +2692,9 @@ export const FinancasCaixa: React.FC = () => {
                     id="chkRecorrente"
                     checked={ehRecorrente}
                     onChange={(e) => setEhRecorrente(e.target.checked)}
-                    className="rounded border-slate-700"
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <label htmlFor="chkRecorrente" className="text-xs text-slate-300 font-medium cursor-pointer">
+                  <label htmlFor="chkRecorrente" className="text-xs text-slate-700 font-medium cursor-pointer">
                     Despesa Fixa Recorrente (Repetir mensalmente)
                   </label>
                 </div>
@@ -2693,10 +2702,10 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvandoDespesa}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white ${
                     statusLancamento === 'pendente'
-                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20 font-black'
-                      : 'bg-rose-500 hover:bg-rose-400 text-white shadow-rose-500/25'
+                      ? 'bg-amber-500 hover:bg-amber-600'
+                      : 'bg-rose-600 hover:bg-rose-700'
                   }`}
                 >
                   {salvandoDespesa
@@ -2714,43 +2723,50 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: CONFIRMAR EXCLUSÃO DE LANÇAMENTO FINANCEIRO                        */}
         {/* ========================================================================= */}
         {modalConfirmarExclusao.aberta && modalConfirmarExclusao.transacao && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-rose-400 flex items-center gap-2">
-                  <Trash2 className="w-5 h-5" />
-                  <span>Confirmar Exclusão</span>
-                </h3>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Confirmar Exclusão</h3>
+                    <p className="text-[11px] text-slate-500">Exclusão irreversível de lançamento</p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false })}
-                  className="text-slate-400 hover:text-white cursor-pointer"
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
-                <span className="text-slate-400 block">Lançamento a ser excluído permanentemente:</span>
-                <p className="font-black text-sm text-slate-100">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
+                <span className="text-slate-500 block font-medium">Lançamento a ser excluído permanentemente:</span>
+                <p className="font-black text-sm text-slate-900">
                   {modalConfirmarExclusao.transacao.descricao}
                 </p>
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-slate-400">
-                  <span>Categoria: <strong className="text-slate-200">{modalConfirmarExclusao.transacao.categoria}</strong></span>
-                  <span className="text-sm font-black text-rose-400">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-slate-600">
+                  <span>Categoria: <strong className="text-slate-800">{modalConfirmarExclusao.transacao.categoria}</strong></span>
+                  <span className="text-sm font-black text-rose-600">
                     R$ {Number(modalConfirmarExclusao.transacao.valor || 0).toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed">
                 ⚠️ Esta ação não pode ser desfeita. O registro será removido das contas a pagar, DRE e dos relatórios financeiros.
-              </p>
+              </div>
 
               <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false })}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition"
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition"
                 >
                   Cancelar
                 </button>
@@ -2758,7 +2774,7 @@ export const FinancasCaixa: React.FC = () => {
                   type="button"
                   disabled={modalConfirmarExclusao.processando}
                   onClick={handleExcluirTransacao}
-                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/25 transition cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {modalConfirmarExclusao.processando ? 'Excluindo...' : 'Sim, Excluir'}
                 </button>
@@ -2771,29 +2787,36 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: BAIXAR / LIQUIDAR CONTA A PAGAR                                     */}
         {/* ========================================================================= */}
         {modalBaixarConta.aberta && modalBaixarConta.transacao && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-emerald-400 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>Baixar / Liquidar Conta a Pagar</span>
-                </h3>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Baixar / Liquidar Conta a Pagar</h3>
+                    <p className="text-[11px] text-slate-500">Confirmação de pagamento efetuado</p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setModalBaixarConta({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false })}
-                  className="text-slate-400 hover:text-white cursor-pointer"
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Título / Conta:</span>
-                    <strong className="text-slate-100 text-sm block font-bold">{modalBaixarConta.transacao.descricao}</strong>
+                    <span className="text-slate-500 text-[11px] block">Título / Conta:</span>
+                    <strong className="text-slate-900 text-sm block font-bold">{modalBaixarConta.transacao.descricao}</strong>
                     <span className="text-[10px] text-slate-500">{modalBaixarConta.transacao.categoria}</span>
                   </div>
-                  <span className="text-base font-black text-amber-400 shrink-0">
+                  <span className="text-base font-black text-amber-600 shrink-0">
                     R$ {Number(modalBaixarConta.transacao.valor || 0).toFixed(2)}
                   </span>
                 </div>
@@ -2801,13 +2824,13 @@ export const FinancasCaixa: React.FC = () => {
 
               <form onSubmit={handleLiquidarContaPagar} className="space-y-3.5">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Forma de Pagamento Efetiva *
                   </label>
                   <select
                     value={modalBaixarConta.formaPagamento}
                     onChange={(e) => setModalBaixarConta(prev => ({ ...prev, formaPagamento: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500"
                   >
                     <option value="dinheiro">Dinheiro (Gaveta do Caixa Ativo)</option>
                     <option value="pix">Pix Bancário</option>
@@ -2816,14 +2839,15 @@ export const FinancasCaixa: React.FC = () => {
                     <option value="transferencia">Transferência Bancária / Boleto</option>
                   </select>
                   {modalBaixarConta.formaPagamento === 'dinheiro' && sessaoAtiva && (
-                    <span className="text-[10px] text-amber-400 block mt-1">
-                      ℹ️ O valor será debitado automaticamente da gaveta do caixa atual ({sessaoAtiva.terminal_id}).
-                    </span>
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 mt-1.5 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>O valor será debitado automaticamente da gaveta do caixa atual ({sessaoAtiva.terminal_id}).</span>
+                    </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Data do Pagamento *
                   </label>
                   <input
@@ -2831,7 +2855,7 @@ export const FinancasCaixa: React.FC = () => {
                     required
                     value={modalBaixarConta.dataPagamento}
                     onChange={(e) => setModalBaixarConta(prev => ({ ...prev, dataPagamento: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -2839,14 +2863,14 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalBaixarConta({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false })}
-                    className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition"
+                    className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={modalBaixarConta.processando}
-                    className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50"
+                    className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
                   >
                     {modalBaixarConta.processando ? 'Processando...' : 'Confirmar Pagamento'}
                   </button>
@@ -2860,35 +2884,45 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: ABERTURA DE SESSÃO DE CAIXA (BLOQUEIO DE CONCORRÊNCIA)              */}
         {/* ========================================================================= */}
         {modalAberturaCaixa && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                  <Unlock className="w-5 h-5 text-emerald-400" />
-                  <span>Abertura de Caixa</span>
-                </h3>
-                <button onClick={() => setModalAberturaCaixa(false)} className="text-slate-400 hover:text-white">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
+                    <Unlock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Abertura de Caixa</h3>
+                    <p className="text-[11px] text-slate-500">Início de turno e fundo de troco</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalAberturaCaixa(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleAbrirSessao} className="space-y-4">
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1.5 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Terminal de Caixa:</span>
-                    <strong className="text-slate-200 uppercase">{terminalId}</strong>
+                    <span className="text-slate-500">Terminal de Caixa:</span>
+                    <strong className="text-slate-800 uppercase">{terminalId}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Operador:</span>
-                    <strong className="text-slate-200">{usuario?.nome_completo || 'Operador'}</strong>
+                    <span className="text-slate-500">Operador:</span>
+                    <strong className="text-slate-800">{usuario?.nome_completo || 'Operador'}</strong>
                   </div>
-                  <p className="text-[10px] text-slate-500 pt-1 border-t border-slate-800">
+                  <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-200">
                     🔒 O sistema valida a concorrência e impede a abertura simultânea de mais de uma sessão ativa neste terminal.
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Fundo de Troco Inicial em Dinheiro (R$):
                   </label>
                   <input
@@ -2898,9 +2932,9 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: 100.00"
                     value={fundoTroco}
                     onChange={(e) => setFundoTroco(e.target.value)}
-                    className="w-full bg-slate-800 border border-emerald-500 rounded-xl px-4 py-3 text-lg font-black text-emerald-400 text-center focus:outline-none"
+                    className="w-full bg-emerald-50/50 border-2 border-emerald-500 rounded-xl px-4 py-3 text-2xl font-black text-emerald-700 text-center focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 block text-center mt-1">
+                  <span className="text-[10px] text-slate-400 block text-center mt-1">
                     Valor físico inicial em cédulas e moedas na gaveta
                   </span>
                 </div>
@@ -2908,7 +2942,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={abrindoCaixa}
-                  className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {abrindoCaixa ? 'Abrindo Sessão...' : 'Confirmar Abertura de Caixa'}
                 </button>
@@ -2921,21 +2955,31 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: SUPRIMENTO (TROCO EXTRA - JUSTIFICATIVA OBRIGATÓRIA)                */}
         {/* ========================================================================= */}
         {modalSuprimento && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                  <ArrowDown className="w-5 h-5 text-emerald-400" />
-                  <span>Suprimento de Caixa (Troco Extra)</span>
-                </h3>
-                <button onClick={() => setModalSuprimento(false)} className="text-slate-400 hover:text-white">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
+                    <ArrowDown className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Suprimento de Caixa (Troco Extra)</h3>
+                    <p className="text-[11px] text-slate-500">Entrada física de troco na gaveta</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalSuprimento(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleRegistrarSuprimento} className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Valor a Adicionar na Gaveta (R$) *
                   </label>
                   <input
@@ -2945,12 +2989,12 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: 50.00"
                     value={valorSuprimento}
                     onChange={(e) => setValorSuprimento(e.target.value)}
-                    className="w-full bg-slate-800 border border-emerald-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 text-center"
+                    className="w-full bg-emerald-50/50 border-2 border-emerald-500 rounded-xl px-4 py-2.5 text-xl font-black text-emerald-700 text-center focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Justificativa / Motivo da Entrada *
                   </label>
                   <input
@@ -2959,14 +3003,14 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: Inserção de moedas para troco matutino"
                     value={motivoSuprimento}
                     onChange={(e) => setMotivoSuprimento(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={processandoSuprimento}
-                  className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoSuprimento ? 'Registrando...' : 'Confirmar Suprimento'}
                 </button>
@@ -2979,21 +3023,31 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: SANGRIA (RETIRADA PARA COFRE - JUSTIFICATIVA OBRIGATÓRIA)           */}
         {/* ========================================================================= */}
         {modalSangria && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                  <ArrowUp className="w-5 h-5 text-rose-400" />
-                  <span>Sangria de Caixa (Retirada de Dinheiro)</span>
-                </h3>
-                <button onClick={() => setModalSangria(false)} className="text-slate-400 hover:text-white">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold">
+                    <ArrowUp className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Sangria de Caixa (Retirada de Dinheiro)</h3>
+                    <p className="text-[11px] text-slate-500">Recolhimento de dinheiro da gaveta para o cofre</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalSangria(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleRegistrarSangria} className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Valor a Retirar da Gaveta (R$) *
                   </label>
                   <input
@@ -3003,12 +3057,12 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: 500.00"
                     value={valorSangria}
                     onChange={(e) => setValorSangria(e.target.value)}
-                    className="w-full bg-slate-800 border border-rose-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-rose-400 text-center"
+                    className="w-full bg-rose-50/50 border-2 border-rose-500 rounded-xl px-4 py-2.5 text-xl font-black text-rose-700 text-center focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Justificativa Obrigatória (Destino do Valor) *
                   </label>
                   <input
@@ -3017,14 +3071,14 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: Recolhimento para o cofre / Depósito bancário"
                     value={motivoSangria}
                     onChange={(e) => setMotivoSangria(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-rose-500"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={processandoSangria}
-                  className="w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoSangria ? 'Processando...' : 'Confirmar Sangria'}
                 </button>
@@ -3037,25 +3091,35 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: DESPESA RÁPIDA DE GAVETA (PAGA EM DINHEIRO FÍSICO)                  */}
         {/* ========================================================================= */}
         {modalDespesaRapida && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                  <Banknote className="w-5 h-5 text-amber-400" />
-                  <span>Despesa Operacional de Gaveta</span>
-                </h3>
-                <button onClick={() => setModalDespesaRapida(false)} className="text-slate-400 hover:text-white">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-bold">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Despesa Operacional de Gaveta</h3>
+                    <p className="text-[11px] text-slate-500">Saída imediata de dinheiro da gaveta</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalDespesaRapida(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleRegistrarDespesaRapida} className="space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl text-xs text-amber-300">
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-xs text-amber-800 leading-relaxed">
                   ⚠️ O valor informado será debitado imediatamente do dinheiro físico da gaveta do caixa atual.
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Valor Pago em Dinheiro (R$) *
                   </label>
                   <input
@@ -3065,16 +3129,16 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: 25.00"
                     value={valorDespesaRapida}
                     onChange={(e) => setValorDespesaRapida(e.target.value)}
-                    className="w-full bg-slate-800 border border-amber-500/60 rounded-xl px-4 py-2.5 text-base font-bold text-amber-400 text-center"
+                    className="w-full bg-amber-50/50 border-2 border-amber-500 rounded-xl px-4 py-2.5 text-xl font-black text-amber-700 text-center focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Categoria</label>
+                  <label className="text-xs font-bold text-slate-600 block mb-1">Categoria</label>
                   <select
                     value={categoriaDespesaRapida}
                     onChange={(e) => setCategoriaDespesaRapida(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-amber-500"
                   >
                     <option value="Despesas Operacionais">Despesas Operacionais</option>
                     <option value="Alimentação Funcionários">Alimentação / Lanche</option>
@@ -3086,7 +3150,7 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Descrição / Justificativa do Gasto *
                   </label>
                   <input
@@ -3095,14 +3159,14 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: Compra de saco de gelo emergencial"
                     value={descricaoDespesaRapida}
                     onChange={(e) => setDescricaoDespesaRapida(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={processandoDespesaRapida}
-                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoDespesaRapida ? 'Lançando...' : 'Confirmar Saída da Gaveta'}
                 </button>
@@ -3114,28 +3178,38 @@ export const FinancasCaixa: React.FC = () => {
         {/* ========================================================================= */}
         {/* MODAL: FECHAMENTO CEGO DE CAIXA (CONFERÊNCIA CEGA SEM VALOR ESPERADO)     */}
         {/* ========================================================================= */}
+        {/* ========================================================================= */}
+        {/* MODAL: FECHAMENTO CEGO DE CAIXA (CONFERÊNCIA CEGA SEM VALOR ESPERADO)     */}
+        {/* ========================================================================= */}
         {modalFechamentoCego && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl my-8">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                    <Lock className="w-5 h-5 text-amber-400" />
-                    <span>Fechamento Cego de Caixa</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Terminal: <strong className="text-slate-200">{sessaoAtiva?.terminal_id}</strong>
-                  </p>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl my-8 text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-bold">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">Fechamento Cego de Caixa</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Terminal: <strong className="text-slate-800">{sessaoAtiva?.terminal_id}</strong>
+                    </p>
+                  </div>
                 </div>
-                <button onClick={() => setModalFechamentoCego(false)} className="text-slate-400 hover:text-white">
+                <button
+                  type="button"
+                  onClick={() => setModalFechamentoCego(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleFecharSessaoCega} className="space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-300 space-y-1">
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 space-y-1">
                   <span className="font-bold block">🔒 Procedimento de Conferência Cega:</span>
-                  <p className="text-[11px] leading-relaxed text-amber-200/80">
+                  <p className="text-[11px] leading-relaxed text-amber-800">
                     Digite os valores físicos apurados em cada meio de pagamento. Os saldos teóricos calculados pelo sistema
                     <strong> NÃO são exibidos nesta tela</strong> para garantir a integridade da conferência. O sistema confrontará
                     as divergências (Sobra/Falta) imediatamente após o envio.
@@ -3143,7 +3217,7 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-200 block mb-1">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
                     Dinheiro Físico Contado na Gaveta (R$) *
                   </label>
                   <input
@@ -3153,65 +3227,65 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="0.00"
                     value={contagemDinheiro}
                     onChange={(e) => setContagemDinheiro(e.target.value)}
-                    className="w-full bg-slate-800 border-2 border-amber-500 rounded-2xl px-4 py-3 text-xl font-black text-amber-400 text-center focus:outline-none"
+                    className="w-full bg-amber-50/50 border-2 border-amber-500 rounded-2xl px-4 py-3 text-2xl font-black text-amber-700 text-center focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-400 block text-center mt-1">
                     Soma de todas as cédulas e moedas físicas presentes na gaveta
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
                   <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1">Pix Apurado (R$)</label>
+                    <label className="text-xs font-bold text-slate-600 block mb-1">Pix Apurado (R$)</label>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="0.00 (Opcional)"
                       value={contagemPix}
                       onChange={(e) => setContagemPix(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium text-center focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1">Cartão Débito (R$)</label>
+                    <label className="text-xs font-bold text-slate-600 block mb-1">Cartão Débito (R$)</label>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="0.00 (Opcional)"
                       value={contagemDebito}
                       onChange={(e) => setContagemDebito(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium text-center focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1">Cartão Crédito (R$)</label>
+                    <label className="text-xs font-bold text-slate-600 block mb-1">Cartão Crédito (R$)</label>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="0.00 (Opcional)"
                       value={contagemCredito}
                       onChange={(e) => setContagemCredito(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium text-center focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1">Outros Meios (R$)</label>
+                    <label className="text-xs font-bold text-slate-600 block mb-1">Outros Meios (R$)</label>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="0.00 (Opcional)"
                       value={contagemOutros}
                       onChange={(e) => setContagemOutros(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 text-center"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium text-center focus:outline-none focus:border-amber-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
                     Observações / Justificativas do Fechamento:
                   </label>
                   <textarea
@@ -3219,14 +3293,14 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="Ex: Sangria realizada para o cofre; divergência justificada por troco incorreto."
                     value={observacaoFechamento}
                     onChange={(e) => setObservacaoFechamento(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none resize-none"
+                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-800 font-medium focus:outline-none focus:border-amber-500 resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={processandoFechamento}
-                  className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/25 transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoFechamento ? 'Apurando e Encerrando...' : 'Concluir Fechamento Cego'}
                 </button>
@@ -3239,23 +3313,25 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: RELATÓRIO OFICIAL DE FECHAMENTO (APÓS CONFERÊNCIA CEGA)             */}
         {/* ========================================================================= */}
         {modalRelatorioFechamento && relatorioFechamentoResumo && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8 animate-in zoom-in-95">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8 text-slate-800 animate-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold flex items-center justify-center">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-100">Relatório Oficial de Fechamento de Caixa</h3>
-                    <p className="text-xs text-slate-400">
-                      Terminal: <strong className="text-slate-200">{relatorioFechamentoResumo.sessao.terminal_id}</strong> • Duração: <strong className="text-slate-200">{relatorioFechamentoResumo.duracaoTexto}</strong>
+                    <h3 className="font-bold text-base text-slate-800">Relatório Oficial de Fechamento de Caixa</h3>
+                    <p className="text-xs text-slate-500">
+                      Terminal: <strong className="text-slate-800">{relatorioFechamentoResumo.sessao.terminal_id}</strong> • Duração: <strong className="text-slate-800">{relatorioFechamentoResumo.duracaoTexto}</strong>
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setModalRelatorioFechamento(false)}
-                  className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3270,10 +3346,10 @@ export const FinancasCaixa: React.FC = () => {
                   <div
                     className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
                       isExato
-                        ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                         : isSobra
-                        ? 'bg-cyan-950/30 border-cyan-500/40 text-cyan-300'
-                        : 'bg-rose-950/30 border-rose-500/40 text-rose-300'
+                        ? 'bg-cyan-50 border-cyan-200 text-cyan-900'
+                        : 'bg-rose-50 border-rose-200 text-rose-900'
                     }`}
                   >
                     <div>
@@ -3297,67 +3373,67 @@ export const FinancasCaixa: React.FC = () => {
 
               {/* CARDS DE RESUMO DO FECHAMENTO */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-                  <span className="text-[11px] text-slate-400 font-semibold block">Total Faturado (Vendas)</span>
-                  <span className="text-lg font-black text-emerald-400 block">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[11px] text-slate-500 font-bold block">Total Faturado (Vendas)</span>
+                  <span className="text-lg font-black text-emerald-600 block">
                     R$ {relatorioFechamentoResumo.faturamentoTotalVendas.toFixed(2)}
                   </span>
                 </div>
 
-                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-                  <span className="text-[11px] text-slate-400 font-semibold block">Esperado em Dinheiro</span>
-                  <span className="text-lg font-black text-slate-100 block">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[11px] text-slate-500 font-bold block">Esperado em Dinheiro</span>
+                  <span className="text-lg font-black text-slate-900 block">
                     R$ {relatorioFechamentoResumo.saldoEsperadoDinheiro.toFixed(2)}
                   </span>
-                  <span className="text-[10px] text-slate-500">Fundo + Vendas - Saídas</span>
+                  <span className="text-[10px] text-slate-400">Fundo + Vendas - Saídas</span>
                 </div>
 
-                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
-                  <span className="text-[11px] text-slate-400 font-semibold block">Contado pelo Operador</span>
-                  <span className="text-lg font-black text-amber-400 block">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[11px] text-slate-500 font-bold block">Contado pelo Operador</span>
+                  <span className="text-lg font-black text-amber-600 block">
                     R$ {Number(relatorioFechamentoResumo.sessao.saldo_declarado_dinheiro ?? relatorioFechamentoResumo.sessao.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                   </span>
-                  <span className="text-[10px] text-slate-500">Valor físico declarado</span>
+                  <span className="text-[10px] text-slate-400">Valor físico declarado</span>
                 </div>
               </div>
 
               {/* TABELA DE VENDAS POR MEIO DE PAGAMENTO */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-300 block">Apuração por Meio de Pagamento:</span>
-                <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden text-xs">
+                <span className="text-xs font-bold text-slate-700 block">Apuração por Meio de Pagamento:</span>
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden text-xs shadow-2xs">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[11px] uppercase font-semibold">
+                    <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 text-[11px] uppercase font-bold">
                       <tr>
                         <th className="p-2.5">Forma</th>
                         <th className="p-2.5 text-center">Vendas</th>
                         <th className="p-2.5 text-right">Calculado Sistema</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      <tr>
-                        <td className="p-2.5 font-medium text-slate-200">Dinheiro</td>
-                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.dinheiro}</td>
-                        <td className="p-2.5 text-right font-bold text-slate-100">R$ {relatorioFechamentoResumo.totaisPorMetodo.dinheiro.toFixed(2)}</td>
+                    <tbody className="divide-y divide-slate-100">
+                      <tr className="hover:bg-slate-50/75">
+                        <td className="p-2.5 font-medium text-slate-800">Dinheiro</td>
+                        <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.dinheiro}</td>
+                        <td className="p-2.5 text-right font-bold text-emerald-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.dinheiro.toFixed(2)}</td>
                       </tr>
-                      <tr>
-                        <td className="p-2.5 font-medium text-slate-200">Pix</td>
-                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.pix}</td>
-                        <td className="p-2.5 text-right font-bold text-cyan-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.pix.toFixed(2)}</td>
+                      <tr className="hover:bg-slate-50/75">
+                        <td className="p-2.5 font-medium text-slate-800">Pix</td>
+                        <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.pix}</td>
+                        <td className="p-2.5 text-right font-bold text-cyan-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.pix.toFixed(2)}</td>
                       </tr>
-                      <tr>
-                        <td className="p-2.5 font-medium text-slate-200">Cartão de Débito</td>
-                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_debito}</td>
-                        <td className="p-2.5 text-right font-bold text-blue-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_debito.toFixed(2)}</td>
+                      <tr className="hover:bg-slate-50/75">
+                        <td className="p-2.5 font-medium text-slate-800">Cartão de Débito</td>
+                        <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_debito}</td>
+                        <td className="p-2.5 text-right font-bold text-blue-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_debito.toFixed(2)}</td>
                       </tr>
-                      <tr>
-                        <td className="p-2.5 font-medium text-slate-200">Cartão de Crédito</td>
-                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_credito}</td>
-                        <td className="p-2.5 text-right font-bold text-purple-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_credito.toFixed(2)}</td>
+                      <tr className="hover:bg-slate-50/75">
+                        <td className="p-2.5 font-medium text-slate-800">Cartão de Crédito</td>
+                        <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_credito}</td>
+                        <td className="p-2.5 text-right font-bold text-purple-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_credito.toFixed(2)}</td>
                       </tr>
-                      <tr>
-                        <td className="p-2.5 font-medium text-slate-200">Outros</td>
-                        <td className="p-2.5 text-center text-slate-400">{relatorioFechamentoResumo.qtdVendasPorMetodo.outros}</td>
-                        <td className="p-2.5 text-right font-bold text-amber-400">R$ {relatorioFechamentoResumo.totaisPorMetodo.outros.toFixed(2)}</td>
+                      <tr className="hover:bg-slate-50/75">
+                        <td className="p-2.5 font-medium text-slate-800">Outros</td>
+                        <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.outros}</td>
+                        <td className="p-2.5 text-right font-bold text-amber-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.outros.toFixed(2)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -3365,21 +3441,21 @@ export const FinancasCaixa: React.FC = () => {
               </div>
 
               {/* AÇÕES DE COMPARTILHAMENTO E IMPRESSÃO */}
-              <div className="flex items-center justify-between gap-2 pt-2 flex-wrap border-t border-slate-800">
+              <div className="flex items-center justify-between gap-2 pt-2 flex-wrap border-t border-slate-100">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleCopiarRelatorioTexto(relatorioFechamentoTexto)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-slate-200"
                   >
-                    <Copy className="w-4 h-4 text-slate-400" />
+                    <Copy className="w-4 h-4 text-slate-500" />
                     <span>{copiadoRelatorio ? 'Copiado!' : 'Copiar Texto'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleEnviarWhatsappRelatorioTexto(relatorioFechamentoTexto)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                   >
                     <Share2 className="w-4 h-4" />
                     <span>WhatsApp</span>
@@ -3390,7 +3466,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleImprimirRelatorioTexto(relatorioFechamentoResumo)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-600/20"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs"
                   >
                     <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
@@ -3399,7 +3475,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalRelatorioFechamento(false)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
                   >
                     Fechar
                   </button>
@@ -3413,19 +3489,28 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: DRILL-DOWN / AUDITORIA DE SESSÃO PASSADA                            */}
         {/* ========================================================================= */}
         {modalDrillDown && sessaoDrillDown && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl p-6 space-y-5 shadow-2xl my-8">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                    <Search className="w-5 h-5 text-indigo-400" />
-                    <span>Auditoria de Sessão (Drill-Down) • Terminal {sessaoDrillDown.terminal_id}</span>
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    ID da Sessão: <span className="font-mono text-slate-300">{sessaoDrillDown.id}</span>
-                  </p>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl p-6 space-y-5 shadow-2xl my-8 text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center font-bold">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800">
+                      Auditoria de Sessão (Drill-Down) • Terminal {sessaoDrillDown.terminal_id}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      ID da Sessão: <span className="font-mono text-slate-700 font-semibold">{sessaoDrillDown.id}</span>
+                    </p>
+                  </div>
                 </div>
-                <button onClick={() => setModalDrillDown(false)} className="text-slate-400 hover:text-white">
+                <button
+                  type="button"
+                  onClick={() => setModalDrillDown(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -3435,51 +3520,51 @@ export const FinancasCaixa: React.FC = () => {
               ) : resumoDrillDown ? (
                 <div className="space-y-4">
                   {/* METADADOS DA SESSÃO */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-500 block">Abertura</span>
-                      <span className="font-semibold text-slate-200">{new Date(sessaoDrillDown.aberto_em).toLocaleString('pt-BR')}</span>
+                      <span className="text-[10px] text-slate-500 block font-medium">Abertura</span>
+                      <span className="font-semibold text-slate-800">{new Date(sessaoDrillDown.aberto_em).toLocaleString('pt-BR')}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500 block">Fechamento</span>
-                      <span className="font-semibold text-slate-200">
+                      <span className="text-[10px] text-slate-500 block font-medium">Fechamento</span>
+                      <span className="font-semibold text-slate-800">
                         {sessaoDrillDown.fechado_em ? new Date(sessaoDrillDown.fechado_em).toLocaleString('pt-BR') : 'Em Aberto'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500 block">Duração Total</span>
-                      <span className="font-semibold text-emerald-400">{resumoDrillDown.duracaoTexto}</span>
+                      <span className="text-[10px] text-slate-500 block font-medium">Duração Total</span>
+                      <span className="font-semibold text-emerald-700">{resumoDrillDown.duracaoTexto}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500 block">Operador Fechamento</span>
-                      <span className="font-semibold text-slate-200">{sessaoDrillDown.usuario_fechamento?.nome_completo || '—'}</span>
+                      <span className="text-[10px] text-slate-500 block font-medium">Operador Fechamento</span>
+                      <span className="font-semibold text-slate-800">{sessaoDrillDown.usuario_fechamento?.nome_completo || '—'}</span>
                     </div>
                   </div>
 
                   {/* CARDS COMPARATIVOS */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
-                      <span className="text-[10px] text-slate-500 block">Total Faturado</span>
-                      <span className="font-black text-sm text-emerald-400">R$ {resumoDrillDown.faturamentoTotalVendas.toFixed(2)}</span>
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block font-medium">Total Faturado</span>
+                      <span className="font-black text-sm text-emerald-600">R$ {resumoDrillDown.faturamentoTotalVendas.toFixed(2)}</span>
                     </div>
-                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
-                      <span className="text-[10px] text-slate-500 block">Esperado Dinheiro</span>
-                      <span className="font-black text-sm text-slate-200">R$ {resumoDrillDown.saldoEsperadoDinheiro.toFixed(2)}</span>
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block font-medium">Esperado Dinheiro</span>
+                      <span className="font-black text-sm text-slate-800">R$ {resumoDrillDown.saldoEsperadoDinheiro.toFixed(2)}</span>
                     </div>
-                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
-                      <span className="text-[10px] text-slate-500 block">Declarado Físico</span>
-                      <span className="font-black text-sm text-amber-400">
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block font-medium">Declarado Físico</span>
+                      <span className="font-black text-sm text-amber-600">
                         R$ {Number(sessaoDrillDown.saldo_declarado_dinheiro ?? sessaoDrillDown.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                       </span>
                     </div>
-                    <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
-                      <span className="text-[10px] text-slate-500 block">Diferença Final</span>
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[10px] text-slate-500 block font-medium">Diferença Final</span>
                       <span className={`font-black text-sm ${
                         Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
-                          ? 'text-emerald-400'
+                          ? 'text-emerald-600'
                           : Number(sessaoDrillDown.diferenca_dinheiro || 0) > 0
-                          ? 'text-cyan-400'
-                          : 'text-rose-400'
+                          ? 'text-cyan-600'
+                          : 'text-rose-600'
                       }`}>
                         {Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
                           ? 'R$ 0,00'
@@ -3490,20 +3575,20 @@ export const FinancasCaixa: React.FC = () => {
 
                   {/* TABELA DE MOVIMENTAÇÕES AUDITADAS */}
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-300 block">
+                    <span className="text-xs font-bold text-slate-700 block">
                       Extrato Completo de Movimentações ({resumoDrillDown.sessao.movimentacoes?.length || 0}):
                     </span>
                     <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                       {!resumoDrillDown.sessao.movimentacoes || resumoDrillDown.sessao.movimentacoes.length === 0 ? (
-                        <p className="text-xs text-slate-500 text-center py-4">Nenhuma movimentação detalhada.</p>
+                        <p className="text-xs text-slate-400 text-center py-4">Nenhuma movimentação detalhada.</p>
                       ) : (
                         resumoDrillDown.sessao.movimentacoes.map(m => (
                           <div
                             key={m.id}
-                            className="p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 flex justify-between items-center text-xs"
+                            className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs"
                           >
                             <div>
-                              <span className="font-bold text-slate-200 block">{m.descricao}</span>
+                              <span className="font-bold text-slate-800 block">{m.descricao}</span>
                               <div className="flex items-center gap-2 text-[10px] text-slate-500">
                                 <span className="uppercase font-semibold">{m.tipo}</span>
                                 <span>•</span>
@@ -3513,7 +3598,7 @@ export const FinancasCaixa: React.FC = () => {
                               </div>
                             </div>
                             <span className={`font-bold ${
-                              m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? 'text-rose-400' : 'text-emerald-400'
+                              m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? 'text-rose-600' : 'text-emerald-600'
                             }`}>
                               {m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? '-' : '+'} R$ {Number(m.valor).toFixed(2)}
                             </span>
@@ -3525,7 +3610,7 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
               ) : null}
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                 {sessaoDrillDown.fechado_em ? (
                   <button
                     type="button"
@@ -3534,7 +3619,7 @@ export const FinancasCaixa: React.FC = () => {
                         PrintService.printFechamentoCaixa({ ...resumoDrillDown, sessao: sessaoDrillDown }, loja);
                       }
                     }}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs"
                   >
                     <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
@@ -3543,7 +3628,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalDrillDown(false)}
-                  className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer ml-auto"
+                  className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer ml-auto"
                 >
                   Fechar Auditoria
                 </button>
@@ -3556,100 +3641,105 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: RELATÓRIO CONSOLIDADO DE MEIOS DE PAGAMENTO (CONCILIAÇÃO BANCÁRIA)  */}
         {/* ========================================================================= */}
         {modalRelatorioConsolidado && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-8 text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 font-bold flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 font-bold flex items-center justify-center">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-100">Relatório Consolidado de Meios de Pagamento</h3>
-                    <p className="text-xs text-slate-400">Conciliação com Extratos Bancários e Maquininhas</p>
+                    <h3 className="font-bold text-base text-slate-800">Relatório Consolidado de Meios de Pagamento</h3>
+                    <p className="text-xs text-slate-500">Conciliação com Extratos Bancários e Maquininhas</p>
                   </div>
                 </div>
-                <button onClick={() => setModalRelatorioConsolidado(false)} className="text-slate-400 hover:text-white">
+                <button
+                  type="button"
+                  onClick={() => setModalRelatorioConsolidado(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* SELEÇÃO DO PERÍODO */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Data Início</label>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Data Início</label>
                   <input
                     type="date"
                     value={periodoRelatorioInicio}
                     onChange={(e) => setPeriodoRelatorioInicio(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Data Fim</label>
+                  <label className="text-xs text-slate-600 font-bold block mb-1">Data Fim</label>
                   <input
                     type="date"
                     value={periodoRelatorioFim}
                     onChange={(e) => setPeriodoRelatorioFim(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
               {/* CARDS COM TOTAIS CONSOLIDADOS */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                  <span className="text-xs text-slate-400 font-semibold block">Dinheiro Físico</span>
-                  <span className="text-base font-black text-emerald-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-bold block">Dinheiro Físico</span>
+                  <span className="text-base font-black text-emerald-600 block">
                     R$ {dadosRelatorioConsolidado.dinheiro.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                  <span className="text-xs text-slate-400 font-semibold block">Pix Bancário</span>
-                  <span className="text-base font-black text-cyan-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-bold block">Pix Bancário</span>
+                  <span className="text-base font-black text-cyan-700 block">
                     R$ {dadosRelatorioConsolidado.pix.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                  <span className="text-xs text-slate-400 font-semibold block">Cartão Débito</span>
-                  <span className="text-base font-black text-blue-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-bold block">Cartão Débito</span>
+                  <span className="text-base font-black text-blue-700 block">
                     R$ {dadosRelatorioConsolidado.debito.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                  <span className="text-xs text-slate-400 font-semibold block">Cartão Crédito</span>
-                  <span className="text-base font-black text-purple-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-bold block">Cartão Crédito</span>
+                  <span className="text-base font-black text-purple-700 block">
                     R$ {dadosRelatorioConsolidado.credito.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-                  <span className="text-xs text-slate-400 font-semibold block">Outros / Convênio</span>
-                  <span className="text-base font-black text-amber-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-bold block">Outros / Convênio</span>
+                  <span className="text-base font-black text-amber-700 block">
                     R$ {dadosRelatorioConsolidado.outros.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-emerald-950/30 p-3.5 rounded-2xl border border-emerald-500/40 space-y-1">
-                  <span className="text-xs text-emerald-400 font-semibold block">Total Consolidado</span>
-                  <span className="text-lg font-black text-emerald-300 block">
+                <div className="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 space-y-1">
+                  <span className="text-xs text-emerald-800 font-bold block">Total Consolidado</span>
+                  <span className="text-lg font-black text-emerald-700 block">
                     R$ {dadosRelatorioConsolidado.totalBruto.toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
                     const texto = `RELATÓRIO CONSOLIDADO DE MEIOS DE PAGAMENTO\nPeríodo: ${periodoRelatorioInicio} até ${periodoRelatorioFim}\n\nDinheiro: R$ ${dadosRelatorioConsolidado.dinheiro.toFixed(2)}\nPix: R$ ${dadosRelatorioConsolidado.pix.toFixed(2)}\nCartão Débito: R$ ${dadosRelatorioConsolidado.debito.toFixed(2)}\nCartão Crédito: R$ ${dadosRelatorioConsolidado.credito.toFixed(2)}\nOutros: R$ ${dadosRelatorioConsolidado.outros.toFixed(2)}\n\nTOTAL FATURADO: R$ ${dadosRelatorioConsolidado.totalBruto.toFixed(2)}`;
                     handleCopiarRelatorioTexto(texto);
                   }}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 cursor-pointer"
                 >
                   Copiar Relatório
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalRelatorioConsolidado(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Fechar
                 </button>
@@ -3662,40 +3752,45 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: RELATÓRIO DE SANGRIAS E DESPESAS DE GAVETA                          */}
         {/* ========================================================================= */}
         {modalRelatorioSangriasDespesas && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl p-6 space-y-5 shadow-2xl my-8">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl p-6 space-y-5 shadow-2xl my-8 text-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-rose-500/15 text-rose-400 font-bold flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 font-bold flex items-center justify-center">
                     <SlidersHorizontal className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-100">Relatório de Sangrias & Despesas de Gaveta</h3>
-                    <p className="text-xs text-slate-400">Auditoria de saídas e retiradas operacionais</p>
+                    <h3 className="font-bold text-base text-slate-800">Relatório de Sangrias & Despesas de Gaveta</h3>
+                    <p className="text-xs text-slate-500">Auditoria de saídas e retiradas operacionais</p>
                   </div>
                 </div>
-                <button onClick={() => setModalRelatorioSangriasDespesas(false)} className="text-slate-400 hover:text-white">
+                <button
+                  type="button"
+                  onClick={() => setModalRelatorioSangriasDespesas(false)}
+                  className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                  title="Fechar"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* PERÍODO E TOTAIS */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block">Total de Sangrias (Cofre)</span>
-                  <span className="text-lg font-black text-rose-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-[11px] text-slate-500 font-bold block">Total de Sangrias (Cofre)</span>
+                  <span className="text-lg font-black text-rose-600 block">
                     R$ {dadosRelatorioSangriasDespesas.totalSangrias.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block">Total Despesas da Gaveta</span>
-                  <span className="text-lg font-black text-amber-400 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-[11px] text-slate-500 font-bold block">Total Despesas da Gaveta</span>
+                  <span className="text-lg font-black text-amber-600 block">
                     R$ {dadosRelatorioSangriasDespesas.totalDespesas.toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block">Total Geral de Saídas</span>
-                  <span className="text-lg font-black text-slate-100 block">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-[11px] text-slate-500 font-bold block">Total Geral de Saídas</span>
+                  <span className="text-lg font-black text-slate-900 block">
                     R$ {dadosRelatorioSangriasDespesas.totalGeral.toFixed(2)}
                   </span>
                 </div>
@@ -3703,30 +3798,30 @@ export const FinancasCaixa: React.FC = () => {
 
               {/* TABELA DE REGISTROS */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-300 block">
+                <span className="text-xs font-bold text-slate-700 block">
                   Lançamentos de Saída ({dadosRelatorioSangriasDespesas.itens.length}):
                 </span>
                 <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                   {dadosRelatorioSangriasDespesas.itens.length === 0 ? (
-                    <p className="text-xs text-slate-500 py-6 text-center">Nenhuma sangria ou despesa no período.</p>
+                    <p className="text-xs text-slate-400 py-6 text-center">Nenhuma sangria ou despesa no período.</p>
                   ) : (
                     dadosRelatorioSangriasDespesas.itens.map(item => (
                       <div
                         key={item.id}
-                        className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 flex items-center justify-between text-xs"
+                        className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs"
                       >
                         <div>
                           <div className="flex items-center gap-2">
                             <span
-                              className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
+                              className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase border ${
                                 item.tipo === 'SANGRIA'
-                                  ? 'bg-rose-500/20 text-rose-400'
-                                  : 'bg-amber-500/20 text-amber-400'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200'
                               }`}
                             >
                               {item.tipo}
                             </span>
-                            <span className="font-bold text-slate-200">{item.descricao}</span>
+                            <span className="font-bold text-slate-900">{item.descricao}</span>
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-1">
                             <span>Terminal: {item.terminal}</span>
@@ -3736,7 +3831,7 @@ export const FinancasCaixa: React.FC = () => {
                             <span>Resp: {item.operador}</span>
                           </div>
                         </div>
-                        <span className="font-black text-sm text-rose-400 shrink-0">
+                        <span className="font-black text-sm text-rose-600 shrink-0">
                           - R$ {item.valor.toFixed(2)}
                         </span>
                       </div>
@@ -3745,11 +3840,11 @@ export const FinancasCaixa: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setModalRelatorioSangriasDespesas(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Fechar
                 </button>
@@ -3762,26 +3857,26 @@ export const FinancasCaixa: React.FC = () => {
         {/* MODAL: DETALHAMENTO DE MÉTRICAS FINANCEIRAS GERAIS                        */}
         {/* ========================================================================= */}
         {modalDetalhesMetrica && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 font-bold flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 font-bold flex items-center justify-center">
                     <Info className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-100">
+                    <h3 className="font-bold text-base text-slate-800">
                       {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
                       {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Despesas'}
                       {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
                       {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
                     </h3>
-                    <span className="text-xs text-slate-400">Composição detalhada dos valores apurados</span>
+                    <span className="text-xs text-slate-500">Composição detalhada dos valores apurados</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setModalDetalhesMetrica(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3790,30 +3885,30 @@ export const FinancasCaixa: React.FC = () => {
               <div className="space-y-4">
                 {modalDetalhesMetrica === 'entradas' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3">
                       <div>
-                        <span className="text-xs text-slate-400 font-semibold block">Total de Entradas Recebidas:</span>
-                        <span className="text-xl font-black text-emerald-400">R$ {totalReceitas.toFixed(2)}</span>
+                        <span className="text-xs text-slate-500 font-semibold block">Total de Entradas Recebidas:</span>
+                        <span className="text-xl font-black text-emerald-600">R$ {totalReceitas.toFixed(2)}</span>
                       </div>
                       <button
                         type="button"
                         onClick={handleExportarEntradas}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                       >
                         <FileSpreadsheet className="w-4 h-4" />
                         <span>Exportar Excel</span>
                       </button>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-300 block">Últimas Transações de Entrada:</span>
+                      <span className="text-xs font-bold text-slate-700 block">Últimas Transações de Entrada:</span>
                       <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
-                          <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                          <div key={t.id} className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center text-xs shadow-2xs">
                             <div>
-                              <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
-                              <span className="text-[10px] text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                              <span className="font-bold text-slate-800 block truncate">{t.descricao}</span>
+                              <span className="text-[10px] text-slate-500">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
                             </div>
-                            <span className="font-bold text-emerald-400 text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
+                            <span className="font-bold text-emerald-600 text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
@@ -3823,16 +3918,16 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'saidas' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3">
                       <div>
-                        <span className="text-xs text-slate-400 font-semibold block">Total de Despesas:</span>
-                        <span className="text-xl font-black text-rose-400">R$ {totalDespesasPagas.toFixed(2)}</span>
+                        <span className="text-xs text-slate-500 font-semibold block">Total de Despesas:</span>
+                        <span className="text-xl font-black text-rose-600">R$ {totalDespesasPagas.toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={handleExportarDespesas}
-                          className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -3844,7 +3939,7 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaDespesa();
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-rose-500/25 transition cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Nova Despesa</span>
@@ -3853,33 +3948,33 @@ export const FinancasCaixa: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-300 block">Últimas Despesas Registradas:</span>
+                      <span className="text-xs font-bold text-slate-700 block">Últimas Despesas Registradas:</span>
                       <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
                           const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
                           return (
-                            <div key={t.id} className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 flex items-center justify-between gap-3 text-xs">
+                            <div key={t.id} className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs shadow-2xs">
                               <div className="flex-1 min-w-0">
-                                <span className="font-bold text-slate-200 block truncate leading-tight">
+                                <span className="font-bold text-slate-800 block truncate leading-tight">
                                   {descLimpa}
                                 </span>
-                                <span className="text-[10px] text-slate-400 block mt-1">
+                                <span className="text-[10px] text-slate-500 block mt-1">
                                   {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-black text-rose-400 text-xs block">
+                                <span className="font-black text-rose-600 text-xs block">
                                   - R$ {t.valor.toFixed(2)}
                                 </span>
                                 {permissions.ehAdmin && !t.id.startsWith('ped_') && (
-                                  <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
+                                  <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setModalDetalhesMetrica(null);
                                         abrirModalEditarTransacao(t);
                                       }}
-                                      className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                      className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition cursor-pointer"
                                       title="Editar Despesa"
                                     >
                                       <Pencil className="w-3 h-3" />
@@ -3890,7 +3985,7 @@ export const FinancasCaixa: React.FC = () => {
                                         setModalDetalhesMetrica(null);
                                         setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
                                       }}
-                                      className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                                      className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition cursor-pointer"
                                       title="Excluir Despesa"
                                     >
                                       <Trash2 className="w-3 h-3" />
@@ -3908,16 +4003,16 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'pagar' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3">
                       <div>
-                        <span className="text-xs text-amber-400 font-semibold block">Total de Contas Pendentes a Pagar:</span>
-                        <span className="text-xl font-black text-amber-400">R$ {totalDespesasPendentes.toFixed(2)}</span>
+                        <span className="text-xs text-amber-700 font-semibold block">Total de Contas Pendentes a Pagar:</span>
+                        <span className="text-xl font-black text-amber-600">R$ {totalDespesasPendentes.toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={handleExportarContasPagar}
-                          className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -3929,7 +4024,7 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaContaPagar();
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-amber-500/20 transition cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Nova Conta</span>
@@ -3938,18 +4033,18 @@ export const FinancasCaixa: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-300 block">Lista de Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length}):</span>
+                      <span className="text-xs font-bold text-slate-700 block">Lista de Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length}):</span>
                       <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
-                          <div key={t.id} className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs">
+                          <div key={t.id} className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center text-xs shadow-2xs">
                             <div className="min-w-0 flex-1 pr-2">
-                              <span className="font-bold text-slate-200 block truncate">{t.descricao}</span>
-                              <span className="text-[10px] text-amber-400">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}</span>
+                              <span className="font-bold text-slate-800 block truncate">{t.descricao}</span>
+                              <span className="text-[10px] text-amber-700 font-medium">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}</span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="font-bold text-amber-400 text-xs">R$ {t.valor.toFixed(2)}</span>
+                              <span className="font-bold text-amber-600 text-xs">R$ {t.valor.toFixed(2)}</span>
                               {permissions.ehAdmin && (
-                                <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
+                                <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -3962,7 +4057,7 @@ export const FinancasCaixa: React.FC = () => {
                                         processando: false
                                       });
                                     }}
-                                    className="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10px] flex items-center gap-0.5 cursor-pointer"
+                                    className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs"
                                     title="Pagar / Baixar Conta"
                                   >
                                     <CheckCircle2 className="w-3 h-3" />
@@ -3974,7 +4069,7 @@ export const FinancasCaixa: React.FC = () => {
                                       setModalDetalhesMetrica(null);
                                       abrirModalEditarTransacao(t);
                                     }}
-                                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                    className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition cursor-pointer"
                                     title="Editar Conta"
                                   >
                                     <Pencil className="w-3 h-3" />
@@ -3985,7 +4080,7 @@ export const FinancasCaixa: React.FC = () => {
                                       setModalDetalhesMetrica(null);
                                       setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
                                     }}
-                                    className="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                                    className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition cursor-pointer"
                                     title="Excluir Conta"
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -4002,41 +4097,41 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'lucro' && (
                   <div className="space-y-3">
-                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-xs">
-                      <div className="flex justify-between items-center text-slate-300">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs">
+                      <div className="flex justify-between items-center text-slate-700">
                         <span className="flex items-center gap-1.5 font-medium">
-                          <ArrowUpRight className="w-4 h-4 text-emerald-400" /> (+) Entradas / Receitas Totais:
+                          <ArrowUpRight className="w-4 h-4 text-emerald-600" /> (+) Entradas / Receitas Totais:
                         </span>
-                        <span className="font-bold text-emerald-400 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
+                        <span className="font-bold text-emerald-600 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
                       </div>
 
-                      <div className="flex justify-between items-center text-slate-300">
+                      <div className="flex justify-between items-center text-slate-700">
                         <span className="flex items-center gap-1.5 font-medium">
-                          <ArrowDownRight className="w-4 h-4 text-rose-400" /> (-) Saídas / Despesas Pagas:
+                          <ArrowDownRight className="w-4 h-4 text-rose-600" /> (-) Saídas / Despesas Pagas:
                         </span>
-                        <span className="font-bold text-rose-400 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
+                        <span className="font-bold text-rose-600 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
-                        <span className="font-bold text-slate-100 text-sm">(=) Resultado Acumulado em Caixa:</span>
-                        <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
+                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                        <span className="font-bold text-slate-800 text-sm">(=) Resultado Acumulado em Caixa:</span>
+                        <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                           R$ {lucroLiquido.toFixed(2)}
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                    <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 text-[11px] text-slate-600 leading-relaxed">
                       💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-2 border-t border-slate-800 flex justify-end">
+              <div className="p-2 border-t border-slate-100 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica(null)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
                 >
                   Fechar
                 </button>

@@ -57,7 +57,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         .from('pedidos')
         .select('*', { count: 'exact', head: true })
         .eq('loja_id', loja.id)
-        .eq('status', 'confirmado');
+        .neq('status', 'concluido')
+        .neq('status', 'cancelado');
 
       if (usuario && !permissions.podeVerTransacoesOutros) {
         query = query.eq('vendedor_id', usuario.id);
@@ -108,7 +109,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       caminho: '/orders',
       icone: ShoppingBag,
       visivel: permissions.podeAcessarPedidos,
-      badge: undefined
+      badge: pedidosCount > 0 ? pedidosCount : undefined
     },
     {
       nome: 'Vendas',
