@@ -354,7 +354,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         {/* FAIXA DE INDICADORES DE VENDAS (HOJE, ONTEM, ESTA SEMANA, ESTE MÊS) */}
         {usuarioEdicao && metricas && (
           <div className="bg-slate-50 md:bg-slate-950/60 border-b border-slate-200 md:border-slate-800/80 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div className="bg-slate-200/50 md:bg-slate-900/60 border border-slate-300/50 md:border-slate-800/60 rounded-xl p-2.5 space-y-0.5">
+            <div className="bg-white md:bg-slate-900/60 border border-slate-200 md:border-slate-800/60 rounded-xl p-2.5 space-y-0.5 shadow-2xs">
               <span className="text-[10px] text-slate-500 md:text-slate-400 font-bold uppercase tracking-wider block">Hoje</span>
               <span className="text-slate-800 md:text-slate-200 font-bold block">{metricas.hoje_vendas} vendas</span>
               <span className="text-[11px] text-emerald-600 md:text-emerald-400 font-semibold block">
@@ -362,26 +362,26 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               </span>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-2.5 space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Ontem</span>
-              <span className="text-slate-200 font-bold block">{metricas.ontem_vendas} vendas</span>
-              <span className="text-[11px] text-slate-300 font-semibold block">
+            <div className="bg-white md:bg-slate-900/60 border border-slate-200 md:border-slate-800/60 rounded-xl p-2.5 space-y-0.5 shadow-2xs">
+              <span className="text-[10px] text-slate-500 md:text-slate-400 font-bold uppercase tracking-wider block">Ontem</span>
+              <span className="text-slate-800 md:text-slate-200 font-bold block">{metricas.ontem_vendas} vendas</span>
+              <span className="text-[11px] text-slate-600 md:text-slate-300 font-semibold block">
                 R$ {metricas.ontem_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-2.5 space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Esta Semana</span>
-              <span className="text-slate-200 font-bold block">{metricas.semana_vendas} vendas</span>
-              <span className="text-[11px] text-emerald-400 font-semibold block">
+            <div className="bg-white md:bg-slate-900/60 border border-slate-200 md:border-slate-800/60 rounded-xl p-2.5 space-y-0.5 shadow-2xs">
+              <span className="text-[10px] text-slate-500 md:text-slate-400 font-bold uppercase tracking-wider block">Esta Semana</span>
+              <span className="text-slate-800 md:text-slate-200 font-bold block">{metricas.semana_vendas} vendas</span>
+              <span className="text-[11px] text-emerald-600 md:text-emerald-400 font-semibold block">
                 R$ {metricas.semana_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-xl p-2.5 space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Este Mês</span>
-              <span className="text-slate-200 font-bold block">{metricas.mes_vendas} vendas</span>
-              <span className="text-[11px] text-emerald-400 font-semibold block">
+            <div className="bg-white md:bg-slate-900/60 border border-slate-200 md:border-slate-800/60 rounded-xl p-2.5 space-y-0.5 shadow-2xs">
+              <span className="text-[10px] text-slate-500 md:text-slate-400 font-bold uppercase tracking-wider block">Este Mês</span>
+              <span className="text-slate-800 md:text-slate-200 font-bold block">{metricas.mes_vendas} vendas</span>
+              <span className="text-[11px] text-emerald-600 md:text-emerald-400 font-semibold block">
                 R$ {metricas.mes_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -402,41 +402,41 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
           {/* ========================================================================= */}
           {/* SEÇÃO 1: DADOS DO USUÁRIO & ACESSO                                        */}
           {/* ========================================================================= */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
-            <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-emerald-400" />
+          <div className="bg-white md:bg-slate-900/80 border border-slate-200 md:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
+            <h4 className="text-xs font-bold text-slate-700 md:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-emerald-600 md:text-emerald-400" />
               <span>Dados do usuário</span>
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Nome *</label>
+                <label className="text-xs font-bold text-slate-700 md:text-slate-300">Nome *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: João Roberto ou Maria Silva"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none transition"
+                  className="w-full bg-slate-50 md:bg-slate-800 border border-slate-200 md:border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:bg-white transition font-medium"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Email *</label>
+                <label className="text-xs font-bold text-slate-700 md:text-slate-300">Email *</label>
                 <input
                   type="email"
                   required
                   placeholder="Ex: jroberto@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none transition"
+                  className="w-full bg-slate-50 md:bg-slate-800 border border-slate-200 md:border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:bg-white transition font-medium"
                 />
               </div>
             </div>
 
             {/* Campo de Senha */}
             <div className="space-y-1.5 pt-1">
-              <label className="text-xs font-semibold text-slate-300">
+              <label className="text-xs font-bold text-slate-700 md:text-slate-300">
                 {usuarioEdicao ? 'Redefinir Senha (Opcional)' : 'Senha de Acesso * (Mínimo 6 dígitos)'}
               </label>
               <div className="relative">
@@ -445,17 +445,17 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                   placeholder={usuarioEdicao ? 'Deixe em branco para manter a senha atual' : '••••••••'}
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-slate-100 focus:outline-none transition font-mono"
+                  className="w-full bg-slate-50 md:bg-slate-800 border border-slate-200 md:border-slate-700 focus:border-emerald-500 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:bg-white transition font-mono"
                 />
                 <button
                   type="button"
                   onClick={() => setMostrarSenha(!mostrarSenha)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 md:hover:text-slate-200 transition cursor-pointer"
                 >
                   {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <span className="text-[11px] text-slate-400 block">
+              <span className="text-[11px] text-slate-500 md:text-slate-400 block">
                 Esta senha é utilizada para entrar no HUBI Web e no aplicativo PDV.
               </span>
             </div>
@@ -464,15 +464,15 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
           {/* ========================================================================= */}
           {/* SEÇÃO 2: PERMISSÕES & CONTROLE DE ACESSO                                  */}
           {/* ========================================================================= */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
+          <div className="bg-white md:bg-slate-900/80 border border-slate-200 md:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                <Shield className="w-4 h-4 text-emerald-400" />
+              <h4 className="text-xs font-bold text-slate-700 md:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <Shield className="w-4 h-4 text-emerald-600 md:text-emerald-400" />
                 <span>Permissões de Acesso</span>
               </h4>
 
               {ehOwner && (
-                <span className="text-[10px] text-teal-400 font-bold bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                <span className="text-[10px] text-teal-700 md:text-teal-400 font-bold bg-teal-50 md:bg-teal-500/10 border border-teal-200 md:border-teal-500/20 px-2 py-0.5 rounded-lg flex items-center gap-1">
                   <Lock className="w-3 h-3" />
                   Imutável (Proprietário)
                 </span>
@@ -481,17 +481,17 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
             {/* AVISO EXPLICATIVO PARA OWNER */}
             {ehOwner ? (
-              <div className="p-3.5 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-start gap-3 text-xs text-teal-200">
-                <Crown className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-teal-50 md:bg-teal-500/10 border border-teal-200 md:border-teal-500/20 rounded-2xl flex items-start gap-3 text-xs text-teal-800 md:text-teal-200">
+                <Crown className="w-5 h-5 text-teal-600 md:text-teal-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
-                  <span className="font-bold block text-teal-300">Proprietário da Conta</span>
-                  <p className="text-[11px] text-teal-300/80 leading-relaxed">
+                  <span className="font-bold block text-teal-900 md:text-teal-300">Proprietário da Conta</span>
+                  <p className="text-[11px] text-teal-800/80 md:text-teal-300/80 leading-relaxed">
                     Como proprietário desta conta, você possui acesso total e irrestrito a todas as funcionalidades do Hubi. Todas as permissões permanecem ativas e não podem ser revogadas.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="p-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl text-[11px] text-slate-300 leading-relaxed">
+              <div className="p-3.5 bg-slate-50 md:bg-slate-800/60 border border-slate-200 md:border-slate-700/60 rounded-2xl text-[11px] text-slate-600 md:text-slate-300 leading-relaxed">
                 <p>
                   <strong>Por padrão</strong>, todos os usuários têm acesso a: lançar pedidos e vendas, ver seus próprios pedidos, ver e cadastrar clientes e ver os produtos.
                 </p>
@@ -502,13 +502,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
             <div className="space-y-3 pt-1">
               
               {/* 1. Administrador */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs font-bold text-slate-200">Administrador</span>
+                    <Shield className="w-3.5 h-3.5 text-emerald-600 md:text-emerald-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Administrador</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Dá acesso a todas as funcionalidades do Hubi - exceto à gestão da assinatura, disponível apenas para o proprietário da conta.
                   </p>
                 </div>
@@ -520,18 +520,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${ehOwner ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${ehOwner ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 2. Permitir uso em celular pessoal */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-200">Permitir uso em celular pessoal</span>
+                    <Smartphone className="w-3.5 h-3.5 text-slate-500 md:text-slate-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Permitir uso em celular pessoal</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite que o usuário faça login de qualquer dispositivo. Se desativado, será necessário que um administrador faça o primeiro login no celular.
                   </p>
                 </div>
@@ -543,18 +543,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 3. Ver transações de outros usuários */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-200">Ver transações de outros usuários</span>
+                    <Layers className="w-3.5 h-3.5 text-slate-500 md:text-slate-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Ver transações de outros usuários</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite ver todos os pedidos e vendas, inclusive de outros usuários e do catálogo online.
                   </p>
                 </div>
@@ -566,18 +566,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 4. Dar desconto em vendas */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <Percent className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-200">Dar desconto em vendas</span>
+                    <Percent className="w-3.5 h-3.5 text-slate-500 md:text-slate-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Dar desconto em vendas</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite aplicar descontos tanto no valor dos produtos, quanto no valor total do pedido.
                   </p>
                 </div>
@@ -589,18 +589,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 5. Cadastrar/Alterar produtos */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <Package className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-200">Cadastrar/Alterar produtos</span>
+                    <Package className="w-3.5 h-3.5 text-slate-500 md:text-slate-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Cadastrar/Alterar produtos</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite que o usuário edite os dados dos produtos como preço, nome, descrição e visibilidade no catálogo.
                   </p>
                 </div>
@@ -612,18 +612,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 6. Gerenciar estoque */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <Boxes className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-200">Gerenciar estoque</span>
+                    <Boxes className="w-3.5 h-3.5 text-slate-500 md:text-slate-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Gerenciar estoque</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite alterar o estoque atual dos produtos e também o estoque mínimo de alerta.
                   </p>
                 </div>
@@ -635,18 +635,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 7. Ativar Fiado */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-200">Ativar Fiado</span>
+                    <CreditCard className="w-3.5 h-3.5 text-slate-500 md:text-slate-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Ativar Fiado</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite liberar o pagamento com fiado para clientes, além de adicionar ou remover créditos.
                   </p>
                 </div>
@@ -658,18 +658,18 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 
               {/* 8. Abertura e Fechamento de Caixa */}
-              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-800/30 border border-slate-800/80 hover:bg-slate-800/60 transition">
+              <div className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 md:bg-slate-800/30 border border-slate-200/80 md:border-slate-800/80 hover:bg-slate-100 md:hover:bg-slate-800/60 transition">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs font-bold text-slate-200">Abertura e Fechamento de Caixa</span>
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600 md:text-emerald-400" />
+                    <span className="text-xs font-bold text-slate-800 md:text-slate-200">Abertura e Fechamento de Caixa</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 md:text-slate-400 leading-tight">
                     Permite abrir e fechar turnos de caixa formalmente e libera o acesso à funcionalidade de Finanças & Caixa.
                   </p>
                 </div>
@@ -681,7 +681,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     disabled={ehOwner || ehAdmin}
                     className="sr-only peer"
                   />
-                  <div className={`w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
+                  <div className={`w-9 h-5 bg-slate-300 md:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${(ehOwner || ehAdmin) ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
 

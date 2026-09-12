@@ -230,14 +230,18 @@ export const UsuariosGestao: React.FC = () => {
   };
 
   // Renderizar Gráfico Donut/Pizza Interativo
-  const renderGraficoPizza = () => {
+  const renderGraficoPizza = (tema: 'claro' | 'escuro' = 'escuro') => {
     if (dadosGraficoUsuarios.length === 0 || totalFaturamento30d === 0) {
       return (
         <div className="relative flex items-center justify-center my-2">
-          <div className="w-40 h-40 rounded-full bg-slate-800/40 flex items-center justify-center border-4 border-slate-700/50 shadow-inner">
-            <div className="w-24 h-24 rounded-full bg-slate-900 flex flex-col items-center justify-center text-center p-2">
-              <Users className="w-6 h-6 text-slate-500 mb-1" />
-              <span className="text-[10px] text-slate-500 font-medium">Sem vendas</span>
+          <div className={`w-40 h-40 rounded-full flex items-center justify-center border-4 shadow-inner ${
+            tema === 'claro' ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/40 border-slate-700/50'
+          }`}>
+            <div className={`w-24 h-24 rounded-full flex flex-col items-center justify-center text-center p-2 ${
+              tema === 'claro' ? 'bg-white shadow-xs' : 'bg-slate-900'
+            }`}>
+              <Users className={`w-6 h-6 mb-1 ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`} />
+              <span className={`text-[10px] font-medium ${tema === 'claro' ? 'text-slate-500' : 'text-slate-500'}`}>Sem vendas</span>
             </div>
           </div>
         </div>
@@ -260,7 +264,7 @@ export const UsuariosGestao: React.FC = () => {
               cy="80"
               r={radius}
               fill="transparent"
-              stroke="#1E293B"
+              stroke={tema === 'claro' ? '#F1F5F9' : '#1E293B'}
               strokeWidth={strokeWidth}
             />
             {dadosGraficoUsuarios.map((item) => {
@@ -296,48 +300,70 @@ export const UsuariosGestao: React.FC = () => {
           <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center pointer-events-none transition-all duration-200">
             {hoveredItem ? (
               <div className="animate-in fade-in zoom-in-95 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-bold text-slate-200 truncate max-w-[110px]" title={hoveredItem.nome}>
+                <span className={`text-[11px] font-bold truncate max-w-[110px] ${
+                  tema === 'claro' ? 'text-slate-800' : 'text-slate-200'
+                }`} title={hoveredItem.nome}>
                   {hoveredItem.nome}
                 </span>
-                <span className="text-base font-black text-slate-100 mt-0.5">
+                <span className={`text-base font-black mt-0.5 ${
+                  tema === 'claro' ? 'text-slate-900' : 'text-slate-100'
+                }`}>
                   {hoveredItem.percentual.toFixed(1)}%
                 </span>
-                <span className="text-[11px] font-bold text-emerald-400">
+                <span className={`text-[11px] font-bold ${
+                  tema === 'claro' ? 'text-emerald-600' : 'text-emerald-400'
+                }`}>
                   R$ {hoveredItem.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-                <span className="text-[9px] text-slate-400 font-medium">
+                <span className={`text-[9px] font-medium ${
+                  tema === 'claro' ? 'text-slate-500' : 'text-slate-400'
+                }`}>
                   {hoveredItem.vendas} {hoveredItem.vendas === 1 ? 'venda' : 'vendas'}
                 </span>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
-                <Users className="w-5 h-5 text-emerald-400 mb-0.5" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <Users className={`w-5 h-5 mb-0.5 ${
+                  tema === 'claro' ? 'text-emerald-600' : 'text-emerald-400'
+                }`} />
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                  tema === 'claro' ? 'text-slate-500' : 'text-slate-400'
+                }`}>
                   {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
                 </span>
-                <span className="text-xs font-black text-slate-200">100,0%</span>
+                <span className={`text-xs font-black ${
+                  tema === 'claro' ? 'text-slate-800' : 'text-slate-200'
+                }`}>100,0%</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Mini legenda com cores das fatias */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3 max-w-[280px]">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3 max-w-[290px]">
           {dadosGraficoUsuarios.map((item) => (
             <button
               key={item.id}
               type="button"
               onMouseEnter={() => setHoveredUserId(item.id)}
               onMouseLeave={() => setHoveredUserId(null)}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] transition cursor-pointer border ${
-                hoveredUserId === item.id
-                  ? 'bg-slate-800 text-slate-100 border-emerald-500/50 shadow-sm'
-                  : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border-slate-800'
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] transition cursor-pointer border ${
+                tema === 'claro'
+                  ? hoveredUserId === item.id
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-xs font-bold'
+                    : 'bg-white text-slate-700 hover:text-slate-900 border-slate-200 hover:border-slate-300 shadow-2xs'
+                  : hoveredUserId === item.id
+                    ? 'bg-slate-800 text-slate-100 border-emerald-500/50 shadow-sm'
+                    : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border-slate-800'
               }`}
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.cor }} />
-              <span className="truncate max-w-[75px] font-semibold">{item.nome.split(' ')[0]}</span>
-              <span className="font-bold text-slate-200">{item.percentual.toFixed(1)}%</span>
+              <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.cor }} />
+              <span className={`truncate max-w-[80px] font-semibold ${tema === 'claro' ? 'text-slate-800' : 'text-slate-200'}`}>
+                {item.nome.split(' ')[0]}
+              </span>
+              <span className={`font-bold ${tema === 'claro' ? 'text-slate-900' : 'text-slate-100'}`}>
+                {item.percentual.toFixed(1)}%
+              </span>
             </button>
           ))}
         </div>
@@ -390,7 +416,7 @@ export const UsuariosGestao: React.FC = () => {
           {/* Gráfico Donut de Desempenho em Card Branco */}
           <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
             <span className="text-xs font-bold text-slate-700 block">Vendas por Colaborador (30 dias)</span>
-            {renderGraficoPizza()}
+            {renderGraficoPizza('claro')}
           </div>
 
           {/* Lista de Colaboradores em Cards Brancos */}

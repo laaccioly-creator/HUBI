@@ -939,11 +939,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                   setAbaAtiva(item.id);
                   setModalSecaoAberta(item.id);
                 }}
-                className="p-4 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 flex flex-col items-center justify-center text-center gap-2.5 transition shadow-xs cursor-pointer relative"
+                className="p-4 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 flex flex-col items-center justify-center text-center gap-2.5 transition shadow-xs cursor-pointer"
               >
-                <span className="absolute top-2.5 right-2.5 bg-emerald-50 text-emerald-700 font-bold text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-200">
-                  {item.badge}
-                </span>
                 <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-2xs">
                   <item.icon className="w-5 h-5" />
                 </div>

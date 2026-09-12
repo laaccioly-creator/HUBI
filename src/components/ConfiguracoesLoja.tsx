@@ -1297,19 +1297,98 @@ export const ConfiguracoesLoja: React.FC = () => {
 
           {/* SUBTELA GERAL MOBILE */}
           {subTela === 'geral' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Preferências de Início</span>
-              <div
-                onClick={() => setModalTelaInicial(true)}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer"
-              >
-                <div>
-                  <span className="font-bold text-xs text-slate-800 block">Tela Inicial Padrão</span>
-                  <span className="text-[11px] text-slate-500">Tela carregada ao abrir o app</span>
+            <div className="space-y-3">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Preferências de Início</span>
+                <div
+                  onClick={() => setModalTelaInicial(true)}
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer"
+                >
+                  <div>
+                    <span className="font-bold text-xs text-slate-800 block">Tela Inicial Padrão</span>
+                    <span className="text-[11px] text-slate-500">Tela carregada ao abrir o app</span>
+                  </div>
+                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 uppercase">
+                    {telaInicialPadrao === 'pos' ? 'PDV' : telaInicialPadrao === 'pedidos' ? 'Pedidos' : 'Início'}
+                  </span>
                 </div>
-                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 uppercase">
-                  {telaInicialPadrao === 'pos' ? 'PDV' : telaInicialPadrao === 'pedidos' ? 'Pedidos' : 'Início'}
-                </span>
+              </div>
+
+              {/* Controlar Estoque */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+                <div className="space-y-0.5 max-w-[75%]">
+                  <span className="font-bold text-xs text-slate-800 block">Controlar estoque</span>
+                  <span className="text-[11px] text-slate-500 block leading-tight">
+                    Quando ligado, bloqueia vendas que excedam o estoque disponível no PDV e Catálogo.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={controlarEstoque}
+                    onChange={(e) => setControlarEstoque(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {/* Transações Canceladas */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2">
+                <span className="text-xs font-bold text-slate-700 block">Transações canceladas</span>
+                <div className="space-y-2">
+                  {[
+                    { id: 'riscadas', label: 'Exibir riscada' },
+                    { id: 'ocultar', label: 'Ocultar' }
+                  ].map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer ${
+                        transacoesCanceladas === opt.id
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="text-xs">{opt.label}</span>
+                      <input
+                        type="radio"
+                        name="transacoesCanceladasMobile"
+                        checked={transacoesCanceladas === opt.id}
+                        onChange={() => setTransacoesCanceladas(opt.id as any)}
+                        className="text-emerald-500 focus:ring-emerald-500 bg-white border-slate-300"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ordenar produtos em Vender por */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2">
+                <span className="text-xs font-bold text-slate-700 block">Ordenar produtos em Vender por</span>
+                <div className="space-y-2">
+                  {[
+                    { id: 'cadastro', label: 'Data do cadastro' },
+                    { id: 'alfabetica', label: 'Ordem alfabética A-Z' }
+                  ].map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer ${
+                        ordenarProdutosPdv === opt.id
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="text-xs">{opt.label}</span>
+                      <input
+                        type="radio"
+                        name="ordenarProdutosPdvMobile"
+                        checked={ordenarProdutosPdv === opt.id}
+                        onChange={() => setOrdenarProdutosPdv(opt.id as any)}
+                        className="text-emerald-500 focus:ring-emerald-500 bg-white border-slate-300"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -3498,14 +3577,14 @@ export const ConfiguracoesLoja: React.FC = () => {
       {/* MODAL: EXPORTAÇÃO CONCLUÍDA */}
       {/* ========================================================================= */}
       {modalExportConcluido && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/60 md:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 md:bg-emerald-500/20 text-emerald-600 md:text-emerald-400 mx-auto flex items-center justify-center">
               <Download className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-100">Seus relatórios estão prontos! 🎉</h3>
-              <p className="text-xs text-slate-400 mt-1">O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
+              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Seus relatórios estão prontos! 🎉</h3>
+              <p className="text-xs text-slate-500 md:text-slate-400 mt-1">O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
             </div>
             <button
               type="button"
@@ -3522,17 +3601,17 @@ export const ConfiguracoesLoja: React.FC = () => {
       {/* MODAL: SELECIONAR PROVEDOR DIGITAL */}
       {/* ========================================================================= */}
       {modalProvedor && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 md:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base text-slate-100">Provedor de Pagamento Digital</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Selecione o provedor para integração automática</p>
+                <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Provedor de Pagamento Digital</h3>
+                <p className="text-xs text-slate-500 md:text-slate-400 mt-0.5">Selecione o provedor para integração automática</p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalProvedor(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 md:hover:text-white p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3544,49 +3623,49 @@ export const ConfiguracoesLoja: React.FC = () => {
                   id: 'nenhum',
                   nome: 'Nenhum (Desativado)',
                   desc: 'Não utilizar integração automática online',
-                  cor: 'text-slate-400 bg-slate-800/40',
+                  cor: 'text-slate-500 bg-slate-100 md:text-slate-400 md:bg-slate-800/40',
                   badge: 'OFF'
                 },
                 {
                   id: 'mercado_pago',
                   nome: 'Mercado Pago',
                   desc: 'Pix dinâmico com QR Code, link de pagamento e cartão',
-                  cor: 'text-sky-400 bg-sky-500/20',
+                  cor: 'text-sky-600 bg-sky-50 md:text-sky-400 md:bg-sky-500/20',
                   badge: 'MP'
                 },
                 {
                   id: 'pagseguro',
                   nome: 'PagBank (PagSeguro)',
                   desc: 'Checkout transparente, Pix e cartão de crédito',
-                  cor: 'text-emerald-400 bg-emerald-500/20',
+                  cor: 'text-emerald-600 bg-emerald-50 md:text-emerald-400 md:bg-emerald-500/20',
                   badge: 'PAG'
                 },
                 {
                   id: 'asaas',
                   nome: 'Asaas',
                   desc: 'Pix dinâmico com webhook, boleto bancário e cartão',
-                  cor: 'text-purple-400 bg-purple-500/20',
+                  cor: 'text-purple-600 bg-purple-50 md:text-purple-400 md:bg-purple-500/20',
                   badge: 'AS'
                 },
                 {
                   id: 'stripe',
                   nome: 'Stripe',
                   desc: 'Cartões nacionais e internacionais, Apple Pay',
-                  cor: 'text-indigo-400 bg-indigo-500/20',
+                  cor: 'text-indigo-600 bg-indigo-50 md:text-indigo-400 md:bg-indigo-500/20',
                   badge: 'ST'
                 },
                 {
                   id: 'picpay',
                   nome: 'PicPay E-commerce',
                   desc: 'Pagamento via aplicativo PicPay e QR Code',
-                  cor: 'text-teal-400 bg-teal-500/20',
+                  cor: 'text-teal-600 bg-teal-50 md:text-teal-400 md:bg-teal-500/20',
                   badge: 'PIC'
                 },
                 {
                   id: 'google_pay',
                   nome: 'Google Pay & Carteiras',
                   desc: 'Pagamento com 1 clique em dispositivos Android/Chrome',
-                  cor: 'text-amber-400 bg-amber-500/20',
+                  cor: 'text-amber-600 bg-amber-50 md:text-amber-400 md:bg-amber-500/20',
                   badge: 'GP'
                 }
               ].map((item) => (
@@ -3598,8 +3677,8 @@ export const ConfiguracoesLoja: React.FC = () => {
                   }}
                   className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
                     provedorDigital === item.id
-                      ? 'bg-emerald-500/10 border-emerald-500/60 text-slate-100'
-                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800/60 hover:border-slate-700'
+                      ? 'bg-emerald-50 md:bg-emerald-500/10 border-emerald-500 text-slate-800 md:text-slate-100'
+                      : 'bg-slate-50 md:bg-slate-950 border-slate-200 md:border-slate-800 text-slate-700 md:text-slate-300 hover:bg-slate-100 md:hover:bg-slate-800/60 hover:border-slate-300 md:hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -3609,12 +3688,12 @@ export const ConfiguracoesLoja: React.FC = () => {
                       {item.badge}
                     </div>
                     <div>
-                      <span className="font-bold text-xs text-slate-100 block">{item.nome}</span>
-                      <span className="text-[11px] text-slate-400 block mt-0.5">{item.desc}</span>
+                      <span className="font-bold text-xs text-slate-800 md:text-slate-100 block">{item.nome}</span>
+                      <span className="text-[11px] text-slate-500 md:text-slate-400 block mt-0.5">{item.desc}</span>
                     </div>
                   </div>
                   {provedorDigital === item.id && (
-                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-600 md:text-emerald-400 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5" />
                     </div>
                   )}
