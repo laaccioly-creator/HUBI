@@ -1489,22 +1489,81 @@ export const FinancasCaixa: React.FC = () => {
     };
   }, [historicoSessoes, sessaoAtiva, resumoSessao, periodoRelatorioInicio, periodoRelatorioFim]);
 
+  const [filtroMovimentacoes, setFiltroMovimentacoes] = useState<'todas' | 'vendas' | 'suprimentos' | 'sangrias' | 'despesas'>('todas');
+
+  const movimentacoesDaSessao = useMemo(() => {
+    return sessaoAtiva?.movimentacoes || [];
+  }, [sessaoAtiva]);
+
+  const vendasDaSessao = useMemo(() => {
+    if (!sessaoAtiva) return [];
+    return pedidos.filter(p => {
+      const dataVenda = p.data_venda || p.criado_em;
+      if (!dataVenda) return false;
+      const tVenda = new Date(dataVenda).getTime();
+      const tAbertura = new Date(sessaoAtiva.aberto_em).getTime();
+      const tFechamento = sessaoAtiva.fechado_em ? new Date(sessaoAtiva.fechado_em).getTime() : Infinity;
+      return tVenda >= tAbertura && tVenda <= tFechamento;
+    });
+  }, [sessaoAtiva, pedidos]);
+
+  const handleReimprimirFechamento = async (cx: SessaoCaixa) => {
+    try {
+      const { resumo } = await caixaService.obterDetalhesSessao(cx.id);
+      PrintService.printFechamentoCaixa({ ...resumo, sessao: cx }, loja);
+    } catch (e) {
+      mostrarErro('Erro ao gerar comprovante de impressão.');
+    }
+  };
+
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
       {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 029) */}
       <div className="block lg:hidden h-full overflow-hidden">
         <FinancasMobile
+          sessaoAtiva={sessaoAtiva}
+          resumoSessao={resumoSessao}
+          historicoSessoes={historicoSessoes}
           transacoes={transacoes}
           pedidos={pedidos}
-          caixaAberto={sessaoAtiva ? { ...sessaoAtiva, turno: sessaoAtiva.terminal_id, saldo_inicial: sessaoAtiva.fundo_inicial } as any : null}
-          sessaoAtiva={sessaoAtiva}
-          historicoSessoes={historicoSessoes}
+          usuariosLoja={usuariosLoja}
           carregando={carregando}
           onRecarregar={carregarFinanceiro}
+          totalReceitas={totalReceitas}
+          totalDespesasPagas={totalDespesasPagas}
+          totalDespesasPendentes={totalDespesasPendentes}
+          lucroLiquido={lucroLiquido}
+          listaTransacoesUnificada={listaTransacoesUnificada}
+          movimentacoesDaSessao={movimentacoesDaSessao}
+          vendasDaSessao={vendasDaSessao}
+          abaAtiva={abaAtiva}
+          setAbaAtiva={setAbaAtiva}
+          filtroPeriodoFluxo={filtroPeriodoFluxo}
+          setFiltroPeriodoFluxo={setFiltroPeriodoFluxo}
+          filtroMovimentacoes={filtroMovimentacoes}
+          setFiltroMovimentacoes={setFiltroMovimentacoes}
+          filtrosHistorico={filtrosHistorico}
+          setFiltrosHistorico={setFiltrosHistorico}
           onAbrirCaixa={() => setModalAberturaCaixa(true)}
-          onSangria={() => setModalSangria(true)}
           onSuprimento={() => setModalSuprimento(true)}
+          onSangria={() => setModalSangria(true)}
+          onDespesaGaveta={() => setModalDespesaRapida(true)}
           onFechamentoCego={() => setModalFechamentoCego(true)}
+          onNovaDespesa={abrirModalNovaDespesa}
+          onNovaContaPagar={abrirModalNovaContaPagar}
+          onEditarTransacao={abrirModalEditarTransacao}
+          onBaixarConta={(tr) => setModalBaixarConta({
+            aberta: true,
+            transacao: tr,
+            formaPagamento: (tr as any).formaPagamento || 'dinheiro',
+            dataPagamento: obterDataOperacaoYMD(),
+            processando: false
+          })}
+          onConfirmarExclusao={(tr) => setModalConfirmarExclusao({ aberta: true, transacao: tr, processando: false })}
+          onDetalhesMetrica={(tipo) => setModalDetalhesMetrica(tipo)}
+          onExportarEntradas={handleExportarEntradas}
+          onDrillDownSessao={handleAbrirDrillDown}
+          onReimprimirFechamento={handleReimprimirFechamento}
           saldoEsperadoGaveta={resumoSessao?.saldoEsperadoDinheiro || 0}
         />
       </div>
@@ -2446,14 +2505,7 @@ export const FinancasCaixa: React.FC = () => {
                             {cx.fechado_em && (
                               <button
                                 type="button"
-                                onClick={async () => {
-                                  try {
-                                    const { resumo } = await caixaService.obterDetalhesSessao(cx.id);
-                                    PrintService.printFechamentoCaixa({ ...resumo, sessao: cx }, loja);
-                                  } catch (e) {
-                                    mostrarErro('Erro ao gerar comprovante de impressão.');
-                                  }
-                                }}
+                                onClick={() => handleReimprimirFechamento(cx)}
                                 className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
                                 title="Imprimir Comprovante Oficial de Fechamento"
                               >
@@ -2470,9 +2522,10 @@ export const FinancasCaixa: React.FC = () => {
             </>
           )}
         </div>
+      </div>
 
-        {/* ========================================================================= */}
-        {/* MODAL: LANÇAR NOVA DESPESA (DRE GERAL)                                    */}
+      {/* ========================================================================= */}
+      {/* MODAL: LANÇAR NOVA DESPESA (DRE GERAL)                                    */}
         {/* ========================================================================= */}
         {modalNovaDespesa && (
           <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
@@ -3991,7 +4044,6 @@ export const FinancasCaixa: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

@@ -11,7 +11,9 @@ import {
   Zap,
   AlertTriangle,
   CheckCircle2,
-  TrendingUp
+  TrendingUp,
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente } from '../types';
@@ -1124,87 +1126,87 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      {/* BARRA FIXA: PESQUISA E ABAS DE CATEGORIAS (PERMANECE FIXA MESMO COM ROLAGEM VERTICAL) */}
+      {/* BARRA FIXA: SELETOR DE CATEGORIAS, PESQUISA E MODOS DE EXIBIÇÃO */}
       <div
         className="sticky z-20 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 shadow-md py-2.5 sm:py-3 transition-all"
         style={{ top: `${headerHeight}px` }}
       >
-        <div className="max-w-6xl mx-auto px-4 space-y-2.5">
-          {/* BUSCA E SELETORES DE MODO DE EXIBIÇÃO */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="O que você está procurando hoje?"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {/* Seletor Dropdown de Categorias */}
+            <div className="relative w-full sm:w-56 md:w-64 shrink-0 order-2 sm:order-1">
+              <Layers
+                className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: corTema || '#10B981' }}
               />
+              <select
+                value={categoriaSelecionada}
+                onChange={(e) => setCategoriaSelecionada(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 text-xs font-semibold text-slate-200 focus:outline-none transition appearance-none cursor-pointer shadow-xs"
+                title="Filtrar produtos por categoria"
+              >
+                <option value="todas" className="bg-slate-900 text-slate-200">
+                  Todas as Categorias ({produtos.length})
+                </option>
+                {categoriasOrdenadas.map((cat) => {
+                  const totalCat = produtos.filter(p => p.categoria_id === cat.id).length;
+                  return (
+                    <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-200">
+                      {cat.nome} ({totalCat})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
-            {/* BOTÕES DE ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE / INSTAVIEW) */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => setModoExibicaoPublico('lista')}
-                className={`p-2 rounded-xl transition cursor-pointer ${
-                  modoExibicaoPublico === 'lista' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
-                }`}
-                title="Modo Lista"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setModoExibicaoPublico('grade')}
-                className={`p-2 rounded-xl transition cursor-pointer ${
-                  modoExibicaoPublico === 'grade' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
-                }`}
-                title="Modo Grade"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setModoExibicaoPublico('instaview')}
-                className={`p-2 rounded-xl transition cursor-pointer ${
-                  modoExibicaoPublico === 'instaview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
-                }`}
-                title="Modo Instaview"
-              >
-                <Smartphone className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+            {/* BUSCA E SELETORES DE MODO DE EXIBIÇÃO */}
+            <div className="flex items-center gap-2 flex-1 min-w-0 order-1 sm:order-2">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="O que você está procurando hoje?"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
 
-          {/* ABAS DE CATEGORIAS */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            <button
-              onClick={() => setCategoriaSelecionada('todas')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                categoriaSelecionada === 'todas'
-                  ? 'text-white shadow'
-                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-              }`}
-              style={{ backgroundColor: categoriaSelecionada === 'todas' ? corTema : undefined }}
-            >
-              Todos
-            </button>
-            {categoriasOrdenadas.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setCategoriaSelecionada(cat.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                  categoriaSelecionada === cat.id
-                    ? 'text-white shadow'
-                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-                }`}
-                style={{ backgroundColor: categoriaSelecionada === cat.id ? corTema : undefined }}
-              >
-                {cat.nome}
-              </button>
-            ))}
+              {/* BOTÕES DE ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE / INSTAVIEW) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setModoExibicaoPublico('lista')}
+                  className={`p-2 rounded-xl transition cursor-pointer ${
+                    modoExibicaoPublico === 'lista' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                  title="Modo Lista"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoExibicaoPublico('grade')}
+                  className={`p-2 rounded-xl transition cursor-pointer ${
+                    modoExibicaoPublico === 'grade' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                  title="Modo Grade"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoExibicaoPublico('instaview')}
+                  className={`p-2 rounded-xl transition cursor-pointer ${
+                    modoExibicaoPublico === 'instaview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                  title="Modo Instaview"
+                >
+                  <Smartphone className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
