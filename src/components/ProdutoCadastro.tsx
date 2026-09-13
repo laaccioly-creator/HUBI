@@ -45,9 +45,11 @@ import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
+import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { atualizarProdutoExistenteComIA, obterNomeSegmentoLoja } from '../services/geminiService';
+import { obterSerpApiKey } from '../services/serpApiService';
 
 export interface PrecoConcorrente {
   loja: string;
@@ -692,7 +694,7 @@ export const ProdutoCadastro: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const ehEdicao = Boolean(id);
-  const { loja } = useAuth();
+  const { loja, setLoja } = useAuth();
   const permissions = usePermissions();
   const segmentoLoja = useMemo(() => obterNomeSegmentoLoja(loja), [loja]);
 
@@ -721,8 +723,18 @@ export const ProdutoCadastro: React.FC = () => {
   const [textoDescricaoIA, setTextoDescricaoIA] = useState<string>('');
   const [codigoBarrasIA, setCodigoBarrasIA] = useState<string>('');
 
-  // Modal de Pesquisa de Fotos na Internet
+  // Modal de Pesquisa de Fotos na Internet & Onboarding SerpApi (BYOK)
   const [modalFotosInternetAberto, setModalFotosInternetAberto] = useState<boolean>(false);
+  const [modalOnboardingSerpApiAberto, setModalOnboardingSerpApiAberto] = useState<boolean>(false);
+
+  const handleAbrirPesquisaFotos = () => {
+    const chave = obterSerpApiKey(loja);
+    if (!chave) {
+      setModalOnboardingSerpApiAberto(true);
+    } else {
+      setModalFotosInternetAberto(true);
+    }
+  };
 
   // Modal de Dúvida / Seleção de Produto pela IA
   const [modalDuvidaAberto, setModalDuvidaAberto] = useState<boolean>(false);
@@ -2114,7 +2126,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <button
                   type="button"
                   disabled={fotosUrls.length >= 7}
-                  onClick={() => setModalFotosInternetAberto(true)}
+                  onClick={handleAbrirPesquisaFotos}
                   className="py-3 px-4 rounded-2xl bg-gradient-to-r from-teal-500/20 via-indigo-500/20 to-teal-500/20 hover:from-teal-500/30 hover:to-indigo-500/30 border border-teal-500/40 text-teal-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-40 col-span-1 sm:col-span-2"
                   title="Pesquisar fotos na internet com boa qualidade"
                 >
@@ -3171,6 +3183,7 @@ export const ProdutoCadastro: React.FC = () => {
         fotoReferencia={fotoPrincipal || fotosUrls[0]}
         segmentoLoja={segmentoLoja}
         loja={loja}
+        onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}
         onAdicionarFotos={(novas) => {
           setFotosUrls(prev => {
             const combinadas = [...prev];
@@ -3184,6 +3197,22 @@ export const ProdutoCadastro: React.FC = () => {
           if (!fotoPrincipal && novas[0]) {
             setFotoPrincipal(novas[0]);
           }
+        }}
+      />
+
+      {/* Modal Onboarding SerpApi (BYOK) */}
+      <ModalOnboardingSerpApi
+        isOpen={modalOnboardingSerpApiAberto}
+        onClose={() => setModalOnboardingSerpApiAberto(false)}
+        loja={loja}
+        onChaveSalvaComSucesso={(novaChave) => {
+          if (loja) {
+            setLoja({
+              ...loja,
+              serpapi_key: novaChave
+            });
+          }
+          setModalFotosInternetAberto(true);
         }}
       />
 

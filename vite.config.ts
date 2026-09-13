@@ -67,6 +67,75 @@ function setupBuscaFotosMiddleware(middlewares: any) {
       res.end(JSON.stringify({ results: [], error: err.message }));
     }
   });
+
+  // Middleware proxy para SerpApi (Google Images Engine) em desenvolvimento local
+  middlewares.use('/api/buscar-fotos-serpapi', async (req: any, res: any) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    try {
+      const urlObj = new URL(req.url || '', 'http://localhost:3000');
+      const action = urlObj.searchParams.get('action');
+      const apiKey = urlObj.searchParams.get('api_key') || '';
+
+      if (action === 'account') {
+        if (!apiKey) {
+          res.statusCode = 401;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Chave de API não informada' }));
+          return;
+        }
+
+        const accountRes = await fetch(`https://serpapi.com/account.json?api_key=${encodeURIComponent(apiKey)}`);
+        const accountData = await accountRes.json().catch(() => ({}));
+        res.statusCode = accountRes.status;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(accountData));
+        return;
+      }
+
+      const q = urlObj.searchParams.get('q') || '';
+      if (!apiKey) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Chave de API SerpApi não informada', error_type: 'auth' }));
+        return;
+      }
+
+      if (!q.trim()) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ images_results: [] }));
+        return;
+      }
+
+      const searchParams = new URLSearchParams({
+        engine: 'google_images',
+        q: q.trim(),
+        hl: 'pt',
+        gl: 'br',
+        api_key: apiKey
+      });
+
+      const serpRes = await fetch(`https://serpapi.com/search.json?${searchParams.toString()}`);
+      const serpData = await serpRes.json().catch(() => ({}));
+
+      res.statusCode = serpRes.status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(serpData));
+    } catch (err: any) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: err.message, error_type: 'general' }));
+    }
+  });
 }
 
 export default defineConfig({

@@ -71,8 +71,10 @@ import {
   obterNomeSegmentoLoja
 } from '../services/geminiService';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
+import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
+import { obterSerpApiKey } from '../services/serpApiService';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -142,7 +144,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   onRecarregar
 }) => {
   const navigate = useNavigate();
-  const { loja, usuario, desconectarPdv } = useAuth();
+  const { loja, usuario, desconectarPdv, setLoja } = useAuth();
   const permissions = usePermissions();
   const segmentoLoja = useMemo(() => obterNomeSegmentoLoja(loja), [loja]);
 
@@ -171,6 +173,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalPublicCardAberto, setModalPublicCardAberto] = useState<boolean>(false); // TELA009
   const [modalCriarComIAAberto, setModalCriarComIAAberto] = useState<boolean>(false); // Criar / Preencher com IA completo
   const [modalFotosInternetAberto, setModalFotosInternetAberto] = useState<boolean>(false); // Pesquisar Fotos na Internet
+  const [modalOnboardingSerpApiAberto, setModalOnboardingSerpApiAberto] = useState<boolean>(false); // Onboarding SerpApi
+
+  const handleAbrirPesquisaFotos = () => {
+    const chave = obterSerpApiKey(loja);
+    if (!chave) {
+      setModalOnboardingSerpApiAberto(true);
+    } else {
+      setModalFotosInternetAberto(true);
+    }
+  };
   const [modalDuvidaAberto, setModalDuvidaAberto] = useState<boolean>(false); // Dúvida da IA entre múltiplos produtos
   const [opcoesDuvidaIA, setOpcoesDuvidaIA] = useState<ProdutoSugeridoIA[]>([]);
   const [fotoTemporariaDuvida, setFotoTemporariaDuvida] = useState<string | null>(null);
@@ -2713,7 +2725,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 {/* 2. Novo Botão: Pesquisar Fotos na Internet */}
                 <button
                   type="button"
-                  onClick={() => setModalFotosInternetAberto(true)}
+                  onClick={handleAbrirPesquisaFotos}
                   className="h-[56px] sm:h-[62px] w-full rounded-2xl bg-gradient-to-br from-teal-50 to-indigo-50 hover:from-teal-100 hover:to-indigo-100 border-2 border-dashed border-teal-500/40 p-1.5 shadow-sm active:scale-95 transition duration-150 flex flex-col items-center justify-center gap-0.5 cursor-pointer text-teal-800"
                   title="Pesquisar fotos na internet de boa qualidade"
                 >
@@ -3953,6 +3965,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           fotoReferencia={formData.fotos[0]}
           segmentoLoja={segmentoLoja}
           loja={loja}
+          onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}
           onAdicionarFotos={(novasFotos) => {
             setFormData(prev => {
               const fotosAtualizadas = [...prev.fotos];
@@ -3970,6 +3983,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               texto: `${novasFotos.length} foto(s) adicionada(s) à galeria!`,
               tipo: 'sucesso'
             });
+          }}
+        />
+
+        {/* MODAL ONBOARDING SERPAPI (BYOK) */}
+        <ModalOnboardingSerpApi
+          isOpen={modalOnboardingSerpApiAberto}
+          onClose={() => setModalOnboardingSerpApiAberto(false)}
+          loja={loja}
+          onChaveSalvaComSucesso={(novaChave) => {
+            if (loja) {
+              setLoja({
+                ...loja,
+                serpapi_key: novaChave
+              });
+            }
+            setModalFotosInternetAberto(true);
           }}
         />
 

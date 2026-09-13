@@ -41,7 +41,11 @@ import {
   Check,
   FileText,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  Key,
+  ExternalLink,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -63,6 +67,7 @@ import { CentralImportarExportar } from './CentralImportarExportar';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { setGoogleSearchConfig } from '../services/geminiService';
+import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../services/serpApiService';
 
 type SubTelaConfig =
   | 'menu'
@@ -197,6 +202,7 @@ const gerarSnapshotConfig = (dados: any) => {
     geminiApiKey: (dados.geminiApiKey || '').trim(),
     googleSearchApiKey: (dados.googleSearchApiKey || '').trim(),
     googleSearchCx: (dados.googleSearchCx || '').trim(),
+    serpApiKey: (dados.serpApiKey || '').trim(),
     nomeLoja: (dados.nomeLoja || '').trim(),
     urlLogo: dados.urlLogo || '',
     telefone: (dados.telefone || '').trim(),
@@ -340,6 +346,17 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [googleSearchApiKey, setGoogleSearchApiKey] = useState<string>('');
   const [googleSearchCx, setGoogleSearchCx] = useState<string>('');
+
+  // 2.2 BUSCA DE FOTOS SERPAPI (BYOK)
+  const [serpApiKey, setSerpApiKey] = useState<string>('');
+  const [editandoSerpApiKey, setEditandoSerpApiKey] = useState<boolean>(false);
+  const [testandoSerpApi, setTestandoSerpApi] = useState<boolean>(false);
+  const [resultadoTesteSerpApi, setResultadoTesteSerpApi] = useState<{
+    sucesso: boolean;
+    mensagem: string;
+    plano?: string;
+    buscasRestantes?: number;
+  } | null>(null);
 
   // 3. RECIBO
   const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
@@ -509,6 +526,7 @@ export const ConfiguracoesLoja: React.FC = () => {
       setGeminiApiKey(iaConfig.gemini_api_key || '');
       setGoogleSearchApiKey(iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '');
       setGoogleSearchCx(iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '');
+      setSerpApiKey(loja.serpapi_key || iaConfig.serpapi_key || localStorage.getItem('hubi_serpapi_key') || '');
 
       // Recibo
       setReciboAdicionarCliente(recibo.adicionar_cliente ?? true);
@@ -626,6 +644,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           geminiApiKey: iaConfig.gemini_api_key || '',
           googleSearchApiKey: iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '',
           googleSearchCx: iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '',
+          serpApiKey: loja.serpapi_key || iaConfig.serpapi_key || localStorage.getItem('hubi_serpapi_key') || '',
           nomeLoja: loja.nome_fantasia || '',
           urlLogo: loja.url_logo || '',
           telefone: loja.telefone || '',
@@ -868,7 +887,8 @@ export const ConfiguracoesLoja: React.FC = () => {
         ia: {
           gemini_api_key: geminiApiKey.trim(),
           google_search_api_key: googleSearchApiKey.trim(),
-          google_search_cx: googleSearchCx.trim()
+          google_search_cx: googleSearchCx.trim(),
+          serpapi_key: serpApiKey.trim() || undefined
         }
       };
 
@@ -892,12 +912,14 @@ export const ConfiguracoesLoja: React.FC = () => {
           endereco_cep: enderecoCep,
           endereco_cidade: enderecoCidade,
           endereco_estado: enderecoEstado,
+          serpapi_key: serpApiKey.trim() || null,
           configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
 
       if (error) throw error;
 
+      await salvarSerpApiKey(serpApiKey.trim(), loja.id, loja);
       setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
       salvouRecenteRef.current = true;
       setSnapshotInicial(snapshotAtual);
@@ -2272,48 +2294,6 @@ export const ConfiguracoesLoja: React.FC = () => {
                     Insira sua chave gratuita do <strong>Google AI Studio</strong> para que a Rubi tenha poder total de conversação natural, conheça os produtos a fundo e responda aos clientes com empatia e consultoria humana no Catálogo Online. Se não configurada, a Rubi continuará atendendo normalmente através do motor inteligente local.
                   </p>
                 </div>
-
-                {/* Busca de Fotos com Google Custom Search API (Opcional) */}
-                <div className="pt-4 border-t border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5 text-teal-400" />
-                      <span>Busca Oficial de Fotos no Google Imagens (Google Custom Search)</span>
-                    </label>
-                    <span className="text-[10px] text-teal-400 font-bold bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                      Fotos Direto no App
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                        ID do Mecanismo de Busca (CX)
-                      </label>
-                      <input
-                        type="text"
-                        value={googleSearchCx}
-                        onChange={(e) => setGoogleSearchCx(e.target.value)}
-                        placeholder="Ex: a1b2c3d4e5f6g7h8i"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-teal-500 transition font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                        Chave da API Google Search (Opcional - usa a chave Gemini se vazia)
-                      </label>
-                      <input
-                        type="password"
-                        value={googleSearchApiKey}
-                        onChange={(e) => setGoogleSearchApiKey(e.target.value)}
-                        placeholder="Deixe em branco para usar a mesma chave do Gemini"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-teal-500 transition font-mono"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    Permite ao HUBI trazer fotografias oficiais de produtos pesquisadas no Google diretamente para a tela de cadastro sem abrir abas extras. O Google oferece <strong>100 pesquisas gratuitas por dia</strong> através do Programmable Search Engine (Google Cloud).
-                  </p>
-                </div>
               </div>
             </div>
           </div>
@@ -3423,6 +3403,183 @@ export const ConfiguracoesLoja: React.FC = () => {
                   placeholder="ID do TikTok Pixel"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
                 />
+              </div>
+            </div>
+
+            {/* BUSCA AUTOMÁTICA DE FOTOS (SERPAPI - GOOGLE IMAGES ENGINE) */}
+            <div className="space-y-3 pt-3 border-t border-slate-800/80">
+              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
+                <Sparkles className="w-4 h-4 text-teal-400" /> Busca Automática de Fotos (SerpApi - Google Images)
+              </span>
+
+              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-xs text-slate-100">Motor de Imagens Google via SerpApi (BYOK)</h4>
+                      {serpApiKey ? (
+                        <span className="text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Conectada (250 buscas/mês)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-0.5 rounded-full font-bold">
+                          Não Configurada
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      Permite ao HUBI trazer fotografias oficiais de produtos pesquisadas no Google diretamente para a tela de cadastro sem abrir abas extras. Cota gratuita renovável de 250 buscas mensais sem custo para a loja.
+                    </p>
+                  </div>
+
+                  <a
+                    href="https://serpapi.com/users/sign_up"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-teal-400 hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                  >
+                    <span>Obter Chave Gratuita</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+
+                {/* Área da Chave */}
+                <div className="space-y-2 pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Chave de API SerpApi (API Key):</span>
+                    </label>
+                    {serpApiKey && !editandoSerpApiKey && (
+                      <button
+                        type="button"
+                        onClick={() => setEditandoSerpApiKey(true)}
+                        className="text-[11px] text-teal-400 hover:text-teal-300 font-bold transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        <span>Editar / Trocar Chave</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {editandoSerpApiKey || !serpApiKey ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="password"
+                          value={serpApiKey}
+                          onChange={(e) => {
+                            setSerpApiKey(e.target.value);
+                            setResultadoTesteSerpApi(null);
+                          }}
+                          placeholder="Cole sua chave aqui (Ex: 7a8b9c0d1e2f3a4b5c6d...)"
+                          className="flex-1 bg-slate-900 border border-slate-700 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-100 placeholder:text-slate-600 font-mono transition"
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await salvarSerpApiKey(serpApiKey.trim(), loja?.id, loja);
+                              setEditandoSerpApiKey(false);
+                              mostrarToast('Chave SerpApi salva com sucesso!');
+                            } catch (e: any) {
+                              mostrarErro(e.message, 'Erro ao salvar chave');
+                            }
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-black text-xs transition cursor-pointer shrink-0 shadow-sm"
+                        >
+                          Salvar Chave
+                        </button>
+                        {serpApiKey && (
+                          <button
+                            type="button"
+                            onClick={() => setEditandoSerpApiKey(false)}
+                            className="px-3.5 py-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer shrink-0"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        Acesse sua conta no painel da SerpApi, copie o código em <strong>API Key</strong> e salve aqui para ativar a busca automática no cadastro de produtos.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <Key className="w-4 h-4 text-teal-400 shrink-0" />
+                        <span className="font-mono text-xs text-slate-300 tracking-wider">
+                          {`••••••••••••••••${serpApiKey.trim().slice(-4)}`}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={testandoSerpApi}
+                          onClick={async () => {
+                            setTestandoSerpApi(true);
+                            setResultadoTesteSerpApi(null);
+                            const res = await testarConexaoSerpApi(serpApiKey);
+                            setResultadoTesteSerpApi(res);
+                            setTestandoSerpApi(false);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                        >
+                          {testandoSerpApi ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-400" />
+                              <span>Testando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 text-teal-400" />
+                              <span>Testar Conexão</span>
+                            </>
+                          )}
+                        </button>
+                        <a
+                          href="https://serpapi.com/dashboard"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center gap-1 transition"
+                          title="Acessar painel SerpApi"
+                        >
+                          <span>Painel</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Feedback do Teste de Conexão */}
+                  {resultadoTesteSerpApi && (
+                    <div
+                      className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 animate-in fade-in ${
+                        resultadoTesteSerpApi.sucesso
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                      }`}
+                    >
+                      {resultadoTesteSerpApi.sucesso ? (
+                        <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                      )}
+                      <div>
+                        <p className="font-bold">{resultadoTesteSerpApi.mensagem}</p>
+                        {resultadoTesteSerpApi.plano && (
+                          <p className="text-[11px] opacity-85 mt-0.5">
+                            Plano ativo: <strong>{resultadoTesteSerpApi.plano}</strong>
+                            {resultadoTesteSerpApi.buscasRestantes !== undefined && (
+                              <span> • Buscas restantes este mês: <strong>{resultadoTesteSerpApi.buscasRestantes}</strong></span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

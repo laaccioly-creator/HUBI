@@ -41,9 +41,14 @@ CREATE TABLE IF NOT EXISTS public.lojas (
     valor_minimo_pedido NUMERIC(12,2) DEFAULT 0.00,
     tipo_plano VARCHAR(20) DEFAULT 'GROW',
     configuracoes_extras JSONB DEFAULT '{}'::jsonb,
+    serpapi_key TEXT, -- Chave de API SerpApi (Google Images Engine) no modelo BYOK
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migração idempotente para bancos de dados já criados
+ALTER TABLE public.lojas ADD COLUMN IF NOT EXISTS serpapi_key TEXT;
+
 
 -- Tabela: usuarios_loja (Usuários, Vendedores e Permissões RBAC)
 CREATE TABLE IF NOT EXISTS public.usuarios_loja (

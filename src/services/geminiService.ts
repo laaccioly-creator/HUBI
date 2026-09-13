@@ -1,4 +1,14 @@
 // Serviço de Inteligência Artificial Google Gemini (Visão Multimodal e Processamento de Produtos)
+import {
+  obterSerpApiKey,
+  buscarFotosGoogleImagesSerpApi,
+  SerpApiQuotaError,
+  SerpApiAuthError,
+  FotoResultadoSerpApi
+} from './serpApiService';
+
+export { SerpApiQuotaError, SerpApiAuthError };
+export type { FotoResultadoSerpApi };
 
 export interface ProdutoSugeridoIA {
   nome: string;
@@ -529,6 +539,8 @@ export interface FotoResultadoInternet {
   url: string;
   titulo: string;
   fonte: string;
+  thumbnail?: string;
+  urlOriginal?: string;
 }
 
 /**
@@ -601,7 +613,13 @@ export const pesquisarFotosProdutoNaInternet = async (
   const fotos: FotoResultadoInternet[] = [];
   const urlsVistas = new Set<string>();
 
-  const registrarFoto = (url: string, titulo: string, fonte: string) => {
+  const registrarFoto = (
+    url: string,
+    titulo: string,
+    fonte: string,
+    thumbnail?: string,
+    urlOriginal?: string
+  ) => {
     if (!url || typeof url !== 'string') return;
     const limpa = url.trim();
     if (!limpa.startsWith('http://') && !limpa.startsWith('https://')) return;
@@ -614,7 +632,9 @@ export const pesquisarFotosProdutoNaInternet = async (
     fotos.push({
       url: limpa,
       titulo: titulo.trim() || termo,
-      fonte
+      fonte,
+      thumbnail: thumbnail || limpa,
+      urlOriginal: urlOriginal || limpa
     });
   };
 
@@ -654,38 +674,38 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  // PASSO 2 (A): Google Custom Search JSON API (searchType=image)
-  const googleConfig = getGoogleSearchConfig(loja);
-  if (googleConfig.cx) {
-    const searchApiKey = googleConfig.apiKey || getGeminiApiKey(loja);
-    if (searchApiKey) {
-      for (const qTermo of termosParaPesquisar.slice(0, 2)) {
-        if (fotos.length >= 16) break;
-        try {
-          const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${searchApiKey}&cx=${encodeURIComponent(googleConfig.cx)}&searchType=image&q=${encodeURIComponent(qTermo)}&num=10&gl=br&hl=pt-BR&safe=off`;
-          const ctrl = new AbortController();
-          const tId = setTimeout(() => ctrl.abort(), 6500);
-          const gRes = await fetch(googleUrl, { signal: ctrl.signal });
-          clearTimeout(tId);
-          if (gRes.ok) {
-            const gData = await gRes.json();
-            const items = Array.isArray(gData.items) ? gData.items : [];
-            for (const item of items) {
-              if (fotos.length >= 20) break;
-              const imgUrl = item.link;
-              if (imgUrl) {
-                const cleanRaw = imgUrl.replace(/^https?:\/\//, '');
-                const urlSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanRaw)}&w=600&output=jpg`;
-                registrarFoto(urlSegura, item.title || qTermo, 'Google Imagens');
-              }
-            }
-          }
-        } catch (err) {
-          console.warn('Aviso: Erro na busca via Google Custom Search API:', err);
-        }
+  // PASSO 2 (A): SerpApi (Google Images Engine) no modelo BYOK
+  const serpApiKey = obterSerpApiKey(loja);
+  if (serpApiKey) {
+    try {
+      const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
+      const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
+        termoPrincipal,
+        serpApiKey,
+        { lojaId: loja?.id, numResultados: 20 }
+      );
+      for (const item of resultadosSerpApi) {
+        registrarFoto(
+          item.urlOriginal,
+          item.titulo,
+          item.fonte || 'Google Imagens',
+          item.urlThumbnail,
+          item.urlOriginal
+        );
       }
+    } catch (err) {
+      if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
+        throw err;
+      }
+      console.warn('Aviso: Erro na busca via SerpApi:', err);
     }
   }
+
+  // Se a SerpApi já retornou fotos suficientes, retorna diretamente sem onerar fontes secundárias
+  if (fotos.length >= 12) {
+    return fotos.slice(0, 20);
+  }
+
 
   // PASSO 2 (B): Busca Web / E-commerce via Middleware Local (/api/buscar-fotos-web)
   if (fotos.length < 15) {

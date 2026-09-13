@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2, ExternalLink } from 'lucide-react';
-import { pesquisarFotosProdutoNaInternet, FotoResultadoInternet } from '../services/geminiService';
+import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2, ExternalLink, Key, RefreshCw } from 'lucide-react';
+import { pesquisarFotosProdutoNaInternet, FotoResultadoInternet, SerpApiQuotaError, SerpApiAuthError } from '../services/geminiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
+import { ModalQuotaExcedidaSerpApi } from './ModalQuotaExcedidaSerpApi';
 
 interface ModalPesquisaFotosInternetProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface ModalPesquisaFotosInternetProps {
   fotoReferencia?: string;
   segmentoLoja?: string;
   loja?: any;
+  onAbrirConfiguracaoChave?: () => void;
 }
 
 export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProps> = ({
@@ -26,7 +28,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   maxFotos = 7,
   fotoReferencia,
   segmentoLoja,
-  loja
+  loja,
+  onAbrirConfiguracaoChave
 }) => {
   const [termoBusca, setTermoBusca] = useState<string>('');
   const [urlManual, setUrlManual] = useState<string>('');
@@ -34,6 +37,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [fotosEncontradas, setFotosEncontradas] = useState<FotoResultadoInternet[]>([]);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [erro, setErro] = useState<string | null>(null);
+  const [erroAutenticacao, setErroAutenticacao] = useState<boolean>(false);
+  const [modalQuotaAberta, setModalQuotaAberta] = useState<boolean>(false);
   const [imagensCarregadas, setImagensCarregadas] = useState<Set<string>>(new Set());
   const [imagensComErro, setImagensComErro] = useState<Set<string>>(new Set());
   const [mensagemToast, setMensagemToast] = useState<string | null>(null);
@@ -130,6 +135,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
 
     setCarregando(true);
     setErro(null);
+    setErroAutenticacao(false);
     setSelecionadas(new Set());
     setImagensCarregadas(new Set());
     setImagensComErro(new Set());
@@ -142,22 +148,31 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
       }
     } catch (err: any) {
       console.error('Erro na busca de fotos:', err);
-      setErro(err.message || 'Erro ao buscar fotos na internet. Tente novamente.');
+      if (err instanceof SerpApiQuotaError || err?.name === 'SerpApiQuotaError') {
+        setModalQuotaAberta(true);
+        setErro('Limite mensal de 250 buscas atingido na SerpApi. Suas buscas gratuitas renovam no início do próximo mês.');
+      } else if (err instanceof SerpApiAuthError || err?.name === 'SerpApiAuthError') {
+        setErroAutenticacao(true);
+        setErro('Chave da SerpApi inválida ou expirada. Clique no botão abaixo para redefinir sua chave.');
+      } else {
+        setErro(err.message || 'Erro ao buscar fotos na internet. Tente novamente.');
+      }
     } finally {
       setCarregando(false);
     }
   };
 
-  const toggleSelecao = (url: string) => {
+  const toggleSelecao = (foto: FotoResultadoInternet) => {
+    const urlAlvo = foto.urlOriginal || foto.url;
     const novoSet = new Set(selecionadas);
-    if (novoSet.has(url)) {
-      novoSet.delete(url);
+    if (novoSet.has(urlAlvo)) {
+      novoSet.delete(urlAlvo);
     } else {
       if (novoSet.size >= vagasDisponiveis) {
         alert(`Você só pode selecionar mais ${vagasDisponiveis} foto(s), pois o produto aceita no máximo ${maxFotos} fotos.`);
         return;
       }
-      novoSet.add(url);
+      novoSet.add(urlAlvo);
     }
     setSelecionadas(novoSet);
   };
@@ -168,8 +183,9 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     onClose();
   };
 
-  const handleAdicionarUnica = (url: string) => {
-    onAdicionarFotos([url]);
+  const handleAdicionarUnica = (foto: FotoResultadoInternet) => {
+    const urlAlvo = foto.urlOriginal || foto.url;
+    onAdicionarFotos([urlAlvo]);
     onClose();
   };
 
@@ -339,14 +355,29 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
           ) : erro ? (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-3 max-w-md mx-auto">
               <AlertCircle className="w-10 h-10 text-amber-400" />
-              <p className="text-xs sm:text-sm text-slate-300">{erro}</p>
-              <p className="text-[11px] text-slate-500">
-                Dica: experimente buscar pelo nome comercial ou pela marca principal do item.
-              </p>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{erro}</p>
+              {erroAutenticacao && onAbrirConfiguracaoChave && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onAbrirConfiguracaoChave();
+                  }}
+                  className="mt-2 px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-lg shadow-teal-500/20"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Configurar Chave SerpApi Agora</span>
+                </button>
+              )}
+              {!erroAutenticacao && (
+                <p className="text-[11px] text-slate-500">
+                  Dica: experimente buscar pelo nome comercial ou pela marca principal do item.
+                </p>
+              )}
             </div>
           ) : fotosEncontradas.length > 0 ? (
             (() => {
-              const fotosValidas = fotosEncontradas.filter(f => !imagensComErro.has(f.url));
+              const fotosValidas = fotosEncontradas.filter(f => !imagensComErro.has(f.thumbnail || f.url));
             if (fotosValidas.length === 0 && fotosEncontradas.length > 0) {
               return (
                 <div className="py-12 flex flex-col items-center justify-center text-center space-y-3 max-w-md mx-auto">
@@ -367,16 +398,18 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                   </span>
                 </div>
 
-                {/* Grid Responsivo de 6 a 8 fotos */}
+                {/* Grid Responsivo de fotos */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                   {fotosValidas.map((foto, idx) => {
-                    const estaSelecionada = selecionadas.has(foto.url);
-                    const estaCarregada = imagensCarregadas.has(foto.url);
+                    const urlAlvo = foto.urlOriginal || foto.url;
+                    const urlExibicao = foto.thumbnail || foto.url;
+                    const estaSelecionada = selecionadas.has(urlAlvo);
+                    const estaCarregada = imagensCarregadas.has(urlExibicao);
 
                     return (
                       <div
                         key={idx}
-                        onClick={() => toggleSelecao(foto.url)}
+                        onClick={() => toggleSelecao(foto)}
                         className={`group relative rounded-2xl overflow-hidden border-2 cursor-pointer transition flex flex-col bg-slate-800/80 shadow-md ${
                           estaSelecionada
                             ? 'border-teal-400 ring-2 ring-teal-400/40'
@@ -393,7 +426,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                           )}
 
                           <img
-                            src={foto.url}
+                            src={urlExibicao}
                             alt={foto.titulo || 'Foto do produto'}
                             crossOrigin="anonymous"
                             referrerPolicy="no-referrer"
@@ -402,10 +435,10 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                             }`}
                             loading="lazy"
                             onLoad={() => {
-                              setImagensCarregadas(prev => new Set(prev).add(foto.url));
+                              setImagensCarregadas(prev => new Set(prev).add(urlExibicao));
                             }}
                             onError={() => {
-                              setImagensComErro(prev => new Set(prev).add(foto.url));
+                              setImagensComErro(prev => new Set(prev).add(urlExibicao));
                             }}
                           />
 
@@ -435,7 +468,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleAdicionarUnica(foto.url);
+                              handleAdicionarUnica(foto);
                             }}
                             className="mt-2 w-full py-1 text-[10px] font-bold rounded-lg bg-slate-700 hover:bg-teal-600 text-slate-200 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer"
                           >
@@ -491,6 +524,12 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
           </div>
         </div>
       </div>
+
+      {/* Modal de Alerta de Cota Mensal Excedida (250 buscas) */}
+      <ModalQuotaExcedidaSerpApi
+        isOpen={modalQuotaAberta}
+        onClose={() => setModalQuotaAberta(false)}
+      />
     </div>
   );
 };

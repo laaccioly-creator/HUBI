@@ -192,6 +192,7 @@ export interface ConfiguracoesExtrasLoja {
     gemini_api_key?: string;
     google_search_api_key?: string;
     google_search_cx?: string;
+    serpapi_key?: string;
   };
 }
 
@@ -233,6 +234,7 @@ export interface Loja {
   qtd_minima_padrao_autoatacado?: number | null;
   qtd_minima_sku_padrao_autoatacado?: number | null;
   valor_minimo_padrao_autoatacado?: number | null;
+  serpapi_key?: string | null;
   configuracoes_extras?: ConfiguracoesExtrasLoja | null;
   criado_em?: string;
   atualizado_em?: string;
