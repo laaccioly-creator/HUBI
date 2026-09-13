@@ -22,13 +22,14 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
 import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
+import { ModalDetalhesProdutoCatalogo } from './ModalDetalhesProdutoCatalogo';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
@@ -46,6 +47,7 @@ interface PedidoConcluidoInfo {
   pixInfo?: PixDinamicoResponse | null;
   linkPagamento?: string | null;
   preferenceId?: string | null;
+  formaPagamentoEscolhida?: string;
 }
 
 export const CatalogoPublico: React.FC = () => {
@@ -75,10 +77,10 @@ export const CatalogoPublico: React.FC = () => {
   const [drawerCarrinhoAberto, setDrawerCarrinhoAberto] = useState<boolean>(false);
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
 
-  // Forma de pagamento selecionada no catálogo e troco
-  const [formaPagamentoCatalogo, setFormaPagamentoCatalogo] = useState<'pix' | 'dinheiro' | 'cartao_maquininha'>('pix');
-  const [trocoParaInput, setTrocoParaInput] = useState<string>('');
-  const [chavePixCopiada, setChavePixCopiada] = useState<boolean>(false);
+  // Controle do modal de detalhes do produto e assistente Rubi IA
+  const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
+  const [mensagemRubiExterna, setMensagemRubiExterna] = useState<{ id: number; texto: string } | null>(null);
+  const [rubiAbertaExterna, setRubiAbertaExterna] = useState<boolean>(false);
 
   // Sincronizar carrinho com sessionStorage para preservar estado contra recarregamentos
   useEffect(() => {
@@ -617,9 +619,34 @@ export const CatalogoPublico: React.FC = () => {
     });
   };
 
-  const handleEnviarPedido = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEnviarConsultaWhatsApp = () => {
     if (!loja?.id || carrinho.length === 0) return;
+    const itensMsg = carrinho
+      .map(i => {
+        const precoUnitario = calcularPrecoUnitarioPorTabela(
+          i.produto,
+          i.variacao,
+          avaliacaoCarrinho.tabelaAtiva,
+          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+        );
+        const subtotalItem = precoUnitario * i.quantidade;
+        return `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${subtotalItem.toFixed(2)}`;
+      })
+      .join('\n');
+
+    const msgWhatsApp = `Olá, ${loja.nome_fantasia}! Gostaria de consultar a disponibilidade dos seguintes produtos:\n\n${itensMsg}\n\n*Total Estimado:* R$ ${total.toFixed(2)}`;
+    const lojaPhone = loja.whatsapp.replace(/\D/g, '');
+    window.open(`https://api.whatsapp.com/send?phone=55${lojaPhone}&text=${encodeURIComponent(msgWhatsApp)}`, '_blank');
+  };
+
+  const handleFinalizarPedido = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!loja?.id || carrinho.length === 0) return;
+
+    if (!aceitaPedidos) {
+      handleEnviarConsultaWhatsApp();
+      return;
+    }
 
     const nomeLimpo = nomeCliente.trim();
     const telNumeros = whatsappCliente.replace(/\D/g, '');
@@ -681,7 +708,7 @@ export const CatalogoPublico: React.FC = () => {
               .single();
 
             if (erroNovoCliente) {
-              console.error('❌ Erro ao salvar novo cliente no Supabase (verifique as políticas RLS no schema.sql):', erroNovoCliente);
+              console.error('❌ Erro ao salvar novo cliente no Supabase:', erroNovoCliente);
             } else if (novoCliente) {
               console.log('✅ Novo cliente cadastrado com sucesso no HUBI! ID:', novoCliente.id, novoCliente);
               clienteFinalId = novoCliente.id;
@@ -716,48 +743,52 @@ export const CatalogoPublico: React.FC = () => {
       }
       console.groupEnd();
 
-      const valorTrocoPara = formaPagamentoCatalogo === 'dinheiro' && trocoParaInput.trim()
-        ? parseFloat(trocoParaInput.trim().replace(',', '.')) || null
-        : null;
-
       const dataOperacaoIso = obterDataOperacaoISOParaLoja(loja);
 
-      const { data: pedidoCriado, error: erroPedido } = await supabase
+      const payloadPedido = {
+        loja_id: loja.id,
+        cliente_id: clienteFinalId,
+        origem: 'catalogo_online',
+        status: 'pendente',
+        status_pagamento: 'aguardando_pagamento',
+        forma_pagamento_catalogo: 'a_combinar',
+        tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
+        subtotal,
+        valor_frete: valorFreteEfetivo,
+        valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
+        valor_total: total,
+        saldo_devedor: total,
+        troco_para: null,
+        cupom_id: cupomAplicado?.id || null,
+        cupom_codigo: cupomAplicado?.codigo || null,
+        valor_desconto_cupom: Number(descontoCupom || 0),
+        endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
+        observacoes: observacoes?.trim() || null,
+        forma_entrega_id: formaEntregaEscolhida?.id || null,
+        cliente_nome_avulso: nomeCliente || null,
+        cliente_telefone_avulso: whatsappCliente || null,
+        cliente_documento_avulso: dadosContato.cpfCnpj || null,
+        cliente_email_avulso: dadosContato.email || null,
+        metadados: null,
+        data_venda: dataOperacaoIso,
+        criado_em: dataOperacaoIso,
+        atualizado_em: dataOperacaoIso
+      };
+
+      let { data: pedidoCriado, error: erroPedido } = await supabase
         .from('pedidos')
-        .insert([
-          {
-            loja_id: loja.id,
-            cliente_id: clienteFinalId,
-            origem: 'catalogo_online',
-            status: 'pendente',
-            status_pagamento: 'aguardando_pagamento',
-            forma_pagamento: formaPagamentoCatalogo === 'pix' ? 'pix' : formaPagamentoCatalogo === 'dinheiro' ? 'dinheiro' : 'cartao_maquininha',
-            forma_pagamento_catalogo: formaPagamentoCatalogo,
-            tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
-            subtotal,
-            valor_frete: valorFreteEfetivo,
-            valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
-            valor_total: total,
-            saldo_devedor: total,
-            troco_para: valorTrocoPara,
-            cupom_id: cupomAplicado?.id || null,
-            cupom_codigo: cupomAplicado?.codigo || null,
-            valor_desconto_cupom: Number(descontoCupom || 0),
-            endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
-            observacoes: observacoes?.trim() || null,
-            forma_entrega_id: formaEntregaEscolhida?.id || null,
-            cliente_nome_avulso: nomeCliente || null,
-            cliente_telefone_avulso: whatsappCliente || null,
-            cliente_documento_avulso: dadosContato.cpfCnpj || null,
-            cliente_email_avulso: dadosContato.email || null,
-            metadados: null,
-            data_venda: dataOperacaoIso,
-            criado_em: dataOperacaoIso,
-            atualizado_em: dataOperacaoIso
-          }
-        ])
+        .insert([payloadPedido])
         .select()
         .single();
+
+      // Fallback defensivo se a coluna forma_pagamento_catalogo não for reconhecida pelo schema cache
+      if (erroPedido && (erroPedido.message?.includes('forma_pagamento') || (erroPedido as any).details?.includes('forma_pagamento'))) {
+        console.warn('Campo forma_pagamento_catalogo ausente na tabela pedidos. Tentando salvar sem ele...');
+        const { forma_pagamento_catalogo, ...payloadSemForma } = payloadPedido;
+        const retry = await supabase.from('pedidos').insert([payloadSemForma]).select().single();
+        pedidoCriado = retry.data;
+        erroPedido = retry.error;
+      }
 
       if (erroPedido || !pedidoCriado) throw erroPedido;
 
@@ -770,10 +801,11 @@ export const CatalogoPublico: React.FC = () => {
           tipo_evento: 'criacao',
           status_anterior: null,
           status_novo: 'pendente',
-          descricao: 'Pedido recebido via Catálogo Online'
+          motivo: 'Pedido recebido via catálogo online',
+          criado_em: dataOperacaoIso
         });
-      } catch (errAudit) {
-        console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+      } catch (errHist) {
+        console.warn('Aviso: Histórico de pedidos não pôde ser gravado:', errHist);
       }
 
       const itensFormatados = carrinho.map(item => {
@@ -801,6 +833,66 @@ export const CatalogoPublico: React.FC = () => {
 
       await supabase.from('itens_pedido').insert(itensFormatados);
 
+      // Gerar cobrança e preferência Mercado Pago se estiver ativo na loja
+      let pixInfoRes: PixDinamicoResponse | null = null;
+      let linkPagamentoUrl: string | null = null;
+      let linkPreferenceId: string | null = null;
+
+      if (loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
+        const emailEfetivo = dadosContato.email?.trim() || clienteSelecionado?.email?.trim() || undefined;
+
+        try {
+          pixInfoRes = await paymentGatewayService.gerarPixMercadoPago({
+            loja,
+            valor: total,
+            descricao: `Pedido #${pedidoCriado.numero_pedido} - ${loja.nome_fantasia}`,
+            pedidoNumero: pedidoCriado.numero_pedido,
+            emailCliente: emailEfetivo,
+            nomeCliente: nomeCliente
+          });
+        } catch (errPix) {
+          console.warn('Aviso ao gerar Pix Mercado Pago:', errPix);
+        }
+
+        try {
+          const itensPreference = carrinho.map(c => {
+            const precoUnitario = calcularPrecoUnitarioPorTabela(
+              c.produto,
+              c.variacao,
+              avaliacaoCarrinho.tabelaAtiva,
+              avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+            );
+            return {
+              titulo: `${c.produto.nome}${c.variacao ? ` - ${c.variacao.valor_variacao_1}` : ''}`,
+              quantidade: c.quantidade,
+              precoUnitario: precoUnitario
+            };
+          });
+
+          if (valorFreteEfetivo > 0) {
+            itensPreference.push({
+              titulo: `Frete / Entrega (${formaEntregaEscolhida?.nome || 'Padrão'})`,
+              quantidade: 1,
+              precoUnitario: valorFreteEfetivo
+            });
+          }
+
+          const linkRes = await paymentGatewayService.gerarLinkMercadoPago({
+            loja,
+            itens: itensPreference,
+            pedidoNumero: pedidoCriado.numero_pedido,
+            clienteEmail: emailEfetivo
+          });
+
+          if (linkRes.sucesso && linkRes.linkPagamento) {
+            linkPagamentoUrl = linkRes.linkPagamento;
+            linkPreferenceId = linkRes.preferenceId || null;
+          }
+        } catch (errLink) {
+          console.warn('Aviso ao gerar Link Mercado Pago:', errLink);
+        }
+      }
+
       const itensMsg = carrinho
         .map(i => {
           const precoUnitario = calcularPrecoUnitarioPorTabela(
@@ -821,11 +913,9 @@ export const CatalogoPublico: React.FC = () => {
           ? '🏷️ Atacado'
           : '🛒 Varejo';
 
-      const textoFormaPagamento = formaPagamentoCatalogo === 'pix'
-        ? '⚡ PIX'
-        : formaPagamentoCatalogo === 'dinheiro'
-        ? `💵 Dinheiro${trocoParaInput.trim() ? ` (Troco para R$ ${trocoParaInput.trim()})` : ' (Não precisa de troco)'}`
-        : '💳 Cartão (Maquininha na Entrega / Retirada)';
+      const textoFormaPagamento = loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo
+        ? 'A combinar / Mercado Pago'
+        : 'A combinar com a loja';
 
       const msgWhatsApp = `🛍️ *NOVO PEDIDO ONLINE #${pedidoCriado.numero_pedido}*
 
@@ -848,58 +938,6 @@ Fico no aguardo da confirmação! ✨`;
 
       const lojaPhone = loja.whatsapp.replace(/\D/g, '');
       const urlWhats = `https://api.whatsapp.com/send?phone=55${lojaPhone}&text=${encodeURIComponent(msgWhatsApp)}`;
-      
-      let pixInfoRes: PixDinamicoResponse | null = null;
-      let linkPagamentoUrl: string | null = null;
-      let linkPreferenceId: string | null = null;
-
-      // Gerar cobrança Mercado Pago se ativado
-      if (loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
-        const emailEfetivo = dadosContato.email?.trim() || clienteSelecionado?.email?.trim() || undefined;
-
-        pixInfoRes = await paymentGatewayService.gerarPixMercadoPago({
-          loja,
-          valor: total,
-          descricao: `Pedido #${pedidoCriado.numero_pedido} - ${loja.nome_fantasia}`,
-          pedidoNumero: pedidoCriado.numero_pedido,
-          emailCliente: emailEfetivo,
-          nomeCliente: nomeCliente
-        });
-
-        const itensPreference = carrinho.map(c => {
-          const precoUnitario = calcularPrecoUnitarioPorTabela(
-            c.produto,
-            c.variacao,
-            avaliacaoCarrinho.tabelaAtiva,
-            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
-          );
-          return {
-            titulo: `${c.produto.nome}${c.variacao ? ` - ${c.variacao.valor_variacao_1}` : ''}`,
-            quantidade: c.quantidade,
-            precoUnitario: precoUnitario
-          };
-        });
-
-        if (valorFreteEfetivo > 0) {
-          itensPreference.push({
-            titulo: `Frete / Entrega (${formaEntregaEscolhida?.nome || 'Padrão'})`,
-            quantidade: 1,
-            precoUnitario: valorFreteEfetivo
-          });
-        }
-
-        const linkRes = await paymentGatewayService.gerarLinkMercadoPago({
-          loja,
-          itens: itensPreference,
-          pedidoNumero: pedidoCriado.numero_pedido,
-          clienteEmail: emailEfetivo
-        });
-
-        if (linkRes.sucesso && linkRes.linkPagamento) {
-          linkPagamentoUrl = linkRes.linkPagamento;
-          linkPreferenceId = linkRes.preferenceId || null;
-        }
-      }
 
       setCarrinho([]);
       setDrawerCarrinhoAberto(false);
@@ -914,7 +952,8 @@ Fico no aguardo da confirmação! ✨`;
         whatsAppUrl: (loja.resumo_whatsapp ?? true) ? urlWhats : '',
         pixInfo: pixInfoRes?.sucesso ? pixInfoRes : null,
         linkPagamento: linkPagamentoUrl,
-        preferenceId: linkPreferenceId
+        preferenceId: linkPreferenceId,
+        formaPagamentoEscolhida: 'a_combinar'
       });
     } catch (err: any) {
       console.error('Erro ao enviar pedido:', err);
@@ -1218,8 +1257,12 @@ Fico no aguardo da confirmação! ✨`;
                   className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm hover:border-slate-700 transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-950 shrink-0">
-                      <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover" />
+                    <div
+                      onClick={() => setProdutoDetalhesModal(produto)}
+                      className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-950 shrink-0 cursor-pointer hover:opacity-90 transition group/photo"
+                      title="Clique para ver fotos e detalhes"
+                    >
+                      <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-200" />
                       {esgotado && (
                         <span className="absolute inset-0 bg-black/70 flex items-center justify-center text-[9px] font-black text-rose-300">
                           ESGOTADO
@@ -1228,7 +1271,13 @@ Fico no aguardo da confirmação! ✨`;
                     </div>
 
                     <div className="min-w-0">
-                      <h3 className="font-bold text-xs sm:text-sm text-slate-100 truncate">{produto.nome}</h3>
+                      <h3
+                        onClick={() => setProdutoDetalhesModal(produto)}
+                        className="font-bold text-xs sm:text-sm text-slate-100 truncate cursor-pointer hover:underline"
+                        title="Ver detalhes do produto"
+                      >
+                        {produto.nome}
+                      </h3>
                       {produto.descricao && (
                         <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{produto.descricao}</p>
                       )}
@@ -1240,33 +1289,45 @@ Fico no aguardo da confirmação! ✨`;
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={esgotado}
-                    onClick={() => {
-                      if (esgotado) return;
-                      if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
-                        setProdutoModalVariacao(produto);
-                      } else {
-                        adicionarAoCarrinho(produto);
-                      }
-                    }}
-                    className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm shrink-0 ${
-                      esgotado
-                        ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
-                        : 'text-white cursor-pointer hover:brightness-110'
-                    }`}
-                    style={{ backgroundColor: esgotado ? undefined : corTema }}
-                  >
-                    {esgotado ? (
-                      <span>Esgotado</span>
-                    ) : (
-                      <>
-                        <Plus className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Adicionar</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setProdutoDetalhesModal(produto)}
+                      className="px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer border border-slate-700"
+                      title="Ver Detalhes do Produto"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="hidden sm:inline">Detalhar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={esgotado}
+                      onClick={() => {
+                        if (esgotado) return;
+                        if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                          setProdutoModalVariacao(produto);
+                        } else {
+                          adicionarAoCarrinho(produto);
+                        }
+                      }}
+                      className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm ${
+                        esgotado
+                          ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                          : 'text-white cursor-pointer hover:brightness-110'
+                      }`}
+                      style={{ backgroundColor: esgotado ? undefined : corTema }}
+                    >
+                      {esgotado ? (
+                        <span>Esgotado</span>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Adicionar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -1283,8 +1344,12 @@ Fico no aguardo da confirmação! ✨`;
                   key={produto.id}
                   className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl flex flex-col justify-between"
                 >
-                  <div className="relative aspect-square w-full bg-slate-950">
-                    <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover" />
+                  <div
+                    onClick={() => setProdutoDetalhesModal(produto)}
+                    className="relative aspect-square w-full bg-slate-950 cursor-pointer hover:opacity-95 transition group/photo"
+                    title="Clique para ver fotos e detalhes"
+                  >
+                    <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
                     {esgotado && (
                       <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
                         <span className="bg-rose-600 text-white font-black text-xs px-4 py-1 rounded-full shadow-lg">
@@ -1301,7 +1366,13 @@ Fico no aguardo da confirmação! ✨`;
 
                   <div className="p-4 space-y-3">
                     <div>
-                      <h3 className="font-bold text-sm text-slate-100">{produto.nome}</h3>
+                      <h3
+                        onClick={() => setProdutoDetalhesModal(produto)}
+                        className="font-bold text-sm text-slate-100 cursor-pointer hover:underline"
+                        title="Ver detalhes"
+                      >
+                        {produto.nome}
+                      </h3>
                       {produto.descricao && (
                         <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">{produto.descricao}</p>
                       )}
@@ -1314,33 +1385,45 @@ Fico no aguardo da confirmação! ✨`;
                         </span>
                       </div>
 
-                      <button
-                        type="button"
-                        disabled={esgotado}
-                        onClick={() => {
-                          if (esgotado) return;
-                          if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
-                            setProdutoModalVariacao(produto);
-                          } else {
-                            adicionarAoCarrinho(produto);
-                          }
-                        }}
-                        className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition ${
-                          esgotado
-                            ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
-                            : 'text-white cursor-pointer hover:brightness-110'
-                        }`}
-                        style={{ backgroundColor: esgotado ? undefined : corTema }}
-                      >
-                        {esgotado ? (
-                          <span>Esgotado</span>
-                        ) : (
-                          <>
-                            <ShoppingBag className="w-4 h-4" />
-                            <span>Adicionar ao Pedido</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setProdutoDetalhesModal(produto)}
+                          className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer border border-slate-700 shadow"
+                          title="Ver detalhes do produto"
+                        >
+                          <Eye className="w-4 h-4 text-slate-400" />
+                          <span>Detalhar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={esgotado}
+                          onClick={() => {
+                            if (esgotado) return;
+                            if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                              setProdutoModalVariacao(produto);
+                            } else {
+                              adicionarAoCarrinho(produto);
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition ${
+                            esgotado
+                              ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                              : 'text-white cursor-pointer hover:brightness-110'
+                          }`}
+                          style={{ backgroundColor: esgotado ? undefined : corTema }}
+                        >
+                          {esgotado ? (
+                            <span>Esgotado</span>
+                          ) : (
+                            <>
+                              <ShoppingBag className="w-4 h-4" />
+                              <span>Adicionar</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1360,11 +1443,15 @@ Fico no aguardo da confirmação! ✨`;
                   className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:border-slate-700 transition group"
                 >
                   <div>
-                    <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-950 mb-2.5">
+                    <div
+                      onClick={() => setProdutoDetalhesModal(produto)}
+                      className="relative aspect-square rounded-xl overflow-hidden bg-slate-950 mb-2.5 cursor-pointer hover:opacity-95 transition group/photo"
+                      title="Clique para ver fotos e detalhes"
+                    >
                       <img
                         src={fotoUrl}
                         alt={produto.nome}
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                        className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
                       />
                       {esgotado ? (
                         <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
@@ -1381,7 +1468,11 @@ Fico no aguardo da confirmação! ✨`;
                       )}
                     </div>
 
-                    <h3 className="font-bold text-xs text-slate-100 line-clamp-2 leading-snug">
+                    <h3
+                      onClick={() => setProdutoDetalhesModal(produto)}
+                      className="font-bold text-xs text-slate-100 line-clamp-2 leading-snug cursor-pointer hover:underline"
+                      title="Ver detalhes do produto"
+                    >
                       {produto.nome}
                     </h3>
                   </div>
@@ -1398,27 +1489,38 @@ Fico no aguardo da confirmação! ✨`;
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={esgotado}
-                      onClick={() => {
-                        if (esgotado) return;
-                        if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
-                          setProdutoModalVariacao(produto);
-                        } else {
-                          adicionarAoCarrinho(produto);
-                        }
-                      }}
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-sm font-bold ${
-                        esgotado
-                          ? 'bg-slate-800 text-slate-600 border border-slate-700 cursor-not-allowed opacity-50'
-                          : 'text-white cursor-pointer hover:brightness-110'
-                      }`}
-                      style={{ backgroundColor: esgotado ? undefined : corTema }}
-                      title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
-                    >
-                      {esgotado ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setProdutoDetalhesModal(produto)}
+                        className="p-2 rounded-xl flex items-center justify-center transition shadow-sm font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
+                        title="Ver Detalhes do Produto"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-400" />
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={esgotado}
+                        onClick={() => {
+                          if (esgotado) return;
+                          if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                            setProdutoModalVariacao(produto);
+                          } else {
+                            adicionarAoCarrinho(produto);
+                          }
+                        }}
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-sm font-bold ${
+                          esgotado
+                            ? 'bg-slate-800 text-slate-600 border border-slate-700 cursor-not-allowed opacity-50'
+                            : 'text-white cursor-pointer hover:brightness-110'
+                        }`}
+                        style={{ backgroundColor: esgotado ? undefined : corTema }}
+                        title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
+                      >
+                        {esgotado ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -1647,7 +1749,7 @@ Fico no aguardo da confirmação! ✨`;
               )}
 
               {carrinho.length > 0 && (
-                <form id="formCheckout" onSubmit={handleEnviarPedido} className="pt-4 border-t border-slate-800 space-y-3">
+                <form id="formCheckout" onSubmit={handleFinalizarPedido} className="pt-4 border-t border-slate-800 space-y-3">
                   <div className="space-y-3">
                     <span className="text-xs font-bold text-slate-200 block">Identificação & Entrega</span>
 
@@ -1735,69 +1837,6 @@ Fico no aguardo da confirmação! ✨`;
                       onChange={(e) => setObservacoes(e.target.value)}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
                     />
-                  </div>
-
-                  {/* FORMAS DE PAGAMENTO */}
-                  <div className="pt-2 border-t border-slate-800/80 space-y-2">
-                    <span className="text-[11px] font-bold text-slate-300 block">Forma de Pagamento:</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setFormaPagamentoCatalogo('pix')}
-                        className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                          formaPagamentoCatalogo === 'pix'
-                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow'
-                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-750'
-                        }`}
-                      >
-                        <Zap className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[11px]">PIX</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormaPagamentoCatalogo('dinheiro')}
-                        className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                          formaPagamentoCatalogo === 'dinheiro'
-                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow'
-                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-750'
-                        }`}
-                      >
-                        <Banknote className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[11px]">Dinheiro</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormaPagamentoCatalogo('cartao_maquininha')}
-                        className={`p-2.5 rounded-2xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                          formaPagamentoCatalogo === 'cartao_maquininha'
-                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-2 ring-emerald-500/30 shadow'
-                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-750'
-                        }`}
-                      >
-                        <CreditCard className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[11px] text-center leading-tight">Cartão</span>
-                      </button>
-                    </div>
-
-                    {formaPagamentoCatalogo === 'dinheiro' && (
-                      <div className="p-3 bg-slate-800/80 rounded-2xl border border-slate-700 space-y-1.5 animate-in fade-in">
-                        <label className="text-[11px] text-slate-300 font-medium block">
-                          Precisa de troco? Informe para quanto:
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
-                          <input
-                            type="text"
-                            placeholder="Ex: 50,00 (ou em branco se não precisar)"
-                            value={trocoParaInput}
-                            onChange={(e) => setTrocoParaInput(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* CAMPO DE CUPOM DE DESCONTO */}
@@ -1901,8 +1940,8 @@ Fico no aguardo da confirmação! ✨`;
                 </div>
 
                 <button
-                  type="submit"
-                  form="formCheckout"
+                  type="button"
+                  onClick={handleFinalizarPedido}
                   disabled={enviandoPedido}
                   className="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:brightness-110"
                   style={{ backgroundColor: corTema }}
@@ -1940,78 +1979,6 @@ Fico no aguardo da confirmação! ✨`;
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 text-left whitespace-pre-wrap leading-relaxed">
               {loja?.instrucoes_pos_pedido || 'Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!'}
             </div>
-
-            {/* DETALHES DA FORMA DE PAGAMENTO SELECIONADA */}
-            {formaPagamentoCatalogo === 'pix' && !pixAprovadoEmTempoReal && (() => {
-              const chavePixLoja = loja?.configuracoes_extras?.pagamentos?.pix_chave || (loja?.configuracoes_extras as any)?.pagamentos_manuais?.pix_chave || (loja as any)?.pix_chave || loja?.whatsapp || '';
-              if (!chavePixLoja) return null;
-              return (
-                <div className="p-4 bg-slate-950 rounded-2xl border border-emerald-500/40 text-left space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>Chave PIX da Loja</span>
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-medium">Pagamento Imediato</span>
-                  </div>
-                  <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-slate-200 truncate select-all">
-                      {chavePixLoja}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(chavePixLoja);
-                        setChavePixCopiada(true);
-                        setTimeout(() => setChavePixCopiada(false), 3000);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow"
-                    >
-                      {chavePixCopiada ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copiar Chave</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Faça a transferência via PIX e envie o comprovante pelo WhatsApp da loja para agilizar a preparação.
-                  </p>
-                </div>
-              );
-            })()}
-
-            {formaPagamentoCatalogo === 'dinheiro' && (
-              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
-                  <Banknote className="w-4 h-4 text-emerald-400" />
-                  <span>Pagamento em Dinheiro</span>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  {trocoParaInput.trim()
-                    ? `Troco informado para R$ ${trocoParaInput.trim()}. Por favor, tenha o valor em mãos na entrega/retirada.`
-                    : 'Pagamento em dinheiro na entrega/retirada.'}
-                </p>
-              </div>
-            )}
-
-            {formaPagamentoCatalogo === 'cartao_maquininha' && (
-              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 text-left space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
-                  <CreditCard className="w-4 h-4 text-emerald-400" />
-                  <span>Cartão na Entrega / Retirada</span>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  O entregador/atendente levará a maquininha para você efetuar o pagamento.
-                </p>
-              </div>
-            )}
 
             {/* SE PIX FOI APROVADO EM TEMPO REAL */}
             {pixAprovadoEmTempoReal && (
@@ -2158,6 +2125,34 @@ Fico no aguardo da confirmação! ✨`;
         onSalvar={handleSalvarEndereco}
       />
 
+      {/* MODAL DETALHES DO PRODUTO NO CATÁLOGO */}
+      {produtoDetalhesModal && (
+        <ModalDetalhesProdutoCatalogo
+          isOpen={Boolean(produtoDetalhesModal)}
+          onClose={() => setProdutoDetalhesModal(null)}
+          produto={produtoDetalhesModal}
+          categoriaNome={
+            produtoDetalhesModal.categoria_id
+              ? mapaCategorias.get(produtoDetalhesModal.categoria_id)?.nome
+              : (produtoDetalhesModal as any).categoria?.nome || 'Geral'
+          }
+          corTema={corTema}
+          onAdicionarAoCarrinho={adicionarAoCarrinho}
+          onAbrirModalVariacao={(prod) => setProdutoModalVariacao(prod)}
+          onPerguntarRubi={(prod) => {
+            setMensagemRubiExterna({
+              id: Date.now(),
+              texto: `Olá Rubi! Gostaria de tirar uma dúvida sobre o produto "${prod.nome}". Pode me dar mais informações sobre ele?`
+            });
+            setRubiAbertaExterna(true);
+          }}
+          onVerCarrinho={() => setDrawerCarrinhoAberto(true)}
+          totalItensCarrinho={totalItens}
+          valorTotalCarrinho={total}
+          isEsgotado={isProdutoEsgotado(produtoDetalhesModal)}
+        />
+      )}
+
       {/* ASSISTENTE VIRTUAL RUBI IA NO CATÁLOGO */}
       {contextoRubi && (
         <ChatRubiCatalogo
@@ -2166,6 +2161,9 @@ Fico no aguardo da confirmação! ✨`;
           onAbrirModalVariacao={(prod) => setProdutoModalVariacao(prod)}
           onClienteAtualizado={handleClienteAtualizadoPelaRubi}
           corTema={loja?.cor_primaria || '#6366f1'}
+          mensagemExterna={mensagemRubiExterna}
+          abertoExterno={rubiAbertaExterna}
+          onFecharExterno={() => setRubiAbertaExterna(false)}
         />
       )}
     </div>

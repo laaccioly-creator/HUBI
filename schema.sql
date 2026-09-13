@@ -249,6 +249,12 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Migrações idempotentes para tabela pedidos
+ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS forma_pagamento_catalogo VARCHAR(50);
+ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50);
+ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS troco_para NUMERIC(12,2);
+
+
 -- Tabela: itens_pedido (Itens de Cada Venda com Snapshot de Custo e Preço)
 CREATE TABLE IF NOT EXISTS public.itens_pedido (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

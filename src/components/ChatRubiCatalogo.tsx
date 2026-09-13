@@ -41,6 +41,9 @@ interface ChatRubiCatalogoProps {
   onAbrirModalVariacao?: (produto: Produto) => void;
   onClienteAtualizado?: (clienteData: { nome?: string; telefone?: string; endereco?: string }) => void;
   corTema?: string;
+  mensagemExterna?: { id: number; texto: string } | null;
+  abertoExterno?: boolean;
+  onFecharExterno?: () => void;
 }
 
 export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
@@ -48,7 +51,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   onAdicionarAoCarrinho,
   onAbrirModalVariacao,
   onClienteAtualizado,
-  corTema = '#10b981'
+  corTema = '#10b981',
+  mensagemExterna,
+  abertoExterno,
+  onFecharExterno
 }) => {
   const [aberto, setAberto] = useState<boolean>(false);
   const [telaCheia, setTelaCheia] = useState<boolean>(false);
@@ -510,6 +516,23 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     }
   };
 
+  // Suporte a mensagens disparadas externamente (ex: Dúvidas sobre o produto)
+  const ultimaMsgExternaProcessadaRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (abertoExterno) {
+      setAberto(true);
+    }
+  }, [abertoExterno]);
+
+  useEffect(() => {
+    if (mensagemExterna && mensagemExterna.id !== ultimaMsgExternaProcessadaRef.current) {
+      ultimaMsgExternaProcessadaRef.current = mensagemExterna.id;
+      setAberto(true);
+      enviarMensagem(mensagemExterna.texto);
+    }
+  }, [mensagemExterna]);
+
   const handleAdicionarProdutoClick = (produto: Produto) => {
     if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
       if (onAbrirModalVariacao) {
@@ -655,7 +678,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 {/* Fechar */}
                 <button
                   type="button"
-                  onClick={() => setAberto(false)}
+                  onClick={() => {
+                    setAberto(false);
+                    if (onFecharExterno) onFecharExterno();
+                  }}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
                   title="Fechar"
                 >
