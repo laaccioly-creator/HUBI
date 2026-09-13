@@ -34,6 +34,36 @@ export const setGeminiApiKey = (key: string) => {
 };
 
 /**
+ * Converte o ID do segmento ou obtém o nome comercial descritivo do segmento da loja
+ */
+export const obterNomeSegmentoLoja = (loja?: any): string => {
+  const segmentoId =
+    loja?.configuracoes_extras?.perfil_negocio?.segmento ||
+    loja?.segmento ||
+    '';
+
+  const mapaNomes: Record<string, string> = {
+    sexshop: 'Sex Shop / Produtos Eróticos / Bem-Estar Íntimo',
+    moda: 'Moda / Vestuário / Calçados',
+    lingerie: 'Lingerie / Moda Íntima / Praia',
+    cosmeticos: 'Beleza / Cosméticos / Perfumes',
+    motepecas: 'Motopeças / Autopeças / Oficina Mecânica',
+    restaurante: 'Restaurante / Bar / Gastronomia / Delivery',
+    mercado: 'Mercado / Mercearia / Empório',
+    petshop: 'Pet Shop / Produtos Veterinários',
+    papelaria: 'Papelaria / Armarinho / Presentes',
+    otica: 'Ótica / Joalheria / Relojoaria',
+    informatica: 'Informática / Celulares / Eletrônicos',
+    construcao: 'Material de Construção / Tintas / Elétrica',
+    artesanato: 'Artesanato / Decoração / Variedades',
+    geral: 'Varejo Comercial Geral'
+  };
+
+  if (!segmentoId) return '';
+  return mapaNomes[segmentoId] || segmentoId;
+};
+
+/**
  * Comprime a imagem para 640px JPEG antes de enviar para a API Gemini (payload ultraleve < 40KB)
  */
 export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: string; mimeType: string }> => {
@@ -155,9 +185,33 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
   ];
 };
 
+export const SAFETY_SETTINGS_VAREJO = [
+  {
+    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    threshold: 'BLOCK_NONE'
+  },
+  {
+    category: 'HARM_CATEGORY_HATE_SPEECH',
+    threshold: 'BLOCK_ONLY_HIGH'
+  },
+  {
+    category: 'HARM_CATEGORY_HARASSMENT',
+    threshold: 'BLOCK_ONLY_HIGH'
+  },
+  {
+    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+    threshold: 'BLOCK_ONLY_HIGH'
+  }
+];
+
 export const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promise<any> => {
   const modelos = await obterModelosValidosGemini(apiKey);
   let primeiroErro: string | null = null;
+
+  const payloadCompleto = {
+    ...requestBody,
+    safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
+  };
 
   for (const modelo of modelos) {
     try {
@@ -168,7 +222,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(payloadCompleto),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -194,7 +248,8 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
  * Analisa a foto do produto usando a API Multimodal do Google Gemini (idêntico e equiparado ao Desktop)
  */
 export const identificarProdutoPorFoto = async (
-  imageBase64OrUrl: string
+  imageBase64OrUrl: string,
+  segmentoLoja?: string
 ): Promise<ProdutoSugeridoIA> => {
   const apiKey = getGeminiApiKey();
 
@@ -206,7 +261,8 @@ export const identificarProdutoPorFoto = async (
     const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(imageBase64OrUrl);
 
     const promptInstrucao = `
-Você é um especialista em catálogo de produtos e inteligência de mercado de varejo e e-commerce no Brasil.
+Você é um especialista em catálogo de produtos e inteligência de mercado de varejo e e-commerce no Brasil (abrangendo todas as categorias comerciais legais de lojas, como alimentos, bebidas, moda, beleza, ferramentas, petshop, bem-estar e produtos de saúde/sex shop). Todos os itens analisados são produtos de varejo comercial.
+${segmentoLoja ? `CONTEXTO CRÍTICO - SEGMENTO DE ATUAÇÃO DA LOJA: "${segmentoLoja}". O item analisado pertence a este segmento comercial específico. Utilize terminologias, categorias e referências deste nicho de mercado.` : ''}
 Analise detalhadamente a foto do produto enviada. Identifique a marca, modelo, tipo de produto, volume/peso e suas características principais.
 
 IMPORTANTE SOBRE DÚVIDA OU MÚLTIPLAS POSSIBILIDADES:
@@ -317,7 +373,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
  */
 export const identificarProdutoPorTextoOuEan = async (
   tipo: 'texto' | 'barcode',
-  valor: string
+  valor: string,
+  segmentoLoja?: string
 ): Promise<ProdutoSugeridoIA> => {
   const apiKey = getGeminiApiKey();
 
@@ -327,6 +384,7 @@ export const identificarProdutoPorTextoOuEan = async (
 
   const promptInstrucao = tipo === 'barcode' ? `
 Você é um especialista em catálogo de produtos, banco de dados EAN/GS1 e precificação no Brasil.
+${segmentoLoja ? `CONTEXTO DA LOJA - SEGMENTO: "${segmentoLoja}".` : ''}
 Identifique o produto com o seguinte Código de Barras / EAN: "${valor}".
 Se não encontrar o código exato no banco, deduza a categoria e o item mais provável com base no padrão e mercado brasileiro.
 
@@ -342,6 +400,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 }
 ` : `
 Você é um especialista em catálogo de produtos e inteligência de mercado de varejo e e-commerce no Brasil.
+${segmentoLoja ? `CONTEXTO DA LOJA - SEGMENTO: "${segmentoLoja}". O item pertence a este segmento comercial.` : ''}
 Com base no nome ou termo informado: "${valor}", estruture a ficha cadastral completa do produto com riqueza de detalhes comerciais.
 
 Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
@@ -388,19 +447,21 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 export const gerarDescricaoExclusivaIA = async (
   nomeProduto: string,
   categoria?: string,
-  descricaoAtual?: string
+  descricaoAtual?: string,
+  segmentoLoja?: string
 ): Promise<string> => {
   const apiKey = getGeminiApiKey();
 
   if (apiKey && nomeProduto.trim()) {
     try {
       const prompt = `
-Você é um copywriter sênior de elite especializado em e-commerce, catálogo online e varejo de alto padrão no Brasil.
+Você é um copywriter sênior de elite especializado em e-commerce, catálogo online e varejo de alto padrão no Brasil${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
 Escreva uma descrição comercial COMPLETA, envolvente, rica e altamente persuasiva para o seguinte produto:
 
 PRODUTO: "${nomeProduto}"
 ${categoria ? `CATEGORIA: "${categoria}"` : ''}
 ${descricaoAtual ? `RASCUNHO / DADOS INICIAIS FORNECIDOS PELO LOJISTA: "${descricaoAtual}"` : ''}
+${segmentoLoja ? `SEGMENTO DE MERCADO: "${segmentoLoja}"` : ''}
 
 DIRETRIZES OBRIGATÓRIAS DE REDAÇÃO:
 1. NÃO RESUMA! NUNCA faça um texto curto ou telegráfico. NUNCA deixe frases cortadas ou pela metade. Complete todas as frases e ideias perfeitamente.
@@ -442,7 +503,8 @@ export interface FotoResultadoInternet {
  */
 export const extrairTermosBuscaVisualPorFoto = async (
   fotoUrlOuBase64: string,
-  nomeAtual?: string
+  nomeAtual?: string,
+  segmentoLoja?: string
 ): Promise<string[]> => {
   const apiKey = getGeminiApiKey();
   if (!apiKey) return [];
@@ -450,10 +512,11 @@ export const extrairTermosBuscaVisualPorFoto = async (
   try {
     const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(fotoUrlOuBase64);
     const promptInstrucao = `
-Você é um especialista em busca reversa de imagens e catálogo de produtos no varejo brasileiro.
+Você é um especialista em busca reversa de imagens e catálogo de produtos no varejo brasileiro (abrangendo todas as categorias comerciais de lojas, como cosméticos, moda, beleza, ferramentas, autopeças, alimentos e sex shop). Todos os itens analisados são produtos comerciais legais.
+${segmentoLoja ? `SEGMENTO DE ATUAÇÃO DA LOJA: "${segmentoLoja}". O item analisado pertence especificamente a este segmento comercial.` : ''}
 Analise detalhadamente a foto deste produto enviada${nomeAtual ? ` (nome informado: "${nomeAtual}")` : ''}.
 Identifique as características visuais mais marcantes (ex: formato exato, cor, modelo, design específico, marca provável).
-Retorne EXCLUSIVAMENTE um array JSON de strings com 2 a 4 termos de busca precisos e específicos para o Google Imagens e e-commerces no Brasil localizarem o MESMO PRODUTO IDÊNTICO.
+Retorne EXCLUSIVAMENTE um array JSON de strings com 2 a 4 termos de busca precisos e específicos para o Google Imagens e e-commerces no Brasil localizarem o MESMO PRODUTO IDÊNTICO${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
 Exemplo para um vibrador em formato de rosa: ["Vibrador Sophie Formato de Rosa", "Vibrador rosa sophie", "Vibrador formato rosa estimulador"]
 Retorne apenas o JSON no formato: ["termo 1", "termo 2", "termo 3"]
 `;
@@ -492,13 +555,14 @@ Retorne apenas o JSON no formato: ["termo 1", "termo 2", "termo 3"]
 };
 
 /**
- * Pesquisa fotos reais do produto na internet combinando Foto de Referência (IA de Visão) + Nome Comercial
+ * Pesquisa fotos reais do produto na internet combinando Foto de Referência (IA de Visão) + Nome Comercial + Segmento da Loja
  * e buscando fotos ativas em lojas e e-commerces brasileiros.
  */
 export const pesquisarFotosProdutoNaInternet = async (
   termo: string,
   codigoBarras?: string,
-  fotoReferencia?: string
+  fotoReferencia?: string,
+  segmentoLoja?: string
 ): Promise<FotoResultadoInternet[]> => {
   const fotos: FotoResultadoInternet[] = [];
   const urlsVistas = new Set<string>();
@@ -532,7 +596,7 @@ export const pesquisarFotosProdutoNaInternet = async (
   // Se o usuário possui uma foto de referência, usa a IA de Visão para enriquecer com termos visuais altamente específicos
   if (fotoReferencia) {
     try {
-      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo);
+      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo, segmentoLoja);
       for (const tv of termosVisuais) {
         if (tv && !termosParaPesquisar.includes(tv)) {
           termosParaPesquisar.push(tv);
@@ -547,16 +611,25 @@ export const pesquisarFotosProdutoNaInternet = async (
     termosParaPesquisar.push(termoLimpo);
   }
 
+  // Se a loja tiver segmento configurado e o termo for curto, adiciona busca contextualizada com o segmento
+  if (segmentoLoja && termoLimpo) {
+    const segmentoCurto = segmentoLoja.split('/')[0].trim();
+    const termoComSegmento = `${termoLimpo} ${segmentoCurto}`;
+    if (!termosParaPesquisar.includes(termoComSegmento)) {
+      termosParaPesquisar.push(termoComSegmento);
+    }
+  }
+
   // 1. Busca Web / E-commerce via API de Imagens (/api/buscar-fotos-web)
-  for (const qTermo of termosParaPesquisar.slice(0, 2)) {
-    if (fotos.length >= 8) break;
+  for (const qTermo of termosParaPesquisar.slice(0, 3)) {
+    if (fotos.length >= 20) break;
     try {
       const resWeb = await fetch(`/api/buscar-fotos-web?q=${encodeURIComponent(qTermo)}`);
       if (resWeb.ok) {
         const dataWeb = await resWeb.json();
         const resultados = Array.isArray(dataWeb.results) ? dataWeb.results : [];
         for (const item of resultados) {
-          if (fotos.length >= 8) break;
+          if (fotos.length >= 20) break;
           const rawImg = item.image || item.thumbnail;
           if (rawImg) {
             // Passa pelo proxy de imagem weserv para garantir CORS, bypass de hotlink e alta performance
@@ -572,12 +645,12 @@ export const pesquisarFotosProdutoNaInternet = async (
   }
 
   // 2. Consulta Open Food Facts e Open Beauty Facts (para produtos de mercearia, higiene e cosméticos)
-  if (fotos.length < 8) {
+  if (fotos.length < 12) {
     try {
       const termoOFF = codigoBarras?.trim() || termoLimpo;
       const apis = [
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=4`,
-        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=4`
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`,
+        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`
       ];
 
       for (const urlAPI of apis) {
@@ -605,33 +678,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  // 3. Estúdio Fotográfico IA Complementar (caso fotos na web sejam poucas)
-  if (fotos.length < 6) {
-    try {
-      const termoBase = termosParaPesquisar[0] || termoLimpo;
-      const perspectivas = [
-        {
-          prompt: `commercial product studio photography of ${termoBase}, front view on pure white background, studio softbox lighting, 8k product catalog`,
-          titulo: 'Visão Frontal (Fundo Branco)'
-        },
-        {
-          prompt: `commercial product shot of ${termoBase}, 45 degree angle, elegant studio illumination, soft shadow, e-commerce catalog`,
-          titulo: 'Visão em Ângulo Comercial'
-        }
-      ];
-
-      for (const p of perspectivas) {
-        if (fotos.length >= 8) break;
-        const seed = Math.floor(Math.random() * 900000) + 100000;
-        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(p.prompt)}?width=600&height=600&nologo=true&seed=${seed}`;
-        registrarFoto(url, `${termoBase} - ${p.titulo}`, 'IA Studio');
-      }
-    } catch (err) {
-      console.warn('Aviso: Geração IA complementar:', err);
-    }
-  }
-
-  return fotos.slice(0, 8);
+  return fotos.slice(0, 20);
 };
 
 /**
@@ -644,6 +691,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   categoriaNome?: string;
   codigoBarras?: string;
   precoVendaAtual?: number;
+  segmentoLoja?: string;
 }): Promise<ProdutoSugeridoIA> => {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
@@ -651,8 +699,9 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   }
 
   const promptAtualizacao = `
-Você é um especialista em catálogo de produtos, copywriting comercial e precificação de varejo no Brasil.
+Você é um especialista em catálogo de produtos, copywriting comercial e precificação de varejo no Brasil${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
 O lojista possui um produto já cadastrado e solicitou a ATUALIZAÇÃO E ENRIQUECIMENTO INTELIGENTE deste item.
+${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}". O item é deste segmento comercial.` : ''}
 
 DADOS ATUAIS DO PRODUTO:
 - Nome Atual: "${dados.nome}"

@@ -67,7 +67,8 @@ import {
   atualizarProdutoExistenteComIA,
   getGeminiApiKey,
   setGeminiApiKey,
-  ProdutoSugeridoIA
+  ProdutoSugeridoIA,
+  obterNomeSegmentoLoja
 } from '../services/geminiService';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
@@ -143,6 +144,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const navigate = useNavigate();
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
+  const segmentoLoja = useMemo(() => obterNomeSegmentoLoja(loja), [loja]);
 
   // =========================================================================
   // ESTADOS DE TELA E NAVEGAÇÃO
@@ -1290,7 +1292,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const novaDescricao = await gerarDescricaoExclusivaIA(
         formData.nome || 'PRODUTO',
         catNome,
-        formData.descricao
+        formData.descricao,
+        segmentoLoja
       );
       setFormData(prev => ({ ...prev, descricao: novaDescricao }));
       setMensagemFeedback({ texto: 'Descrição exclusiva gerada com sucesso!', tipo: 'sucesso' });
@@ -1357,12 +1360,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       let sugestao: any = null;
 
       if (tipo === 'foto' && valor) {
-        sugestao = await identificarProdutoPorFoto(valor);
+        sugestao = await identificarProdutoPorFoto(valor, segmentoLoja);
       } else if (tipo === 'texto' && promptTextoIA.trim()) {
-        sugestao = await identificarProdutoPorTextoOuEan('texto', promptTextoIA.trim());
+        sugestao = await identificarProdutoPorTextoOuEan('texto', promptTextoIA.trim(), segmentoLoja);
       } else if (tipo === 'codigo' && (valor || promptCodigoIA.trim())) {
         const cod = valor || promptCodigoIA.trim();
-        sugestao = await identificarProdutoPorTextoOuEan('barcode', cod);
+        sugestao = await identificarProdutoPorTextoOuEan('barcode', cod, segmentoLoja);
       }
 
       if (sugestao) {
@@ -3948,6 +3951,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           fotosAtuaisCount={formData.fotos.length}
           maxFotos={6}
           fotoReferencia={formData.fotos[0]}
+          segmentoLoja={segmentoLoja}
           onAdicionarFotos={(novasFotos) => {
             setFormData(prev => {
               const fotosAtualizadas = [...prev.fotos];

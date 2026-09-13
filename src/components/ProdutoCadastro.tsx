@@ -47,7 +47,7 @@ import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
-import { atualizarProdutoExistenteComIA } from '../services/geminiService';
+import { atualizarProdutoExistenteComIA, obterNomeSegmentoLoja } from '../services/geminiService';
 
 export interface PrecoConcorrente {
   loja: string;
@@ -348,9 +348,33 @@ const obterModelosValidosGemini = async (apiKey: string): Promise<string[]> => {
   ];
 };
 
+const SAFETY_SETTINGS_VAREJO = [
+  {
+    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    threshold: 'BLOCK_NONE'
+  },
+  {
+    category: 'HARM_CATEGORY_HATE_SPEECH',
+    threshold: 'BLOCK_ONLY_HIGH'
+  },
+  {
+    category: 'HARM_CATEGORY_HARASSMENT',
+    threshold: 'BLOCK_ONLY_HIGH'
+  },
+  {
+    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+    threshold: 'BLOCK_ONLY_HIGH'
+  }
+];
+
 const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promise<any> => {
   const modelos = await obterModelosValidosGemini(apiKey);
   let primeiroErro: string | null = null;
+
+  const payloadCompleto = {
+    ...requestBody,
+    safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
+  };
 
   for (const modelo of modelos) {
     try {
@@ -361,7 +385,7 @@ const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promi
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(payloadCompleto),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -384,7 +408,8 @@ const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promi
 };
 
 const identificarProdutoPorFoto = async (
-  imageBase64OrUrl: string
+  imageBase64OrUrl: string,
+  segmentoLoja?: string
 ): Promise<ProdutoSugeridoIA> => {
   const apiKey = getGeminiApiKey();
 
@@ -394,7 +419,8 @@ const identificarProdutoPorFoto = async (
       const cleanBase64 = rawBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '').replace(/\s/g, '');
 
       const promptInstrucao = `
-Você é um especialista em catálogo de produtos e inteligência de precificação de varejo e e-commerce no Brasil.
+Você é um especialista em catálogo de produtos e inteligência de precificação de varejo e e-commerce no Brasil (abrangendo todas as categorias comerciais legais de lojas, como alimentos, bebidas, moda, beleza, ferramentas, petshop, bem-estar e produtos de saúde/sex shop). Todos os itens analisados são produtos de varejo comercial.
+${segmentoLoja ? `CONTEXTO CRÍTICO - SEGMENTO DE ATUAÇÃO DA LOJA: "${segmentoLoja}". O item analisado pertence especificamente a este segmento comercial.` : ''}
 Analise detalhadamente a foto do produto enviada. Identifique a marca, modelo, tipo de produto, volume/peso e suas características principais.
 
 IMPORTANTE SOBRE DÚVIDA OU MÚLTIPLAS POSSIBILIDADES:
@@ -581,7 +607,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 
 const identificarProdutoPorTextoOuEan = async (
   tipo: 'descricao' | 'barcode',
-  valor: string
+  valor: string,
+  segmentoLoja?: string
 ): Promise<ProdutoSugeridoIA> => {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
@@ -590,6 +617,7 @@ const identificarProdutoPorTextoOuEan = async (
 
   const prompt = tipo === 'barcode' ? `
 Você é um especialista em catálogo de produtos, banco de dados EAN/GS1 e precificação no Brasil.
+${segmentoLoja ? `CONTEXTO DA LOJA - SEGMENTO: "${segmentoLoja}".` : ''}
 Identifique o produto com o seguinte Código de Barras / EAN: "${valor}".
 Se não encontrar o código exato, deduza a categoria e o item mais provável com base no padrão e mercado brasileiro.
 
@@ -611,6 +639,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 }
 ` : `
 Você é um especialista em catálogo de produtos e precificação de varejo e e-commerce no Brasil.
+${segmentoLoja ? `CONTEXTO DA LOJA - SEGMENTO: "${segmentoLoja}". O produto pertence a este segmento comercial.` : ''}
 Com base no nome ou descrição informada: "${valor}", estruture a ficha completa do produto com inteligência de mercado.
 
 Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
@@ -665,6 +694,7 @@ export const ProdutoCadastro: React.FC = () => {
   const ehEdicao = Boolean(id);
   const { loja } = useAuth();
   const permissions = usePermissions();
+  const segmentoLoja = useMemo(() => obterNomeSegmentoLoja(loja), [loja]);
 
   useEffect(() => {
     if (!permissions.podeCadastrarAlterarProdutos) {
@@ -1369,7 +1399,7 @@ export const ProdutoCadastro: React.FC = () => {
       setSucessoIAMsg(null);
 
       const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
-      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA);
+      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja);
 
       if (dadosSugeridos) {
         if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
@@ -1399,7 +1429,7 @@ export const ProdutoCadastro: React.FC = () => {
     try {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
-      const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto);
+      const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto, segmentoLoja);
       if (dadosSugeridos) {
         aplicarDadosSugeridosIA(dadosSugeridos);
         setSucessoIAMsg('✨ Informações e ficha técnica preenchidas com sucesso a partir da descrição!');
@@ -1423,7 +1453,7 @@ export const ProdutoCadastro: React.FC = () => {
     try {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
-      const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean);
+      const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean, segmentoLoja);
       if (dadosSugeridos) {
         aplicarDadosSugeridosIA(dadosSugeridos);
         setSucessoIAMsg('✨ Informações do produto identificadas com sucesso pelo código de barras!');
@@ -1455,7 +1485,8 @@ export const ProdutoCadastro: React.FC = () => {
         fotoUrl: fotoParaIA,
         categoriaNome: catNome,
         codigoBarras: codigoBarras.trim(),
-        precoVendaAtual: Number(precoVendaVarejo) || undefined
+        precoVendaAtual: Number(precoVendaVarejo) || undefined,
+        segmentoLoja
       });
 
       if (dadosAtualizados) {
@@ -3138,6 +3169,7 @@ export const ProdutoCadastro: React.FC = () => {
         fotosAtuaisCount={fotosUrls.length}
         maxFotos={7}
         fotoReferencia={fotoPrincipal || fotosUrls[0]}
+        segmentoLoja={segmentoLoja}
         onAdicionarFotos={(novas) => {
           setFotosUrls(prev => {
             const combinadas = [...prev];

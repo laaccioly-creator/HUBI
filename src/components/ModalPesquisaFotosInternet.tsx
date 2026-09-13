@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2 } from 'lucide-react';
+import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2, ExternalLink } from 'lucide-react';
 import { pesquisarFotosProdutoNaInternet, FotoResultadoInternet } from '../services/geminiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 
@@ -12,6 +12,7 @@ interface ModalPesquisaFotosInternetProps {
   fotosAtuaisCount: number;
   maxFotos?: number;
   fotoReferencia?: string;
+  segmentoLoja?: string;
 }
 
 export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProps> = ({
@@ -22,9 +23,11 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   codigoBarrasInicial = '',
   fotosAtuaisCount,
   maxFotos = 7,
-  fotoReferencia
+  fotoReferencia,
+  segmentoLoja
 }) => {
   const [termoBusca, setTermoBusca] = useState<string>('');
+  const [urlManual, setUrlManual] = useState<string>('');
   const [carregando, setCarregando] = useState<boolean>(false);
   const [fotosEncontradas, setFotosEncontradas] = useState<FotoResultadoInternet[]>([]);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
@@ -55,7 +58,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
         setFotosEncontradas([]);
       }
     }
-  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia]);
+  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoLoja]);
 
   const realizarBusca = async (termo: string) => {
     const termoTratado = termo
@@ -75,7 +78,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     setImagensComErro(new Set());
 
     try {
-      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia);
+      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoLoja);
       setFotosEncontradas(resultados);
       if (resultados.length === 0) {
         setErro('Nenhuma foto encontrada para este produto. Tente simplificar ou alterar o termo.');
@@ -113,6 +116,14 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     onClose();
   };
 
+  const handleAdicionarManual = () => {
+    const limpo = urlManual.trim();
+    if (!limpo.startsWith('http://') && !limpo.startsWith('https://')) return;
+    onAdicionarFotos([limpo]);
+    setUrlManual('');
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -132,6 +143,11 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                 <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-bold">
                   Galeria Online
                 </span>
+                {segmentoLoja && (
+                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold truncate max-w-[130px] sm:max-w-xs" title={`Segmento Ativo: ${segmentoLoja}`}>
+                    {segmentoLoja.split('/')[0].trim()}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 truncate max-w-md mt-0.5">
                 Vagas na galeria: {vagasDisponiveis} de {maxFotos} fotos disponíveis
@@ -151,19 +167,36 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
         {/* Barra de Busca de Fotos */}
         <div className="p-4 border-b border-slate-800/80 bg-slate-950/50 shrink-0">
           {fotoReferencia && (
-            <div className="flex items-center gap-2.5 mb-3 p-2.5 rounded-2xl bg-teal-500/10 border border-teal-500/25">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-teal-500/40 bg-slate-900 shadow-sm">
-                <img src={fotoReferencia} alt="Foto de Referência" className="w-full h-full object-cover" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 p-3 rounded-2xl bg-teal-500/10 border border-teal-500/25">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-teal-500/40 bg-slate-900 shadow-sm">
+                  <img src={fotoReferencia} alt="Foto de Referência" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                    Pesquisa Visual Ativa (Foto + IA)
+                  </span>
+                  <span className="text-[11px] text-slate-400 block truncate mt-0.5">
+                    A IA examina a foto para buscar fotos idênticas em e-commerces.
+                  </span>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-                  Pesquisa Visual Ativa (Foto + Nome)
-                </span>
-                <span className="text-[11px] text-slate-400 block truncate mt-0.5">
-                  A IA de visão analisa o formato e detalhes da imagem para localizar fotos idênticas na internet.
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (fotoReferencia.startsWith('http')) {
+                    window.open(`https://lens.google.com/uploadbyurl?url=${encodeURIComponent(fotoReferencia)}&hl=pt-BR`, '_blank');
+                  } else {
+                    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(termoBusca || 'produto')}`, '_blank');
+                  }
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-teal-300 hover:text-white text-xs font-bold border border-teal-500/30 hover:border-teal-400 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                title="Abrir pesquisa de imagens no Google"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-teal-400" />
+                <span>Abrir no Google Lens</span>
+              </button>
             </div>
           )}
 
@@ -193,6 +226,26 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
               <span>Buscar</span>
             </button>
           </form>
+
+          {/* Opção rápida de colar link direto de foto */}
+          <div className="mt-2.5 flex gap-2">
+            <input
+              type="text"
+              value={urlManual}
+              onChange={(e) => setUrlManual(e.target.value)}
+              placeholder="Ou cole o link de uma foto da internet (URL)..."
+              className="flex-1 bg-slate-900/80 border border-slate-800 focus:border-teal-500/60 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none transition"
+            />
+            <button
+              type="button"
+              disabled={!urlManual.trim().startsWith('http')}
+              onClick={handleAdicionarManual}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-teal-600 disabled:opacity-40 text-slate-200 hover:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Adicionar Link</span>
+            </button>
+          </div>
         </div>
 
         {/* Conteúdo: Spinner / Erro / Grid de Fotos */}
