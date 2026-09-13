@@ -436,11 +436,12 @@ export interface MovimentacaoSaldoCliente {
   id: string;
   loja_id: string;
   cliente_id: string;
-  tipo: 'adicionar' | 'subtrair';
+  tipo: 'adicionar' | 'subtrair' | 'ajuste' | 'credito' | 'debito' | 'recarga' | string;
   valor: number;
   saldo_anterior: number;
   saldo_posterior: number;
   observacao?: string | null;
+  descricao?: string | null;
   usuario_id?: string | null;
   criado_em?: string;
 }
@@ -510,12 +511,29 @@ export interface Pedido {
   cupom_id?: string | null;
   cupom_codigo?: string | null;
   desconto_cupom?: number | null;
+  valor_desconto_cupom?: number | null;
+  troco_para?: number | null;
+  forma_pagamento_catalogo?: string | null;
   cliente?: Cliente | null;
   vendedor?: UsuarioLoja | null;
   itens?: ItemPedido[];
   itens_pedido?: ItemPedido[];
   pagamentos?: PagamentoPedido[];
+  pagamentos_previstos?: PedidoPagamentoPrevisto[];
   historico?: HistoricoPedido[];
+}
+
+export interface PedidoPagamentoPrevisto {
+  id?: string;
+  loja_id: string;
+  pedido_id: string;
+  forma_pagamento_id?: string | null;
+  forma_tipo: string;
+  forma_nome: string;
+  valor: number;
+  valor_entregue?: number | null;
+  parcelas: number;
+  criado_em?: string;
 }
 
 export interface HistoricoPedido {

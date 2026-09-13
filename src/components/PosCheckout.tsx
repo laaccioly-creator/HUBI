@@ -355,10 +355,24 @@ export const PosCheckout: React.FC = () => {
 
     if (pedidoEmEdicao) {
       let infoPrevisto: any = null;
-      try {
-        const local = localStorage.getItem(`hubi_pag_previsto_${pedidoEmEdicao.id}`);
-        if (local) infoPrevisto = JSON.parse(local);
-      } catch (e) {}
+
+      // 1. Tentar ler da relação relacional pagamentos_previstos
+      if (pedidoEmEdicao.pagamentos_previstos && pedidoEmEdicao.pagamentos_previstos.length > 0) {
+        const p = pedidoEmEdicao.pagamentos_previstos[pedidoEmEdicao.pagamentos_previstos.length - 1];
+        infoPrevisto = {
+          forma_pagamento_id: p.forma_pagamento_id,
+          forma_tipo: p.forma_tipo,
+          forma_nome: p.forma_nome,
+          parcelas: p.parcelas
+        };
+      }
+
+      if (!infoPrevisto) {
+        try {
+          const local = localStorage.getItem(`hubi_pag_previsto_${pedidoEmEdicao.id}`);
+          if (local) infoPrevisto = JSON.parse(local);
+        } catch (e) {}
+      }
 
       if (!infoPrevisto && pedidoEmEdicao.metadados) {
         try {
@@ -608,7 +622,7 @@ export const PosCheckout: React.FC = () => {
         saldo_devedor: total,
         fiado_quitado: false,
         observacoes: obsLimpa || null,
-        metadados: Object.keys(novosMetadados).length > 0 ? novosMetadados : null,
+        metadados: null,
         data_venda: dataVendaFinal
       };
 
@@ -815,7 +829,7 @@ export const PosCheckout: React.FC = () => {
         fiado_quitado: false,
         atualizado_por: usuario?.id || null,
         observacoes: obsFinal || null,
-        metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
+        metadados: null,
         data_venda: dataVendaFinal
       };
 
@@ -899,6 +913,24 @@ export const PosCheckout: React.FC = () => {
           };
         }));
         await supabase.from('pagamentos_pedido').insert(pagamentosParaInserir);
+
+        // Registra também na tabela relacional pedidos_pagamentos_previstos
+        try {
+          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoIdFinal);
+          const previstosParaDb = linhasParaSalvar.map(l => ({
+            loja_id: loja.id,
+            pedido_id: pedidoIdFinal,
+            forma_pagamento_id: l.forma_pagamento_id && SyncService.isUuidValido(l.forma_pagamento_id) ? l.forma_pagamento_id : null,
+            forma_tipo: l.forma_tipo,
+            forma_nome: l.forma_nome,
+            valor: Number(l.valor),
+            valor_entregue: l.valor_entregue ? Number(l.valor_entregue) : null,
+            parcelas: l.parcelas || 1
+          }));
+          await supabase.from('pedidos_pagamentos_previstos').insert(previstosParaDb);
+        } catch (errPrev) {
+          console.warn('Falha não-bloqueante ao registrar pedidos_pagamentos_previstos:', errPrev);
+        }
       }
 
       audioService.playBeep();
@@ -1093,7 +1125,7 @@ export const PosCheckout: React.FC = () => {
         data_vencimento_fiado: dataVencimentoFiado || null,
         atualizado_por: usuario?.id || null,
         observacoes: obsFinal || null,
-        metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
+        metadados: null,
         data_venda: dataVendaFinal
       };
 
@@ -1152,6 +1184,9 @@ export const PosCheckout: React.FC = () => {
 
           // Remove quaisquer formas de pagamento anteriores registradas para este pedido
           await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoCriado.id);
+          try {
+            await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoCriado.id);
+          } catch (eDelPrev) {}
 
           // Inserir cada linha de pagamento individual
           const pagamentosFormatados = await Promise.all(linhasAtivas.map(async (l) => {

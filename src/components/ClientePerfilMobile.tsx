@@ -78,6 +78,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [numeroDocumento, setNumeroDocumento] = useState(cliente.numero_documento || '');
   const [observacoes, setObservacoes] = useState(cliente.observacoes || '');
   const [permiteFiado, setPermiteFiado] = useState(cliente.permite_fiado !== false);
+  const [limiteCredito, setLimiteCredito] = useState(
+    cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
+      ? String(cliente.limite_credito)
+      : '500.00'
+  );
 
   const snapshotInicial = useMemo(() => {
     return JSON.stringify({
@@ -94,7 +99,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       telefone: cliente.telefone2 || cliente.telefone || '',
       numeroDocumento: cliente.numero_documento || '',
       observacoes: cliente.observacoes || '',
-      permiteFiado: cliente.permite_fiado !== false
+      permiteFiado: cliente.permite_fiado !== false,
+      limiteCredito: cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
+        ? String(cliente.limite_credito)
+        : (cliente.permite_fiado !== false ? '500.00' : '')
     });
   }, [cliente.id]);
 
@@ -113,7 +121,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       telefone,
       numeroDocumento,
       observacoes,
-      permiteFiado
+      permiteFiado,
+      limiteCredito: permiteFiado ? limiteCredito : ''
     });
   }, [
     nome,
@@ -129,7 +138,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     telefone,
     numeroDocumento,
     observacoes,
-    permiteFiado
+    permiteFiado,
+    limiteCredito
   ]);
 
   const temAlteracoesForm = snapshotAtual !== snapshotInicial;
@@ -315,6 +325,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
     try {
       setSalvando(true);
+      const limiteNum = permiteFiado ? (parseFloat(limiteCredito.replace(',', '.')) || 0) : 0;
       const payload: Partial<Cliente> = {
         nome: nome.trim(),
         whatsapp: whatsapp.trim(),
@@ -325,6 +336,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         data_aniversario: dataAniversario || null,
         observacoes: observacoes.trim() || null,
         permite_fiado: permiteFiado,
+        limite_credito: limiteNum,
         endereco_logradouro: enderecoLogradouro.trim() || null,
         endereco_numero: enderecoNumero.trim() || null,
         endereco_bairro: enderecoBairro.trim() || null,
@@ -673,7 +685,12 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
               {/* Permitir Fiado Switch */}
               <div className="flex items-center justify-between py-3 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-700">Permitir fiado</span>
+                <div>
+                  <span className="text-xs font-bold text-slate-700 block">Permitir fiado</span>
+                  <span className="text-[10px] text-slate-400">
+                    {permiteFiado ? 'Vendas a prazo liberadas' : 'Apenas pagamentos à vista'}
+                  </span>
+                </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -684,6 +701,30 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
+
+              {/* Limite de Crédito / Fiado: exibido quando permitir fiado estiver ativo */}
+              {permiteFiado && (
+                <div className="pt-1 pb-3 border-t border-slate-100/80 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3 space-y-1.5">
+                    <label className="text-[11px] font-bold text-emerald-800 flex items-center justify-between">
+                      <span>Limite de Crédito / Fiado (R$) *</span>
+                      <span className="text-[10px] text-emerald-600 font-normal">Teto máximo de débito</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-600">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="500,00"
+                        value={limiteCredito}
+                        onChange={(e) => setLimiteCredito(e.target.value)}
+                        className="w-full bg-white border border-emerald-300 rounded-xl pl-10 pr-3 py-2 text-sm font-bold text-emerald-900 placeholder:text-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Blocos de Valor Fiado e Valor Vencido */}

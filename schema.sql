@@ -208,14 +208,27 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
     vendedor_id UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
     origem VARCHAR(20) NOT NULL DEFAULT 'pdv_mobile' CHECK (origem IN ('pdv_mobile', 'pdv_desktop', 'catalogo_online')),
     tabela_preco_aplicada VARCHAR(20) DEFAULT 'varejo',
-    status VARCHAR(50) NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar', 'entregue', 'concluido', 'cancelado')),
+    status VARCHAR(50) NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar', 'entregue', 'concluido', 'cancelado', 'vencido')),
+    status_pagamento VARCHAR(30) DEFAULT 'aguardando_pagamento',
     subtotal NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     valor_desconto NUMERIC(12,2) DEFAULT 0.00,
+    desconto_percentual NUMERIC(5,2) DEFAULT 0.00,
     valor_frete NUMERIC(12,2) DEFAULT 0.00,
     valor_total NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     valor_pago NUMERIC(12,2) DEFAULT 0.00,
     saldo_devedor NUMERIC(12,2) DEFAULT 0.00,
     fiado_quitado BOOLEAN DEFAULT FALSE,
+    data_vencimento_fiado DATE,
+    forma_entrega_id UUID REFERENCES public.formas_entrega(id) ON DELETE SET NULL,
+    forma_pagamento_catalogo VARCHAR(50),
+    troco_para NUMERIC(12,2),
+    cupom_codigo VARCHAR(50),
+    valor_desconto_cupom NUMERIC(12,2) DEFAULT 0.00,
+    cliente_nome_avulso VARCHAR(150),
+    cliente_telefone_avulso VARCHAR(20),
+    cliente_documento_avulso VARCHAR(20),
+    cliente_email_avulso VARCHAR(100),
+    atualizado_por UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
     endereco_entrega TEXT,
     observacoes TEXT,
     metadados JSONB DEFAULT '{}'::jsonb,
@@ -292,6 +305,114 @@ CREATE TABLE IF NOT EXISTS public.caixas (
     diferenca_quebra NUMERIC(12,2),
     status VARCHAR(10) NOT NULL DEFAULT 'ABERTO' CHECK (status IN ('ABERTO', 'FECHADO')),
     observacoes TEXT
+);
+
+-- Tabela: cupons (Gestão de Cupons de Desconto da Loja)
+CREATE TABLE IF NOT EXISTS public.cupons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    tipo VARCHAR(30) NOT NULL CHECK (tipo IN ('desconto_fixo', 'desconto_percentual', 'frete_gratis')),
+    valor NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+    valor_minimo_carrinho NUMERIC(12,2) DEFAULT 0.00,
+    tem_valor_minimo BOOLEAN DEFAULT FALSE,
+    ativo BOOLEAN DEFAULT TRUE,
+    usos_count INTEGER DEFAULT 0,
+    limite_usos INTEGER,
+    data_inicio TIMESTAMPTZ,
+    data_fim TIMESTAMPTZ,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT cupons_loja_codigo_unique UNIQUE (loja_id, codigo)
+);
+
+-- Tabela: unidades_medida (Unidades de Medida do ERP)
+CREATE TABLE IF NOT EXISTS public.unidades_medida (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    sigla VARCHAR(10) NOT NULL,
+    nome VARCHAR(50) NOT NULL,
+    permite_fracionado BOOLEAN DEFAULT FALSE,
+    padrao BOOLEAN DEFAULT FALSE,
+    criado_em TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unidades_medida_loja_sigla_unique UNIQUE (loja_id, sigla)
+);
+
+-- Tabela: movimentacoes_saldo_cliente (Histórico de Créditos/Adiantamentos do Cliente)
+CREATE TABLE IF NOT EXISTS public.movimentacoes_saldo_cliente (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    cliente_id UUID NOT NULL REFERENCES public.clientes(id) ON DELETE CASCADE,
+    tipo VARCHAR(30) NOT NULL,
+    valor NUMERIC(12,2) NOT NULL,
+    saldo_anterior NUMERIC(12,2) DEFAULT 0.00,
+    saldo_posterior NUMERIC(12,2) DEFAULT 0.00,
+    descricao TEXT,
+    usuario_id UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela: historico_pedidos (Auditoria Relacional de Mudanças de Status e Edições de Pedidos)
+CREATE TABLE IF NOT EXISTS public.historico_pedidos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    pedido_id UUID NOT NULL REFERENCES public.pedidos(id) ON DELETE CASCADE,
+    usuario_id UUID REFERENCES public.usuarios_loja(id) ON DELETE SET NULL,
+    tipo_evento VARCHAR(50) NOT NULL,
+    status_anterior VARCHAR(50),
+    status_novo VARCHAR(50),
+    descricao TEXT,
+    detalhes JSONB DEFAULT '{}'::jsonb,
+    criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela: pedidos_pagamentos_previstos (Formas de Pagamento Planejadas em Vendas Pendentes)
+CREATE TABLE IF NOT EXISTS public.pedidos_pagamentos_previstos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    pedido_id UUID NOT NULL REFERENCES public.pedidos(id) ON DELETE CASCADE,
+    forma_pagamento_id UUID REFERENCES public.formas_pagamento(id) ON DELETE SET NULL,
+    forma_tipo VARCHAR(30) NOT NULL,
+    forma_nome VARCHAR(100) NOT NULL,
+    valor NUMERIC(12,2) NOT NULL,
+    valor_entregue NUMERIC(12,2),
+    parcelas INTEGER DEFAULT 1,
+    criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela: sessoes_caixa (Sessões Transacionais Contínuas de Turno / Terminal)
+CREATE TABLE IF NOT EXISTS public.sessoes_caixa (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    terminal_id VARCHAR(50) NOT NULL DEFAULT 'PDV-01',
+    aberto_por_usuario_id UUID NOT NULL REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT,
+    fechado_por_usuario_id UUID REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT,
+    aberto_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    fechado_em TIMESTAMPTZ,
+    fundo_inicial NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(20) NOT NULL DEFAULT 'ABERTO' CHECK (status IN ('ABERTO', 'FECHADO')),
+    total_entradas_sistema NUMERIC(12,2) DEFAULT 0.00,
+    total_saidas_sistema NUMERIC(12,2) DEFAULT 0.00,
+    saldo_esperado_dinheiro NUMERIC(12,2) DEFAULT 0.00,
+    saldo_declarado_dinheiro NUMERIC(12,2),
+    diferenca_dinheiro NUMERIC(12,2),
+    declarado_por_metodo JSONB DEFAULT '{}'::jsonb,
+    observacoes_fechamento TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabela: movimentacoes_caixa (Movimentações da Sessão de Caixa: Vendas, Suprimentos, Sangrias, Despesas)
+CREATE TABLE IF NOT EXISTS public.movimentacoes_caixa (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loja_id UUID NOT NULL REFERENCES public.lojas(id) ON DELETE CASCADE,
+    sessao_caixa_id UUID NOT NULL REFERENCES public.sessoes_caixa(id) ON DELETE RESTRICT,
+    pedido_id UUID REFERENCES public.pedidos(id) ON DELETE SET NULL,
+    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('VENDA', 'SUPRIMENTO', 'SANGRIA', 'DESPESA')),
+    metodo_pagamento VARCHAR(30) NOT NULL CHECK (metodo_pagamento IN ('DINHEIRO', 'PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'OUTROS')),
+    valor NUMERIC(12,2) NOT NULL,
+    descricao TEXT,
+    criado_por_usuario_id UUID NOT NULL REFERENCES public.usuarios_loja(id) ON DELETE RESTRICT,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ==============================================================================
@@ -426,17 +547,77 @@ EXECUTE FUNCTION public.fn_gerar_financeiro_pagamento();
 -- 5. ÍNDICES DE ALTA PERFORMANCE (B-TREE)
 -- ==============================================================================
 
-CREATE INDEX IF NOT EXISTS idx_produtos_loja_ativo ON public.produtos(loja_id, ativo);
-CREATE INDEX IF NOT EXISTS idx_produtos_codigo_barras ON public.produtos(loja_id, codigo_barras);
-CREATE INDEX IF NOT EXISTS idx_variacoes_produto_produto_id ON public.variacoes_produto(produto_id);
-CREATE INDEX IF NOT EXISTS idx_pedidos_loja_status ON public.pedidos(loja_id, status);
-CREATE INDEX IF NOT EXISTS idx_pedidos_loja_data ON public.pedidos(loja_id, data_venda);
+-- A) Índices em Chaves Estrangeiras (Evitam Full Table Scan em JOINs e locks em updates)
+CREATE INDEX IF NOT EXISTS idx_pedidos_vendedor ON public.pedidos(vendedor_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_forma_entrega ON public.pedidos(forma_entrega_id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_atualizado_por ON public.pedidos(atualizado_por);
 CREATE INDEX IF NOT EXISTS idx_pedidos_cliente_id ON public.pedidos(cliente_id);
+
 CREATE INDEX IF NOT EXISTS idx_itens_pedido_pedido_id ON public.itens_pedido(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_itens_pedido_produto ON public.itens_pedido(produto_id);
+CREATE INDEX IF NOT EXISTS idx_itens_pedido_loja ON public.itens_pedido(loja_id);
+
 CREATE INDEX IF NOT EXISTS idx_pagamentos_pedido_pedido_id ON public.pagamentos_pedido(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_forma ON public.pagamentos_pedido(forma_pagamento_id);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_pedido_loja ON public.pagamentos_pedido(loja_id);
+
+CREATE INDEX IF NOT EXISTS idx_transacoes_pedido ON public.transacoes_financeiras(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_transacoes_fornecedor ON public.transacoes_financeiras(fornecedor_id);
+
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_sessao ON public.movimentacoes_caixa(sessao_caixa_id);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_loja ON public.movimentacoes_caixa(loja_id);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_criado_por ON public.movimentacoes_caixa(criado_por_usuario_id);
+
+CREATE INDEX IF NOT EXISTS idx_sessoes_aberto_por ON public.sessoes_caixa(aberto_por_usuario_id);
+CREATE INDEX IF NOT EXISTS idx_sessoes_fechado_por ON public.sessoes_caixa(fechado_por_usuario_id);
+
+CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON public.produtos(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_produtos_fornecedor ON public.produtos(fornecedor_id);
+CREATE INDEX IF NOT EXISTS idx_variacoes_produto_produto_id ON public.variacoes_produto(produto_id);
+
+CREATE INDEX IF NOT EXISTS idx_itens_combo_pai ON public.itens_combo(produto_combo_id);
+CREATE INDEX IF NOT EXISTS idx_itens_combo_filho ON public.itens_combo(produto_filho_id);
+
+-- B) Índices para as Novas Tabelas Relacionais
+CREATE INDEX IF NOT EXISTS idx_cupons_loja ON public.cupons(loja_id, ativo);
+CREATE INDEX IF NOT EXISTS idx_unidades_loja ON public.unidades_medida(loja_id);
+CREATE INDEX IF NOT EXISTS idx_mov_saldo_cliente ON public.movimentacoes_saldo_cliente(cliente_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_mov_saldo_loja ON public.movimentacoes_saldo_cliente(loja_id);
+CREATE INDEX IF NOT EXISTS idx_historico_pedidos_pedido ON public.historico_pedidos(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_historico_pedidos_loja ON public.historico_pedidos(loja_id);
+CREATE INDEX IF NOT EXISTS idx_historico_pedidos_criado_em ON public.historico_pedidos(criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_previstos_pedido ON public.pedidos_pagamentos_previstos(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_previstos_loja ON public.pedidos_pagamentos_previstos(loja_id);
+
+-- C) Índices Compostos de Consulta e Ordenação Crítica
+CREATE INDEX IF NOT EXISTS idx_pedidos_loja_criado_em ON public.pedidos(loja_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_pedidos_loja_vendedor_criado ON public.pedidos(loja_id, vendedor_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_pedidos_loja_status ON public.pedidos(loja_id, status);
+CREATE INDEX IF NOT EXISTS idx_pedidos_loja_status_criado ON public.pedidos(loja_id, status, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_pedidos_loja_status_pagamento ON public.pedidos(loja_id, status_pagamento);
+CREATE INDEX IF NOT EXISTS idx_pedidos_loja_data ON public.pedidos(loja_id, data_venda);
+CREATE INDEX IF NOT EXISTS idx_pedidos_vencimento_fiado ON public.pedidos(loja_id, data_vencimento_fiado) WHERE data_vencimento_fiado IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pagamentos_pedido_fiado ON public.pagamentos_pedido(pedido_id, eh_pagamento_fiado);
+
+CREATE INDEX IF NOT EXISTS idx_clientes_loja_nome ON public.clientes(loja_id, nome);
+CREATE INDEX IF NOT EXISTS idx_clientes_loja_whatsapp ON public.clientes(loja_id, whatsapp);
+CREATE INDEX IF NOT EXISTS idx_clientes_loja_telefone ON public.clientes(loja_id, telefone);
+CREATE INDEX IF NOT EXISTS idx_clientes_loja_doc ON public.clientes(loja_id, numero_documento);
+
+CREATE INDEX IF NOT EXISTS idx_produtos_loja_ativo ON public.produtos(loja_id, ativo);
+CREATE INDEX IF NOT EXISTS idx_produtos_loja_ativo_nome ON public.produtos(loja_id, ativo, nome);
+CREATE INDEX IF NOT EXISTS idx_produtos_codigo_barras ON public.produtos(loja_id, codigo_barras);
+CREATE INDEX IF NOT EXISTS idx_produtos_loja_cod_interno ON public.produtos(loja_id, codigo_interno);
+
+CREATE INDEX IF NOT EXISTS idx_sessoes_loja_status ON public.sessoes_caixa(loja_id, status);
+CREATE INDEX IF NOT EXISTS idx_sessoes_terminal_status ON public.sessoes_caixa(loja_id, terminal_id, status);
+CREATE INDEX IF NOT EXISTS idx_sessoes_aberto_em ON public.sessoes_caixa(aberto_em DESC);
+CREATE INDEX IF NOT EXISTS idx_sessoes_loja_usuario_status ON public.sessoes_caixa(loja_id, aberto_por_usuario_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_loja_criado ON public.movimentacoes_caixa(loja_id, criado_em DESC);
 CREATE INDEX IF NOT EXISTS idx_transacoes_loja_data ON public.transacoes_financeiras(loja_id, data_vencimento);
 CREATE INDEX IF NOT EXISTS idx_transacoes_loja_status ON public.transacoes_financeiras(loja_id, status);
-CREATE INDEX IF NOT EXISTS idx_clientes_loja_nome ON public.clientes(loja_id, nome);
+CREATE INDEX IF NOT EXISTS idx_transacoes_loja_pagamento ON public.transacoes_financeiras(loja_id, data_pagamento DESC);
 CREATE INDEX IF NOT EXISTS idx_caixas_loja_status ON public.caixas(loja_id, status);
 
 -- ==============================================================================
@@ -458,6 +639,23 @@ ALTER TABLE public.itens_pedido ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pagamentos_pedido ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transacoes_financeiras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.caixas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sessoes_caixa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.movimentacoes_caixa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.unidades_medida ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.movimentacoes_saldo_cliente ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.historico_pedidos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pedidos_pagamentos_previstos ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de Acesso para as Novas Tabelas
+CREATE POLICY "cupons_catalogo_publico" ON public.cupons FOR SELECT USING (ativo = true);
+CREATE POLICY "cupons_loja_all" ON public.cupons FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "unidades_medida_all" ON public.unidades_medida FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "movimentacoes_saldo_cliente_all" ON public.movimentacoes_saldo_cliente FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "historico_pedidos_all" ON public.historico_pedidos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "pedidos_pagamentos_previstos_all" ON public.pedidos_pagamentos_previstos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "sessoes_caixa_all" ON public.sessoes_caixa FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "movimentacoes_caixa_all" ON public.movimentacoes_caixa FOR ALL USING (true) WITH CHECK (true);
 
 -- Políticas de Leitura Pública para Catálogo Online
 CREATE POLICY "catalogo_lojas_publico" ON public.lojas FOR SELECT USING (true);

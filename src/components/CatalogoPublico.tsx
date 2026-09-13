@@ -716,28 +716,9 @@ export const CatalogoPublico: React.FC = () => {
       }
       console.groupEnd();
 
-      const metadadosPedido = {
-        origem_detalhes: 'catalogo_online',
-        forma_pagamento_catalogo: formaPagamentoCatalogo,
-        troco_para: formaPagamentoCatalogo === 'dinheiro' ? (trocoParaInput.trim() || null) : null,
-        cupom: cupomAplicado ? {
-          id: cupomAplicado.id,
-          codigo: cupomAplicado.codigo,
-          desconto: descontoCupom
-        } : null,
-        contato_catalogo: {
-          nome: nomeCliente,
-          telefone: whatsappCliente,
-          cpfCnpj: dadosContato.cpfCnpj || null,
-          email: dadosContato.email || null
-        },
-        forma_entrega: formaEntregaEscolhida ? {
-          id: formaEntregaEscolhida.id,
-          nome: formaEntregaEscolhida.nome,
-          tipo: formaEntregaEscolhida.tipo,
-          valor: valorFreteEfetivo
-        } : null
-      };
+      const valorTrocoPara = formaPagamentoCatalogo === 'dinheiro' && trocoParaInput.trim()
+        ? parseFloat(trocoParaInput.trim().replace(',', '.')) || null
+        : null;
 
       const dataOperacaoIso = obterDataOperacaoISOParaLoja(loja);
 
@@ -749,13 +730,19 @@ export const CatalogoPublico: React.FC = () => {
             cliente_id: clienteFinalId,
             origem: 'catalogo_online',
             status: 'pendente',
+            status_pagamento: 'aguardando_pagamento',
             forma_pagamento: formaPagamentoCatalogo === 'pix' ? 'pix' : formaPagamentoCatalogo === 'dinheiro' ? 'dinheiro' : 'cartao_maquininha',
+            forma_pagamento_catalogo: formaPagamentoCatalogo,
             tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
             subtotal,
             valor_frete: valorFreteEfetivo,
             valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
             valor_total: total,
             saldo_devedor: total,
+            troco_para: valorTrocoPara,
+            cupom_id: cupomAplicado?.id || null,
+            cupom_codigo: cupomAplicado?.codigo || null,
+            valor_desconto_cupom: Number(descontoCupom || 0),
             endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
             observacoes: observacoes?.trim() || null,
             forma_entrega_id: formaEntregaEscolhida?.id || null,
@@ -763,7 +750,7 @@ export const CatalogoPublico: React.FC = () => {
             cliente_telefone_avulso: whatsappCliente || null,
             cliente_documento_avulso: dadosContato.cpfCnpj || null,
             cliente_email_avulso: dadosContato.email || null,
-            metadados: metadadosPedido,
+            metadados: null,
             data_venda: dataOperacaoIso,
             criado_em: dataOperacaoIso,
             atualizado_em: dataOperacaoIso

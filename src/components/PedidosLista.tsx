@@ -311,6 +311,7 @@ export const PedidosLista: React.FC = () => {
           atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+          pagamentos_previstos:pedidos_pagamentos_previstos(*),
           historico:historico_pedidos(*, usuario:usuarios_loja(*))
         `)
         .eq('loja_id', loja.id);
@@ -477,27 +478,40 @@ export const PedidosLista: React.FC = () => {
         return;
       }
 
-      const novosMetadados = adicionarHistoricoMetadados(
-        pedAlvo,
-        novoStatus,
-        usuario?.nome_completo || 'Operador'
-      );
-
       // Limpar tag legada e metadados de cliente em observações caso ainda existam
       let obsLimpa = extrairObservacaoLimpa(pedAlvo?.observacoes);
 
+      const dataIsoAlteracao = new Date().toISOString();
       const { error } = await supabase
         .from('pedidos')
         .update({
           status: novoStatus,
           observacoes: obsLimpa || null,
           atualizado_por: usuario?.id || null,
-          metadados: novosMetadados,
-          atualizado_em: new Date().toISOString()
+          atualizado_em: dataIsoAlteracao
         })
         .eq('id', pedidoId);
 
       if (error) throw error;
+
+      // Inserir registro relacional na tabela historico_pedidos
+      if (loja?.id) {
+        try {
+          const rotulo = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
+          await supabase.from('historico_pedidos').insert({
+            loja_id: loja.id,
+            pedido_id: pedidoId,
+            usuario_id: usuario?.id || null,
+            tipo_evento: novoStatus === 'cancelado' ? 'cancelado' : 'status_alterado',
+            status_anterior: pedAlvo?.status || null,
+            status_novo: novoStatus,
+            descricao: `Status alterado para ${rotulo} por ${usuario?.nome_completo || 'Operador'}`,
+            criado_em: dataIsoAlteracao
+          });
+        } catch (errHist) {
+          console.warn('Aviso ao registrar historico_pedidos:', errHist);
+        }
+      }
 
       // Se o pedido cancelado continha fiado não quitado, estornar o saldo devedor e devolver o limite de crédito do cliente
       if (novoStatus === 'cancelado' && pedAlvo?.cliente_id && !pedAlvo.fiado_quitado) {
@@ -538,7 +552,7 @@ export const PedidosLista: React.FC = () => {
       setPedidos((prev) =>
         prev.map((p) =>
           p.id === pedidoId
-            ? { ...p, status: novoStatus, observacoes: obsLimpa || null, metadados: novosMetadados }
+            ? { ...p, status: novoStatus, observacoes: obsLimpa || null }
             : p
         )
       );
@@ -549,7 +563,7 @@ export const PedidosLista: React.FC = () => {
         } else {
           setPedidoSelecionado((prev) =>
             prev
-              ? { ...prev, status: novoStatus, observacoes: obsLimpa || null, metadados: novosMetadados }
+              ? { ...prev, status: novoStatus, observacoes: obsLimpa || null }
               : null
           );
         }
@@ -698,12 +712,6 @@ export const PedidosLista: React.FC = () => {
       }
 
       const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
-      const novosMetadados = adicionarHistoricoMetadados(
-        pedidoSelecionado,
-        'concluido',
-        usuario?.nome_completo || 'Operador'
-      );
-
       const dataIsoConclusao = obterDataOperacaoISO();
       const { error } = await supabase
         .from('pedidos')
@@ -714,7 +722,6 @@ export const PedidosLista: React.FC = () => {
           saldo_devedor: 0,
           observacoes: obsLimpa || null,
           atualizado_por: usuario?.id || null,
-          metadados: novosMetadados,
           atualizado_em: dataIsoConclusao
         })
         .eq('id', pedidoSelecionado.id);
@@ -732,9 +739,14 @@ export const PedidosLista: React.FC = () => {
           status_novo: 'concluido',
           descricao: `Venda concluída e pagamento confirmado por ${usuario?.nome_completo || 'Operador'}`
         });
-      } catch (errAudit) {
-        console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+      } catch (eHist) {
+        console.warn('Aviso ao registrar historico_pedidos:', eHist);
       }
+
+      // Limpar pagamentos previstos vinculados agora que o pedido está concluído
+      try {
+        await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoSelecionado.id);
+      } catch (ePrev) {}
 
       setGavetaConcluirVendaAberta(false);
       setPedidoSelecionado(null);
