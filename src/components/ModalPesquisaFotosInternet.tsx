@@ -13,6 +13,7 @@ interface ModalPesquisaFotosInternetProps {
   maxFotos?: number;
   fotoReferencia?: string;
   segmentoLoja?: string;
+  loja?: any;
 }
 
 export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProps> = ({
@@ -24,7 +25,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   fotosAtuaisCount,
   maxFotos = 7,
   fotoReferencia,
-  segmentoLoja
+  segmentoLoja,
+  loja
 }) => {
   const [termoBusca, setTermoBusca] = useState<string>('');
   const [urlManual, setUrlManual] = useState<string>('');
@@ -34,8 +36,63 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [erro, setErro] = useState<string | null>(null);
   const [imagensCarregadas, setImagensCarregadas] = useState<Set<string>>(new Set());
   const [imagensComErro, setImagensComErro] = useState<Set<string>>(new Set());
+  const [mensagemToast, setMensagemToast] = useState<string | null>(null);
+  const [arrastandoSobre, setArrastandoSobre] = useState<boolean>(false);
 
   const vagasDisponiveis = Math.max(0, maxFotos - fotosAtuaisCount);
+
+  // Captura direta via Ctrl+V (Colar Imagem da área de transferência)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const clipboardData = e.clipboardData;
+      if (!clipboardData) return;
+
+      const items = Array.from(clipboardData.items || []);
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const base64Url = reader.result as string;
+              if (base64Url) {
+                setFotosEncontradas((prev) => [
+                  { url: base64Url, titulo: 'Foto copiada da internet (Ctrl+V)', fonte: 'Área de Transferência' },
+                  ...prev
+                ]);
+                setSelecionadas((prev) => {
+                  const n = new Set(prev);
+                  n.add(base64Url);
+                  return n;
+                });
+                setMensagemToast('Foto colada com sucesso via Ctrl+V!');
+                setTimeout(() => setMensagemToast(null), 3500);
+              }
+            };
+            reader.readAsDataURL(file);
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
+      // Se colou texto com link direto de imagem
+      const text = clipboardData.getData('text')?.trim();
+      if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+        const isImage = /\.(jpg|jpeg|png|webp|avif|gif)(\?.*)?$/i.test(text) || text.includes('image') || text.includes('img') || text.includes('photo');
+        if (isImage) {
+          setUrlManual(text);
+          setMensagemToast('Link de foto inserido! Clique em Adicionar Link.');
+          setTimeout(() => setMensagemToast(null), 3000);
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -78,10 +135,10 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     setImagensComErro(new Set());
 
     try {
-      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoLoja);
+      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoLoja, loja);
       setFotosEncontradas(resultados);
       if (resultados.length === 0) {
-        setErro('Nenhuma foto encontrada para este produto. Tente simplificar ou alterar o termo.');
+        setErro('Nenhuma foto encontrada para este produto na web. Você também pode colar fotos copiadas da internet usando Ctrl+V ou colar o link abaixo.');
       }
     } catch (err: any) {
       console.error('Erro na busca de fotos:', err);
@@ -128,7 +185,46 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setArrastandoSobre(true);
+        }}
+        onDragLeave={() => setArrastandoSobre(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setArrastandoSobre(false);
+          const files = Array.from(e.dataTransfer.files || []);
+          const imageFile = files.find(f => f.type.startsWith('image/'));
+          if (imageFile) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const b64 = reader.result as string;
+              if (b64) {
+                setFotosEncontradas(prev => [
+                  { url: b64, titulo: 'Foto arrastada e solta', fonte: 'Upload Direto' },
+                  ...prev
+                ]);
+                setSelecionadas(prev => new Set(prev).add(b64));
+                setMensagemToast('Foto adicionada por arrastar e soltar!');
+                setTimeout(() => setMensagemToast(null), 3000);
+              }
+            };
+            reader.readAsDataURL(imageFile);
+          }
+        }}
+        className={`bg-slate-900 border rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 transition-all ${
+          arrastandoSobre ? 'border-teal-400 ring-4 ring-teal-500/30' : 'border-slate-800'
+        }`}
+      >
+        {/* Notificação Toast */}
+        {mensagemToast && (
+          <div className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-bold text-xs py-2 px-4 text-center animate-in fade-in flex items-center justify-center gap-1.5 shadow-md shrink-0">
+            <Check className="w-4 h-4" />
+            <span>{mensagemToast}</span>
+          </div>
+        )}
+
         {/* Header do Modal */}
         <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
           <div className="flex items-center gap-3">
@@ -150,7 +246,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                 )}
               </div>
               <p className="text-xs text-slate-400 truncate max-w-md mt-0.5">
-                Vagas na galeria: {vagasDisponiveis} de {maxFotos} fotos disponíveis
+                Vagas na galeria: {vagasDisponiveis} de {maxFotos} fotos disponíveis • <span className="text-slate-300">Suporta colar foto com Ctrl+V</span>
               </p>
             </div>
           </div>
@@ -167,36 +263,19 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
         {/* Barra de Busca de Fotos */}
         <div className="p-4 border-b border-slate-800/80 bg-slate-950/50 shrink-0">
           {fotoReferencia && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 p-3 rounded-2xl bg-teal-500/10 border border-teal-500/25">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-teal-500/40 bg-slate-900 shadow-sm">
-                  <img src={fotoReferencia} alt="Foto de Referência" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-                    Pesquisa Visual Ativa (Foto + IA)
-                  </span>
-                  <span className="text-[11px] text-slate-400 block truncate mt-0.5">
-                    A IA examina a foto para buscar fotos idênticas em e-commerces.
-                  </span>
-                </div>
+            <div className="flex items-center gap-3 mb-3 p-3 rounded-2xl bg-teal-500/10 border border-teal-500/25">
+              <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-teal-500/40 bg-slate-900 shadow-sm">
+                <img src={fotoReferencia} alt="Foto de Referência" className="w-full h-full object-cover" />
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (fotoReferencia.startsWith('http')) {
-                    window.open(`https://lens.google.com/uploadbyurl?url=${encodeURIComponent(fotoReferencia)}&hl=pt-BR`, '_blank');
-                  } else {
-                    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(termoBusca || 'produto')}`, '_blank');
-                  }
-                }}
-                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-teal-300 hover:text-white text-xs font-bold border border-teal-500/30 hover:border-teal-400 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-                title="Abrir pesquisa de imagens no Google"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-teal-400" />
-                <span>Abrir no Google Lens</span>
-              </button>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                  Pesquisa Híbrida Ativa (Foto + IA + Catálogo)
+                </span>
+                <span className="text-[11px] text-slate-400 block truncate mt-0.5">
+                  A IA examina a foto do produto para buscar imagens em alta resolução em lojas e e-commerces.
+                </span>
+              </div>
             </div>
           )}
 

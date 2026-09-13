@@ -15,6 +15,8 @@ export interface ProdutoSugeridoIA {
 }
 
 const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
+const STORAGE_KEY_GOOGLE_SEARCH_KEY = 'hubi_google_search_api_key';
+const STORAGE_KEY_GOOGLE_SEARCH_CX = 'hubi_google_search_cx';
 
 export const getGeminiApiKey = (loja?: any): string => {
   return (
@@ -30,6 +32,33 @@ export const setGeminiApiKey = (key: string) => {
     localStorage.setItem(STORAGE_KEY_GEMINI_KEY, key.trim());
   } else {
     localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
+  }
+};
+
+export const getGoogleSearchConfig = (loja?: any): { apiKey: string; cx: string } => {
+  const apiKey =
+    loja?.configuracoes_extras?.ia?.google_search_api_key ||
+    localStorage.getItem(STORAGE_KEY_GOOGLE_SEARCH_KEY) ||
+    loja?.configuracoes_extras?.ia?.gemini_api_key ||
+    getGeminiApiKey(loja) ||
+    '';
+  const cx =
+    loja?.configuracoes_extras?.ia?.google_search_cx ||
+    localStorage.getItem(STORAGE_KEY_GOOGLE_SEARCH_CX) ||
+    '';
+  return { apiKey: apiKey.trim(), cx: cx.trim() };
+};
+
+export const setGoogleSearchConfig = (apiKey: string, cx: string) => {
+  if (apiKey.trim()) {
+    localStorage.setItem(STORAGE_KEY_GOOGLE_SEARCH_KEY, apiKey.trim());
+  } else {
+    localStorage.removeItem(STORAGE_KEY_GOOGLE_SEARCH_KEY);
+  }
+  if (cx.trim()) {
+    localStorage.setItem(STORAGE_KEY_GOOGLE_SEARCH_CX, cx.trim());
+  } else {
+    localStorage.removeItem(STORAGE_KEY_GOOGLE_SEARCH_CX);
   }
 };
 
@@ -174,14 +203,18 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
   }
 
   return [
+    'gemini-flash-latest',
+    'gemini-3.8-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3-flash-preview',
+    'gemini-2.0-flash',
     'gemini-1.5-flash-latest',
     'gemini-1.5-flash',
     'gemini-1.5-flash-002',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash-8b',
     'gemini-1.5-pro-latest',
-    'gemini-1.5-pro',
-    'gemini-pro'
+    'gemini-1.5-pro'
   ];
 };
 
@@ -562,7 +595,8 @@ export const pesquisarFotosProdutoNaInternet = async (
   termo: string,
   codigoBarras?: string,
   fotoReferencia?: string,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  loja?: any
 ): Promise<FotoResultadoInternet[]> => {
   const fotos: FotoResultadoInternet[] = [];
   const urlsVistas = new Set<string>();
@@ -593,7 +627,7 @@ export const pesquisarFotosProdutoNaInternet = async (
   // Lista de termos a serem pesquisados no e-commerce
   const termosParaPesquisar: string[] = [];
 
-  // Se o usuário possui uma foto de referência, usa a IA de Visão para enriquecer com termos visuais altamente específicos
+  // PASSO 1: IA Multimodal de Visão (Gemini Flash) - Extrai termos comerciais visuais precisos
   if (fotoReferencia) {
     try {
       const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo, segmentoLoja);
@@ -620,37 +654,75 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  // 1. Busca Web / E-commerce via API de Imagens (/api/buscar-fotos-web)
-  for (const qTermo of termosParaPesquisar.slice(0, 3)) {
-    if (fotos.length >= 20) break;
-    try {
-      const resWeb = await fetch(`/api/buscar-fotos-web?q=${encodeURIComponent(qTermo)}`);
-      if (resWeb.ok) {
-        const dataWeb = await resWeb.json();
-        const resultados = Array.isArray(dataWeb.results) ? dataWeb.results : [];
-        for (const item of resultados) {
-          if (fotos.length >= 20) break;
-          const rawImg = item.image || item.thumbnail;
-          if (rawImg) {
-            // Passa pelo proxy de imagem weserv para garantir CORS, bypass de hotlink e alta performance
-            const cleanRaw = rawImg.replace(/^https?:\/\//, '');
-            const urlSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanRaw)}&w=600&output=jpg`;
-            registrarFoto(urlSegura, item.title || qTermo, 'Lojas / Web');
+  // PASSO 2 (A): Google Custom Search JSON API (searchType=image)
+  const googleConfig = getGoogleSearchConfig(loja);
+  if (googleConfig.cx) {
+    const searchApiKey = googleConfig.apiKey || getGeminiApiKey(loja);
+    if (searchApiKey) {
+      for (const qTermo of termosParaPesquisar.slice(0, 2)) {
+        if (fotos.length >= 16) break;
+        try {
+          const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${searchApiKey}&cx=${encodeURIComponent(googleConfig.cx)}&searchType=image&q=${encodeURIComponent(qTermo)}&num=10&gl=br&hl=pt-BR&safe=off`;
+          const ctrl = new AbortController();
+          const tId = setTimeout(() => ctrl.abort(), 6500);
+          const gRes = await fetch(googleUrl, { signal: ctrl.signal });
+          clearTimeout(tId);
+          if (gRes.ok) {
+            const gData = await gRes.json();
+            const items = Array.isArray(gData.items) ? gData.items : [];
+            for (const item of items) {
+              if (fotos.length >= 20) break;
+              const imgUrl = item.link;
+              if (imgUrl) {
+                const cleanRaw = imgUrl.replace(/^https?:\/\//, '');
+                const urlSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanRaw)}&w=600&output=jpg`;
+                registrarFoto(urlSegura, item.title || qTermo, 'Google Imagens');
+              }
+            }
           }
+        } catch (err) {
+          console.warn('Aviso: Erro na busca via Google Custom Search API:', err);
         }
       }
-    } catch (err) {
-      console.warn('Aviso: Erro ao consultar /api/buscar-fotos-web:', err);
     }
   }
 
-  // 2. Consulta Open Food Facts e Open Beauty Facts (para produtos de mercearia, higiene e cosméticos)
+  // PASSO 2 (B): Busca Web / E-commerce via Middleware Local (/api/buscar-fotos-web)
+  if (fotos.length < 15) {
+    for (const qTermo of termosParaPesquisar.slice(0, 3)) {
+      if (fotos.length >= 20) break;
+      try {
+        const resWeb = await fetch(`/api/buscar-fotos-web?q=${encodeURIComponent(qTermo)}`);
+        const cType = resWeb.headers.get('content-type') || '';
+        // Só tenta ler JSON se não for o fallback HTML do SPA em produção estática
+        if (resWeb.ok && cType.includes('application/json')) {
+          const dataWeb = await resWeb.json();
+          const resultados = Array.isArray(dataWeb.results) ? dataWeb.results : [];
+          for (const item of resultados) {
+            if (fotos.length >= 20) break;
+            const rawImg = item.image || item.thumbnail;
+            if (rawImg) {
+              // Passa pelo proxy de imagem weserv para garantir CORS, bypass de hotlink e alta performance
+              const cleanRaw = rawImg.replace(/^https?:\/\//, '');
+              const urlSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanRaw)}&w=600&output=jpg`;
+              registrarFoto(urlSegura, item.title || qTermo, 'Lojas / Web');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Aviso: Erro ao consultar /api/buscar-fotos-web:', err);
+      }
+    }
+  }
+
+  // PASSO 2 (C): Consulta Open Food Facts, Open Beauty Facts e Open Products Facts
   if (fotos.length < 12) {
     try {
       const termoOFF = codigoBarras?.trim() || termoLimpo;
       const apis = [
         `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`,
-        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`
+        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`,
+        `https://world.openproductsfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`
       ];
 
       for (const urlAPI of apis) {

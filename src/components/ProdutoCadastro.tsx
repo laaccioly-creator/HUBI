@@ -3170,6 +3170,7 @@ export const ProdutoCadastro: React.FC = () => {
         maxFotos={7}
         fotoReferencia={fotoPrincipal || fotosUrls[0]}
         segmentoLoja={segmentoLoja}
+        loja={loja}
         onAdicionarFotos={(novas) => {
           setFotosUrls(prev => {
             const combinadas = [...prev];

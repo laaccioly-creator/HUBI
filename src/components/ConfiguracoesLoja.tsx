@@ -62,6 +62,7 @@ import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { setGoogleSearchConfig } from '../services/geminiService';
 
 type SubTelaConfig =
   | 'menu'
@@ -194,6 +195,8 @@ const gerarSnapshotConfig = (dados: any) => {
     especialidadeNegocio: (dados.especialidadeNegocio || '').trim(),
     tomVozRubi: dados.tomVozRubi || 'consultivo',
     geminiApiKey: (dados.geminiApiKey || '').trim(),
+    googleSearchApiKey: (dados.googleSearchApiKey || '').trim(),
+    googleSearchCx: (dados.googleSearchCx || '').trim(),
     nomeLoja: (dados.nomeLoja || '').trim(),
     urlLogo: dados.urlLogo || '',
     telefone: (dados.telefone || '').trim(),
@@ -335,6 +338,8 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [especialidadeNegocio, setEspecialidadeNegocio] = useState<string>('');
   const [tomVozRubi, setTomVozRubi] = useState<'consultivo' | 'tecnico' | 'amigavel' | 'formal'>('consultivo');
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [googleSearchApiKey, setGoogleSearchApiKey] = useState<string>('');
+  const [googleSearchCx, setGoogleSearchCx] = useState<string>('');
 
   // 3. RECIBO
   const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
@@ -502,6 +507,8 @@ export const ConfiguracoesLoja: React.FC = () => {
       setTomVozRubi(perfilNegocio.tom_voz || 'consultivo');
       const iaConfig = extras.ia || {};
       setGeminiApiKey(iaConfig.gemini_api_key || '');
+      setGoogleSearchApiKey(iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '');
+      setGoogleSearchCx(iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '');
 
       // Recibo
       setReciboAdicionarCliente(recibo.adicionar_cliente ?? true);
@@ -617,6 +624,8 @@ export const ConfiguracoesLoja: React.FC = () => {
           especialidadeNegocio: perfilNegocio.descricao_especialidade || '',
           tomVozRubi: perfilNegocio.tom_voz || 'consultivo',
           geminiApiKey: iaConfig.gemini_api_key || '',
+          googleSearchApiKey: iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '',
+          googleSearchCx: iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '',
           nomeLoja: loja.nome_fantasia || '',
           urlLogo: loja.url_logo || '',
           telefone: loja.telefone || '',
@@ -857,7 +866,9 @@ export const ConfiguracoesLoja: React.FC = () => {
           tom_voz: tomVozRubi
         },
         ia: {
-          gemini_api_key: geminiApiKey.trim()
+          gemini_api_key: geminiApiKey.trim(),
+          google_search_api_key: googleSearchApiKey.trim(),
+          google_search_cx: googleSearchCx.trim()
         }
       };
 
@@ -887,6 +898,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       if (error) throw error;
 
+      setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
       salvouRecenteRef.current = true;
       setSnapshotInicial(snapshotAtual);
       setTemAlteracoesNaoSalvas(false);
@@ -2258,6 +2270,48 @@ export const ConfiguracoesLoja: React.FC = () => {
                   />
                   <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
                     Insira sua chave gratuita do <strong>Google AI Studio</strong> para que a Rubi tenha poder total de conversação natural, conheça os produtos a fundo e responda aos clientes com empatia e consultoria humana no Catálogo Online. Se não configurada, a Rubi continuará atendendo normalmente através do motor inteligente local.
+                  </p>
+                </div>
+
+                {/* Busca de Fotos com Google Custom Search API (Opcional) */}
+                <div className="pt-4 border-t border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Busca Oficial de Fotos no Google Imagens (Google Custom Search)</span>
+                    </label>
+                    <span className="text-[10px] text-teal-400 font-bold bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
+                      Fotos Direto no App
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                        ID do Mecanismo de Busca (CX)
+                      </label>
+                      <input
+                        type="text"
+                        value={googleSearchCx}
+                        onChange={(e) => setGoogleSearchCx(e.target.value)}
+                        placeholder="Ex: a1b2c3d4e5f6g7h8i"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-teal-500 transition font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                        Chave da API Google Search (Opcional - usa a chave Gemini se vazia)
+                      </label>
+                      <input
+                        type="password"
+                        value={googleSearchApiKey}
+                        onChange={(e) => setGoogleSearchApiKey(e.target.value)}
+                        placeholder="Deixe em branco para usar a mesma chave do Gemini"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-teal-500 transition font-mono"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Permite ao HUBI trazer fotografias oficiais de produtos pesquisadas no Google diretamente para a tela de cadastro sem abrir abas extras. O Google oferece <strong>100 pesquisas gratuitas por dia</strong> através do Programmable Search Engine (Google Cloud).
                   </p>
                 </div>
               </div>
