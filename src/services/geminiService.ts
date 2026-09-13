@@ -676,6 +676,18 @@ export const pesquisarFotosProdutoNaInternet = async (
 
   // PASSO 2 (A): SerpApi (Google Images Engine) no modelo BYOK
   const serpApiKey = obterSerpApiKey(loja);
+  console.log(
+    '%c[HUBI IMAGENS]%c Verificando chave SerpApi da loja...',
+    'background: #0284c7; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+    'color: #0284c7; font-weight: bold;',
+    { 
+      temChave: Boolean(serpApiKey),
+      lojaId: loja?.id,
+      lojaNome: loja?.nome_fantasia,
+      termoPrincipal: termosParaPesquisar[0] || termoLimpo
+    }
+  );
+
   if (serpApiKey) {
     try {
       const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
@@ -683,6 +695,11 @@ export const pesquisarFotosProdutoNaInternet = async (
         termoPrincipal,
         serpApiKey,
         { lojaId: loja?.id, numResultados: 20 }
+      );
+      console.log(
+        `%c[HUBI IMAGENS]%c SerpApi retornou ${resultadosSerpApi.length} fotos para "${termoPrincipal}"`,
+        'background: #16a34a; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+        'color: #16a34a; font-weight: bold;'
       );
       for (const item of resultadosSerpApi) {
         registrarFoto(
@@ -697,8 +714,10 @@ export const pesquisarFotosProdutoNaInternet = async (
       if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
         throw err;
       }
-      console.warn('Aviso: Erro na busca via SerpApi:', err);
+      console.warn('[HUBI IMAGENS] Aviso: Erro na busca via SerpApi:', err);
     }
+  } else {
+    console.log('[HUBI IMAGENS] Nenhuma chave SerpApi configurada para a loja. Buscando em fontes alternativas...');
   }
 
   // Se a SerpApi já retornou fotos suficientes, retorna diretamente sem onerar fontes secundárias

@@ -1282,4 +1282,227 @@ CREATE POLICY "Permitir acesso completo a movimentacoes_caixa"
 ON public.movimentacoes_caixa FOR ALL 
 USING (true) WITH CHECK (true);
 
+-- ==============================================================================
+-- INTEGRAÇÃO SERPAPI: BUSCA DE FOTOS (GOOGLE IMAGES) E TESTE DE CONEXÃO VIA RPC
+-- ==============================================================================
+
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+
+-- Função auxiliar para codificação segura de parâmetros de URL
+CREATE OR REPLACE FUNCTION public.hubi_urlencode(p_texto TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+    IF p_texto IS NULL THEN
+        RETURN '';
+    END IF;
+    BEGIN
+        RETURN extensions.urlencode(p_texto);
+    EXCEPTION WHEN OTHERS THEN
+        RETURN replace(replace(replace(replace(replace(p_texto, ' ', '+'), '&', '%26'), '#', '%23'), '?', '%3F'), '=', '%3D');
+    END;
+END;
+$$;
+
+-- Função RPC para testar conexão com SerpApi diretamente via servidor Supabase
+CREATE OR REPLACE FUNCTION public.testar_conexao_serpapi_rpc(
+    p_api_key TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_response extensions.http_response;
+    v_json JSONB;
+    v_key TEXT := trim(COALESCE(p_api_key, ''));
+BEGIN
+    IF v_key = '' THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'mensagem', 'Informe uma chave de API para testar.'
+        );
+    END IF;
+
+    SELECT * INTO v_response FROM extensions.http((
+        'GET',
+        'https://serpapi.com/account.json?api_key=' || v_key,
+        ARRAY[extensions.http_header('Accept', 'application/json')],
+        NULL,
+        NULL
+    )::extensions.http_request);
+
+    IF v_response.status = 200 THEN
+        v_json := v_response.content::JSONB;
+        RETURN jsonb_build_object(
+            'sucesso', true,
+            'status', 200,
+            'mensagem', 'Conexão estabelecida com sucesso com a SerpApi!',
+            'plano', COALESCE(v_json->>'plan_name', 'Plano Gratuito (Free)'),
+            'buscasRestantes', (v_json->>'total_searches_left')::INTEGER,
+            'buscasMes', (v_json->>'this_month_usage')::INTEGER
+        );
+    ELSIF v_response.status IN (401, 403) THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'status', v_response.status,
+            'mensagem', 'Chave de API inválida. Verifique o código copiado do painel da SerpApi.'
+        );
+    ELSIF v_response.status = 429 THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'status', 429,
+            'mensagem', 'Limite mensal da cota gratuita atingido na SerpApi.'
+        );
+    ELSE
+        BEGIN
+            v_json := v_response.content::JSONB;
+            RETURN jsonb_build_object(
+                'sucesso', false,
+                'status', v_response.status,
+                'mensagem', COALESCE(v_json->>'error', 'Erro retornado pela SerpApi (Status ' || v_response.status || ')')
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RETURN jsonb_build_object(
+                'sucesso', false,
+                'status', v_response.status,
+                'mensagem', 'Falha na resposta da SerpApi (Status ' || v_response.status || ')'
+            );
+        END;
+    END IF;
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'sucesso', false,
+        'mensagem', 'Erro ao conectar à SerpApi via servidor Supabase: ' || SQLERRM
+    );
+END;
+$$;
+
+-- Função RPC para buscar fotos no Google Images via SerpApi diretamente pelo servidor Supabase
+CREATE OR REPLACE FUNCTION public.buscar_fotos_serpapi_rpc(
+    p_termo TEXT,
+    p_loja_id UUID DEFAULT NULL,
+    p_api_key TEXT DEFAULT NULL,
+    p_num INTEGER DEFAULT 20
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_key TEXT := trim(COALESCE(p_api_key, ''));
+    v_url TEXT;
+    v_response extensions.http_response;
+    v_json JSONB;
+    v_termo_limpo TEXT := trim(COALESCE(p_termo, ''));
+BEGIN
+    -- Se a chave não foi passada diretamente, busca na tabela lojas
+    IF v_key = '' AND p_loja_id IS NOT NULL THEN
+        SELECT 
+            COALESCE(serpapi_key, configuracoes_extras->'ia'->>'serpapi_key')
+        INTO v_key
+        FROM public.lojas
+        WHERE id = p_loja_id;
+        
+        v_key := trim(COALESCE(v_key, ''));
+    END IF;
+
+    IF v_key = '' THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'error_type', 'auth',
+            'mensagem', 'Chave SerpApi não configurada para esta loja.',
+            'results', '[]'::JSONB
+        );
+    END IF;
+
+    IF v_termo_limpo = '' THEN
+        RETURN jsonb_build_object(
+            'sucesso', true,
+            'status', 200,
+            'results', '[]'::JSONB,
+            'total', 0
+        );
+    END IF;
+
+    v_url := 'https://serpapi.com/search.json?engine=google_images&hl=pt&gl=br&num=' || 
+             COALESCE(p_num, 20) || 
+             '&api_key=' || v_key || 
+             '&q=' || public.hubi_urlencode(v_termo_limpo);
+
+    SELECT * INTO v_response FROM extensions.http((
+        'GET',
+        v_url,
+        ARRAY[extensions.http_header('Accept', 'application/json')],
+        NULL,
+        NULL
+    )::extensions.http_request);
+
+    IF v_response.status = 200 THEN
+        v_json := v_response.content::JSONB;
+        IF (v_json ? 'images_results') AND jsonb_typeof(v_json->'images_results') = 'array' THEN
+            RETURN jsonb_build_object(
+                'sucesso', true,
+                'status', 200,
+                'results', v_json->'images_results',
+                'total', jsonb_array_length(v_json->'images_results')
+            );
+        ELSE
+            RETURN jsonb_build_object(
+                'sucesso', true,
+                'status', 200,
+                'results', '[]'::JSONB,
+                'total', 0,
+                'mensagem', 'Nenhuma foto encontrada para este termo.'
+            );
+        END IF;
+    ELSIF v_response.status = 429 THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'status', 429,
+            'error_type', 'quota',
+            'mensagem', 'Limite mensal de 250 buscas atingido na SerpApi.'
+        );
+    ELSIF v_response.status IN (401, 403) THEN
+        RETURN jsonb_build_object(
+            'sucesso', false,
+            'status', v_response.status,
+            'error_type', 'auth',
+            'mensagem', 'Chave SerpApi inválida ou sem permissão.'
+        );
+    ELSE
+        BEGIN
+            v_json := v_response.content::JSONB;
+            RETURN jsonb_build_object(
+                'sucesso', false,
+                'status', v_response.status,
+                'error_type', 'api_error',
+                'mensagem', COALESCE(v_json->>'error', 'Erro retornado pela SerpApi (Status ' || v_response.status || ')')
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RETURN jsonb_build_object(
+                'sucesso', false,
+                'status', v_response.status,
+                'error_type', 'http_error',
+                'mensagem', 'Erro ao consultar SerpApi (Status ' || v_response.status || ')'
+            );
+        END;
+    END IF;
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'sucesso', false,
+        'error_type', 'network_error',
+        'mensagem', 'Erro na requisição à SerpApi via servidor Supabase: ' || SQLERRM
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.hubi_urlencode TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.testar_conexao_serpapi_rpc TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.buscar_fotos_serpapi_rpc TO anon, authenticated, service_role;
+
 
