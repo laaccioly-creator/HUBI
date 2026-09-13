@@ -1676,10 +1676,21 @@ export const ProdutoCadastro: React.FC = () => {
       };
 
       if (ehEdicao) {
-        const { error: erroUpdate } = await supabase
+        let { error: erroUpdate } = await supabase
           .from('produtos')
           .update(novoProduto)
           .eq('id', id);
+
+        // Fallback caso a coluna tipo_item ainda não exista no schema do banco
+        if (erroUpdate && (erroUpdate.message?.includes('tipo_item') || (erroUpdate as any).details?.includes('tipo_item'))) {
+          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando atualizar sem ela...');
+          const { tipo_item, ...dadosSemTipoItem } = novoProduto;
+          const retry = await supabase
+            .from('produtos')
+            .update(dadosSemTipoItem)
+            .eq('id', id);
+          erroUpdate = retry.error;
+        }
 
         if (erroUpdate) throw erroUpdate;
 
@@ -1702,11 +1713,24 @@ export const ProdutoCadastro: React.FC = () => {
           await supabase.from('variacoes_produto').delete().eq('produto_id', id);
         }
       } else {
-        const { data: prodCriado, error: erroProd } = await supabase
+        let { data: prodCriado, error: erroProd } = await supabase
           .from('produtos')
           .insert([novoProduto])
           .select()
           .single();
+
+        // Fallback caso a coluna tipo_item ainda não exista no schema do banco
+        if (erroProd && (erroProd.message?.includes('tipo_item') || (erroProd as any).details?.includes('tipo_item'))) {
+          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando cadastrar sem ela...');
+          const { tipo_item, ...dadosSemTipoItem } = novoProduto;
+          const retry = await supabase
+            .from('produtos')
+            .insert([dadosSemTipoItem])
+            .select()
+            .single();
+          prodCriado = retry.data;
+          erroProd = retry.error;
+        }
 
         if (erroProd || !prodCriado) throw erroProd;
 

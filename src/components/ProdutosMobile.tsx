@@ -1079,7 +1079,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       if (produtoEditando?.id) {
         // Atualizar produto existente
-        const { error } = await supabase
+        let { error } = await supabase
           .from('produtos')
           .update({
             ...payload,
@@ -1087,12 +1087,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           })
           .eq('id', produtoEditando.id);
 
+        if (error && (error.message?.includes('tipo_item') || (error as any).details?.includes('tipo_item'))) {
+          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando atualizar sem ela...');
+          const { tipo_item, ...payloadSemTipoItem } = payload;
+          const retry = await supabase
+            .from('produtos')
+            .update({
+              ...payloadSemTipoItem,
+              atualizado_em: new Date().toISOString()
+            })
+            .eq('id', produtoEditando.id);
+          error = retry.error;
+        }
+
         if (error) throw error;
         await persistirCorProdutoSupabase(produtoEditando.id, formData.corEtiqueta);
         setMensagemFeedback({ texto: 'Produto atualizado com sucesso!', tipo: 'sucesso' });
       } else {
         // Criar novo produto
-        const { data: prodCriado, error } = await supabase
+        let { data: prodCriado, error } = await supabase
           .from('produtos')
           .insert([{
             ...payload,
@@ -1101,6 +1114,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           }])
           .select()
           .single();
+
+        if (error && (error.message?.includes('tipo_item') || (error as any).details?.includes('tipo_item'))) {
+          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando cadastrar sem ela...');
+          const { tipo_item, ...payloadSemTipoItem } = payload;
+          const retry = await supabase
+            .from('produtos')
+            .insert([{
+              ...payloadSemTipoItem,
+              criado_em: new Date().toISOString(),
+              atualizado_em: new Date().toISOString()
+            }])
+            .select()
+            .single();
+          prodCriado = retry.data;
+          error = retry.error;
+        }
 
         if (error) throw error;
         if (prodCriado?.id) {

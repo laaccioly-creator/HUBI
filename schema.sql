@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     descricao TEXT,
     fotos_urls JSONB DEFAULT '[]'::jsonb,
     tipo_unidade VARCHAR(10) DEFAULT 'un',
+    tipo_item VARCHAR(20) DEFAULT 'produto' CHECK (tipo_item IN ('produto', 'servico')),
     preco_custo NUMERIC(12,2) DEFAULT 0.00,
     preco_venda_varejo NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     preco_venda_atacado NUMERIC(12,2),
@@ -125,6 +126,10 @@ CREATE TABLE IF NOT EXISTS public.produtos (
     criado_em TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migração idempotente para bancos de dados já criados
+ALTER TABLE public.produtos ADD COLUMN IF NOT EXISTS tipo_item VARCHAR(20) DEFAULT 'produto';
+
 
 -- Tabela: variacoes_produto (Grade de até 2 Variações por Produto com Preços)
 CREATE TABLE IF NOT EXISTS public.variacoes_produto (
