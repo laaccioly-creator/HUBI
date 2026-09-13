@@ -49,7 +49,7 @@ import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { atualizarProdutoExistenteComIA, obterNomeSegmentoLoja } from '../services/geminiService';
-import { obterSerpApiKey } from '../services/serpApiService';
+import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 
 export interface PrecoConcorrente {
   loja: string;
@@ -727,9 +727,18 @@ export const ProdutoCadastro: React.FC = () => {
   const [modalFotosInternetAberto, setModalFotosInternetAberto] = useState<boolean>(false);
   const [modalOnboardingSerpApiAberto, setModalOnboardingSerpApiAberto] = useState<boolean>(false);
 
-  const handleAbrirPesquisaFotos = () => {
-    const chave = obterSerpApiKey(loja);
-    if (!chave) {
+  const handleAbrirPesquisaFotos = async () => {
+    let chave = obterSerpApiKey(loja);
+    if (!chave && loja?.id) {
+      chave = await obterOuBuscarSerpApiKey(loja);
+      if (chave && setLoja && loja) {
+        setLoja({ ...loja, serpapi_key: chave });
+      }
+    }
+
+    if (!chave && !loja?.id) {
+      setModalOnboardingSerpApiAberto(true);
+    } else if (!chave) {
       setModalOnboardingSerpApiAberto(true);
     } else {
       setModalFotosInternetAberto(true);

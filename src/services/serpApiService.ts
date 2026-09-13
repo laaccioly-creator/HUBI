@@ -9,6 +9,8 @@ export interface FotoResultadoSerpApi {
   titulo: string;
   fonte: string;
   posicao?: number;
+  largura?: number;
+  altura?: number;
 }
 
 export class SerpApiQuotaError extends Error {
@@ -66,6 +68,7 @@ const logSerpErro = (titulo: string, ...detalhes: any[]) => {
 
 /**
  * Formata os itens brutos retornados pela SerpApi em FotoResultadoSerpApi
+ * Prioriza imagens em alta resolução e filtra miniaturas excessivamente pequenas
  */
 export const formatarResultadosSerpApi = (
   imagesResults: any[],
@@ -79,21 +82,29 @@ export const formatarResultadosSerpApi = (
     const item = imagesResults[idx];
     if (!item) continue;
 
+    // Em SerpApi Google Images, original é o link direto do arquivo em alta resolução.
+    // Nunca usar item.link porque é a URL da página web HTML.
     const originalUrl =
       item.original ||
       item.original_image?.link ||
-      item.link ||
       item.thumbnail ||
       '';
 
     const thumbnailUrl =
       item.thumbnail ||
       item.original ||
-      item.link ||
       '';
 
     if (!originalUrl || !originalUrl.startsWith('http')) continue;
     if (urlsVistas.has(originalUrl)) continue;
+
+    const largura = typeof item.original_width === 'number' ? item.original_width : undefined;
+    const altura = typeof item.original_height === 'number' ? item.original_height : undefined;
+
+    // Se tiver dimensões conhecidas, ignora imagens minúsculas (< 250px) para evitar fotos borradas ou ícones
+    if (largura && largura < 250 && altura && altura < 250) {
+      continue;
+    }
 
     urlsVistas.add(originalUrl);
 
@@ -102,7 +113,9 @@ export const formatarResultadosSerpApi = (
       urlThumbnail: thumbnailUrl,
       titulo: item.title || queryTratada,
       fonte: item.source || item.domain || 'Google Imagens',
-      posicao: item.position || idx + 1
+      posicao: item.position || idx + 1,
+      largura,
+      altura
     });
 
     if (fotosFormatadas.length >= num) break;
@@ -121,6 +134,46 @@ export const obterSerpApiKey = (loja?: Loja | null): string => {
     localStorage.getItem(STORAGE_KEY_SERPAPI_KEY) ||
     '';
   return chaveLoja.trim();
+};
+
+/**
+ * Obtém a chave da SerpApi de forma assíncrona, consultando o banco de dados Supabase
+ * caso não esteja no localStorage (essencial para dispositivos móveis ou novos navegadores)
+ */
+export const obterOuBuscarSerpApiKey = async (loja?: Loja | null): Promise<string> => {
+  const chaveSincrona = obterSerpApiKey(loja);
+  if (chaveSincrona) return chaveSincrona;
+
+  if (loja?.id) {
+    try {
+      logSerp('Chave não encontrada localmente. Consultando Supabase para a loja:', loja.id);
+      const { data, error } = await supabase
+        .from('lojas')
+        .select('serpapi_key, configuracoes_extras')
+        .eq('id', loja.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        const chaveDb =
+          data.serpapi_key ||
+          (data.configuracoes_extras as any)?.ia?.serpapi_key ||
+          '';
+
+        if (chaveDb && typeof chaveDb === 'string') {
+          const limpa = chaveDb.trim();
+          if (limpa) {
+            localStorage.setItem(STORAGE_KEY_SERPAPI_KEY, limpa);
+            logSerpSucesso('Chave SerpApi obtida do Supabase e sincronizada no dispositivo móvel!');
+            return limpa;
+          }
+        }
+      }
+    } catch (e: any) {
+      logSerpAviso('Erro ao buscar chave SerpApi do Supabase:', e.message);
+    }
+  }
+
+  return '';
 };
 
 /**
@@ -348,10 +401,17 @@ export const buscarFotosGoogleImagesSerpApi = async (
     numResultados?: number;
   }
 ): Promise<FotoResultadoSerpApi[]> => {
-  const chaveLimpa = apiKey.trim();
+  let chaveLimpa = (apiKey || '').trim();
+  const lojaId = opcoes?.lojaId;
+
+  // Se não tem chave no argumento, tenta pegar do localStorage
+  if (!chaveLimpa) {
+    chaveLimpa = (localStorage.getItem(STORAGE_KEY_SERPAPI_KEY) || '').trim();
+  }
+
   const chaveMascarada = chaveLimpa.length > 8
     ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}`
-    : '***';
+    : chaveLimpa ? '***' : '(busca via lojaId no banco)';
 
   const queryTratada = termo
     .replace(/^[\d\w#.-]+\s*-\s*/, '')
@@ -365,12 +425,12 @@ export const buscarFotosGoogleImagesSerpApi = async (
     termoOriginal: termo,
     termoPesquisa: queryFinal,
     chave: chaveMascarada,
-    lojaId: opcoes?.lojaId || 'N/A',
+    lojaId: lojaId || 'N/A',
     quantidadeDesejada: num
   });
 
-  if (!chaveLimpa) {
-    logSerpErro('Chave SerpApi não configurada.');
+  if (!chaveLimpa && !lojaId) {
+    logSerpErro('Chave SerpApi não configurada e Loja ID não fornecido.');
     throw new SerpApiAuthError('Chave SerpApi não configurada.');
   }
 
@@ -386,8 +446,8 @@ export const buscarFotosGoogleImagesSerpApi = async (
     logSerp('📡 [Método 1/4] Supabase RPC (buscar_fotos_serpapi_rpc)...');
     const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_fotos_serpapi_rpc', {
       p_termo: queryFinal,
-      p_loja_id: opcoes?.lojaId || null,
-      p_api_key: chaveLimpa,
+      p_loja_id: lojaId || null,
+      p_api_key: chaveLimpa || null,
       p_num: num
     });
 

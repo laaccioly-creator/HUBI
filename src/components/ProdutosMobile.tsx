@@ -74,7 +74,7 @@ import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
 import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
-import { obterSerpApiKey } from '../services/serpApiService';
+import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -175,9 +175,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalFotosInternetAberto, setModalFotosInternetAberto] = useState<boolean>(false); // Pesquisar Fotos na Internet
   const [modalOnboardingSerpApiAberto, setModalOnboardingSerpApiAberto] = useState<boolean>(false); // Onboarding SerpApi
 
-  const handleAbrirPesquisaFotos = () => {
-    const chave = obterSerpApiKey(loja);
-    if (!chave) {
+  const handleAbrirPesquisaFotos = async () => {
+    let chave = obterSerpApiKey(loja);
+    if (!chave && loja?.id) {
+      chave = await obterOuBuscarSerpApiKey(loja);
+      if (chave && setLoja && loja) {
+        setLoja({ ...loja, serpapi_key: chave });
+      }
+    }
+
+    if (!chave && !loja?.id) {
+      setModalOnboardingSerpApiAberto(true);
+    } else if (!chave) {
       setModalOnboardingSerpApiAberto(true);
     } else {
       setModalFotosInternetAberto(true);
@@ -3305,6 +3314,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 >
                   <ImageIcon className="w-5 h-5 text-slate-600" />
                   <span>Escolher da Galeria do Celular</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalOpcoesFotoAberto(false);
+                    handleAbrirPesquisaFotos();
+                  }}
+                  className="w-full p-4 rounded-2xl bg-gradient-to-r from-teal-500/15 via-indigo-500/15 to-teal-500/15 text-teal-800 font-extrabold text-xs sm:text-sm flex items-center gap-3 border border-teal-500/30 hover:from-teal-500/25 hover:to-indigo-500/25 transition shadow-sm cursor-pointer active:scale-98"
+                >
+                  <Globe className="w-5 h-5 text-teal-600" />
+                  <span>Pesquisar Fotos na Internet (Google)</span>
                 </button>
 
                 <button

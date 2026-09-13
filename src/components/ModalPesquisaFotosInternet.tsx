@@ -41,6 +41,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [modalQuotaAberta, setModalQuotaAberta] = useState<boolean>(false);
   const [imagensCarregadas, setImagensCarregadas] = useState<Set<string>>(new Set());
   const [imagensComErro, setImagensComErro] = useState<Set<string>>(new Set());
+  const [falhasOriginal, setFalhasOriginal] = useState<Set<string>>(new Set());
   const [mensagemToast, setMensagemToast] = useState<string | null>(null);
   const [arrastandoSobre, setArrastandoSobre] = useState<boolean>(false);
 
@@ -113,6 +114,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
       setErro(null);
       setImagensCarregadas(new Set());
       setImagensComErro(new Set());
+      setFalhasOriginal(new Set());
 
       if (termoTratado || fotoReferencia) {
         realizarBusca(termoTratado);
@@ -139,6 +141,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     setSelecionadas(new Set());
     setImagensCarregadas(new Set());
     setImagensComErro(new Set());
+    setFalhasOriginal(new Set());
 
     try {
       const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoLoja, loja);
@@ -377,7 +380,10 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
             </div>
           ) : fotosEncontradas.length > 0 ? (
             (() => {
-              const fotosValidas = fotosEncontradas.filter(f => !imagensComErro.has(f.thumbnail || f.url));
+              const fotosValidas = fotosEncontradas.filter(f => {
+                const urlAlvo = f.urlOriginal || f.url;
+                return !imagensComErro.has(urlAlvo);
+              });
             if (fotosValidas.length === 0 && fotosEncontradas.length > 0) {
               return (
                 <div className="py-12 flex flex-col items-center justify-center text-center space-y-3 max-w-md mx-auto">
@@ -402,7 +408,9 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                   {fotosValidas.map((foto, idx) => {
                     const urlAlvo = foto.urlOriginal || foto.url;
-                    const urlExibicao = foto.thumbnail || foto.url;
+                    const falhouOriginal = falhasOriginal.has(urlAlvo);
+                    // Prioriza a imagem em alta resolução (urlOriginal). Se falhar na rede, usa o thumbnail do Google
+                    const urlExibicao = (!falhouOriginal && foto.urlOriginal) ? foto.urlOriginal : (foto.thumbnail || foto.url);
                     const estaSelecionada = selecionadas.has(urlAlvo);
                     const estaCarregada = imagensCarregadas.has(urlExibicao);
 
@@ -421,14 +429,13 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                           {!estaCarregada && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 gap-1.5">
                               <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
-                              <span className="text-[10px] text-slate-400 font-medium">Carregando foto...</span>
+                              <span className="text-[10px] text-slate-400 font-medium">Carregando foto HD...</span>
                             </div>
                           )}
 
                           <img
                             src={urlExibicao}
                             alt={foto.titulo || 'Foto do produto'}
-                            crossOrigin="anonymous"
                             referrerPolicy="no-referrer"
                             className={`w-full h-full object-contain group-hover:scale-105 transition-all duration-300 ${
                               estaCarregada ? 'opacity-100' : 'opacity-0'
@@ -438,9 +445,21 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                               setImagensCarregadas(prev => new Set(prev).add(urlExibicao));
                             }}
                             onError={() => {
-                              setImagensComErro(prev => new Set(prev).add(urlExibicao));
+                              if (!falhouOriginal && foto.thumbnail && foto.thumbnail !== urlExibicao) {
+                                // Se a URL original de alta resolução falhar, recorre ao thumbnail do Google
+                                setFalhasOriginal(prev => new Set(prev).add(urlAlvo));
+                              } else {
+                                setImagensComErro(prev => new Set(prev).add(urlAlvo));
+                              }
                             }}
                           />
+
+                          {/* Badge de Resolução HD */}
+                          {foto.largura && foto.largura >= 600 && (
+                            <span className="absolute top-2 left-2 text-[9px] font-extrabold bg-emerald-950/80 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-600/60 z-20 shadow-sm">
+                              HD
+                            </span>
+                          )}
 
                           {/* Checkbox de Seleção */}
                           <div

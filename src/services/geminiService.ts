@@ -1,6 +1,7 @@
 // Serviço de Inteligência Artificial Google Gemini (Visão Multimodal e Processamento de Produtos)
 import {
   obterSerpApiKey,
+  obterOuBuscarSerpApiKey,
   buscarFotosGoogleImagesSerpApi,
   SerpApiQuotaError,
   SerpApiAuthError,
@@ -541,6 +542,8 @@ export interface FotoResultadoInternet {
   fonte: string;
   thumbnail?: string;
   urlOriginal?: string;
+  largura?: number;
+  altura?: number;
 }
 
 /**
@@ -618,7 +621,9 @@ export const pesquisarFotosProdutoNaInternet = async (
     titulo: string,
     fonte: string,
     thumbnail?: string,
-    urlOriginal?: string
+    urlOriginal?: string,
+    largura?: number,
+    altura?: number
   ) => {
     if (!url || typeof url !== 'string') return;
     const limpa = url.trim();
@@ -634,7 +639,9 @@ export const pesquisarFotosProdutoNaInternet = async (
       titulo: titulo.trim() || termo,
       fonte,
       thumbnail: thumbnail || limpa,
-      urlOriginal: urlOriginal || limpa
+      urlOriginal: urlOriginal || limpa,
+      largura,
+      altura
     });
   };
 
@@ -675,7 +682,14 @@ export const pesquisarFotosProdutoNaInternet = async (
   }
 
   // PASSO 2 (A): SerpApi (Google Images Engine) no modelo BYOK
-  const serpApiKey = obterSerpApiKey(loja);
+  let serpApiKey = obterSerpApiKey(loja);
+  if (!serpApiKey && loja?.id) {
+    serpApiKey = await obterOuBuscarSerpApiKey(loja);
+  }
+
+  // O termo prioritário para SerpApi deve ser o termo digitado pelo usuário / nome do produto
+  const termoPrincipal = termoLimpo || termosParaPesquisar[0];
+
   console.log(
     '%c[HUBI IMAGENS]%c Verificando chave SerpApi da loja...',
     'background: #0284c7; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
@@ -684,13 +698,13 @@ export const pesquisarFotosProdutoNaInternet = async (
       temChave: Boolean(serpApiKey),
       lojaId: loja?.id,
       lojaNome: loja?.nome_fantasia,
-      termoPrincipal: termosParaPesquisar[0] || termoLimpo
+      termoPrincipal
     }
   );
 
-  if (serpApiKey) {
+  // Se temos a chave OU temos o lojaId (pois a RPC do Supabase lê direto de public.lojas pelo loja_id)
+  if (serpApiKey || loja?.id) {
     try {
-      const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
         termoPrincipal,
         serpApiKey,
@@ -707,7 +721,9 @@ export const pesquisarFotosProdutoNaInternet = async (
           item.titulo,
           item.fonte || 'Google Imagens',
           item.urlThumbnail,
-          item.urlOriginal
+          item.urlOriginal,
+          item.largura,
+          item.altura
         );
       }
     } catch (err) {
