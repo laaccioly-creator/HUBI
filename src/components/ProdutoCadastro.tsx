@@ -34,7 +34,8 @@ import {
   ShoppingBag,
   Zap,
   RefreshCw,
-  Lock
+  Lock,
+  Globe
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -43,12 +44,16 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
+import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
+import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
+import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
+import { atualizarProdutoExistenteComIA } from '../services/geminiService';
 
 export interface PrecoConcorrente {
   loja: string;
   preco: number;
-  tipo?: string;
-  observacao?: string;
+  tipo: string;
+  url?: string;
 }
 
 export interface DadosMercadoIA {
@@ -71,6 +76,9 @@ export interface ProdutoSugeridoIA {
   tipo_unidade?: string;
   codigo_barras?: string;
   dados_mercado?: DadosMercadoIA;
+  duvida?: boolean;
+  diferencial?: string;
+  opcoes_sugeridas?: ProdutoSugeridoIA[];
 }
 
 const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
@@ -387,17 +395,35 @@ const identificarProdutoPorFoto = async (
 
       const promptInstrucao = `
 Você é um especialista em catálogo de produtos e inteligência de precificação de varejo e e-commerce no Brasil.
-Analise detalhadamente a foto do produto enviada.
+Analise detalhadamente a foto do produto enviada. Identifique a marca, modelo, tipo de produto, volume/peso e suas características principais.
+
+IMPORTANTE SOBRE DÚVIDA OU MÚLTIPLAS POSSIBILIDADES:
+- Se a foto for perfeitamente nítida e você tiver certeza absoluta de qual é o produto único, defina "duvida": false.
+- Se você tiver QUALQUER DÚVIDA sobre qual é exatamente o produto (exemplo: a foto pode ser a versão Original ou Zero Açúcar, ou múltiplos sabores/aromas possíveis como Morango vs Frutas Vermelhas, ou tamanhos/modelos muito similares da mesma marca, ou foto em ângulo que não mostra o rótulo frontal completo), você DEVE definir "duvida": true e listar no array "opcoes_sugeridas" de 2 a 4 opções de produtos prováveis que o usuário poderia estar querendo cadastrar, preenchendo o "diferencial" explicativo para cada um (ex: "Versão Tradicional 350ml", "Versão Sem Açúcar / Zero 350ml", etc.).
 
 Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional) com a seguinte estrutura:
 {
-  "nome": "Nome comercial preciso, atraente e completo do produto em português (ex: Refrigerante Coca-Cola Lata 350ml, Camiseta Básica Algodão Preta M, etc.)",
+  "duvida": false,
+  "nome": "Nome comercial preciso, atraente e completo do produto em português (ex: Refrigerante Coca-Cola Lata 350ml)",
   "categoria_sugerida": "Nome da categoria mais adequada (ex: Bebidas, Alimentos, Vestuário, Eletrônicos, Cosméticos, Limpeza, etc.)",
   "preco_venda_estimado": 0.00,
   "preco_custo_estimado": 0.00,
-  "descricao": "Descrição comercial de alta conversão para catálogo online e WhatsApp destacando os benefícios, volume/tamanho e especificações do item.",
+  "descricao": "Descrição comercial rica e persuasiva para catálogo online e WhatsApp destacando os benefícios, especificações e diferenciais.",
   "tipo_unidade": "un",
   "codigo_barras": "Código de barras numérico se visível na foto, senão vazio",
+  "diferencial": "Breve resumo do diferencial (ex: Versão Tradicional)",
+  "opcoes_sugeridas": [
+    {
+      "nome": "Nome comercial da opção alternativa 1",
+      "categoria_sugerida": "Categoria",
+      "preco_venda_estimado": 0.00,
+      "preco_custo_estimado": 0.00,
+      "descricao": "Descrição da opção 1",
+      "tipo_unidade": "un",
+      "codigo_barras": "",
+      "diferencial": "Ex: Versão Zero Açúcar"
+    }
+  ],
   "concorrentes_mercado": [
     { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
     { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "E-commerce" },
@@ -435,14 +461,35 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
         if (rawText) {
           const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(jsonLimpo);
-          const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
+          const precoEstimadoRaw = Number(parsed.preco_venda_estimado) || 0;
+          const precoEstimado = precoEstimadoRaw > 0 ? Math.floor(precoEstimadoRaw) : 0;
 
           let dadosMercadoFormatados: DadosMercadoIA | undefined = undefined;
           if (Array.isArray(parsed.concorrentes_mercado) && parsed.concorrentes_mercado.length > 0) {
             dadosMercadoFormatados = processarListaConcorrentes(parsed.concorrentes_mercado, precoEstimado);
           }
 
+          let opcoesFormatadas: ProdutoSugeridoIA[] | undefined = undefined;
+          if (Array.isArray(parsed.opcoes_sugeridas) && parsed.opcoes_sugeridas.length > 0) {
+            opcoesFormatadas = parsed.opcoes_sugeridas.map((op: any) => {
+              const p = Number(op.preco_venda_estimado) || 0;
+              return {
+                nome: op.nome || 'Opção Sugerida',
+                categoria_sugerida: op.categoria_sugerida || parsed.categoria_sugerida || 'Geral',
+                preco_venda_estimado: p > 0 ? Math.floor(p) : 0,
+                preco_custo_estimado: Number(op.preco_custo_estimado) || 0,
+                descricao: op.descricao || '',
+                tipo_unidade: op.tipo_unidade || 'un',
+                codigo_barras: op.codigo_barras || '',
+                diferencial: op.diferencial || ''
+              };
+            });
+          }
+
+          const temDuvida = Boolean(parsed.duvida && opcoesFormatadas && opcoesFormatadas.length > 1);
+
           return {
+            duvida: temDuvida,
             nome: parsed.nome || 'Produto Identificado',
             categoria_sugerida: parsed.categoria_sugerida || 'Geral',
             preco_venda_estimado: precoEstimado,
@@ -450,6 +497,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
             descricao: parsed.descricao || '',
             tipo_unidade: parsed.tipo_unidade || 'un',
             codigo_barras: parsed.codigo_barras || '',
+            diferencial: parsed.diferencial || '',
+            opcoes_sugeridas: opcoesFormatadas,
             dados_mercado: dadosMercadoFormatados
           };
         }
@@ -641,6 +690,13 @@ export const ProdutoCadastro: React.FC = () => {
   const [modoPreenchimentoIA, setModoPreenchimentoIA] = useState<'foto' | 'descricao' | 'barcode'>('foto');
   const [textoDescricaoIA, setTextoDescricaoIA] = useState<string>('');
   const [codigoBarrasIA, setCodigoBarrasIA] = useState<string>('');
+
+  // Modal de Pesquisa de Fotos na Internet
+  const [modalFotosInternetAberto, setModalFotosInternetAberto] = useState<boolean>(false);
+
+  // Modal de Dúvida / Seleção de Produto pela IA
+  const [modalDuvidaAberto, setModalDuvidaAberto] = useState<boolean>(false);
+  const [opcoesDuvidaIA, setOpcoesDuvidaIA] = useState<ProdutoSugeridoIA[]>([]);
 
   // Refs de Câmera e Arquivo
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -1265,8 +1321,12 @@ export const ProdutoCadastro: React.FC = () => {
   const aplicarDadosSugeridosIA = (dadosSugeridos: ProdutoSugeridoIA) => {
     if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
     if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
-    if (dadosSugeridos.preco_venda_estimado) {
-      handlePrecoVarejoChange(dadosSugeridos.preco_venda_estimado.toFixed(2));
+    
+    // Regra padrão: Preço médio sugerido sem os centavos (ex: R$ 37,40 vira R$ 37,00)
+    let precoSugerido = dadosSugeridos.dados_mercado?.precoMedio || dadosSugeridos.preco_venda_estimado;
+    if (precoSugerido && precoSugerido > 0) {
+      const semCentavos = Math.floor(precoSugerido);
+      handlePrecoVarejoChange(semCentavos.toFixed(2));
     }
     if (dadosSugeridos.preco_custo_estimado) {
       setPrecoCusto(dadosSugeridos.preco_custo_estimado.toFixed(2));
@@ -1278,7 +1338,7 @@ export const ProdutoCadastro: React.FC = () => {
       setCodigoBarras(dadosSugeridos.codigo_barras);
     }
 
-    // Salvar dados de concorrentes e mercado identificados pela IA
+    // Salvar dados de concorrentes e mercado identificados pela IA em memória
     if (dadosSugeridos.dados_mercado) {
       setDadosMercado(dadosSugeridos.dados_mercado);
     }
@@ -1312,8 +1372,13 @@ export const ProdutoCadastro: React.FC = () => {
       const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA);
 
       if (dadosSugeridos) {
-        aplicarDadosSugeridosIA(dadosSugeridos);
-        setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+        if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
+          setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
+          setModalDuvidaAberto(true);
+        } else {
+          aplicarDadosSugeridosIA(dadosSugeridos);
+          setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+        }
       }
     } catch (err: any) {
       console.error('Erro na identificação por IA:', err);
@@ -1371,6 +1436,40 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
+  // Atualizar Produto Existente com IA
+  const handleAtualizarComIA = async () => {
+    if (!nome.trim() && !descricao.trim() && !fotoPrincipal && fotosUrls.length === 0) {
+      alert('Informe ao menos o nome, descrição ou foto do produto para atualizar com IA.');
+      return;
+    }
+
+    try {
+      setAnalisandoIA(true);
+      setSucessoIAMsg(null);
+      const catNome = categorias.find(c => c.id === categoriaId)?.nome;
+      const fotoAlvo = fotoPrincipal || fotosUrls[0];
+      const fotoParaIA = fotoAlvo ? (fotoBase64Cache.get(fotoAlvo) || fotoAlvo) : undefined;
+      const dadosAtualizados = await atualizarProdutoExistenteComIA({
+        nome: nome.trim() || 'Produto',
+        descricao: descricao.trim(),
+        fotoUrl: fotoParaIA,
+        categoriaNome: catNome,
+        codigoBarras: codigoBarras.trim(),
+        precoVendaAtual: Number(precoVendaVarejo) || undefined
+      });
+
+      if (dadosAtualizados) {
+        aplicarDadosSugeridosIA(dadosAtualizados);
+        setSucessoIAMsg('✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!');
+      }
+    } catch (err: any) {
+      console.error('Erro na atualização por IA:', err);
+      alert(`Não foi possível atualizar o produto com IA: ${err.message || 'Tente novamente'}`);
+    } finally {
+      setAnalisandoIA(false);
+    }
+  };
+
   // Funções do Radar de Preços de Mercado
   const handleAbrirRadarPrecos = async () => {
     setModalRadarAberto(true);
@@ -1380,7 +1479,11 @@ export const ProdutoCadastro: React.FC = () => {
       setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
       return;
     }
-    // Executa a pesquisa completa e aprofundada de mercado desde o primeiro clique
+    // Se já temos dados do radar em memória, não chama a IA novamente! Apresenta imediatamente os dados guardados em memória.
+    if (dadosMercado) {
+      return;
+    }
+    // Executa a pesquisa completa e aprofundada de mercado se ainda não houver dados em memória
     await buscarConcorrentesMercado();
   };
 
@@ -1403,7 +1506,9 @@ export const ProdutoCadastro: React.FC = () => {
   };
 
   const handleAplicarPrecoMercado = (novoPreco: number) => {
-    handlePrecoVarejoChange(novoPreco.toFixed(2));
+    // Aplica sempre sem centavos (ex: 37,40 vira 37,00)
+    const precoSemCentavos = Math.floor(novoPreco);
+    handlePrecoVarejoChange(precoSemCentavos.toFixed(2));
     setModalRadarAberto(false);
   };
 
@@ -1687,19 +1792,35 @@ export const ProdutoCadastro: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
-                  <span>1. Preenchimento Inteligente com IA & Fotos</span>
+                  <span>{ehEdicao ? 'Atualize o seu produto usando a nossa IA' : '1. Preenchimento Inteligente com IA & Fotos'}</span>
                   <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
                     {fotosUrls.length}/7 Fotos
                   </span>
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Preencha automaticamente os dados e preços pela Foto, pela Descrição/Nome ou pelo Código de Barras.
+                  {ehEdicao
+                    ? 'Atualize automaticamente os dados comerciais, cópia de vendas e preços com inteligência artificial.'
+                    : 'Preencha automaticamente os dados e preços pela Foto, pela Descrição/Nome ou pelo Código de Barras.'}
                 </p>
               </div>
             </div>
 
-            {/* SELETOR DE MODALIDADE DE IA */}
-            <div className="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-2xl border border-slate-800">
+            <div className="flex flex-wrap items-center gap-2">
+              {ehEdicao && (
+                <button
+                  type="button"
+                  disabled={analisandoIA}
+                  onClick={handleAtualizarComIA}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  title="Atualizar o produto com base nos dados atuais usando IA"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                  <span>Atualizar o Produto</span>
+                </button>
+              )}
+
+              {/* SELETOR DE MODALIDADE DE IA */}
+              <div className="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-2xl border border-slate-800">
               <button
                 type="button"
                 onClick={() => setModoPreenchimentoIA('foto')}
@@ -1740,6 +1861,7 @@ export const ProdutoCadastro: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
 
           {/* PAINEL DE PREENCHIMENTO POR DESCRIÇÃO */}
           {modoPreenchimentoIA === 'descricao' && (
@@ -1955,6 +2077,18 @@ export const ProdutoCadastro: React.FC = () => {
                 >
                   <Upload className="w-4 h-4 text-indigo-400" />
                   <span>Galeria (Até 7 fotos)</span>
+                </button>
+
+                {/* Botão Pesquisar Fotos na Internet */}
+                <button
+                  type="button"
+                  disabled={fotosUrls.length >= 7}
+                  onClick={() => setModalFotosInternetAberto(true)}
+                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-teal-500/20 via-indigo-500/20 to-teal-500/20 hover:from-teal-500/30 hover:to-indigo-500/30 border border-teal-500/40 text-teal-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-40 col-span-1 sm:col-span-2"
+                  title="Pesquisar fotos na internet com boa qualidade"
+                >
+                  <Globe className="w-4 h-4 text-teal-400" />
+                  <span>Pesquisar Fotos na Internet</span>
                 </button>
               </div>
 
@@ -2775,19 +2909,11 @@ export const ProdutoCadastro: React.FC = () => {
             {/* Conteúdo do Modal */}
             <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
               {buscandoMercado ? (
-                <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
-                    <Sparkles className="w-6 h-6 text-amber-400 absolute inset-0 m-auto animate-pulse" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-100">
-                      Consultando Mercado e Concorrentes...
-                    </h4>
-                    <p className="text-xs text-slate-400 max-w-sm mt-1">
-                      Pesquisando valores praticados no Mercado Livre, Shopee, Amazon, Magalu, farmácias e supermercados para "{nome}".
-                    </p>
-                  </div>
+                <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                  <SpinnerPesquisandoIA
+                    texto="Pesquisando"
+                    subtexto={`Pesquisando cotações de concorrentes para "${nome}"...`}
+                  />
                 </div>
               ) : erroMercado ? (
                 <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-3 text-center">
@@ -2829,7 +2955,7 @@ export const ProdutoCadastro: React.FC = () => {
                         className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                       >
                         <Zap className="w-4 h-4 fill-white" />
-                        <span>Aplicar Preço Médio (R$ {dadosMercado.precoMedio.toFixed(2)})</span>
+                        <span>Aplicar Preço Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
                       </button>
                     </div>
 
@@ -3002,6 +3128,50 @@ export const ProdutoCadastro: React.FC = () => {
           setCategoriaId(novaCat.id);
         }}
       />
+
+      {/* Modal Pesquisa de Fotos na Internet */}
+      <ModalPesquisaFotosInternet
+        isOpen={modalFotosInternetAberto}
+        onClose={() => setModalFotosInternetAberto(false)}
+        nomeInicial={nome}
+        codigoBarrasInicial={codigoBarras}
+        fotosAtuaisCount={fotosUrls.length}
+        maxFotos={7}
+        onAdicionarFotos={(novas) => {
+          setFotosUrls(prev => {
+            const combinadas = [...prev];
+            for (const n of novas) {
+              if (!combinadas.includes(n) && combinadas.length < 7) {
+                combinadas.push(n);
+              }
+            }
+            return combinadas;
+          });
+          if (!fotoPrincipal && novas[0]) {
+            setFotoPrincipal(novas[0]);
+          }
+        }}
+      />
+
+      {/* Modal de Dúvida / Seleção de Produto pela IA */}
+      <ModalDuvidaProdutoIA
+        isOpen={modalDuvidaAberto}
+        onClose={() => setModalDuvidaAberto(false)}
+        opcoes={opcoesDuvidaIA}
+        onSelecionarOpcao={(opcaoEscolhida) => {
+          aplicarDadosSugeridosIA(opcaoEscolhida);
+          setSucessoIAMsg(`✨ Produto preenchido com base na opção selecionada: "${opcaoEscolhida.nome}"!`);
+        }}
+      />
+
+      {/* Overlay com Spinner circular e "Pesquisando" centralizado durante operações de IA */}
+      {analisandoIA && (
+        <SpinnerPesquisandoIA
+          fullScreen
+          texto="Pesquisando"
+          subtexto="Processando com Inteligência Artificial..."
+        />
+      )}
     </div>
   );
 };

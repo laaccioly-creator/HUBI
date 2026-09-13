@@ -64,9 +64,14 @@ import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
   gerarDescricaoExclusivaIA,
+  atualizarProdutoExistenteComIA,
   getGeminiApiKey,
-  setGeminiApiKey
+  setGeminiApiKey,
+  ProdutoSugeridoIA
 } from '../services/geminiService';
+import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
+import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
+import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -163,6 +168,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalEstoqueMinimoAberto, setModalEstoqueMinimoAberto] = useState<boolean>(false); // TELA012
   const [modalPublicCardAberto, setModalPublicCardAberto] = useState<boolean>(false); // TELA009
   const [modalCriarComIAAberto, setModalCriarComIAAberto] = useState<boolean>(false); // Criar / Preencher com IA completo
+  const [modalFotosInternetAberto, setModalFotosInternetAberto] = useState<boolean>(false); // Pesquisar Fotos na Internet
+  const [modalDuvidaAberto, setModalDuvidaAberto] = useState<boolean>(false); // Dúvida da IA entre múltiplos produtos
+  const [opcoesDuvidaIA, setOpcoesDuvidaIA] = useState<ProdutoSugeridoIA[]>([]);
+  const [fotoTemporariaDuvida, setFotoTemporariaDuvida] = useState<string | null>(null);
   const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false); // Entrada / Ajuste de Estoque
   const [produtoEntradaAlvo, setProdutoEntradaAlvo] = useState<Produto | null>(null);
 
@@ -479,6 +488,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [opcionaisExpandido, setOpcionaisExpandido] = useState<boolean>(true);
   const [salvandoProduto, setSalvandoProduto] = useState<boolean>(false);
   const [processandoIA, setProcessandoIA] = useState<boolean>(false);
+  const [mensagemStatusIA, setMensagemStatusIA] = useState<string>('');
   const [mensagemFeedback, setMensagemFeedback] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
 
   // Estados do Radar de Preços de Mercado (IA Gemini)
@@ -834,7 +844,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       return;
     }
 
-    // Executa a pesquisa completa e aprofundada de mercado desde o primeiro clique
+    // Se já temos dados do radar em memória, não chama a IA novamente! Apresenta imediatamente os dados salvos em memória.
+    if (dadosMercado) {
+      return;
+    }
+
+    // Executa a pesquisa completa e aprofundada de mercado se ainda não houver dados em memória
     await buscarConcorrentesMercado();
   };
 
@@ -857,20 +872,89 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   const handleAplicarPrecoMercado = (novoPreco: number) => {
+    // Aplica sempre sem centavos (ex: 37,40 vira 37,00)
+    const semCentavos = Math.floor(novoPreco);
     const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
     const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
 
-    const atacadoCalc = (novoPreco * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
-    const autoCalc = (novoPreco * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+    const atacadoCalc = (semCentavos * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+    const autoCalc = (semCentavos * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
 
     setFormData(prev => ({
       ...prev,
-      precoVenda: novoPreco.toFixed(2).replace('.', ','),
+      precoVenda: semCentavos.toFixed(2).replace('.', ','),
       precoAtacado: atacadoCalc,
       precoAutoatacado: autoCalc
     }));
     setModalRadarAberto(false);
-    setMensagemFeedback({ texto: `Preço R$ ${novoPreco.toFixed(2)} aplicado com sucesso!`, tipo: 'sucesso' });
+    setMensagemFeedback({ texto: `Preço sugerido R$ ${semCentavos.toFixed(2)} aplicado com sucesso!`, tipo: 'sucesso' });
+  };
+
+  // Atualizar Produto Existente com IA
+  const handleAtualizarProdutoExistenteIA = async () => {
+    if (!formData.nome.trim() && !formData.descricao.trim() && formData.fotos.length === 0) {
+      setMensagemFeedback({ texto: 'Informe ao menos o nome, descrição ou foto do produto.', tipo: 'erro' });
+      return;
+    }
+
+    setProcessandoIA(true);
+    setMensagemStatusIA('Atualizando produto com IA...');
+
+    try {
+      const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
+      const dadosAtualizados = await atualizarProdutoExistenteComIA({
+        nome: formData.nome || 'Produto',
+        descricao: formData.descricao,
+        fotoUrl: formData.fotos[0],
+        categoriaNome: catNome,
+        codigoBarras: formData.codigoBarras,
+        precoVendaAtual: Number(formData.precoVenda?.replace(',', '.')) || undefined
+      });
+
+      if (dadosAtualizados) {
+        let atacadoSugerido: string | undefined = undefined;
+        let autoSugerido: string | undefined = undefined;
+        let precoVendaFmt = formData.precoVenda;
+
+        if (dadosAtualizados.preco_venda_estimado && dadosAtualizados.preco_venda_estimado > 0) {
+          const semCentavos = Math.floor(dadosAtualizados.preco_venda_estimado);
+          const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
+          const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
+          precoVendaFmt = semCentavos.toFixed(2).replace('.', ',');
+          atacadoSugerido = (semCentavos * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+          autoSugerido = (semCentavos * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+        }
+
+        // Categoria sugerida
+        let categoriaMatchId = formData.categoriaId;
+        if (dadosAtualizados.categoria_sugerida) {
+          const achouCat = categorias.find(c =>
+            c.nome.toLowerCase().includes(dadosAtualizados.categoria_sugerida!.toLowerCase())
+          );
+          if (achouCat) categoriaMatchId = achouCat.id;
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          nome: dadosAtualizados.nome ? dadosAtualizados.nome.toUpperCase() : prev.nome,
+          categoriaId: categoriaMatchId || prev.categoriaId,
+          precoVenda: precoVendaFmt,
+          precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
+          precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
+          descricao: dadosAtualizados.descricao || prev.descricao,
+          codigoBarras: dadosAtualizados.codigo_barras || prev.codigoBarras,
+          tipoUnidade: (dadosAtualizados.tipo_unidade as TipoUnidade) || prev.tipoUnidade
+        }));
+
+        setMensagemFeedback({ texto: '✨ Produto atualizado e enriquecido com sucesso pela IA!', tipo: 'sucesso' });
+      }
+    } catch (err: any) {
+      console.error('Erro na atualização do produto com IA:', err);
+      setMensagemFeedback({ texto: `Erro ao atualizar com IA: ${err.message || 'Tente novamente'}`, tipo: 'erro' });
+    } finally {
+      setProcessandoIA(false);
+      setMensagemStatusIA('');
+    }
   };
 
   const abrirEditarProduto = (p: Produto, aba: 'cadastro' | 'estoque' = 'cadastro') => {
@@ -1218,6 +1302,47 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   // =========================================================================
+  const aplicarSugestaoMobile = (sugestao: ProdutoSugeridoIA, fotoUrl?: string) => {
+    // Localizar ou criar categoria compatível
+    let categoriaMatchId = formData.categoriaId;
+    if (sugestao.categoria_sugerida) {
+      const achouCat = categorias.find(c =>
+        c.nome.toLowerCase().includes(sugestao.categoria_sugerida!.toLowerCase())
+      );
+      if (achouCat) categoriaMatchId = achouCat.id;
+    }
+
+    let atacadoSugerido: string | undefined = undefined;
+    let autoSugerido: string | undefined = undefined;
+    let precoVendaFmt: string | undefined = undefined;
+    if (sugestao.preco_venda_estimado) {
+      const num = Number(sugestao.preco_venda_estimado);
+      if (!isNaN(num) && num > 0) {
+        // Regra padrão: Preço médio sem os centavos (ex: R$ 37,40 vira R$ 37,00)
+        const semCentavos = Math.floor(num);
+        const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
+        const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
+        precoVendaFmt = semCentavos.toFixed(2).replace('.', ',');
+        atacadoSugerido = (semCentavos * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+        autoSugerido = (semCentavos * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      nome: sugestao.nome ? sugestao.nome.toUpperCase() : prev.nome,
+      categoriaId: categoriaMatchId || prev.categoriaId,
+      precoVenda: precoVendaFmt !== undefined ? precoVendaFmt : prev.precoVenda,
+      precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
+      precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
+      precoCusto: sugestao.preco_custo_estimado ? String(sugestao.preco_custo_estimado).replace('.', ',') : prev.precoCusto,
+      descricao: sugestao.descricao || prev.descricao,
+      codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
+      tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
+      fotos: fotoUrl ? [fotoUrl, ...prev.fotos.filter((f: string) => f !== fotoUrl)].slice(0, 6) : prev.fotos
+    }));
+  };
+
   // PREENCHIMENTO AUTOMÁTICO VIA IA (FOTO, TEXTO, CÓDIGO DE BARRAS)
   // =========================================================================
   const processarPreenchimentoIA = async (tipo: 'foto' | 'texto' | 'codigo', valor?: string) => {
@@ -1241,41 +1366,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       }
 
       if (sugestao) {
-        // Localizar ou criar categoria compatível
-        let categoriaMatchId = formData.categoriaId;
-        if (sugestao.categoria_sugerida) {
-          const achouCat = categorias.find(c =>
-            c.nome.toLowerCase().includes(sugestao.categoria_sugerida.toLowerCase())
-          );
-          if (achouCat) categoriaMatchId = achouCat.id;
+        if (tipo === 'foto' && sugestao.duvida && sugestao.opcoes_sugeridas && sugestao.opcoes_sugeridas.length > 1) {
+          setOpcoesDuvidaIA(sugestao.opcoes_sugeridas);
+          setFotoTemporariaDuvida(valor || null);
+          setModalDuvidaAberto(true);
+          setModalCriarComIAAberto(false);
+          return;
         }
 
-        let atacadoSugerido: string | undefined = undefined;
-        let autoSugerido: string | undefined = undefined;
-        if (sugestao.preco_venda_estimado) {
-          const num = Number(sugestao.preco_venda_estimado);
-          if (!isNaN(num) && num > 0) {
-            const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
-            const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
-            atacadoSugerido = (num * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
-            autoSugerido = (num * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
-          }
-        }
-
-        setFormData(prev => ({
-          ...prev,
-          nome: sugestao.nome ? sugestao.nome.toUpperCase() : prev.nome,
-          categoriaId: categoriaMatchId || prev.categoriaId,
-          precoVenda: sugestao.preco_venda_estimado ? String(sugestao.preco_venda_estimado).replace('.', ',') : prev.precoVenda,
-          precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
-          precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
-          precoCusto: sugestao.preco_custo_estimado ? String(sugestao.preco_custo_estimado).replace('.', ',') : prev.precoCusto,
-          descricao: sugestao.descricao || prev.descricao,
-          codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
-          tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
-          fotos: tipo === 'foto' && valor ? [valor, ...prev.fotos.filter((f: string) => f !== valor)].slice(0, 6) : prev.fotos
-        }));
-
+        aplicarSugestaoMobile(sugestao, tipo === 'foto' && valor ? valor : undefined);
         setModalCriarComIAAberto(false);
         setMensagemFeedback({ texto: 'Dados e descrição preenchidos com sucesso pela IA!', tipo: 'sucesso' });
       }
@@ -2576,35 +2675,54 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 </button>
               </div>
 
-              {/* Lado Direito: Botão Compacto de Cadastro com IA */}
-              <button
-                type="button"
-                onClick={() => setModalCriarComIAAberto(true)}
-                className="w-28 sm:w-32 h-36 sm:h-40 rounded-2xl bg-gradient-to-br from-indigo-600 via-teal-600 to-emerald-600 p-[1.5px] shadow-md shadow-indigo-500/15 active:scale-95 transition duration-200 group text-center cursor-pointer overflow-hidden relative shrink-0"
-                title="Cadastre usando nossa Inteligência Artificial"
-              >
-                <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[14px] p-2.5 flex flex-col items-center justify-center gap-2 relative overflow-hidden">
-                  {/* Fundo com efeito visual de aura de IA */}
-                  <div className="absolute -right-3 -top-3 w-12 h-12 bg-teal-400/20 rounded-full blur-md group-hover:bg-teal-400/30 transition" />
-                  <div className="absolute -left-3 -bottom-3 w-12 h-12 bg-indigo-500/20 rounded-full blur-md" />
-
-                  <div className="relative z-10 w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-teal-400 to-emerald-300 flex items-center justify-center shadow-md shadow-teal-500/20 group-hover:scale-105 transition transform">
-                    <Sparkles className="w-5 h-5 text-slate-950 fill-slate-950" />
-                  </div>
-
-                  <div className="relative z-10 flex flex-col items-center leading-tight">
-                    <span className="text-[11px] sm:text-xs font-black text-white">
-                      Cadastre usando
-                    </span>
-                    <span className="text-[12px] sm:text-[13px] font-black text-teal-300 group-hover:text-teal-200 transition flex items-center gap-1 mt-0.5">
-                      <span>nossa IA</span>
-                      <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-teal-400/20 text-teal-200 border border-teal-400/30">
+              {/* Lado Direito: Botões IA Compacto + Pesquisar Fotos na Internet */}
+              <div className="flex flex-col justify-between w-28 sm:w-34 h-36 sm:h-40 gap-1.5 shrink-0">
+                {/* 1. Botão de IA com altura reduzida na vertical */}
+                <button
+                  type="button"
+                  onClick={() => setModalCriarComIAAberto(true)}
+                  className="flex-1 w-full rounded-2xl bg-gradient-to-br from-indigo-600 via-teal-600 to-emerald-600 p-[1.5px] shadow-sm shadow-indigo-500/15 active:scale-95 transition duration-150 group text-center cursor-pointer overflow-hidden relative"
+                  title={produtoEditando ? 'Atualize o seu produto usando a nossa IA' : 'Cadastre usando nossa Inteligência Artificial'}
+                >
+                  <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[14px] px-2 py-1.5 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute -right-3 -top-3 w-10 h-10 bg-teal-400/20 rounded-full blur-md" />
+                    
+                    <div className="flex items-center gap-1.5 relative z-10 mb-0.5">
+                      <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-amber-400 via-teal-400 to-emerald-300 flex items-center justify-center shadow-xs">
+                        <Sparkles className="w-3 h-3 text-slate-950 fill-slate-950" />
+                      </div>
+                      <span className="text-[7px] font-black uppercase px-1 py-0.2 rounded bg-teal-400/20 text-teal-200 border border-teal-400/30">
                         IA
                       </span>
-                    </span>
+                    </div>
+
+                    <div className="relative z-10 flex flex-col items-center leading-tight">
+                      <span className="text-[10px] sm:text-[11px] font-black text-white truncate max-w-full">
+                        {produtoEditando ? 'Atualize usando' : 'Cadastre usando'}
+                      </span>
+                      <span className="text-[11px] sm:text-[12px] font-black text-teal-300 group-hover:text-teal-200 transition">
+                        nossa IA
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+
+                {/* 2. Novo Botão: Pesquisar Fotos na Internet */}
+                <button
+                  type="button"
+                  onClick={() => setModalFotosInternetAberto(true)}
+                  className="h-[56px] sm:h-[62px] w-full rounded-2xl bg-gradient-to-br from-teal-50 to-indigo-50 hover:from-teal-100 hover:to-indigo-100 border-2 border-dashed border-teal-500/40 p-1.5 shadow-sm active:scale-95 transition duration-150 flex flex-col items-center justify-center gap-0.5 cursor-pointer text-teal-800"
+                  title="Pesquisar fotos na internet de boa qualidade"
+                >
+                  <Globe className="w-4 h-4 text-teal-600 shrink-0" />
+                  <span className="text-[9.5px] sm:text-[10px] font-black text-slate-800 leading-none text-center">
+                    Fotos na Internet
+                  </span>
+                  <span className="text-[8px] font-semibold text-teal-600 leading-none">
+                    Buscar Online
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Campos Obrigatórios */}
@@ -3501,16 +3619,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <div className="overflow-y-auto flex-1 space-y-3 pr-0.5">
                 {buscandoMercado ? (
                   <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                    <div className="relative">
-                      <div className="w-14 h-14 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
-                      <Sparkles className="w-5 h-5 text-amber-500 absolute inset-0 m-auto animate-pulse" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-800">Pesquisando concorrentes...</h4>
-                      <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">
-                        Consultando valores no Mercado Livre, Shopee, Amazon, Magalu e redes varejistas.
-                      </p>
-                    </div>
+                    <SpinnerPesquisandoIA
+                      texto="Pesquisando"
+                      subtexto={`Consultando valores praticados no mercado para "${formData.nome}"...`}
+                    />
                   </div>
                 ) : erroMercado ? (
                   <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 text-center">
@@ -3539,7 +3651,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95"
                         >
                           <Zap className="w-3.5 h-3.5 fill-white" />
-                          <span>Aplicar Médio</span>
+                          <span>Aplicar Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
                         </button>
                       </div>
 
@@ -3633,6 +3745,30 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Botão de Destaque: Atualizar Produto com IA (quando em modo de edição) */}
+              {produtoEditando && (
+                <div className="p-3.5 bg-gradient-to-r from-teal-50 to-indigo-50 border border-teal-200/80 rounded-2xl space-y-2 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
+                    <span className="text-xs font-black text-slate-800">Atualizar Produto com IA</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    Pesquisa e enriquece os dados utilizando o nome, descrição atual e fotos cadastradas.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setModalCriarComIAAberto(false);
+                      await handleAtualizarProdutoExistenteIA();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-500 hover:to-indigo-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Atualizar o Produto</span>
+                  </button>
+                </div>
+              )}
 
               {/* Abas do Modal IA: Foto | Texto/Nome | Código de Barras */}
               <div className="flex bg-slate-100 rounded-2xl p-1 gap-1">
@@ -3801,6 +3937,61 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               )}
             </div>
           </div>
+        )}
+
+        {/* MODAL DE PESQUISA DE FOTOS NA INTERNET */}
+        <ModalPesquisaFotosInternet
+          isOpen={modalFotosInternetAberto}
+          onClose={() => setModalFotosInternetAberto(false)}
+          nomeInicial={formData.nome}
+          codigoBarrasInicial={formData.codigoBarras}
+          fotosAtuaisCount={formData.fotos.length}
+          maxFotos={6}
+          onAdicionarFotos={(novasFotos) => {
+            setFormData(prev => {
+              const fotosAtualizadas = [...prev.fotos];
+              for (const foto of novasFotos) {
+                if (!fotosAtualizadas.includes(foto) && fotosAtualizadas.length < 6) {
+                  fotosAtualizadas.push(foto);
+                }
+              }
+              return {
+                ...prev,
+                fotos: fotosAtualizadas
+              };
+            });
+            setMensagemFeedback({
+              texto: `${novasFotos.length} foto(s) adicionada(s) à galeria!`,
+              tipo: 'sucesso'
+            });
+          }}
+        />
+
+        {/* MODAL DE DÚVIDA DA IA ENTRE MÚLTIPLOS PRODUTOS */}
+        <ModalDuvidaProdutoIA
+          isOpen={modalDuvidaAberto}
+          onClose={() => setModalDuvidaAberto(false)}
+          opcoes={opcoesDuvidaIA}
+          onSelecionarOpcao={(opcaoEscolhida) => {
+            aplicarSugestaoMobile(opcaoEscolhida, fotoTemporariaDuvida || undefined);
+            setMensagemFeedback({
+              texto: `Produto "${opcaoEscolhida.nome}" preenchido com sucesso!`,
+              tipo: 'sucesso'
+            });
+          }}
+        />
+
+        {/* SPINNER PESQUISANDO CENTRALIZADO DURANTE AÇÕES DE IA */}
+        {(processandoIA || gerandoDescricaoIA) && (
+          <SpinnerPesquisandoIA
+            fullScreen
+            texto="Pesquisando"
+            subtexto={
+              gerandoDescricaoIA
+                ? 'Elaborando descrição comercial rica e completa com IA...'
+                : mensagemStatusIA || 'Processando informações com Inteligência Artificial...'
+            }
+          />
         )}
 
         {/* MODAL CONFIGURAR CHAVE GEMINI */}
