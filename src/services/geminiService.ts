@@ -438,12 +438,67 @@ export interface FotoResultadoInternet {
 }
 
 /**
- * Pesquisa fotos de alta qualidade do mesmo produto na internet (Open Food Facts + Wikimedia Commons + Gemini)
- * retornando de 6 a 8 imagens para escolha do usuário.
+ * Analisa a foto do produto com IA multimodal e extrai os melhores termos de busca comercial para encontrar fotos idênticas
+ */
+export const extrairTermosBuscaVisualPorFoto = async (
+  fotoUrlOuBase64: string,
+  nomeAtual?: string
+): Promise<string[]> => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) return [];
+
+  try {
+    const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(fotoUrlOuBase64);
+    const promptInstrucao = `
+Você é um especialista em busca reversa de imagens e catálogo de produtos no varejo brasileiro.
+Analise detalhadamente a foto deste produto enviada${nomeAtual ? ` (nome informado: "${nomeAtual}")` : ''}.
+Identifique as características visuais mais marcantes (ex: formato exato, cor, modelo, design específico, marca provável).
+Retorne EXCLUSIVAMENTE um array JSON de strings com 2 a 4 termos de busca precisos e específicos para o Google Imagens e e-commerces no Brasil localizarem o MESMO PRODUTO IDÊNTICO.
+Exemplo para um vibrador em formato de rosa: ["Vibrador Sophie Formato de Rosa", "Vibrador rosa sophie", "Vibrador formato rosa estimulador"]
+Retorne apenas o JSON no formato: ["termo 1", "termo 2", "termo 3"]
+`;
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: promptInstrucao },
+            {
+              inline_data: {
+                mime_type: detectedMime || 'image/jpeg',
+                data: cleanBase64
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
+    };
+
+    const resData = await executarRequisicaoGemini(apiKey, requestBody);
+    const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (rawText) {
+      const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(jsonLimpo);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((t: any) => String(t).trim()).filter(Boolean);
+      }
+    }
+  } catch (err) {
+    console.warn('Aviso ao analisar foto para busca visual:', err);
+  }
+
+  return [];
+};
+
+/**
+ * Pesquisa fotos reais do produto na internet combinando Foto de Referência (IA de Visão) + Nome Comercial
+ * e buscando fotos ativas em lojas e e-commerces brasileiros.
  */
 export const pesquisarFotosProdutoNaInternet = async (
   termo: string,
-  codigoBarras?: string
+  codigoBarras?: string,
+  fotoReferencia?: string
 ): Promise<FotoResultadoInternet[]> => {
   const fotos: FotoResultadoInternet[] = [];
   const urlsVistas = new Set<string>();
@@ -453,7 +508,6 @@ export const pesquisarFotosProdutoNaInternet = async (
     const limpa = url.trim();
     if (!limpa.startsWith('http://') && !limpa.startsWith('https://')) return;
     if (urlsVistas.has(limpa)) return;
-    // Ignora arquivos que não sejam imagens padrão de produto
     const lower = limpa.toLowerCase();
     if (lower.endsWith('.svg') || lower.endsWith('.tif') || lower.endsWith('.tiff') || lower.endsWith('.ogg') || lower.endsWith('.pdf')) {
       return;
@@ -466,94 +520,117 @@ export const pesquisarFotosProdutoNaInternet = async (
     });
   };
 
-  const termoLimpo = termo.trim();
+  // Limpa o termo removendo códigos internos e prefixos de SKU (ex: "7633 - VIBRADOR SOPHIE" vira "VIBRADOR SOPHIE")
+  const termoLimpo = termo
+    .replace(/^[\d\w#.-]+\s*-\s*/, '')
+    .replace(/^[0-9]+\s+/, '')
+    .trim() || termo.trim();
 
-  // 1. Consulta Open Food Facts (perfeito para alimentos, bebidas, cosméticos e itens de varejo)
-  try {
-    const termoOFF = codigoBarras?.trim() || termoLimpo;
-    const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=8`;
-    const controllerOFF = new AbortController();
-    const timeoutOFF = setTimeout(() => controllerOFF.abort(), 4500);
+  // Lista de termos a serem pesquisados no e-commerce
+  const termosParaPesquisar: string[] = [];
 
-    const resOFF = await fetch(offUrl, { signal: controllerOFF.signal });
-    clearTimeout(timeoutOFF);
-
-    if (resOFF.ok) {
-      const dataOFF = await resOFF.json();
-      const produtos = dataOFF?.products || [];
-      for (const p of produtos) {
-        const img = p.image_front_url || p.image_url || p.image_front_small_url || p.image_small_url;
-        if (img) {
-          registrarFoto(img, p.product_name || p.generic_name || termoLimpo, 'Open Food Facts');
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Aviso: Erro ao consultar Open Food Facts:', err);
-  }
-
-  // 2. Consulta Wikimedia Commons (fotos públicas de marcas, produtos e artigos globais em alta resolução)
-  try {
-    const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(termoLimpo)}&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=800&format=json&origin=*`;
-    const controllerWiki = new AbortController();
-    const timeoutWiki = setTimeout(() => controllerWiki.abort(), 4500);
-
-    const resWiki = await fetch(wikiUrl, { signal: controllerWiki.signal });
-    clearTimeout(timeoutWiki);
-
-    if (resWiki.ok) {
-      const dataWiki = await resWiki.json();
-      const paginas = Object.values(dataWiki?.query?.pages || {});
-      for (const p of paginas as any[]) {
-        const info = p.imageinfo?.[0];
-        const img = info?.thumburl || info?.url;
-        if (img) {
-          const tit = (p.title || '').replace(/^File:/i, '').replace(/\.[^/.]+$/, '');
-          registrarFoto(img, tit, 'Wikimedia');
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Aviso: Erro ao consultar Wikimedia Commons:', err);
-  }
-
-  // 3. Consulta Inteligente com Google Gemini (para encontrar fotos adicionais de e-commerce e catálogo)
-  const apiKey = getGeminiApiKey();
-  if (apiKey && fotos.length < 8) {
+  // Se o usuário possui uma foto de referência, usa a IA de Visão para enriquecer com termos visuais altamente específicos
+  if (fotoReferencia) {
     try {
-      const promptBuscaFotos = `
-Você é um especialista em catálogo de produtos e bancos de imagens na internet.
-Encontre ou sugira URLs públicas reais e ativas de fotos em boa qualidade do produto: "${termoLimpo}".
-Retorne EXCLUSIVAMENTE um objeto JSON no formato:
-{
-  "fotos": [
-    { "url": "https://...", "titulo": "Nome descritivo da imagem" }
-  ]
-}
-Apenas URLs válidas no formato JPG, PNG ou WEBP.
-`;
-      const requestBody = {
-        contents: [{ parts: [{ text: promptBuscaFotos }] }],
-        generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
-      };
+      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo);
+      for (const tv of termosVisuais) {
+        if (tv && !termosParaPesquisar.includes(tv)) {
+          termosParaPesquisar.push(tv);
+        }
+      }
+    } catch (e) {
+      console.warn('Não foi possível extrair termos visuais da foto:', e);
+    }
+  }
 
-      const resData = await executarRequisicaoGemini(apiKey, requestBody);
-      const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawText) {
-        const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(jsonLimpo);
-        if (Array.isArray(parsed.fotos)) {
-          for (const f of parsed.fotos) {
-            if (f.url) registrarFoto(f.url, f.titulo || termoLimpo, 'Web / E-commerce');
+  if (termoLimpo && !termosParaPesquisar.includes(termoLimpo)) {
+    termosParaPesquisar.push(termoLimpo);
+  }
+
+  // 1. Busca Web / E-commerce via API de Imagens (/api/buscar-fotos-web)
+  for (const qTermo of termosParaPesquisar.slice(0, 2)) {
+    if (fotos.length >= 8) break;
+    try {
+      const resWeb = await fetch(`/api/buscar-fotos-web?q=${encodeURIComponent(qTermo)}`);
+      if (resWeb.ok) {
+        const dataWeb = await resWeb.json();
+        const resultados = Array.isArray(dataWeb.results) ? dataWeb.results : [];
+        for (const item of resultados) {
+          if (fotos.length >= 8) break;
+          const rawImg = item.image || item.thumbnail;
+          if (rawImg) {
+            // Passa pelo proxy de imagem weserv para garantir CORS, bypass de hotlink e alta performance
+            const cleanRaw = rawImg.replace(/^https?:\/\//, '');
+            const urlSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanRaw)}&w=600&output=jpg`;
+            registrarFoto(urlSegura, item.title || qTermo, 'Lojas / Web');
           }
         }
       }
     } catch (err) {
-      console.warn('Aviso: Consulta de fotos via Gemini:', err);
+      console.warn('Aviso: Erro ao consultar /api/buscar-fotos-web:', err);
     }
   }
 
-  // Retorna entre 6 a 8 fotos prioritárias
+  // 2. Consulta Open Food Facts e Open Beauty Facts (para produtos de mercearia, higiene e cosméticos)
+  if (fotos.length < 8) {
+    try {
+      const termoOFF = codigoBarras?.trim() || termoLimpo;
+      const apis = [
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=4`,
+        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=4`
+      ];
+
+      for (const urlAPI of apis) {
+        try {
+          const ctrl = new AbortController();
+          const tId = setTimeout(() => ctrl.abort(), 3500);
+          const res = await fetch(urlAPI, { signal: ctrl.signal });
+          clearTimeout(tId);
+          if (res.ok) {
+            const data = await res.json();
+            const produtos = data?.products || [];
+            for (const p of produtos) {
+              const img = p.image_front_url || p.image_url || p.image_front_small_url || p.image_small_url;
+              if (img) {
+                const cleanImg = img.replace(/^https?:\/\//, '');
+                const imgSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanImg)}&w=600&output=jpg`;
+                registrarFoto(imgSegura, p.product_name || p.generic_name || termoLimpo, 'Catálogo Oficial');
+              }
+            }
+          }
+        } catch {}
+      }
+    } catch (err) {
+      console.warn('Aviso: Erro ao consultar Open Facts:', err);
+    }
+  }
+
+  // 3. Estúdio Fotográfico IA Complementar (caso fotos na web sejam poucas)
+  if (fotos.length < 6) {
+    try {
+      const termoBase = termosParaPesquisar[0] || termoLimpo;
+      const perspectivas = [
+        {
+          prompt: `commercial product studio photography of ${termoBase}, front view on pure white background, studio softbox lighting, 8k product catalog`,
+          titulo: 'Visão Frontal (Fundo Branco)'
+        },
+        {
+          prompt: `commercial product shot of ${termoBase}, 45 degree angle, elegant studio illumination, soft shadow, e-commerce catalog`,
+          titulo: 'Visão em Ângulo Comercial'
+        }
+      ];
+
+      for (const p of perspectivas) {
+        if (fotos.length >= 8) break;
+        const seed = Math.floor(Math.random() * 900000) + 100000;
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(p.prompt)}?width=600&height=600&nologo=true&seed=${seed}`;
+        registrarFoto(url, `${termoBase} - ${p.titulo}`, 'IA Studio');
+      }
+    } catch (err) {
+      console.warn('Aviso: Geração IA complementar:', err);
+    }
+  }
+
   return fotos.slice(0, 8);
 };
 

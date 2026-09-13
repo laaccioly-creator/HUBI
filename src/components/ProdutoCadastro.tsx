@@ -3137,6 +3137,7 @@ export const ProdutoCadastro: React.FC = () => {
         codigoBarrasInicial={codigoBarras}
         fotosAtuaisCount={fotosUrls.length}
         maxFotos={7}
+        fotoReferencia={fotoPrincipal || fotosUrls[0]}
         onAdicionarFotos={(novas) => {
           setFotosUrls(prev => {
             const combinadas = [...prev];

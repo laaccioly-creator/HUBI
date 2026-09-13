@@ -39,7 +39,64 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024
       }
-    })
+    }),
+    {
+      name: 'api-busca-fotos-internet',
+      configureServer(server) {
+        server.middlewares.use('/api/buscar-fotos-web', async (req: any, res: any) => {
+          try {
+            const urlObj = new URL(req.url || '', 'http://localhost:3000');
+            const q = urlObj.searchParams.get('q') || '';
+            if (!q.trim()) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ results: [] }));
+              return;
+            }
+
+            const ddgRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(q.trim())}`, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
+            });
+            const html = await ddgRes.text();
+            const vqdMatch = html.match(/vqd=([0-9-]+)/) || html.match(/vqd=["']([0-9-]+)["']/);
+            const vqd = vqdMatch ? vqdMatch[1] : null;
+
+            if (!vqd) {
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ results: [] }));
+              return;
+            }
+
+            const iUrl = `https://duckduckgo.com/i.js?l=wt-wt&o=json&q=${encodeURIComponent(q.trim())}&vqd=${vqd}&f=,,,&p=1`;
+            const iRes = await fetch(iUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Referer': 'https://duckduckgo.com/'
+              }
+            });
+            const data = await iRes.json();
+            const rawList = Array.isArray(data.results) ? data.results : [];
+            const results = rawList.slice(0, 16).map((r: any) => ({
+              title: r.title || q,
+              image: r.image,
+              thumbnail: r.thumbnail
+            }));
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ results }));
+          } catch (err: any) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ results: [], error: err.message }));
+          }
+        });
+      }
+    }
   ],
   resolve: {
     alias: {

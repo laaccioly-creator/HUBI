@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe } from 'lucide-react';
+import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2 } from 'lucide-react';
 import { pesquisarFotosProdutoNaInternet, FotoResultadoInternet } from '../services/geminiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 
@@ -11,6 +11,7 @@ interface ModalPesquisaFotosInternetProps {
   codigoBarrasInicial?: string;
   fotosAtuaisCount: number;
   maxFotos?: number;
+  fotoReferencia?: string;
 }
 
 export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProps> = ({
@@ -20,45 +21,64 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   nomeInicial,
   codigoBarrasInicial = '',
   fotosAtuaisCount,
-  maxFotos = 7
+  maxFotos = 7,
+  fotoReferencia
 }) => {
-  const [termoBusca, setTermoBusca] = useState<string>(nomeInicial || '');
+  const [termoBusca, setTermoBusca] = useState<string>('');
   const [carregando, setCarregando] = useState<boolean>(false);
   const [fotosEncontradas, setFotosEncontradas] = useState<FotoResultadoInternet[]>([]);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [erro, setErro] = useState<string | null>(null);
+  const [imagensCarregadas, setImagensCarregadas] = useState<Set<string>>(new Set());
+  const [imagensComErro, setImagensComErro] = useState<Set<string>>(new Set());
 
   const vagasDisponiveis = Math.max(0, maxFotos - fotosAtuaisCount);
 
   useEffect(() => {
     if (isOpen) {
       const termo = nomeInicial.trim() || codigoBarrasInicial.trim();
-      setTermoBusca(termo);
+      // Remove prefixos como "7633 - " ou códigos numéricos para buscar o nome real do produto
+      const termoTratado = termo
+        .replace(/^[\d\w#.-]+\s*-\s*/, '')
+        .replace(/^[0-9]+\s+/, '')
+        .trim() || termo;
+
+      setTermoBusca(termoTratado);
       setSelecionadas(new Set());
       setErro(null);
-      if (termo) {
-        realizarBusca(termo);
+      setImagensCarregadas(new Set());
+      setImagensComErro(new Set());
+
+      if (termoTratado || fotoReferencia) {
+        realizarBusca(termoTratado);
       } else {
         setFotosEncontradas([]);
       }
     }
-  }, [isOpen, nomeInicial, codigoBarrasInicial]);
+  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia]);
 
   const realizarBusca = async (termo: string) => {
-    if (!termo.trim()) {
-      setErro('Digite o nome ou código do produto para pesquisar.');
+    const termoTratado = termo
+      .replace(/^[\d\w#.-]+\s*-\s*/, '')
+      .replace(/^[0-9]+\s+/, '')
+      .trim() || termo.trim();
+
+    if (!termoTratado && !fotoReferencia) {
+      setErro('Digite o nome do produto ou selecione uma foto para pesquisar.');
       return;
     }
 
     setCarregando(true);
     setErro(null);
     setSelecionadas(new Set());
+    setImagensCarregadas(new Set());
+    setImagensComErro(new Set());
 
     try {
-      const resultados = await pesquisarFotosProdutoNaInternet(termo, codigoBarrasInicial);
+      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia);
       setFotosEncontradas(resultados);
       if (resultados.length === 0) {
-        setErro('Nenhuma foto de boa qualidade encontrada para este termo. Tente simplificar o nome do produto.');
+        setErro('Nenhuma foto encontrada para este produto. Tente simplificar ou alterar o termo.');
       }
     } catch (err: any) {
       console.error('Erro na busca de fotos:', err);
@@ -130,6 +150,23 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
 
         {/* Barra de Busca de Fotos */}
         <div className="p-4 border-b border-slate-800/80 bg-slate-950/50 shrink-0">
+          {fotoReferencia && (
+            <div className="flex items-center gap-2.5 mb-3 p-2.5 rounded-2xl bg-teal-500/10 border border-teal-500/25">
+              <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-teal-500/40 bg-slate-900 shadow-sm">
+                <img src={fotoReferencia} alt="Foto de Referência" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                  Pesquisa Visual Ativa (Foto + Nome)
+                </span>
+                <span className="text-[11px] text-slate-400 block truncate mt-0.5">
+                  A IA de visão analisa o formato e detalhes da imagem para localizar fotos idênticas na internet.
+                </span>
+              </div>
+            </div>
+          )}
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -176,82 +213,111 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
               </p>
             </div>
           ) : fotosEncontradas.length > 0 ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
-                <span>
-                  {fotosEncontradas.length} fotos encontradas. Clique para selecionar ou adicionar:
-                </span>
-                <span className="font-bold text-teal-400">
-                  {selecionadas.size} selecionada(s)
-                </span>
-              </div>
+            (() => {
+              const fotosValidas = fotosEncontradas.filter(f => !imagensComErro.has(f.url));
+            if (fotosValidas.length === 0 && fotosEncontradas.length > 0) {
+              return (
+                <div className="py-12 flex flex-col items-center justify-center text-center space-y-3 max-w-md mx-auto">
+                  <AlertCircle className="w-10 h-10 text-amber-400" />
+                  <p className="text-xs sm:text-sm text-slate-300">Não foi possível carregar as fotos encontradas.</p>
+                  <p className="text-[11px] text-slate-500">Tente buscar por um termo mais específico ou pelo nome da marca.</p>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
+                  <span>
+                    {fotosValidas.length} fotos encontradas. Clique para selecionar ou adicionar:
+                  </span>
+                  <span className="font-bold text-teal-400">
+                    {selecionadas.size} selecionada(s)
+                  </span>
+                </div>
 
-              {/* Grid Responsivo de 6 a 8 fotos */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {fotosEncontradas.map((foto, idx) => {
-                  const estaSelecionada = selecionadas.has(foto.url);
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => toggleSelecao(foto.url)}
-                      className={`group relative rounded-2xl overflow-hidden border-2 cursor-pointer transition flex flex-col bg-slate-800/80 shadow-md ${
-                        estaSelecionada
-                          ? 'border-teal-400 ring-2 ring-teal-400/40'
-                          : 'border-slate-700/80 hover:border-slate-500'
-                      }`}
-                    >
-                      {/* Imagem */}
-                      <div className="relative aspect-square w-full bg-slate-950 flex items-center justify-center overflow-hidden p-2">
-                        <img
-                          src={foto.url}
-                          alt={foto.titulo || 'Foto do produto'}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain group-hover:scale-105 transition duration-200"
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
+                {/* Grid Responsivo de 6 a 8 fotos */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                  {fotosValidas.map((foto, idx) => {
+                    const estaSelecionada = selecionadas.has(foto.url);
+                    const estaCarregada = imagensCarregadas.has(foto.url);
 
-                        {/* Checkbox de Seleção */}
-                        <div
-                          className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition shadow-md ${
-                            estaSelecionada
-                              ? 'bg-teal-500 text-white'
-                              : 'bg-black/50 text-transparent border border-white/40 group-hover:border-white'
-                          }`}
-                        >
-                          <Check className="w-4 h-4 stroke-[3]" />
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => toggleSelecao(foto.url)}
+                        className={`group relative rounded-2xl overflow-hidden border-2 cursor-pointer transition flex flex-col bg-slate-800/80 shadow-md ${
+                          estaSelecionada
+                            ? 'border-teal-400 ring-2 ring-teal-400/40'
+                            : 'border-slate-700/80 hover:border-slate-500'
+                        }`}
+                      >
+                        {/* Imagem */}
+                        <div className="relative aspect-square w-full bg-slate-950 flex items-center justify-center overflow-hidden p-2">
+                          {!estaCarregada && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 gap-1.5">
+                              <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
+                              <span className="text-[10px] text-slate-400 font-medium">Carregando foto...</span>
+                            </div>
+                          )}
+
+                          <img
+                            src={foto.url}
+                            alt={foto.titulo || 'Foto do produto'}
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                            className={`w-full h-full object-contain group-hover:scale-105 transition-all duration-300 ${
+                              estaCarregada ? 'opacity-100' : 'opacity-0'
+                            }`}
+                            loading="lazy"
+                            onLoad={() => {
+                              setImagensCarregadas(prev => new Set(prev).add(foto.url));
+                            }}
+                            onError={() => {
+                              setImagensComErro(prev => new Set(prev).add(foto.url));
+                            }}
+                          />
+
+                          {/* Checkbox de Seleção */}
+                          <div
+                            className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition shadow-md z-20 ${
+                              estaSelecionada
+                                ? 'bg-teal-500 text-white'
+                                : 'bg-black/50 text-transparent border border-white/40 group-hover:border-white'
+                            }`}
+                          >
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </div>
+
+                          {/* Tag de Fonte */}
+                          <span className="absolute bottom-1.5 left-1.5 text-[9px] font-bold bg-slate-900/85 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700/80 z-20">
+                            {foto.fonte || 'Web'}
+                          </span>
                         </div>
 
-                        {/* Tag de Fonte */}
-                        <span className="absolute bottom-1.5 left-1.5 text-[9px] font-bold bg-slate-900/85 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700/80">
-                          {foto.fonte || 'Web'}
-                        </span>
+                        {/* Título & Ação rápida */}
+                        <div className="p-2 flex flex-col justify-between flex-1 bg-slate-850">
+                          <p className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-tight">
+                            {foto.titulo || 'Foto do produto'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAdicionarUnica(foto.url);
+                            }}
+                            className="mt-2 w-full py-1 text-[10px] font-bold rounded-lg bg-slate-700 hover:bg-teal-600 text-slate-200 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Usar Esta</span>
+                          </button>
+                        </div>
                       </div>
-
-                      {/* Título & Ação rápida */}
-                      <div className="p-2 flex flex-col justify-between flex-1 bg-slate-850">
-                        <p className="text-[11px] font-medium text-slate-200 line-clamp-2 leading-tight">
-                          {foto.titulo || 'Foto do produto'}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAdicionarUnica(foto.url);
-                          }}
-                          className="mt-2 w-full py-1 text-[10px] font-bold rounded-lg bg-slate-700 hover:bg-teal-600 text-slate-200 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Usar Esta</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            );
+          })()
           ) : (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-2 text-slate-400">
               <ImageIcon className="w-10 h-10 text-slate-600" />

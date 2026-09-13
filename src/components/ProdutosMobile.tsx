@@ -3947,6 +3947,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           codigoBarrasInicial={formData.codigoBarras}
           fotosAtuaisCount={formData.fotos.length}
           maxFotos={6}
+          fotoReferencia={formData.fotos[0]}
           onAdicionarFotos={(novasFotos) => {
             setFormData(prev => {
               const fotosAtualizadas = [...prev.fotos];
