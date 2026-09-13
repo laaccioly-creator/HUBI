@@ -1591,20 +1591,39 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <div className="space-y-2 pt-3 border-t border-slate-100">
               <h4 className="text-xs font-bold text-slate-700">Meio de Pagamento</h4>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
-                {['Dinheiro', 'Cartão de Débito', 'Cartão de Crédito', 'Cheque', 'Voucher', 'Outros', 'Saldo Cliente', 'Venda Fiado', 'Pix'].map((mp) => (
-                  <label key={mp} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={meiosPagamentoFiltro.includes(mp)}
-                      onChange={(e) => {
-                        if (e.target.checked) setMeiosPagamentoFiltro([...meiosPagamentoFiltro, mp]);
-                        else setMeiosPagamentoFiltro(meiosPagamentoFiltro.filter(m => m !== mp));
-                      }}
-                      className="rounded text-emerald-500 focus:ring-emerald-400"
-                    />
-                    <span>{mp}</span>
-                  </label>
-                ))}
+                {['Dinheiro', 'Cartão de Débito', 'Cartão de Crédito', 'Cheque', 'Voucher', 'Outros', 'Saldo Cliente', 'Venda Fiado', 'Pix'].map((mp) => {
+                  const marcado = meiosPagamentoFiltro.includes(mp);
+                  return (
+                    <label
+                      key={mp}
+                      className={`flex items-center gap-2.5 p-2 rounded-xl border transition cursor-pointer select-none ${
+                        marcado
+                          ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
+                          : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={marcado}
+                        onChange={(e) => {
+                          if (e.target.checked) setMeiosPagamentoFiltro([...meiosPagamentoFiltro, mp]);
+                          else setMeiosPagamentoFiltro(meiosPagamentoFiltro.filter(m => m !== mp));
+                        }}
+                        className="sr-only"
+                      />
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          marcado
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {marcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      </div>
+                      <span className="truncate">{mp}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1637,32 +1656,44 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <div className="space-y-2 max-h-64 overflow-y-auto text-xs text-slate-700">
               {abasStatus.map((st) => {
                 const count = contagensPorStatus[st.id] || 0;
+                const selecionado = statusSelecionados.includes(st.id);
                 return (
-                  <label key={st.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={statusSelecionados.includes(st.id)}
-                        onChange={(e) => {
-                          if (st.id === 'todos') {
-                            setStatusSelecionados(['todos']);
-                          } else {
-                            const filtrados = statusSelecionados.filter(s => s !== 'todos');
-                            if (e.target.checked) setStatusSelecionados([...filtrados, st.id]);
-                            else {
-                              const rest = filtrados.filter(s => s !== st.id);
-                              setStatusSelecionados(rest.length === 0 ? ['todos'] : rest);
-                            }
-                          }
-                        }}
-                        className="rounded text-emerald-500 focus:ring-emerald-400"
-                      />
-                      <span className="font-bold">{st.label}</span>
+                  <div
+                    key={st.id}
+                    onClick={() => {
+                      if (st.id === 'todos') {
+                        setStatusSelecionados(['todos']);
+                      } else {
+                        const filtrados = statusSelecionados.filter(s => s !== 'todos');
+                        if (!selecionado) setStatusSelecionados([...filtrados, st.id]);
+                        else {
+                          const rest = filtrados.filter(s => s !== st.id);
+                          setStatusSelecionados(rest.length === 0 ? ['todos'] : rest);
+                        }
+                      }
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
+                      selecionado
+                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          selecionado
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {selecionado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      </div>
+                      <span className="font-bold text-xs sm:text-sm">{st.label}</span>
                     </div>
-                    <span className="bg-red-600 text-white text-[10px] font-black min-w-[18px] h-[18px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
+                    <span className="bg-red-600 text-white text-[10px] font-black min-w-[20px] h-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
                       {count}
                     </span>
-                  </label>
+                  </div>
                 );
               })}
             </div>
@@ -1692,60 +1723,104 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
 
             <div className="space-y-2 max-h-64 overflow-y-auto text-xs text-slate-700">
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={vendedoresSelecionados.includes('todos')}
-                    onChange={() => setVendedoresSelecionados(['todos'])}
-                    className="rounded text-emerald-500"
-                  />
-                  <span className="font-bold">Todos os vendedores</span>
-                </div>
-                <User className="w-4 h-4 text-slate-400" />
-              </label>
+              {(() => {
+                const todosMarcado = vendedoresSelecionados.includes('todos');
+                return (
+                  <div
+                    onClick={() => setVendedoresSelecionados(['todos'])}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
+                      todosMarcado
+                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          todosMarcado
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {todosMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      </div>
+                      <span className="font-bold text-xs sm:text-sm">Todos os vendedores</span>
+                    </div>
+                    <User className="w-4 h-4 text-slate-400" />
+                  </div>
+                );
+              })()}
 
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={vendedoresSelecionados.includes('catalogo_online')}
-                    onChange={(e) => {
+              {(() => {
+                const onlineMarcado = vendedoresSelecionados.includes('catalogo_online');
+                return (
+                  <div
+                    onClick={() => {
                       const semTodos = vendedoresSelecionados.filter(v => v !== 'todos');
-                      if (e.target.checked) setVendedoresSelecionados([...semTodos, 'catalogo_online']);
+                      if (!onlineMarcado) setVendedoresSelecionados([...semTodos, 'catalogo_online']);
                       else {
                         const rest = semTodos.filter(v => v !== 'catalogo_online');
                         setVendedoresSelecionados(rest.length === 0 ? ['todos'] : rest);
                       }
                     }}
-                    className="rounded text-emerald-500"
-                  />
-                  <span className="font-bold">Catálogo online</span>
-                </div>
-                <Store className="w-4 h-4 text-slate-400" />
-              </label>
-
-              {usuarios.map((usr) => (
-                <label key={usr.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={vendedoresSelecionados.includes(usr.id)}
-                      onChange={(e) => {
-                        const semTodos = vendedoresSelecionados.filter(v => v !== 'todos');
-                        if (e.target.checked) setVendedoresSelecionados([...semTodos, usr.id]);
-                        else {
-                          const rest = semTodos.filter(v => v !== usr.id);
-                          setVendedoresSelecionados(rest.length === 0 ? ['todos'] : rest);
-                        }
-                      }}
-                      className="rounded text-emerald-500"
-                    />
-                    <span className="font-bold">{usr.nome_completo}</span>
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
+                      onlineMarcado
+                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          onlineMarcado
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {onlineMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      </div>
+                      <span className="font-bold text-xs sm:text-sm">Catálogo online</span>
+                    </div>
+                    <Store className="w-4 h-4 text-slate-400" />
                   </div>
-                  <User className="w-4 h-4 text-slate-400" />
-                </label>
-              ))}
+                );
+              })()}
+
+              {usuarios.map((usr) => {
+                const usrMarcado = vendedoresSelecionados.includes(usr.id);
+                return (
+                  <div
+                    key={usr.id}
+                    onClick={() => {
+                      const semTodos = vendedoresSelecionados.filter(v => v !== 'todos');
+                      if (!usrMarcado) setVendedoresSelecionados([...semTodos, usr.id]);
+                      else {
+                        const rest = semTodos.filter(v => v !== usr.id);
+                        setVendedoresSelecionados(rest.length === 0 ? ['todos'] : rest);
+                      }
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
+                      usrMarcado
+                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          usrMarcado
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {usrMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      </div>
+                      <span className="font-bold text-xs sm:text-sm">{usr.nome_completo}</span>
+                    </div>
+                    <User className="w-4 h-4 text-slate-400" />
+                  </div>
+                );
+              })}
             </div>
 
             <button

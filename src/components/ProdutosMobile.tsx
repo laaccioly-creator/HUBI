@@ -1752,109 +1752,128 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           {/* Seção Estoque */}
           <div className="space-y-3">
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Estoque</h2>
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtroSemEstoque}
-                  onChange={(e) => setFiltroSemEstoque(e.target.checked)}
-                  className="w-5 h-5 rounded text-teal-600 focus:ring-teal-500 border-slate-300"
-                />
-                <span className="text-xs sm:text-sm text-slate-700 font-semibold flex items-center gap-1.5">
-                  Sem estoque <span className="text-rose-500 font-bold">🔴</span>
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtroMinimo}
-                  onChange={(e) => setFiltroMinimo(e.target.checked)}
-                  className="w-5 h-5 rounded text-teal-600 focus:ring-teal-500 border-slate-300"
-                />
-                <span className="text-xs sm:text-sm text-slate-700 font-semibold flex items-center gap-1.5">
-                  Mínimo <span className="text-amber-500 font-bold">🟡</span>
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtroAcimaMinimo}
-                  onChange={(e) => setFiltroAcimaMinimo(e.target.checked)}
-                  className="w-5 h-5 rounded text-teal-600 focus:ring-teal-500 border-slate-300"
-                />
-                <span className="text-xs sm:text-sm text-slate-700 font-semibold">Acima do mínimo</span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filtroSemControle}
-                  onChange={(e) => setFiltroSemControle(e.target.checked)}
-                  className="w-5 h-5 rounded text-teal-600 focus:ring-teal-500 border-slate-300"
-                />
-                <span className="text-xs sm:text-sm text-slate-700 font-semibold">Sem controle de estoque</span>
-              </label>
+            <div className="space-y-2.5">
+              {[
+                {
+                  id: 'sem_estoque',
+                  label: 'Sem estoque',
+                  badge: '🔴',
+                  checked: filtroSemEstoque,
+                  toggle: () => setFiltroSemEstoque(!filtroSemEstoque)
+                },
+                {
+                  id: 'minimo',
+                  label: 'Mínimo',
+                  badge: '🟡',
+                  checked: filtroMinimo,
+                  toggle: () => setFiltroMinimo(!filtroMinimo)
+                },
+                {
+                  id: 'acima_minimo',
+                  label: 'Acima do mínimo',
+                  checked: filtroAcimaMinimo,
+                  toggle: () => setFiltroAcimaMinimo(!filtroAcimaMinimo)
+                },
+                {
+                  id: 'sem_controle',
+                  label: 'Sem controle de estoque',
+                  checked: filtroSemControle,
+                  toggle: () => setFiltroSemControle(!filtroSemControle)
+                }
+              ].map((item) => (
+                <div
+                  key={item.id}
+                  onClick={item.toggle}
+                  className={`flex items-center justify-between p-3 rounded-2xl border-2 transition cursor-pointer select-none ${
+                    item.checked
+                      ? 'bg-teal-50/80 border-teal-500 text-teal-950 font-black shadow-xs'
+                      : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        item.checked
+                          ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {item.checked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    </div>
+                    <span className="text-xs sm:text-sm">{item.label}</span>
+                  </div>
+                  {item.badge && <span className="text-xs">{item.badge}</span>}
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Seção Status do Produto */}
           <div className="space-y-3">
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Status do Produto</h2>
-            <div className="grid grid-cols-3 gap-2 border border-slate-200 rounded-2xl p-1 bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setFiltroAtivo('todos')}
-                className={`py-3 px-2 text-xs font-bold rounded-xl text-center transition ${
-                  filtroAtivo === 'todos' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Todos
-              </button>
-              <button
-                type="button"
-                onClick={() => setFiltroAtivo('ativos')}
-                className={`py-3 px-2 text-xs font-bold rounded-xl text-center transition ${
-                  filtroAtivo === 'ativos' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Ativos
-              </button>
-              <button
-                type="button"
-                onClick={() => setFiltroAtivo('inativos')}
-                className={`py-3 px-2 text-xs font-bold rounded-xl text-center transition ${
-                  filtroAtivo === 'inativos' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Inativos
-              </button>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'ativos', label: 'Ativos' },
+                { id: 'inativos', label: 'Inativos' }
+              ].map((opt) => {
+                const ativo = filtroAtivo === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFiltroAtivo(opt.id as any)}
+                    className={`py-3 px-2 rounded-2xl border-2 transition flex flex-col items-center justify-center gap-2 cursor-pointer ${
+                      ativo
+                        ? 'bg-teal-50/90 border-teal-500 text-teal-950 font-black shadow-xs ring-1 ring-teal-500/20'
+                        : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition shrink-0 ${
+                        ativo ? 'bg-teal-600 border-teal-600 text-white shadow-xs' : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {ativo && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    </div>
+                    <span className="text-xs font-bold">{opt.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Seção Categorias */}
           <div className="space-y-3">
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Categorias</h2>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               {categorias.map((cat) => {
                 const checked = categoriasFiltro.includes(cat.id);
                 return (
-                  <label key={cat.id} className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setCategoriasFiltro(prev => [...prev, cat.id]);
-                        } else {
-                          setCategoriasFiltro(prev => prev.filter(id => id !== cat.id));
-                        }
-                      }}
-                      className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300"
-                    />
-                    <span className="text-xs sm:text-sm text-slate-700 font-semibold uppercase truncate">{cat.nome}</span>
-                  </label>
+                  <div
+                    key={cat.id}
+                    onClick={() => {
+                      if (checked) {
+                        setCategoriasFiltro(prev => prev.filter(id => id !== cat.id));
+                      } else {
+                        setCategoriasFiltro(prev => [...prev, cat.id]);
+                      }
+                    }}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border-2 transition cursor-pointer select-none ${
+                      checked
+                        ? 'bg-teal-50/80 border-teal-500 text-teal-950 font-black shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        checked ? 'bg-teal-600 border-teal-600 text-white shadow-xs' : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {checked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    </div>
+                    <span className="text-xs font-semibold uppercase truncate">{cat.nome}</span>
+                  </div>
                 );
               })}
             </div>
@@ -1863,46 +1882,36 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           {/* Seção Ordenar Por */}
           <div className="space-y-3">
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider">Ordenar por</h2>
-            <div className="grid grid-cols-2 gap-2 border border-slate-200 rounded-2xl p-1 bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setOrdenacaoEstoque('menor_estoque')}
-                className={`py-3.5 px-2 text-xs sm:text-sm font-bold rounded-xl text-center transition ${
-                  ordenacaoEstoque === 'menor_estoque' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Menor estoque
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOrdenacaoEstoque('a_z')}
-                className={`py-3.5 px-2 text-xs sm:text-sm font-bold rounded-xl text-center transition ${
-                  ordenacaoEstoque === 'a_z' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                A-Z
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOrdenacaoEstoque('maior_estoque')}
-                className={`py-3.5 px-2 text-xs sm:text-sm font-bold rounded-xl text-center transition ${
-                  ordenacaoEstoque === 'maior_estoque' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Maior estoque
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setOrdenacaoEstoque('z_a')}
-                className={`py-3.5 px-2 text-xs sm:text-sm font-bold rounded-xl text-center transition ${
-                  ordenacaoEstoque === 'z_a' ? 'text-teal-600 bg-white shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Z-A
-              </button>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'menor_estoque', label: 'Menor estoque' },
+                { id: 'a_z', label: 'A-Z' },
+                { id: 'maior_estoque', label: 'Maior estoque' },
+                { id: 'z_a', label: 'Z-A' }
+              ].map((ord) => {
+                const ativa = ordenacaoEstoque === ord.id;
+                return (
+                  <button
+                    key={ord.id}
+                    type="button"
+                    onClick={() => setOrdenacaoEstoque(ord.id as any)}
+                    className={`p-3 rounded-2xl border-2 transition flex items-center gap-2.5 cursor-pointer text-left ${
+                      ativa
+                        ? 'bg-teal-50/80 border-teal-500 text-teal-950 font-black shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
+                        ativa ? 'border-teal-600' : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {ativa && <div className="w-2 h-2 rounded-full bg-teal-600" />}
+                    </div>
+                    <span className="text-xs font-bold truncate">{ord.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

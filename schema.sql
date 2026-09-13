@@ -1391,6 +1391,7 @@ CREATE OR REPLACE FUNCTION public.buscar_fotos_serpapi_rpc(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET statement_timeout TO '45s'
 AS $$
 DECLARE
     v_key TEXT := trim(COALESCE(p_api_key, ''));
@@ -1399,6 +1400,10 @@ DECLARE
     v_json JSONB;
     v_termo_limpo TEXT := trim(COALESCE(p_termo, ''));
 BEGIN
+    -- Configura os timeouts para suportar a raspagem em tempo real da SerpApi sem corte antecipado do Postgres
+    PERFORM set_config('statement_timeout', '45000', true);
+    PERFORM set_config('http.timeout_msec', '35000', true);
+
     -- Se a chave não foi passada diretamente, busca na tabela lojas
     IF v_key = '' AND p_loja_id IS NOT NULL THEN
         SELECT 

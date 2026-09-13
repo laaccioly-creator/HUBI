@@ -654,8 +654,9 @@ export const pesquisarFotosProdutoNaInternet = async (
   // Lista de termos a serem pesquisados no e-commerce
   const termosParaPesquisar: string[] = [];
 
-  // PASSO 1: IA Multimodal de Visão (Gemini Flash) - Extrai termos comerciais visuais precisos
-  if (fotoReferencia) {
+  // PASSO 1: IA Multimodal de Visão (Gemini Flash)
+  // Só executa se NÃO houver nome de texto (apenas foto enviada) para não adicionar 5s desnecessários de latência
+  if (!termoLimpo && fotoReferencia) {
     try {
       const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo, segmentoLoja);
       for (const tv of termosVisuais) {
@@ -672,8 +673,8 @@ export const pesquisarFotosProdutoNaInternet = async (
     termosParaPesquisar.push(termoLimpo);
   }
 
-  // Se a loja tiver segmento configurado e o termo for curto, adiciona busca contextualizada com o segmento
-  if (segmentoLoja && termoLimpo) {
+  // Se a loja tiver segmento configurado e o termo for muito curto (<= 2 palavras), adiciona busca contextualizada
+  if (segmentoLoja && termoLimpo && termoLimpo.split(' ').length <= 2) {
     const segmentoCurto = segmentoLoja.split('/')[0].trim();
     const termoComSegmento = `${termoLimpo} ${segmentoCurto}`;
     if (!termosParaPesquisar.includes(termoComSegmento)) {
@@ -687,11 +688,11 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi deve ser o termo digitado pelo usuário / nome do produto
+  // O termo prioritário para SerpApi é o nome do produto / busca digitada
   const termoPrincipal = termoLimpo || termosParaPesquisar[0];
 
   console.log(
-    '%c[HUBI IMAGENS]%c Verificando chave SerpApi da loja...',
+    '%c[HUBI IMAGENS]%c Buscando fotos no Google Images...',
     'background: #0284c7; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
     'color: #0284c7; font-weight: bold;',
     { 
@@ -736,42 +737,39 @@ export const pesquisarFotosProdutoNaInternet = async (
     console.log('[HUBI IMAGENS] Nenhuma chave SerpApi configurada para a loja. Buscando em fontes alternativas...');
   }
 
-  // Se a SerpApi já retornou fotos suficientes, retorna diretamente sem onerar fontes secundárias
-  if (fotos.length >= 12) {
+  // Se a SerpApi já retornou fotos, retorna IMEDIATAMENTE sem esperar por fontes secundárias lentas
+  if (fotos.length > 0) {
     return fotos.slice(0, 20);
   }
 
-
-  // PASSO 2 (B): Busca Web / E-commerce via Middleware Local (/api/buscar-fotos-web)
-  if (fotos.length < 15) {
-    for (const qTermo of termosParaPesquisar.slice(0, 3)) {
-      if (fotos.length >= 20) break;
+  // PASSO 2 (B): Busca Web via Proxy Local (apenas em ambiente de desenvolvimento Vite)
+  if (import.meta.env.DEV && fotos.length === 0) {
+    for (const qTermo of termosParaPesquisar.slice(0, 2)) {
+      if (fotos.length >= 10) break;
       try {
-        const resWeb = await fetch(`/api/buscar-fotos-web?q=${encodeURIComponent(qTermo)}`);
+        const ctrl = new AbortController();
+        const tId = setTimeout(() => ctrl.abort(), 2500);
+        const resWeb = await fetch(`/api/buscar-fotos-web?q=${encodeURIComponent(qTermo)}`, { signal: ctrl.signal });
+        clearTimeout(tId);
         const cType = resWeb.headers.get('content-type') || '';
-        // Só tenta ler JSON se não for o fallback HTML do SPA em produção estática
         if (resWeb.ok && cType.includes('application/json')) {
           const dataWeb = await resWeb.json();
           const resultados = Array.isArray(dataWeb.results) ? dataWeb.results : [];
           for (const item of resultados) {
-            if (fotos.length >= 20) break;
             const rawImg = item.image || item.thumbnail;
             if (rawImg) {
-              // Passa pelo proxy de imagem weserv para garantir CORS, bypass de hotlink e alta performance
               const cleanRaw = rawImg.replace(/^https?:\/\//, '');
               const urlSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanRaw)}&w=600&output=jpg`;
               registrarFoto(urlSegura, item.title || qTermo, 'Lojas / Web');
             }
           }
         }
-      } catch (err) {
-        console.warn('Aviso: Erro ao consultar /api/buscar-fotos-web:', err);
-      }
+      } catch {}
     }
   }
 
-  // PASSO 2 (C): Consulta Open Food Facts, Open Beauty Facts e Open Products Facts
-  if (fotos.length < 12) {
+  // PASSO 2 (C): Consulta Open Food / Beauty / Products Facts (em paralelo ultrarrápido com timeout de 2s)
+  if (fotos.length === 0 && (codigoBarras?.trim() || termoLimpo)) {
     try {
       const termoOFF = codigoBarras?.trim() || termoLimpo;
       const apis = [
@@ -780,26 +778,28 @@ export const pesquisarFotosProdutoNaInternet = async (
         `https://world.openproductsfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(termoOFF)}&search_simple=1&action=process&json=1&page_size=6`
       ];
 
-      for (const urlAPI of apis) {
-        try {
-          const ctrl = new AbortController();
-          const tId = setTimeout(() => ctrl.abort(), 3500);
-          const res = await fetch(urlAPI, { signal: ctrl.signal });
-          clearTimeout(tId);
-          if (res.ok) {
-            const data = await res.json();
-            const produtos = data?.products || [];
-            for (const p of produtos) {
-              const img = p.image_front_url || p.image_url || p.image_front_small_url || p.image_small_url;
-              if (img) {
-                const cleanImg = img.replace(/^https?:\/\//, '');
-                const imgSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanImg)}&w=600&output=jpg`;
-                registrarFoto(imgSegura, p.product_name || p.generic_name || termoLimpo, 'Catálogo Oficial');
+      await Promise.allSettled(
+        apis.map(async (urlAPI) => {
+          try {
+            const ctrl = new AbortController();
+            const tId = setTimeout(() => ctrl.abort(), 2000);
+            const res = await fetch(urlAPI, { signal: ctrl.signal });
+            clearTimeout(tId);
+            if (res.ok) {
+              const data = await res.json();
+              const produtos = data?.products || [];
+              for (const p of produtos) {
+                const img = p.image_front_url || p.image_url || p.image_front_small_url || p.image_small_url;
+                if (img) {
+                  const cleanImg = img.replace(/^https?:\/\//, '');
+                  const imgSegura = `https://images.weserv.nl/?url=${encodeURIComponent(cleanImg)}&w=600&output=jpg`;
+                  registrarFoto(imgSegura, p.product_name || p.generic_name || termoLimpo, 'Catálogo Oficial');
+                }
               }
             }
-          }
-        } catch {}
-      }
+          } catch {}
+        })
+      );
     } catch (err) {
       console.warn('Aviso: Erro ao consultar Open Facts:', err);
     }

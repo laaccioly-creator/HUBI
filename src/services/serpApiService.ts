@@ -444,12 +444,31 @@ export const buscarFotosGoogleImagesSerpApi = async (
   // =========================================================================
   try {
     logSerp('📡 [Método 1/4] Supabase RPC (buscar_fotos_serpapi_rpc)...');
-    const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_fotos_serpapi_rpc', {
+    let rpcResponse = await supabase.rpc('buscar_fotos_serpapi_rpc', {
       p_termo: queryFinal,
       p_loja_id: lojaId || null,
       p_api_key: chaveLimpa || null,
       p_num: num
     });
+
+    // Se a primeira chamada falhar por timeout de conexão inicial (quando a SerpApi está raspando o termo pela 1ª vez),
+    // aguarda 2s e faz uma retentativa automática (pois a SerpApi já concluiu o scrape no servidor e retorna em 0.2s)
+    if (rpcResponse.error && (
+      rpcResponse.error.code === '57014' ||
+      rpcResponse.error.message?.toLowerCase().includes('timeout') ||
+      rpcResponse.error.message?.toLowerCase().includes('canceling')
+    )) {
+      logSerpAviso('Timeout na primeira raspagem da SerpApi. Retentando automaticamente em 2s com cache quente...');
+      await new Promise(res => setTimeout(res, 2000));
+      rpcResponse = await supabase.rpc('buscar_fotos_serpapi_rpc', {
+        p_termo: queryFinal,
+        p_loja_id: lojaId || null,
+        p_api_key: chaveLimpa || null,
+        p_num: num
+      });
+    }
+
+    const { data: rpcData, error: rpcError } = rpcResponse;
 
     if (!rpcError && rpcData) {
       logSerp('📥 Resposta bruta do Supabase RPC:', rpcData);
@@ -523,9 +542,6 @@ export const buscarFotosGoogleImagesSerpApi = async (
     logSerpAviso('Exceção na Edge Function:', e.message);
   }
 
-  // =========================================================================
-  // MÉTODO 3: Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)
-  // =========================================================================
   const params = new URLSearchParams({
     engine: 'google_images',
     q: queryFinal,
@@ -534,53 +550,58 @@ export const buscarFotosGoogleImagesSerpApi = async (
     api_key: chaveLimpa
   });
 
-  try {
-    logSerp('📡 [Método 3/4] Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
-    const urlLocal = `/api/buscar-fotos-serpapi?${params.toString()}`;
-    const ctrl = new AbortController();
-    const timeoutId = setTimeout(() => ctrl.abort(), 10000);
-    const response = await fetch(urlLocal, { signal: ctrl.signal });
-    clearTimeout(timeoutId);
+  // =========================================================================
+  // MÉTODO 3: Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)
+  // Apenas no ambiente de desenvolvimento local Vite
+  // =========================================================================
+  if (import.meta.env.DEV) {
 
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const rawJson = await response.json();
-      logSerp('📥 Resposta bruta do proxy local:', rawJson);
+    try {
+      logSerp('📡 [Método 3/4] Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
+      const urlLocal = `/api/buscar-fotos-serpapi?${params.toString()}`;
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), 3000);
+      const response = await fetch(urlLocal, { signal: ctrl.signal });
+      clearTimeout(timeoutId);
 
-      if (
-        response.status === 429 ||
-        rawJson.error?.toLowerCase?.().includes('searches limit') ||
-        rawJson.error?.toLowerCase?.().includes('run out of searches') ||
-        rawJson.error?.toLowerCase?.().includes('quota')
-      ) {
-        logSerpErro('Cota mensal da SerpApi atingida.');
-        throw new SerpApiQuotaError();
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const rawJson = await response.json();
+        logSerp('📥 Resposta bruta do proxy local:', rawJson);
+
+        if (
+          response.status === 429 ||
+          rawJson.error?.toLowerCase?.().includes('searches limit') ||
+          rawJson.error?.toLowerCase?.().includes('run out of searches') ||
+          rawJson.error?.toLowerCase?.().includes('quota')
+        ) {
+          logSerpErro('Cota mensal da SerpApi atingida.');
+          throw new SerpApiQuotaError();
+        }
+
+        if (
+          response.status === 401 ||
+          response.status === 403 ||
+          rawJson.error?.toLowerCase?.().includes('invalid api key') ||
+          rawJson.error?.toLowerCase?.().includes('unauthorized')
+        ) {
+          logSerpErro('Chave SerpApi inválida no proxy local.');
+          throw new SerpApiAuthError();
+        }
+
+        if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
+          const itens = rawJson.images_results || rawJson.results;
+          const fotos = formatarResultadosSerpApi(itens, queryTratada, num);
+          logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
+          return fotos;
+        }
       }
-
-      if (
-        response.status === 401 ||
-        response.status === 403 ||
-        rawJson.error?.toLowerCase?.().includes('invalid api key') ||
-        rawJson.error?.toLowerCase?.().includes('unauthorized')
-      ) {
-        logSerpErro('Chave SerpApi inválida no proxy local.');
-        throw new SerpApiAuthError();
+    } catch (e: any) {
+      if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
+        throw e;
       }
-
-      if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
-        const itens = rawJson.images_results || rawJson.results;
-        const fotos = formatarResultadosSerpApi(itens, queryTratada, num);
-        logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
-        return fotos;
-      }
-    } else {
-      logSerpAviso('Proxy local retornou HTML (fallback SPA estático). Ignorando...');
+      logSerpAviso('Proxy local indisponível:', e.message);
     }
-  } catch (e: any) {
-    if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
-      throw e;
-    }
-    logSerpAviso('Proxy local indisponível:', e.message);
   }
 
   // =========================================================================

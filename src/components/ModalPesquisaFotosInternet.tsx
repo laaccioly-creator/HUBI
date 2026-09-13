@@ -487,12 +487,25 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleAdicionarUnica(foto);
+                              toggleSelecao(foto);
                             }}
-                            className="mt-2 w-full py-1 text-[10px] font-bold rounded-lg bg-slate-700 hover:bg-teal-600 text-slate-200 hover:text-white transition flex items-center justify-center gap-1 cursor-pointer"
+                            className={`mt-2 w-full py-1.5 text-[10px] font-bold rounded-lg transition flex items-center justify-center gap-1 cursor-pointer ${
+                              estaSelecionada
+                                ? 'bg-teal-500 text-slate-950 font-black shadow-sm'
+                                : 'bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white'
+                            }`}
                           >
-                            <Plus className="w-3 h-3" />
-                            <span>Usar Esta</span>
+                            {estaSelecionada ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                <span>Foto Selecionada</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Selecionar Foto</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>
