@@ -201,9 +201,16 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
 
       if (lista.length > 0) {
         lista.sort((a: string, b: string) => {
-          const aP = a.includes('flash') ? 10 : a.includes('pro') ? 5 : 1;
-          const bP = b.includes('flash') ? 10 : b.includes('pro') ? 5 : 1;
-          return bP - aP;
+          const getScore = (name: string) => {
+            if (name === 'gemini-2.0-flash') return 100;
+            if (name === 'gemini-1.5-flash') return 90;
+            if (name.includes('2.0-flash')) return 85;
+            if (name.includes('1.5-flash')) return 80;
+            if (name.includes('flash')) return 50;
+            if (name.includes('pro')) return 20;
+            return 1;
+          };
+          return getScore(b) - getScore(a);
         });
         modelosGeminiValidosCache = lista;
         return lista;
@@ -214,16 +221,11 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
   }
 
   return [
-    'gemini-flash-latest',
-    'gemini-3.8-flash',
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
-    'gemini-3.1-flash-lite',
-    'gemini-3-flash-preview',
     'gemini-2.0-flash',
-    'gemini-1.5-flash-latest',
     'gemini-1.5-flash',
-    'gemini-1.5-flash-002',
+    'gemini-2.0-flash-lite-preview-02-05',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-8b',
     'gemini-1.5-pro-latest',
     'gemini-1.5-pro'
   ];
@@ -261,7 +263,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 9000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const response = await fetch(endpoint, {
         method: 'POST',

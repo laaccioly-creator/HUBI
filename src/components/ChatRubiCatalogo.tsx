@@ -24,6 +24,7 @@ import {
   ContextoLojaCatalogo,
   PERSONAS_SEGMENTO
 } from '../services/rubiCatalogoService';
+import { DescricaoFormatadaProduto } from './DescricaoFormatadaProduto';
 import { Produto, VariacaoProduto } from '../types';
 
 interface MensagemChat {
@@ -612,11 +613,11 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
       {/* MODAL / DRAWER DE CHAT (JANELA OU TELA CHEIA) */}
       {aberto && (
-        <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-start ${telaCheia ? 'p-0' : 'sm:pl-6 bg-black/60 backdrop-blur-xs p-0 sm:p-4'} animate-in fade-in`}>
+        <div className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:justify-start ${telaCheia ? 'p-0' : 'sm:pl-6 bg-black/60 backdrop-blur-xs p-0 sm:p-4'} animate-in fade-in`}>
           <div
             className={`bg-slate-900 border border-slate-700 w-full shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
               telaCheia
-                ? 'fixed inset-0 z-50 h-full max-w-none rounded-none'
+                ? 'fixed inset-0 z-[60] h-full max-w-none rounded-none'
                 : 'sm:max-w-md h-[85vh] sm:h-[650px] rounded-t-3xl sm:rounded-3xl animate-in slide-in-from-bottom-6'
             }`}
           >
@@ -757,7 +758,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                         Produtos Recomendados:
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className={`grid ${telaCheia ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' : 'grid-cols-1'} gap-2.5`}>
                         {msg.produtosSugeridos.map(prod => {
                           const precoEfetivo = Number(prod.preco_promocional || prod.preco_venda_varejo || 0);
                           const temAtacado = Number(prod.preco_venda_atacado || 0) > 0;
@@ -765,12 +766,12 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                           return (
                             <div
                               key={prod.id}
-                              className="bg-slate-950/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-md group transition"
+                              className="bg-slate-950/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-2.5 flex items-center justify-between gap-2.5 shadow-md group transition"
                             >
                               <div
                                 onClick={() => setProdutoModalDetalhe(prod)}
                                 className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
-                                title="Toque para ver detalhes completos deste produto"
+                                title="Toque para ver fotos e detalhes deste produto"
                               >
                                 {fotoUrl ? (
                                   <img
@@ -783,16 +784,16 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                                     <ShoppingBag className="w-5 h-5" />
                                   </div>
                                 )}
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <span className="font-bold text-xs text-slate-100 block truncate group-hover:text-emerald-300 transition">
                                     {prod.nome}
                                   </span>
-                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="flex items-center gap-1.5 mt-1">
                                     <span className="text-xs font-black text-emerald-400">
                                       R$ {precoEfetivo.toFixed(2)}
                                     </span>
                                     {temAtacado && (
-                                      <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-md border border-amber-500/30">
+                                      <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">
                                         Atacado R$ {Number(prod.preco_venda_atacado).toFixed(2)}
                                       </span>
                                     )}
@@ -800,25 +801,24 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-1 shrink-0">
+                              {/* BOTÕES COMPACTOS (APENAS ÍCONES: OLHO E MAIS) */}
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => setProdutoModalDetalhe(prod)}
-                                  className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer border border-slate-700"
-                                  title="Ver fotos e descrição detalhada"
+                                  className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer border border-slate-700/80 shadow-sm"
+                                  title="Ver detalhes do produto"
                                 >
-                                  <Info className="w-3 h-3 text-slate-400" />
-                                  <span>Detalhes</span>
+                                  <Eye className="w-4 h-4 text-slate-300" />
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleAdicionarProdutoClick(prod)}
-                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm hover:scale-105"
+                                  className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition shrink-0 cursor-pointer shadow-sm hover:scale-105"
                                   title="Adicionar este produto à sacola"
                                 >
-                                  <Plus className="w-3.5 h-3.5" />
-                                  <span className="hidden sm:inline">Adicionar</span>
+                                  <Plus className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
@@ -989,14 +989,12 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               </div>
             </div>
 
-            {/* Descrição detalhada */}
-            <div className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800/80 max-h-36 overflow-y-auto space-y-1">
+            {/* Descrição detalhada formatada */}
+            <div className="max-h-48 overflow-y-auto space-y-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 Detalhes do Produto:
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                {produtoModalDetalhe.descricao?.trim() || 'Produto de alta qualidade selecionado especialmente para você no catálogo da loja.'}
-              </p>
+              <DescricaoFormatadaProduto descricao={produtoModalDetalhe.descricao} />
             </div>
 
             {/* Ações */}

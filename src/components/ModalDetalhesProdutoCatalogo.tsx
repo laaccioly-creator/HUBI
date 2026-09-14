@@ -339,7 +339,6 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
             <button
               type="button"
               onClick={() => {
-                onClose();
                 onPerguntarRubi(produto);
               }}
               className="w-full p-3.5 rounded-2xl border border-indigo-500/30 bg-indigo-950/20 hover:bg-indigo-950/40 text-left flex items-center justify-between gap-3 group transition cursor-pointer shadow-sm"

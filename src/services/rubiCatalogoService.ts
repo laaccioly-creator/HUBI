@@ -378,6 +378,12 @@ export const extrairProdutosDaResposta = (
     ? produtosEncontrados.slice(0, 3)
     : (produtosFallback.length > 0 ? produtosFallback.slice(0, 3) : []);
 
+  // Limpar conectivos ou pontuações suspensas que possam ter ficado no final
+  textoLimpo = textoLimpo.replace(/\s+(e|ou|com|de|para|que)\s*$/i, '.').trim();
+  if (!/[.!?]$/.test(textoLimpo) && textoLimpo.length > 20) {
+    textoLimpo = textoLimpo.replace(/[,;:\s]+$/, '') + '.';
+  }
+
   return { textoLimpo, produtos: produtosFinais };
 };
 
@@ -662,7 +668,8 @@ O cliente está com dúvida sobre este produto específico!
 1. Responda IMEDIATAMENTE explicando para que serve, sensações, modo de uso ou diferenciais com base na descrição acima.
 2. Destaque o valor atual do produto de forma convidativa e natural.
 3. NUNCA dê apenas uma saudação genérica de boas-vindas pedindo o nome do cliente! Responda a dúvida primeiro. Ao final, de forma simpática, você pode perguntar como chamá-lo ou convidá-lo a colocar na sacola.
-4. OBRIGATÓRIO: Termine sua resposta com a tag exata: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
+4. IMPORTANTE: Escreva todas as frases completas com pontuação final (. ou !). NUNCA pare no meio de uma frase.
+5. OBRIGATÓRIO: Conclua todo o texto e somente na última linha, isolada, adicione a tag: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
 ` : '';
 
       const prompt = `
@@ -683,17 +690,18 @@ ${JSON.stringify(catalogoResumo)}
 DIRETRIZES CRÍTICAS DE RESPOSTA:
 1. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
 2. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-3. SEJA SUCINTA E DIRETA: O cliente pode estar ouvindo sua voz no fone de ouvido! Responda em 2 a 3 parágrafos curtos e objetivos.
-4. CADASTRO E PEDIDO:
+3. SEJA SUCINTA E DIRETA: O cliente pode estar ouvindo sua voz no fone de ouvido! Responda em 2 a 3 parágrafos curtos, fluidos e bem pontuados.
+4. NUNCA DEIXE FRASES INACABADAS: Conclua todas as frases com ponto final ou exclamação. Jamais termine com conjunções como 'e', 'ou', 'com'.
+5. CADASTRO E PEDIDO:
    - Se o cliente perguntar como se cadastrar, explique que ele pode ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola.
    - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega para organizar o envio e cadastro.
-5. PRODUTOS RECOMENDADOS:
+6. PRODUTOS RECOMENDADOS:
    - Apresente no máximo 2 a 3 produtos APENAS quando o cliente pedir indicações, novidades ou itens específicos.
    - Para cada produto, fale apenas 1 frase curta explicando o benefício principal e mencione o valor.
    - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos.
-   - OBRIGATÓRIO PARA SINCRONIA: Na última linha da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
-6. Termine de forma rápida e simpática convidando a adicionar à sacola quando houver produtos recomendados.
-7. Responda em português brasileiro fluido, sem rodeios.
+   - OBRIGATÓRIO PARA SINCRONIA: Na última linha isolada da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
+7. Termine de forma rápida e simpática convidando a adicionar à sacola quando houver produtos recomendados.
+8. Responda em português brasileiro fluido, sem rodeios.
 
 PERGUNTA ATUAL DO CLIENTE:
 "${pergunta}"
@@ -701,7 +709,7 @@ PERGUNTA ATUAL DO CLIENTE:
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 600 }
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1000 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
