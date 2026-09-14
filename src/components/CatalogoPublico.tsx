@@ -30,6 +30,7 @@ import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
 import { ModalDetalhesProdutoCatalogo } from './ModalDetalhesProdutoCatalogo';
+import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
@@ -79,7 +80,7 @@ export const CatalogoPublico: React.FC = () => {
 
   // Controle do modal de detalhes do produto e assistente Rubi IA
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
-  const [mensagemRubiExterna, setMensagemRubiExterna] = useState<{ id: number; texto: string } | null>(null);
+  const [mensagemRubiExterna, setMensagemRubiExterna] = useState<{ id: number; texto: string; produto?: Produto } | null>(null);
   const [rubiAbertaExterna, setRubiAbertaExterna] = useState<boolean>(false);
 
   // Sincronizar carrinho com sessionStorage para preservar estado contra recarregamentos
@@ -1279,7 +1280,7 @@ Fico no aguardo da confirmação! ✨`;
                         {produto.nome}
                       </h3>
                       {produto.descricao && (
-                        <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{produto.descricao}</p>
+                        <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{formatarResumoDescricao(produto.descricao)}</p>
                       )}
                       <div className="flex items-baseline gap-2 mt-1">
                         <span className="font-black text-sm" style={{ color: corTema }}>
@@ -1374,7 +1375,7 @@ Fico no aguardo da confirmação! ✨`;
                         {produto.nome}
                       </h3>
                       {produto.descricao && (
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">{produto.descricao}</p>
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">{formatarResumoDescricao(produto.descricao)}</p>
                       )}
                     </div>
 
@@ -2142,7 +2143,8 @@ Fico no aguardo da confirmação! ✨`;
           onPerguntarRubi={(prod) => {
             setMensagemRubiExterna({
               id: Date.now(),
-              texto: `Olá Rubi! Gostaria de tirar uma dúvida sobre o produto "${prod.nome}". Pode me dar mais informações sobre ele?`
+              texto: `Olá Rubi! Gostaria de tirar uma dúvida sobre o produto "${prod.nome}". Pode me dar mais informações sobre ele?`,
+              produto: prod
             });
             setRubiAbertaExterna(true);
           }}

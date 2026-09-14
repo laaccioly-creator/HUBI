@@ -41,7 +41,7 @@ interface ChatRubiCatalogoProps {
   onAbrirModalVariacao?: (produto: Produto) => void;
   onClienteAtualizado?: (clienteData: { nome?: string; telefone?: string; endereco?: string }) => void;
   corTema?: string;
-  mensagemExterna?: { id: number; texto: string } | null;
+  mensagemExterna?: { id: number; texto: string; produto?: Produto } | null;
   abertoExterno?: boolean;
   onFecharExterno?: () => void;
 }
@@ -423,12 +423,16 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   }, [mensagens, aberto, pensando]);
 
   // Envio de mensagem (por clique ou voz)
-  const enviarMensagem = async (textoPersonalizado?: string) => {
+  const enviarMensagem = async (textoPersonalizado?: string, produtoAlvo?: Produto | null) => {
     const texto = (textoPersonalizado || inputTexto).trim();
     if (!texto || pensando) return;
 
     pararFalaRubi();
     pararGravacaoVoz(false);
+
+    if (produtoAlvo) {
+      setUltimoProdutoSugerido(produtoAlvo);
+    }
 
     const msgUsuario: MensagemChat = {
       id: Date.now().toString(),
@@ -445,7 +449,8 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       const contextoAtualizado: ContextoLojaCatalogo = {
         ...contexto,
         nomeClienteAtual: nomeCliente,
-        ultimoProdutoSugerido,
+        ultimoProdutoSugerido: produtoAlvo || ultimoProdutoSugerido,
+        produtoConsultado: produtoAlvo || undefined,
         historicoMensagens: mensagens.slice(-6).map(m => ({
           autor: m.remetente === 'user' ? 'cliente' : 'rubi',
           texto: m.texto
@@ -529,7 +534,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     if (mensagemExterna && mensagemExterna.id !== ultimaMsgExternaProcessadaRef.current) {
       ultimaMsgExternaProcessadaRef.current = mensagemExterna.id;
       setAberto(true);
-      enviarMensagem(mensagemExterna.texto);
+      if (mensagemExterna.produto) {
+        setUltimoProdutoSugerido(mensagemExterna.produto);
+      }
+      enviarMensagem(mensagemExterna.texto, mensagemExterna.produto);
     }
   }, [mensagemExterna]);
 

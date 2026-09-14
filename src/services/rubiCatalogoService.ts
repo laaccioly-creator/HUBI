@@ -1,5 +1,6 @@
 import { getGeminiApiKey, executarRequisicaoGemini } from './geminiService';
 import { Loja, Produto, Categoria, FormaEntrega, RegrasPrecificacaoLoja, Cliente } from '../types';
+import { sanitizarCaixaTexto } from '../components/DescricaoFormatadaProduto';
 
 export interface ContextoLojaCatalogo {
   loja: Loja;
@@ -10,6 +11,7 @@ export interface ContextoLojaCatalogo {
   clienteAtual?: Cliente | null;
   nomeClienteAtual?: string;
   ultimoProdutoSugerido?: Produto | null;
+  produtoConsultado?: Produto | null;
   historicoMensagens?: Array<{ autor: 'rubi' | 'cliente'; texto: string }>;
   produtosJaSugeridosIds?: string[];
 }
@@ -395,6 +397,7 @@ export const responderPerguntaClienteCatalogo = async (
     clienteAtual,
     nomeClienteAtual,
     ultimoProdutoSugerido,
+    produtoConsultado,
     historicoMensagens = [],
     produtosJaSugeridosIds = []
   } = contexto;
@@ -409,6 +412,49 @@ export const responderPerguntaClienteCatalogo = async (
 
   const nomeClienteEfetivo = nomeClienteAtual || clienteAtual?.nome || '';
 
+  // IDENTIFICAÇÃO DE PRODUTO ALVO EM CONSULTA / DÚVIDA
+  let produtoAlvo: Produto | null = produtoConsultado || null;
+
+  // Se não foi passado explicitamente no contexto, verificar se o nome do produto foi citado entre aspas
+  if (!produtoAlvo) {
+    const matchAspas = pergunta.match(/"([^"]+)"/) || pergunta.match(/“([^”]+)”/);
+    if (matchAspas && matchAspas[1]) {
+      const nomeEntreAspasNorm = normalizarTexto(matchAspas[1]);
+      produtoAlvo = produtos.find(p => normalizarTexto(p.nome) === nomeEntreAspasNorm)
+        || produtos.find(p => normalizarTexto(p.nome).includes(nomeEntreAspasNorm) || nomeEntreAspasNorm.includes(normalizarTexto(p.nome)))
+        || null;
+    }
+  }
+
+  // Se ainda não achou, checar se a pergunta menciona termos de produto e cita o nome de algum produto do catálogo
+  const termosDuvidaProduto = [
+    'duvida sobre o produto', 'duvida sobre', 'mais informacoes sobre',
+    'fale sobre o produto', 'falar sobre o produto', 'para que serve',
+    'como usa', 'como funciona', 'quanto custa o produto', 'tem o produto'
+  ];
+  const ehDuvidaDeProduto = Boolean(
+    produtoAlvo ||
+    termosDuvidaProduto.some(t => pNorm.includes(t)) ||
+    (pNorm.includes('duvida') && pNorm.includes('produto'))
+  );
+
+  if (!produtoAlvo && ehDuvidaDeProduto) {
+    for (const prod of produtos) {
+      if (prod.ativo === false) continue;
+      const nomeNorm = normalizarTexto(prod.nome);
+      if (nomeNorm.length >= 4 && pNorm.includes(nomeNorm)) {
+        produtoAlvo = prod;
+        break;
+      }
+    }
+    if (!produtoAlvo) {
+      const pontuados = buscarProdutosPorIntencao(pergunta, produtos, 1, [], segmento);
+      if (pontuados.length > 0) {
+        produtoAlvo = pontuados[0];
+      }
+    }
+  }
+
   // 1. CHECAGEM DE PROBLEMA DE ÁUDIO / FONE DE OUVIDO
   const termosAudioProblema = [
     'nao to ouvindo', 'nao estou ouvindo', 'sem som', 'nao sai som',
@@ -422,7 +468,7 @@ export const responderPerguntaClienteCatalogo = async (
   }
 
   // 2. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À SACOLA
-  const comandoSacola = detectarComandoSacola(pergunta, produtos, ultimoProdutoSugerido);
+  const comandoSacola = detectarComandoSacola(pergunta, produtos, produtoAlvo || ultimoProdutoSugerido);
   if (comandoSacola) {
     const { produto, quantidade } = comandoSacola;
     const nomeTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
@@ -437,7 +483,7 @@ export const responderPerguntaClienteCatalogo = async (
   const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
 
   // Se o cliente acabou de falar o nome pela primeira vez
-  if (dadosCadastro.nome && !nomeClienteEfetivo) {
+  if (dadosCadastro.nome && !nomeClienteEfetivo && !produtoAlvo && !ehDuvidaDeProduto) {
     const nomeDetectado = dadosCadastro.nome;
     return {
       texto: `Que prazer te conhecer, **${nomeDetectado}**! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. ${especialidade ? `Somos especialistas em ${especialidade}. ` : ''}\n\nPara agilizar suas entregas com discrição e ofertas exclusivas, quer me passar seu WhatsApp e endereço rapidinho? É só falar ou digitar aqui! Ou se preferir, já me conta o que você gostaria de encontrar hoje! 😊`,
@@ -445,9 +491,24 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 4. SAUDAÇÕES NATURAIS E DIÁLOGO CORDIAL (Cumprimenta e pede o nome na 1ª interação)
-  const saudacoesPuras = ['boa noite', 'bom dia', 'boa tarde', 'ola', 'oi', 'tudo bem', 'ola tudo bem', 'oi tudo bem', 'como vai', 'e ai'];
-  const ehSaudacaoPura = saudacoesPuras.some(s => pNorm === s || pNorm === `${s} rubi` || pNorm === `rubi ${s}` || pNorm.startsWith(`${s} `));
+  // 4. SAUDAÇÕES NATURAIS PURAS
+  // NUNCA disparar se a mensagem for uma dúvida sobre produto ou tiver mais perguntas
+  const termosPerguntaNaoSaudacao = [
+    'duvida', 'produto', 'informac', 'saber', 'preco', 'quanto', 'entrega', 'frete',
+    'embalagem', 'como funciona', 'serve', 'usar', 'gostaria', 'indica', 'vende', 'tem', 'posso', 'qual'
+  ];
+  const contemTermoPergunta = termosPerguntaNaoSaudacao.some(t => pNorm.includes(t));
+  const fraseLimpa = pNorm.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const palavras = fraseLimpa.split(' ').filter(Boolean);
+
+  const saudacoesExatas = new Set([
+    'boa noite', 'bom dia', 'boa tarde', 'ola', 'oi', 'tudo bem',
+    'ola tudo bem', 'oi tudo bem', 'como vai', 'e ai',
+    'ola rubi', 'oi rubi', 'bom dia rubi', 'boa tarde rubi', 'boa noite rubi',
+    'e ai rubi', 'oi rubi tudo bem', 'ola rubi tudo bem'
+  ]);
+
+  const ehSaudacaoPura = !produtoAlvo && !ehDuvidaDeProduto && !contemTermoPergunta && palavras.length <= 4 && saudacoesExatas.has(fraseLimpa);
   if (ehSaudacaoPura) {
     const saudacaoTempo = pNorm.includes('noite') ? 'Boa noite' : pNorm.includes('tarde') ? 'Boa tarde' : 'Olá';
     if (!nomeClienteEfetivo) {
@@ -583,6 +644,27 @@ export const responderPerguntaClienteCatalogo = async (
         ? historicoMensagens.slice(-4).map(m => `${m.autor === 'rubi' ? 'Rubi' : 'Cliente'}: ${m.texto}`).join('\n')
         : '';
 
+      const infoProdutoAlvo = produtoAlvo ? `
+PRODUTO ESPECÍFICO EM CONSULTA / DÚVIDA DO CLIENTE:
+- ID: "${produtoAlvo.id}"
+- Nome Exato: "${produtoAlvo.nome}"
+- Categoria: "${produtoAlvo.categoria?.nome || 'Geral'}"
+- Preço Normal: R$ ${Number(produtoAlvo.preco_venda_varejo || 0).toFixed(2)}
+${produtoAlvo.promocao_ativa && produtoAlvo.preco_promocional ? `- Preço Promocional Atual: R$ ${Number(produtoAlvo.preco_promocional).toFixed(2)} (OFERTA ESPECIAL ATIVA)` : ''}
+- Descrição Completa e Diferenciais:
+"""
+${sanitizarCaixaTexto(produtoAlvo.descricao || 'Produto de alta qualidade e muita procura no catálogo.')}
+"""
+${produtoAlvo.tem_variacoes && produtoAlvo.variacoes?.length ? `- Variações/Opções: ${produtoAlvo.variacoes.map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).join(', ')}` : ''}
+
+INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO:
+O cliente está com dúvida sobre este produto específico!
+1. Responda IMEDIATAMENTE explicando para que serve, sensações, modo de uso ou diferenciais com base na descrição acima.
+2. Destaque o valor atual do produto de forma convidativa e natural.
+3. NUNCA dê apenas uma saudação genérica de boas-vindas pedindo o nome do cliente! Responda a dúvida primeiro. Ao final, de forma simpática, você pode perguntar como chamá-lo ou convidá-lo a colocar na sacola.
+4. OBRIGATÓRIO: Termine sua resposta com a tag exata: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
+` : '';
+
       const prompt = `
 Você é a **Rubi**, a ${personaInfo.papel} da loja **${nomeLoja}** no catálogo online.
 SEGMENTO: ${segmento} - ${personaInfo.diretriz}
@@ -593,23 +675,25 @@ CLIENTE: ${nomeClienteEfetivo ? `"${nomeClienteEfetivo}"` : 'Não informado'}
 HISTÓRICO RECENTE:
 ${historicoTexto || '(Início)'}
 
+${infoProdutoAlvo}
+
 CATÁLOGO RESUMIDO DA LOJA (Produtos disponíveis):
 ${JSON.stringify(catalogoResumo)}
 
 DIRETRIZES CRÍTICAS DE RESPOSTA:
-1. IDENTIFICAÇÃO DO CLIENTE: Se o nome do cliente ainda NÃO foi informado (CLIENTE: Não informado) e a mensagem dele for uma saudação ou início de conversa (ex: 'boa noite', 'olá', 'oi'), cumprimente de acordo com o horário, dê as boas-vindas e OBRIGATORIAMENTE pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-2. SEJA SUCINTA E DIRETA: O cliente está ouvindo sua voz no fone de ouvido! NUNCA faça textos longos ou apresentações cansativas. Responda em 2 a 3 parágrafos curtos.
-3. CADASTRO E PEDIDO:
-   - Se o cliente perguntar como se cadastrar, explique que ele pode me ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola. NUNCA sugira produtos nessa resposta!
-   - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega (Nome, WhatsApp, Endereço com número e bairro) para organizar o envio e cadastro.
-4. PRODUTOS RECOMENDADOS:
+1. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
+2. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
+3. SEJA SUCINTA E DIRETA: O cliente pode estar ouvindo sua voz no fone de ouvido! Responda em 2 a 3 parágrafos curtos e objetivos.
+4. CADASTRO E PEDIDO:
+   - Se o cliente perguntar como se cadastrar, explique que ele pode ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola.
+   - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega para organizar o envio e cadastro.
+5. PRODUTOS RECOMENDADOS:
    - Apresente no máximo 2 a 3 produtos APENAS quando o cliente pedir indicações, novidades ou itens específicos.
    - Para cada produto, fale apenas 1 frase curta explicando o benefício principal e mencione o valor.
-   - Se o cliente pedir sugestões para casal, apimentar a relação ou sair da rotina, indique um combo rápido (ex: um óleo de massagem e um estimulador).
-   - CITE APENAS PRODUTOS REAIS DO CATÁLOGO ACIMA com seus nomes exatos.
+   - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos.
    - OBRIGATÓRIO PARA SINCRONIA: Na última linha da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
-5. Termine de forma rápida e simpática convidando a adicionar à sacola quando houver produtos recomendados.
-6. Responda em português brasileiro fluido, sem rodeios.
+6. Termine de forma rápida e simpática convidando a adicionar à sacola quando houver produtos recomendados.
+7. Responda em português brasileiro fluido, sem rodeios.
 
 PERGUNTA ATUAL DO CLIENTE:
 "${pergunta}"
@@ -625,12 +709,13 @@ PERGUNTA ATUAL DO CLIENTE:
       if (respostaIA && respostaIA.trim()) {
         const { textoLimpo, produtos: prodsSincronizados } = extrairProdutosDaResposta(
           respostaIA.trim(),
-          produtos
+          produtos,
+          produtoAlvo ? [produtoAlvo] : []
         );
 
         return {
           texto: textoLimpo,
-          produtosSugeridos: prodsSincronizados.length > 0 ? prodsSincronizados : undefined,
+          produtosSugeridos: prodsSincronizados.length > 0 ? prodsSincronizados : (produtoAlvo ? [produtoAlvo] : undefined),
           dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
         };
       }
@@ -640,7 +725,50 @@ PERGUNTA ATUAL DO CLIENTE:
   }
 
   // 8. MOTOR LOCAL INTELIGENTE (QUANDO GEMINI NÃO ESTÁ ATIVO OU FALHA)
-  // A. Intenção Casal / Apimentar (Sex Shop)
+  // A. Resposta Rápida e Detalhada sobre Produto Específico
+  if (produtoAlvo) {
+    const precoNormal = Number(produtoAlvo.preco_venda_varejo || 0);
+    const temPromocao = Boolean(produtoAlvo.promocao_ativa && produtoAlvo.preco_promocional && Number(produtoAlvo.preco_promocional) > 0);
+    const precoFinal = temPromocao ? Number(produtoAlvo.preco_promocional) : precoNormal;
+    const descFormatada = produtoAlvo.descricao ? sanitizarCaixaTexto(produtoAlvo.descricao) : '';
+
+    let textoResposta = `O **${produtoAlvo.nome}** é uma excelente escolha! ✨\n\n`;
+
+    if (descFormatada) {
+      // Extrair até 2 primeiros parágrafos limpos da descrição
+      const paragrafos = descFormatada
+        .split(/\n+/)
+        .map(p => p.trim())
+        .filter(p => p.length > 10);
+      const resumoDesc = paragrafos.slice(0, 2).join('\n\n');
+      textoResposta += `${resumoDesc || descFormatada}\n\n`;
+    } else {
+      textoResposta += `É um item super especial e de alta qualidade do nosso catálogo!\n\n`;
+    }
+
+    textoResposta += `💰 **Valor:** R$ ${precoFinal.toFixed(2)}${temPromocao ? ' *(em oferta especial!)*' : ''}\n`;
+
+    if (produtoAlvo.tem_variacoes && produtoAlvo.variacoes && produtoAlvo.variacoes.length > 0) {
+      const varsTexto = produtoAlvo.variacoes
+        .map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`)
+        .join(', ');
+      textoResposta += `📦 **Opções:** ${varsTexto}\n`;
+    }
+
+    textoResposta += `\nQuer que eu adicione ele na sua sacola de compras? É só tocar no botão **"+ Adicionar"** aqui no card ou me pedir por voz! 🛍️`;
+
+    if (!nomeClienteEfetivo) {
+      textoResposta += `\n\n*(A propósito, como posso te chamar? Me conta o seu nome!)* 😊`;
+    }
+
+    return {
+      texto: textoResposta,
+      produtosSugeridos: [produtoAlvo],
+      dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
+    };
+  }
+
+  // B. Intenção Casal / Apimentar (Sex Shop)
   const termosCasalApimentar = ['apimentar', 'esquentar', 'casal', 'a dois', 'sair da rotina', 'namorados', 'surpresa'];
   const querApimentar = segmento === 'sexshop' && termosCasalApimentar.some(t => pNorm.includes(t));
   if (querApimentar) {
@@ -652,7 +780,7 @@ PERGUNTA ATUAL DO CLIENTE:
     };
   }
 
-  // B. Intenção "Só tem esses? / Outras coisas / O que mais tem?"
+  // C. Intenção "Só tem esses? / Outras coisas / O que mais tem?"
   const termosOutrasOpcoes = ['so tem esses', 'so tem esse', 'outras coisas', 'outros produtos', 'o que mais tem', 'tem outros', 'alem desses', 'outras opcoes'];
   const pedeOutrasOpcoes = termosOutrasOpcoes.some(t => pNorm.includes(t));
   if (pedeOutrasOpcoes) {
@@ -666,7 +794,7 @@ PERGUNTA ATUAL DO CLIENTE:
     }
   }
 
-  // C. Produtos gerais encontrados por relevância
+  // D. Produtos gerais encontrados por relevância
   if (produtosSugeridosPre.length > 0) {
     const listaNomes = produtosSugeridosPre.map(p => `• **${p.nome}** (R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)})`).join('\n');
     return {
@@ -676,7 +804,7 @@ PERGUNTA ATUAL DO CLIENTE:
     };
   }
 
-  // D. Resposta aberta sucinta
+  // E. Resposta aberta sucinta
   return {
     texto: `Estou aqui com você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 😊\n\nMe conta: o que você gostaria de ver hoje? Posso te sugerir itens para curtir a dois, relaxamento ou mostrar nossas novidades!`,
     dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined

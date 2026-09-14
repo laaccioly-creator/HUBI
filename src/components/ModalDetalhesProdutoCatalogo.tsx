@@ -9,8 +9,10 @@ import {
   Sparkles,
   Layers,
   Check,
-  Tag
+  Tag,
+  FileText
 } from 'lucide-react';
+import { DescricaoFormatadaProduto } from './DescricaoFormatadaProduto';
 import { Produto, VariacaoProduto } from '../types';
 
 interface ModalDetalhesProdutoCatalogoProps {
@@ -322,13 +324,14 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
           </button>
 
           {/* DESCRIÇÃO COMPLETA DO PRODUTO */}
-          <div className="space-y-2 pt-1 border-t border-slate-800/80">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Descrição do Produto
-            </h4>
-            <div className="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800/60 text-xs sm:text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
-              {produto.descricao?.trim() || 'Nenhuma descrição detalhada informada para este produto.'}
+          <div className="space-y-2.5 pt-1 border-t border-slate-800/80">
+            <div className="flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-emerald-400" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Descrição do Produto
+              </h4>
             </div>
+            <DescricaoFormatadaProduto descricao={produto.descricao} />
           </div>
 
           {/* FRASE / BOTÃO INTERATIVO DA RUBI IA */}
