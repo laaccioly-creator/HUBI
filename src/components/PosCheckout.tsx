@@ -442,12 +442,12 @@ export const PosCheckout: React.FC = () => {
     }
 
     // 2. Verificar se os dados de endereço do cliente estão completos
-    const cepLimpo = (clienteSelecionado.cep || '').replace(/\D/g, '');
-    const rua = (clienteSelecionado.rua || clienteSelecionado.endereco || '').trim();
-    const num = (clienteSelecionado.numero || '').trim();
-    const bairro = (clienteSelecionado.bairro || '').trim();
-    const cidade = (clienteSelecionado.cidade || '').trim();
-    const uf = (clienteSelecionado.estado || '').trim();
+    const cepLimpo = (clienteSelecionado.endereco_cep || clienteSelecionado.cep || '').replace(/\D/g, '');
+    const rua = (clienteSelecionado.endereco_logradouro || clienteSelecionado.rua || clienteSelecionado.endereco || '').trim();
+    const num = (clienteSelecionado.endereco_numero || clienteSelecionado.numero || '').trim();
+    const bairro = (clienteSelecionado.endereco_bairro || clienteSelecionado.bairro || '').trim();
+    const cidade = (clienteSelecionado.endereco_cidade || clienteSelecionado.cidade || '').trim();
+    const uf = (clienteSelecionado.endereco_estado || clienteSelecionado.estado || '').trim();
 
     const enderecoCompleto =
       cepLimpo.length === 8 &&

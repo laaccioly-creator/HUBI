@@ -56,6 +56,13 @@ export interface ShippingFulfillmentSelectorProps {
     bairro?: string | null;
     cidade?: string | null;
     estado?: string | null;
+    endereco_cep?: string | null;
+    endereco_logradouro?: string | null;
+    endereco_numero?: string | null;
+    endereco_complemento?: string | null;
+    endereco_bairro?: string | null;
+    endereco_cidade?: string | null;
+    endereco_estado?: string | null;
   } | null;
   subtotal: number;
   itens: CotacaoItemProduto[];
@@ -128,29 +135,42 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     let ativo = true;
 
     async function carregarEnderecoInicial() {
+      const cepCli = (cliente?.endereco_cep || cliente?.cep || '').replace(/\D/g, '');
+      const logrCli = (cliente?.endereco_logradouro || cliente?.rua || cliente?.endereco || '').trim();
+      const numCli = (cliente?.endereco_numero || cliente?.numero || '').trim();
+      const compCli = (cliente?.endereco_complemento || cliente?.complemento || '').trim();
+      const bairroCli = (cliente?.endereco_bairro || cliente?.bairro || '').trim();
+      const cidCli = (cliente?.endereco_cidade || cliente?.cidade || '').trim();
+      const ufCli = (cliente?.endereco_estado || cliente?.estado || 'CE').trim().toUpperCase();
+
       if (clienteId) {
         setCarregandoEnderecos(true);
         try {
           const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
           if (ativo) {
-            if (lista.length > 0) {
-              const principal = lista.find(e => e.is_principal) || lista[0];
-              setEnderecoSelecionado(principal);
-            } else if (cliente && cliente.cep && cliente.cidade) {
-              // Constrói objeto temporário a partir dos dados do cliente
-              setEnderecoSelecionado({
-                id: 'temp-cli',
-                cliente_id: cliente.id || clienteId,
+            // 1. Prioriza o endereço oficial cadastrado na tabela clientes
+            if (cepCli && logrCli && cidCli) {
+              const correspondente = lista.find(e => 
+                (e.cep || '').replace(/\D/g, '') === cepCli &&
+                (e.numero || '').trim().toLowerCase() === numCli.toLowerCase()
+              );
+
+              setEnderecoSelecionado(correspondente || {
+                id: 'cli-db-principal',
+                cliente_id: cliente?.id || clienteId,
                 identificador: 'Principal',
-                cep: cliente.cep,
-                logradouro: cliente.rua || cliente.endereco || '',
-                numero: cliente.numero || 'S/N',
-                complemento: cliente.complemento || '',
-                bairro: cliente.bairro || '',
-                cidade: cliente.cidade,
-                uf: cliente.estado || 'CE',
+                cep: cepCli,
+                logradouro: logrCli,
+                numero: numCli || 'S/N',
+                complemento: compCli || null,
+                bairro: bairroCli,
+                cidade: cidCli,
+                uf: ufCli,
                 is_principal: true
               });
+            } else if (lista.length > 0) {
+              const principal = lista.find(e => e.is_principal) || lista[0];
+              setEnderecoSelecionado(principal);
             }
           }
         } catch (err) {
@@ -158,18 +178,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         } finally {
           if (ativo) setCarregandoEnderecos(false);
         }
-      } else if (cliente && cliente.cep && cliente.cidade) {
+      } else if (cepCli && cidCli) {
         setEnderecoSelecionado({
           id: 'temp-cli',
-          cliente_id: 'temp',
+          cliente_id: cliente?.id || 'temp',
           identificador: 'Principal',
-          cep: cliente.cep,
-          logradouro: cliente.rua || cliente.endereco || '',
-          numero: cliente.numero || 'S/N',
-          complemento: cliente.complemento || '',
-          bairro: cliente.bairro || '',
-          cidade: cliente.cidade,
-          uf: cliente.estado || 'CE',
+          cep: cepCli,
+          logradouro: logrCli,
+          numero: numCli || 'S/N',
+          complemento: compCli || null,
+          bairro: bairroCli,
+          cidade: cidCli,
+          uf: ufCli,
           is_principal: true
         });
       }
@@ -253,9 +273,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
       setCotacoes(opcoesFiltradas);
 
-      if (opcoesFiltradas.length > 0) {
+      const opcoesValidas = opcoesFiltradas.filter(o => !o.erro && o.valor_frete > 0);
+
+      if (opcoesValidas.length > 0) {
         // Seleciona opção com mesmo ID ou a de menor valor
-        const encontrada = opcoesFiltradas.find(o => o.id === opcaoSelecionadaId) || opcoesFiltradas[0];
+        const encontrada = opcoesValidas.find(o => o.id === opcaoSelecionadaId) || opcoesValidas[0];
         setCotacaoEscolhida(encontrada);
 
         // Notifica o componente pai com a entrega selecionada
@@ -548,6 +570,32 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 ) : (
                   <div className="space-y-2">
                     {cotacoes.map((opcao) => {
+                      if (opcao.erro) {
+                        return (
+                          <div
+                            key={opcao.id}
+                            className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start gap-3"
+                          >
+                            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                              <AlertCircle className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                              <span className="text-xs font-bold text-amber-200 block">
+                                {opcao.transportadora_nome}: {opcao.servico_nome}
+                              </span>
+                              <p className="text-[11px] text-amber-300/90 leading-relaxed">
+                                {opcao.erro}
+                              </p>
+                              {opcao.prazo_estimado_texto && (
+                                <span className="text-[10px] text-amber-400 font-semibold block pt-0.5">
+                                  {opcao.prazo_estimado_texto}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const selecionada = cotacaoEscolhida?.id === opcao.id;
                       return (
                         <div

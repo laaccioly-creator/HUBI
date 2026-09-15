@@ -73,13 +73,13 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
   useEffect(() => {
     if (aberto && cliente) {
-      setCep(cliente.cep || '');
-      setRua(cliente.rua || cliente.endereco || '');
-      setNumero(cliente.numero || '');
-      setComplemento(cliente.complemento || '');
-      setBairro(cliente.bairro || '');
-      setCidade(cliente.cidade || '');
-      setEstado(cliente.estado || 'CE');
+      setCep(cliente.endereco_cep || cliente.cep || '');
+      setRua(cliente.endereco_logradouro || cliente.rua || cliente.endereco || '');
+      setNumero(cliente.endereco_numero || cliente.numero || '');
+      setComplemento(cliente.endereco_complemento || cliente.complemento || '');
+      setBairro(cliente.endereco_bairro || cliente.bairro || '');
+      setCidade(cliente.endereco_cidade || cliente.cidade || '');
+      setEstado(cliente.endereco_estado || cliente.estado || 'CE');
       setLatitude(null);
       setLongitude(null);
       setErroMsg(null);
@@ -222,15 +222,19 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
     setSalvando(true);
     try {
-      // 1. Atualiza dados na tabela clientes
-      const clienteAtualizadoPayload: Partial<Cliente> = {
-        cep: cep.trim(),
-        rua: rua.trim(),
-        numero: numero.trim(),
-        complemento: (complemento || '').trim(),
-        bairro: bairro.trim(),
-        cidade: cidade.trim(),
-        estado: estado.trim()
+      const cepLimpo = cep.replace(/\D/g, '');
+      const linhaPrincipalFormatada = `${rua.trim()}, ${numero.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ''}, ${bairro.trim()}, ${cidade.trim()}-${estado.trim()} (CEP: ${cepLimpo})`;
+
+      // 1. Atualiza dados oficiais na tabela clientes
+      const clienteAtualizadoPayload = {
+        endereco_cep: cepLimpo,
+        endereco_logradouro: rua.trim(),
+        endereco_numero: numero.trim(),
+        endereco_complemento: (complemento || '').trim() || null,
+        endereco_bairro: bairro.trim(),
+        endereco_cidade: cidade.trim(),
+        endereco_estado: estado.trim().toUpperCase(),
+        endereco_principal: linhaPrincipalFormatada
       };
 
       const { error: errCli } = await supabase
@@ -239,19 +243,22 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
         .eq('id', cliente.id);
 
       if (errCli) {
-        console.warn('Erro ao atualizar cliente no supabase:', errCli);
+        console.error('Erro ao atualizar tabela clientes:', errCli);
+        setErroMsg(`Erro ao salvar no cadastro do cliente: ${errCli.message}`);
+        setSalvando(false);
+        return;
       }
 
       // 2. Cria ou atualiza em cliente_enderecos como endereço principal
       const enderecoSalvo = await ShippingOrchestrator.salvarNovoEnderecoCliente(cliente.id, {
         identificador: 'Principal',
-        cep: cep.trim(),
+        cep: cepLimpo,
         logradouro: rua.trim(),
         numero: numero.trim(),
         complemento: (complemento || '').trim(),
         bairro: bairro.trim(),
         cidade: cidade.trim(),
-        uf: estado.trim(),
+        uf: estado.trim().toUpperCase(),
         latitude,
         longitude,
         is_principal: true
@@ -259,7 +266,15 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
       const clienteCompleto: Cliente = {
         ...cliente,
-        ...clienteAtualizadoPayload
+        ...clienteAtualizadoPayload,
+        cep: cepLimpo,
+        rua: rua.trim(),
+        endereco: rua.trim(),
+        numero: numero.trim(),
+        complemento: (complemento || '').trim() || null,
+        bairro: bairro.trim(),
+        cidade: cidade.trim(),
+        estado: estado.trim().toUpperCase()
       };
 
       onSucesso(clienteCompleto, enderecoSalvo);
@@ -283,7 +298,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
             </div>
             <div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-100">
-                Endereço de Entrega do Cliente
+                Endereço Principal
               </h3>
               <p className="text-xs text-slate-400">
                 Cliente: <strong className="text-slate-200">{cliente.nome}</strong>

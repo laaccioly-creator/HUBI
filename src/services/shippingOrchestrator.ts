@@ -1,4 +1,4 @@
-﻿import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import {
   LojaShippingConfig,
   ClienteEndereco,
@@ -97,7 +97,25 @@ export class ShippingOrchestrator {
       throw new Error('Cliente não identificado para salvar endereço.');
     }
 
-    // Se marcado como principal, desmarca anteriores
+    const cepLimpo = input.cep.replace(/\D/g, '');
+    const numLimpo = input.numero.trim();
+    const logrLimpo = input.logradouro.trim();
+
+    // 1. Buscar endereços já existentes para este cliente para evitar duplicações
+    const { data: existentes } = await supabase
+      .from('cliente_enderecos')
+      .select('*')
+      .eq('cliente_id', clienteId);
+
+    const enderecoExistente = (existentes || []).find((e: ClienteEndereco) => {
+      const eCep = (e.cep || '').replace(/\D/g, '');
+      const eNum = (e.numero || '').trim().toLowerCase();
+      const eLogr = (e.logradouro || '').trim().toLowerCase();
+      return (eCep === cepLimpo && eNum === numLimpo.toLowerCase()) || 
+             (eLogr === logrLimpo.toLowerCase() && eNum === numLimpo.toLowerCase());
+    });
+
+    // Se for principal, desmarca anteriores
     if (input.is_principal) {
       await supabase
         .from('cliente_enderecos')
@@ -105,16 +123,50 @@ export class ShippingOrchestrator {
         .eq('cliente_id', clienteId);
     }
 
+    if (enderecoExistente) {
+      // Atualiza o endereço existente em vez de duplicar
+      const payloadAtualizacao = {
+        identificador: input.identificador || enderecoExistente.identificador || (input.is_principal ? 'Principal' : 'Entrega'),
+        cep: cepLimpo,
+        logradouro: logrLimpo,
+        numero: numLimpo,
+        complemento: input.complemento?.trim() || null,
+        bairro: input.bairro.trim(),
+        cidade: input.cidade.trim(),
+        uf: input.uf.trim().toUpperCase(),
+        latitude: input.latitude !== undefined ? input.latitude : enderecoExistente.latitude,
+        longitude: input.longitude !== undefined ? input.longitude : enderecoExistente.longitude,
+        is_principal: Boolean(input.is_principal),
+        atualizado_em: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('cliente_enderecos')
+        .update(payloadAtualizacao)
+        .eq('id', enderecoExistente.id)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Erro ao atualizar endereço do cliente: ${error.message}`);
+      }
+
+      return data as ClienteEndereco;
+    }
+
+    // Se for novo endereço, insere
     const payload = {
       cliente_id: clienteId,
-      identificador: input.identificador || 'Entrega',
-      cep: input.cep.replace(/\D/g, ''),
-      logradouro: input.logradouro.trim(),
-      numero: input.numero.trim(),
+      identificador: input.identificador || (input.is_principal ? 'Principal' : 'Entrega'),
+      cep: cepLimpo,
+      logradouro: logrLimpo,
+      numero: numLimpo,
       complemento: input.complemento?.trim() || null,
       bairro: input.bairro.trim(),
       cidade: input.cidade.trim(),
       uf: input.uf.trim().toUpperCase(),
+      latitude: input.latitude || null,
+      longitude: input.longitude || null,
       is_principal: Boolean(input.is_principal),
       criado_em: new Date().toISOString(),
       atualizado_em: new Date().toISOString()

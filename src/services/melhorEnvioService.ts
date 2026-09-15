@@ -1,4 +1,4 @@
-﻿import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto } from '../types/shipping';
+import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto } from '../types/shipping';
 
 interface MelhorEnvioProductPayload {
   id: string;
@@ -109,8 +109,8 @@ export class MelhorEnvioService {
     }
 
     try {
-      const baseUrl = this.getBaseUrl(config.melhor_envio_sandbox_mode);
-      const endpoint = `${baseUrl}/api/v2/me/shipment/calculate`;
+      let baseUrl = this.getBaseUrl(config.melhor_envio_sandbox_mode);
+      let endpoint = `${baseUrl}/api/v2/me/shipment/calculate`;
 
       const payload: MelhorEnvioCalculatePayload = {
         from: {
@@ -122,15 +122,37 @@ export class MelhorEnvioService {
         products: this.formatarProdutosPayload(itens, subtotal)
       };
 
-      const response = await fetch(endpoint, {
+      console.log(`[MelhorEnvio] Disparando cotação (${baseUrl}) CEP Origem: ${cepOrigemLimpo} -> CEP Destino: ${cepDestinoLimpo}`);
+
+      let response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.melhor_envio_token.trim()}`
+          'Authorization': `Bearer ${config.melhor_envio_token.trim()}`,
+          'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
         },
         body: JSON.stringify(payload)
       });
+
+      // Fallback automático se retornar 401 (token emitido em sandbox testado em produção ou vice-versa)
+      if (response.status === 401) {
+        const fallbackBase = config.melhor_envio_sandbox_mode
+          ? 'https://melhorenvio.com.br'
+          : 'https://sandbox.melhorenvio.com.br';
+        console.warn(`[MelhorEnvio] 401 Unauthenticated em ${baseUrl}. Tentando fallback automático em: ${fallbackBase}`);
+        
+        response = await fetch(`${fallbackBase}/api/v2/me/shipment/calculate`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.melhor_envio_token.trim()}`,
+            'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
+          },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!response.ok) {
         const erroTexto = await response.text();
@@ -139,6 +161,7 @@ export class MelhorEnvioService {
       }
 
       const cotacoesRaw = await response.json() as MelhorEnvioServiceDeliveryResponse[];
+      console.log(`[MelhorEnvio] Resposta recebida com ${Array.isArray(cotacoesRaw) ? cotacoesRaw.length : 0} opções.`);
       if (!Array.isArray(cotacoesRaw)) {
         return [];
       }

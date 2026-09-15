@@ -58,16 +58,26 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
     setErroMsg(null);
     try {
       const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
-      setEnderecos(lista);
+      // Deduplicação defensiva na listagem
+      const unicos: ClienteEndereco[] = [];
+      const chavesVistas = new Set<string>();
+      for (const e of lista) {
+        const chave = `${(e.cep || '').replace(/\D/g, '')}_${(e.numero || '').trim().toLowerCase()}_${(e.logradouro || '').trim().toLowerCase()}`;
+        if (!chavesVistas.has(chave)) {
+          chavesVistas.add(chave);
+          unicos.push(e);
+        }
+      }
+      setEnderecos(unicos);
       if (enderecoAtualId) {
-        const atual = lista.find(e => e.id === enderecoAtualId);
+        const atual = unicos.find(e => e.id === enderecoAtualId);
         if (atual) {
           setEnderecoEscolhido(atual);
-        } else if (lista.length > 0) {
-          setEnderecoEscolhido(lista[0]);
+        } else if (unicos.length > 0) {
+          setEnderecoEscolhido(unicos[0]);
         }
-      } else if (lista.length > 0) {
-        setEnderecoEscolhido(lista[0]);
+      } else if (unicos.length > 0) {
+        setEnderecoEscolhido(unicos[0]);
       }
     } catch (err) {
       console.warn('Erro ao carregar endereços do cliente:', err);
@@ -355,7 +365,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-200">
-                              {end.identificador || 'Endereço'}
+                              {end.is_principal ? 'Endereço Principal' : (end.identificador === 'Principal' ? 'Endereço Alternativo' : (end.identificador || 'Endereço'))}
                             </span>
                             {end.is_principal && (
                               <span className="text-[10px] font-black uppercase bg-indigo-500/20 text-indigo-300 px-1.5 py-0.2 rounded border border-indigo-500/30">

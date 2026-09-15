@@ -115,8 +115,23 @@ export class UberDirectService {
       const responseData = await response.json() as UberDeliveryQuoteResponse;
 
       if (!response.ok) {
-        // Tratamento gracioso de erro: raio excedido ou endereço não coberto
+        // Tratamento gracioso de erro
         const msg = (responseData.message || responseData.code || '').toLowerCase();
+        if (msg.includes('tax_form_required') || msg.includes('customer_blocked')) {
+          console.warn('[UberDirect] Conta com pendência de formulário fiscal em direct.uber.com:', responseData.message);
+          return {
+            id: 'uber-blocked',
+            provedor: 'uber',
+            transportadora_nome: 'Uber Direct',
+            servico_codigo: 'uber_blocked',
+            servico_nome: 'Uber Direct (Aviso Cadastral)',
+            valor_frete: 0,
+            prazo_estimado_texto: 'Regularize em direct.uber.com',
+            icone_tipo: 'uber',
+            erro: 'Conta com pendência de formulário fiscal no painel da Uber Direct.'
+          };
+        }
+
         if (
           response.status === 400 ||
           response.status === 422 ||
