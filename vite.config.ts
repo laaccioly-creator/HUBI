@@ -138,6 +138,129 @@ function setupBuscaFotosMiddleware(middlewares: any) {
   });
 }
 
+function setupShippingProxyMiddleware(middlewares: any) {
+  middlewares.use('/api/shipping/melhor-envio', async (req: any, res: any) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    try {
+      let bodyStr = '';
+      for await (const chunk of req) {
+        bodyStr += chunk;
+      }
+      const { endpoint, token, payload } = JSON.parse(bodyStr || '{}');
+
+      const meRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await meRes.text();
+      res.statusCode = meRes.status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(data);
+    } catch (err: any) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+
+  middlewares.use('/api/shipping/uber-token', async (req: any, res: any) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    try {
+      let bodyStr = '';
+      for await (const chunk of req) {
+        bodyStr += chunk;
+      }
+      const { client_id, client_secret } = JSON.parse(bodyStr || '{}');
+
+      const params = new URLSearchParams();
+      params.append('client_id', client_id);
+      params.append('client_secret', client_secret);
+      params.append('grant_type', 'client_credentials');
+      params.append('scope', 'eats.deliveries');
+
+      const tokenRes = await fetch('https://login.uber.com/oauth/v2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params.toString()
+      });
+
+      const data = await tokenRes.text();
+      res.statusCode = tokenRes.status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(data);
+    } catch (err: any) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+
+  middlewares.use('/api/shipping/uber-quote', async (req: any, res: any) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    try {
+      let bodyStr = '';
+      for await (const chunk of req) {
+        bodyStr += chunk;
+      }
+      const { endpoint, token, payload } = JSON.parse(bodyStr || '{}');
+
+      const quoteRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await quoteRes.text();
+      res.statusCode = quoteRes.status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(data);
+    } catch (err: any) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -179,9 +302,11 @@ export default defineConfig({
       name: 'api-busca-fotos-internet',
       configureServer(server) {
         setupBuscaFotosMiddleware(server.middlewares);
+        setupShippingProxyMiddleware(server.middlewares);
       },
       configurePreviewServer(server) {
         setupBuscaFotosMiddleware(server.middlewares);
+        setupShippingProxyMiddleware(server.middlewares);
       }
     }
   ],
