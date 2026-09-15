@@ -48,7 +48,7 @@ import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
-import { extrairObservacaoLimpa } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL } from '../utils/formatters';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -91,6 +91,80 @@ export interface LinhaPagamentoPDV {
   valor_entregue?: number | null;
   parcelas?: number;
 }
+
+interface MoneyInputProps {
+  valor: number;
+  onChange: (novoValor: number) => void;
+  autoFocus?: boolean;
+  className?: string;
+  placeholder?: string;
+}
+
+const MoneyInput: React.FC<MoneyInputProps> = ({
+  valor,
+  onChange,
+  autoFocus,
+  className,
+  placeholder = "0,00"
+}) => {
+  const [texto, setTexto] = useState<string>(() =>
+    valor > 0 ? formatarValorBRL(valor) : ''
+  );
+  const [focado, setFocado] = useState(false);
+
+  useEffect(() => {
+    if (!focado) {
+      setTexto(valor > 0 ? formatarValorBRL(valor) : '');
+    }
+  }, [valor, focado]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Permite apenas números e separadores decimais (vírgula e ponto)
+    const sanitizado = raw.replace(/[^\d.,]/g, '');
+    setTexto(sanitizado);
+
+    if (!sanitizado) {
+      onChange(0);
+      return;
+    }
+
+    // Normaliza para float numérico: remove pontos e converte vírgula para ponto
+    let normalizado = sanitizado;
+    if (normalizado.includes(',')) {
+      normalizado = normalizado.replace(/\./g, '').replace(',', '.');
+    }
+    const parsed = parseFloat(normalizado);
+    onChange(isNaN(parsed) ? 0 : parsed);
+  };
+
+  const handleBlur = () => {
+    setFocado(false);
+    if (valor > 0) {
+      setTexto(formatarValorBRL(valor));
+    } else {
+      setTexto('');
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      autoFocus={autoFocus}
+      onFocus={(e) => {
+        setFocado(true);
+        e.target.select();
+      }}
+      onBlur={handleBlur}
+      value={texto}
+      onChange={handleChange}
+      placeholder={placeholder}
+      style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+      className={className}
+    />
+  );
+};
 
 export const PosCheckout: React.FC = () => {
   const navigate = useNavigate();
@@ -2218,7 +2292,7 @@ export const PosCheckout: React.FC = () => {
                 ) : (
                   <span className="text-emerald-400 font-bold text-xs">
                     {pedidoEntrega.transportadora_nome ? `${pedidoEntrega.transportadora_nome}: ` : ''}
-                    {taxaEntrega > 0 ? `+ R$ ${taxaEntrega.toFixed(2)}` : 'Grátis'}
+                    {taxaEntrega > 0 ? `+ ${formatarMoeda(taxaEntrega)}` : 'Grátis'}
                   </span>
                 )}
 
@@ -2238,7 +2312,7 @@ export const PosCheckout: React.FC = () => {
 
             <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
               <span>TOTAL A PAGAR:</span>
-              <span className="text-emerald-400 text-lg">R$ {total.toFixed(2)}</span>
+              <span className="text-emerald-400 text-lg">{formatarMoeda(total)}</span>
             </div>
           </div>
 
@@ -2330,7 +2404,7 @@ export const PosCheckout: React.FC = () => {
 
             <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-0.5">
               <span className="text-xs text-slate-400 block font-medium">Valor Total da Venda</span>
-              <span className="text-3xl font-black text-emerald-400">R$ {total.toFixed(2)}</span>
+              <span className="text-3xl font-black text-emerald-400">{formatarMoeda(total)}</span>
             </div>
 
             {/* Linhas de Pagamento (Múltiplas formas de pagamento) */}
@@ -2403,17 +2477,12 @@ export const PosCheckout: React.FC = () => {
                       <span className="text-xs text-slate-300 font-bold">Valor a pagar:</span>
                       <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30">
                         <span className="text-xs text-emerald-400 font-black">R$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                        <MoneyInput
                           autoFocus={idx === 0}
-                          onFocus={(e) => e.target.select()}
-                          value={linha.valor > 0 ? linha.valor : ''}
-                          onChange={(e) => handleAlterarValorLinha(linha.id, parseFloat(e.target.value) || 0)}
-                          placeholder="0.00"
-                          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
-                          className="w-28 bg-transparent text-right text-sm font-black text-white focus:outline-none placeholder:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          valor={linha.valor}
+                          onChange={(novoValor) => handleAlterarValorLinha(linha.id, novoValor)}
+                          placeholder="0,00"
+                          className="w-28 bg-transparent text-right text-sm font-black text-white focus:outline-none placeholder:text-slate-500"
                         />
                       </div>
                     </div>
@@ -2425,21 +2494,18 @@ export const PosCheckout: React.FC = () => {
                           <span className="text-slate-300 font-medium">Valor Entregue pelo Cliente:</span>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30">
                             <span className="text-xs text-emerald-400 font-bold">R$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : ''}
-                              onChange={(e) => handleAlterarEntregueLinha(linha.id, parseFloat(e.target.value) || 0)}
-                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
-                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            <MoneyInput
+                              valor={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : 0}
+                              onChange={(novoValor) => handleAlterarEntregueLinha(linha.id, novoValor)}
+                              placeholder="0,00"
+                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
                             />
                           </div>
                         </div>
                         {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
                           <div className="flex justify-between font-bold text-amber-400">
                             <span>Troco a devolver:</span>
-                            <span>R$ {(linha.valor_entregue - linha.valor).toFixed(2)}</span>
+                            <span>{formatarMoeda(linha.valor_entregue - linha.valor)}</span>
                           </div>
                         )}
                       </div>
@@ -2456,7 +2522,7 @@ export const PosCheckout: React.FC = () => {
                         >
                           {Array.from({ length: Math.min(12, maxParcelas) }, (_, i) => i + 1).map(num => (
                             <option key={num} value={num}>
-                              {num}x {linha.valor > 0 ? `de R$ ${(linha.valor / num).toFixed(2)}` : ''}
+                              {num}x {linha.valor > 0 ? `de ${formatarMoeda(linha.valor / num)}` : ''}
                             </option>
                           ))}
                         </select>
@@ -2476,13 +2542,13 @@ export const PosCheckout: React.FC = () => {
                           <div className="flex justify-between text-[11px] text-slate-300">
                             <span>Limite de Crédito Disponível:</span>
                             <span className="font-bold text-emerald-400">
-                              R$ {Number(clienteSelecionado.limite_credito || 0).toFixed(2)}
+                              {formatarMoeda(Number(clienteSelecionado.limite_credito || 0))}
                             </span>
                           </div>
                         )}
                         {linha.valor > Number(clienteSelecionado?.limite_credito || 0) && (
                           <p className="text-[11px] text-rose-400 font-bold">
-                            ⚠️ Valor informado excede o limite disponível de R$ {Number(clienteSelecionado?.limite_credito || 0).toFixed(2)}.
+                            ⚠️ Valor informado excede o limite disponível de {formatarMoeda(Number(clienteSelecionado?.limite_credito || 0))}.
                           </p>
                         )}
                       </div>
@@ -2499,7 +2565,7 @@ export const PosCheckout: React.FC = () => {
               >
                 <Plus className="w-4 h-4" />
                 <span>
-                  Adicionar outro meio de pagamento {diferencaPagamento > 0 ? `(Faltam R$ ${diferencaPagamento.toFixed(2)})` : ''}
+                  Adicionar outro meio de pagamento {diferencaPagamento > 0 ? `(Faltam ${formatarMoeda(diferencaPagamento)})` : ''}
                 </span>
               </button>
             </div>
@@ -2508,11 +2574,11 @@ export const PosCheckout: React.FC = () => {
             <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-400">
                 <span>Total da Venda:</span>
-                <span className="font-bold text-white">R$ {total.toFixed(2)}</span>
+                <span className="font-bold text-white">{formatarMoeda(total)}</span>
               </div>
               <div className="flex justify-between text-slate-400">
                 <span>Total dos Meios Informados:</span>
-                <span className="font-bold text-white">R$ {totalLinhasPagamento.toFixed(2)}</span>
+                <span className="font-bold text-white">{formatarMoeda(totalLinhasPagamento)}</span>
               </div>
               <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800/80">
                 {Math.abs(diferencaPagamento) < 0.01 ? (
@@ -2525,12 +2591,12 @@ export const PosCheckout: React.FC = () => {
                 ) : diferencaPagamento > 0 ? (
                   <>
                     <span className="text-amber-400">Restante a Definir:</span>
-                    <span className="text-amber-400">R$ {diferencaPagamento.toFixed(2)}</span>
+                    <span className="text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
                   </>
                 ) : (
                   <>
                     <span className="text-rose-400">Excedente Ultrapassado:</span>
-                    <span className="text-rose-400">R$ {Math.abs(diferencaPagamento).toFixed(2)}</span>
+                    <span className="text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
                   </>
                 )}
               </div>
@@ -2878,18 +2944,18 @@ export const PosCheckout: React.FC = () => {
 
       {/* Modal de Gestão de Frete, Retirada e Endereços */}
       {modalFulfillmentAberto && loja && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                   <Truck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  <h3 className="font-bold text-base text-slate-100">
                     Forma de Entrega / Retirada
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-400">
                     Selecione retirada na loja física ou entrega no endereço do cliente
                   </p>
                 </div>
@@ -2897,7 +2963,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFulfillmentAberto(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2926,11 +2992,18 @@ export const PosCheckout: React.FC = () => {
               }}
             />
 
-            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => setModalFulfillmentAberto(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalFulfillmentAberto(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
               >
                 Confirmar Forma de Entrega
               </button>

@@ -182,12 +182,23 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     };
   }, [clienteId, cliente]);
 
+  // Identificação de integrações ativas ou configuradas
+  const temUber = Boolean(
+    configLoja?.uber_ativo || 
+    (configLoja?.uber_client_id && configLoja?.uber_customer_id)
+  );
+  const temMelhorEnvio = Boolean(
+    configLoja?.melhor_envio_ativo || 
+    configLoja?.melhor_envio_token
+  );
+  const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio);
+
   // 3. Executar Cotação com Filtro de Região Metropolitana para Uber Direct
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco) => {
     if (!configLoja) return;
 
-    // Se nem Uber nem Melhor Envio estiverem ativos, não dispara cotação externa
-    if (!configLoja.uber_ativo && !configLoja.melhor_envio_ativo) {
+    // Se nem Uber nem Melhor Envio estiverem ativos ou configurados, não dispara cotação externa
+    if (!temUber && !temMelhorEnvio) {
       setCotacoes([]);
       return;
     }
@@ -197,6 +208,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     setCotacoes([]);
 
     try {
+      const runtimeConfig: LojaShippingConfig = {
+        ...configLoja,
+        uber_ativo: temUber,
+        melhor_envio_ativo: temMelhorEnvio
+      };
+
       const opcoesBrutas = await ShippingOrchestrator.cotarOpcoesFrete({
         origem_cep: configLoja.origem_cep,
         destino_cep: endAlvo.cep,
@@ -207,7 +224,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         destino_uf: endAlvo.uf,
         subtotal,
         itens,
-        config: configLoja
+        config: runtimeConfig
       });
 
       // Validação de Região Metropolitana para Uber Direct
@@ -362,7 +379,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     whatsapp: loja?.whatsapp
   };
 
-  const temIntegracoesAtivas = Boolean(configLoja?.uber_ativo || configLoja?.melhor_envio_ativo);
   const linkWhatsAppLoja = `https://wa.me/55${(dadosLojaFormatados.whatsapp || dadosLojaFormatados.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Gostaria de combinar a entrega do meu pedido.')}`;
 
   const { link: linkWhatsAppRetirada } = gerarLinkWhatsAppLocalizacaoLoja(
@@ -574,7 +590,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                           <div className="flex items-center gap-3 shrink-0">
                             <span className="font-extrabold text-sm text-emerald-400">
-                              R$ {opcao.valor_frete.toFixed(2)}
+                              R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
                               selecionada ? 'bg-emerald-500 text-slate-950' : 'border border-slate-600'

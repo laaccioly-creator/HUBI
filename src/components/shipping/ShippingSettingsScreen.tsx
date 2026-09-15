@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Truck,
   MapPin,
@@ -167,13 +167,13 @@ export const ShippingSettingsScreen: React.FC = () => {
         origem_latitude: origemLatitude.trim() ? parseFloat(origemLatitude) : null,
         origem_longitude: origemLongitude.trim() ? parseFloat(origemLongitude) : null,
 
-        uber_ativo: uberAtivo,
+        uber_ativo: uberAtivo || Boolean(uberCustomerId.trim() && uberClientId.trim()),
         uber_sandbox_mode: uberSandboxMode,
         uber_customer_id: uberCustomerId.trim() || null,
         uber_client_id: uberClientId.trim() || null,
         uber_client_secret: uberClientSecret.trim() || null,
 
-        melhor_envio_ativo: melhorEnvioAtivo,
+        melhor_envio_ativo: melhorEnvioAtivo || Boolean(melhorEnvioToken.trim()),
         melhor_envio_sandbox_mode: melhorEnvioSandboxMode,
         melhor_envio_token: melhorEnvioToken.trim() || null,
 
