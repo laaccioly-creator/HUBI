@@ -17,6 +17,7 @@ import { CuponsGestao } from './components/CuponsGestao';
 import { FinancasCaixa } from './components/FinancasCaixa';
 import { EstatisticasAnalytics } from './components/EstatisticasAnalytics';
 import { ConfiguracoesLoja } from './components/ConfiguracoesLoja';
+import { ShippingSettingsScreen } from './components/shipping/ShippingSettingsScreen';
 import { AssistenteRubi } from './components/AssistenteRubi';
 import { CatalogoPublico } from './components/CatalogoPublico';
 import { PedidoAndamentoPublico } from './components/PedidoAndamentoPublico';
@@ -169,6 +170,22 @@ const AppRotasInternas: React.FC = () => {
           element={
             <RotaProtegida permitido={permissions.podeAcessarConfig}>
               <ConfiguracoesLoja />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="config/frete"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarConfig}>
+              <ShippingSettingsScreen />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="configuracoes/frete"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarConfig}>
+              <ShippingSettingsScreen />
             </RotaProtegida>
           }
         />

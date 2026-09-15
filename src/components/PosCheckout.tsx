@@ -31,7 +31,9 @@ import {
   Loader2,
   Mail,
   Download,
-  Copy
+  Copy,
+  Truck,
+  Store
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -39,10 +41,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPagamento, TipoPagamento } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
+import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
@@ -102,6 +106,7 @@ export const PosCheckout: React.FC = () => {
     descontoPercentual,
     tipoDesconto,
     taxaEntrega,
+    pedidoEntrega,
     subtotal,
     total,
     totalItens,
@@ -118,10 +123,13 @@ export const PosCheckout: React.FC = () => {
     setTipoDesconto,
     setDesconto,
     setTaxaEntrega,
+    setPedidoEntrega,
     limparCarrinho,
     cancelarEdicaoPedido,
     atualizarStatusPedidoEmEdicao
   } = useCart();
+
+  const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
 
   useEffect(() => {
     if (pedidoEmEdicao) {
@@ -613,6 +621,7 @@ export const PosCheckout: React.FC = () => {
         status: statusFinal as any,
         status_pagamento: 'aguardando_pagamento' as const,
         subtotal,
+        subtotal_produtos: subtotal,
         valor_desconto: desconto,
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         atualizado_por: usuario?.id || null,
@@ -675,6 +684,27 @@ export const PosCheckout: React.FC = () => {
           const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
           const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
           if (erroItens) throw erroItens;
+        }
+
+        // Salvar isolamento relacional da entrega em pedido_entregas
+        if (pedidoIdFinal) {
+          try {
+            const entregaPayload = pedidoEntrega ? {
+              ...pedidoEntrega,
+              pedido_id: pedidoIdFinal,
+              valor_frete: taxaEntrega
+            } : {
+              pedido_id: pedidoIdFinal,
+              tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
+              valor_frete: taxaEntrega,
+              provedor: (taxaEntrega > 0 ? 'uber' : 'retirada_loja') as any,
+              transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
+              status_envio: 'pendente'
+            };
+            await ShippingOrchestrator.salvarPedidoEntrega(pedidoIdFinal, entregaPayload);
+          } catch (eEntrega) {
+            console.warn('Aviso ao salvar pedido_entregas:', eEntrega);
+          }
         }
 
         // Registrar auditoria relacional na tabela historico_pedidos
@@ -1115,6 +1145,7 @@ export const PosCheckout: React.FC = () => {
         status: statusFinal as any,
         status_pagamento: statusPagamento,
         subtotal,
+        subtotal_produtos: subtotal,
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
@@ -1172,6 +1203,27 @@ export const PosCheckout: React.FC = () => {
 
             if (erroPedido || !novoPed) throw erroPedido;
             pedidoCriado = novoPed;
+          }
+
+          // Salvar isolamento relacional da entrega em pedido_entregas
+          if (pedidoCriado?.id) {
+            try {
+              const entregaPayload = pedidoEntrega ? {
+                ...pedidoEntrega,
+                pedido_id: pedidoCriado.id,
+                valor_frete: taxaEntrega
+              } : {
+                pedido_id: pedidoCriado.id,
+                tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
+                valor_frete: taxaEntrega,
+                provedor: (taxaEntrega > 0 ? 'uber' : 'retirada_loja') as any,
+                transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
+                status_envio: 'pendente'
+              };
+              await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
+            } catch (eEntrega) {
+              console.warn('Aviso ao salvar pedido_entregas:', eEntrega);
+            }
           }
 
           const itensComId = itensFormatados.map(it => ({
@@ -2086,6 +2138,34 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
+            {/* Linha Destacada de Frete / Retirada no Carrinho */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? (
+                  <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                ) : (
+                  <Store className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                )}
+                <span className="text-slate-300 font-semibold truncate">
+                  {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0
+                    ? `Frete (${pedidoEntrega.transportadora_nome || 'Entrega'}):`
+                    : 'Modalidade:'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`font-bold ${taxaEntrega > 0 ? 'text-emerald-400' : 'text-purple-300'}`}>
+                  {taxaEntrega > 0 ? `+ R$ ${taxaEntrega.toFixed(2)}` : 'Retirada na Loja (Grátis)'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalFulfillmentAberto(true)}
+                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                >
+                  Alterar
+                </button>
+              </div>
+            </div>
+
             <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
               <span>TOTAL A PAGAR:</span>
               <span className="text-emerald-400 text-lg">R$ {total.toFixed(2)}</span>
@@ -2725,6 +2805,66 @@ export const PosCheckout: React.FC = () => {
           adicionarProdutoPorCodigo(codigo);
         }}
       />
+
+      {/* Modal de Gestão de Frete, Retirada e Endereços */}
+      {modalFulfillmentAberto && loja && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                    Modalidade de Entrega / Retirada
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Selecione retirada na loja física ou entrega no endereço do cliente
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalFulfillmentAberto(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <ShippingFulfillmentSelector
+              lojaId={loja.id}
+              clienteId={clienteSelecionado?.id || null}
+              subtotal={subtotal}
+              itens={itens.map(i => ({
+                nome: i.produto.nome,
+                quantidade: i.quantidade,
+                preco_unitario: i.precoUnitario,
+                peso_kg: (i.produto as any)?.peso_kg || 0.3,
+                largura_cm: (i.produto as any)?.largura_cm || 15,
+                altura_cm: (i.produto as any)?.altura_cm || 10,
+                comprimento_cm: (i.produto as any)?.comprimento_cm || 20
+              }))}
+              valorFreteAtual={taxaEntrega}
+              onChange={(resultado) => {
+                setTaxaEntrega(resultado.valor_frete);
+                setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+              }}
+            />
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setModalFulfillmentAberto(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20"
+              >
+                Confirmar Modalidade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

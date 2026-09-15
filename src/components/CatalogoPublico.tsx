@@ -16,7 +16,9 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente } from '../types';
+import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega } from '../types';
+import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import {
   obterRegrasPrecificacao,
   avaliarNivelCarrinho,
@@ -146,6 +148,8 @@ export const CatalogoPublico: React.FC = () => {
   const [whatsappCliente, setWhatsappCliente] = useState<string>('');
   const [enderecoEntrega, setEnderecoEntrega] = useState<string>('');
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
+  const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
+  const [modalShippingAberto, setModalShippingAberto] = useState<boolean>(false);
   const [observacoes, setObservacoes] = useState<string>('');
   const [enviandoPedido, setEnviandoPedido] = useState<boolean>(false);
 
@@ -518,7 +522,7 @@ export const CatalogoPublico: React.FC = () => {
 
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
-  const valorFrete = Number(formaEntregaEscolhida?.valor_taxa || 0);
+  const valorFrete = pedidoEntrega ? Number(pedidoEntrega.valor_frete || 0) : Number(formaEntregaEscolhida?.valor_taxa || 0);
   const valorFreteEfetivo = freteGratisCupom ? 0 : valorFrete;
   const total = Math.max(0, subtotal - descontoCupom) + valorFreteEfetivo;
 
@@ -755,6 +759,7 @@ export const CatalogoPublico: React.FC = () => {
         forma_pagamento_catalogo: 'a_combinar',
         tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
         subtotal,
+        subtotal_produtos: subtotal,
         valor_frete: valorFreteEfetivo,
         valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
         valor_total: total,
@@ -763,7 +768,9 @@ export const CatalogoPublico: React.FC = () => {
         cupom_id: cupomAplicado?.id || null,
         cupom_codigo: cupomAplicado?.codigo || null,
         valor_desconto_cupom: Number(descontoCupom || 0),
-        endereco_entrega: `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
+        endereco_entrega: pedidoEntrega?.destino_logradouro 
+          ? `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${pedidoEntrega.destino_complemento ? ` - ${pedidoEntrega.destino_complemento}` : ''}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}`
+          : `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
         observacoes: observacoes?.trim() || null,
         forma_entrega_id: formaEntregaEscolhida?.id || null,
         cliente_nome_avulso: nomeCliente || null,
@@ -792,6 +799,25 @@ export const CatalogoPublico: React.FC = () => {
       }
 
       if (erroPedido || !pedidoCriado) throw erroPedido;
+
+      // Persistir isolamento relacional em pedido_entregas
+      try {
+        const entregaPayload = pedidoEntrega ? {
+          ...pedidoEntrega,
+          pedido_id: pedidoCriado.id,
+          valor_frete: valorFreteEfetivo
+        } : {
+          pedido_id: pedidoCriado.id,
+          tipo_atendimento: (valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
+          valor_frete: valorFreteEfetivo,
+          provedor: (valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
+          transportadora_nome: valorFreteEfetivo > 0 ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
+          status_envio: 'pendente'
+        };
+        await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
+      } catch (eEntregaCat) {
+        console.warn('Aviso ao salvar pedido_entregas no catálogo:', eEntregaCat);
+      }
 
       // Inserir registro inicial de auditoria na tabela relacional historico_pedidos
       try {
@@ -1793,21 +1819,21 @@ Fico no aguardo da confirmação! ✨`;
 
                       <button
                         type="button"
-                        onClick={() => setModalEnderecoAberto(true)}
+                        onClick={() => setModalShippingAberto(true)}
                         className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
-                          enderecoEntrega ? 'border-purple-500/50' : 'border-slate-700'
+                          (enderecoEntrega || pedidoEntrega) ? 'border-purple-500/50' : 'border-slate-700'
                         } hover:border-purple-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
                       >
-                        {enderecoEntrega && (
+                        {(enderecoEntrega || pedidoEntrega) && (
                           <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
                         )}
                         <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-400 group-hover:bg-purple-500 group-hover:text-slate-950 flex items-center justify-center transition">
                           <MapPin className="w-4 h-4" />
                         </div>
                         <span className={`text-[11px] font-bold ${
-                          enderecoEntrega ? 'text-purple-400' : 'text-slate-200'
+                          (enderecoEntrega || pedidoEntrega) ? 'text-purple-400' : 'text-slate-200'
                         } group-hover:text-purple-400 leading-tight`}>
-                          Endereço
+                          Entrega / Retirada
                         </span>
                       </button>
                     </div>
@@ -1924,16 +1950,31 @@ Fico no aguardo da confirmação! ✨`;
                       <span>- R$ {descontoCupom.toFixed(2)}</span>
                     </div>
                   )}
-                  {valorFrete > 0 && (
-                    <div className="flex justify-between text-slate-300">
-                      <span>Taxa de Entrega:</span>
-                      {freteGratisCupom ? (
-                        <span className="text-emerald-400 font-bold">GRÁTIS (Cupom)</span>
-                      ) : (
-                        <span>+ R$ {valorFrete.toFixed(2)}</span>
-                      )}
+
+                  {/* Linha Destacada de Frete / Retirada no Carrinho do Catálogo */}
+                  <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+                    <span className="text-slate-300 font-semibold">
+                      {pedidoEntrega?.tipo_atendimento === 'entrega' && valorFreteEfetivo > 0
+                        ? `Frete (${pedidoEntrega.transportadora_nome || 'Entrega'}):`
+                        : 'Modalidade:'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold ${valorFreteEfetivo > 0 ? 'text-emerald-400' : 'text-purple-300'}`}>
+                        {freteGratisCupom 
+                          ? 'GRÁTIS (Cupom)' 
+                          : valorFreteEfetivo > 0 
+                          ? `+ R$ ${valorFreteEfetivo.toFixed(2)}` 
+                          : 'Retirada na Loja (Grátis)'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setModalShippingAberto(true)}
+                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                      >
+                        Alterar
+                      </button>
                     </div>
-                  )}
+                  </div>
                   <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
                     <span>Total do Pedido:</span>
                     <span className="text-emerald-400 text-lg">R$ {total.toFixed(2)}</span>
@@ -2167,6 +2208,69 @@ Fico no aguardo da confirmação! ✨`;
           abertoExterno={rubiAbertaExterna}
           onFecharExterno={() => setRubiAbertaExterna(false)}
         />
+      )}
+
+      {/* MODAL DE SELEÇÃO DE FRETE E ENTREGA NO CATÁLOGO */}
+      {modalShippingAberto && loja && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                    Escolha Como Deseja Receber
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Retirada presencial na loja física ou entrega no seu endereço
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalShippingAberto(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <ShippingFulfillmentSelector
+              lojaId={loja.id}
+              clienteId={clienteSelecionado?.id || null}
+              subtotal={subtotal}
+              itens={carrinho.map(i => ({
+                nome: i.produto.nome,
+                quantidade: i.quantidade,
+                preco_unitario: i.produto.preco_venda_varejo || 0,
+                peso_kg: (i.produto as any)?.peso_kg || 0.3,
+                largura_cm: (i.produto as any)?.largura_cm || 15,
+                altura_cm: (i.produto as any)?.altura_cm || 10,
+                comprimento_cm: (i.produto as any)?.comprimento_cm || 20
+              }))}
+              valorFreteAtual={valorFrete}
+              onChange={(resultado) => {
+                setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {
+                  const end = resultado.endereco_selecionado;
+                  setEnderecoEntrega(`${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`);
+                }
+              }}
+            />
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setModalShippingAberto(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20"
+              >
+                Confirmar Opção
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -3155,6 +3155,32 @@ export const ConfiguracoesLoja: React.FC = () => {
               <p className="text-xs text-slate-400 mt-0.5">Configure entregas via motoboy e retirada no balcão</p>
             </div>
 
+            {/* Banner Módulo Avançado de Frete & Logística */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/50 via-slate-950 to-indigo-950/50 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-slate-100">Gestão Avançada de Frete & Logística</span>
+                    <span className="text-[10px] uppercase font-black bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40">Novo</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Configure integrações com <strong>Uber Direct</strong> (motoboy flash), <strong>Melhor Envio</strong> (Correios/Jadlog) e regras de cotação em tempo real.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/configuracoes/frete')}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all shrink-0 cursor-pointer"
+              >
+                <span>Configurar Frete Avançado</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
             {/* Entregas */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">

@@ -1,3 +1,6 @@
+import { PedidoEntrega } from './types/shipping';
+export type { PedidoEntrega };
+
 export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
 export type TipoUnidade = 'un' | 'kg' | 'l' | 'm';
@@ -477,6 +480,8 @@ export interface FormaEntrega {
   criado_em?: string;
 }
 
+export * from './types/shipping';
+
 export interface Pedido {
   id: string;
   loja_id: string;
@@ -488,6 +493,7 @@ export interface Pedido {
   status: StatusPedido;
   status_pagamento?: StatusPagamento;
   subtotal: number;
+  subtotal_produtos?: number;
   valor_desconto: number;
   desconto_percentual?: number | null;
   valor_frete: number;
@@ -525,6 +531,7 @@ export interface Pedido {
   pagamentos?: PagamentoPedido[];
   pagamentos_previstos?: PedidoPagamentoPrevisto[];
   historico?: HistoricoPedido[];
+  pedido_entrega?: PedidoEntrega | null;
 }
 
 export interface PedidoPagamentoPrevisto {

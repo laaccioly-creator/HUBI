@@ -197,6 +197,33 @@ export class PrintService {
       // Dados de pagamento (após o valor total)
       const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
 
+      // Dados de frete e atendimento
+      const pe = pedido.pedido_entrega;
+      const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0);
+      const transpNome = pe?.transportadora_nome || (pedido.forma_entrega?.nome) || (ehRetirada ? 'Retirada na Loja' : 'Entrega');
+      const tipoAtendimentoTexto = ehRetirada ? 'RETIRADA NA LOJA' : `ENTREGA VIA ${transpNome.toUpperCase()}`;
+      
+      let enderecoExibicao = '';
+      let labelEndereco = '';
+      if (ehRetirada) {
+        labelEndereco = 'Local de Retirada (Loja):';
+        enderecoExibicao = [
+          loja?.endereco_logradouro,
+          loja?.endereco_numero,
+          loja?.endereco_bairro,
+          loja?.endereco_cidade,
+          loja?.endereco_estado
+        ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
+      } else {
+        labelEndereco = 'Endereço de Entrega:';
+        if (pe?.destino_logradouro) {
+          enderecoExibicao = `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_complemento ? ` - ${pe.destino_complemento}` : ''}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf} (CEP ${pe.destino_cep})`;
+        } else if (pedido.endereco_entrega) {
+          enderecoExibicao = pedido.endereco_entrega;
+        }
+      }
+      const codigoRastreio = pe?.codigo_rastreio;
+
       // Dados do cliente
       const clienteNome = pedido.cliente?.nome || (pedido as any).nome_cliente || 'Cliente';
       const clienteTelefone = pedido.cliente?.whatsapp || pedido.cliente?.telefone;
@@ -276,21 +303,35 @@ export class PrintService {
           </div>
 
           <!-- Informações do Cliente -->
-          <div style="margin-bottom: 16px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155;">
+          <div style="margin-bottom: 12px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155;">
             <div style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">
               Cliente:
             </div>
             <div style="font-weight: 600; margin-bottom: 2px; color: #0f172a;">
               ${clienteNome}
             </div>
-            ${(() => {
-              if (!pedido.endereco_entrega) return '';
-              const endLimpo = pedido.endereco_entrega
-                .replace(/^(\s*entrega\s*[:\-–—]\s*)+/gi, '')
-                .replace(/^(\s*retirada\s*[:\-–—]\s*)+/gi, '')
-                .trim();
-              return endLimpo ? `<div style="font-size: ${isA4 ? '12px' : '10px'}; color: #64748b; margin-top: 2px;">${endLimpo}</div>` : '';
-            })()}
+          </div>
+
+          <!-- Bloco de Modalidade e Logística de Atendimento -->
+          <div style="margin-bottom: 14px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                Modalidade de Atendimento:
+              </span>
+              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${ehRetirada ? '#7e22ce' : '#047857'}; background: ${ehRetirada ? '#f3e8ff' : '#d1fae5'}; padding: 1px 6px; border-radius: 4px;">
+                ${tipoAtendimentoTexto}
+              </span>
+            </div>
+            ${enderecoExibicao ? `
+              <div style="font-size: ${isA4 ? '12px' : '10px'}; color: #334155; margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px; line-height: 1.3;">
+                <strong>${labelEndereco}</strong> ${enderecoExibicao}
+              </div>
+            ` : ''}
+            ${codigoRastreio ? `
+              <div style="font-size: ${isA4 ? '11px' : '9px'}; color: #059669; margin-top: 3px; font-weight: 700;">
+                Código de Rastreio: ${codigoRastreio}
+              </div>
+            ` : ''}
           </div>
 
           <!-- Resumo de Itens -->
@@ -308,29 +349,27 @@ export class PrintService {
             </tbody>
           </table>
 
-          <!-- Acréscimos / Descontos se houver -->
-          ${(Number(pedido.valor_desconto || 0) > 0 || Number(pedido.valor_frete || 0) > 0) ? `
-            <div style="margin-top: 8px; padding-top: 6px; font-size: ${isA4 ? '12px' : '11px'}; color: #475569; border-top: 1px dashed #e2e8f0;">
-              ${Number(pedido.subtotal || 0) > 0 ? `
-                <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                  <span>Subtotal:</span>
-                  <span>R$ ${Number(pedido.subtotal).toFixed(2)}</span>
-                </div>
-              ` : ''}
-              ${Number(pedido.valor_desconto || 0) > 0 ? `
-                <div style="display: flex; justify-content: space-between; margin: 2px 0; color: #dc2626;">
-                  <span>Desconto:</span>
-                  <span>- R$ ${Number(pedido.valor_desconto).toFixed(2)}</span>
-                </div>
-              ` : ''}
-              ${Number(pedido.valor_frete || 0) > 0 ? `
-                <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                  <span>Taxa de Entrega:</span>
-                  <span>+ R$ ${Number(pedido.valor_frete).toFixed(2)}</span>
-                </div>
-              ` : ''}
+          <!-- Fechamento Financeiro: Subtotal, Desconto e Frete -->
+          <div style="margin-top: 8px; padding-top: 6px; font-size: ${isA4 ? '12px' : '11px'}; color: #475569; border-top: 1px dashed #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+              <span>Subtotal dos Produtos:</span>
+              <span>R$ ${Number(pedido.subtotal_produtos || pedido.subtotal || 0).toFixed(2)}</span>
             </div>
-          ` : ''}
+            ${Number(pedido.valor_desconto || 0) > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin: 2px 0; color: #dc2626;">
+                <span>Desconto Aplicado:</span>
+                <span>- R$ ${Number(pedido.valor_desconto).toFixed(2)}</span>
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+              <span>Frete:</span>
+              <span style="font-weight: 600;">
+                ${Number(pedido.valor_frete || 0) > 0 
+                  ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)} (${transpNome})` 
+                  : 'Grátis (Retirada)'}
+              </span>
+            </div>
+          </div>
 
           <!-- Total -->
           <div style="text-align: right; margin: 12px 0 6px 0; font-size: ${isA4 ? '16px' : '14px'}; font-weight: 700; color: #0f172a;">

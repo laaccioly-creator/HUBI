@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import { Produto, VariacaoProduto, Cliente, TabelaPreco } from '../types';
+import { Produto, VariacaoProduto, Cliente, TabelaPreco, PedidoEntrega } from '../types';
 import { audioService } from '../services/audioService';
 import { useAuth } from './AuthContext';
 import {
@@ -8,6 +8,7 @@ import {
   calcularPrecoUnitarioPorTabela,
   ResultadoAvaliacaoCarrinho
 } from '../services/pricingEngine';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 
 import { supabase } from '../lib/supabase';
 import { podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
@@ -33,6 +34,7 @@ interface CartContextType {
   descontoPercentual: number;
   tipoDesconto: 'valor' | 'percentual';
   taxaEntrega: number;
+  pedidoEntrega: PedidoEntrega | null;
   subtotal: number;
   total: number;
   totalItens: number;
@@ -49,6 +51,7 @@ interface CartContextType {
   setTipoDesconto: (tipo: 'valor' | 'percentual') => void;
   setDesconto: (valor: number) => void;
   setTaxaEntrega: (valor: number) => void;
+  setPedidoEntrega: (entrega: PedidoEntrega | null) => void;
   limparCarrinho: () => void;
   carregarPedidoParaEdicao: (pedido: any) => Promise<void>;
   cancelarEdicaoPedido: () => void;
@@ -66,6 +69,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [descontoPercentual, setDescontoPercentualState] = useState<number>(0);
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [taxaEntrega, setTaxaEntrega] = useState<number>(0);
+  const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
 
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
@@ -335,6 +339,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDescontoPercentualState(0);
     setTipoDesconto('valor');
     setTaxaEntrega(0);
+    setPedidoEntrega(null);
     setPedidoEmEdicao(null);
     setSnapshotPedidoOriginal(null);
   };
@@ -375,7 +380,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setDescontoPercentualState(Number(descPercCalculado.toFixed(2)));
     }
 
-    const taxaFinal = Number(pedido.valor_frete) || 0;
+    let taxaFinal = Number(pedido.valor_frete) || 0;
+    try {
+      const entregaDb = await ShippingOrchestrator.buscarPedidoEntrega(pedido.id);
+      if (entregaDb) {
+        setPedidoEntrega(entregaDb);
+        taxaFinal = Number(entregaDb.valor_frete) || 0;
+      } else {
+        setPedidoEntrega(null);
+      }
+    } catch {
+      setPedidoEntrega(null);
+    }
     setTaxaEntrega(taxaFinal);
 
     // Buscar estoque real dos produtos e variações no Supabase
@@ -488,6 +504,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         descontoPercentual,
         tipoDesconto,
         taxaEntrega,
+        pedidoEntrega,
         subtotal,
         total,
         totalItens,
@@ -504,6 +521,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTipoDesconto,
         setDesconto,
         setTaxaEntrega,
+        setPedidoEntrega,
         limparCarrinho,
         carregarPedidoParaEdicao,
         cancelarEdicaoPedido,

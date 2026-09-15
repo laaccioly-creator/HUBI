@@ -2078,6 +2078,36 @@ export const PedidosLista: React.FC = () => {
                   {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-600">{pedidoReciboModal.cliente.whatsapp}</p>}
                 </div>
 
+                {/* Modalidade de Atendimento & Endereço */}
+                {(() => {
+                  const pe = (pedidoReciboModal as any).pedido_entrega;
+                  const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedidoReciboModal.valor_frete || 0) === 0);
+                  const transpNome = pe?.transportadora_nome || (pedidoReciboModal.forma_entrega?.nome) || (ehRetirada ? 'Retirada na Loja' : 'Entrega');
+                  const enderecoDestino = pe?.destino_logradouro 
+                    ? `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_complemento ? ` - ${pe.destino_complemento}` : ''}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}`
+                    : pedidoReciboModal.endereco_entrega;
+
+                  return (
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-700 uppercase">Atendimento:</span>
+                        <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {ehRetirada ? 'RETIRADA NA LOJA' : `ENTREGA (${transpNome})`}
+                        </span>
+                      </div>
+                      <div className="text-slate-600 pt-0.5">
+                        <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço:'} </strong>
+                        <span>{ehRetirada ? enderecoLojaFormatado : (enderecoDestino || 'Endereço não informado')}</span>
+                      </div>
+                      {pe?.codigo_rastreio && (
+                        <div className="text-emerald-700 font-bold pt-0.5">
+                          Rastreio: {pe.codigo_rastreio}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Itens */}
                 <div className="space-y-2 border-b border-slate-300 border-dashed pb-2">
                   <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px] block">
@@ -2086,7 +2116,7 @@ export const PedidosLista: React.FC = () => {
                   {pedidoReciboModal.itens?.map((item, idx) => (
                     <div key={idx} className="flex justify-between py-0.5 text-slate-800">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-950">{item.quantidade}x</span>
+                        <span className="font-bold text-slate-900">{item.quantidade}x</span>
                         <span className="text-slate-800">{item.nome_produto}</span>
                       </div>
                       <span className="font-bold text-slate-900 whitespace-nowrap pl-2">
@@ -2099,8 +2129,8 @@ export const PedidosLista: React.FC = () => {
                 {/* Totais */}
                 <div className="space-y-1 text-xs text-slate-700">
                   <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span className="font-semibold text-slate-900">R$ {Number(pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
+                    <span>Subtotal dos Produtos:</span>
+                    <span className="font-semibold text-slate-900">R$ {Number((pedidoReciboModal as any).subtotal_produtos || pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
                   </div>
                   {Number(pedidoReciboModal.valor_desconto || 0) > 0 && (
                     <div className="flex justify-between text-red-600 font-bold">
@@ -2108,12 +2138,14 @@ export const PedidosLista: React.FC = () => {
                       <span>-R$ {Number(pedidoReciboModal.valor_desconto).toFixed(2)}</span>
                     </div>
                   )}
-                  {Number(pedidoReciboModal.valor_frete || 0) > 0 && (
-                    <div className="flex justify-between">
-                      <span>Taxa de Entrega:</span>
-                      <span className="font-semibold">+R$ {Number(pedidoReciboModal.valor_frete).toFixed(2)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span>Frete:</span>
+                    <span className="font-semibold">
+                      {Number(pedidoReciboModal.valor_frete || 0) > 0 
+                        ? `+R$ ${Number(pedidoReciboModal.valor_frete).toFixed(2)}` 
+                        : 'Grátis (Retirada)'}
+                    </span>
+                  </div>
                   <div className="flex justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-900">
                     <span>TOTAL:</span>
                     <span>R$ {Number(pedidoReciboModal.valor_total || 0).toFixed(2)}</span>
