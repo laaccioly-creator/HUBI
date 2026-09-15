@@ -2298,10 +2298,18 @@ Fico no aguardo da confirmação! ✨`;
               valorFreteAtual={valorFrete}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               onChange={(resultado) => {
-                setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                setPedidoEntrega(prev => {
+                  if (prev?.servico_codigo === resultado.pedido_entrega?.servico_codigo &&
+                      prev?.valor_frete === resultado.pedido_entrega?.valor_frete &&
+                      prev?.tipo_atendimento === resultado.pedido_entrega?.tipo_atendimento) {
+                    return prev;
+                  }
+                  return resultado.pedido_entrega as PedidoEntrega;
+                });
                 if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {
                   const end = resultado.endereco_selecionado;
-                  setEnderecoEntrega(`${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`);
+                  const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
+                  setEnderecoEntrega(prev => prev !== novoTxt ? novoTxt : prev);
                 }
               }}
             />

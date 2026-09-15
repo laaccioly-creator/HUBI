@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Store,
   Truck,
@@ -104,6 +104,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [cotando, setCotando] = useState<boolean>(false);
   const [erroCotacaoMsg, setErroCotacaoMsg] = useState<string | null>(null);
 
+  // Refs de proteção contra re-renderizações e loops infinitos
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const ultimaCotacaoParamRef = useRef<string>('');
+  const ultimoResultadoEmitidoRef = useRef<string>('');
+
+  // Assinatura estável dos itens do carrinho para evitar disparo por recriação de array
+  const itensSig = useMemo(() => {
+    return (itens || [])
+      .map(i => `${i.nome}:${i.quantidade}:${i.preco_unitario}`)
+      .join('|');
+  }, [itens]);
+
   // 1. Carregar Configuração da Loja
   useEffect(() => {
     let ativo = true;
@@ -130,47 +146,57 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     };
   }, [lojaId]);
 
+  // Propriedades primitivas estáveis do cliente para não disparar por objeto literal
+  const clienteCep = (cliente?.endereco_cep || cliente?.cep || '').replace(/\D/g, '');
+  const clienteLogr = (cliente?.endereco_logradouro || cliente?.rua || cliente?.endereco || '').trim();
+  const clienteNum = (cliente?.endereco_numero || cliente?.numero || '').trim();
+  const clienteComp = (cliente?.endereco_complemento || cliente?.complemento || '').trim();
+  const clienteBairro = (cliente?.endereco_bairro || cliente?.bairro || '').trim();
+  const clienteCid = (cliente?.endereco_cidade || cliente?.cidade || '').trim();
+  const clienteUf = (cliente?.endereco_estado || cliente?.estado || 'CE').trim().toUpperCase();
+
   // 2. Carregar Endereço Principal do Cliente
   useEffect(() => {
     let ativo = true;
 
     async function carregarEnderecoInicial() {
-      const cepCli = (cliente?.endereco_cep || cliente?.cep || '').replace(/\D/g, '');
-      const logrCli = (cliente?.endereco_logradouro || cliente?.rua || cliente?.endereco || '').trim();
-      const numCli = (cliente?.endereco_numero || cliente?.numero || '').trim();
-      const compCli = (cliente?.endereco_complemento || cliente?.complemento || '').trim();
-      const bairroCli = (cliente?.endereco_bairro || cliente?.bairro || '').trim();
-      const cidCli = (cliente?.endereco_cidade || cliente?.cidade || '').trim();
-      const ufCli = (cliente?.endereco_estado || cliente?.estado || 'CE').trim().toUpperCase();
-
       if (clienteId) {
         setCarregandoEnderecos(true);
         try {
           const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
           if (ativo) {
-            // 1. Prioriza o endereço oficial cadastrado na tabela clientes
-            if (cepCli && logrCli && cidCli) {
+            if (clienteCep && clienteLogr && clienteCid) {
               const correspondente = lista.find(e => 
-                (e.cep || '').replace(/\D/g, '') === cepCli &&
-                (e.numero || '').trim().toLowerCase() === numCli.toLowerCase()
+                (e.cep || '').replace(/\D/g, '') === clienteCep &&
+                (e.numero || '').trim().toLowerCase() === clienteNum.toLowerCase()
               );
 
-              setEnderecoSelecionado(correspondente || {
+              const novoEnd = correspondente || {
                 id: 'cli-db-principal',
                 cliente_id: cliente?.id || clienteId,
                 identificador: 'Principal',
-                cep: cepCli,
-                logradouro: logrCli,
-                numero: numCli || 'S/N',
-                complemento: compCli || null,
-                bairro: bairroCli,
-                cidade: cidCli,
-                uf: ufCli,
+                cep: clienteCep,
+                logradouro: clienteLogr,
+                numero: clienteNum || 'S/N',
+                complemento: clienteComp || null,
+                bairro: clienteBairro,
+                cidade: clienteCid,
+                uf: clienteUf,
                 is_principal: true
+              };
+
+              setEnderecoSelecionado(prev => {
+                if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero) {
+                  return prev;
+                }
+                return novoEnd;
               });
             } else if (lista.length > 0) {
               const principal = lista.find(e => e.is_principal) || lista[0];
-              setEnderecoSelecionado(principal);
+              setEnderecoSelecionado(prev => {
+                if (prev && prev.id === principal.id) return prev;
+                return principal;
+              });
             }
           }
         } catch (err) {
@@ -178,19 +204,26 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         } finally {
           if (ativo) setCarregandoEnderecos(false);
         }
-      } else if (cepCli && cidCli) {
-        setEnderecoSelecionado({
+      } else if (clienteCep && clienteCid) {
+        const novoEnd = {
           id: 'temp-cli',
           cliente_id: cliente?.id || 'temp',
           identificador: 'Principal',
-          cep: cepCli,
-          logradouro: logrCli,
-          numero: numCli || 'S/N',
-          complemento: compCli || null,
-          bairro: bairroCli,
-          cidade: cidCli,
-          uf: ufCli,
+          cep: clienteCep,
+          logradouro: clienteLogr,
+          numero: clienteNum || 'S/N',
+          complemento: clienteComp || null,
+          bairro: clienteBairro,
+          cidade: clienteCid,
+          uf: clienteUf,
           is_principal: true
+        };
+
+        setEnderecoSelecionado(prev => {
+          if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero) {
+            return prev;
+          }
+          return novoEnd;
         });
       }
     }
@@ -200,7 +233,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     return () => {
       ativo = false;
     };
-  }, [clienteId, cliente]);
+  }, [clienteId, clienteCep, clienteLogr, clienteNum, clienteComp, clienteBairro, clienteCid, clienteUf]);
 
   // Identificação de integrações ativas ou configuradas
   const temUber = Boolean(
@@ -214,18 +247,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio);
 
   // 3. Executar Cotação com Filtro de Região Metropolitana para Uber Direct
-  const executarCotacao = useCallback(async (endAlvo: ClienteEndereco) => {
+  const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
     if (!configLoja) return;
 
-    // Se nem Uber nem Melhor Envio estiverem ativos ou configurados, não dispara cotação externa
     if (!temUber && !temMelhorEnvio) {
       setCotacoes([]);
       return;
     }
 
+    const chaveCotacao = `${modalidade}_${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja.id}`;
+    if (!forcar && ultimaCotacaoParamRef.current === chaveCotacao) {
+      return;
+    }
+    ultimaCotacaoParamRef.current = chaveCotacao;
+
     setCotando(true);
     setErroCotacaoMsg(null);
-    setCotacoes([]);
 
     try {
       const runtimeConfig: LojaShippingConfig = {
@@ -263,7 +300,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         }
       );
 
-      // Filtra as opções: se não for mesma região metropolitana, remove o Uber Direct
       const opcoesFiltradas = opcoesBrutas.filter(op => {
         if (op.provedor === 'uber') {
           return mesmaRegiao;
@@ -276,36 +312,38 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       const opcoesValidas = opcoesFiltradas.filter(o => !o.erro && o.valor_frete > 0);
 
       if (opcoesValidas.length > 0) {
-        // Seleciona opção com mesmo ID ou a de menor valor
         const encontrada = opcoesValidas.find(o => o.id === opcaoSelecionadaId) || opcoesValidas[0];
         setCotacaoEscolhida(encontrada);
 
-        // Notifica o componente pai com a entrega selecionada
-        onChange({
-          tipo_atendimento: 'entrega',
-          valor_frete: encontrada.valor_frete,
-          opcao_selecionada: encontrada,
-          pedido_entrega: {
-            pedido_id: '',
+        const chaveEmissao = `${encontrada.id}_${encontrada.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega`;
+        if (ultimoResultadoEmitidoRef.current !== chaveEmissao) {
+          ultimoResultadoEmitidoRef.current = chaveEmissao;
+          onChangeRef.current({
             tipo_atendimento: 'entrega',
-            cliente_endereco_id: endAlvo.id?.startsWith('temp') || endAlvo.id?.startsWith('gps') ? null : endAlvo.id,
-            destino_cep: endAlvo.cep,
-            destino_logradouro: endAlvo.logradouro,
-            destino_numero: endAlvo.numero,
-            destino_complemento: endAlvo.complemento,
-            destino_bairro: endAlvo.bairro,
-            destino_cidade: endAlvo.cidade,
-            destino_uf: endAlvo.uf,
-            destino_latitude: endAlvo.latitude,
-            destino_longitude: endAlvo.longitude,
-            provedor: encontrada.provedor,
-            transportadora_nome: encontrada.transportadora_nome,
-            servico_codigo: encontrada.servico_codigo,
             valor_frete: encontrada.valor_frete,
-            prazo_estimado_texto: encontrada.prazo_estimado_texto,
-            status_envio: 'pendente'
-          }
-        });
+            opcao_selecionada: encontrada,
+            pedido_entrega: {
+              pedido_id: '',
+              tipo_atendimento: 'entrega',
+              cliente_endereco_id: endAlvo.id?.startsWith('temp') || endAlvo.id?.startsWith('gps') ? null : endAlvo.id,
+              destino_cep: endAlvo.cep,
+              destino_logradouro: endAlvo.logradouro,
+              destino_numero: endAlvo.numero,
+              destino_complemento: endAlvo.complemento,
+              destino_bairro: endAlvo.bairro,
+              destino_cidade: endAlvo.cidade,
+              destino_uf: endAlvo.uf,
+              destino_latitude: endAlvo.latitude,
+              destino_longitude: endAlvo.longitude,
+              provedor: encontrada.provedor,
+              transportadora_nome: encontrada.transportadora_nome,
+              servico_codigo: encontrada.servico_codigo,
+              valor_frete: encontrada.valor_frete,
+              prazo_estimado_texto: encontrada.prazo_estimado_texto,
+              status_envio: 'pendente'
+            }
+          });
+        }
       } else {
         setCotacaoEscolhida(null);
       }
@@ -316,7 +354,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } finally {
       setCotando(false);
     }
-  }, [configLoja, subtotal, itens, opcaoSelecionadaId, onChange]);
+  }, [configLoja, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, opcaoSelecionadaId]);
 
   // Dispara cotação quando o endereço for definido na aba de entrega
   useEffect(() => {

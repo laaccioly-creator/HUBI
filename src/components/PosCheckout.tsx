@@ -2987,8 +2987,14 @@ export const PosCheckout: React.FC = () => {
               valorFreteAtual={taxaEntrega}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               onChange={(resultado) => {
-                setTaxaEntrega(resultado.valor_frete);
-                setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                if (taxaEntrega !== resultado.valor_frete) {
+                  setTaxaEntrega(resultado.valor_frete);
+                }
+                if (pedidoEntrega?.servico_codigo !== resultado.pedido_entrega?.servico_codigo ||
+                    pedidoEntrega?.valor_frete !== resultado.pedido_entrega?.valor_frete ||
+                    pedidoEntrega?.tipo_atendimento !== resultado.pedido_entrega?.tipo_atendimento) {
+                  setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                }
               }}
             />
 
