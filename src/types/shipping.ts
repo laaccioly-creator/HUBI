@@ -1,4 +1,4 @@
-﻿export type TipoAtendimento = 'retirada' | 'entrega';
+export type TipoAtendimento = 'retirada' | 'entrega';
 export type ProvedorFrete = 'uber' | 'melhor_envio' | 'retirada_loja';
 
 export interface LojaShippingConfig {
@@ -88,10 +88,12 @@ export interface NovoEnderecoFormInput {
   cep: string;
   logradouro: string;
   numero: string;
-  complemento: string;
+  complemento?: string | null;
   bairro: string;
   cidade: string;
   uf: string;
+  latitude?: number | null;
+  longitude?: number | null;
   is_principal: boolean;
 }
 
@@ -121,7 +123,8 @@ export interface RequisicaoCotacaoOrquestrador {
 export interface ShippingSelectionResult {
   tipo_atendimento: TipoAtendimento;
   endereco_selecionado?: ClienteEndereco | null;
-  opcao_frete: OpcaoFreteCotada;
+  opcao_frete?: OpcaoFreteCotada | null;
+  opcao_selecionada?: OpcaoFreteCotada | null;
   pedido_entrega: Partial<PedidoEntrega>;
   valor_frete: number;
 }

@@ -1,13 +1,17 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Store,
   Truck,
   MapPin,
-  Plus,
   Check,
   Loader2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  MessageCircle,
+  Navigation,
+  ChevronRight,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 import {
   TipoAtendimento,
@@ -15,14 +19,44 @@ import {
   ClienteEndereco,
   OpcaoFreteCotada,
   ShippingSelectionResult,
-  NovoEnderecoFormInput,
   CotacaoItemProduto
 } from '../../types/shipping';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
+import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja } from '../../utils/geoUtils';
+import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
+import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
 
 export interface ShippingFulfillmentSelectorProps {
   lojaId: string;
+  loja?: {
+    id?: string;
+    nome?: string;
+    nome_loja?: string;
+    endereco_logradouro?: string | null;
+    endereco_numero?: string | null;
+    endereco_complemento?: string | null;
+    endereco_bairro?: string | null;
+    endereco_cidade?: string | null;
+    endereco_estado?: string | null;
+    endereco_cep?: string | null;
+    telefone?: string | null;
+    whatsapp?: string | null;
+  } | null;
   clienteId?: string | null;
+  cliente?: {
+    id?: string;
+    nome?: string;
+    telefone?: string | null;
+    whatsapp?: string | null;
+    cep?: string | null;
+    rua?: string | null;
+    endereco?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    estado?: string | null;
+  } | null;
   subtotal: number;
   itens: CotacaoItemProduto[];
   valorFreteAtual?: number;
@@ -31,9 +65,12 @@ export interface ShippingFulfillmentSelectorProps {
   className?: string;
   modoCompacto?: boolean;
 }
+
 export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorProps> = ({
   lojaId,
+  loja,
   clienteId,
+  cliente,
   subtotal,
   itens,
   valorFreteAtual = 0,
@@ -45,30 +82,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [configLoja, setConfigLoja] = useState<LojaShippingConfig | null>(null);
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
 
-  const [modalidade, setModalidade] = useState<TipoAtendimento>('retirada');
+  // Aba ativa: 'retirada' ou 'entrega'
+  const [modalidade, setModalidade] = useState<TipoAtendimento>('entrega');
 
-  const [enderecos, setEnderecos] = useState<ClienteEndereco[]>([]);
-  const [carregandoEnderecos, setCarregandoEnderecos] = useState<boolean>(false);
+  // Endereço selecionado para entrega
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(null);
-  const [exibirFormNovoEndereco, setExibirFormNovoEndereco] = useState<boolean>(false);
+  const [carregandoEnderecos, setCarregandoEnderecos] = useState<boolean>(false);
+  const [modalEscolherOutroAberto, setModalEscolherOutroAberto] = useState<boolean>(false);
+  const [modalMapaLojaAberto, setModalMapaLojaAberto] = useState<boolean>(false);
 
-  const [novoIdentificador, setNovoIdentificador] = useState<string>('Casa');
-  const [novoCep, setNovoCep] = useState<string>('');
-  const [novoLogradouro, setNovoLogradouro] = useState<string>('');
-  const [novoNumero, setNovoNumero] = useState<string>('');
-  const [novoComplemento, setNovoComplemento] = useState<string>('');
-  const [novoBairro, setNovoBairro] = useState<string>('');
-  const [novoCidade, setNovoCidade] = useState<string>('');
-  const [novoUf, setNovoUf] = useState<string>('');
-  const [salvandoEndereco, setSalvandoEndereco] = useState<boolean>(false);
-  const [buscandoCep, setBuscandoCep] = useState<boolean>(false);
-  const [erroEnderecoMsg, setErroEnderecoMsg] = useState<string | null>(null);
-
+  // Cotações
   const [cotacoes, setCotacoes] = useState<OpcaoFreteCotada[]>([]);
   const [cotacaoEscolhida, setCotacaoEscolhida] = useState<OpcaoFreteCotada | null>(null);
   const [cotando, setCotando] = useState<boolean>(false);
   const [erroCotacaoMsg, setErroCotacaoMsg] = useState<string | null>(null);
 
+  // 1. Carregar Configuração da Loja
   useEffect(() => {
     let ativo = true;
 
@@ -79,12 +108,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         const config = await ShippingOrchestrator.buscarConfigLoja(lojaId);
         if (ativo && config) {
           setConfigLoja(config);
-          if (!config.permite_retirada_loja) {
-            setModalidade('entrega');
-          }
         }
       } catch (err) {
-        console.warn('Erro ao carregar config da loja:', err);
+        console.warn('Erro ao carregar configurações de frete:', err);
       } finally {
         if (ativo) setCarregandoConfig(false);
       }
@@ -96,61 +122,82 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       ativo = false;
     };
   }, [lojaId]);
+
+  // 2. Carregar Endereço Principal do Cliente
   useEffect(() => {
     let ativo = true;
 
-    async function buscarEnderecos() {
-      if (modalidade !== 'entrega') return;
-
-      if (!clienteId) {
-        if (ativo) {
-          setEnderecos([]);
-          setEnderecoSelecionado(null);
-          setExibirFormNovoEndereco(true);
-        }
-        return;
-      }
-
-      setCarregandoEnderecos(true);
-      try {
-        const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
-        if (ativo) {
-          setEnderecos(lista);
-          if (lista.length === 1) {
-            setEnderecoSelecionado(lista[0]);
-            setExibirFormNovoEndereco(false);
-          } else if (lista.length > 1) {
-            const principal = lista.find(e => e.is_principal) || lista[0];
-            setEnderecoSelecionado(principal);
-            setExibirFormNovoEndereco(false);
-          } else {
-            setEnderecoSelecionado(null);
-            setExibirFormNovoEndereco(true);
+    async function carregarEnderecoInicial() {
+      if (clienteId) {
+        setCarregandoEnderecos(true);
+        try {
+          const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
+          if (ativo) {
+            if (lista.length > 0) {
+              const principal = lista.find(e => e.is_principal) || lista[0];
+              setEnderecoSelecionado(principal);
+            } else if (cliente && cliente.cep && cliente.cidade) {
+              // Constrói objeto temporário a partir dos dados do cliente
+              setEnderecoSelecionado({
+                id: 'temp-cli',
+                cliente_id: cliente.id || clienteId,
+                identificador: 'Principal',
+                cep: cliente.cep,
+                logradouro: cliente.rua || cliente.endereco || '',
+                numero: cliente.numero || 'S/N',
+                complemento: cliente.complemento || '',
+                bairro: cliente.bairro || '',
+                cidade: cliente.cidade,
+                uf: cliente.estado || 'CE',
+                is_principal: true
+              });
+            }
           }
+        } catch (err) {
+          console.warn('Erro ao buscar endereços do cliente:', err);
+        } finally {
+          if (ativo) setCarregandoEnderecos(false);
         }
-      } catch (err) {
-        console.warn('Erro ao carregar endereços do cliente:', err);
-      } finally {
-        if (ativo) setCarregandoEnderecos(false);
+      } else if (cliente && cliente.cep && cliente.cidade) {
+        setEnderecoSelecionado({
+          id: 'temp-cli',
+          cliente_id: 'temp',
+          identificador: 'Principal',
+          cep: cliente.cep,
+          logradouro: cliente.rua || cliente.endereco || '',
+          numero: cliente.numero || 'S/N',
+          complemento: cliente.complemento || '',
+          bairro: cliente.bairro || '',
+          cidade: cliente.cidade,
+          uf: cliente.estado || 'CE',
+          is_principal: true
+        });
       }
     }
 
-    buscarEnderecos();
+    carregarEnderecoInicial();
 
     return () => {
       ativo = false;
     };
-  }, [modalidade, clienteId]);
+  }, [clienteId, cliente]);
 
+  // 3. Executar Cotação com Filtro de Região Metropolitana para Uber Direct
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco) => {
     if (!configLoja) return;
+
+    // Se nem Uber nem Melhor Envio estiverem ativos, não dispara cotação externa
+    if (!configLoja.uber_ativo && !configLoja.melhor_envio_ativo) {
+      setCotacoes([]);
+      return;
+    }
 
     setCotando(true);
     setErroCotacaoMsg(null);
     setCotacoes([]);
 
     try {
-      const opcoes = await ShippingOrchestrator.cotarOpcoesFrete({
+      const opcoesBrutas = await ShippingOrchestrator.cotarOpcoesFrete({
         origem_cep: configLoja.origem_cep,
         destino_cep: endAlvo.cep,
         destino_logradouro: endAlvo.logradouro,
@@ -163,19 +210,46 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         config: configLoja
       });
 
-      setCotacoes(opcoes);
+      // Validação de Região Metropolitana para Uber Direct
+      const mesmaRegiao = verificarMesmaRegiaoMetropolitana(
+        {
+          cidade: configLoja.origem_cidade,
+          uf: configLoja.origem_uf,
+          latitude: configLoja.origem_latitude,
+          longitude: configLoja.origem_longitude
+        },
+        {
+          cidade: endAlvo.cidade,
+          uf: endAlvo.uf,
+          latitude: endAlvo.latitude,
+          longitude: endAlvo.longitude
+        }
+      );
 
-      if (opcoes.length > 0) {
-        const selecionada = (opcaoSelecionadaId ? opcoes.find(o => o.id === opcaoSelecionadaId) : null) || opcoes[0];
-        setCotacaoEscolhida(selecionada);
+      // Filtra as opções: se não for mesma região metropolitana, remove o Uber Direct
+      const opcoesFiltradas = opcoesBrutas.filter(op => {
+        if (op.provedor === 'uber') {
+          return mesmaRegiao;
+        }
+        return true;
+      });
 
+      setCotacoes(opcoesFiltradas);
+
+      if (opcoesFiltradas.length > 0) {
+        // Seleciona opção com mesmo ID ou a de menor valor
+        const encontrada = opcoesFiltradas.find(o => o.id === opcaoSelecionadaId) || opcoesFiltradas[0];
+        setCotacaoEscolhida(encontrada);
+
+        // Notifica o componente pai com a entrega selecionada
         onChange({
           tipo_atendimento: 'entrega',
-          endereco_selecionado: endAlvo,
-          opcao_frete: selecionada,
+          valor_frete: encontrada.valor_frete,
+          opcao_selecionada: encontrada,
           pedido_entrega: {
+            pedido_id: '',
             tipo_atendimento: 'entrega',
-            cliente_endereco_id: endAlvo.id,
+            cliente_endereco_id: endAlvo.id?.startsWith('temp') || endAlvo.id?.startsWith('gps') ? null : endAlvo.id,
             destino_cep: endAlvo.cep,
             destino_logradouro: endAlvo.logradouro,
             destino_numero: endAlvo.numero,
@@ -183,630 +257,427 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             destino_bairro: endAlvo.bairro,
             destino_cidade: endAlvo.cidade,
             destino_uf: endAlvo.uf,
-            provedor: selecionada.provedor,
-            transportadora_nome: selecionada.transportadora_nome,
-            servico_codigo: selecionada.servico_codigo,
-            valor_frete: selecionada.valor_frete,
-            prazo_estimado_texto: selecionada.prazo_estimado_texto,
+            destino_latitude: endAlvo.latitude,
+            destino_longitude: endAlvo.longitude,
+            provedor: encontrada.provedor,
+            transportadora_nome: encontrada.transportadora_nome,
+            servico_codigo: encontrada.servico_codigo,
+            valor_frete: encontrada.valor_frete,
+            prazo_estimado_texto: encontrada.prazo_estimado_texto,
             status_envio: 'pendente'
-          },
-          valor_frete: selecionada.valor_frete
+          }
         });
       } else {
-        setErroCotacaoMsg('Nenhuma transportadora disponível para o endereço informado ou credenciais não ativadas.');
+        setCotacaoEscolhida(null);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setErroCotacaoMsg(`Erro na cotação: ${msg}`);
+      console.warn('Erro ao realizar cotação de frete:', msg);
+      setErroCotacaoMsg('Não foi possível obter cotações para este endereço.');
     } finally {
       setCotando(false);
     }
   }, [configLoja, subtotal, itens, opcaoSelecionadaId, onChange]);
 
+  // Dispara cotação quando o endereço for definido na aba de entrega
   useEffect(() => {
-    if (modalidade === 'entrega' && enderecoSelecionado && !exibirFormNovoEndereco) {
+    if (modalidade === 'entrega' && enderecoSelecionado && configLoja) {
       executarCotacao(enderecoSelecionado);
     }
-  }, [modalidade, enderecoSelecionado, exibirFormNovoEndereco, executarCotacao]);
+  }, [modalidade, enderecoSelecionado, configLoja, executarCotacao]);
+
+  // Troca de Modalidade
   const handleSelecionarModalidade = (novaModalidade: TipoAtendimento) => {
     setModalidade(novaModalidade);
 
     if (novaModalidade === 'retirada') {
-      const opcaoRetirada = ShippingOrchestrator.gerarOpcaoRetirada(configLoja);
-      setCotacaoEscolhida(opcaoRetirada);
-      setCotacoes([opcaoRetirada]);
-
-      onChange({
+      const resultadoRetirada: ShippingSelectionResult = {
         tipo_atendimento: 'retirada',
-        endereco_selecionado: null,
-        opcao_frete: opcaoRetirada,
+        valor_frete: 0.00,
+        opcao_selecionada: null,
         pedido_entrega: {
+          pedido_id: '',
           tipo_atendimento: 'retirada',
           cliente_endereco_id: null,
           provedor: 'retirada_loja',
-          transportadora_nome: 'Retirada na Loja Física',
-          servico_codigo: 'retirada',
-          valor_frete: 0,
+          transportadora_nome: 'Retirada na Loja',
+          servico_codigo: 'retirada_balcao',
+          valor_frete: 0.00,
           prazo_estimado_texto: 'Disponível no balcão',
-          status_envio: 'pendente'
-        },
-        valor_frete: 0
-      });
-    } else {
-      if (enderecoSelecionado) {
-        executarCotacao(enderecoSelecionado);
-      }
-    }
-  };
-
-  const handleSelecionarCotacao = (opcao: OpcaoFreteCotada) => {
-    setCotacaoEscolhida(opcao);
-
-    if (modalidade === 'retirada') {
-      onChange({
-        tipo_atendimento: 'retirada',
-        endereco_selecionado: null,
-        opcao_frete: opcao,
-        pedido_entrega: {
-          tipo_atendimento: 'retirada',
-          cliente_endereco_id: null,
-          provedor: 'retirada_loja',
-          transportadora_nome: 'Retirada na Loja Física',
-          servico_codigo: 'retirada',
-          valor_frete: 0,
-          prazo_estimado_texto: opcao.prazo_estimado_texto,
-          status_envio: 'pendente'
-        },
-        valor_frete: 0
-      });
-    } else if (enderecoSelecionado) {
-      onChange({
-        tipo_atendimento: 'entrega',
-        endereco_selecionado: enderecoSelecionado,
-        opcao_frete: opcao,
-        pedido_entrega: {
-          tipo_atendimento: 'entrega',
-          cliente_endereco_id: enderecoSelecionado.id,
-          destino_cep: enderecoSelecionado.cep,
-          destino_logradouro: enderecoSelecionado.logradouro,
-          destino_numero: enderecoSelecionado.numero,
-          destino_complemento: enderecoSelecionado.complemento,
-          destino_bairro: enderecoSelecionado.bairro,
-          destino_cidade: enderecoSelecionado.cidade,
-          destino_uf: enderecoSelecionado.uf,
-          provedor: opcao.provedor,
-          transportadora_nome: opcao.transportadora_nome,
-          servico_codigo: opcao.servico_codigo,
-          valor_frete: opcao.valor_frete,
-          prazo_estimado_texto: opcao.prazo_estimado_texto,
-          status_envio: 'pendente'
-        },
-        valor_frete: opcao.valor_frete
-      });
-    }
-  };
-
-  const handleBuscarCepNovo = async (cepInformado: string) => {
-    const cepLimpo = cepInformado.replace(/\D/g, '');
-    if (cepLimpo.length !== 8) return;
-
-    setBuscandoCep(true);
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        setNovoLogradouro(data.logradouro || '');
-        setNovoBairro(data.bairro || '');
-        setNovoCidade(data.localidade || '');
-        setNovoUf(data.uf || '');
-      }
-    } catch (err) {
-      console.warn('Erro ao consultar ViaCEP:', err);
-    } finally {
-      setBuscandoCep(false);
-    }
-  };
-
-  const handleSalvarNovoEndereco = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErroEnderecoMsg(null);
-
-    if (!novoCep.trim() || !novoLogradouro.trim() || !novoNumero.trim() || !novoBairro.trim() || !novoCidade.trim() || !novoUf.trim()) {
-      setErroEnderecoMsg('Por favor, preencha todos os campos obrigatórios do endereço.');
-      return;
-    }
-
-    setSalvandoEndereco(true);
-
-    try {
-      const input: NovoEnderecoFormInput = {
-        identificador: novoIdentificador.trim() || 'Entrega',
-        cep: novoCep.replace(/\D/g, ''),
-        logradouro: novoLogradouro.trim(),
-        numero: novoNumero.trim(),
-        complemento: novoComplemento.trim(),
-        bairro: novoBairro.trim(),
-        cidade: novoCidade.trim(),
-        uf: novoUf.trim().toUpperCase(),
-        is_principal: enderecos.length === 0
+          status_envio: 'pronto_para_retirar'
+        }
       };
-
-      let enderecoSalvo: ClienteEndereco;
-
-      if (clienteId) {
-        enderecoSalvo = await ShippingOrchestrator.salvarNovoEnderecoCliente(clienteId, input);
-        setEnderecos(prev => [enderecoSalvo, ...prev]);
-      } else {
-        enderecoSalvo = {
-          id: `temp-${Date.now()}`,
-          cliente_id: 'avulso',
-          identificador: input.identificador,
-          cep: input.cep,
-          logradouro: input.logradouro,
-          numero: input.numero,
-          complemento: input.complemento,
-          bairro: input.bairro,
-          cidade: input.cidade,
-          uf: input.uf,
-          is_principal: true
-        };
-      }
-
-      setEnderecoSelecionado(enderecoSalvo);
-      setExibirFormNovoEndereco(false);
-
-      setNovoCep('');
-      setNovoLogradouro('');
-      setNovoNumero('');
-      setNovoComplemento('');
-      setNovoBairro('');
-      setNovoCidade('');
-      setNovoUf('');
-
-      executarCotacao(enderecoSalvo);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErroEnderecoMsg(`Erro ao salvar endereço: ${msg}`);
-    } finally {
-      setSalvandoEndereco(false);
+      onChange(resultadoRetirada);
+    } else if (enderecoSelecionado) {
+      executarCotacao(enderecoSelecionado);
     }
   };
-  if (carregandoConfig) {
-    return (
-      <div className="flex items-center justify-center p-6 space-x-2">
-        <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
-        <span className="text-xs text-slate-500">Carregando opções de frete...</span>
-      </div>
-    );
-  }
 
-  const permiteRetirada = configLoja?.permite_retirada_loja ?? true;
+  // Seleção de uma opção cotada específica
+  const handleEscolherCotacao = (opcao: OpcaoFreteCotada) => {
+    setCotacaoEscolhida(opcao);
+    if (!enderecoSelecionado) return;
+
+    onChange({
+      tipo_atendimento: 'entrega',
+      valor_frete: opcao.valor_frete,
+      opcao_selecionada: opcao,
+      pedido_entrega: {
+        pedido_id: '',
+        tipo_atendimento: 'entrega',
+        cliente_endereco_id: enderecoSelecionado.id?.startsWith('temp') || enderecoSelecionado.id?.startsWith('gps')
+          ? null
+          : enderecoSelecionado.id,
+        destino_cep: enderecoSelecionado.cep,
+        destino_logradouro: enderecoSelecionado.logradouro,
+        destino_numero: enderecoSelecionado.numero,
+        destino_complemento: enderecoSelecionado.complemento,
+        destino_bairro: enderecoSelecionado.bairro,
+        destino_cidade: enderecoSelecionado.cidade,
+        destino_uf: enderecoSelecionado.uf,
+        destino_latitude: enderecoSelecionado.latitude,
+        destino_longitude: enderecoSelecionado.longitude,
+        provedor: opcao.provedor,
+        transportadora_nome: opcao.transportadora_nome,
+        servico_codigo: opcao.servico_codigo,
+        valor_frete: opcao.valor_frete,
+        prazo_estimado_texto: opcao.prazo_estimado_texto,
+        status_envio: 'pendente'
+      }
+    });
+  };
+
+  // Dados da Loja para Retirada
+  const dadosLojaFormatados = {
+    nome: loja?.nome || loja?.nome_loja || 'Loja Física',
+    nome_loja: loja?.nome_loja,
+    endereco_logradouro: loja?.endereco_logradouro || configLoja?.origem_logradouro,
+    endereco_numero: loja?.endereco_numero || configLoja?.origem_numero,
+    endereco_complemento: loja?.endereco_complemento || configLoja?.origem_complemento,
+    endereco_bairro: loja?.endereco_bairro || configLoja?.origem_bairro,
+    endereco_cidade: loja?.endereco_cidade || configLoja?.origem_cidade,
+    endereco_estado: loja?.endereco_estado || configLoja?.origem_uf,
+    endereco_cep: loja?.endereco_cep || configLoja?.origem_cep,
+    telefone: loja?.telefone,
+    whatsapp: loja?.whatsapp
+  };
+
+  const temIntegracoesAtivas = Boolean(configLoja?.uber_ativo || configLoja?.melhor_envio_ativo);
+  const linkWhatsAppLoja = `https://wa.me/55${(dadosLojaFormatados.whatsapp || dadosLojaFormatados.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Gostaria de combinar a entrega do meu pedido.')}`;
+
+  const { link: linkWhatsAppRetirada } = gerarLinkWhatsAppLocalizacaoLoja(
+    dadosLojaFormatados,
+    cliente?.whatsapp || cliente?.telefone
+  );
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* 1. SELETOR DE MODALIDADE DE ATENDIMENTO */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800/70 rounded-xl">
-        {permiteRetirada && (
-          <button
-            type="button"
-            onClick={() => handleSelecionarModalidade('retirada')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all ${
-              modalidade === 'retirada'
-                ? 'bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            <span>Retirar na Loja (Grátis)</span>
-          </button>
-        )}
-
+      {/* SELEÇÃO ENTREGA x RETIRADA */}
+      <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
         <button
           type="button"
           onClick={() => handleSelecionarModalidade('entrega')}
-          className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all ${
+          className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
             modalidade === 'entrega'
-              ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Truck className="w-4 h-4" />
-          <span>Enviar para meu Endereço</span>
+          <span>Receber por Entrega</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelecionarModalidade('retirada')}
+          className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+            modalidade === 'retirada'
+              ? 'bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Store className="w-4 h-4" />
+          <span>Retirar Compra (Grátis)</span>
         </button>
       </div>
 
-      {/* 2. CONTEÚDO SE RETIRADA NA LOJA */}
-      {modalidade === 'retirada' && (
-        <div className="p-4 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/40 space-y-2">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 mt-0.5">
-              <Store className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                  Retirada no Balcão da Loja
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  Grátis (R$ 0,00)
-                </span>
-              </div>
-              <p className="text-xs text-purple-700 dark:text-purple-300/80 mt-1">
-                {configLoja ? (
-                  [
-                    configLoja.origem_logradouro,
-                    configLoja.origem_numero,
-                    configLoja.origem_bairro,
-                    configLoja.origem_cidade,
-                    configLoja.origem_uf
-                  ].filter(Boolean).join(', ')
-                ) : (
-                  'Endereço físico cadastrado da loja.'
-                )}
-              </p>
-              <p className="text-[11px] text-purple-600 dark:text-purple-400 mt-1">
-                O pedido ficará disponível para retirada assim que confirmado pela equipe.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. CONTEÚDO SE ENTREGA */}
+      {/* ========================================================================= */}
+      {/* FLUXO: RECEBER POR ENTREGA */}
+      {/* ========================================================================= */}
       {modalidade === 'entrega' && (
-        <div className="space-y-4">
-          {carregandoEnderecos ? (
-            <div className="flex items-center justify-center p-6 gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-              <span className="text-xs text-slate-500">Localizando endereços do cliente...</span>
-            </div>
-          ) : exibirFormNovoEndereco ? (
-            /* CENÁRIO C: FORMULÁRIO DE NOVO ENDEREÇO */
-            <form
-              onSubmit={handleSalvarNovoEndereco}
-              className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3"
-            >
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-                  Cadastrar Endereço de Entrega
-                </span>
-                {enderecos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setExibirFormNovoEndereco(false)}
-                    className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline"
-                  >
-                    Voltar aos meus endereços
-                  </button>
-                )}
-              </div>
-
-              {erroEnderecoMsg && (
-                <div className="p-2 rounded-lg bg-rose-50 text-rose-700 text-xs flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{erroEnderecoMsg}</span>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="col-span-2 sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    Identificador (Ex: Casa, Trabalho)
-                  </label>
-                  <input
-                    type="text"
-                    value={novoIdentificador}
-                    onChange={e => setNovoIdentificador(e.target.value)}
-                    placeholder="Casa"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div className="col-span-2 sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    CEP *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      maxLength={9}
-                      value={novoCep}
-                      onChange={e => {
-                        setNovoCep(e.target.value);
-                        if (e.target.value.replace(/\D/g, '').length === 8) {
-                          handleBuscarCepNovo(e.target.value);
-                        }
-                      }}
-                      placeholder="00000-000"
-                      className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                      required
-                    />
-                    {buscandoCep && (
-                      <div className="absolute right-2.5 top-1.5">
-                        <Loader2 className="w-3.5 h-3.5 text-emerald-500 animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="col-span-2 sm:col-span-3">
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    Logradouro / Rua *
-                  </label>
-                  <input
-                    type="text"
-                    value={novoLogradouro}
-                    onChange={e => setNovoLogradouro(e.target.value)}
-                    placeholder="Rua das Flores"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    Número *
-                  </label>
-                  <input
-                    type="text"
-                    value={novoNumero}
-                    onChange={e => setNovoNumero(e.target.value)}
-                    placeholder="123"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    Complemento
-                  </label>
-                  <input
-                    type="text"
-                    value={novoComplemento}
-                    onChange={e => setNovoComplemento(e.target.value)}
-                    placeholder="Apto 101"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    Bairro *
-                  </label>
-                  <input
-                    type="text"
-                    value={novoBairro}
-                    onChange={e => setNovoBairro(e.target.value)}
-                    placeholder="Centro"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    Cidade *
-                  </label>
-                  <input
-                    type="text"
-                    value={novoCidade}
-                    onChange={e => setNovoCidade(e.target.value)}
-                    placeholder="São Paulo"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-0.5">
-                    UF *
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={2}
-                    value={novoUf}
-                    onChange={e => setNovoUf(e.target.value.toUpperCase())}
-                    placeholder="SP"
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500 uppercase"
-                    required
-                  />
+        <div className="space-y-3 animate-in fade-in duration-200">
+          {/* Cenário: Loja NÃO configurou nem Uber nem Melhor Envio */}
+          {!carregandoConfig && !temIntegracoesAtivas ? (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <span className="font-bold text-xs block text-amber-200">
+                    Cotação Automática de Entrega Não Configurada
+                  </span>
+                  <p className="text-xs text-amber-300/90 leading-relaxed">
+                    A loja ainda não configurou as integrações automáticas com Uber Direct ou Melhor Envio.
+                    Favor entrar em contato com a loja para combinar a forma e o valor de entrega.
+                  </p>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="submit"
-                  disabled={salvandoEndereco}
-                  className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              <div className="pt-2 border-t border-amber-500/20 flex flex-wrap items-center gap-2">
+                <a
+                  href={linkWhatsAppLoja}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition shadow-md shadow-emerald-600/20"
                 >
-                  {salvandoEndereco ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Salvando Endereço...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      Salvar e Cotar Frete
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          ) : enderecos.length === 1 ? (
-            /* CENÁRIO A: APENAS 1 ENDEREÇO */
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2.5">
-                  <MapPin className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      Entregar em: {enderecoSelecionado?.identificador || 'Endereço Principal'}
-                    </span>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                      {enderecoSelecionado?.logradouro}, {enderecoSelecionado?.numero}
-                      {enderecoSelecionado?.complemento ? ` - ${enderecoSelecionado.complemento}` : ''}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {enderecoSelecionado?.bairro}, {enderecoSelecionado?.cidade} - {enderecoSelecionado?.uf} (CEP {enderecoSelecionado?.cep})
-                    </p>
-                  </div>
-                </div>
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Falar no WhatsApp da Loja</span>
+                </a>
 
                 <button
                   type="button"
-                  onClick={() => setExibirFormNovoEndereco(true)}
-                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 shrink-0"
+                  onClick={() => handleSelecionarModalidade('retirada')}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition"
                 >
-                  Cadastrar novo
+                  Mudar para Retirada na Loja
                 </button>
               </div>
             </div>
           ) : (
-            /* CENÁRIO B: MÚLTIPLOS ENDEREÇOS */
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Selecione o Endereço de Entrega:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setExibirFormNovoEndereco(true)}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Adicionar novo endereço
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
-                {enderecos.map(end => {
-                  const isSelected = enderecoSelecionado?.id === end.id;
-                  return (
-                    <div
-                      key={end.id}
-                      onClick={() => setEnderecoSelecionado(end)}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
-                        isSelected
-                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="cliente_endereco_selecionado"
-                        checked={isSelected}
-                        onChange={() => setEnderecoSelecionado(end)}
-                        className="mt-1 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {end.identificador || 'Endereço'}
-                          </span>
-                          {end.is_principal && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                              Principal
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
-                          {end.logradouro}, {end.numero} {end.complemento ? `(${end.complemento})` : ''}
-                        </p>
-                        <p className="text-[11px] text-slate-400">
-                          {end.bairro}, {end.cidade} - {end.uf} | CEP {end.cep}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 4. OPÇÕES DE FRETE COTADAS */}
-          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-              <span>Opções de Envio Disponíveis:</span>
-              {cotando && (
-                <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-normal">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Calculando rotas...
-                </span>
-              )}
-            </span>
-
-            {erroCotacaoMsg && !cotando && (
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{erroCotacaoMsg}</span>
-              </div>
-            )}
-
-            {!cotando && cotacoes.length > 0 && (
+            <>
+              {/* Mensagem e Card do Endereço de Entrega */}
               <div className="space-y-2">
-                {cotacoes.map(opcao => {
-                  const isChecked = cotacaoEscolhida?.id === opcao.id;
-                  const isUber = opcao.provedor === 'uber';
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Calculamos os custos e prazos para este endereço:</span>
+                </div>
 
-                  return (
-                    <div
-                      key={opcao.id}
-                      onClick={() => handleSelecionarCotacao(opcao)}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                        isChecked
-                          ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 shadow-sm'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isUber
-                              ? 'bg-black text-emerald-400'
-                              : opcao.icone_tipo === 'jadlog'
-                              ? 'bg-rose-600 text-white'
-                              : opcao.icone_tipo === 'correios'
-                              ? 'bg-yellow-400 text-blue-900'
-                              : 'bg-slate-700 text-white'
-                          }`}
-                        >
-                          {isUber ? 'UB' : opcao.icone_tipo === 'jadlog' ? 'JD' : opcao.icone_tipo === 'correios' ? 'COR' : 'LOG'}
-                        </div>
-
-                        <div className="min-w-0">
+                {carregandoEnderecos ? (
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center gap-2 text-slate-400 text-xs">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                    <span>Carregando dados de endereço...</span>
+                  </div>
+                ) : enderecoSelecionado ? (
+                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-2 relative overflow-hidden">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2.5">
+                        <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                              {opcao.servico_nome}
+                            <span className="text-xs font-bold text-slate-100">
+                              {enderecoSelecionado.identificador || 'Endereço Principal'}
                             </span>
-                            {isUber && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-black text-emerald-400">
-                                Flash
+                            {enderecoSelecionado.is_principal && (
+                              <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                                Principal
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Clock className="w-3 h-3" />
-                            {opcao.prazo_estimado_texto}
-                          </span>
+                          <p className="text-xs text-slate-200 mt-1">
+                            {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
+                            {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
+                          </p>
                         </div>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                          R$ {opcao.valor_frete.toFixed(2).replace('.', ',')}
-                        </span>
-                      </div>
                     </div>
-                  );
-                })}
+
+                    {/* Botão Escolher Outro Endereço */}
+                    <div className="pt-2 border-t border-slate-800/80 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setModalEscolherOutroAberto(true)}
+                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition hover:underline"
+                      >
+                        <span>Escolher outro endereço</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-2">
+                    <p className="text-xs text-slate-400">Nenhum endereço selecionado.</p>
+                    {clienteId && (
+                      <button
+                        type="button"
+                        onClick={() => setModalEscolherOutroAberto(true)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold text-xs"
+                      >
+                        Selecionar ou Cadastrar Endereço
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Lista de Opções de Frete Cotadas */}
+              <div className="space-y-2 pt-1">
+                <span className="text-xs font-bold text-slate-300 block">Opções de Frete Disponíveis</span>
+
+                {cotando ? (
+                  <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center gap-2 text-slate-400 text-xs">
+                    <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+                    <span>Calculando opções de frete em tempo real...</span>
+                  </div>
+                ) : erroCotacaoMsg ? (
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{erroCotacaoMsg}</span>
+                  </div>
+                ) : cotacoes.length === 0 ? (
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400">
+                    Nenhuma opção de frete retornada para este CEP.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {cotacoes.map((opcao) => {
+                      const selecionada = cotacaoEscolhida?.id === opcao.id;
+                      return (
+                        <div
+                          key={opcao.id}
+                          onClick={() => handleEscolherCotacao(opcao)}
+                          className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                            selecionada
+                              ? 'bg-emerald-500/10 border-emerald-500 text-slate-100 shadow-md shadow-emerald-500/10'
+                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              opcao.provedor === 'uber'
+                                ? 'bg-slate-800 text-emerald-400 font-black text-[11px]'
+                                : 'bg-slate-800 text-indigo-400 font-bold text-xs'
+                            }`}>
+                              {opcao.provedor === 'uber' ? 'UBER' : <Truck className="w-4 h-4" />}
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-100 truncate">
+                                  {opcao.transportadora_nome}
+                                </span>
+                                {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
+                                  <span className="text-[10px] text-slate-400 font-medium truncate">
+                                    ({opcao.servico_nome})
+                                  </span>
+                                )}
+                              </div>
+                              {opcao.prazo_estimado_texto && (
+                                <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                                  <Clock className="w-3 h-3 text-emerald-400 shrink-0" />
+                                  <span>{opcao.prazo_estimado_texto}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="font-extrabold text-sm text-emerald-400">
+                              R$ {opcao.valor_frete.toFixed(2)}
+                            </span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                              selecionada ? 'bg-emerald-500 text-slate-950' : 'border border-slate-600'
+                            }`}>
+                              {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* FLUXO: RETIRAR COMPRA (RETIRADA NA LOJA) */}
+      {/* ========================================================================= */}
+      {modalidade === 'retirada' && (
+        <div className="space-y-3 animate-in fade-in duration-200">
+          <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0 border border-purple-500/30">
+                <Store className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-purple-200">
+                    Retirada no Balcão da Loja
+                  </span>
+                  <span className="text-[10px] uppercase font-black bg-purple-500/30 text-purple-200 px-2 py-0.2 rounded-full">
+                    Frete Grátis
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Seu pedido será preparado e ficará disponível para retirada no balcão da loja física.
+                </p>
+                <div className="pt-1.5 text-xs text-slate-300 font-medium">
+                  <strong>Endereço da Loja:</strong>{' '}
+                  {[
+                    dadosLojaFormatados.endereco_logradouro,
+                    dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
+                    dadosLojaFormatados.endereco_bairro,
+                    dadosLojaFormatados.endereco_cidade && dadosLojaFormatados.endereco_estado
+                      ? `${dadosLojaFormatados.endereco_cidade}-${dadosLojaFormatados.endereco_estado}`
+                      : dadosLojaFormatados.endereco_cidade,
+                    dadosLojaFormatados.endereco_cep ? `(CEP: ${dadosLojaFormatados.endereco_cep})` : ''
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || 'Consulte o balcão da loja'}
+                </div>
+              </div>
+            </div>
+
+            {/* Ações: Ver no mapa e Enviar para WhatsApp */}
+            <div className="pt-3 border-t border-purple-500/20 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setModalMapaLojaAberto(true)}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-purple-300 hover:text-purple-200 border border-purple-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Navigation className="w-3.5 h-3.5 text-purple-400" />
+                <span>Ver no Mapa</span>
+              </button>
+
+              <a
+                href={linkWhatsAppRetirada}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20 cursor-pointer"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Enviar para o WhatsApp</span>
+              </a>
+            </div>
           </div>
         </div>
       )}
+
+      {/* MODAL: ESCOLHER OUTRO ENDEREÇO */}
+      {clienteId && (
+        <ModalEscolherOutroEndereco
+          aberto={modalEscolherOutroAberto}
+          onFechar={() => setModalEscolherOutroAberto(false)}
+          clienteId={clienteId}
+          enderecoAtualId={enderecoSelecionado?.id}
+          onConfirmarEndereco={(novoEnd) => {
+            setEnderecoSelecionado(novoEnd);
+            executarCotacao(novoEnd);
+          }}
+        />
+      )}
+
+      {/* MODAL: VER NO MAPA */}
+      <ModalVerNoMapaLoja
+        aberto={modalMapaLojaAberto}
+        onFechar={() => setModalMapaLojaAberto(false)}
+        loja={dadosLojaFormatados}
+        telefoneCliente={cliente?.whatsapp || cliente?.telefone}
+      />
     </div>
   );
 };

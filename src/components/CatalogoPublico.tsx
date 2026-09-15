@@ -644,6 +644,19 @@ export const CatalogoPublico: React.FC = () => {
     window.open(`https://api.whatsapp.com/send?phone=55${lojaPhone}&text=${encodeURIComponent(msgWhatsApp)}`, '_blank');
   };
 
+  const handleClicarFormaEntregaCatalogo = () => {
+    const nomeLimpo = nomeCliente.trim();
+    const telNumeros = whatsappCliente.replace(/\D/g, '');
+
+    if (!nomeLimpo || telNumeros.length < 10) {
+      alert('Para selecionar uma forma de entrega, primeiro informe seu Nome e WhatsApp no botão "Contato".');
+      setModalContatoAberto(true);
+      return;
+    }
+
+    setModalShippingAberto(true);
+  };
+
   const handleFinalizarPedido = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!loja?.id || carrinho.length === 0) return;
@@ -659,6 +672,12 @@ export const CatalogoPublico: React.FC = () => {
     if (!nomeLimpo || telNumeros.length < 10) {
       setModalContatoAberto(true);
       alert('Identificação obrigatória: Por favor, informe seu Nome e um WhatsApp válido com DDD (mínimo 10 dígitos) no botão "Contato" para finalizar o pedido.');
+      return;
+    }
+
+    if (!pedidoEntrega) {
+      alert('Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de finalizar seu pedido.');
+      setModalShippingAberto(true);
       return;
     }
 
@@ -1951,27 +1970,40 @@ Fico no aguardo da confirmação! ✨`;
                     </div>
                   )}
 
-                  {/* Linha Destacada de Frete / Retirada no Carrinho do Catálogo */}
-                  <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+                  {/* Linha de Forma de Entrega no Carrinho do Catálogo */}
+                  <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
                     <span className="text-slate-300 font-semibold">
-                      {pedidoEntrega?.tipo_atendimento === 'entrega' && valorFreteEfetivo > 0
-                        ? `Frete (${pedidoEntrega.transportadora_nome || 'Entrega'}):`
-                        : 'Modalidade:'}
+                      Forma de Entrega:
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`font-bold ${valorFreteEfetivo > 0 ? 'text-emerald-400' : 'text-purple-300'}`}>
-                        {freteGratisCupom 
-                          ? 'GRÁTIS (Cupom)' 
-                          : valorFreteEfetivo > 0 
-                          ? `+ R$ ${valorFreteEfetivo.toFixed(2)}` 
-                          : 'Retirada na Loja (Grátis)'}
-                      </span>
+                      {!pedidoEntrega ? (
+                        <span className="text-amber-400/90 font-medium text-xs">
+                          Não selecionada
+                        </span>
+                      ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
+                        <span className="text-purple-300 font-bold text-xs">
+                          Retirada na Loja (Grátis)
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 font-bold text-xs">
+                          {freteGratisCupom 
+                            ? 'GRÁTIS (Cupom)' 
+                            : valorFreteEfetivo > 0 
+                            ? `+ R$ ${valorFreteEfetivo.toFixed(2)}` 
+                            : 'Grátis'}
+                        </span>
+                      )}
+
                       <button
                         type="button"
-                        onClick={() => setModalShippingAberto(true)}
-                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                        onClick={handleClicarFormaEntregaCatalogo}
+                        className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
+                          !pedidoEntrega
+                            ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20'
+                            : 'text-emerald-400 hover:text-emerald-300 underline'
+                        }`}
                       >
-                        Alterar
+                        {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
                       </button>
                     </div>
                   </div>
@@ -2239,7 +2271,20 @@ Fico no aguardo da confirmação! ✨`;
 
             <ShippingFulfillmentSelector
               lojaId={loja.id}
+              loja={loja}
               clienteId={clienteSelecionado?.id || null}
+              cliente={clienteSelecionado || {
+                nome: nomeCliente,
+                whatsapp: whatsappCliente,
+                telefone: whatsappCliente,
+                cep: dadosEndereco.cep,
+                rua: dadosEndereco.rua,
+                numero: dadosEndereco.numero,
+                complemento: dadosEndereco.complemento,
+                bairro: dadosEndereco.bairro,
+                cidade: dadosEndereco.cidade,
+                estado: dadosEndereco.estado
+              }}
               subtotal={subtotal}
               itens={carrinho.map(i => ({
                 nome: i.produto.nome,
@@ -2251,6 +2296,7 @@ Fico no aguardo da confirmação! ✨`;
                 comprimento_cm: (i.produto as any)?.comprimento_cm || 20
               }))}
               valorFreteAtual={valorFrete}
+              opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               onChange={(resultado) => {
                 setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
                 if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {

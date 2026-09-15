@@ -430,6 +430,14 @@ export interface Cliente {
   endereco_estado?: string | null;
   endereco_principal?: string | null;
   endereco_secundario?: string | null;
+  cep?: string | null;
+  rua?: string | null;
+  endereco?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
   saldo_devedor_fiado: number;
   limite_credito: number;
   saldo_credito?: number;

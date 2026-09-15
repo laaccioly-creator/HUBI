@@ -46,6 +46,7 @@ import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
+import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { caixaService } from '../services/caixaService';
@@ -130,6 +131,7 @@ export const PosCheckout: React.FC = () => {
   } = useCart();
 
   const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
+  const [modalAtualizarEnderecoAberto, setModalAtualizarEnderecoAberto] = useState<boolean>(false);
 
   useEffect(() => {
     if (pedidoEmEdicao) {
@@ -354,8 +356,52 @@ export const PosCheckout: React.FC = () => {
     carregarDados();
   }, [loja?.id]);
 
+  const handleClicarFormaEntrega = () => {
+    // 1. Verificar se há cliente selecionado
+    if (!clienteSelecionado) {
+      mostrarAviso(
+        'Para selecionar uma forma de entrega, primeiro selecione o cliente.',
+        'Cliente Não Selecionado'
+      );
+      setClienteDropdownAberto(true);
+      return;
+    }
+
+    // 2. Verificar se os dados de endereço do cliente estão completos
+    const cepLimpo = (clienteSelecionado.cep || '').replace(/\D/g, '');
+    const rua = (clienteSelecionado.rua || clienteSelecionado.endereco || '').trim();
+    const num = (clienteSelecionado.numero || '').trim();
+    const bairro = (clienteSelecionado.bairro || '').trim();
+    const cidade = (clienteSelecionado.cidade || '').trim();
+    const uf = (clienteSelecionado.estado || '').trim();
+
+    const enderecoCompleto =
+      cepLimpo.length === 8 &&
+      rua.length > 0 &&
+      num.length > 0 &&
+      bairro.length > 0 &&
+      cidade.length > 0 &&
+      uf.length > 0;
+
+    if (!enderecoCompleto) {
+      setModalAtualizarEnderecoAberto(true);
+      return;
+    }
+
+    setModalFulfillmentAberto(true);
+  };
+
   const handleAbrirFechamento = () => {
     if (itens.length === 0) return;
+
+    if (!pedidoEntrega) {
+      mostrarAviso(
+        'Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de prosseguir com o pagamento.',
+        'Forma de Entrega Obrigatória'
+      );
+      return;
+    }
+
     const listaFPs = (formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO;
     if (formasPagamento.length === 0) {
       setFormasPagamento(listaFPs);
@@ -510,6 +556,13 @@ export const PosCheckout: React.FC = () => {
     }
     if (itens.length === 0) {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar o pedido.');
+      return;
+    }
+    if (!pedidoEntrega) {
+      mostrarAviso(
+        'Por favor, selecione a Forma de Entrega (Retirada ou Entrega) antes de salvar o pedido.',
+        'Forma de Entrega Obrigatória'
+      );
       return;
     }
 
@@ -2138,30 +2191,47 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
-            {/* Linha Destacada de Frete / Retirada no Carrinho */}
-            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+            {/* Linha de Forma de Entrega no Carrinho */}
+            <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
               <div className="flex items-center gap-1.5 min-w-0">
                 {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? (
                   <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                ) : (
+                ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
                   <Store className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                ) : (
+                  <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 )}
                 <span className="text-slate-300 font-semibold truncate">
-                  {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0
-                    ? `Frete (${pedidoEntrega.transportadora_nome || 'Entrega'}):`
-                    : 'Modalidade:'}
+                  Forma de Entrega:
                 </span>
               </div>
+
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`font-bold ${taxaEntrega > 0 ? 'text-emerald-400' : 'text-purple-300'}`}>
-                  {taxaEntrega > 0 ? `+ R$ ${taxaEntrega.toFixed(2)}` : 'Retirada na Loja (Grátis)'}
-                </span>
+                {!pedidoEntrega ? (
+                  <span className="text-amber-400/90 font-medium text-xs">
+                    Não selecionada
+                  </span>
+                ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
+                  <span className="text-purple-300 font-bold text-xs">
+                    Retirada na Loja (Grátis)
+                  </span>
+                ) : (
+                  <span className="text-emerald-400 font-bold text-xs">
+                    {pedidoEntrega.transportadora_nome ? `${pedidoEntrega.transportadora_nome}: ` : ''}
+                    {taxaEntrega > 0 ? `+ R$ ${taxaEntrega.toFixed(2)}` : 'Grátis'}
+                  </span>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => setModalFulfillmentAberto(true)}
-                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                  onClick={handleClicarFormaEntrega}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
+                    !pedidoEntrega
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20'
+                      : 'text-emerald-400 hover:text-emerald-300 underline'
+                  }`}
                 >
-                  Alterar
+                  {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
                 </button>
               </div>
             </div>
@@ -2817,7 +2887,7 @@ export const PosCheckout: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                    Modalidade de Entrega / Retirada
+                    Forma de Entrega / Retirada
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Selecione retirada na loja física ou entrega no endereço do cliente
@@ -2835,7 +2905,9 @@ export const PosCheckout: React.FC = () => {
 
             <ShippingFulfillmentSelector
               lojaId={loja.id}
+              loja={loja}
               clienteId={clienteSelecionado?.id || null}
+              cliente={clienteSelecionado}
               subtotal={subtotal}
               itens={itens.map(i => ({
                 nome: i.produto.nome,
@@ -2847,6 +2919,7 @@ export const PosCheckout: React.FC = () => {
                 comprimento_cm: (i.produto as any)?.comprimento_cm || 20
               }))}
               valorFreteAtual={taxaEntrega}
+              opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               onChange={(resultado) => {
                 setTaxaEntrega(resultado.valor_frete);
                 setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
@@ -2857,13 +2930,27 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFulfillmentAberto(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20"
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
               >
-                Confirmar Modalidade
+                Confirmar Forma de Entrega
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Atualização de Endereço do Cliente */}
+      {modalAtualizarEnderecoAberto && clienteSelecionado && (
+        <ModalAtualizarEnderecoCliente
+          aberto={modalAtualizarEnderecoAberto}
+          onFechar={() => setModalAtualizarEnderecoAberto(false)}
+          cliente={clienteSelecionado}
+          onSucesso={(clienteAtualizado) => {
+            setClienteSelecionado(clienteAtualizado);
+            setClientes(prev => prev.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c));
+            setModalFulfillmentAberto(true);
+          }}
+        />
       )}
     </div>
   );
