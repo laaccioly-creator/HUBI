@@ -2690,341 +2690,347 @@ export const PosCheckout: React.FC = () => {
       )}
 
       {/* MODAL DE RECIBO & FINALIZAÇÃO */}
-      {pedidoConcluido && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
-            {/* Topo do Modal */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-100 text-sm">
-                    {ehVendaOfflineSalva ? 'Venda Salva (Modo Offline)!' : 'Venda Concluída com Sucesso!'}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Recibo do Pedido #{pedidoConcluido.numero_pedido}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPedidoConcluido(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {pedidoConcluido && (() => {
+        const rawPe = (pedidoConcluido as any).pedido_entrega || pedidoEntrega;
+        const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+        const metaTransp = (pedidoConcluido as any).metadados?.transportadora_nome;
+        const metaTipo = (pedidoConcluido as any).metadados?.tipo_atendimento;
+        const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+          metaTipo === 'retirada' ||
+          (!pe && !metaTransp && Number(pedidoConcluido.valor_frete || 0) === 0 && !pedidoConcluido.endereco_entrega);
 
-            {/* Visualização do Cupom/Recibo Conforme Modelo dos Logs */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {ehVendaOfflineSalva && (
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <CloudOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>Armazenado com segurança localmente</span>
+        let formaEntregaTexto = 'RETIRADA NA LOJA';
+        let badgeEstilo = 'bg-purple-100 text-purple-800';
+
+        if (!ehRetirada) {
+          badgeEstilo = 'bg-emerald-100 text-emerald-800';
+          const provedor = (pe?.provedor || (pedidoConcluido as any).metadados?.provedor_frete || '').toLowerCase();
+          const transp = (pe?.transportadora_nome || metaTransp || pedidoConcluido.forma_entrega?.nome || '').trim();
+          const servico = (pe?.servico_codigo || (pedidoConcluido as any).metadados?.servico_frete_codigo || '').toLowerCase();
+
+          if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+            formaEntregaTexto = 'CORREIOS';
+          } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+            formaEntregaTexto = 'UBER';
+          } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+            formaEntregaTexto = 'JADLOG';
+          } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+            formaEntregaTexto = transp.toUpperCase();
+          } else {
+            formaEntregaTexto = 'ENTREGA';
+          }
+        }
+
+        const enderecoDestino = (() => {
+          if (pe?.destino_logradouro) {
+            const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
+            const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
+            return `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
+          }
+          if (pedidoConcluido.endereco_entrega) {
+            return pedidoConcluido.endereco_entrega;
+          }
+          if (pedidoConcluido.cliente?.endereco_principal) {
+            return pedidoConcluido.cliente.endereco_principal;
+          }
+          return 'Endereço não informado';
+        })();
+
+        const enderecoLojaFormatado = [
+          loja?.endereco_logradouro,
+          loja?.endereco_numero,
+          loja?.endereco_bairro,
+          loja?.endereco_cidade,
+          loja?.endereco_estado
+        ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
+
+        const valorSubtotal = Number((pedidoConcluido as any).subtotal_produtos || pedidoConcluido.subtotal || pedidoConcluido.valor_total || 0);
+        const valorDesconto = Number(pedidoConcluido.valor_desconto || 0);
+        const valorFrete = Number(pedidoConcluido.valor_frete || 0);
+        const valorTotal = Number(pedidoConcluido.valor_total || 0);
+
+        return (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+              {/* Topo do Modal */}
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    O pedido foi gravado no dispositivo e será sincronizado com a nuvem assim que houver conexão.
-                  </p>
+                  <div>
+                    <h3 className="font-extrabold text-slate-100 text-sm">
+                      {ehVendaOfflineSalva ? 'Venda Salva (Modo Offline)!' : 'Venda Concluída com Sucesso!'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">Recibo do Pedido #{pedidoConcluido.numero_pedido}</p>
+                  </div>
                 </div>
-              )}
+                <button
+                  onClick={() => setPedidoConcluido(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-              <div className="bg-white text-slate-900 p-6 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-xl font-mono">
-                {/* Logo da Loja se houver */}
-                {loja?.url_logo && (
-                  <div className="text-center pb-1">
-                    <img src={loja.url_logo} alt={loja.nome_fantasia} className="max-h-12 max-w-[160px] mx-auto object-contain" />
+              {/* Visualização do Cupom/Recibo Conforme Modelo dos Logs */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {ehVendaOfflineSalva && (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CloudOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Armazenado com segurança localmente</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      O pedido foi gravado no dispositivo e será sincronizado com a nuvem assim que houver conexão.
+                    </p>
                   </div>
                 )}
 
-                {/* Título RECIBO # */}
-                <div className="text-center border-b border-slate-200 border-dashed pb-2">
-                  <h4 className="font-black text-slate-900 text-base tracking-wide uppercase">
-                    RECIBO #{pedidoConcluido.numero_pedido}
-                  </h4>
-                  <p className="font-bold text-slate-800 uppercase text-[11px]">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                  <p className="text-slate-500 text-[10px]">
-                    {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
-                    {loja?.whatsapp ? ` • +55 ${loja.whatsapp}` : (loja?.telefone ? ` • +55 ${loja.telefone}` : '')}
-                  </p>
-                </div>
-
-                {/* Dados do Vendedor / Origem (Antes do Cliente) */}
-                <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
-                  <span className="text-slate-500 font-semibold">
-                    {pedidoConcluido.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
-                  </span>
-                  <p className="font-bold text-slate-900">
-                    {pedidoConcluido.origem === 'catalogo_online'
-                      ? 'Catálogo Online (Pedido Online)'
-                      : pedidoConcluido.vendedor?.nome_completo || 'Caixa / Balcão'}
-                  </p>
-                </div>
-
-                {/* Dados do Cliente */}
-                <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
-                  <p className="font-bold text-slate-900">Cliente: {pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
-                  {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
-                    <p className="text-slate-500 text-[10px]">
-                      Tel: +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
-                    </p>
+                <div className="bg-white text-slate-900 p-6 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-xl font-mono">
+                  {/* Logo da Loja se houver */}
+                  {loja?.url_logo && (
+                    <div className="text-center pb-1">
+                      <img src={loja.url_logo} alt={loja.nome_fantasia} className="max-h-12 max-w-[160px] mx-auto object-contain" />
+                    </div>
                   )}
-                </div>
 
-                {/* Forma de Entrega & Endereço */}
-                {(() => {
-                  const rawPe = (pedidoConcluido as any).pedido_entrega || pedidoEntrega;
-                  const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-                  const metaTransp = (pedidoConcluido as any).metadados?.transportadora_nome;
-                  const metaTipo = (pedidoConcluido as any).metadados?.tipo_atendimento;
-                  const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
-                    metaTipo === 'retirada' ||
-                    (!pe && !metaTransp && Number(pedidoConcluido.valor_frete || 0) === 0 && !pedidoConcluido.endereco_entrega);
+                  {/* Título RECIBO # */}
+                  <div className="text-center border-b border-slate-200 border-dashed pb-2">
+                    <h4 className="font-black text-slate-900 text-base tracking-wide uppercase">
+                      RECIBO #{pedidoConcluido.numero_pedido}
+                    </h4>
+                    <p className="font-bold text-slate-800 uppercase text-[11px]">{loja?.nome_fantasia || 'HUBI PDV'}</p>
+                    <p className="text-slate-500 text-[10px]">
+                      {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
+                      {loja?.whatsapp ? ` • +55 ${loja.whatsapp}` : (loja?.telefone ? ` • +55 ${loja.telefone}` : '')}
+                    </p>
+                  </div>
 
-                  let formaEntregaTexto = 'RETIRADA NA LOJA';
-                  let badgeEstilo = 'bg-purple-100 text-purple-800';
+                  {/* Dados do Vendedor / Origem (Antes do Cliente) */}
+                  <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
+                    <span className="text-slate-500 font-semibold">
+                      {pedidoConcluido.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
+                    </span>
+                    <p className="font-bold text-slate-900">
+                      {pedidoConcluido.origem === 'catalogo_online'
+                        ? 'Catálogo Online (Pedido Online)'
+                        : pedidoConcluido.vendedor?.nome_completo || 'Caixa / Balcão'}
+                    </p>
+                  </div>
 
-                  if (!ehRetirada) {
-                    badgeEstilo = 'bg-emerald-100 text-emerald-800';
-                    const provedor = (pe?.provedor || (pedidoConcluido as any).metadados?.provedor_frete || '').toLowerCase();
-                    const transp = (pe?.transportadora_nome || metaTransp || pedidoConcluido.forma_entrega?.nome || '').trim();
-                    const servico = (pe?.servico_codigo || (pedidoConcluido as any).metadados?.servico_frete_codigo || '').toLowerCase();
+                  {/* Dados do Cliente */}
+                  <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
+                    <p className="font-bold text-slate-900">Cliente: {pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
+                    {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
+                      <p className="text-slate-500 text-[10px]">
+                        Tel: +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
+                      </p>
+                    )}
+                  </div>
 
-                    if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-                      formaEntregaTexto = 'CORREIOS';
-                    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
-                      formaEntregaTexto = 'UBER';
-                    } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-                      formaEntregaTexto = 'JADLOG';
-                    } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
-                      formaEntregaTexto = transp.toUpperCase();
-                    } else {
-                      formaEntregaTexto = 'ENTREGA';
-                    }
-                  }
+                  {/* Forma de Entrega & Endereço */}
+                  <div className="p-2 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-700 uppercase">Forma de Entrega:</span>
+                      <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
+                        {formaEntregaTexto}
+                      </span>
+                    </div>
+                    <div className="text-slate-600 pt-0.5">
+                      <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
+                      <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+                    </div>
+                  </div>
 
-                  const enderecoDestino = (() => {
-                    if (pe?.destino_logradouro) {
-                      const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
-                      const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
-                      return `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
-                    }
-                    if (pedidoConcluido.endereco_entrega) {
-                      return pedidoConcluido.endereco_entrega;
-                    }
-                    if (pedidoConcluido.cliente?.endereco_principal) {
-                      return pedidoConcluido.cliente.endereco_principal;
-                    }
-                    return 'Endereço não informado';
-                  })();
+                  {/* Resumo de itens */}
+                  <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">
+                    {pedidoConcluido.itens?.length || 0} itens (Qtd.: {pedidoConcluido.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
+                  </div>
 
-                  const enderecoLojaFormatado = [
-                    loja?.endereco_logradouro,
-                    loja?.endereco_numero,
-                    loja?.endereco_bairro,
-                    loja?.endereco_cidade,
-                    loja?.endereco_estado
-                  ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
-
-                  return (
-                    <div className="p-2 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-700 uppercase">Forma de Entrega:</span>
-                        <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
-                          {formaEntregaTexto}
+                  {/* Tabela de Itens */}
+                  <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2">
+                    {pedidoConcluido.itens?.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-start text-xs text-slate-800">
+                        <span>
+                          <strong className="text-slate-950">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+                        </span>
+                        <span className="font-bold text-slate-900 whitespace-nowrap pl-3">
+                          R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
                         </span>
                       </div>
-                      <div className="text-slate-600 pt-0.5">
-                        <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
-                        <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+                    ))}
+                  </div>
+
+                  {/* Fechamento Financeiro */}
+                  <div className="space-y-1.5 text-xs text-slate-700">
+                    <div className="flex justify-between text-slate-800">
+                      <span>Subtotal dos Produtos:</span>
+                      <span className="font-semibold text-slate-900">R$ {valorSubtotal.toFixed(2)}</span>
+                    </div>
+
+                    {valorDesconto > 0 && (
+                      <div className="flex justify-between text-red-600 font-bold">
+                        <span>Desconto Aplicado:</span>
+                        <span>- R$ {valorDesconto.toFixed(2)}</span>
                       </div>
-                    </div>
-                  );
-                })()}
+                    )}
 
-                {/* Resumo de itens */}
-                <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">
-                  {pedidoConcluido.itens?.length || 0} itens (Qtd.: {pedidoConcluido.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
-                </div>
-
-                {/* Tabela de Itens */}
-                <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2">
-                  {pedidoConcluido.itens?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start text-xs text-slate-800">
-                      <span>
-                        <strong className="text-slate-950">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
-                      </span>
-                      <span className="font-bold text-slate-900 whitespace-nowrap pl-3">
-                        R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
+                    <div className="flex justify-between text-slate-800">
+                      <span>Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
+                      <span className="font-semibold text-slate-900">
+                        {valorFrete > 0 
+                          ? `+ R$ ${valorFrete.toFixed(2)}` 
+                          : 'Grátis (Retirada)'}
                       </span>
                     </div>
-                  ))}
-                </div>
 
-                {/* Acréscimos/Descontos se houver */}
-                <div className="space-y-1 text-xs text-slate-700">
-                  {Number(pedidoConcluido.subtotal) > 0 && (
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span className="font-semibold text-slate-900">R$ {Number(pedidoConcluido.subtotal).toFixed(2)}</span>
+                    <div className="border-t border-dashed border-slate-300 pt-2 my-1"></div>
+
+                    <div className="flex justify-between items-center text-sm font-black text-slate-950 pt-0.5">
+                      <span>VALOR TOTAL:</span>
+                      <span className="text-base font-black">R$ {valorTotal.toFixed(2)}</span>
                     </div>
-                  )}
-                  {Number(pedidoConcluido.valor_desconto) > 0 && (
-                    <div className="flex justify-between text-red-600 font-bold">
-                      <span>Desconto:</span>
-                      <span>- R$ {Number(pedidoConcluido.valor_desconto).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {Number(pedidoConcluido.valor_frete) > 0 && (
-                    <div className="flex justify-between text-slate-700">
-                      <span>Taxa de Entrega:</span>
-                      <span className="font-semibold">+ R$ {Number(pedidoConcluido.valor_frete).toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Total */}
-                <div className="border-t border-slate-900 pt-2 flex justify-between items-center text-sm font-black text-slate-950">
-                  <span>TOTAL:</span>
-                  <span className="text-base">R$ {Number(pedidoConcluido.valor_total).toFixed(2)}</span>
-                </div>
-
-                {/* Dados do Pagamento (Após o Valor Total) */}
-                {(() => {
-                  const pagInfo = obterDadosPagamentoRecibo(pedidoConcluido);
-                  return (
-                    <>
-                      {pagInfo.ehFiado && Number(pedidoConcluido.saldo_devedor) > 0 && (
-                        <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
-                          <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                          <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
-                          {obterInfoVencimentoFiado(pedidoConcluido).temVencimento && (
-                            <span className="text-[11px] font-bold text-red-700 block pt-0.5">
-                              Data de Vencimento: {obterInfoVencimentoFiado(pedidoConcluido).formatada}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                        <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
-                          <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
-                          <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
-                          </span>
-                        </div>
-                        {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
-                          <div className="space-y-1.5 pt-1.5 text-slate-800">
-                            {pagInfo.pagamentosDetalhados.map((pag, idx) => (
-                              <div key={idx} className="flex justify-between items-start text-[11px]">
-                                <div>
-                                  <span className="font-semibold">{pag.forma}</span>
-                                  {pag.origemGateway && (
-                                    <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
-                                  )}
-                                </div>
-                                <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
-                              </div>
-                            ))}
-                            <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
-                              <span>Valor Pago:</span>
-                              <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
-                            </div>
+                  {/* Dados do Pagamento (Após o Valor Total) */}
+                  {(() => {
+                    const pagInfo = obterDadosPagamentoRecibo(pedidoConcluido);
+                    return (
+                      <>
+                        {pagInfo.ehFiado && Number(pedidoConcluido.saldo_devedor) > 0 && (
+                          <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
+                            <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                            <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
+                            {obterInfoVencimentoFiado(pedidoConcluido).temVencimento && (
+                              <span className="text-[11px] font-bold text-red-700 block pt-0.5">
+                                Data de Vencimento: {obterInfoVencimentoFiado(pedidoConcluido).formatada}
+                              </span>
+                            )}
                           </div>
-                        ) : null}
-                      </div>
-                    </>
-                  );
-                })()}
+                        )}
 
-                {/* Linha Divisória */}
-                <div className="border-t border-slate-700 my-2"></div>
+                        <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                          <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
+                            <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
+                            <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                            </span>
+                          </div>
+                          {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                            <div className="space-y-1.5 pt-1.5 text-slate-800">
+                              {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                                <div key={idx} className="flex justify-between items-start text-[11px]">
+                                  <div>
+                                    <span className="font-semibold">{pag.forma}</span>
+                                    {pag.origemGateway && (
+                                      <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                                    )}
+                                  </div>
+                                  <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
+                                <span>Valor Pago:</span>
+                                <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </>
+                    );
+                  })()}
 
-                {/* Data Formatada por Extenso */}
-                <div className="text-center text-[11px] text-slate-400">
-                  {formatarDataRecibo(pedidoConcluido.data_venda || pedidoConcluido.criado_em)}
+                  {/* Linha Divisória */}
+                  <div className="border-t border-slate-700 my-2"></div>
+
+                  {/* Data Formatada por Extenso */}
+                  <div className="text-center text-[11px] text-slate-400">
+                    {formatarDataRecibo(pedidoConcluido.data_venda || pedidoConcluido.criado_em)}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Ações do Modal de Recibo com Botões Compactos */}
-            <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2">
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Imprimir Cupom em Bobina Térmica (58mm/80mm)"
-                >
-                  <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="truncate">Térmica 58/80mm</span>
-                </button>
+              {/* Ações do Modal de Recibo com Botões Compactos */}
+              <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2">
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
+                    }}
+                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                    title="Imprimir Cupom em Bobina Térmica (58mm/80mm)"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="truncate">Térmica 58/80mm</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Imprimir Recibo em Folha A4"
-                >
-                  <Printer className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="truncate">Imprimir A4</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
+                    }}
+                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                    title="Imprimir Recibo em Folha A4"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="truncate">Imprimir A4</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Baixar e Salvar Recibo em PDF"
-                >
-                  <Download className="w-3.5 h-3.5 text-sky-400" />
-                  <span className="truncate">Baixar PDF</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
+                    }}
+                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                    title="Baixar e Salvar Recibo em PDF"
+                  >
+                    <Download className="w-3.5 h-3.5 text-sky-400" />
+                    <span className="truncate">Baixar PDF</span>
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pedidoConcluido) PrintService.openEmail(pedidoConcluido, loja);
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                  title="Enviar Recibo por E-mail"
-                >
-                  <Mail className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="truncate">E-mail</span>
-                </button>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pedidoConcluido) PrintService.openEmail(pedidoConcluido, loja);
+                    }}
+                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                    title="Enviar Recibo por E-mail"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="truncate">E-mail</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loja && pedidoConcluido) {
-                      const msg = PrintService.generateWhatsAppMessage(pedidoConcluido, loja);
-                      PrintService.openWhatsApp(pedidoConcluido.cliente?.whatsapp || '', msg);
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span className="truncate">WhatsApp</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (loja && pedidoConcluido) {
+                        const msg = PrintService.generateWhatsAppMessage(pedidoConcluido, loja);
+                        PrintService.openWhatsApp(pedidoConcluido.cliente?.whatsapp || '', msg);
+                      }
+                    }}
+                    className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span className="truncate">WhatsApp</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setPedidoConcluido(null)}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-                >
-                  Nova Venda
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setPedidoConcluido(null)}
+                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  >
+                    Nova Venda
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal Novo Cliente */}
       <ModalNovoCliente
