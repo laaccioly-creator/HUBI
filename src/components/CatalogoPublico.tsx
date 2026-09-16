@@ -2323,7 +2323,7 @@ Fico no aguardo da confirmação! ✨`;
                         ) : (pedidoEntrega.is_frete_gratis || valorFreteEfetivo === 0 || freteGratisCupom) ? (
                           <div className="flex flex-col items-end leading-tight">
                             {pedidoEntrega.valor_original != null && pedidoEntrega.valor_original > 0 && (
-                              <span className="text-[10px] line-through text-slate-500 font-normal">
+                              <span className="text-[10px] line-through text-slate-300 font-semibold">
                                 R$ {pedidoEntrega.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             )}
@@ -2331,7 +2331,7 @@ Fico no aguardo da confirmação! ✨`;
                           </div>
                         ) : pedidoEntrega.valor_subsidio && pedidoEntrega.valor_subsidio > 0 && pedidoEntrega.valor_original ? (
                           <div className="flex flex-col items-end leading-tight">
-                            <span className="text-[10px] line-through text-slate-500 font-normal">
+                            <span className="text-[10px] line-through text-slate-300 font-semibold">
                               R$ {pedidoEntrega.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <span className="text-emerald-400 font-bold text-xs">

@@ -327,16 +327,27 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         return true;
       });
 
-      setCotacoes(opcoesFiltradas);
+      // Recalcula o benefício de frete grátis/subsídio estritamente sobre as opções que realmente restaram válidas
+      const opcoesComSubsidio = ShippingOrchestrator.aplicarSubsidioFreteGratis(
+        opcoesFiltradas,
+        runtimeConfig,
+        subtotal
+      );
 
-      const opcoesValidas = opcoesFiltradas.filter(o => !o.erro && (o.valor_frete > 0 || o.is_frete_gratis));
+      setCotacoes(opcoesComSubsidio);
+
+      const opcoesValidas = opcoesComSubsidio.filter(o => !o.erro && (o.valor_frete > 0 || o.is_frete_gratis));
 
       if (opcoesValidas.length > 0) {
-        const encontrada = opcoesValidas.find(o => 
-          o.id === opcaoSelecionadaId || 
-          o.servico_codigo === opcaoSelecionadaId ||
-          (opcaoSelecionadaId && (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo)))
-        ) || opcoesValidas.find(o => o.is_frete_gratis) || opcoesValidas[0];
+        // Prioriza e tica a opção de frete grátis por padrão se o cliente atingiu a meta
+        const opcaoGratis = opcoesValidas.find(o => o.is_frete_gratis);
+        const encontrada = opcaoGratis 
+          || opcoesValidas.find(o => 
+              o.id === opcaoSelecionadaId || 
+              o.servico_codigo === opcaoSelecionadaId ||
+              (opcaoSelecionadaId && (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo)))
+            ) 
+          || opcoesValidas[0];
         setCotacaoEscolhida(encontrada);
 
         const chaveEmissao = `${encontrada.id}_${encontrada.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega`;
@@ -592,7 +603,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
                             {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
                           </p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="text-[11px] text-slate-300 mt-0.5">
                             {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                           </p>
                         </div>
@@ -681,8 +692,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           onClick={() => handleEscolherCotacao(opcao)}
                           className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                             selecionada
-                              ? 'bg-emerald-500/10 border-emerald-500 text-slate-100 shadow-md shadow-emerald-500/10'
-                              : 'bg-slate-800 border border-slate-700 text-slate-200 hover:border-slate-600'
+                              ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md shadow-emerald-500/10'
+                              : 'bg-slate-800 border border-slate-700 text-white hover:border-slate-600'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -695,20 +706,25 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             </div>
 
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-200 truncate">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-white truncate">
                                   {opcao.transportadora_nome}
                                 </span>
                                 {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
-                                  <span className="text-[10px] text-slate-400 font-medium truncate">
+                                  <span className="text-[11px] text-slate-100 font-semibold truncate">
                                     ({opcao.servico_nome})
+                                  </span>
+                                )}
+                                {opcao.is_frete_gratis && (
+                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                    Frete Grátis
                                   </span>
                                 )}
                               </div>
                               {opcao.prazo_estimado_texto && (
-                                <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
-                                  <Clock className="w-3 h-3 text-emerald-400 shrink-0" />
-                                  <span>{opcao.prazo_estimado_texto}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-100 font-medium mt-1">
+                                  <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  <span className="text-slate-100">{opcao.prazo_estimado_texto}</span>
                                 </div>
                               )}
                             </div>
@@ -717,35 +733,35 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           <div className="flex items-center gap-3 shrink-0">
                             <div className="text-right">
                               {opcao.is_frete_gratis ? (
-                                <div className="flex flex-col items-end">
+                                <div className="flex flex-col items-end leading-tight">
                                   {opcao.valor_original != null && opcao.valor_original > 0 && (
-                                    <span className="text-[11px] line-through text-slate-500 font-medium">
+                                    <span className="text-xs line-through text-slate-300 font-bold">
                                       R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   )}
-                                  <span className="font-bold text-sm text-emerald-400">
-                                    Frete Grátis
+                                  <span className="font-extrabold text-sm text-emerald-400">
+                                    Grátis
                                   </span>
                                 </div>
                               ) : opcao.is_upgrade_subsidio ? (
-                                <div className="flex flex-col items-end">
+                                <div className="flex flex-col items-end leading-tight">
                                   {opcao.valor_original != null && (
-                                    <span className="text-[11px] line-through text-slate-500 font-medium">
+                                    <span className="text-xs line-through text-slate-300 font-bold">
                                       R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   )}
-                                  <span className="font-bold text-sm text-emerald-400">
+                                  <span className="font-extrabold text-sm text-emerald-400">
                                     R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="font-bold text-sm text-emerald-400">
+                                <span className="font-extrabold text-sm text-emerald-400">
                                   R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               )}
                             </div>
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                              selecionada ? 'bg-emerald-500 text-slate-950' : 'border border-slate-600'
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                              selecionada ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/30' : 'border-2 border-slate-400'
                             }`}>
                               {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </div>

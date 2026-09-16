@@ -381,23 +381,41 @@ export class ShippingOrchestrator {
       return opcoes;
     }
 
-    // Identificar opções válidas e com valor positivo
-    const opcoesValidas = opcoes.filter(o => !o.erro && typeof o.valor_frete === 'number' && o.valor_frete > 0);
+    // Identificar opções válidas (considerando tanto valor_original quanto valor_frete)
+    const opcoesValidas = opcoes.filter(o => 
+      !o.erro && (
+        (typeof o.valor_original === 'number' && o.valor_original > 0) || 
+        (typeof o.valor_frete === 'number' && o.valor_frete > 0) ||
+        o.is_frete_gratis
+      )
+    );
     if (opcoesValidas.length === 0) {
       return opcoes;
     }
 
-    // Menor preço entre as opções disponíveis é o valor subsidiado pela loja
-    const menorPreco = Math.min(...opcoesValidas.map(o => o.valor_frete));
+    // Menor preço entre as opções disponíveis é o valor original mais baixo
+    const menorPreco = Math.min(...opcoesValidas.map(o => 
+      (typeof o.valor_original === 'number' && o.valor_original > 0) ? o.valor_original : o.valor_frete
+    ));
+
+    let gratisDefinido = false;
 
     return opcoes.map(opcao => {
-      if (opcao.erro || typeof opcao.valor_frete !== 'number' || opcao.valor_frete <= 0) {
+      if (opcao.erro) {
         return opcao;
       }
 
-      const precoOriginal = opcao.valor_original ?? opcao.valor_frete;
+      const precoOriginal = (typeof opcao.valor_original === 'number' && opcao.valor_original > 0)
+        ? opcao.valor_original
+        : opcao.valor_frete;
 
-      if (precoOriginal === menorPreco) {
+      if (typeof precoOriginal !== 'number' || precoOriginal <= 0) {
+        return opcao;
+      }
+
+      // Se é o menor preço (e ainda não marcou uma opção gratuita), zera esta opção
+      if (!gratisDefinido && Math.abs(precoOriginal - menorPreco) < 0.01) {
+        gratisDefinido = true;
         return {
           ...opcao,
           valor_original: precoOriginal,
