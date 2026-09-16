@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Navigation, HelpCircle, Check, Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
+import { Cliente } from '../types';
 
 export interface DadosEnderecoCliente {
   cep: string;
@@ -15,7 +18,10 @@ interface ModalEnderecoClienteCatalogoProps {
   isOpen: boolean;
   onClose: () => void;
   dadosIniciais: DadosEnderecoCliente;
-  onSalvar: (dados: DadosEnderecoCliente, enderecoFormatado: string) => void;
+  onSalvar: (dados: DadosEnderecoCliente, enderecoFormatado: string) => void | Promise<void>;
+  clienteId?: string | null;
+  lojaId?: string | null;
+  cliente?: Cliente | null;
 }
 
 const ESTADOS_BRASIL = [
@@ -52,7 +58,10 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
   isOpen,
   onClose,
   dadosIniciais,
-  onSalvar
+  onSalvar,
+  clienteId,
+  lojaId: _lojaId,
+  cliente
 }) => {
   const [cep, setCep] = useState(dadosIniciais.cep || '');
   const [rua, setRua] = useState(dadosIniciais.rua || '');
@@ -64,20 +73,102 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
 
   const [carregandoCep, setCarregandoCep] = useState(false);
   const [carregandoGeoloc, setCarregandoGeoloc] = useState(false);
+  const [carregandoDados, setCarregandoDados] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setCep(dadosIniciais.cep || '');
-      setRua(dadosIniciais.rua || '');
-      setNumero(dadosIniciais.numero || '');
-      setComplemento(dadosIniciais.complemento || '');
-      setBairro(dadosIniciais.bairro || '');
-      setCidade(dadosIniciais.cidade || '');
-      setEstado(dadosIniciais.estado || '');
-      setErroMsg(null);
+    let ativo = true;
+
+    async function hidratarEndereco() {
+      if (!isOpen) return;
+
+      const idCli = clienteId || cliente?.id;
+      if (idCli) {
+        setCarregandoDados(true);
+        setErroMsg(null);
+        try {
+          // 1. Tenta buscar da tabela cliente_enderecos o endereço principal ou mais recente
+          const { data: ends } = await supabase
+            .from('cliente_enderecos')
+            .select('*')
+            .eq('cliente_id', idCli)
+            .order('is_principal', { ascending: false })
+            .order('criado_em', { ascending: false });
+
+          if (ativo && ends && ends.length > 0) {
+            const principal = ends.find((e) => e.is_principal) || ends[0];
+            if (principal.logradouro || principal.cep) {
+              const cepFormat = (principal.cep || '').replace(/\D/g, '').slice(0, 8);
+              const cepFinal = cepFormat.length === 8 ? `${cepFormat.slice(0, 5)}-${cepFormat.slice(5, 8)}` : cepFormat;
+              setCep(cepFinal);
+              setRua(principal.logradouro || '');
+              setNumero(principal.numero || '');
+              setComplemento(principal.complemento || '');
+              setBairro(principal.bairro || '');
+              setCidade(principal.cidade || '');
+              setEstado(principal.uf || '');
+              setCarregandoDados(false);
+              return;
+            }
+          }
+
+          // 2. Se não encontrou em cliente_enderecos, busca na tabela clientes
+          const { data: cli } = await supabase
+            .from('clientes')
+            .select('endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, cep, rua, numero, complemento, bairro, cidade, estado')
+            .eq('id', idCli)
+            .single();
+
+          if (ativo && cli) {
+            const cCep = cli.endereco_cep || cli.cep || '';
+            const cRua = cli.endereco_logradouro || cli.rua || '';
+            const cNum = cli.endereco_numero || cli.numero || '';
+            const cComp = cli.endereco_complemento || cli.complemento || '';
+            const cBairro = cli.endereco_bairro || cli.bairro || '';
+            const cCid = cli.endereco_cidade || cli.cidade || '';
+            const cEst = cli.endereco_estado || cli.estado || '';
+
+            if (cRua || cCep || cCid) {
+              const cepFormat = cCep.replace(/\D/g, '').slice(0, 8);
+              const cepFinal = cepFormat.length === 8 ? `${cepFormat.slice(0, 5)}-${cepFormat.slice(5, 8)}` : cepFormat;
+              setCep(cepFinal);
+              setRua(cRua);
+              setNumero(cNum);
+              setComplemento(cComp);
+              setBairro(cBairro);
+              setCidade(cCid);
+              setEstado(cEst);
+              setCarregandoDados(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Erro ao consultar endereço prévio do cliente:', e);
+        } finally {
+          if (ativo) setCarregandoDados(false);
+        }
+      }
+
+      // Se não há clienteId ou não há dados no banco, usa dadosIniciais ou props do cliente
+      if (ativo) {
+        setCep(dadosIniciais.cep || cliente?.endereco_cep || cliente?.cep || '');
+        setRua(dadosIniciais.rua || cliente?.endereco_logradouro || cliente?.rua || '');
+        setNumero(dadosIniciais.numero || cliente?.endereco_numero || cliente?.numero || '');
+        setComplemento(dadosIniciais.complemento || cliente?.endereco_complemento || cliente?.complemento || '');
+        setBairro(dadosIniciais.bairro || cliente?.endereco_bairro || cliente?.bairro || '');
+        setCidade(dadosIniciais.cidade || cliente?.endereco_cidade || cliente?.cidade || '');
+        setEstado(dadosIniciais.estado || cliente?.endereco_estado || cliente?.estado || '');
+        setErroMsg(null);
+      }
     }
-  }, [isOpen, dadosIniciais]);
+
+    hidratarEndereco();
+
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, clienteId, cliente, dadosIniciais]);
 
   if (!isOpen) return null;
 
@@ -179,7 +270,7 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rua.trim()) {
       setErroMsg('Por favor, informe a Rua / Logradouro.');
@@ -209,20 +300,72 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
     ].filter(Boolean);
 
     const enderecoFormatado = partes.join(' ');
+    const cepLimpo = cep.trim().replace(/\D/g, '');
 
-    onSalvar(
-      {
-        cep: cep.trim(),
-        rua: rua.trim(),
-        numero: numero.trim(),
-        complemento: complemento.trim(),
-        bairro: bairro.trim(),
-        cidade: cidade.trim(),
-        estado: estado.trim()
-      },
-      enderecoFormatado
-    );
-    onClose();
+    const novosDados: DadosEnderecoCliente = {
+      cep: cep.trim(),
+      rua: rua.trim(),
+      numero: numero.trim(),
+      complemento: complemento.trim(),
+      bairro: bairro.trim(),
+      cidade: cidade.trim(),
+      estado: estado.trim().toUpperCase()
+    };
+
+    setSalvando(true);
+    setErroMsg(null);
+
+    try {
+      const idCli = clienteId || cliente?.id;
+      if (idCli) {
+        // 1. Atualizar na tabela clientes
+        const { error: errCli } = await supabase
+          .from('clientes')
+          .update({
+            endereco_cep: cepLimpo,
+            endereco_logradouro: rua.trim(),
+            endereco_numero: numero.trim(),
+            endereco_complemento: complemento.trim() || null,
+            endereco_bairro: bairro.trim(),
+            endereco_cidade: cidade.trim(),
+            endereco_estado: estado.trim().toUpperCase(),
+            cep: cepLimpo,
+            rua: rua.trim(),
+            numero: numero.trim(),
+            complemento: complemento.trim() || null,
+            bairro: bairro.trim(),
+            cidade: cidade.trim(),
+            estado: estado.trim().toUpperCase()
+          })
+          .eq('id', idCli);
+
+        if (errCli) {
+          console.warn('Aviso ao atualizar clientes:', errCli);
+        }
+
+        // 2. Salvar / Upsert em cliente_enderecos com is_principal = true
+        await ShippingOrchestrator.salvarNovoEnderecoCliente(idCli, {
+          identificador: 'Principal',
+          cep: cepLimpo,
+          logradouro: rua.trim(),
+          numero: numero.trim(),
+          complemento: complemento.trim() || null,
+          bairro: bairro.trim(),
+          cidade: cidade.trim(),
+          uf: estado.trim().toUpperCase(),
+          is_principal: true
+        });
+      }
+
+      await onSalvar(novosDados, enderecoFormatado);
+      onClose();
+    } catch (err) {
+      console.error('Erro ao salvar endereço no banco:', err);
+      await onSalvar(novosDados, enderecoFormatado);
+      onClose();
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -235,7 +378,12 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
               <MapPin className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-slate-100">Endereço de Entrega</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm text-slate-100">Endereço Principal</h3>
+                {carregandoDados && (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                )}
+              </div>
               <p className="text-[11px] text-slate-400">Onde você deseja receber suas compras</p>
             </div>
           </div>
@@ -415,10 +563,11 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition cursor-pointer"
+              disabled={salvando}
+              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition cursor-pointer"
             >
-              <Check className="w-4 h-4" />
-              <span>Confirmar Endereço</span>
+              {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              <span>{salvando ? 'Salvando...' : 'Confirmar Endereço'}</span>
             </button>
           </div>
         </form>

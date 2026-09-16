@@ -9,6 +9,7 @@ import {
   ResultadoAvaliacaoCarrinho
 } from '../services/pricingEngine';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
+import { DadosEnderecoCliente } from '../components/ModalEnderecoClienteCatalogo';
 
 import { supabase } from '../lib/supabase';
 import { podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
@@ -35,6 +36,8 @@ interface CartContextType {
   tipoDesconto: 'valor' | 'percentual';
   taxaEntrega: number;
   pedidoEntrega: PedidoEntrega | null;
+  enderecoEntrega: string | null;
+  dadosEndereco: DadosEnderecoCliente | null;
   subtotal: number;
   total: number;
   totalItens: number;
@@ -52,6 +55,8 @@ interface CartContextType {
   setDesconto: (valor: number) => void;
   setTaxaEntrega: (valor: number) => void;
   setPedidoEntrega: (entrega: PedidoEntrega | null) => void;
+  setEnderecoEntrega: (endereco: string | null) => void;
+  setDadosEndereco: (dados: DadosEnderecoCliente | null) => void;
   limparCarrinho: () => void;
   carregarPedidoParaEdicao: (pedido: any) => Promise<void>;
   cancelarEdicaoPedido: () => void;
@@ -70,6 +75,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [taxaEntrega, setTaxaEntrega] = useState<number>(0);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
+  const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
+  const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente | null>(null);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
 
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
@@ -106,6 +113,32 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setClienteSelecionadoState(cliente);
     if (cliente?.tabela_preco_padrao) {
       setTabelaPrecoGlobal(cliente.tabela_preco_padrao);
+    }
+    if (cliente) {
+      const endObj: DadosEnderecoCliente = {
+        cep: cliente.endereco_cep || cliente.cep || '',
+        rua: cliente.endereco_logradouro || cliente.rua || cliente.endereco || '',
+        numero: cliente.endereco_numero || cliente.numero || '',
+        complemento: cliente.endereco_complemento || cliente.complemento || '',
+        bairro: cliente.endereco_bairro || cliente.bairro || '',
+        cidade: cliente.endereco_cidade || cliente.cidade || '',
+        estado: cliente.endereco_estado || cliente.estado || ''
+      };
+      if (endObj.rua || endObj.cep || endObj.cidade) {
+        setDadosEndereco(endObj);
+        const partes = [
+          endObj.rua,
+          endObj.numero ? `nº ${endObj.numero}` : '',
+          endObj.complemento ? `(${endObj.complemento})` : '',
+          endObj.bairro ? `- ${endObj.bairro}` : '',
+          endObj.cidade,
+          endObj.estado ? `/${endObj.estado}` : '',
+          endObj.cep ? `• CEP: ${endObj.cep}` : ''
+        ].filter(Boolean);
+        if (partes.length > 0) {
+          setEnderecoEntrega(partes.join(' '));
+        }
+      }
     }
   };
 
@@ -341,6 +374,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const limparCarrinho = () => {
     setItens([]);
     setClienteSelecionadoState(null);
+    setEnderecoEntrega(null);
+    setDadosEndereco(null);
     setDescontoState(0);
     setDescontoPercentualState(0);
     setTipoDesconto('valor');
@@ -354,6 +389,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!pedido) return;
     setPedidoEmEdicao(pedido);
     setClienteSelecionadoState(pedido.cliente || null);
+    if (pedido.cliente) {
+      const cli = pedido.cliente;
+      const endObj: DadosEnderecoCliente = {
+        cep: cli.endereco_cep || cli.cep || '',
+        rua: cli.endereco_logradouro || cli.rua || cli.endereco || '',
+        numero: cli.endereco_numero || cli.numero || '',
+        complemento: cli.endereco_complemento || cli.complemento || '',
+        bairro: cli.endereco_bairro || cli.bairro || '',
+        cidade: cli.endereco_cidade || cli.cidade || '',
+        estado: cli.endereco_estado || cli.estado || ''
+      };
+      setDadosEndereco(endObj);
+    }
+    if (pedido.endereco_entrega) {
+      setEnderecoEntrega(pedido.endereco_entrega);
+    }
     setTabelaPrecoGlobalState(pedido.tabela_preco_aplicada || 'varejo');
     
     const descVal = Number(pedido.valor_desconto) || 0;
@@ -531,6 +582,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tipoDesconto,
         taxaEntrega,
         pedidoEntrega,
+        enderecoEntrega,
+        dadosEndereco,
         subtotal,
         total,
         totalItens,
@@ -548,6 +601,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setDesconto,
         setTaxaEntrega,
         setPedidoEntrega,
+        setEnderecoEntrega,
+        setDadosEndereco,
         limparCarrinho,
         carregarPedidoParaEdicao,
         cancelarEdicaoPedido,

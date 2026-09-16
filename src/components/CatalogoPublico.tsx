@@ -29,6 +29,7 @@ import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket,
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
+import { useCart } from '../contexts/CartContext';
 import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
@@ -56,6 +57,7 @@ interface PedidoConcluidoInfo {
 
 export const CatalogoPublico: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const cartContext = useCart();
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -145,9 +147,32 @@ export const CatalogoPublico: React.FC = () => {
   const [pixAprovadoEmTempoReal, setPixAprovadoEmTempoReal] = useState<boolean>(false);
   const [verificandoPixManual, setVerificandoPixManual] = useState<boolean>(false);
 
-  const [nomeCliente, setNomeCliente] = useState<string>('');
-  const [whatsappCliente, setWhatsappCliente] = useState<string>('');
-  const [enderecoEntrega, setEnderecoEntrega] = useState<string>('');
+  const slugKey = slug || (typeof window !== 'undefined' ? window.location.pathname.split('/').pop() : 'default') || 'default';
+
+  const [nomeCliente, setNomeCliente] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return sessionStorage.getItem(`hubi_nome_cliente_catalogo_${slugKey}`) || '';
+    } catch {
+      return '';
+    }
+  });
+  const [whatsappCliente, setWhatsappCliente] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return sessionStorage.getItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`) || '';
+    } catch {
+      return '';
+    }
+  });
+  const [enderecoEntrega, setEnderecoEntrega] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return sessionStorage.getItem(`hubi_endereco_formatado_catalogo_${slugKey}`) || '';
+    } catch {
+      return '';
+    }
+  });
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
   const [modalShippingAberto, setModalShippingAberto] = useState<boolean>(false);
@@ -155,32 +180,67 @@ export const CatalogoPublico: React.FC = () => {
   const [enviandoPedido, setEnviandoPedido] = useState<boolean>(false);
 
   // Estados de Identificação do Cliente (3 Botões)
-  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
+  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const salvo = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      if (salvo) return JSON.parse(salvo);
+    } catch {
+      // Ignore
+    }
+    return null;
+  });
   const [modalBuscaClienteAberto, setModalBuscaClienteAberto] = useState<boolean>(false);
   const [modalContatoAberto, setModalContatoAberto] = useState<boolean>(false);
   const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
-  const [dadosContato, setDadosContato] = useState<DadosContatoCliente>({
-    nome: '',
-    telefone: '',
-    telefoneIsWhatsapp: true
+  const [dadosContato, setDadosContato] = useState<DadosContatoCliente>(() => {
+    if (typeof window === 'undefined') return { nome: '', telefone: '', telefoneIsWhatsapp: true };
+    try {
+      const salvo = sessionStorage.getItem(`hubi_contato_catalogo_${slugKey}`);
+      if (salvo) return JSON.parse(salvo);
+    } catch {
+      // Ignore
+    }
+    return {
+      nome: '',
+      telefone: '',
+      telefoneIsWhatsapp: true
+    };
   });
-  const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente>({
-    cep: '',
-    rua: '',
-    numero: '',
-    complemento: '',
-    bairro: '',
-    cidade: '',
-    estado: ''
+  const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente>(() => {
+    if (typeof window === 'undefined') {
+      return { cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' };
+    }
+    try {
+      const salvo = sessionStorage.getItem(`hubi_endereco_catalogo_${slugKey}`);
+      if (salvo) return JSON.parse(salvo);
+    } catch {
+      // Ignore
+    }
+    return {
+      cep: '',
+      rua: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: ''
+    };
   });
 
   const handleSelecionarCliente = (cliente: Cliente) => {
     setClienteSelecionado(cliente);
+    try {
+      sessionStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(cliente));
+      cartContext?.setClienteSelecionado(cliente);
+    } catch {
+      // Ignore
+    }
     setNomeCliente(cliente.nome || '');
     const tel = cliente.whatsapp || cliente.telefone || cliente.telefone2 || '';
     setWhatsappCliente(tel);
 
-    setDadosContato({
+    const novoContato: DadosContatoCliente = {
       nome: cliente.nome || '',
       telefone: tel,
       telefoneIsWhatsapp: cliente.telefone_is_whatsapp ?? true,
@@ -189,16 +249,17 @@ export const CatalogoPublico: React.FC = () => {
       cpfCnpj: cliente.numero_documento || '',
       dataAniversario: cliente.data_aniversario || '',
       email: cliente.email || ''
-    });
+    };
+    setDadosContato(novoContato);
 
     const endObj: DadosEnderecoCliente = {
-      cep: cliente.endereco_cep || '',
-      rua: cliente.endereco_logradouro || '',
-      numero: cliente.endereco_numero || '',
-      complemento: cliente.endereco_complemento || '',
-      bairro: cliente.endereco_bairro || '',
-      cidade: cliente.endereco_cidade || '',
-      estado: cliente.endereco_estado || ''
+      cep: cliente.endereco_cep || cliente.cep || '',
+      rua: cliente.endereco_logradouro || cliente.rua || cliente.endereco || '',
+      numero: cliente.endereco_numero || cliente.numero || '',
+      complemento: cliente.endereco_complemento || cliente.complemento || '',
+      bairro: cliente.endereco_bairro || cliente.bairro || '',
+      cidade: cliente.endereco_cidade || cliente.cidade || '',
+      estado: cliente.endereco_estado || cliente.estado || ''
     };
     setDadosEndereco(endObj);
 
@@ -212,18 +273,102 @@ export const CatalogoPublico: React.FC = () => {
       endObj.cep ? `• CEP: ${endObj.cep}` : ''
     ].filter(Boolean);
 
-    setEnderecoEntrega(partes.join(' '));
+    const formatado = partes.join(' ');
+    setEnderecoEntrega(formatado);
+
+    try {
+      sessionStorage.setItem(`hubi_contato_catalogo_${slugKey}`, JSON.stringify(novoContato));
+      sessionStorage.setItem(`hubi_nome_cliente_catalogo_${slugKey}`, cliente.nome || '');
+      sessionStorage.setItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`, tel);
+      sessionStorage.setItem(`hubi_endereco_catalogo_${slugKey}`, JSON.stringify(endObj));
+      sessionStorage.setItem(`hubi_endereco_formatado_catalogo_${slugKey}`, formatado);
+      cartContext?.setEnderecoEntrega(formatado);
+      cartContext?.setDadosEndereco(endObj);
+    } catch {
+      // Ignore
+    }
   };
 
   const handleSalvarContato = (novosDados: DadosContatoCliente) => {
     setDadosContato(novosDados);
     setNomeCliente(novosDados.nome);
     setWhatsappCliente(novosDados.telefone);
+
+    try {
+      sessionStorage.setItem(`hubi_contato_catalogo_${slugKey}`, JSON.stringify(novosDados));
+      sessionStorage.setItem(`hubi_nome_cliente_catalogo_${slugKey}`, novosDados.nome);
+      sessionStorage.setItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`, novosDados.telefone);
+    } catch (e) {
+      console.warn('Erro ao salvar contato no sessionStorage:', e);
+    }
+
+    if (clienteSelecionado) {
+      const cliAtualizado: Cliente = {
+        ...clienteSelecionado,
+        nome: novosDados.nome,
+        telefone: novosDados.telefone,
+        whatsapp: novosDados.telefone,
+        telefone_is_whatsapp: novosDados.telefoneIsWhatsapp,
+        telefone2: novosDados.telefone2,
+        telefone2_is_whatsapp: novosDados.telefone2IsWhatsapp,
+        numero_documento: novosDados.cpfCnpj,
+        data_aniversario: novosDados.dataAniversario,
+        email: novosDados.email
+      };
+      setClienteSelecionado(cliAtualizado);
+      try {
+        sessionStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(cliAtualizado));
+        cartContext?.setClienteSelecionado(cliAtualizado);
+      } catch {
+        // Ignore
+      }
+    }
   };
 
   const handleSalvarEndereco = (novosDados: DadosEnderecoCliente, formatado: string) => {
     setDadosEndereco(novosDados);
     setEnderecoEntrega(formatado);
+
+    try {
+      sessionStorage.setItem(`hubi_endereco_catalogo_${slugKey}`, JSON.stringify(novosDados));
+      sessionStorage.setItem(`hubi_endereco_formatado_catalogo_${slugKey}`, formatado);
+    } catch (e) {
+      console.warn('Erro ao salvar endereco no sessionStorage:', e);
+    }
+
+    if (clienteSelecionado) {
+      const cliAtualizado: Cliente = {
+        ...clienteSelecionado,
+        endereco_cep: novosDados.cep,
+        endereco_logradouro: novosDados.rua,
+        endereco_numero: novosDados.numero,
+        endereco_complemento: novosDados.complemento,
+        endereco_bairro: novosDados.bairro,
+        endereco_cidade: novosDados.cidade,
+        endereco_estado: novosDados.estado,
+        cep: novosDados.cep,
+        rua: novosDados.rua,
+        numero: novosDados.numero,
+        complemento: novosDados.complemento,
+        bairro: novosDados.bairro,
+        cidade: novosDados.cidade,
+        estado: novosDados.estado
+      };
+      setClienteSelecionado(cliAtualizado);
+      try {
+        sessionStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(cliAtualizado));
+        cartContext?.setClienteSelecionado(cliAtualizado);
+      } catch {
+        // Ignore
+      }
+    }
+
+    try {
+      cartContext?.setEnderecoEntrega(formatado);
+      cartContext?.setDadosEndereco(novosDados);
+    } catch {
+      // Ignore
+    }
   };
 
   const handleClienteAtualizadoPelaRubi = async (dados: { nome?: string; telefone?: string; endereco?: string }) => {
@@ -2260,6 +2405,9 @@ Fico no aguardo da confirmação! ✨`;
         onClose={() => setModalEnderecoAberto(false)}
         dadosIniciais={dadosEndereco}
         onSalvar={handleSalvarEndereco}
+        clienteId={clienteSelecionado?.id || null}
+        lojaId={loja?.id || null}
+        cliente={clienteSelecionado}
       />
 
       {/* MODAL DETALHES DO PRODUTO NO CATÁLOGO */}
@@ -2336,17 +2484,26 @@ Fico no aguardo da confirmação! ✨`;
               lojaId={loja.id}
               loja={loja}
               clienteId={clienteSelecionado?.id || null}
-              cliente={clienteSelecionado || {
-                nome: nomeCliente,
-                whatsapp: whatsappCliente,
-                telefone: whatsappCliente,
-                cep: dadosEndereco.cep,
-                rua: dadosEndereco.rua,
-                numero: dadosEndereco.numero,
-                complemento: dadosEndereco.complemento,
-                bairro: dadosEndereco.bairro,
-                cidade: dadosEndereco.cidade,
-                estado: dadosEndereco.estado
+              cliente={{
+                ...(clienteSelecionado || {}),
+                id: clienteSelecionado?.id,
+                nome: clienteSelecionado?.nome || nomeCliente,
+                whatsapp: clienteSelecionado?.whatsapp || whatsappCliente,
+                telefone: clienteSelecionado?.telefone || whatsappCliente,
+                cep: dadosEndereco.cep || clienteSelecionado?.endereco_cep || clienteSelecionado?.cep,
+                rua: dadosEndereco.rua || clienteSelecionado?.endereco_logradouro || clienteSelecionado?.rua,
+                numero: dadosEndereco.numero || clienteSelecionado?.endereco_numero || clienteSelecionado?.numero,
+                complemento: dadosEndereco.complemento || clienteSelecionado?.endereco_complemento || clienteSelecionado?.complemento,
+                bairro: dadosEndereco.bairro || clienteSelecionado?.endereco_bairro || clienteSelecionado?.bairro,
+                cidade: dadosEndereco.cidade || clienteSelecionado?.endereco_cidade || clienteSelecionado?.cidade,
+                estado: dadosEndereco.estado || clienteSelecionado?.endereco_estado || clienteSelecionado?.estado,
+                endereco_cep: dadosEndereco.cep || clienteSelecionado?.endereco_cep,
+                endereco_logradouro: dadosEndereco.rua || clienteSelecionado?.endereco_logradouro,
+                endereco_numero: dadosEndereco.numero || clienteSelecionado?.endereco_numero,
+                endereco_complemento: dadosEndereco.complemento || clienteSelecionado?.endereco_complemento,
+                endereco_bairro: dadosEndereco.bairro || clienteSelecionado?.endereco_bairro,
+                endereco_cidade: dadosEndereco.cidade || clienteSelecionado?.endereco_cidade,
+                endereco_estado: dadosEndereco.estado || clienteSelecionado?.endereco_estado
               }}
               subtotal={subtotal}
               itens={carrinho.map(i => ({
@@ -2360,6 +2517,7 @@ Fico no aguardo da confirmação! ✨`;
               }))}
               valorFreteAtual={valorFrete}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
+              tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
               onChange={(resultado) => {
                 setPedidoEntrega(prev => {
                   if (prev?.servico_codigo === resultado.pedido_entrega?.servico_codigo &&
@@ -2373,6 +2531,38 @@ Fico no aguardo da confirmação! ✨`;
                   const end = resultado.endereco_selecionado;
                   const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
                   setEnderecoEntrega(prev => prev !== novoTxt ? novoTxt : prev);
+                }
+                setFormaEntregaEscolhida({
+                  id: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'entrega_shipping',
+                  loja_id: loja.id,
+                  nome: resultado.tipo_atendimento === 'retirada' 
+                    ? 'Retirada no Balcão' 
+                    : (resultado.opcao_selecionada?.transportadora_nome || 'Entrega a Domicílio'),
+                  tipo: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'taxa_fixa',
+                  valor_taxa: resultado.valor_frete,
+                  valor_por_km: 0,
+                  tempo_estimado: resultado.opcao_selecionada?.prazo_estimado_texto || '60 minutos',
+                  ativo: true
+                });
+                try {
+                  cartContext?.setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                  cartContext?.setTaxaEntrega(resultado.valor_frete || 0);
+                  if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {
+                    const end = resultado.endereco_selecionado;
+                    const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
+                    cartContext?.setEnderecoEntrega(novoTxt);
+                    cartContext?.setDadosEndereco({
+                      cep: end.cep,
+                      rua: end.logradouro,
+                      numero: end.numero,
+                      complemento: end.complemento || '',
+                      bairro: end.bairro,
+                      cidade: end.cidade,
+                      estado: end.uf
+                    });
+                  }
+                } catch {
+                  // Ignore
                 }
               }}
             />

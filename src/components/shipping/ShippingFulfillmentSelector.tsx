@@ -168,37 +168,39 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         try {
           const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
           if (ativo) {
-            if (clienteCep && clienteLogr && clienteCid) {
-              const correspondente = lista.find(e => 
-                (e.cep || '').replace(/\D/g, '') === clienteCep &&
-                (e.numero || '').trim().toLowerCase() === clienteNum.toLowerCase()
-              );
+            if (lista.length > 0) {
+              const correspondente = (clienteCep || clienteLogr)
+                ? lista.find(e => 
+                    (clienteCep && (e.cep || '').replace(/\D/g, '') === clienteCep) ||
+                    (clienteLogr && (e.logradouro || '').trim().toLowerCase() === clienteLogr.toLowerCase())
+                  )
+                : null;
 
-              const novoEnd = correspondente || {
+              const principal = correspondente || lista.find(e => e.is_principal) || lista[0];
+              setEnderecoSelecionado(prev => {
+                if (prev && prev.id === principal.id) return prev;
+                return principal;
+              });
+            } else if (clienteCep || clienteLogr) {
+              const novoEnd: ClienteEndereco = {
                 id: 'cli-db-principal',
                 cliente_id: cliente?.id || clienteId,
                 identificador: 'Principal',
                 cep: clienteCep,
-                logradouro: clienteLogr,
+                logradouro: clienteLogr || 'Endereço Principal',
                 numero: clienteNum || 'S/N',
                 complemento: clienteComp || null,
-                bairro: clienteBairro,
-                cidade: clienteCid,
-                uf: clienteUf,
+                bairro: clienteBairro || 'Centro',
+                cidade: clienteCid || 'Fortaleza',
+                uf: clienteUf || 'CE',
                 is_principal: true
               };
 
               setEnderecoSelecionado(prev => {
-                if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero) {
+                if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero && prev.logradouro === novoEnd.logradouro) {
                   return prev;
                 }
                 return novoEnd;
-              });
-            } else if (lista.length > 0) {
-              const principal = lista.find(e => e.is_principal) || lista[0];
-              setEnderecoSelecionado(prev => {
-                if (prev && prev.id === principal.id) return prev;
-                return principal;
               });
             }
           }
@@ -207,23 +209,23 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         } finally {
           if (ativo) setCarregandoEnderecos(false);
         }
-      } else if (clienteCep && clienteCid) {
-        const novoEnd = {
+      } else if (clienteCep || clienteLogr) {
+        const novoEnd: ClienteEndereco = {
           id: 'temp-cli',
           cliente_id: cliente?.id || 'temp',
           identificador: 'Principal',
           cep: clienteCep,
-          logradouro: clienteLogr,
+          logradouro: clienteLogr || 'Endereço Principal',
           numero: clienteNum || 'S/N',
           complemento: clienteComp || null,
-          bairro: clienteBairro,
-          cidade: clienteCid,
-          uf: clienteUf,
+          bairro: clienteBairro || 'Centro',
+          cidade: clienteCid || 'Fortaleza',
+          uf: clienteUf || 'CE',
           is_principal: true
         };
 
         setEnderecoSelecionado(prev => {
-          if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero) {
+          if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero && prev.logradouro === novoEnd.logradouro) {
             return prev;
           }
           return novoEnd;
