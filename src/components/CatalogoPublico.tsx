@@ -480,11 +480,20 @@ export const CatalogoPublico: React.FC = () => {
     const carregarCatalogo = async () => {
       try {
         setCarregando(true);
-        let query = supabase.from('lojas').select('*, frete_gratis_ativo, frete_gratis_valor_minimo, retirada_loja_ativa');
-        if (slug) {
-          query = query.or(`slug_catalogo.eq.${slug},id.eq.${slug}`);
+        let query = supabase.from('lojas').select('*');
+        if (slug && slug.trim()) {
+          const termo = slug.trim();
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(termo);
+          if (isUUID) {
+            query = query.or(`slug_catalogo.ilike.${termo},id.eq.${termo}`);
+          } else {
+            query = query.ilike('slug_catalogo', termo);
+          }
         }
-        const { data: lojas } = await query.limit(1);
+        const { data: lojas, error: erroLoja } = await query.limit(1);
+        if (erroLoja) {
+          console.error('[CatalogoPublico] Erro ao buscar loja:', erroLoja);
+        }
 
         if (lojas && lojas.length > 0) {
           const l = lojas[0];
