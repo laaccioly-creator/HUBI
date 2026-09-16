@@ -1853,8 +1853,8 @@ Fico no aguardo da confirmação! ✨`;
                 avaliacaoCarrinho.tabelaAtiva !== 'varejo'
               );
 
-              const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo);
-              const valorMinimoFreteGratis = Number(configShippingLoja?.frete_gratis_valor_minimo) || 0;
+              const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo);
+              const valorMinimoFreteGratis = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo) || 0;
               const temRegraFreteGratis = freteGratisAtivo && valorMinimoFreteGratis > 0;
               const faltaParaFreteGratis = Math.max(0, valorMinimoFreteGratis - subtotal);
               const percentualFreteGratis = valorMinimoFreteGratis > 0 
@@ -1930,26 +1930,26 @@ Fico no aguardo da confirmação! ✨`;
                           {subtotal >= valorMinimoFreteGratis ? (
                             <>
                               <Gift className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span className="text-emerald-300 font-bold truncate">🎉 Frete Grátis Liberado!</span>
+                              <span className="text-emerald-300 font-bold truncate">🎉 Você ganhou Frete Grátis!</span>
                             </>
                           ) : (
                             <>
-                              <Truck className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                              <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                               <span className="truncate">
-                                Faltam <b className="text-sky-400 font-bold">
+                                Faltam <b className="text-emerald-400 font-bold">
                                   R$ {faltaParaFreteGratis.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </b> para Frete Grátis!
                               </span>
                             </>
                           )}
                         </span>
-                        <span className="text-[10px] font-bold text-sky-400 shrink-0 ml-2">
+                        <span className="text-[10px] font-bold text-emerald-400 shrink-0 ml-2">
                           {percentualFreteGratis}%
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
                         <div
-                          className="h-full bg-gradient-to-r from-sky-500 via-teal-400 to-emerald-400 rounded-full transition-all duration-500"
+                          className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-500"
                           style={{ width: `${percentualFreteGratis}%` }}
                         />
                       </div>

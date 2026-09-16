@@ -45,11 +45,13 @@ import {
   Key,
   ExternalLink,
   RefreshCw,
-  Loader2
+  Loader2,
+  Gift
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import {
   Loja,
   FormaPagamento,
@@ -279,6 +281,8 @@ const gerarSnapshotConfig = (dados: any) => {
     descricaoEntregas: (dados.descricaoEntregas || '').trim(),
     trabalhoComRetirada: Boolean(dados.trabalhoComRetirada),
     descricaoRetirada: (dados.descricaoRetirada || '').trim(),
+    freteGratisAtivo: Boolean(dados.freteGratisAtivo),
+    freteGratisValorMinimo: Number(dados.freteGratisValorMinimo ?? 0),
     facebookPixelId: (dados.facebookPixelId || '').trim(),
     tiktokPixelId: (dados.tiktokPixelId || '').trim()
   });
@@ -450,6 +454,8 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [descricaoRetirada, setDescricaoRetirada] = useState<string>(
     'Retirada disponível no balcão da loja em horário comercial.'
   );
+  const [freteGratisAtivo, setFreteGratisAtivo] = useState<boolean>(false);
+  const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<number>(0);
   const [listaFormasEntrega, setListaFormasEntrega] = useState<FormaEntrega[]>([]);
 
   // 7. EXPORTAÇÃO DE RELATÓRIOS
@@ -623,8 +629,28 @@ export const ConfiguracoesLoja: React.FC = () => {
       // Entrega / Retirada
       setTrabalhoComEntregas(entregaRet.trabalho_com_entregas ?? true);
       setDescricaoEntregas(entregaRet.descricao_entregas || '');
-      setTrabalhoComRetirada(entregaRet.trabalho_com_retirada ?? false);
+      const retiradaAtivaIni = loja.retirada_loja_ativa ?? entregaRet.trabalho_com_retirada ?? false;
+      setTrabalhoComRetirada(retiradaAtivaIni);
       setDescricaoRetirada(entregaRet.descricao_retirada || '');
+      const freteGratisAtivoIni = Boolean(loja.frete_gratis_ativo);
+      const freteGratisValorMinIni = Number(loja.frete_gratis_valor_minimo ?? 0);
+      setFreteGratisAtivo(freteGratisAtivoIni);
+      setFreteGratisValorMinimo(freteGratisValorMinIni);
+
+      // Buscar também da tabela de shipping configs para manter consistência
+      ShippingOrchestrator.buscarConfigLoja(loja.id).then(configFrete => {
+        if (configFrete) {
+          if (configFrete.retirada_loja_ativa !== undefined) {
+            setTrabalhoComRetirada(Boolean(configFrete.retirada_loja_ativa));
+          }
+          if (configFrete.frete_gratis_ativo !== undefined) {
+            setFreteGratisAtivo(Boolean(configFrete.frete_gratis_ativo));
+          }
+          if (configFrete.frete_gratis_valor_minimo !== undefined) {
+            setFreteGratisValorMinimo(Number(configFrete.frete_gratis_valor_minimo));
+          }
+        }
+      }).catch(err => console.warn('Erro ao carregar shipping config:', err));
 
       // Parceiros
       setFacebookPixelId(parceiros.facebook_pixel_id || '');
@@ -718,9 +744,10 @@ export const ConfiguracoesLoja: React.FC = () => {
           statusSaiuEntrega: statusAtivos.saiu_para_entrega ?? true,
           statusProntoRetirar: statusAtivos.pronto_para_retirar ?? true,
           trabalhoComEntregas: entregaRet.trabalho_com_entregas ?? true,
-          descricaoEntregas: entregaRet.descricao_entregas || '',
-          trabalhoComRetirada: entregaRet.trabalho_com_retirada ?? false,
+          trabalhoComRetirada: retiradaAtivaIni,
           descricaoRetirada: entregaRet.descricao_retirada || '',
+          freteGratisAtivo: freteGratisAtivoIni,
+          freteGratisValorMinimo: freteGratisValorMinIni,
           facebookPixelId: parceiros.facebook_pixel_id || '',
           tiktokPixelId: parceiros.tiktok_pixel_id || ''
         })
@@ -913,11 +940,27 @@ export const ConfiguracoesLoja: React.FC = () => {
           endereco_cidade: enderecoCidade,
           endereco_estado: enderecoEstado,
           serpapi_key: serpApiKey.trim() || null,
+          retirada_loja_ativa: trabalhoComRetirada,
+          frete_gratis_ativo: freteGratisAtivo,
+          frete_gratis_valor_minimo: freteGratisValorMinimo,
           configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
 
       if (error) throw error;
+
+      // Sincroniza também na tabela loja_shipping_configs de forma atômica
+      try {
+        await ShippingOrchestrator.salvarConfigLoja(loja.id, {
+          retirada_loja_ativa: trabalhoComRetirada,
+          retirada_balcao_ativa: trabalhoComRetirada,
+          permite_retirada_loja: trabalhoComRetirada,
+          frete_gratis_ativo: freteGratisAtivo,
+          frete_gratis_valor_minimo: freteGratisValorMinimo
+        });
+      } catch (errShipping) {
+        console.warn('[ConfiguracoesLoja] Falha secundária ao sincronizar loja_shipping_configs:', errShipping);
+      }
 
       await salvarSerpApiKey(serpApiKey.trim(), loja.id, loja);
       setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
@@ -1093,6 +1136,8 @@ export const ConfiguracoesLoja: React.FC = () => {
       descricaoEntregas,
       trabalhoComRetirada,
       descricaoRetirada,
+      freteGratisAtivo,
+      freteGratisValorMinimo,
       facebookPixelId,
       tiktokPixelId
     });
@@ -1183,6 +1228,8 @@ export const ConfiguracoesLoja: React.FC = () => {
     descricaoEntregas,
     trabalhoComRetirada,
     descricaoRetirada,
+    freteGratisAtivo,
+    freteGratisValorMinimo,
     facebookPixelId,
     tiktokPixelId
   ]);
@@ -3216,14 +3263,14 @@ export const ConfiguracoesLoja: React.FC = () => {
               )}
             </div>
 
-            {/* Retirada */}
+            {/* Retirada na Loja */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Store className="w-5 h-5 text-amber-400" />
                   <div>
-                    <span className="font-bold text-xs text-slate-100 block">Retirada no Balcão</span>
-                    <span className="text-[11px] text-slate-400">Cliente busca o pedido na sua loja</span>
+                    <span className="font-bold text-xs text-slate-100 block">Retirar na Loja</span>
+                    <span className="text-[11px] text-slate-400">Cliente busca o pedido na sua loja física</span>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -3245,8 +3292,53 @@ export const ConfiguracoesLoja: React.FC = () => {
                     value={descricaoRetirada}
                     onChange={(e) => setDescricaoRetirada(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
-                    placeholder="Ex: Disponível no balcão em horário comercial."
+                    placeholder="Ex: Retirada disponível no balcão da loja em horário comercial."
                   />
+                </div>
+              )}
+            </div>
+
+            {/* Frete Grátis por Valor Mínimo */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Gift className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <span className="font-bold text-xs text-slate-100 block">Frete Grátis por Valor Mínimo</span>
+                    <span className="text-[11px] text-slate-400">Ofereça frete gratuito a partir de um valor de compra</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={freteGratisAtivo}
+                    onChange={(e) => setFreteGratisAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {freteGratisAtivo && (
+                <div className="pt-3 border-t border-slate-800 space-y-1.5 animate-in fade-in duration-150">
+                  <label className="text-[11px] font-bold text-slate-300 block">
+                    Valor Mínimo da Compra (R$)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={freteGratisValorMinimo || ''}
+                      onChange={(e) => setFreteGratisValorMinimo(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-100 font-bold focus:border-emerald-500 outline-none"
+                      placeholder="Ex: 150,00"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Acima deste valor no carrinho, o cliente terá direito ao frete mais econômico gratuitamente e um termômetro de progresso no catálogo.
+                  </p>
                 </div>
               )}
             </div>

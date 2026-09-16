@@ -23,6 +23,7 @@ export interface LojaShippingConfig {
   melhor_envio_ativo: boolean;
   permite_retirada_loja: boolean;
   retirada_balcao_ativa: boolean;
+  retirada_loja_ativa?: boolean;
   frete_gratis_ativo: boolean;
   frete_gratis_valor_minimo: number;
   criado_em?: string;

@@ -238,6 +238,9 @@ export interface Loja {
   qtd_minima_sku_padrao_autoatacado?: number | null;
   valor_minimo_padrao_autoatacado?: number | null;
   serpapi_key?: string | null;
+  retirada_loja_ativa?: boolean;
+  frete_gratis_ativo?: boolean;
+  frete_gratis_valor_minimo?: number;
   configuracoes_extras?: ConfiguracoesExtrasLoja | null;
   criado_em?: string;
   atualizado_em?: string;

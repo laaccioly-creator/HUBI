@@ -25,10 +25,55 @@ export class ShippingOrchestrator {
 
       if (error) {
         console.warn('[ShippingOrchestrator] Erro ao carregar config da loja:', error);
-        return null;
       }
 
-      return data as LojaShippingConfig | null;
+      if (data) {
+        const conf = data as LojaShippingConfig;
+        const retiradaAtiva = conf.retirada_loja_ativa ?? conf.retirada_balcao_ativa ?? conf.permite_retirada_loja ?? false;
+        conf.retirada_loja_ativa = retiradaAtiva;
+        conf.retirada_balcao_ativa = retiradaAtiva;
+        conf.permite_retirada_loja = retiradaAtiva;
+        return conf;
+      }
+
+      // Fallback: carregar diretamente da tabela lojas caso loja_shipping_configs ainda não tenha sido criada
+      const { data: dadosLoja } = await supabase
+        .from('lojas')
+        .select('id, retirada_loja_ativa, frete_gratis_ativo, frete_gratis_valor_minimo, endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado')
+        .eq('id', lojaId)
+        .maybeSingle();
+
+      if (dadosLoja) {
+        const retiradaAtiva = Boolean(dadosLoja.retirada_loja_ativa);
+        return {
+          id: 'loja-base',
+          loja_id: lojaId,
+          origem_cep: dadosLoja.endereco_cep || '',
+          origem_logradouro: dadosLoja.endereco_logradouro || '',
+          origem_numero: dadosLoja.endereco_numero || '',
+          origem_complemento: null,
+          origem_bairro: dadosLoja.endereco_bairro || '',
+          origem_cidade: dadosLoja.endereco_cidade || '',
+          origem_uf: dadosLoja.endereco_estado || '',
+          origem_latitude: null,
+          origem_longitude: null,
+          uber_customer_id: null,
+          uber_client_id: null,
+          uber_client_secret: null,
+          uber_sandbox_mode: true,
+          uber_ativo: false,
+          melhor_envio_token: null,
+          melhor_envio_sandbox_mode: true,
+          melhor_envio_ativo: false,
+          permite_retirada_loja: retiradaAtiva,
+          retirada_balcao_ativa: retiradaAtiva,
+          retirada_loja_ativa: retiradaAtiva,
+          frete_gratis_ativo: Boolean(dadosLoja.frete_gratis_ativo),
+          frete_gratis_valor_minimo: Number(dadosLoja.frete_gratis_valor_minimo || 0)
+        };
+      }
+
+      return null;
     } catch (err: unknown) {
       console.warn('[ShippingOrchestrator] Exceção ao carregar config da loja:', err);
       return null;
@@ -42,8 +87,15 @@ export class ShippingOrchestrator {
     lojaId: string,
     config: Partial<LojaShippingConfig>
   ): Promise<LojaShippingConfig> {
-    const payload = {
+    const retiradaAtiva = config.retirada_loja_ativa ?? config.retirada_balcao_ativa ?? config.permite_retirada_loja;
+
+    const payload: Record<string, unknown> = {
       ...config,
+      ...(retiradaAtiva !== undefined ? {
+        retirada_loja_ativa: retiradaAtiva,
+        retirada_balcao_ativa: retiradaAtiva,
+        permite_retirada_loja: retiradaAtiva
+      } : {}),
       loja_id: lojaId,
       atualizado_em: new Date().toISOString()
     };
@@ -56,6 +108,20 @@ export class ShippingOrchestrator {
 
     if (error) {
       throw new Error(`Erro ao salvar configurações de frete: ${error.message}`);
+    }
+
+    // Sincroniza também diretamente na tabela lojas para consistência relacional total
+    try {
+      const updatesLoja: Record<string, unknown> = {};
+      if (retiradaAtiva !== undefined) updatesLoja.retirada_loja_ativa = retiradaAtiva;
+      if (config.frete_gratis_ativo !== undefined) updatesLoja.frete_gratis_ativo = config.frete_gratis_ativo;
+      if (config.frete_gratis_valor_minimo !== undefined) updatesLoja.frete_gratis_valor_minimo = config.frete_gratis_valor_minimo;
+
+      if (Object.keys(updatesLoja).length > 0) {
+        await supabase.from('lojas').update(updatesLoja).eq('id', lojaId);
+      }
+    } catch (e) {
+      console.warn('[ShippingOrchestrator] Falha ao espelhar em lojas:', e);
     }
 
     return data as LojaShippingConfig;

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.loja_shipping_configs (
     -- Retirada na Loja e Frete Grátis
     permite_retirada_loja BOOLEAN NOT NULL DEFAULT true,
     retirada_balcao_ativa BOOLEAN NOT NULL DEFAULT true,
+    retirada_loja_ativa BOOLEAN NOT NULL DEFAULT true,
     frete_gratis_ativo BOOLEAN NOT NULL DEFAULT false,
     frete_gratis_valor_minimo NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
 
@@ -121,6 +122,15 @@ ALTER TABLE public.pedidos
 UPDATE public.pedidos 
 SET subtotal_produtos = subtotal 
 WHERE (subtotal_produtos IS NULL OR subtotal_produtos = 0) AND subtotal > 0;
+
+-- 4.1. ATUALIZAÇÃO DA TABELA lojas E loja_shipping_configs
+ALTER TABLE public.lojas 
+    ADD COLUMN IF NOT EXISTS retirada_loja_ativa BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS frete_gratis_ativo BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS frete_gratis_valor_minimo NUMERIC(10, 2) NOT NULL DEFAULT 0.00;
+
+ALTER TABLE public.loja_shipping_configs 
+    ADD COLUMN IF NOT EXISTS retirada_loja_ativa BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- 5. FUNÇÃO E TRIGGERS DE ATUALIZAÇÃO AUTOMÁTICA DE TIMESTAMP
 CREATE OR REPLACE FUNCTION public.fn_atualizar_timestamp_modificacao()

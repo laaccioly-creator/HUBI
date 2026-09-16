@@ -250,16 +250,21 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     configLoja?.melhor_envio_token
   );
   const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio);
-  const permiteRetirada = (configLoja?.retirada_balcao_ativa ?? configLoja?.permite_retirada_loja) !== false;
+  const permiteRetirada = Boolean(
+    configLoja?.retirada_loja_ativa ?? 
+    configLoja?.retirada_balcao_ativa ?? 
+    configLoja?.permite_retirada_loja ?? 
+    false
+  );
 
-  // Se a loja não permite retirada, garantir que a modalidade seja 'entrega'
+  // Se a loja não permite retirada, garantir que a modalidade seja estritamente 'entrega'
   useEffect(() => {
-    if (configLoja && (configLoja.retirada_balcao_ativa === false || configLoja.permite_retirada_loja === false)) {
+    if (configLoja && !permiteRetirada) {
       if (modalidade === 'retirada') {
         setModalidade('entrega');
       }
     }
-  }, [configLoja, modalidade]);
+  }, [configLoja, permiteRetirada, modalidade]);
 
   // 3. Executar Cotação com Filtro de Região Metropolitana para Uber Direct
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
@@ -384,6 +389,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // Troca de Modalidade
   const handleSelecionarModalidade = (novaModalidade: TipoAtendimento) => {
+    if (novaModalidade === 'retirada' && !permiteRetirada) {
+      return;
+    }
     setModalidade(novaModalidade);
 
     if (novaModalidade === 'retirada') {
@@ -470,8 +478,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* SELEÇÃO ENTREGA x RETIRADA */}
-      {permiteRetirada ? (
+      {/* SELEÇÃO ENTREGA x RETIRADA (apenas quando a loja permitir retirada) */}
+      {permiteRetirada && (
         <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
           <button
             type="button"
@@ -498,13 +506,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             <Store className="w-4 h-4" />
             <span>Retirar na Loja</span>
           </button>
-        </div>
-      ) : (
-        <div className="bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-          <div className="py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20">
-            <Truck className="w-4 h-4" />
-            <span>Receber por Entrega</span>
-          </div>
         </div>
       )}
 
