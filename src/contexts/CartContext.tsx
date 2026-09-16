@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { Produto, VariacaoProduto, Cliente, TabelaPreco, PedidoEntrega } from '../types';
 import { audioService } from '../services/audioService';
 import { useAuth } from './AuthContext';
@@ -100,6 +100,29 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       retirada_loja_ativa: config.retirada_loja_ativa !== undefined ? Boolean(config.retirada_loja_ativa) : prev.retirada_loja_ativa
     }));
   };
+
+  // Carrega proativamente as configurações da tabela especializada de envio (loja_shipping_configs)
+  useEffect(() => {
+    if (!loja?.id) return;
+    let ativo = true;
+    ShippingOrchestrator.buscarConfigLoja(loja.id)
+      .then(conf => {
+        if (ativo && conf) {
+          setConfigFreteState({
+            frete_gratis_ativo: Boolean(conf.frete_gratis_ativo),
+            frete_gratis_valor_minimo: Number(conf.frete_gratis_valor_minimo || 0),
+            retirada_loja_ativa: Boolean(conf.retirada_loja_ativa)
+          });
+        }
+      })
+      .catch(err => {
+        console.warn('[CartContext] Aviso ao obter configurações de frete:', err);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [loja?.id]);
 
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
 

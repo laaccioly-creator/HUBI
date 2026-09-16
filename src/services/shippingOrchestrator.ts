@@ -36,16 +36,22 @@ export class ShippingOrchestrator {
       const dadosShipping = resShipping.data as LojaShippingConfig | null;
       const dadosLoja = resLoja.data;
 
-      // Unifica flags garantindo que se o lojista ativou em qualquer tabela, seja respeitado com tipos puros
-      const freteGratisAtivo = Boolean(dadosShipping?.frete_gratis_ativo || dadosLoja?.frete_gratis_ativo);
-      const freteGratisValorMinimo = Number(dadosShipping?.frete_gratis_valor_minimo || dadosLoja?.frete_gratis_valor_minimo || 0);
-      const retiradaAtiva = Boolean(
-        dadosShipping?.retirada_loja_ativa ?? 
-        dadosShipping?.retirada_balcao_ativa ?? 
-        dadosShipping?.permite_retirada_loja ?? 
-        dadosLoja?.retirada_loja_ativa ?? 
-        false
-      );
+      // Prioridade absoluta para as configurações especializadas de envio (loja_shipping_configs), com fallback para lojas
+      const freteGratisAtivo = dadosShipping?.frete_gratis_ativo !== undefined && dadosShipping?.frete_gratis_ativo !== null
+        ? Boolean(dadosShipping.frete_gratis_ativo)
+        : Boolean(dadosLoja?.frete_gratis_ativo);
+
+      const freteGratisValorMinimo = dadosShipping?.frete_gratis_valor_minimo !== undefined && dadosShipping?.frete_gratis_valor_minimo !== null
+        ? Number(dadosShipping.frete_gratis_valor_minimo)
+        : Number(dadosLoja?.frete_gratis_valor_minimo || 0);
+
+      const retiradaAtiva = dadosShipping?.retirada_loja_ativa !== undefined && dadosShipping?.retirada_loja_ativa !== null
+        ? Boolean(dadosShipping.retirada_loja_ativa)
+        : (dadosShipping?.retirada_balcao_ativa !== undefined && dadosShipping?.retirada_balcao_ativa !== null
+          ? Boolean(dadosShipping.retirada_balcao_ativa)
+          : (dadosShipping?.permite_retirada_loja !== undefined && dadosShipping?.permite_retirada_loja !== null
+            ? Boolean(dadosShipping.permite_retirada_loja)
+            : Boolean(dadosLoja?.retirada_loja_ativa)));
 
       if (dadosShipping) {
         return {
