@@ -250,6 +250,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     configLoja?.melhor_envio_token
   );
   const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio);
+  const permiteRetirada = (configLoja?.retirada_balcao_ativa ?? configLoja?.permite_retirada_loja) !== false;
+
+  // Se a loja não permite retirada, garantir que a modalidade seja 'entrega'
+  useEffect(() => {
+    if (configLoja && (configLoja.retirada_balcao_ativa === false || configLoja.permite_retirada_loja === false)) {
+      if (modalidade === 'retirada') {
+        setModalidade('entrega');
+      }
+    }
+  }, [configLoja, modalidade]);
 
   // 3. Executar Cotação com Filtro de Região Metropolitana para Uber Direct
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
@@ -461,33 +471,42 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   return (
     <div className={`space-y-4 ${className}`}>
       {/* SELEÇÃO ENTREGA x RETIRADA */}
-      <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-        <button
-          type="button"
-          onClick={() => handleSelecionarModalidade('entrega')}
-          className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-            modalidade === 'entrega'
-              ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Truck className="w-4 h-4" />
-          <span>Receber por Entrega</span>
-        </button>
+      {permiteRetirada ? (
+        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+          <button
+            type="button"
+            onClick={() => handleSelecionarModalidade('entrega')}
+            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+              modalidade === 'entrega'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Truck className="w-4 h-4" />
+            <span>Receber por Entrega</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => handleSelecionarModalidade('retirada')}
-          className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-            modalidade === 'retirada'
-              ? 'bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Store className="w-4 h-4" />
-          <span>Retirar Compra (Grátis)</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => handleSelecionarModalidade('retirada')}
+            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+              modalidade === 'retirada'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Store className="w-4 h-4" />
+            <span>Retirar na Loja</span>
+          </button>
+        </div>
+      ) : (
+        <div className="bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+          <div className="py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20">
+            <Truck className="w-4 h-4" />
+            <span>Receber por Entrega</span>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* FLUXO: RECEBER POR ENTREGA */}
@@ -521,13 +540,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   <span>Falar no WhatsApp da Loja</span>
                 </a>
 
-                <button
-                  type="button"
-                  onClick={() => handleSelecionarModalidade('retirada')}
-                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition"
-                >
-                  Mudar para Retirada na Loja
-                </button>
+                {permiteRetirada && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelecionarModalidade('retirada')}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition"
+                  >
+                    Mudar para Retirada na Loja
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -687,9 +708,35 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           </div>
 
                           <div className="flex items-center gap-3 shrink-0">
-                            <span className="font-bold text-sm text-emerald-400">
-                              R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
+                            <div className="text-right">
+                              {opcao.is_frete_gratis ? (
+                                <div className="flex flex-col items-end">
+                                  {opcao.valor_original != null && opcao.valor_original > 0 && (
+                                    <span className="text-[11px] line-through text-slate-500 font-medium">
+                                      R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  )}
+                                  <span className="font-bold text-sm text-emerald-400">
+                                    Frete Grátis
+                                  </span>
+                                </div>
+                              ) : opcao.is_upgrade_subsidio ? (
+                                <div className="flex flex-col items-end">
+                                  {opcao.valor_original != null && (
+                                    <span className="text-[11px] line-through text-slate-500 font-medium">
+                                      R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  )}
+                                  <span className="font-bold text-sm text-emerald-400">
+                                    R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-bold text-sm text-emerald-400">
+                                  R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              )}
+                            </div>
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
                               selecionada ? 'bg-emerald-500 text-slate-950' : 'border border-slate-600'
                             }`}>
@@ -708,29 +755,26 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       )}
 
       {/* ========================================================================= */}
-      {/* FLUXO: RETIRAR COMPRA (RETIRADA NA LOJA) */}
+      {/* FLUXO: RETIRAR NA LOJA */}
       {/* ========================================================================= */}
-      {modalidade === 'retirada' && (
+      {permiteRetirada && modalidade === 'retirada' && (
         <div className="space-y-3 animate-in fade-in duration-200">
-          <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-800/50 text-purple-200 space-y-3">
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700/80 text-slate-200 space-y-3 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-purple-900/40 text-purple-300 flex items-center justify-center shrink-0 border border-purple-700/50">
+              <div className="w-10 h-10 rounded-2xl bg-slate-800 text-emerald-400 flex items-center justify-center shrink-0 border border-slate-700">
                 <Store className="w-5 h-5" />
               </div>
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-purple-200">
-                    Retirada no Balcão da Loja
-                  </span>
-                  <span className="text-[10px] uppercase font-black bg-purple-900/50 text-purple-200 px-2 py-0.5 rounded-full border border-purple-700/50">
-                    Frete Grátis
+                  <span className="font-bold text-xs text-slate-100">
+                    Retirar na Loja
                   </span>
                 </div>
-                <p className="text-xs text-purple-200/90 leading-relaxed">
+                <p className="text-xs text-slate-300/90 leading-relaxed">
                   Seu pedido será preparado e ficará disponível para retirada no balcão da loja física.
                 </p>
                 <div className="pt-1.5 text-xs text-slate-300 font-medium">
-                  <strong>Endereço da Loja:</strong>{' '}
+                  <strong className="text-slate-200">Endereço da Loja:</strong>{' '}
                   {[
                     dadosLojaFormatados.endereco_logradouro,
                     dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
@@ -747,13 +791,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
 
             {/* Ações: Ver no mapa e Enviar para WhatsApp */}
-            <div className="pt-3 border-t border-purple-500/20 flex flex-wrap items-center gap-2">
+            <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setModalMapaLojaAberto(true)}
-                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-purple-300 hover:text-purple-200 border border-purple-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Navigation className="w-3.5 h-3.5 text-purple-400" />
+                <Navigation className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Ver no Mapa</span>
               </button>
 

@@ -14,10 +14,13 @@ import {
   TrendingUp,
   Layers,
   ChevronDown,
-  Trash2
+  Trash2,
+  Gift,
+  Truck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega } from '../types';
+import { LojaShippingConfig, ShippingSelectionResult } from '../types/shipping';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import {
@@ -176,8 +179,30 @@ export const CatalogoPublico: React.FC = () => {
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
   const [modalShippingAberto, setModalShippingAberto] = useState<boolean>(false);
+  const [draftResultadoShipping, setDraftResultadoShipping] = useState<ShippingSelectionResult | null>(null);
+  const [configShippingLoja, setConfigShippingLoja] = useState<LojaShippingConfig | null>(null);
   const [observacoes, setObservacoes] = useState<string>('');
   const [enviandoPedido, setEnviandoPedido] = useState<boolean>(false);
+
+  // Carregar configurações de frete da loja (incluindo frete grátis e retirada)
+  useEffect(() => {
+    let ativo = true;
+    async function carregarConfigShipping() {
+      if (!loja?.id) return;
+      try {
+        const conf = await ShippingOrchestrator.buscarConfigLoja(loja.id);
+        if (ativo && conf) {
+          setConfigShippingLoja(conf);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar configurações de frete no catálogo:', err);
+      }
+    }
+    carregarConfigShipping();
+    return () => {
+      ativo = false;
+    };
+  }, [loja?.id]);
 
   // Estados de Identificação do Cliente (3 Botões)
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(() => {
@@ -817,6 +842,7 @@ export const CatalogoPublico: React.FC = () => {
       return;
     }
 
+    setDraftResultadoShipping(null);
     setModalShippingAberto(true);
   };
 
@@ -1818,86 +1844,120 @@ Fico no aguardo da confirmação! ✨`;
               </div>
             </div>
 
-            {/* DESTAQUE DA TABELA ATIVA & BARRA DE PROGRESSO */}
-            {carrinho.length > 0 && (
-              <div className="p-3.5 mx-4 mt-3 rounded-2xl border transition-all space-y-2.5 bg-slate-900 shadow-lg">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 font-black text-xs sm:text-sm">
-                    {avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? (
-                      <div className="flex items-center gap-1.5 text-amber-300">
-                        <Zap className="w-4 h-4 fill-amber-300 text-amber-300 animate-pulse" />
-                        <span className="bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
-                          ⚡ Tabela Ativa: Autoatacado
-                        </span>
-                      </div>
-                    ) : avaliacaoCarrinho.tabelaAtiva === 'atacado' ? (
-                      <div className="flex items-center gap-1.5 text-emerald-400">
-                        <Tag className="w-4 h-4 text-emerald-400" />
-                        <span className="text-emerald-300">
-                          🏷️ Tabela Ativa: Atacado
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-slate-300">
-                        <ShoppingBag className="w-4 h-4 text-slate-400" />
-                        <span>🛒 Tabela Ativa: Varejo</span>
-                      </div>
-                    )}
-                  </div>
+            {/* TERMÔMETROS ULTRA-COMPACTOS (ATACADO & FRETE GRÁTIS) */}
+            {carrinho.length > 0 && (() => {
+              const temRegraAtacado = Boolean(
+                (loja?.qtd_minima_padrao_atacado && Number(loja.qtd_minima_padrao_atacado) > 0) ||
+                (loja?.valor_minimo_padrao_atacado && Number(loja.valor_minimo_padrao_atacado) > 0) ||
+                avaliacaoCarrinho.proximoNivel ||
+                avaliacaoCarrinho.tabelaAtiva !== 'varejo'
+              );
 
-                  {avaliacaoCarrinho.economiaTotal > 0 && (
-                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500 text-white shadow shadow-emerald-500/30 whitespace-nowrap">
-                      Economia de R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
-                    </span>
+              const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo);
+              const valorMinimoFreteGratis = Number(configShippingLoja?.frete_gratis_valor_minimo) || 0;
+              const temRegraFreteGratis = freteGratisAtivo && valorMinimoFreteGratis > 0;
+              const faltaParaFreteGratis = Math.max(0, valorMinimoFreteGratis - subtotal);
+              const percentualFreteGratis = valorMinimoFreteGratis > 0 
+                ? Math.min(100, Math.round((subtotal / valorMinimoFreteGratis) * 100)) 
+                : 0;
+
+              if (!temRegraAtacado && !temRegraFreteGratis) return null;
+
+              return (
+                <div className="px-3.5 py-2.5 mx-4 mt-2 rounded-xl bg-slate-900 border border-slate-800 space-y-2 shadow-md">
+                  {/* Linha 1: Atacado / Volume */}
+                  {temRegraAtacado && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-300 flex items-center gap-1.5 truncate">
+                          {avaliacaoCarrinho.proximoNivel ? (
+                            <>
+                              <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span className="truncate">
+                                Faltam <b className="text-emerald-400 font-bold">
+                                  {(() => {
+                                    const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
+                                    const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
+                                    const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
+                                    const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
+
+                                    if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+                                      const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
+                                      return `${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'}`;
+                                    }
+                                    return `R$ ${avaliacaoCarrinho.faltaValorParaProximo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                  })()}
+                                </b> para {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado'}!
+                              </span>
+                            </>
+                          ) : avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? (
+                            <>
+                              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                              <span className="text-amber-300 font-bold">Autoatacado Conquistado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span className="text-emerald-300 font-bold">Preço de Atacado Liberado!</span>
+                            </>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          {avaliacaoCarrinho.economiaTotal > 0 && (
+                            <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              -R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-emerald-400">
+                            {avaliacaoCarrinho.progressoGeralPercent}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                          style={{ width: `${avaliacaoCarrinho.progressoGeralPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Linha 2: Frete Grátis com Subsídio em Upgrade */}
+                  {temRegraFreteGratis && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-300 flex items-center gap-1.5 truncate">
+                          {subtotal >= valorMinimoFreteGratis ? (
+                            <>
+                              <Gift className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span className="text-emerald-300 font-bold truncate">🎉 Frete Grátis Liberado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Truck className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                              <span className="truncate">
+                                Faltam <b className="text-sky-400 font-bold">
+                                  R$ {faltaParaFreteGratis.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </b> para Frete Grátis!
+                              </span>
+                            </>
+                          )}
+                        </span>
+                        <span className="text-[10px] font-bold text-sky-400 shrink-0 ml-2">
+                          {percentualFreteGratis}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
+                        <div
+                          className="h-full bg-gradient-to-r from-sky-500 via-teal-400 to-emerald-400 rounded-full transition-all duration-500"
+                          style={{ width: `${percentualFreteGratis}%` }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {/* BARRA DE PROGRESSO DINÂMICA & MENSAGEM DE UPSELL */}
-                {avaliacaoCarrinho.proximoNivel && (
-                  <div className="space-y-1.5 pt-2 border-t border-slate-800">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-300 leading-tight">
-                        {(() => {
-                          const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado';
-                          const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
-                          const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
-                          const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
-                          const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
-
-                          if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
-                            const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
-                            return (
-                              <>Faltam <b className="text-emerald-400">{faltamPecas} {faltamPecas === 1 ? 'peça' : 'peças'}</b> para {proxNome}!</>
-                            );
-                          }
-                          const faltaVal = avaliacaoCarrinho.faltaValorParaProximo;
-                          return (
-                            <>Faltam <b className="text-emerald-400">R$ {faltaVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b> para {proxNome}!</>
-                          );
-                        })()}
-                      </span>
-                      <span className="text-[10px] font-bold text-amber-300 ml-2">
-                        {avaliacaoCarrinho.progressoGeralPercent}%
-                      </span>
-                    </div>
-
-                    <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                      <div
-                        className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 rounded-full transition-all duration-500"
-                        style={{ width: `${avaliacaoCarrinho.progressoGeralPercent}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {avaliacaoCarrinho.tabelaAtiva === 'autoatacado' && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-amber-300 font-semibold pt-1 border-t border-slate-800">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Nível Máximo! Você conquistou o preço de Autoatacado (Distribuidor).</span>
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {carrinho.length === 0 ? (
@@ -2179,9 +2239,9 @@ Fico no aguardo da confirmação! ✨`;
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold tabular-nums w-28 text-right truncate">
                         {!pedidoEntrega ? (
-                          <span className="text-amber-400 font-medium">Não selecionada</span>
+                          <span className="text-amber-400 font-medium text-xs">Não selecionada</span>
                         ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
-                          <span className="text-purple-300">Grátis</span>
+                          <span className="text-slate-200 font-bold text-xs">Retirar na Loja</span>
                         ) : freteGratisCupom ? (
                           <span className="text-emerald-400">Grátis</span>
                         ) : valorFreteEfetivo > 0 ? (
@@ -2455,7 +2515,15 @@ Fico no aguardo da confirmação! ✨`;
 
       {/* MODAL DE SELEÇÃO DE FRETE E ENTREGA NO CATÁLOGO */}
       {modalShippingAberto && loja && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setDraftResultadoShipping(null);
+              setModalShippingAberto(false);
+            }
+          }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in"
+        >
           <div className="bg-slate-900 border-2 border-slate-600/80 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto text-white">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
@@ -2473,8 +2541,11 @@ Fico no aguardo da confirmação! ✨`;
               </div>
               <button
                 type="button"
-                onClick={() => setModalShippingAberto(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition"
+                onClick={() => {
+                  setDraftResultadoShipping(null);
+                  setModalShippingAberto(false);
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2519,59 +2590,54 @@ Fico no aguardo da confirmação! ✨`;
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
               onChange={(resultado) => {
-                setPedidoEntrega(prev => {
-                  if (prev?.servico_codigo === resultado.pedido_entrega?.servico_codigo &&
-                      prev?.valor_frete === resultado.pedido_entrega?.valor_frete &&
-                      prev?.tipo_atendimento === resultado.pedido_entrega?.tipo_atendimento) {
-                    return prev;
-                  }
-                  return resultado.pedido_entrega as PedidoEntrega;
-                });
-                if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {
-                  const end = resultado.endereco_selecionado;
-                  const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
-                  setEnderecoEntrega(prev => prev !== novoTxt ? novoTxt : prev);
-                }
-                setFormaEntregaEscolhida({
-                  id: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'entrega_shipping',
-                  loja_id: loja.id,
-                  nome: resultado.tipo_atendimento === 'retirada' 
-                    ? 'Retirada no Balcão' 
-                    : (resultado.opcao_selecionada?.transportadora_nome || 'Entrega a Domicílio'),
-                  tipo: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'taxa_fixa',
-                  valor_taxa: resultado.valor_frete,
-                  valor_por_km: 0,
-                  tempo_estimado: resultado.opcao_selecionada?.prazo_estimado_texto || '60 minutos',
-                  ativo: true
-                });
-                try {
-                  cartContext?.setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
-                  cartContext?.setTaxaEntrega(resultado.valor_frete || 0);
-                  if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {
-                    const end = resultado.endereco_selecionado;
-                    const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
-                    cartContext?.setEnderecoEntrega(novoTxt);
-                    cartContext?.setDadosEndereco({
-                      cep: end.cep,
-                      rua: end.logradouro,
-                      numero: end.numero,
-                      complemento: end.complemento || '',
-                      bairro: end.bairro,
-                      cidade: end.cidade,
-                      estado: end.uf
-                    });
-                  }
-                } catch {
-                  // Ignore
-                }
+                setDraftResultadoShipping(resultado);
               }}
             />
 
             <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => setModalShippingAberto(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20"
+                onClick={() => {
+                  if (draftResultadoShipping) {
+                    const resultado = draftResultadoShipping;
+                    setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                    if (resultado.tipo_atendimento === 'entrega' && resultado.endereco_selecionado) {
+                      const end = resultado.endereco_selecionado;
+                      const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
+                      setEnderecoEntrega(novoTxt);
+                      cartContext?.setEnderecoEntrega(novoTxt);
+                      cartContext?.setDadosEndereco({
+                        cep: end.cep,
+                        rua: end.logradouro,
+                        numero: end.numero,
+                        complemento: end.complemento || '',
+                        bairro: end.bairro,
+                        cidade: end.cidade,
+                        estado: end.uf
+                      });
+                    }
+                    setFormaEntregaEscolhida({
+                      id: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'entrega_shipping',
+                      loja_id: loja.id,
+                      nome: resultado.tipo_atendimento === 'retirada' 
+                        ? 'Retirar na Loja' 
+                        : (resultado.opcao_selecionada?.transportadora_nome || 'Entrega a Domicílio'),
+                      tipo: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'taxa_fixa',
+                      valor_taxa: resultado.valor_frete,
+                      valor_por_km: 0,
+                      tempo_estimado: resultado.opcao_selecionada?.prazo_estimado_texto || '60 minutos',
+                      ativo: true
+                    });
+                    try {
+                      cartContext?.setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+                      cartContext?.setTaxaEntrega(resultado.valor_frete || 0);
+                    } catch {
+                      // Ignore
+                    }
+                  }
+                  setModalShippingAberto(false);
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
               >
                 Confirmar Opção
               </button>

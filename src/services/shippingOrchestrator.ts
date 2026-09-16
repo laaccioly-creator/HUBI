@@ -231,7 +231,67 @@ export class ShippingOrchestrator {
       console.warn('[ShippingOrchestrator] Falha rejeitada no Melhor Envio:', resMelhorEnvio.reason);
     }
 
-    return opcoesTotais;
+    return this.aplicarSubsidioFreteGratis(opcoesTotais, config, subtotal);
+  }
+
+  /**
+   * Aplica a política de Frete Grátis com Subsídio em Upgrade:
+   * 1. Quando frete_gratis_ativo = true e subtotal >= frete_gratis_valor_minimo:
+   *    - A opção mais econômica torna-se 100% gratuita (valor_frete = 0.00).
+   *    - As opções superiores pagam apenas a diferença (valor_frete = opcao.valor - menorPreco).
+   */
+  public static aplicarSubsidioFreteGratis(
+    opcoes: OpcaoFreteCotada[],
+    config: LojaShippingConfig | null | undefined,
+    subtotal: number
+  ): OpcaoFreteCotada[] {
+    if (!config || !config.frete_gratis_ativo || !Array.isArray(opcoes) || opcoes.length === 0) {
+      return opcoes;
+    }
+
+    const valorMinimo = Number(config.frete_gratis_valor_minimo) || 0;
+    if (subtotal < valorMinimo) {
+      return opcoes;
+    }
+
+    // Identificar opções válidas e com valor positivo
+    const opcoesValidas = opcoes.filter(o => !o.erro && typeof o.valor_frete === 'number' && o.valor_frete > 0);
+    if (opcoesValidas.length === 0) {
+      return opcoes;
+    }
+
+    // Menor preço entre as opções disponíveis é o valor subsidiado pela loja
+    const menorPreco = Math.min(...opcoesValidas.map(o => o.valor_frete));
+
+    return opcoes.map(opcao => {
+      if (opcao.erro || typeof opcao.valor_frete !== 'number' || opcao.valor_frete <= 0) {
+        return opcao;
+      }
+
+      const precoOriginal = opcao.valor_original ?? opcao.valor_frete;
+
+      if (precoOriginal === menorPreco) {
+        return {
+          ...opcao,
+          valor_original: precoOriginal,
+          valor_subsidio: menorPreco,
+          valor_frete: 0.00,
+          is_frete_gratis: true,
+          is_upgrade_subsidio: false
+        };
+      }
+
+      // Upgrade para opção mais rápida/cara
+      const diferenca = Math.max(0, precoOriginal - menorPreco);
+      return {
+        ...opcao,
+        valor_original: precoOriginal,
+        valor_subsidio: menorPreco,
+        valor_frete: diferenca,
+        is_frete_gratis: false,
+        is_upgrade_subsidio: true
+      };
+    });
   }
 
   /**

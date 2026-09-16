@@ -10,7 +10,8 @@ import {
   Key,
   ShieldCheck,
   Building2,
-  AlertCircle
+  AlertCircle,
+  Gift
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
@@ -57,6 +58,11 @@ export const ShippingSettingsScreen: React.FC = () => {
 
   // 4. Retirada
   const [permiteRetiradaLoja, setPermiteRetiradaLoja] = useState<boolean>(true);
+  const [retiradaBalcaoAtiva, setRetiradaBalcaoAtiva] = useState<boolean>(true);
+
+  // 5. Frete Grátis com Subsídio em Upgrade
+  const [freteGratisAtivo, setFreteGratisAtivo] = useState<boolean>(false);
+  const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<string>('');
 
   // Carregar configurações
   useEffect(() => {
@@ -90,7 +96,12 @@ export const ShippingSettingsScreen: React.FC = () => {
           setMelhorEnvioSandboxMode(Boolean(config.melhor_envio_sandbox_mode));
           setMelhorEnvioToken(config.melhor_envio_token || '');
 
-          setPermiteRetiradaLoja(config.permite_retirada_loja ?? true);
+          const retiradaAtiva = (config.retirada_balcao_ativa ?? config.permite_retirada_loja) ?? true;
+          setPermiteRetiradaLoja(retiradaAtiva);
+          setRetiradaBalcaoAtiva(retiradaAtiva);
+
+          setFreteGratisAtivo(Boolean(config.frete_gratis_ativo));
+          setFreteGratisValorMinimo(config.frete_gratis_valor_minimo != null ? String(config.frete_gratis_valor_minimo) : '');
         } else if (ativo && loja) {
           // Preenchimento inicial inteligente com os dados cadastrais da loja
           setOrigemCep(loja.endereco_cep || '');
@@ -177,7 +188,11 @@ export const ShippingSettingsScreen: React.FC = () => {
         melhor_envio_sandbox_mode: melhorEnvioSandboxMode,
         melhor_envio_token: melhorEnvioToken.trim() || null,
 
-        permite_retirada_loja: permiteRetiradaLoja
+        permite_retirada_loja: retiradaBalcaoAtiva,
+        retirada_balcao_ativa: retiradaBalcaoAtiva,
+
+        frete_gratis_ativo: freteGratisAtivo,
+        frete_gratis_valor_minimo: freteGratisValorMinimo.trim() ? parseFloat(freteGratisValorMinimo.replace(',', '.')) : 0
       };
 
       await ShippingOrchestrator.salvarConfigLoja(loja.id, payload);
@@ -599,15 +614,15 @@ export const ShippingSettingsScreen: React.FC = () => {
         {/* BLOCO 4: Retirada na Loja */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
-              <Store className="w-5 h-5" />
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <Store className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                4. Retirada na Loja Física
+                4. Retirada na Loja
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Permita que os clientes retirem o pedido diretamente no balcão da loja sem custo de frete (R$ 0,00).
+                Permita que os clientes retirem o pedido diretamente no balcão da sua loja física.
               </p>
             </div>
           </div>
@@ -616,29 +631,104 @@ export const ShippingSettingsScreen: React.FC = () => {
             <div className="relative flex items-center justify-center mt-0.5">
               <input
                 type="checkbox"
-                checked={permiteRetiradaLoja}
-                onChange={(e) => setPermiteRetiradaLoja(e.target.checked)}
+                checked={retiradaBalcaoAtiva}
+                onChange={(e) => {
+                  setRetiradaBalcaoAtiva(e.target.checked);
+                  setPermiteRetiradaLoja(e.target.checked);
+                }}
                 className="sr-only"
               />
               <div
                 className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                  permiteRetiradaLoja
-                    ? 'bg-purple-600 border-purple-600 text-white shadow-sm shadow-purple-600/30'
-                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-purple-400'
+                  retiradaBalcaoAtiva
+                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-emerald-400'
                 }`}
               >
-                {permiteRetiradaLoja && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+                {retiradaBalcaoAtiva && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
               </div>
             </div>
             <div>
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
-                Permitir opção de &quot;Retirar na Loja (Grátis)&quot;
+                Permitir opção de &quot;Retirar na Loja&quot;
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Quando selecionada, o frete é automaticamente zerado e o endereço de origem é apresentado como ponto de retirada.
+                Quando ativada, os clientes podem optar por buscar a mercadoria na loja. Se desativada, a opção de retirada não será exibida no Catálogo Online ou PDV.
               </span>
             </div>
           </label>
+        </div>
+
+        {/* BLOCO 5: Frete Grátis com Subsídio em Upgrade */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              <Gift className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                5. Frete Grátis com Subsídio em Upgrade
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Incentive carrinhos maiores oferecendo entrega gratuita ou descontada com subsídio inteligente.
+              </p>
+            </div>
+          </div>
+
+          <label className="flex items-start gap-3.5 cursor-pointer select-none p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 group">
+            <div className="relative flex items-center justify-center mt-0.5">
+              <input
+                type="checkbox"
+                checked={freteGratisAtivo}
+                onChange={(e) => setFreteGratisAtivo(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                  freteGratisAtivo
+                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-emerald-400'
+                }`}
+              >
+                {freteGratisAtivo && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+              </div>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
+                Ativar Frete Grátis por Valor Mínimo de Pedido
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Ao atingir a meta no carrinho, o menor frete válido torna-se 100% gratuito (R$ 0,00) e os métodos expressos/mais caros recebem o mesmo valor como desconto (cobrando apenas a diferença).
+              </span>
+            </div>
+          </label>
+
+          {freteGratisAtivo && (
+            <div className="pt-2 pl-2 sm:pl-4 border-l-2 border-emerald-500/30 space-y-3">
+              <div className="max-w-xs">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Valor Mínimo do Pedido (R$) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-sm font-bold text-slate-400 dark:text-slate-500">
+                    R$
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    value={freteGratisValorMinimo}
+                    onChange={(e) => setFreteGratisValorMinimo(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                💡 Exemplo: Se o valor mínimo for R$ 150,00 e o cliente atingir esse valor, uma entrega econômica de R$ 21,00 sai <strong>Grátis</strong>, e um frete expresso de R$ 49,00 receberá R$ 21,00 de desconto, saindo por apenas <strong>R$ 28,00</strong>.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Botão de Salvar Inferior */}

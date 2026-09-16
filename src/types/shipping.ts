@@ -22,6 +22,9 @@ export interface LojaShippingConfig {
   melhor_envio_sandbox_mode: boolean;
   melhor_envio_ativo: boolean;
   permite_retirada_loja: boolean;
+  retirada_balcao_ativa: boolean;
+  frete_gratis_ativo: boolean;
+  frete_gratis_valor_minimo: number;
   criado_em?: string;
   atualizado_em?: string;
 }
@@ -76,6 +79,10 @@ export interface OpcaoFreteCotada {
   servico_codigo: string;
   servico_nome: string;
   valor_frete: number;
+  valor_original?: number;
+  valor_subsidio?: number;
+  is_frete_gratis?: boolean;
+  is_upgrade_subsidio?: boolean;
   prazo_dias_min?: number;
   prazo_dias_max?: number;
   prazo_estimado_texto: string;

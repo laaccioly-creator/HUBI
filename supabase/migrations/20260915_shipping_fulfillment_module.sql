@@ -121,12 +121,12 @@ WHERE (subtotal_produtos IS NULL OR subtotal_produtos = 0) AND subtotal > 0;
 
 -- 5. FUNÇÃO E TRIGGERS DE ATUALIZAÇÃO AUTOMÁTICA DE TIMESTAMP
 CREATE OR REPLACE FUNCTION public.fn_atualizar_timestamp_modificacao()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
     NEW.atualizado_em = NOW();
     RETURN NEW;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_loja_shipping_configs_updated_at ON public.loja_shipping_configs;
 CREATE TRIGGER trg_loja_shipping_configs_updated_at

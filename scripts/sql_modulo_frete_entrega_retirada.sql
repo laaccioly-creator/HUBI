@@ -32,8 +32,11 @@ CREATE TABLE IF NOT EXISTS public.loja_shipping_configs (
     melhor_envio_sandbox_mode BOOLEAN NOT NULL DEFAULT true,
     melhor_envio_ativo BOOLEAN NOT NULL DEFAULT false,
 
-    -- Retirada na Loja
+    -- Retirada na Loja e Frete Grátis
     permite_retirada_loja BOOLEAN NOT NULL DEFAULT true,
+    retirada_balcao_ativa BOOLEAN NOT NULL DEFAULT true,
+    frete_gratis_ativo BOOLEAN NOT NULL DEFAULT false,
+    frete_gratis_valor_minimo NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
 
     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -121,12 +124,12 @@ WHERE (subtotal_produtos IS NULL OR subtotal_produtos = 0) AND subtotal > 0;
 
 -- 5. FUNÇÃO E TRIGGERS DE ATUALIZAÇÃO AUTOMÁTICA DE TIMESTAMP
 CREATE OR REPLACE FUNCTION public.fn_atualizar_timestamp_modificacao()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
     NEW.atualizado_em = NOW();
     RETURN NEW;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_loja_shipping_configs_updated_at ON public.loja_shipping_configs;
 CREATE TRIGGER trg_loja_shipping_configs_updated_at
