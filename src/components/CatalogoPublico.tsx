@@ -2698,7 +2698,7 @@ Fico no aguardo da confirmação! ✨`;
                       const novoTxt = `${end.logradouro}, ${end.numero} ${end.complemento ? `(${end.complemento})` : ''} - ${end.bairro}, ${end.cidade}/${end.uf}`;
                       setEnderecoEntrega(novoTxt);
                       cartContext?.setEnderecoEntrega(novoTxt);
-                      cartContext?.setDadosEndereco({
+                      const novosDadosEnd = {
                         cep: end.cep,
                         rua: end.logradouro,
                         numero: end.numero,
@@ -2706,7 +2706,9 @@ Fico no aguardo da confirmação! ✨`;
                         bairro: end.bairro,
                         cidade: end.cidade,
                         estado: end.uf
-                      });
+                      };
+                      setDadosEndereco(novosDadosEnd);
+                      cartContext?.setDadosEndereco(novosDadosEnd);
                     }
                     setFormaEntregaEscolhida({
                       id: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'entrega_shipping',

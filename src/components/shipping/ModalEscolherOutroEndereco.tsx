@@ -58,11 +58,11 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
     setErroMsg(null);
     try {
       const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
-      // Deduplicação defensiva na listagem
+      // Deduplicação defensiva na listagem por ID
       const unicos: ClienteEndereco[] = [];
       const chavesVistas = new Set<string>();
       for (const e of lista) {
-        const chave = `${(e.cep || '').replace(/\D/g, '')}_${(e.numero || '').trim().toLowerCase()}_${(e.logradouro || '').trim().toLowerCase()}`;
+        const chave = e.id ? `id_${e.id}` : `${(e.cep || '').replace(/\D/g, '')}_${(e.numero || '').trim().toLowerCase()}_${(e.logradouro || '').trim().toLowerCase()}`;
         if (!chavesVistas.has(chave)) {
           chavesVistas.add(chave);
           unicos.push(e);
@@ -189,6 +189,26 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
       return;
     }
 
+    const numLimpo = novoNumero.trim().toLowerCase();
+    const compLimpo = novoComplemento.trim().toLowerCase();
+
+    // Validação estrita contra duplicidade na lista do cliente
+    const ehDuplicado = enderecos.some(e => {
+      const eCep = (e.cep || '').replace(/\D/g, '');
+      const eNum = (e.numero || '').trim().toLowerCase();
+      const eComp = (e.complemento || '').trim().toLowerCase();
+      if (eCep === cepLimpo && eNum === numLimpo) {
+        if (!compLimpo && !eComp) return true;
+        if (compLimpo === eComp) return true;
+      }
+      return false;
+    });
+
+    if (ehDuplicado) {
+      setErroMsg('Este endereço já está cadastrado na sua lista.');
+      return;
+    }
+
     setSalvandoNovo(true);
     try {
       const payload: NovoEnderecoFormInput = {
@@ -215,6 +235,10 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
       setNovoComplemento('');
       setNovoBairro('');
       setNovoCidade('');
+
+      // Retorno imediato ao modal principal com o endereço selecionado
+      onConfirmarEndereco(salvo);
+      onFechar();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setErroMsg(msg || 'Erro ao cadastrar novo endereço.');

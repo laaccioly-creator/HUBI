@@ -178,7 +178,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               const principal = correspondente || lista.find(e => e.is_principal) || lista[0];
               setEnderecoSelecionado(prev => {
-                if (prev && prev.id === principal.id) return prev;
+                if (prev) {
+                  const aindaExiste = lista.find(e => e.id === prev.id);
+                  if (aindaExiste) return aindaExiste;
+                  if (prev.id && prev.logradouro) return prev;
+                }
                 return principal;
               });
             } else if (clienteCep || clienteLogr) {
@@ -197,9 +201,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               };
 
               setEnderecoSelecionado(prev => {
-                if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero && prev.logradouro === novoEnd.logradouro) {
-                  return prev;
-                }
+                if (prev) return prev;
                 return novoEnd;
               });
             }
@@ -225,9 +227,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         };
 
         setEnderecoSelecionado(prev => {
-          if (prev && prev.cep === novoEnd.cep && prev.numero === novoEnd.numero && prev.logradouro === novoEnd.logradouro) {
-            return prev;
-          }
+          if (prev) return prev;
           return novoEnd;
         });
       }
@@ -356,7 +356,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           onChangeRef.current({
             tipo_atendimento: 'entrega',
             valor_frete: encontrada.valor_frete,
+            opcao_frete: encontrada,
             opcao_selecionada: encontrada,
+            endereco_selecionado: endAlvo,
             pedido_entrega: {
               pedido_id: '',
               tipo_atendimento: 'entrega',
@@ -442,7 +444,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     onChange({
       tipo_atendimento: 'entrega',
       valor_frete: opcao.valor_frete,
+      opcao_frete: opcao,
       opcao_selecionada: opcao,
+      endereco_selecionado: enderecoSelecionado,
       pedido_entrega: {
         pedido_id: '',
         tipo_atendimento: 'entrega',
@@ -847,7 +851,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           enderecoAtualId={enderecoSelecionado?.id}
           onConfirmarEndereco={(novoEnd) => {
             setEnderecoSelecionado(novoEnd);
-            executarCotacao(novoEnd);
+            executarCotacao(novoEnd, true);
           }}
         />
       )}

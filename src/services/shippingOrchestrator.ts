@@ -207,7 +207,40 @@ export class ShippingOrchestrator {
         return [];
       }
 
-      return (data || []) as ClienteEndereco[];
+      const ends = (data || []) as ClienteEndereco[];
+      const temPrincipal = ends.some(e => e.is_principal);
+
+      if (!temPrincipal) {
+        const { data: cli } = await supabase
+          .from('clientes')
+          .select('id, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, cep, rua, numero, complemento, bairro, cidade, estado')
+          .eq('id', clienteId)
+          .maybeSingle();
+
+        if (cli) {
+          const cCep = (cli.endereco_cep || cli.cep || '').replace(/\D/g, '');
+          const cLogr = (cli.endereco_logradouro || cli.rua || '').trim();
+          if (cCep || cLogr) {
+            const endCli: ClienteEndereco = {
+              id: 'cli-principal',
+              cliente_id: clienteId,
+              identificador: 'Principal',
+              cep: cCep,
+              logradouro: cLogr || 'Endereço Principal',
+              numero: (cli.endereco_numero || cli.numero || 'S/N').trim(),
+              complemento: (cli.endereco_complemento || cli.complemento || '').trim() || null,
+              bairro: (cli.endereco_bairro || cli.bairro || 'Centro').trim(),
+              cidade: (cli.endereco_cidade || cli.cidade || 'Fortaleza').trim(),
+              uf: (cli.endereco_estado || cli.estado || 'CE').trim().toUpperCase(),
+              is_principal: true,
+              criado_em: new Date().toISOString()
+            };
+            return [endCli, ...ends];
+          }
+        }
+      }
+
+      return ends;
     } catch (err: unknown) {
       console.warn('[ShippingOrchestrator] Exceção ao buscar endereços do cliente:', err);
       return [];
@@ -228,22 +261,33 @@ export class ShippingOrchestrator {
     const cepLimpo = input.cep.replace(/\D/g, '');
     const numLimpo = input.numero.trim();
     const logrLimpo = input.logradouro.trim();
+    const compLimpo = (input.complemento || '').trim();
 
-    // 1. Buscar endereços já existentes para este cliente para evitar duplicações
-    const { data: existentes } = await supabase
-      .from('cliente_enderecos')
-      .select('*')
-      .eq('cliente_id', clienteId);
+    // 1. Validação Prévia de Duplicidade contra todos os endereços do cliente
+    const listaExistentes = await this.listarEnderecosCliente(clienteId);
 
-    const enderecoExistente = (existentes || []).find((e: ClienteEndereco) => {
+    const ehDuplicado = listaExistentes.some((e: ClienteEndereco) => {
       const eCep = (e.cep || '').replace(/\D/g, '');
       const eNum = (e.numero || '').trim().toLowerCase();
-      const eLogr = (e.logradouro || '').trim().toLowerCase();
-      return (eCep === cepLimpo && eNum === numLimpo.toLowerCase()) || 
-             (eLogr === logrLimpo.toLowerCase() && eNum === numLimpo.toLowerCase());
+      const eComp = (e.complemento || '').trim().toLowerCase();
+
+      const nCep = cepLimpo;
+      const nNum = numLimpo.toLowerCase();
+      const nComp = compLimpo.toLowerCase();
+
+      if (eCep === nCep && eNum === nNum) {
+        if (eComp && nComp) return eComp === nComp;
+        if (!eComp && !nComp) return true;
+        return false;
+      }
+      return false;
     });
 
-    // Se for principal, desmarca anteriores
+    if (ehDuplicado) {
+      throw new Error('Este endereço já está cadastrado na sua lista.');
+    }
+
+    // 2. Se for principal, desmarca anteriores
     if (input.is_principal) {
       await supabase
         .from('cliente_enderecos')
@@ -251,66 +295,33 @@ export class ShippingOrchestrator {
         .eq('cliente_id', clienteId);
     }
 
-    if (enderecoExistente) {
-      // Atualiza o endereço existente em vez de duplicar
-      const payloadAtualizacao = {
-        identificador: input.identificador || enderecoExistente.identificador || (input.is_principal ? 'Principal' : 'Entrega'),
+    // 3. Inserção Relacional sem Limite de Quantidade (cliente_enderecos)
+    const { data: novoEndereco, error } = await supabase
+      .from('cliente_enderecos')
+      .insert({
+        cliente_id: clienteId,
+        identificador: input.identificador?.trim() || (input.is_principal ? 'Principal' : 'Outro'),
         cep: cepLimpo,
         logradouro: logrLimpo,
         numero: numLimpo,
-        complemento: input.complemento?.trim() || null,
         bairro: input.bairro.trim(),
         cidade: input.cidade.trim(),
         uf: input.uf.trim().toUpperCase(),
-        latitude: input.latitude !== undefined ? input.latitude : enderecoExistente.latitude,
-        longitude: input.longitude !== undefined ? input.longitude : enderecoExistente.longitude,
+        complemento: compLimpo || null,
+        latitude: input.latitude || null,
+        longitude: input.longitude || null,
         is_principal: Boolean(input.is_principal),
-        atualizado_em: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase
-        .from('cliente_enderecos')
-        .update(payloadAtualizacao)
-        .eq('id', enderecoExistente.id)
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error(`Erro ao atualizar endereço do cliente: ${error.message}`);
-      }
-
-      return data as ClienteEndereco;
-    }
-
-    // Se for novo endereço, insere
-    const payload = {
-      cliente_id: clienteId,
-      identificador: input.identificador || (input.is_principal ? 'Principal' : 'Entrega'),
-      cep: cepLimpo,
-      logradouro: logrLimpo,
-      numero: numLimpo,
-      complemento: input.complemento?.trim() || null,
-      bairro: input.bairro.trim(),
-      cidade: input.cidade.trim(),
-      uf: input.uf.trim().toUpperCase(),
-      latitude: input.latitude || null,
-      longitude: input.longitude || null,
-      is_principal: Boolean(input.is_principal),
-      criado_em: new Date().toISOString(),
-      atualizado_em: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase
-      .from('cliente_enderecos')
-      .insert(payload)
+        criado_em: new Date().toISOString()
+      })
       .select()
       .single();
 
     if (error) {
-      throw new Error(`Erro ao cadastrar endereço do cliente: ${error.message}`);
+      console.error('[ShippingOrchestrator] Erro ao cadastrar novo endereço:', error);
+      throw new Error(`Erro ao cadastrar novo endereço: ${error.message}`);
     }
 
-    return data as ClienteEndereco;
+    return novoEndereco as ClienteEndereco;
   }
 
   /**
