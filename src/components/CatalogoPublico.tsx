@@ -193,6 +193,20 @@ export const CatalogoPublico: React.FC = () => {
         const conf = await ShippingOrchestrator.buscarConfigLoja(loja.id);
         if (ativo && conf) {
           setConfigShippingLoja(conf);
+          cartContext?.setConfigFrete({
+            frete_gratis_ativo: conf.frete_gratis_ativo,
+            frete_gratis_valor_minimo: conf.frete_gratis_valor_minimo,
+            retirada_loja_ativa: conf.retirada_loja_ativa
+          });
+          console.log('Configs Frete Carregadas:', {
+            frete_gratis_ativo: conf.frete_gratis_ativo,
+            frete_gratis_valor_minimo: conf.frete_gratis_valor_minimo
+          });
+        } else if (ativo && loja) {
+          console.log('Configs Frete Carregadas:', {
+            frete_gratis_ativo: Boolean(loja.frete_gratis_ativo),
+            frete_gratis_valor_minimo: Number(loja.frete_gratis_valor_minimo || 0)
+          });
         }
       } catch (err) {
         console.warn('Erro ao carregar configurações de frete no catálogo:', err);
@@ -466,15 +480,51 @@ export const CatalogoPublico: React.FC = () => {
     const carregarCatalogo = async () => {
       try {
         setCarregando(true);
-        let query = supabase.from('lojas').select('*');
+        let query = supabase.from('lojas').select('*, frete_gratis_ativo, frete_gratis_valor_minimo, retirada_loja_ativa');
         if (slug) {
-          query = query.eq('slug_catalogo', slug);
+          query = query.or(`slug_catalogo.eq.${slug},id.eq.${slug}`);
         }
         const { data: lojas } = await query.limit(1);
 
         if (lojas && lojas.length > 0) {
           const l = lojas[0];
+          l.frete_gratis_ativo = Boolean(l.frete_gratis_ativo);
+          l.frete_gratis_valor_minimo = Number(l.frete_gratis_valor_minimo || 0);
+          l.retirada_loja_ativa = Boolean(l.retirada_loja_ativa);
           setLoja(l);
+
+          // Hidrata imediatamente as configurações consolidadas de frete
+          try {
+            const confFrete = await ShippingOrchestrator.buscarConfigLoja(l.id);
+            if (confFrete) {
+              setConfigShippingLoja(confFrete);
+              cartContext?.setConfigFrete({
+                frete_gratis_ativo: confFrete.frete_gratis_ativo,
+                frete_gratis_valor_minimo: confFrete.frete_gratis_valor_minimo,
+                retirada_loja_ativa: confFrete.retirada_loja_ativa
+              });
+              console.log('Configs Frete Carregadas:', {
+                frete_gratis_ativo: confFrete.frete_gratis_ativo,
+                frete_gratis_valor_minimo: confFrete.frete_gratis_valor_minimo
+              });
+            } else {
+              cartContext?.setConfigFrete({
+                frete_gratis_ativo: l.frete_gratis_ativo,
+                frete_gratis_valor_minimo: l.frete_gratis_valor_minimo,
+                retirada_loja_ativa: l.retirada_loja_ativa
+              });
+              console.log('Configs Frete Carregadas:', {
+                frete_gratis_ativo: l.frete_gratis_ativo,
+                frete_gratis_valor_minimo: l.frete_gratis_valor_minimo
+              });
+            }
+          } catch (eFrete) {
+            console.warn('[CatalogoPublico] Falha ao carregar frete consolidado:', eFrete);
+            console.log('Configs Frete Carregadas:', {
+              frete_gratis_ativo: l.frete_gratis_ativo,
+              frete_gratis_valor_minimo: l.frete_gratis_valor_minimo
+            });
+          }
 
           const simLoja = l.configuracoes_extras?.simulacao_data_operacao;
           if (simLoja?.ativa && simLoja?.dataYMD) {
@@ -693,8 +743,23 @@ export const CatalogoPublico: React.FC = () => {
 
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
-  const valorFrete = pedidoEntrega ? Number(pedidoEntrega.valor_frete || 0) : Number(formaEntregaEscolhida?.valor_taxa || 0);
-  const valorFreteEfetivo = freteGratisCupom ? 0 : valorFrete;
+
+  const freteGratisAtivoLoja = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo ?? cartContext?.freteGratisAtivo);
+  const freteGratisMinimoLoja = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo ?? cartContext?.freteGratisValorMinimo ?? 0);
+  const elegivelFreteGratisLoja = freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && subtotal >= freteGratisMinimoLoja;
+
+  const valorFrete = pedidoEntrega 
+    ? Number(pedidoEntrega.valor_frete || 0) 
+    : Number(formaEntregaEscolhida?.valor_taxa || 0);
+
+  const valorFreteBase = pedidoEntrega 
+    ? valorFrete 
+    : (elegivelFreteGratisLoja ? 0 : valorFrete);
+
+  const valorFreteEfetivo = (freteGratisCupom || (elegivelFreteGratisLoja && (!pedidoEntrega || pedidoEntrega.valor_frete === 0))) 
+    ? 0 
+    : valorFreteBase;
+
   const total = Math.max(0, subtotal - descontoCupom) + valorFreteEfetivo;
 
   // Revalidar cupom caso o subtotal mude
@@ -1161,13 +1226,13 @@ ${itensMsg}
 ━━━━━━━━━━━━━━━━━━━━
 🏷️ *Tabela Aplicada:* ${tabelaTexto}
 ${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoCarrinho.economiaTotal.toFixed(2)}\n` : ''}💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
-🛵 *Entrega:* ${formaEntregaEscolhida?.nome || 'A combinar'} (+ R$ ${valorFrete.toFixed(2)})
+🛵 *Entrega:* ${formaEntregaEscolhida?.nome || (pedidoEntrega?.tipo_atendimento === 'retirada' ? 'Retirada na Loja' : 'Entrega')} ${valorFreteEfetivo === 0 ? '(Frete Grátis 🎉)' : `(+ R$ ${valorFreteEfetivo.toFixed(2)})`}
 💳 *Pagamento:* ${textoFormaPagamento}
 💵 *TOTAL A PAGAR:* R$ ${total.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Nome:* ${nomeCliente}
 📱 *WhatsApp:* ${whatsappCliente}
-📍 *Endereço:* ${enderecoEntrega || 'Retirada no Balcão'}
+📍 *Endereço:* ${enderecoEntrega || (pedidoEntrega?.tipo_atendimento === 'retirada' ? 'Retirada na Loja' : 'A combinar')}
 ${observacoes ? `📝 *Observação:* ${observacoes}\n` : ''}
 Fico no aguardo da confirmação! ✨`;
 
@@ -1853,11 +1918,11 @@ Fico no aguardo da confirmação! ✨`;
                 avaliacaoCarrinho.tabelaAtiva !== 'varejo'
               );
 
-              const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo);
-              const valorMinimoFreteGratis = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo) || 0;
+              const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo ?? cartContext?.freteGratisAtivo);
+              const valorMinimoFreteGratis = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo ?? cartContext?.freteGratisValorMinimo) || 0;
               const temRegraFreteGratis = freteGratisAtivo && valorMinimoFreteGratis > 0;
-              const faltaParaFreteGratis = Math.max(0, valorMinimoFreteGratis - subtotal);
-              const percentualFreteGratis = valorMinimoFreteGratis > 0 
+              const valorFaltante = Math.max(0, valorMinimoFreteGratis - subtotal);
+              const percentual = valorMinimoFreteGratis > 0 
                 ? Math.min(100, Math.round((subtotal / valorMinimoFreteGratis) * 100)) 
                 : 0;
 
@@ -1927,30 +1992,30 @@ Fico no aguardo da confirmação! ✨`;
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-slate-300 flex items-center gap-1.5 truncate">
-                          {subtotal >= valorMinimoFreteGratis ? (
+                          {valorFaltante === 0 ? (
                             <>
                               <Gift className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span className="text-emerald-300 font-bold truncate">🎉 Você ganhou Frete Grátis!</span>
+                              <span className="text-emerald-400 font-bold truncate">🎉 Você ganhou Frete Grátis!</span>
                             </>
                           ) : (
                             <>
                               <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                               <span className="truncate">
                                 Faltam <b className="text-emerald-400 font-bold">
-                                  R$ {faltaParaFreteGratis.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </b> para Frete Grátis!
+                                  R$ {valorFaltante.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </b> para Frete Grátis! ({percentual}%)
                               </span>
                             </>
                           )}
                         </span>
                         <span className="text-[10px] font-bold text-emerald-400 shrink-0 ml-2">
-                          {percentualFreteGratis}%
+                          {percentual}%
                         </span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
+                      <div className="w-full h-1.5 rounded-full bg-slate-700 overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-500"
-                          style={{ width: `${percentualFreteGratis}%` }}
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                          style={{ width: `${percentual}%` }}
                         />
                       </div>
                     </div>
@@ -2237,19 +2302,37 @@ Fico no aguardo da confirmação! ✨`;
                       Forma de Entrega:
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold tabular-nums w-28 text-right truncate">
+                      <div className="text-sm font-bold tabular-nums w-28 text-right truncate">
                         {!pedidoEntrega ? (
-                          <span className="text-amber-400 font-medium text-xs">Não selecionada</span>
+                          elegivelFreteGratisLoja ? (
+                            <span className="text-emerald-400 font-bold text-xs">Frete Grátis</span>
+                          ) : (
+                            <span className="text-amber-400 font-medium text-xs">Não selecionada</span>
+                          )
                         ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
                           <span className="text-slate-200 font-bold text-xs">Retirar na Loja</span>
-                        ) : freteGratisCupom ? (
-                          <span className="text-emerald-400">Grátis</span>
-                        ) : valorFreteEfetivo > 0 ? (
-                          <span className="text-emerald-400">R$ {valorFreteEfetivo.toFixed(2)}</span>
+                        ) : (pedidoEntrega.is_frete_gratis || valorFreteEfetivo === 0 || freteGratisCupom) ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            {pedidoEntrega.valor_original != null && pedidoEntrega.valor_original > 0 && (
+                              <span className="text-[10px] line-through text-slate-500 font-normal">
+                                R$ {pedidoEntrega.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            )}
+                            <span className="text-emerald-400 font-bold text-xs">Frete Grátis</span>
+                          </div>
+                        ) : pedidoEntrega.valor_subsidio && pedidoEntrega.valor_subsidio > 0 && pedidoEntrega.valor_original ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            <span className="text-[10px] line-through text-slate-500 font-normal">
+                              R$ {pedidoEntrega.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-emerald-400 font-bold text-xs">
+                              R$ {valorFreteEfetivo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-emerald-400">Grátis</span>
+                          <span className="text-emerald-400">R$ {valorFreteEfetivo.toFixed(2)}</span>
                         )}
-                      </span>
+                      </div>
 
                       <div className="w-20 flex justify-end shrink-0">
                         <button
@@ -2586,7 +2669,7 @@ Fico no aguardo da confirmação! ✨`;
                 altura_cm: (i.produto as any)?.altura_cm || 10,
                 comprimento_cm: (i.produto as any)?.comprimento_cm || 20
               }))}
-              valorFreteAtual={valorFrete}
+              valorFreteAtual={valorFreteEfetivo}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
               onChange={(resultado) => {

@@ -16,35 +16,49 @@ export class ShippingOrchestrator {
    * Busca a configuração de frete ativa para a loja
    */
   public static async buscarConfigLoja(lojaId: string): Promise<LojaShippingConfig | null> {
+    if (!lojaId) return null;
+
     try {
-      const { data, error } = await supabase
-        .from('loja_shipping_configs')
-        .select('*')
-        .eq('loja_id', lojaId)
-        .maybeSingle();
+      // 1. Busca em paralelo na tabela especializada loja_shipping_configs e na tabela lojas
+      const [resShipping, resLoja] = await Promise.all([
+        supabase
+          .from('loja_shipping_configs')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .maybeSingle(),
+        supabase
+          .from('lojas')
+          .select('id, retirada_loja_ativa, frete_gratis_ativo, frete_gratis_valor_minimo, endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado')
+          .eq('id', lojaId)
+          .maybeSingle()
+      ]);
 
-      if (error) {
-        console.warn('[ShippingOrchestrator] Erro ao carregar config da loja:', error);
+      const dadosShipping = resShipping.data as LojaShippingConfig | null;
+      const dadosLoja = resLoja.data;
+
+      // Unifica flags garantindo que se o lojista ativou em qualquer tabela, seja respeitado com tipos puros
+      const freteGratisAtivo = Boolean(dadosShipping?.frete_gratis_ativo || dadosLoja?.frete_gratis_ativo);
+      const freteGratisValorMinimo = Number(dadosShipping?.frete_gratis_valor_minimo || dadosLoja?.frete_gratis_valor_minimo || 0);
+      const retiradaAtiva = Boolean(
+        dadosShipping?.retirada_loja_ativa ?? 
+        dadosShipping?.retirada_balcao_ativa ?? 
+        dadosShipping?.permite_retirada_loja ?? 
+        dadosLoja?.retirada_loja_ativa ?? 
+        false
+      );
+
+      if (dadosShipping) {
+        return {
+          ...dadosShipping,
+          retirada_loja_ativa: retiradaAtiva,
+          retirada_balcao_ativa: retiradaAtiva,
+          permite_retirada_loja: retiradaAtiva,
+          frete_gratis_ativo: freteGratisAtivo,
+          frete_gratis_valor_minimo: freteGratisValorMinimo
+        };
       }
-
-      if (data) {
-        const conf = data as LojaShippingConfig;
-        const retiradaAtiva = conf.retirada_loja_ativa ?? conf.retirada_balcao_ativa ?? conf.permite_retirada_loja ?? false;
-        conf.retirada_loja_ativa = retiradaAtiva;
-        conf.retirada_balcao_ativa = retiradaAtiva;
-        conf.permite_retirada_loja = retiradaAtiva;
-        return conf;
-      }
-
-      // Fallback: carregar diretamente da tabela lojas caso loja_shipping_configs ainda não tenha sido criada
-      const { data: dadosLoja } = await supabase
-        .from('lojas')
-        .select('id, retirada_loja_ativa, frete_gratis_ativo, frete_gratis_valor_minimo, endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado')
-        .eq('id', lojaId)
-        .maybeSingle();
 
       if (dadosLoja) {
-        const retiradaAtiva = Boolean(dadosLoja.retirada_loja_ativa);
         return {
           id: 'loja-base',
           loja_id: lojaId,
@@ -68,8 +82,8 @@ export class ShippingOrchestrator {
           permite_retirada_loja: retiradaAtiva,
           retirada_balcao_ativa: retiradaAtiva,
           retirada_loja_ativa: retiradaAtiva,
-          frete_gratis_ativo: Boolean(dadosLoja.frete_gratis_ativo),
-          frete_gratis_valor_minimo: Number(dadosLoja.frete_gratis_valor_minimo || 0)
+          frete_gratis_ativo: freteGratisAtivo,
+          frete_gratis_valor_minimo: freteGratisValorMinimo
         };
       }
 

@@ -66,6 +66,9 @@ export interface PedidoEntrega {
   transportadora_nome?: string | null;
   servico_codigo?: string | null;
   valor_frete: number;
+  valor_original?: number | null;
+  valor_subsidio?: number | null;
+  is_frete_gratis?: boolean | null;
   prazo_estimado_texto?: string | null;
   codigo_rastreio?: string | null;
   status_envio?: string;

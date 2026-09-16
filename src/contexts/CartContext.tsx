@@ -58,6 +58,10 @@ interface CartContextType {
   setEnderecoEntrega: (endereco: string | null) => void;
   setDadosEndereco: (dados: DadosEnderecoCliente | null) => void;
   limparCarrinho: () => void;
+  freteGratisAtivo: boolean;
+  freteGratisValorMinimo: number;
+  retiradaLojaAtiva: boolean;
+  setConfigFrete: (config: { frete_gratis_ativo?: boolean; frete_gratis_valor_minimo?: number; retirada_loja_ativa?: boolean }) => void;
   carregarPedidoParaEdicao: (pedido: any) => Promise<void>;
   cancelarEdicaoPedido: () => void;
   atualizarStatusPedidoEmEdicao: (novoStatus: string) => void;
@@ -78,6 +82,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
   const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente | null>(null);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
+
+  const [configFreteState, setConfigFreteState] = useState<{
+    frete_gratis_ativo: boolean;
+    frete_gratis_valor_minimo: number;
+    retirada_loja_ativa: boolean;
+  }>({
+    frete_gratis_ativo: Boolean(loja?.frete_gratis_ativo),
+    frete_gratis_valor_minimo: Number(loja?.frete_gratis_valor_minimo || 0),
+    retirada_loja_ativa: Boolean(loja?.retirada_loja_ativa)
+  });
+
+  const setConfigFrete = (config: { frete_gratis_ativo?: boolean; frete_gratis_valor_minimo?: number; retirada_loja_ativa?: boolean }) => {
+    setConfigFreteState(prev => ({
+      frete_gratis_ativo: config.frete_gratis_ativo !== undefined ? Boolean(config.frete_gratis_ativo) : prev.frete_gratis_ativo,
+      frete_gratis_valor_minimo: config.frete_gratis_valor_minimo !== undefined ? Number(config.frete_gratis_valor_minimo) : prev.frete_gratis_valor_minimo,
+      retirada_loja_ativa: config.retirada_loja_ativa !== undefined ? Boolean(config.retirada_loja_ativa) : prev.retirada_loja_ativa
+    }));
+  };
 
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
 
@@ -604,6 +626,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setEnderecoEntrega,
         setDadosEndereco,
         limparCarrinho,
+        freteGratisAtivo: configFreteState.frete_gratis_ativo,
+        freteGratisValorMinimo: configFreteState.frete_gratis_valor_minimo,
+        retiradaLojaAtiva: configFreteState.retirada_loja_ativa,
+        setConfigFrete,
         carregarPedidoParaEdicao,
         cancelarEdicaoPedido,
         atualizarStatusPedidoEmEdicao

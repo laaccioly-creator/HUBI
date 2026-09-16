@@ -329,14 +329,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
       setCotacoes(opcoesFiltradas);
 
-      const opcoesValidas = opcoesFiltradas.filter(o => !o.erro && o.valor_frete > 0);
+      const opcoesValidas = opcoesFiltradas.filter(o => !o.erro && (o.valor_frete > 0 || o.is_frete_gratis));
 
       if (opcoesValidas.length > 0) {
         const encontrada = opcoesValidas.find(o => 
           o.id === opcaoSelecionadaId || 
           o.servico_codigo === opcaoSelecionadaId ||
           (opcaoSelecionadaId && (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo)))
-        ) || opcoesValidas[0];
+        ) || opcoesValidas.find(o => o.is_frete_gratis) || opcoesValidas[0];
         setCotacaoEscolhida(encontrada);
 
         const chaveEmissao = `${encontrada.id}_${encontrada.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega`;
@@ -363,6 +363,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               transportadora_nome: encontrada.transportadora_nome,
               servico_codigo: encontrada.servico_codigo,
               valor_frete: encontrada.valor_frete,
+              valor_original: encontrada.valor_original ?? encontrada.valor_frete,
+              valor_subsidio: encontrada.valor_subsidio ?? 0,
+              is_frete_gratis: encontrada.is_frete_gratis ?? (encontrada.valor_frete === 0),
               prazo_estimado_texto: encontrada.prazo_estimado_texto,
               status_envio: 'pendente'
             }
@@ -448,6 +451,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         transportadora_nome: opcao.transportadora_nome,
         servico_codigo: opcao.servico_codigo,
         valor_frete: opcao.valor_frete,
+        valor_original: opcao.valor_original ?? opcao.valor_frete,
+        valor_subsidio: opcao.valor_subsidio ?? 0,
+        is_frete_gratis: opcao.is_frete_gratis ?? (opcao.valor_frete === 0),
         prazo_estimado_texto: opcao.prazo_estimado_texto,
         status_envio: 'pendente'
       }
