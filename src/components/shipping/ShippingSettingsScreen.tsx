@@ -96,7 +96,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           setMelhorEnvioSandboxMode(Boolean(config.melhor_envio_sandbox_mode));
           setMelhorEnvioToken(config.melhor_envio_token || '');
 
-          const retiradaAtiva = (config.retirada_balcao_ativa ?? config.permite_retirada_loja) ?? true;
+          const retiradaAtiva = Boolean(config.retirada_balcao_ativa ?? config.retirada_loja_ativa ?? config.permite_retirada_loja ?? false);
           setPermiteRetiradaLoja(retiradaAtiva);
           setRetiradaBalcaoAtiva(retiradaAtiva);
 

@@ -455,7 +455,7 @@ export const ConfiguracoesLoja: React.FC = () => {
     'Retirada disponível no balcão da loja em horário comercial.'
   );
   const [freteGratisAtivo, setFreteGratisAtivo] = useState<boolean>(false);
-  const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<number>(0);
+  const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<number | string>(0);
   const [listaFormasEntrega, setListaFormasEntrega] = useState<FormaEntrega[]>([]);
 
   // 7. EXPORTAÇÃO DE RELATÓRIOS
@@ -637,20 +637,25 @@ export const ConfiguracoesLoja: React.FC = () => {
       setFreteGratisAtivo(freteGratisAtivoIni);
       setFreteGratisValorMinimo(freteGratisValorMinIni);
 
-      // Buscar também da tabela de shipping configs para manter consistência
-      ShippingOrchestrator.buscarConfigLoja(loja.id).then(configFrete => {
-        if (configFrete) {
-          if (configFrete.retirada_loja_ativa !== undefined) {
-            setTrabalhoComRetirada(Boolean(configFrete.retirada_loja_ativa));
+      // Carga direta e prioritária da tabela loja_shipping_configs
+      const carregarShippingConfig = async () => {
+        try {
+          const { data: configData, error: errShip } = await supabase
+            .from('loja_shipping_configs')
+            .select('*')
+            .eq('loja_id', loja.id)
+            .maybeSingle();
+
+          if (!errShip && configData) {
+            setTrabalhoComRetirada(Boolean(configData.retirada_balcao_ativa));
+            setFreteGratisAtivo(Boolean(configData.frete_gratis_ativo));
+            setFreteGratisValorMinimo(Number(configData.frete_gratis_valor_minimo) || 0);
           }
-          if (configFrete.frete_gratis_ativo !== undefined) {
-            setFreteGratisAtivo(Boolean(configFrete.frete_gratis_ativo));
-          }
-          if (configFrete.frete_gratis_valor_minimo !== undefined) {
-            setFreteGratisValorMinimo(Number(configFrete.frete_gratis_valor_minimo));
-          }
+        } catch (err: unknown) {
+          console.warn('Erro ao carregar shipping config:', err);
         }
-      }).catch(err => console.warn('Erro ao carregar shipping config:', err));
+      };
+      carregarShippingConfig();
 
       // Parceiros
       setFacebookPixelId(parceiros.facebook_pixel_id || '');
@@ -940,26 +945,40 @@ export const ConfiguracoesLoja: React.FC = () => {
           endereco_cidade: enderecoCidade,
           endereco_estado: enderecoEstado,
           serpapi_key: serpApiKey.trim() || null,
-          retirada_loja_ativa: trabalhoComRetirada,
-          frete_gratis_ativo: freteGratisAtivo,
-          frete_gratis_valor_minimo: freteGratisValorMinimo,
+          retirada_loja_ativa: Boolean(trabalhoComRetirada),
+          frete_gratis_ativo: Boolean(freteGratisAtivo),
+          frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
+            ? freteGratisValorMinimo
+            : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
           configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
 
       if (error) throw error;
 
-      // Sincroniza também na tabela loja_shipping_configs de forma atômica
-      try {
-        await ShippingOrchestrator.salvarConfigLoja(loja.id, {
-          retirada_loja_ativa: trabalhoComRetirada,
-          retirada_balcao_ativa: trabalhoComRetirada,
-          permite_retirada_loja: trabalhoComRetirada,
-          frete_gratis_ativo: freteGratisAtivo,
-          frete_gratis_valor_minimo: freteGratisValorMinimo
-        });
-      } catch (errShipping) {
-        console.warn('[ConfiguracoesLoja] Falha secundária ao sincronizar loja_shipping_configs:', errShipping);
+      const valorMinimoNum = typeof freteGratisValorMinimo === 'number'
+        ? freteGratisValorMinimo
+        : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00);
+
+      // Inclusão obrigatória no Payload do UPDATE para loja_shipping_configs
+      const payloadShipping = {
+        retirada_balcao_ativa: Boolean(trabalhoComRetirada),
+        retirada_loja_ativa: Boolean(trabalhoComRetirada),
+        permite_retirada_loja: Boolean(trabalhoComRetirada),
+        frete_gratis_ativo: Boolean(freteGratisAtivo),
+        frete_gratis_valor_minimo: Number(valorMinimoNum) || 0.00,
+        atualizado_em: new Date().toISOString(),
+      };
+
+      const { error: erroShipping } = await supabase
+        .from('loja_shipping_configs')
+        .update(payloadShipping)
+        .eq('loja_id', loja.id);
+
+      if (erroShipping) {
+        console.error('Erro ao atualizar loja_shipping_configs:', erroShipping);
+        alert('Erro ao salvar configurações no Supabase: ' + erroShipping.message);
+        throw erroShipping;
       }
 
       await salvarSerpApiKey(serpApiKey.trim(), loja.id, loja);
@@ -3327,13 +3346,16 @@ export const ConfiguracoesLoja: React.FC = () => {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">R$</span>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={freteGratisValorMinimo || ''}
-                      onChange={(e) => setFreteGratisValorMinimo(Math.max(0, parseFloat(e.target.value) || 0))}
+                      type="text"
+                      inputMode="decimal"
+                      value={freteGratisValorMinimo === 0 || freteGratisValorMinimo === '0' ? '' : freteGratisValorMinimo}
+                      onChange={(e) => setFreteGratisValorMinimo(e.target.value)}
+                      onBlur={() => {
+                        const num = parseFloat(String(freteGratisValorMinimo).replace(',', '.'));
+                        setFreteGratisValorMinimo(isNaN(num) ? 0 : Math.max(0, num));
+                      }}
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-100 font-bold focus:border-emerald-500 outline-none"
-                      placeholder="Ex: 150,00"
+                      placeholder="Ex: 250,00"
                     />
                   </div>
                   <p className="text-[10px] text-slate-400">

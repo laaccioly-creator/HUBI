@@ -120,13 +120,54 @@ export class ShippingOrchestrator {
       atualizado_em: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    // 1. Verifica se já existe registro na tabela loja_shipping_configs
+    const { data: existente } = await supabase
       .from('loja_shipping_configs')
-      .upsert(payload, { onConflict: 'loja_id' })
-      .select()
-      .single();
+      .select('id')
+      .eq('loja_id', lojaId)
+      .maybeSingle();
+
+    let data;
+    let error;
+
+    if (existente?.id) {
+      const resUpdate = await supabase
+        .from('loja_shipping_configs')
+        .update(payload)
+        .eq('loja_id', lojaId)
+        .select()
+        .single();
+      data = resUpdate.data;
+      error = resUpdate.error;
+    } else {
+      // Busca dados cadastrais da loja para não violar NOT NULL no insert inicial
+      const { data: loja } = await supabase
+        .from('lojas')
+        .select('endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado')
+        .eq('id', lojaId)
+        .maybeSingle();
+
+      const insertPayload = {
+        origem_cep: (payload.origem_cep as string) || loja?.endereco_cep || '60710790',
+        origem_logradouro: (payload.origem_logradouro as string) || loja?.endereco_logradouro || 'Rua Principal',
+        origem_numero: (payload.origem_numero as string) || loja?.endereco_numero || 'S/N',
+        origem_bairro: (payload.origem_bairro as string) || loja?.endereco_bairro || 'Centro',
+        origem_cidade: (payload.origem_cidade as string) || loja?.endereco_cidade || 'Fortaleza',
+        origem_uf: (payload.origem_uf as string) || loja?.endereco_estado || 'CE',
+        ...payload
+      };
+
+      const resInsert = await supabase
+        .from('loja_shipping_configs')
+        .insert(insertPayload)
+        .select()
+        .single();
+      data = resInsert.data;
+      error = resInsert.error;
+    }
 
     if (error) {
+      console.error('Erro ao atualizar loja_shipping_configs:', error);
       throw new Error(`Erro ao salvar configurações de frete: ${error.message}`);
     }
 
