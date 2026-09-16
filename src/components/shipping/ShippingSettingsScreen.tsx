@@ -167,13 +167,13 @@ export const ShippingSettingsScreen: React.FC = () => {
         origem_latitude: origemLatitude.trim() ? parseFloat(origemLatitude) : null,
         origem_longitude: origemLongitude.trim() ? parseFloat(origemLongitude) : null,
 
-        uber_ativo: uberAtivo || Boolean(uberCustomerId.trim() && uberClientId.trim()),
+        uber_ativo: uberAtivo,
         uber_sandbox_mode: uberSandboxMode,
         uber_customer_id: uberCustomerId.trim() || null,
         uber_client_id: uberClientId.trim() || null,
         uber_client_secret: uberClientSecret.trim() || null,
 
-        melhor_envio_ativo: melhorEnvioAtivo || Boolean(melhorEnvioToken.trim()),
+        melhor_envio_ativo: melhorEnvioAtivo,
         melhor_envio_sandbox_mode: melhorEnvioSandboxMode,
         melhor_envio_token: melhorEnvioToken.trim() || null,
 
@@ -418,25 +418,47 @@ export const ShippingSettingsScreen: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap gap-6 items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={uberAtivo}
-                onChange={(e) => setUberAtivo(e.target.checked)}
-                className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
-              />
+            <label className="flex items-center gap-3 cursor-pointer select-none group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={uberAtivo}
+                  onChange={(e) => setUberAtivo(e.target.checked)}
+                  className="sr-only"
+                />
+                <div
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                    uberAtivo
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-emerald-400'
+                  }`}
+                >
+                  {uberAtivo && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+                </div>
+              </div>
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Ativar Uber Direct no Checkout
               </span>
             </label>
 
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={uberSandboxMode}
-                onChange={(e) => setUberSandboxMode(e.target.checked)}
-                className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
-              />
+            <label className="flex items-center gap-3 cursor-pointer select-none group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={uberSandboxMode}
+                  onChange={(e) => setUberSandboxMode(e.target.checked)}
+                  className="sr-only"
+                />
+                <div
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                    uberSandboxMode
+                      ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-amber-400'
+                  }`}
+                >
+                  {uberSandboxMode && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+                </div>
+              </div>
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Modo Sandbox (Ambiente de Testes)
               </span>
@@ -513,25 +535,47 @@ export const ShippingSettingsScreen: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap gap-6 items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={melhorEnvioAtivo}
-                onChange={(e) => setMelhorEnvioAtivo(e.target.checked)}
-                className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500"
-              />
+            <label className="flex items-center gap-3 cursor-pointer select-none group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={melhorEnvioAtivo}
+                  onChange={(e) => setMelhorEnvioAtivo(e.target.checked)}
+                  className="sr-only"
+                />
+                <div
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                    melhorEnvioAtivo
+                      ? 'bg-sky-600 border-sky-600 text-white shadow-sm shadow-sky-600/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-sky-400'
+                  }`}
+                >
+                  {melhorEnvioAtivo && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+                </div>
+              </div>
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Ativar Melhor Envio no Checkout
               </span>
             </label>
 
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={melhorEnvioSandboxMode}
-                onChange={(e) => setMelhorEnvioSandboxMode(e.target.checked)}
-                className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
-              />
+            <label className="flex items-center gap-3 cursor-pointer select-none group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={melhorEnvioSandboxMode}
+                  onChange={(e) => setMelhorEnvioSandboxMode(e.target.checked)}
+                  className="sr-only"
+                />
+                <div
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                    melhorEnvioSandboxMode
+                      ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-amber-400'
+                  }`}
+                >
+                  {melhorEnvioSandboxMode && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+                </div>
+              </div>
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Modo Sandbox (Ambiente de Testes)
               </span>
@@ -568,13 +612,24 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
           </div>
 
-          <label className="flex items-center gap-3 cursor-pointer select-none p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-            <input
-              type="checkbox"
-              checked={permiteRetiradaLoja}
-              onChange={(e) => setPermiteRetiradaLoja(e.target.checked)}
-              className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
-            />
+          <label className="flex items-start gap-3.5 cursor-pointer select-none p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 group">
+            <div className="relative flex items-center justify-center mt-0.5">
+              <input
+                type="checkbox"
+                checked={permiteRetiradaLoja}
+                onChange={(e) => setPermiteRetiradaLoja(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                  permiteRetiradaLoja
+                    ? 'bg-purple-600 border-purple-600 text-white shadow-sm shadow-purple-600/30'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-purple-400'
+                }`}
+              >
+                {permiteRetiradaLoja && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+              </div>
+            </div>
             <div>
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
                 Permitir opção de &quot;Retirar na Loja (Grátis)&quot;
