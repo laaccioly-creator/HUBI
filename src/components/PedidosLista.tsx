@@ -312,7 +312,8 @@ export const PedidosLista: React.FC = () => {
           itens:itens_pedido(*),
           pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
           pagamentos_previstos:pedidos_pagamentos_previstos(*),
-          historico:historico_pedidos(*, usuario:usuarios_loja(*))
+          historico:historico_pedidos(*, usuario:usuarios_loja(*)),
+          pedido_entrega:pedido_entregas(*)
         `)
         .eq('loja_id', loja.id);
 
@@ -332,7 +333,8 @@ export const PedidosLista: React.FC = () => {
             vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
             atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
             itens:itens_pedido(*),
-            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
+            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+            pedido_entrega:pedido_entregas(*)
           `)
           .eq('loja_id', loja.id);
 
@@ -2078,26 +2080,58 @@ export const PedidosLista: React.FC = () => {
                   {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-600">{pedidoReciboModal.cliente.whatsapp}</p>}
                 </div>
 
-                {/* Modalidade de Atendimento & Endereço */}
+                {/* Forma de Entrega & Endereço */}
                 {(() => {
-                  const pe = (pedidoReciboModal as any).pedido_entrega;
-                  const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedidoReciboModal.valor_frete || 0) === 0);
-                  const transpNome = pe?.transportadora_nome || (pedidoReciboModal.forma_entrega?.nome) || (ehRetirada ? 'Retirada na Loja' : 'Entrega');
-                  const enderecoDestino = pe?.destino_logradouro 
-                    ? `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_complemento ? ` - ${pe.destino_complemento}` : ''}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}`
-                    : pedidoReciboModal.endereco_entrega;
+                  const rawPe = (pedidoReciboModal as any).pedido_entrega;
+                  const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+                  const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedidoReciboModal.valor_frete || 0) === 0 && !pedidoReciboModal.endereco_entrega);
+
+                  let formaEntregaTexto = 'RETIRADA NA LOJA';
+                  let badgeEstilo = 'bg-purple-100 text-purple-800';
+
+                  if (!ehRetirada) {
+                    badgeEstilo = 'bg-emerald-100 text-emerald-800';
+                    const provedor = (pe?.provedor || '').toLowerCase();
+                    const transp = (pe?.transportadora_nome || pedidoReciboModal.forma_entrega?.nome || '').trim();
+                    const servico = (pe?.servico_codigo || '').toLowerCase();
+
+                    if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+                      formaEntregaTexto = 'CORREIOS';
+                    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+                      formaEntregaTexto = 'UBER';
+                    } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+                      formaEntregaTexto = transp.toUpperCase();
+                    } else {
+                      formaEntregaTexto = 'ENTREGA';
+                    }
+                  }
+
+                  const enderecoDestino = (() => {
+                    if (pe?.destino_logradouro) {
+                      const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
+                      const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
+                      return `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
+                    }
+                    if (pedidoReciboModal.endereco_entrega) {
+                      return pedidoReciboModal.endereco_entrega;
+                    }
+                    if (pedidoReciboModal.cliente?.endereco_principal) {
+                      return pedidoReciboModal.cliente.endereco_principal;
+                    }
+                    return 'Endereço não informado';
+                  })();
 
                   return (
                     <div className="p-2.5 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-700 uppercase">Atendimento:</span>
-                        <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                          {ehRetirada ? 'RETIRADA NA LOJA' : `ENTREGA (${transpNome})`}
+                        <span className="font-bold text-slate-700 uppercase">Forma de Entrega:</span>
+                        <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
+                          {formaEntregaTexto}
                         </span>
                       </div>
                       <div className="text-slate-600 pt-0.5">
-                        <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço:'} </strong>
-                        <span>{ehRetirada ? enderecoLojaFormatado : (enderecoDestino || 'Endereço não informado')}</span>
+                        <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
+                        <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
                       </div>
                       {pe?.codigo_rastreio && (
                         <div className="text-emerald-700 font-bold pt-0.5">

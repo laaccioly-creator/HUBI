@@ -30,10 +30,29 @@ export class UberDirectService {
   /**
    * Formata e valida a resposta da Uber para o objeto OpcaoFreteCotada
    */
-  private static formatarOpcaoUber(responseData: UberDeliveryQuoteResponse): OpcaoFreteCotada | null {
+  private static formatarOpcaoUber(
+    responseData: UberDeliveryQuoteResponse,
+    isSandbox: boolean = false
+  ): OpcaoFreteCotada | null {
     const msg = (responseData.message || responseData.code || '').toLowerCase();
+    const metadataDetails = ((responseData as any).metadata?.details || '').toLowerCase();
+    const fullMsg = `${msg} ${metadataDetails}`;
+
     if (msg.includes('tax_form_required') || msg.includes('customer_blocked')) {
-      console.warn('[UberDirect] Conta com pendência de formulário fiscal em direct.uber.com:', responseData.message);
+      console.warn('[UberDirect] Conta com pendência cadastral/fiscal no painel da Uber:', responseData.message);
+      if (isSandbox) {
+        // Fallback simulado para ambiente de teste/sandbox (zero risco e sem cobrança real)
+        return {
+          id: `uber-direct-${Date.now()}`,
+          provedor: 'uber',
+          transportadora_nome: 'Uber Direct',
+          servico_codigo: 'uber_flash',
+          servico_nome: 'Uber Flash / Moto (Teste)',
+          valor_frete: 14.50,
+          prazo_estimado_texto: 'Aprox. 25 a 35 min (Entrega Imediata)',
+          icone_tipo: 'uber'
+        };
+      }
       return {
         id: 'uber-blocked',
         provedor: 'uber',
@@ -48,11 +67,24 @@ export class UberDirectService {
     }
 
     if (
-      msg.includes('distance') ||
-      msg.includes('radius') ||
-      msg.includes('coverage') ||
-      msg.includes('unsupported')
+      fullMsg.includes('distance') ||
+      fullMsg.includes('radius') ||
+      fullMsg.includes('coverage') ||
+      fullMsg.includes('unsupported')
     ) {
+      if (isSandbox) {
+        // Em sandbox, permite cotação de teste mesmo se o raio do endereço exceder o padrão
+        return {
+          id: `uber-direct-${Date.now()}`,
+          provedor: 'uber',
+          transportadora_nome: 'Uber Direct',
+          servico_codigo: 'uber_flash',
+          servico_nome: 'Uber Flash / Moto (Teste)',
+          valor_frete: 16.00,
+          prazo_estimado_texto: 'Aprox. 30 a 45 min (Entrega Imediata)',
+          icone_tipo: 'uber'
+        };
+      }
       console.warn('[UberDirect] Entrega indisponível para esta localidade (raio excedido ou fora de cobertura).');
       return null;
     }
@@ -186,9 +218,9 @@ export class UberDirectService {
         if (!rpcErr && rpcRes) {
           if (rpcRes.sucesso && rpcRes.dados) {
             console.log('[UberDirect] Cotação obtida via Supabase RPC com sucesso:', rpcRes.dados);
-            return this.formatarOpcaoUber(rpcRes.dados);
+            return this.formatarOpcaoUber(rpcRes.dados, config.uber_sandbox_mode);
           } else if (rpcRes.dados) {
-            return this.formatarOpcaoUber(rpcRes.dados);
+            return this.formatarOpcaoUber(rpcRes.dados, config.uber_sandbox_mode);
           }
         }
 
@@ -224,7 +256,7 @@ export class UberDirectService {
       if (proxyQuoteRes.ok) {
         const quoteData = await proxyQuoteRes.json() as UberDeliveryQuoteResponse;
         console.log('[UberDirect] Cotação obtida via proxy local com sucesso:', quoteData);
-        return this.formatarOpcaoUber(quoteData);
+        return this.formatarOpcaoUber(quoteData, config.uber_sandbox_mode);
       }
     } catch {
       // Proxy local indisponível, segue para chamada direta
@@ -255,10 +287,10 @@ export class UberDirectService {
       const responseData = await response.json() as UberDeliveryQuoteResponse;
 
       if (!response.ok) {
-        return this.formatarOpcaoUber(responseData);
+        return this.formatarOpcaoUber(responseData, config.uber_sandbox_mode);
       }
 
-      return this.formatarOpcaoUber(responseData);
+      return this.formatarOpcaoUber(responseData, config.uber_sandbox_mode);
     } catch (err: unknown) {
       const erroMsg = err instanceof Error ? err.message : String(err);
       console.warn('[UberDirect] Falha graciosa na cotação direta (possível bloqueio CORS do navegador):', erroMsg);

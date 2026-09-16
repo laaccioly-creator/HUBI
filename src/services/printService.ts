@@ -197,11 +197,27 @@ export class PrintService {
       // Dados de pagamento (após o valor total)
       const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
 
-      // Dados de frete e atendimento
-      const pe = pedido.pedido_entrega;
-      const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0);
-      const transpNome = pe?.transportadora_nome || (pedido.forma_entrega?.nome) || (ehRetirada ? 'Retirada na Loja' : 'Entrega');
-      const tipoAtendimentoTexto = ehRetirada ? 'RETIRADA NA LOJA' : `ENTREGA VIA ${transpNome.toUpperCase()}`;
+      // Dados de frete e forma de entrega
+      const rawPe = (pedido as any).pedido_entrega;
+      const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+      const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+
+      let formaEntregaTexto = 'RETIRADA NA LOJA';
+      if (!ehRetirada) {
+        const provedor = (pe?.provedor || '').toLowerCase();
+        const transp = (pe?.transportadora_nome || pedido.forma_entrega?.nome || '').trim();
+        const servico = (pe?.servico_codigo || '').toLowerCase();
+
+        if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+          formaEntregaTexto = 'CORREIOS';
+        } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+          formaEntregaTexto = 'UBER';
+        } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+          formaEntregaTexto = transp.toUpperCase();
+        } else {
+          formaEntregaTexto = 'ENTREGA';
+        }
+      }
       
       let enderecoExibicao = '';
       let labelEndereco = '';
@@ -217,9 +233,15 @@ export class PrintService {
       } else {
         labelEndereco = 'Endereço de Entrega:';
         if (pe?.destino_logradouro) {
-          enderecoExibicao = `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_complemento ? ` - ${pe.destino_complemento}` : ''}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf} (CEP ${pe.destino_cep})`;
+          const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
+          const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
+          enderecoExibicao = `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
         } else if (pedido.endereco_entrega) {
           enderecoExibicao = pedido.endereco_entrega;
+        } else if (pedido.cliente?.endereco_principal) {
+          enderecoExibicao = pedido.cliente.endereco_principal;
+        } else {
+          enderecoExibicao = 'Endereço não informado';
         }
       }
       const codigoRastreio = pe?.codigo_rastreio;
@@ -312,14 +334,14 @@ export class PrintService {
             </div>
           </div>
 
-          <!-- Bloco de Modalidade e Logística de Atendimento -->
+          <!-- Bloco de Forma de Entrega e Endereço -->
           <div style="margin-bottom: 14px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                Modalidade de Atendimento:
+                Forma de Entrega:
               </span>
               <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${ehRetirada ? '#7e22ce' : '#047857'}; background: ${ehRetirada ? '#f3e8ff' : '#d1fae5'}; padding: 1px 6px; border-radius: 4px;">
-                ${tipoAtendimentoTexto}
+                ${formaEntregaTexto}
               </span>
             </div>
             ${enderecoExibicao ? `
@@ -365,7 +387,7 @@ export class PrintService {
               <span>Frete:</span>
               <span style="font-weight: 600;">
                 ${Number(pedido.valor_frete || 0) > 0 
-                  ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)} (${transpNome})` 
+                  ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)} (${formaEntregaTexto})` 
                   : 'Grátis (Retirada)'}
               </span>
             </div>
@@ -694,9 +716,37 @@ export class PrintService {
     if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
     text += divider;
 
+    const rawPe = (pedido as any).pedido_entrega;
+    const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+    const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+
+    let formaEntregaTexto = 'RETIRADA NA LOJA';
+    if (!ehRetirada) {
+      const provedor = (pe?.provedor || '').toLowerCase();
+      const transp = (pe?.transportadora_nome || pedido.forma_entrega?.nome || '').trim();
+      const servico = (pe?.servico_codigo || '').toLowerCase();
+
+      if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+        formaEntregaTexto = 'CORREIOS';
+      } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+        formaEntregaTexto = 'UBER';
+      } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+        formaEntregaTexto = transp.toUpperCase();
+      } else {
+        formaEntregaTexto = 'ENTREGA';
+      }
+    }
+
     const vendedorInfo = formatarVendedorRecibo(pedido);
     text += `Vendedor: ${vendedorInfo.valor}\n`;
     if (pedido.cliente?.nome) text += `Cliente: ${pedido.cliente.nome}\n`;
+    text += `Forma de Entrega: ${formaEntregaTexto}\n`;
+    if (!ehRetirada) {
+      const endDestino = pe?.destino_logradouro 
+        ? `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_bairro ? ` - ${pe.destino_bairro}` : ''}`
+        : (pedido.endereco_entrega || pedido.cliente?.endereco_principal || '');
+      if (endDestino) text += `Endereço: ${endDestino.slice(0, cols - 10)}\n`;
+    }
     text += divider;
 
     text += '\x1B\x61\x00'; // Align Left
@@ -831,6 +881,33 @@ export class PrintService {
       pagWhatsApp = `\n⏳ *Status do Pagamento:* AGUARDANDO PAGAMENTO\n`;
     }
 
+    const rawPe = (pedido as any).pedido_entrega;
+    const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+    const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+
+    let formaEntregaTexto = 'RETIRADA NA LOJA';
+    if (!ehRetirada) {
+      const provedor = (pe?.provedor || '').toLowerCase();
+      const transp = (pe?.transportadora_nome || pedido.forma_entrega?.nome || '').trim();
+      const servico = (pe?.servico_codigo || '').toLowerCase();
+
+      if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+        formaEntregaTexto = 'CORREIOS';
+      } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+        formaEntregaTexto = 'UBER';
+      } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+        formaEntregaTexto = transp.toUpperCase();
+      } else {
+        formaEntregaTexto = 'ENTREGA';
+      }
+    }
+
+    const endDestino = pe?.destino_logradouro 
+      ? `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_complemento ? ` - ${pe.destino_complemento}` : ''}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : ''}`
+      : (pedido.endereco_entrega || pedido.cliente?.endereco_principal || '');
+
+    const blocoEntrega = `📦 *Forma de Entrega:* ${formaEntregaTexto}\n${!ehRetirada && endDestino ? `📍 *Endereço de Entrega:* ${endDestino}\n` : ''}`;
+
     return `🧾 *RECIBO #${pedido.numero_pedido} - ${loja.nome_fantasia || 'HUBI'}*
 
 *${loja.nome_fantasia || 'HUBI'}*
@@ -838,7 +915,7 @@ ${loja.whatsapp ? `Tel/Whats: +55 ${loja.whatsapp}` : ''}
 
 👤 *Vendedor:* ${vendedorInfo.valor}
 👤 *Cliente:* ${pedido.cliente?.nome || 'Cliente'}
-${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}` : ''}
+${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}\n` : ''}${blocoEntrega}
 
 *${itens.length} itens (Qtd.: ${totalQtd})*
 ━━━━━━━━━━━━━━━━━━━━

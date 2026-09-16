@@ -739,6 +739,19 @@ export const PosCheckout: React.FC = () => {
         ? (pedidoEmEdicao.data_venda || dataIso)
         : dataIso;
 
+      const enderecoEntregaFinal = (() => {
+        if (pedidoEntrega?.tipo_atendimento === 'retirada') return null;
+        if (pedidoEntrega?.destino_logradouro) {
+          const comp = pedidoEntrega.destino_complemento ? ` - ${pedidoEntrega.destino_complemento}` : '';
+          const cep = pedidoEntrega.destino_cep ? ` (CEP: ${pedidoEntrega.destino_cep})` : '';
+          return `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${comp}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}${cep}`;
+        }
+        if (taxaEntrega > 0 && clienteSelecionado?.endereco_principal) {
+          return clienteSelecionado.endereco_principal;
+        }
+        return null;
+      })();
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorIdFinal,
@@ -753,6 +766,7 @@ export const PosCheckout: React.FC = () => {
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         atualizado_por: usuario?.id || null,
         valor_frete: taxaEntrega,
+        endereco_entrega: enderecoEntregaFinal,
         valor_total: total,
         valor_pago: 0,
         saldo_devedor: total,
@@ -1263,6 +1277,19 @@ export const PosCheckout: React.FC = () => {
 
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
+      const enderecoEntregaFinal = (() => {
+        if (pedidoEntrega?.tipo_atendimento === 'retirada') return null;
+        if (pedidoEntrega?.destino_logradouro) {
+          const comp = pedidoEntrega.destino_complemento ? ` - ${pedidoEntrega.destino_complemento}` : '';
+          const cep = pedidoEntrega.destino_cep ? ` (CEP: ${pedidoEntrega.destino_cep})` : '';
+          return `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${comp}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}${cep}`;
+        }
+        if (taxaEntrega > 0 && clienteSelecionado?.endereco_principal) {
+          return clienteSelecionado.endereco_principal;
+        }
+        return null;
+      })();
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorIdSanitizado,
@@ -1276,6 +1303,7 @@ export const PosCheckout: React.FC = () => {
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
+        endereco_entrega: enderecoEntregaFinal,
         valor_total: total,
         valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
@@ -2732,10 +2760,72 @@ export const PosCheckout: React.FC = () => {
                       Tel: +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
                     </p>
                   )}
-                  {pedidoConcluido.endereco_entrega && (
-                    <p className="text-[10px] text-slate-500">Entrega: {pedidoConcluido.endereco_entrega}</p>
-                  )}
                 </div>
+
+                {/* Forma de Entrega & Endereço */}
+                {(() => {
+                  const rawPe = (pedidoConcluido as any).pedido_entrega || pedidoEntrega;
+                  const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+                  const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedidoConcluido.valor_frete || 0) === 0 && !pedidoConcluido.endereco_entrega);
+
+                  let formaEntregaTexto = 'RETIRADA NA LOJA';
+                  let badgeEstilo = 'bg-purple-100 text-purple-800';
+
+                  if (!ehRetirada) {
+                    badgeEstilo = 'bg-emerald-100 text-emerald-800';
+                    const provedor = (pe?.provedor || '').toLowerCase();
+                    const transp = (pe?.transportadora_nome || pedidoConcluido.forma_entrega?.nome || '').trim();
+                    const servico = (pe?.servico_codigo || '').toLowerCase();
+
+                    if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+                      formaEntregaTexto = 'CORREIOS';
+                    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+                      formaEntregaTexto = 'UBER';
+                    } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+                      formaEntregaTexto = transp.toUpperCase();
+                    } else {
+                      formaEntregaTexto = 'ENTREGA';
+                    }
+                  }
+
+                  const enderecoDestino = (() => {
+                    if (pe?.destino_logradouro) {
+                      const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
+                      const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
+                      return `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
+                    }
+                    if (pedidoConcluido.endereco_entrega) {
+                      return pedidoConcluido.endereco_entrega;
+                    }
+                    if (pedidoConcluido.cliente?.endereco_principal) {
+                      return pedidoConcluido.cliente.endereco_principal;
+                    }
+                    return 'Endereço não informado';
+                  })();
+
+                  const enderecoLojaFormatado = [
+                    loja?.endereco_logradouro,
+                    loja?.endereco_numero,
+                    loja?.endereco_bairro,
+                    loja?.endereco_cidade,
+                    loja?.endereco_estado
+                  ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
+
+                  return (
+                    <div className="p-2 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-700 uppercase">Forma de Entrega:</span>
+                        <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
+                          {formaEntregaTexto}
+                        </span>
+                      </div>
+                      <div className="text-slate-600 pt-0.5">
+                        <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
+                        <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Resumo de itens */}
                 <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">
