@@ -543,7 +543,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     <span>Carregando dados de endereço...</span>
                   </div>
                 ) : enderecoSelecionado ? (
-                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-2 relative overflow-hidden">
+                  <div className="p-3.5 rounded-2xl bg-slate-800 border border-slate-700 space-y-2 relative overflow-hidden text-slate-100">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2.5">
                         <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -570,11 +570,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     </div>
 
                     {/* Botão Escolher Outro Endereço */}
-                    <div className="pt-2 border-t border-slate-800/80 flex justify-end">
+                    <div className="pt-2 border-t border-slate-700/60 flex justify-end">
                       <button
                         type="button"
                         onClick={() => setModalEscolherOutroAberto(true)}
-                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition hover:underline"
+                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition underline"
                       >
                         <span>Escolher outro endereço</span>
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -652,21 +652,21 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                             selecionada
                               ? 'bg-emerald-500/10 border-emerald-500 text-slate-100 shadow-md shadow-emerald-500/10'
-                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                              : 'bg-slate-800 border border-slate-700 text-slate-200 hover:border-slate-600'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                               opcao.provedor === 'uber'
-                                ? 'bg-slate-800 text-emerald-400 font-black text-[11px]'
-                                : 'bg-slate-800 text-indigo-400 font-bold text-xs'
+                                ? 'bg-slate-900 text-emerald-400 font-black text-[11px]'
+                                : 'bg-slate-900 text-indigo-400 font-bold text-xs'
                             }`}>
                               {opcao.provedor === 'uber' ? 'UBER' : <Truck className="w-4 h-4" />}
                             </div>
 
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-100 truncate">
+                                <span className="text-xs font-bold text-slate-200 truncate">
                                   {opcao.transportadora_nome}
                                 </span>
                                 {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
@@ -685,7 +685,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           </div>
 
                           <div className="flex items-center gap-3 shrink-0">
-                            <span className="font-extrabold text-sm text-emerald-400">
+                            <span className="font-bold text-sm text-emerald-400">
                               R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
@@ -710,9 +710,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       {/* ========================================================================= */}
       {modalidade === 'retirada' && (
         <div className="space-y-3 animate-in fade-in duration-200">
-          <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-3">
+          <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-800/50 text-purple-200 space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0 border border-purple-500/30">
+              <div className="w-10 h-10 rounded-2xl bg-purple-900/40 text-purple-300 flex items-center justify-center shrink-0 border border-purple-700/50">
                 <Store className="w-5 h-5" />
               </div>
               <div className="space-y-1 min-w-0">
@@ -720,11 +720,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   <span className="font-bold text-xs text-purple-200">
                     Retirada no Balcão da Loja
                   </span>
-                  <span className="text-[10px] uppercase font-black bg-purple-500/30 text-purple-200 px-2 py-0.2 rounded-full">
+                  <span className="text-[10px] uppercase font-black bg-purple-900/50 text-purple-200 px-2 py-0.5 rounded-full border border-purple-700/50">
                     Frete Grátis
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-xs text-purple-200/90 leading-relaxed">
                   Seu pedido será preparado e ficará disponível para retirada no balcão da loja física.
                 </p>
                 <div className="pt-1.5 text-xs text-slate-300 font-medium">

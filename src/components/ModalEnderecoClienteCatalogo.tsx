@@ -226,8 +226,8 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in">
+      <div className="bg-slate-900 border-2 border-slate-600/80 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
         {/* Header */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-2.5">
@@ -266,7 +266,7 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
               type="button"
               disabled={carregandoGeoloc}
               onClick={usarLocalizacaoAtual}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition disabled:opacity-50 cursor-pointer shadow-xs"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-[11px] font-semibold text-slate-100 hover:text-emerald-400 transition disabled:opacity-50 cursor-pointer shadow-xs"
             >
               {carregandoGeoloc ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />

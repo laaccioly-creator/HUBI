@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   TrendingUp,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega } from '../types';
@@ -622,6 +623,23 @@ export const CatalogoPublico: React.FC = () => {
       };
       return cp;
     });
+  };
+
+  const handleLimparCarrinho = () => {
+    if (carrinho.length === 0) return;
+    setCarrinho([]);
+    setPedidoEntrega(null);
+    setFormaEntregaEscolhida(null);
+    setCupomAplicado(null);
+    setDescontoCupom(0);
+    setFreteGratisCupom(false);
+    setCodigoCupomInput('');
+    setMensagemCupom(null);
+    try {
+      const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
+      sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
+    } catch (e) {}
+    audioService.playRemoveSound();
   };
 
   const handleEnviarConsultaWhatsApp = () => {
@@ -1633,9 +1651,26 @@ Fico no aguardo da confirmação! ✨`;
                 <ShoppingBag className="w-5 h-5 text-emerald-400" />
                 <span>Seu Pedido ({totalItens} itens)</span>
               </h3>
-              <button onClick={() => setDrawerCarrinhoAberto(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {carrinho.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleLimparCarrinho}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/40 transition cursor-pointer"
+                    title="Limpar todos os itens do carrinho"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Limpar</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDrawerCarrinhoAberto(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* DESTAQUE DA TABELA ATIVA & BARRA DE PROGRESSO */}
@@ -1836,43 +1871,38 @@ Fico no aguardo da confirmação! ✨`;
                         </span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setModalShippingAberto(true)}
-                        className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
-                          (enderecoEntrega || pedidoEntrega) ? 'border-purple-500/50' : 'border-slate-700'
-                        } hover:border-purple-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
-                      >
-                        {(enderecoEntrega || pedidoEntrega) && (
-                          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
-                        )}
-                        <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-400 group-hover:bg-purple-500 group-hover:text-slate-950 flex items-center justify-center transition">
-                          <MapPin className="w-4 h-4" />
-                        </div>
-                        <span className={`text-[11px] font-bold ${
-                          (enderecoEntrega || pedidoEntrega) ? 'text-purple-400' : 'text-slate-200'
-                        } group-hover:text-purple-400 leading-tight`}>
-                          Entrega / Retirada
-                        </span>
-                      </button>
+                      {(() => {
+                        const temEnderecoPreenchido = Boolean(
+                          enderecoEntrega ||
+                          dadosEndereco.rua?.trim() ||
+                          dadosEndereco.cep?.trim() ||
+                          clienteSelecionado?.endereco_logradouro
+                        );
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setModalEnderecoAberto(true)}
+                            className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
+                              temEnderecoPreenchido ? 'border-emerald-500/50' : 'border-slate-700'
+                            } hover:border-emerald-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
+                          >
+                            {temEnderecoPreenchido && (
+                              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
+                            )}
+                            <div className={`w-8 h-8 rounded-xl ${
+                              temEnderecoPreenchido ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/40 text-slate-300'
+                            } group-hover:bg-emerald-500 group-hover:text-slate-950 flex items-center justify-center transition`}>
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <span className={`text-[11px] font-bold ${
+                              temEnderecoPreenchido ? 'text-emerald-400' : 'text-slate-200'
+                            } group-hover:text-emerald-400 leading-tight`}>
+                              Endereço
+                            </span>
+                          </button>
+                        );
+                      })()}
                     </div>
-
-                    {/* AVISO VISUAL DE IDENTIFICAÇÃO OBRIGATÓRIA */}
-                    {(!nomeCliente.trim() || whatsappCliente.replace(/\D/g, '').length < 10) && (
-                      <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-2 text-xs text-amber-300">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                          <span className="truncate">Preencha Nome e WhatsApp para liberar o pedido</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setModalContatoAberto(true)}
-                          className="px-2.5 py-1 rounded-xl bg-amber-500 text-slate-950 font-black text-[10px] hover:bg-amber-400 transition shrink-0 cursor-pointer shadow"
-                        >
-                          Preencher
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   <div>
@@ -1951,65 +1981,98 @@ Fico no aguardo da confirmação! ✨`;
             </div>
 
             {carrinho.length > 0 && (
-              <div className="p-4 border-t border-slate-800 bg-slate-900/90 space-y-3">
-                <div className="space-y-1 text-xs text-slate-400">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span className="text-slate-200 font-semibold">R$ {subtotal.toFixed(2)}</span>
-                  </div>
-                  {avaliacaoCarrinho.economiaTotal > 0 && (
-                    <div className="flex justify-between text-emerald-400 font-semibold">
-                      <span>Desconto de Volume ({avaliacaoCarrinho.tabelaAtiva}):</span>
-                      <span>- R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}</span>
+              <div className="p-4 border-t border-slate-800 bg-slate-900/95 space-y-3">
+                <div className="space-y-2">
+                  {/* Linha Subtotal */}
+                  <div className="flex items-center justify-between py-1 px-1">
+                    <span className="text-sm font-medium text-slate-300 text-left">
+                      Subtotal:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-100 tabular-nums w-28 text-right">
+                        R$ {subtotal.toFixed(2)}
+                      </span>
+                      <div className="w-20 shrink-0" aria-hidden="true" />
                     </div>
-                  )}
-                  {descontoCupom > 0 && (
-                    <div className="flex justify-between text-emerald-400 font-semibold">
-                      <span>Desconto Cupom ({cupomAplicado?.codigo}):</span>
-                      <span>- R$ {descontoCupom.toFixed(2)}</span>
+                  </div>
+
+                  {/* Desconto de Volume se houver */}
+                  {avaliacaoCarrinho.economiaTotal > 0 && (
+                    <div className="flex items-center justify-between py-0.5 px-1 text-emerald-400">
+                      <span className="text-xs font-medium text-emerald-400 text-left">
+                        Desconto de Volume ({avaliacaoCarrinho.tabelaAtiva}):
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-emerald-400 tabular-nums w-28 text-right">
+                          - R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                        </span>
+                        <div className="w-20 shrink-0" aria-hidden="true" />
+                      </div>
                     </div>
                   )}
 
-                  {/* Linha de Forma de Entrega no Carrinho do Catálogo */}
-                  <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
-                    <span className="text-slate-300 font-semibold">
+                  {/* Desconto de Cupom se houver */}
+                  {descontoCupom > 0 && (
+                    <div className="flex items-center justify-between py-0.5 px-1 text-emerald-400">
+                      <span className="text-xs font-medium text-emerald-400 text-left">
+                        Desconto Cupom ({cupomAplicado?.codigo}):
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-emerald-400 tabular-nums w-28 text-right">
+                          - R$ {descontoCupom.toFixed(2)}
+                        </span>
+                        <div className="w-20 shrink-0" aria-hidden="true" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Linha Forma de Entrega */}
+                  <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                    <span className="text-sm font-medium text-slate-300 text-left">
                       Forma de Entrega:
                     </span>
                     <div className="flex items-center gap-2">
-                      {!pedidoEntrega ? (
-                        <span className="text-amber-400/90 font-medium text-xs">
-                          Não selecionada
-                        </span>
-                      ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
-                        <span className="text-purple-300 font-bold text-xs">
-                          Retirada na Loja (Grátis)
-                        </span>
-                      ) : (
-                        <span className="text-emerald-400 font-bold text-xs">
-                          {freteGratisCupom 
-                            ? 'GRÁTIS (Cupom)' 
-                            : valorFreteEfetivo > 0 
-                            ? `+ R$ ${valorFreteEfetivo.toFixed(2)}` 
-                            : 'Grátis'}
-                        </span>
-                      )}
+                      <span className="text-sm font-bold tabular-nums w-28 text-right truncate">
+                        {!pedidoEntrega ? (
+                          <span className="text-amber-400 font-medium">Não selecionada</span>
+                        ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
+                          <span className="text-purple-300">Grátis</span>
+                        ) : freteGratisCupom ? (
+                          <span className="text-emerald-400">Grátis</span>
+                        ) : valorFreteEfetivo > 0 ? (
+                          <span className="text-emerald-400">R$ {valorFreteEfetivo.toFixed(2)}</span>
+                        ) : (
+                          <span className="text-emerald-400">Grátis</span>
+                        )}
+                      </span>
 
-                      <button
-                        type="button"
-                        onClick={handleClicarFormaEntregaCatalogo}
-                        className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
-                          !pedidoEntrega
-                            ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20'
-                            : 'text-emerald-400 hover:text-emerald-300 underline'
-                        }`}
-                      >
-                        {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
-                      </button>
+                      <div className="w-20 flex justify-end shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleClicarFormaEntregaCatalogo}
+                          className={`px-2 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
+                            !pedidoEntrega
+                              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20'
+                              : 'text-emerald-400 hover:text-emerald-300 underline'
+                          }`}
+                        >
+                          {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
-                    <span>Total do Pedido:</span>
-                    <span className="text-emerald-400 text-lg">R$ {total.toFixed(2)}</span>
+
+                  {/* Linha Total do Pedido */}
+                  <div className="flex items-center justify-between py-1.5 px-1 border-t border-slate-800 pt-2.5">
+                    <span className="text-sm font-medium text-slate-300 text-left">
+                      Total do Pedido:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-emerald-400 tabular-nums w-28 text-right">
+                        R$ {total.toFixed(2)}
+                      </span>
+                      <div className="w-20 shrink-0" aria-hidden="true" />
+                    </div>
                   </div>
                 </div>
 
@@ -2245,17 +2308,17 @@ Fico no aguardo da confirmação! ✨`;
       {/* MODAL DE SELEÇÃO DE FRETE E ENTREGA NO CATÁLOGO */}
       {modalShippingAberto && loja && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="bg-slate-900 border-2 border-slate-600/80 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto text-white">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                <div className="p-2 rounded-xl bg-emerald-950/60 text-emerald-400 border border-emerald-500/20">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  <h3 className="font-bold text-base text-white">
                     Escolha Como Deseja Receber
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-400">
                     Retirada presencial na loja física ou entrega no seu endereço
                   </p>
                 </div>
@@ -2263,7 +2326,7 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 onClick={() => setModalShippingAberto(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition"
               >
                 <X className="w-5 h-5" />
               </button>

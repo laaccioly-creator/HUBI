@@ -87,6 +87,29 @@ class AudioService {
       // Ignore
     }
   }
+
+  /**
+   * Alerta sonoro suave para remoção de item ou esvaziamento do carrinho
+   */
+  playRemoveSound(): void {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export const audioService = new AudioService();
