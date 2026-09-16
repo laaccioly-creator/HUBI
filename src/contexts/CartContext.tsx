@@ -293,7 +293,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     desc: number,
     tipoDesc: 'valor' | 'percentual',
     taxa: number,
-    status?: string
+    status?: string,
+    entrega?: PedidoEntrega | null
   ) => {
     return JSON.stringify({
       itens: itensAtuais
@@ -310,7 +311,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       desconto: Number(desc.toFixed(2)),
       tipoDesconto: tipoDesc,
       taxaEntrega: Number(taxa.toFixed(2)),
-      status: status || 'pendente'
+      status: status || 'pendente',
+      entregaTransp: entrega?.transportadora_nome || null,
+      entregaTipo: entrega?.tipo_atendimento || null,
+      entregaServico: entrega?.servico_codigo || null,
+      entregaValor: Number(entrega?.valor_frete || 0)
     });
   };
 
@@ -323,10 +328,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       desconto,
       tipoDesconto,
       taxaEntrega,
-      pedidoEmEdicao.status
+      pedidoEmEdicao.status,
+      pedidoEntrega
     );
     return snapshotAtual !== snapshotPedidoOriginal;
-  }, [pedidoEmEdicao, snapshotPedidoOriginal, itens, clienteSelecionado, desconto, tipoDesconto, taxaEntrega]);
+  }, [pedidoEmEdicao, snapshotPedidoOriginal, itens, clienteSelecionado, desconto, tipoDesconto, taxaEntrega, pedidoEntrega]);
 
   const resetarSnapshotPedido = () => {
     setSnapshotPedidoOriginal(null);
@@ -381,15 +387,34 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let taxaFinal = Number(pedido.valor_frete) || 0;
+    const rawPe = (pedido as any).pedido_entrega;
+    const peFromPedido = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+    let entregaFinal: PedidoEntrega | null = null;
+
     try {
       const entregaDb = await ShippingOrchestrator.buscarPedidoEntrega(pedido.id);
-      if (entregaDb) {
-        setPedidoEntrega(entregaDb);
-        taxaFinal = Number(entregaDb.valor_frete) || 0;
-      } else {
-        setPedidoEntrega(null);
-      }
+      entregaFinal = entregaDb || peFromPedido || null;
     } catch {
+      entregaFinal = peFromPedido || null;
+    }
+
+    if (entregaFinal) {
+      setPedidoEntrega(entregaFinal);
+      taxaFinal = Number(entregaFinal.valor_frete) || taxaFinal;
+    } else if (taxaFinal > 0 || pedido.endereco_entrega || (pedido.metadados && pedido.metadados.transportadora_nome)) {
+      // Fallback retrocompatível caso a tabela relacional não possua o registro ainda
+      const fallbackEntrega: PedidoEntrega = {
+        pedido_id: pedido.id,
+        tipo_atendimento: (pedido.metadados?.tipo_atendimento || (taxaFinal > 0 ? 'entrega' : 'retirada')) as any,
+        transportadora_nome: pedido.metadados?.transportadora_nome || (taxaFinal > 0 ? 'Entrega Padrão' : 'Retirada na Loja'),
+        provedor: pedido.metadados?.provedor_frete || (taxaFinal > 0 ? 'melhor_envio' : 'retirada_loja') as any,
+        servico_codigo: pedido.metadados?.servico_frete_codigo || null,
+        valor_frete: taxaFinal,
+        status_envio: 'pendente'
+      };
+      setPedidoEntrega(fallbackEntrega);
+      entregaFinal = fallbackEntrega;
+    } else {
       setPedidoEntrega(null);
     }
     setTaxaEntrega(taxaFinal);
@@ -471,7 +496,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       descVal,
       tipoDescFinal,
       taxaFinal,
-      pedido.status || 'pendente'
+      pedido.status || 'pendente',
+      entregaFinal
     );
     setSnapshotPedidoOriginal(snapshot);
   };

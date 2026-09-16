@@ -22,6 +22,7 @@ import {
   CotacaoItemProduto
 } from '../../types/shipping';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
+import { isUuidValido } from '../../services/syncService';
 import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja } from '../../utils/geoUtils';
 import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
 import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
@@ -68,6 +69,7 @@ export interface ShippingFulfillmentSelectorProps {
   itens: CotacaoItemProduto[];
   valorFreteAtual?: number;
   opcaoSelecionadaId?: string | null;
+  tipoAtendimentoAtual?: TipoAtendimento;
   onChange: (resultado: ShippingSelectionResult) => void;
   className?: string;
   modoCompacto?: boolean;
@@ -82,6 +84,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   itens,
   valorFreteAtual = 0,
   opcaoSelecionadaId,
+  tipoAtendimentoAtual,
   onChange,
   className = '',
   modoCompacto = false
@@ -90,7 +93,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
 
   // Aba ativa: 'retirada' ou 'entrega'
-  const [modalidade, setModalidade] = useState<TipoAtendimento>('entrega');
+  const [modalidade, setModalidade] = useState<TipoAtendimento>(tipoAtendimentoAtual || 'entrega');
 
   // Endereço selecionado para entrega
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(null);
@@ -312,7 +315,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       const opcoesValidas = opcoesFiltradas.filter(o => !o.erro && o.valor_frete > 0);
 
       if (opcoesValidas.length > 0) {
-        const encontrada = opcoesValidas.find(o => o.id === opcaoSelecionadaId) || opcoesValidas[0];
+        const encontrada = opcoesValidas.find(o => 
+          o.id === opcaoSelecionadaId || 
+          o.servico_codigo === opcaoSelecionadaId ||
+          (opcaoSelecionadaId && (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo)))
+        ) || opcoesValidas[0];
         setCotacaoEscolhida(encontrada);
 
         const chaveEmissao = `${encontrada.id}_${encontrada.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega`;
@@ -325,7 +332,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             pedido_entrega: {
               pedido_id: '',
               tipo_atendimento: 'entrega',
-              cliente_endereco_id: endAlvo.id?.startsWith('temp') || endAlvo.id?.startsWith('gps') ? null : endAlvo.id,
+              cliente_endereco_id: endAlvo.id && isUuidValido(endAlvo.id) ? endAlvo.id : null,
               destino_cep: endAlvo.cep,
               destino_logradouro: endAlvo.logradouro,
               destino_numero: endAlvo.numero,
@@ -395,6 +402,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     setCotacaoEscolhida(opcao);
     if (!enderecoSelecionado) return;
 
+    const chaveEmissao = `${opcao.id}_${opcao.valor_frete}_${enderecoSelecionado.cep}_${enderecoSelecionado.numero}_entrega`;
+    ultimoResultadoEmitidoRef.current = chaveEmissao;
+
     onChange({
       tipo_atendimento: 'entrega',
       valor_frete: opcao.valor_frete,
@@ -402,9 +412,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       pedido_entrega: {
         pedido_id: '',
         tipo_atendimento: 'entrega',
-        cliente_endereco_id: enderecoSelecionado.id?.startsWith('temp') || enderecoSelecionado.id?.startsWith('gps')
-          ? null
-          : enderecoSelecionado.id,
+        cliente_endereco_id: enderecoSelecionado.id && isUuidValido(enderecoSelecionado.id)
+          ? enderecoSelecionado.id
+          : null,
         destino_cep: enderecoSelecionado.cep,
         destino_logradouro: enderecoSelecionado.logradouro,
         destino_numero: enderecoSelecionado.numero,

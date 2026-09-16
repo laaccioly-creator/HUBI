@@ -200,18 +200,24 @@ export class PrintService {
       // Dados de frete e forma de entrega
       const rawPe = (pedido as any).pedido_entrega;
       const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-      const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+      const metaTransp = (pedido as any).metadados?.transportadora_nome;
+      const metaTipo = (pedido as any).metadados?.tipo_atendimento;
+      const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+        metaTipo === 'retirada' ||
+        (!pe && !metaTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
 
       let formaEntregaTexto = 'RETIRADA NA LOJA';
       if (!ehRetirada) {
-        const provedor = (pe?.provedor || '').toLowerCase();
-        const transp = (pe?.transportadora_nome || pedido.forma_entrega?.nome || '').trim();
-        const servico = (pe?.servico_codigo || '').toLowerCase();
+        const provedor = (pe?.provedor || (pedido as any).metadados?.provedor_frete || '').toLowerCase();
+        const transp = (pe?.transportadora_nome || metaTransp || pedido.forma_entrega?.nome || '').trim();
+        const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
         if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
           formaEntregaTexto = 'CORREIOS';
         } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
           formaEntregaTexto = 'UBER';
+        } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+          formaEntregaTexto = 'JADLOG';
         } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
           formaEntregaTexto = transp.toUpperCase();
         } else {
@@ -718,18 +724,24 @@ export class PrintService {
 
     const rawPe = (pedido as any).pedido_entrega;
     const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-    const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+    const metaTransp = (pedido as any).metadados?.transportadora_nome;
+    const metaTipo = (pedido as any).metadados?.tipo_atendimento;
+    const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+      metaTipo === 'retirada' ||
+      (!pe && !metaTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
 
     let formaEntregaTexto = 'RETIRADA NA LOJA';
     if (!ehRetirada) {
-      const provedor = (pe?.provedor || '').toLowerCase();
-      const transp = (pe?.transportadora_nome || pedido.forma_entrega?.nome || '').trim();
-      const servico = (pe?.servico_codigo || '').toLowerCase();
+      const provedor = (pe?.provedor || (pedido as any).metadados?.provedor_frete || '').toLowerCase();
+      const transp = (pe?.transportadora_nome || metaTransp || pedido.forma_entrega?.nome || '').trim();
+      const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
       if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
         formaEntregaTexto = 'CORREIOS';
       } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
         formaEntregaTexto = 'UBER';
+      } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+        formaEntregaTexto = 'JADLOG';
       } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
         formaEntregaTexto = transp.toUpperCase();
       } else {
@@ -883,18 +895,24 @@ export class PrintService {
 
     const rawPe = (pedido as any).pedido_entrega;
     const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-    const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+    const metaTransp = (pedido as any).metadados?.transportadora_nome;
+    const metaTipo = (pedido as any).metadados?.tipo_atendimento;
+    const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+      metaTipo === 'retirada' ||
+      (!pe && !metaTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
 
     let formaEntregaTexto = 'RETIRADA NA LOJA';
     if (!ehRetirada) {
-      const provedor = (pe?.provedor || '').toLowerCase();
-      const transp = (pe?.transportadora_nome || pedido.forma_entrega?.nome || '').trim();
-      const servico = (pe?.servico_codigo || '').toLowerCase();
+      const provedor = (pe?.provedor || (pedido as any).metadados?.provedor_frete || '').toLowerCase();
+      const transp = (pe?.transportadora_nome || metaTransp || pedido.forma_entrega?.nome || '').trim();
+      const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
       if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
         formaEntregaTexto = 'CORREIOS';
       } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
         formaEntregaTexto = 'UBER';
+      } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+        formaEntregaTexto = 'JADLOG';
       } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
         formaEntregaTexto = transp.toUpperCase();
       } else {

@@ -2084,21 +2084,27 @@ export const PedidosLista: React.FC = () => {
                 {(() => {
                   const rawPe = (pedidoReciboModal as any).pedido_entrega;
                   const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-                  const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedidoReciboModal.valor_frete || 0) === 0 && !pedidoReciboModal.endereco_entrega);
+                  const metaTransp = (pedidoReciboModal as any).metadados?.transportadora_nome;
+                  const metaTipo = (pedidoReciboModal as any).metadados?.tipo_atendimento;
+                  const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+                    metaTipo === 'retirada' ||
+                    (!pe && !metaTransp && Number(pedidoReciboModal.valor_frete || 0) === 0 && !pedidoReciboModal.endereco_entrega);
 
                   let formaEntregaTexto = 'RETIRADA NA LOJA';
                   let badgeEstilo = 'bg-purple-100 text-purple-800';
 
                   if (!ehRetirada) {
                     badgeEstilo = 'bg-emerald-100 text-emerald-800';
-                    const provedor = (pe?.provedor || '').toLowerCase();
-                    const transp = (pe?.transportadora_nome || pedidoReciboModal.forma_entrega?.nome || '').trim();
-                    const servico = (pe?.servico_codigo || '').toLowerCase();
+                    const provedor = (pe?.provedor || (pedidoReciboModal as any).metadados?.provedor_frete || '').toLowerCase();
+                    const transp = (pe?.transportadora_nome || metaTransp || pedidoReciboModal.forma_entrega?.nome || '').trim();
+                    const servico = (pe?.servico_codigo || (pedidoReciboModal as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
                     if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
                       formaEntregaTexto = 'CORREIOS';
                     } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
                       formaEntregaTexto = 'UBER';
+                    } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+                      formaEntregaTexto = 'JADLOG';
                     } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
                       formaEntregaTexto = transp.toUpperCase();
                     } else {

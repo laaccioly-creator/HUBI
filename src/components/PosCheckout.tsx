@@ -770,9 +770,13 @@ export const PosCheckout: React.FC = () => {
         valor_total: total,
         valor_pago: 0,
         saldo_devedor: total,
-        fiado_quitado: false,
         observacoes: obsLimpa || null,
-        metadados: null,
+        metadados: {
+          transportadora_nome: pedidoEntrega?.transportadora_nome || null,
+          provedor_frete: pedidoEntrega?.provedor || null,
+          servico_frete_codigo: pedidoEntrega?.servico_codigo || null,
+          tipo_atendimento: pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada')
+        },
         data_venda: dataVendaFinal
       };
 
@@ -1309,9 +1313,13 @@ export const PosCheckout: React.FC = () => {
         saldo_devedor: saldoDevedor,
         fiado_quitado: fiadoQuitado,
         data_vencimento_fiado: dataVencimentoFiado || null,
-        atualizado_por: usuario?.id || null,
         observacoes: obsFinal || null,
-        metadados: null,
+        metadados: {
+          transportadora_nome: pedidoEntrega?.transportadora_nome || null,
+          provedor_frete: pedidoEntrega?.provedor || null,
+          servico_frete_codigo: pedidoEntrega?.servico_codigo || null,
+          tipo_atendimento: pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada')
+        },
         data_venda: dataVendaFinal
       };
 
@@ -2766,21 +2774,27 @@ export const PosCheckout: React.FC = () => {
                 {(() => {
                   const rawPe = (pedidoConcluido as any).pedido_entrega || pedidoEntrega;
                   const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-                  const ehRetirada = pe?.tipo_atendimento === 'retirada' || (!pe && Number(pedidoConcluido.valor_frete || 0) === 0 && !pedidoConcluido.endereco_entrega);
+                  const metaTransp = (pedidoConcluido as any).metadados?.transportadora_nome;
+                  const metaTipo = (pedidoConcluido as any).metadados?.tipo_atendimento;
+                  const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+                    metaTipo === 'retirada' ||
+                    (!pe && !metaTransp && Number(pedidoConcluido.valor_frete || 0) === 0 && !pedidoConcluido.endereco_entrega);
 
                   let formaEntregaTexto = 'RETIRADA NA LOJA';
                   let badgeEstilo = 'bg-purple-100 text-purple-800';
 
                   if (!ehRetirada) {
                     badgeEstilo = 'bg-emerald-100 text-emerald-800';
-                    const provedor = (pe?.provedor || '').toLowerCase();
-                    const transp = (pe?.transportadora_nome || pedidoConcluido.forma_entrega?.nome || '').trim();
-                    const servico = (pe?.servico_codigo || '').toLowerCase();
+                    const provedor = (pe?.provedor || (pedidoConcluido as any).metadados?.provedor_frete || '').toLowerCase();
+                    const transp = (pe?.transportadora_nome || metaTransp || pedidoConcluido.forma_entrega?.nome || '').trim();
+                    const servico = (pe?.servico_codigo || (pedidoConcluido as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
                     if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
                       formaEntregaTexto = 'CORREIOS';
                     } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
                       formaEntregaTexto = 'UBER';
+                    } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+                      formaEntregaTexto = 'JADLOG';
                     } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
                       formaEntregaTexto = transp.toUpperCase();
                     } else {
@@ -3076,13 +3090,10 @@ export const PosCheckout: React.FC = () => {
               }))}
               valorFreteAtual={taxaEntrega}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
+              tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
               onChange={(resultado) => {
-                if (taxaEntrega !== resultado.valor_frete) {
-                  setTaxaEntrega(resultado.valor_frete);
-                }
-                if (pedidoEntrega?.servico_codigo !== resultado.pedido_entrega?.servico_codigo ||
-                    pedidoEntrega?.valor_frete !== resultado.pedido_entrega?.valor_frete ||
-                    pedidoEntrega?.tipo_atendimento !== resultado.pedido_entrega?.tipo_atendimento) {
+                setTaxaEntrega(resultado.valor_frete);
+                if (resultado.pedido_entrega) {
                   setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
                 }
               }}

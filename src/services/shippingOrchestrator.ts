@@ -9,6 +9,7 @@ import {
 } from '../types/shipping';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
+import { isUuidValido } from './syncService';
 
 export class ShippingOrchestrator {
   /**
@@ -240,19 +241,57 @@ export class ShippingOrchestrator {
     pedidoId: string,
     entrega: Partial<PedidoEntrega>
   ): Promise<PedidoEntrega> {
-    const payload = {
+    const clienteEnderecoIdSanitizado = (entrega.cliente_endereco_id && isUuidValido(entrega.cliente_endereco_id))
+      ? entrega.cliente_endereco_id
+      : null;
+
+    const idSanitizado = (entrega.id && isUuidValido(entrega.id))
+      ? entrega.id
+      : undefined;
+
+    // Assegura conformidade com o CHECK (provedor IN ('uber', 'melhor_envio', 'retirada_loja'))
+    let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' = 'melhor_envio';
+    if (entrega.tipo_atendimento === 'retirada' || entrega.provedor === 'retirada_loja') {
+      provedorFinal = 'retirada_loja';
+    } else if (entrega.provedor === 'uber' || (entrega.transportadora_nome || '').toLowerCase().includes('uber')) {
+      provedorFinal = 'uber';
+    } else {
+      provedorFinal = 'melhor_envio';
+    }
+
+    const payload: any = {
       ...entrega,
       pedido_id: pedidoId,
+      cliente_endereco_id: clienteEnderecoIdSanitizado,
+      provedor: provedorFinal,
       atualizado_em: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    if (!idSanitizado) {
+      delete payload.id;
+    }
+
+    let { data, error } = await supabase
       .from('pedido_entregas')
       .upsert(payload, { onConflict: 'pedido_id' })
       .select()
       .single();
 
+    // Fallback caso ocorra restrição de integridade referencial com cliente_endereco_id
+    if (error && (error.code === '23503' || error.message?.includes('foreign key') || error.message?.includes('cliente_endereco_id'))) {
+      console.warn('[ShippingOrchestrator] Falha de FK em cliente_endereco_id, tentando salvar com null:', error.message);
+      payload.cliente_endereco_id = null;
+      const retry = await supabase
+        .from('pedido_entregas')
+        .upsert(payload, { onConflict: 'pedido_id' })
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
+      console.error('[ShippingOrchestrator] Erro ao salvar dados de entrega:', error);
       throw new Error(`Erro ao salvar dados de entrega do pedido: ${error.message}`);
     }
 
