@@ -75,9 +75,11 @@ interface PosCheckoutMobileProps {
   onAbrirFormaEntrega?: () => void;
   isOnline?: boolean;
   pendentesCount?: number;
+  subTelaControlada?: SubTelaMobile;
+  onSubTelaChange?: (subTela: SubTelaMobile) => void;
 }
 
-type SubTelaMobile = 'vender' | 'menu' | 'clientes' | 'camera' | 'avulso' | 'carrinho';
+export type SubTelaMobile = 'vender' | 'menu' | 'clientes' | 'camera' | 'avulso' | 'carrinho';
 
 export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   produtos,
@@ -91,7 +93,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   onAbrirVariacoesModal,
   onAbrirFormaEntrega,
   isOnline = true,
-  pendentesCount = 0
+  pendentesCount = 0,
+  subTelaControlada,
+  onSubTelaChange
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -112,6 +116,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     totalItens,
     tabelaPrecoGlobal,
     tabelaPrecoCalculada,
+    avaliacaoCarrinho,
+    freteGratisAtivo,
+    freteGratisValorMinimo,
     pedidoEmEdicao,
     setTabelaPrecoGlobal,
     adicionarItem,
@@ -126,7 +133,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   } = useCart();
 
   // Estados de Navegação e Visualização
-  const [subTela, setSubTela] = useState<SubTelaMobile>('vender');
+  const [subTelaInterna, setSubTelaInterna] = useState<SubTelaMobile>('vender');
+  const subTela = subTelaControlada !== undefined ? subTelaControlada : subTelaInterna;
+  const setSubTela = (nova: SubTelaMobile) => {
+    setSubTelaInterna(nova);
+    onSubTelaChange?.(nova);
+  };
   const [origemClientes, setOrigemClientes] = useState<'vender' | 'carrinho'>('vender');
 
   const abrirSelecaoCliente = (origem: 'vender' | 'carrinho' = 'vender') => {
@@ -860,7 +872,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     return (
       <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-bottom duration-150">
         {/* Header do Carrinho */}
-        <div className="h-14 border-b border-slate-100 px-4 flex items-center justify-between bg-white">
+        <div className="h-14 border-b border-slate-100 px-4 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -871,7 +883,128 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </button>
             <h2 className="font-bold text-base text-slate-800">Carrinho</h2>
           </div>
+          {itens.length > 0 && (
+            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+              {totalItens} {totalItens === 1 ? 'item' : 'itens'}
+            </span>
+          )}
         </div>
+
+        {/* 1. Termômetro Dinâmico de Frete Grátis (loja_shipping_configs) */}
+        {freteGratisAtivo && freteGratisValorMinimo > 0 && (() => {
+          const faltaFrete = Math.max(0, freteGratisValorMinimo - subtotal);
+          const percentualFrete = Math.min(100, Math.round((subtotal / freteGratisValorMinimo) * 100));
+          const ganhouFrete = subtotal >= freteGratisValorMinimo;
+
+          return (
+            <div className="px-4 py-2.5 bg-emerald-50/70 border-b border-emerald-100 space-y-1.5 shrink-0">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-900 min-w-0 pr-2">
+                  <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">
+                    {ganhouFrete ? (
+                      <span className="text-emerald-700 font-black">
+                        🎉 Parabéns! Você ganhou Frete Grátis!
+                      </span>
+                    ) : (
+                      <span>
+                        Faltam <strong className="font-black text-emerald-950">R$ {faltaFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> para você ganhar Frete Grátis
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <span className="font-black text-emerald-700 text-[11px] shrink-0">
+                  {percentualFrete}%
+                </span>
+              </div>
+              <div className="w-full bg-emerald-200/60 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${percentualFrete}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 2. Termômetro Dinâmico de Tabela de Preço por Volume (pricingEngine.ts) */}
+        {avaliacaoCarrinho && (
+          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 space-y-2 shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>Volume por Faixas de Preço</span>
+                <span className="text-[10px] text-slate-500 font-semibold">
+                  ({avaliacaoCarrinho.totalPecas} {avaliacaoCarrinho.totalPecas === 1 ? 'peça' : 'peças'})
+                </span>
+              </div>
+              {avaliacaoCarrinho.economiaTotal > 0 && (
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-black shrink-0">
+                  - R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                </span>
+              )}
+            </div>
+
+            {/* Stepper Visual das Faixas (Varejo -> Atacado -> Autoatacado) */}
+            <div className="flex items-center justify-between text-[11px] font-bold px-1">
+              <div className={`flex items-center gap-1.5 ${tabelaPrecoCalculada === 'varejo' ? 'text-emerald-700 font-black' : 'text-slate-500'}`}>
+                <span className={`w-2 h-2 rounded-full ${tabelaPrecoCalculada === 'varejo' ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-slate-300'}`} />
+                <span>Varejo</span>
+              </div>
+              <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+              <div className={`flex items-center gap-1.5 ${tabelaPrecoCalculada === 'atacado' ? 'text-blue-700 font-black' : 'text-slate-500'}`}>
+                <span className={`w-2 h-2 rounded-full ${tabelaPrecoCalculada === 'atacado' ? 'bg-blue-600 ring-2 ring-blue-200' : 'bg-slate-300'}`} />
+                <span>Atacado</span>
+              </div>
+              <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+              <div className={`flex items-center gap-1.5 ${tabelaPrecoCalculada === 'autoatacado' ? 'text-purple-700 font-black' : 'text-slate-500'}`}>
+                <span className={`w-2 h-2 rounded-full ${tabelaPrecoCalculada === 'autoatacado' ? 'bg-purple-600 ring-2 ring-purple-200' : 'bg-slate-300'}`} />
+                <span>Autoatacado</span>
+              </div>
+            </div>
+
+            {/* Barra de Progresso Dinâmica */}
+            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  tabelaPrecoCalculada === 'autoatacado'
+                    ? 'bg-purple-600'
+                    : tabelaPrecoCalculada === 'atacado'
+                    ? 'bg-blue-600'
+                    : 'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.min(100, Math.max(5, avaliacaoCarrinho.progressoGeralPercent || 0))}%` }}
+              />
+            </div>
+
+            {/* Mensagem de Próximo Nível ou Meta Atingida */}
+            <div className="flex items-center justify-between text-[10px] text-slate-600">
+              <span className="truncate pr-2">
+                {(() => {
+                  if (!avaliacaoCarrinho.proximoNivel) {
+                    return tabelaPrecoCalculada === 'autoatacado'
+                      ? '🎉 Melhor tabela alcançada (Autoatacado)!'
+                      : 'Tabela padrão ativa';
+                  }
+                  const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado';
+                  const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
+                  const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
+                  const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
+                  const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
+
+                  if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+                    const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
+                    return `Faltam ${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'} para ${proxNome}`;
+                  }
+                  return `Faltam R$ ${avaliacaoCarrinho.faltaValorParaProximo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} para ${proxNome}`;
+                })()}
+              </span>
+              <span className="font-bold text-slate-700 shrink-0">
+                {avaliacaoCarrinho.progressoGeralPercent}%
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Lista de Itens do Carrinho */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white divide-y divide-slate-100">

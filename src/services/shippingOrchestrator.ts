@@ -383,13 +383,28 @@ export class ShippingOrchestrator {
     config: LojaShippingConfig | null | undefined,
     subtotal: number
   ): OpcaoFreteCotada[] {
-    if (!config || !config.frete_gratis_ativo || !Array.isArray(opcoes) || opcoes.length === 0) {
+    if (!Array.isArray(opcoes) || opcoes.length === 0) {
       return opcoes;
     }
 
-    const valorMinimo = Number(config.frete_gratis_valor_minimo) || 0;
-    if (subtotal < valorMinimo) {
-      return opcoes;
+    const freteGratisAtivo = Boolean(config?.frete_gratis_ativo);
+    const valorMinimo = Number(config?.frete_gratis_valor_minimo) || 0;
+
+    // Se frete grátis não está ativo ou o subtotal não alcançou a régua de gratuidade
+    if (!freteGratisAtivo || subtotal < valorMinimo) {
+      return opcoes.map(opcao => {
+        const precoOriginal = (typeof opcao.valor_original === 'number' && opcao.valor_original > 0)
+          ? opcao.valor_original
+          : opcao.valor_frete;
+
+        return {
+          ...opcao,
+          valor_frete: precoOriginal,
+          valor_subsidio: 0,
+          is_frete_gratis: false,
+          is_upgrade_subsidio: false
+        };
+      });
     }
 
     // Identificar opções válidas (considerando tanto valor_original quanto valor_frete)

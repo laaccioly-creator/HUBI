@@ -456,16 +456,16 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-0.5">
                     <label className="text-[11px] font-semibold text-slate-600">CEP *</label>
                     <a
                       href="https://buscacepinter.correios.com.br/app/endereco/index.php"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-0.5 font-medium"
+                      className="text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 font-medium whitespace-nowrap ml-auto"
                     >
-                      <HelpCircle className="w-3 h-3" />
-                      <span>Não sei</span>
+                      <HelpCircle className="w-3 h-3 shrink-0" />
+                      <span>Não sei o CEP</span>
                     </a>
                   </div>
                   <div className="relative">

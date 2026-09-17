@@ -87,9 +87,8 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
   const handleConfirmar = () => {
     if (onConfirmar) {
       onConfirmar();
-    } else {
-      onClose();
     }
+    onClose();
   };
 
   const handleCancelar = () => {

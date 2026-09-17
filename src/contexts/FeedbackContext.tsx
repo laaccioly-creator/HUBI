@@ -24,7 +24,7 @@ interface ConfirmarOpcoes {
 
 interface FeedbackContextData {
   mostrarAlerta: (opcoes: AlertaOpcoes) => void;
-  mostrarSucesso: (mensagem: string, titulo?: string) => void;
+  mostrarSucesso: (mensagem: string, titulo?: string, onConfirmar?: () => void) => void;
   mostrarErro: (mensagem: string, titulo?: string) => void;
   mostrarAviso: (mensagem: string, titulo?: string) => void;
   confirmar: (opcoes: ConfirmarOpcoes) => void;
@@ -52,14 +52,18 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setAberto(true);
   }, []);
 
-  const mostrarSucesso = useCallback((mensagem: string, titulo?: string) => {
+  const mostrarSucesso = useCallback((mensagem: string, titulo?: string, onConfirmar?: () => void) => {
     mostrarAlerta({
       tipo: 'sucesso',
       titulo: titulo || 'Sucesso!',
       mensagem,
-      textoBotaoConfirmar: 'Entendido'
+      textoBotaoConfirmar: 'OK',
+      onConfirmar: () => {
+        fecharModal();
+        if (onConfirmar) onConfirmar();
+      }
     });
-  }, [mostrarAlerta]);
+  }, [mostrarAlerta, fecharModal]);
 
   const mostrarErro = useCallback((mensagem: string, titulo?: string) => {
     mostrarAlerta({

@@ -55,7 +55,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
-import { PosCheckoutMobile } from './PosCheckoutMobile';
+import { PosCheckoutMobile, SubTelaMobile } from './PosCheckoutMobile';
 import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 /**
@@ -160,7 +160,7 @@ const MoneyInput: React.FC<MoneyInputProps> = ({
       value={texto}
       onChange={handleChange}
       placeholder={placeholder}
-      style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+      style={{ color: '#0F172A', WebkitTextFillColor: '#0F172A' }}
       className={className}
     />
   );
@@ -206,6 +206,7 @@ export const PosCheckout: React.FC = () => {
 
   const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
   const [modalAtualizarEnderecoAberto, setModalAtualizarEnderecoAberto] = useState<boolean>(false);
+  const [subTelaMobile, setSubTelaMobile] = useState<SubTelaMobile>('vender');
 
   useEffect(() => {
     if (pedidoEmEdicao) {
@@ -874,11 +875,18 @@ export const PosCheckout: React.FC = () => {
       const eraEdicao = !!pedidoEmEdicao;
       resetarSnapshotPedido();
       setTemAlteracoesNaoSalvas(false);
-      limparCarrinho();
-      mostrarSucesso('Pedido salvo com sucesso');
-      if (eraEdicao) {
-        navigate('/orders');
-      }
+
+      const aoConfirmarSucesso = () => {
+        limparCarrinho();
+        if (eraEdicao) {
+          navigate('/orders');
+        } else {
+          setSubTelaMobile('vender');
+          navigate('/pos');
+        }
+      };
+
+      mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
     } catch (err: any) {
       console.error('Erro ao salvar pedido:', err);
       mostrarErro(`Erro ao salvar pedido: ${err.message || 'Tente novamente.'}`);
@@ -1113,11 +1121,18 @@ export const PosCheckout: React.FC = () => {
       const eraEdicao = !!pedidoEmEdicao;
       resetarSnapshotPedido();
       setTemAlteracoesNaoSalvas(false);
-      limparCarrinho();
-      mostrarSucesso('Pedido salvo com sucesso');
-      if (eraEdicao) {
-        navigate('/orders');
-      }
+
+      const aoConfirmarSucesso = () => {
+        limparCarrinho();
+        if (eraEdicao) {
+          navigate('/orders');
+        } else {
+          setSubTelaMobile('vender');
+          navigate('/pos');
+        }
+      };
+
+      mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
     } catch (err: any) {
       console.error('Erro ao salvar pedido com forma de pagamento:', err);
       mostrarErro(`Erro ao salvar pedido: ${err.message || 'Tente novamente.'}`);
@@ -1709,6 +1724,8 @@ export const PosCheckout: React.FC = () => {
           onAbrirFormaEntrega={handleClicarFormaEntrega}
           isOnline={isOnline}
           pendentesCount={pendentesCount}
+          subTelaControlada={subTelaMobile}
+          onSubTelaChange={setSubTelaMobile}
         />
       </div>
 
@@ -2555,10 +2572,10 @@ export const PosCheckout: React.FC = () => {
                         <select
                           value={linha.parcelas || 1}
                           onChange={(e) => handleAlterarParcelasLinha(linha.id, parseInt(e.target.value) || 1)}
-                          className="bg-white border border-slate-300 rounded-xl px-2 py-1 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                          className="bg-white border border-slate-300 rounded-xl px-2.5 py-1 text-xs text-slate-900 font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer"
                         >
                           {Array.from({ length: Math.min(12, maxParcelas) }, (_, i) => i + 1).map(num => (
-                            <option key={num} value={num}>
+                            <option key={num} value={num} className="text-slate-900 bg-white">
                               {num}x {linha.valor > 0 ? `de ${formatarMoeda(linha.valor / num)}` : ''}
                             </option>
                           ))}

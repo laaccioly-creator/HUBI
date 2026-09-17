@@ -408,6 +408,51 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return itensComPrecoDinamico.reduce((acc, item) => acc + item.subtotal, 0);
   }, [itensComPrecoDinamico]);
 
+  // Efeito reativo para revogação e recálculo dinâmico do Frete Grátis ao alterar subtotal_produtos
+  useEffect(() => {
+    if (!pedidoEntrega || pedidoEntrega.tipo_atendimento !== 'entrega') return;
+
+    const freteGratisAtivo = configFreteState.frete_gratis_ativo;
+    const valorMinimo = configFreteState.frete_gratis_valor_minimo;
+
+    if (!freteGratisAtivo || valorMinimo <= 0) return;
+
+    // Cenário 1: Subtotal caiu abaixo da régua de gratuidade
+    if (subtotal < valorMinimo) {
+      if (pedidoEntrega.is_frete_gratis || (pedidoEntrega.valor_subsidio && pedidoEntrega.valor_subsidio > 0)) {
+        const valorOriginal = (typeof pedidoEntrega.valor_original === 'number' && pedidoEntrega.valor_original > 0)
+          ? pedidoEntrega.valor_original
+          : pedidoEntrega.valor_frete;
+
+        setPedidoEntrega(prev => prev ? {
+          ...prev,
+          valor_frete: valorOriginal,
+          valor_subsidio: 0,
+          is_frete_gratis: false
+        } : null);
+        setTaxaEntrega(valorOriginal);
+      }
+    } else {
+      // Cenário 2: Subtotal atingiu ou superou a meta de gratuidade após retorno dos itens
+      if (!pedidoEntrega.is_frete_gratis && typeof pedidoEntrega.valor_original === 'number' && pedidoEntrega.valor_original > 0) {
+        const valorOriginal = pedidoEntrega.valor_original;
+        const subsidio = (typeof pedidoEntrega.valor_subsidio === 'number' && pedidoEntrega.valor_subsidio > 0)
+          ? pedidoEntrega.valor_subsidio
+          : valorOriginal;
+        const novoValorFrete = Math.max(0, valorOriginal - subsidio);
+        const ehGratis = novoValorFrete === 0;
+
+        setPedidoEntrega(prev => prev ? {
+          ...prev,
+          valor_frete: novoValorFrete,
+          valor_subsidio: subsidio,
+          is_frete_gratis: ehGratis
+        } : null);
+        setTaxaEntrega(novoValorFrete);
+      }
+    }
+  }, [subtotal, configFreteState.frete_gratis_ativo, configFreteState.frete_gratis_valor_minimo]);
+
   const setDescontoValor = (valor: number) => {
     if (pedidoEmEdicao && !podeEditarDescontoPedido(pedidoEmEdicao.status)) {
       alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alteração de desconto.`);
