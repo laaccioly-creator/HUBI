@@ -2,41 +2,65 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Pedido, Loja, ItemPedido } from '../types';
 import { PrintService } from './printService';
+import { supabase } from '../lib/supabase';
 
-export interface GerarPdfReciboResult {
-  blob: Blob;
-  file: File;
-  fileName: string;
-  url: string;
+export interface ArquivosReciboResult {
+  pdfBlob: Blob;
+  pdfFile: File;
+  pdfFileName: string;
+  imageBlob: Blob | null;
+  imageFile: File | null;
+  imageFileName: string;
+  numId: string;
 }
 
 export class ReceiptPdfService {
   /**
-   * Renderiza fielmente o componente visual do recibo exibido na tela em um documento PDF.
-   * Utiliza html2canvas para captura em alta resolução e jsPDF para compilação com dimensões exatas de recibo.
+   * Captura o elemento do recibo e gera tanto o arquivo PDF quanto a imagem PNG em alta resolução.
    */
-  static async gerarPdfRecibo(
+  static async gerarArquivosRecibo(
     elemento: HTMLElement,
     pedido: Pedido,
     loja?: Loja | null
-  ): Promise<GerarPdfReciboResult> {
+  ): Promise<ArquivosReciboResult> {
     if (!elemento) {
-      throw new Error('Elemento visual do recibo não encontrado para geração de PDF.');
+      throw new Error('Elemento visual do recibo não encontrado para captura.');
     }
 
-    // Captura com escala 2x para nitidez tipográfica superior no mobile e desktop
+    const numId = pedido.numero_pedido ? String(pedido.numero_pedido) : pedido.id.slice(0, 8);
+    const pdfFileName = `recibo_pedido_${numId}.pdf`;
+    const imageFileName = `recibo_pedido_${numId}.png`;
+
+    // Captura com escala 2x para nitidez tipográfica superior sem atraso excessivo de ativação
     const canvas = await html2canvas(elemento, {
       scale: 2,
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#ffffff',
       logging: false,
-      imageTimeout: 5000,
+      imageTimeout: 2000,
       width: elemento.scrollWidth || elemento.offsetWidth,
       height: elemento.scrollHeight || elemento.offsetHeight
     });
 
-    // Dimensões do PDF proporcionais ao recibo (largura padrão 80mm de bobina de PDV)
+    // 1. Gera o Blob de Imagem (PNG)
+    const imageBlob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/png');
+    });
+
+    let imageFile: File | null = null;
+    if (imageBlob) {
+      try {
+        imageFile = new File([imageBlob], imageFileName, { type: 'image/png' });
+      } catch {
+        imageFile = Object.assign(imageBlob, {
+          name: imageFileName,
+          lastModified: Date.now()
+        }) as unknown as File;
+      }
+    }
+
+    // 2. Compila o documento PDF (80mm contínuo)
     const pdfWidthMm = 80;
     const aspectRatio = canvas.height / canvas.width;
     const pdfHeightMm = Math.max(80, pdfWidthMm * aspectRatio);
@@ -47,117 +71,166 @@ export class ReceiptPdfService {
       format: [pdfWidthMm, pdfHeightMm]
     });
 
-    const imgData = canvas.toDataURL('image/png', 1.0);
+    const imgData = canvas.toDataURL('image/png', 0.95);
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
 
-    const blob = pdf.output('blob');
-    const numId = pedido.numero_pedido ? String(pedido.numero_pedido) : pedido.id.slice(0, 8);
-    const fileName = `recibo_pedido_${numId}.pdf`;
-
-    let file: File;
+    const pdfBlob = pdf.output('blob');
+    let pdfFile: File;
     try {
-      file = new File([blob], fileName, { type: 'application/pdf' });
+      pdfFile = new File([pdfBlob], pdfFileName, { type: 'application/pdf' });
     } catch {
-      // Fallback para navegadores legados que não suportam o construtor File
-      file = Object.assign(blob, {
-        name: fileName,
+      pdfFile = Object.assign(pdfBlob, {
+        name: pdfFileName,
         lastModified: Date.now()
       }) as unknown as File;
     }
 
-    const url = URL.createObjectURL(blob);
-
-    return { blob, file, fileName, url };
+    return {
+      pdfBlob,
+      pdfFile,
+      pdfFileName,
+      imageBlob,
+      imageFile,
+      imageFileName,
+      numId
+    };
   }
 
   /**
-   * Compartilha o PDF do comprovante de venda diretamente via WhatsApp usando a Web Share API nativa.
-   * Caso o navegador não tenha suporte a arquivos no Web Share, realiza o download automático do PDF
-   * e abre o WhatsApp com mensagem formatada e instrução do envio.
+   * Compartilha o comprovante de venda nativamente via Web Share API com o arquivo anexado.
+   * Prioriza PDF; caso a plataforma móvel restrinja compartilhamento a mídias, anexa a imagem PNG de alta definição.
+   * Se o ambiente não suportar Web Share com arquivos, executa upload em nuvem no Supabase Storage
+   * e envia o link direto pelo WhatsApp, sem realizar download desnecessário no aparelho do operador.
    */
   static async compartilharReciboWhatsApp(
     elemento: HTMLElement,
     pedido: Pedido,
     loja: Loja
   ): Promise<void> {
-    const { file, fileName, url } = await this.gerarPdfRecibo(elemento, pedido, loja);
+    const { pdfFile, imageFile, numId } = await this.gerarArquivosRecibo(elemento, pedido, loja);
 
-    // 1. Tentar compartilhamento nativo com arquivo (Web Share API Level 2)
-    const podeCompartilharArquivo =
+    const nomeLoja = loja.nome_fantasia || 'HUBI';
+    const tituloCompartilhamento = `Recibo Pedido #${numId} - ${nomeLoja}`;
+    const textoCompartilhamento = 'Olá! Segue o comprovante da sua compra.';
+
+    // 1. Tenta compartilhamento nativo com arquivo via Web Share API Level 2
+    let arquivoParaCompartilhar: File | null = null;
+
+    if (
       typeof navigator !== 'undefined' &&
-      !!navigator.share &&
-      !!navigator.canShare &&
-      navigator.canShare({ files: [file] });
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function'
+    ) {
+      if (navigator.canShare({ files: [pdfFile] })) {
+        arquivoParaCompartilhar = pdfFile;
+      } else if (imageFile && navigator.canShare({ files: [imageFile] })) {
+        arquivoParaCompartilhar = imageFile;
+      }
+    }
 
-    if (podeCompartilharArquivo) {
+    if (arquivoParaCompartilhar) {
       try {
         await navigator.share({
-          files: [file],
-          title: `Recibo #${pedido.numero_pedido || ''} - ${loja.nome_fantasia || 'HUBI'}`,
-          text: `Segue o comprovante do Pedido #${pedido.numero_pedido || ''}.`
+          files: [arquivoParaCompartilhar],
+          title: tituloCompartilhamento,
+          text: textoCompartilhamento
         });
-        // Revogação de memória pós compartilhamento
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-        return;
+        return; // Compartilhado com sucesso! O WhatsApp nativo abre com o arquivo anexado.
       } catch (err: unknown) {
-        // Se o operador apenas cancelou ou fechou o diálogo nativo, não forçar fallback
+        // Se o operador cancelou ou fechou a folha de compartilhamento nativa, encerra silenciosamente
         if (
           err instanceof Error &&
           (err.name === 'AbortError' ||
             err.message.toLowerCase().includes('abort') ||
             err.message.toLowerCase().includes('cancel'))
         ) {
-          setTimeout(() => URL.revokeObjectURL(url), 2000);
           return;
         }
-        console.warn('[ReceiptPdfService] Falha na Web Share API, executando fallback estruturado:', err);
+        console.warn('[ReceiptPdfService] Falha na Web Share API, ativando fallback com upload em nuvem:', err);
       }
     }
 
-    // 2. Fallback Estruturado: Download automático do PDF e abertura do WhatsApp com resumo formal
+    // 2. FALLBACK ESTRUTURADO: Upload do PDF no Supabase Storage e envio do link direto no WhatsApp
+    // Elimina telas intermediárias e download local indesejado no aparelho do operador
+    let urlPublicaRecibo: string | null = null;
+    const pathStorage = `${loja.id || 'loja'}/${numId}_${Date.now()}_recibo.pdf`;
+
     try {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (errDownload) {
-      console.warn('[ReceiptPdfService] Erro ao disparar download do PDF:', errDownload);
+      let bucketUsado = 'comprovantes_pdv';
+      let uploadRes = await supabase.storage
+        .from(bucketUsado)
+        .upload(pathStorage, pdfFile, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadRes.error) {
+        console.warn('[ReceiptPdfService] Bucket comprovantes_pdv indisponível, usando bucket produtos:', uploadRes.error.message);
+        bucketUsado = 'produtos';
+        uploadRes = await supabase.storage
+          .from(bucketUsado)
+          .upload(pathStorage, pdfFile, {
+            contentType: 'application/pdf',
+            upsert: true
+          });
+      }
+
+      if (!uploadRes.error) {
+        // Gera Signed URL com validade de 30 dias para acesso direto do cliente
+        const { data: signedData } = await supabase.storage
+          .from(bucketUsado)
+          .createSignedUrl(pathStorage, 60 * 60 * 24 * 30);
+
+        if (signedData?.signedUrl) {
+          urlPublicaRecibo = signedData.signedUrl;
+        } else {
+          const { data: pubData } = supabase.storage
+            .from(bucketUsado)
+            .getPublicUrl(pathStorage);
+          urlPublicaRecibo = pubData?.publicUrl || null;
+        }
+      }
+    } catch (storageErr) {
+      console.warn('[ReceiptPdfService] Erro ao enviar comprovante para o Supabase Storage:', storageErr);
     }
 
     const itens = (pedido.itens || (pedido as unknown as { itens_pedido?: ItemPedido[] }).itens_pedido || []) as ItemPedido[];
     const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
     const totalFormatado = Number(pedido.valor_total || 0).toFixed(2);
+    const nomeCliente = pedido.cliente?.nome || 'Cliente';
 
-    const mensagemWhatsApp = `🧾 *COMPROVANTE DE VENDA #${pedido.numero_pedido || ''}*\n` +
-      `🏢 *${loja.nome_fantasia || 'HUBI'}*\n\n` +
-      `Olá, *${pedido.cliente?.nome || 'Cliente'}*! Segue o comprovante da sua compra.\n\n` +
+    let mensagemWhatsApp = `🧾 *RECIBO PEDIDO #${numId} - ${nomeLoja}*\n\n` +
+      `Olá, *${nomeCliente}*! Segue o comprovante da sua compra.\n\n` +
       `💵 *Total:* R$ ${totalFormatado}\n` +
-      `📦 *Itens:* ${itens.length} produto(s) (${totalQtd} unid.)\n` +
-      `📄 *Comprovante em PDF:* O arquivo oficial (*${fileName}*) foi gerado e baixado no seu dispositivo para visualização.\n\n` +
-      `Agradecemos a sua preferência! ✨`;
+      `📦 *Itens:* ${itens.length} produto(s) (${totalQtd} unid.)\n`;
+
+    if (urlPublicaRecibo) {
+      mensagemWhatsApp += `\n📄 *Acesse seu Comprovante Oficial (PDF):*\n${urlPublicaRecibo}\n\n` +
+        `_Clique no link acima para visualizar ou baixar seu recibo._\n\n`;
+    } else {
+      mensagemWhatsApp += `\n`;
+    }
+
+    mensagemWhatsApp += `Agradecemos a sua preferência! ✨`;
 
     const telCliente = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
     PrintService.openWhatsApp(telCliente, mensagemWhatsApp);
-
-    // Revogação segura do objeto URL da memória
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
   /**
-   * Baixa diretamente o arquivo PDF gerado a partir do elemento visual.
+   * Baixa diretamente o arquivo PDF gerado a partir do elemento visual (quando solicitado explicitamente pelo operador).
    */
   static async baixarPdfRecibo(
     elemento: HTMLElement,
     pedido: Pedido,
     loja?: Loja | null
   ): Promise<void> {
-    const { fileName, url } = await this.gerarPdfRecibo(elemento, pedido, loja);
+    const { pdfBlob, pdfFileName } = await this.gerarArquivosRecibo(elemento, pedido, loja);
+    const url = URL.createObjectURL(pdfBlob);
     try {
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = pdfFileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

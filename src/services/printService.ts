@@ -1593,7 +1593,7 @@ Agradecemos a sua preferência! ✨`;
     const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
     const formattedPhone = cleanPhone ? (cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`) : '';
     const url = formattedPhone
-      ? `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`
+      ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   }

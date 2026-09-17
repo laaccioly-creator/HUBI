@@ -1664,6 +1664,14 @@ export const PosCheckout: React.FC = () => {
         loja
       );
     } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        (err.name === 'AbortError' ||
+          err.message.toLowerCase().includes('abort') ||
+          err.message.toLowerCase().includes('cancel'))
+      ) {
+        return;
+      }
       console.error('Erro ao compartilhar comprovante via WhatsApp:', err);
       const msg = err instanceof Error ? err.message : 'Falha ao processar PDF do recibo.';
       mostrarErro(msg, 'Erro ao Compartilhar');
