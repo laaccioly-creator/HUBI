@@ -586,7 +586,20 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
 - **Feedback Auditivo (`src/services/audioService.ts`):**
   - Emite tons sintetizados nativamente via Web Audio API para confirmação de leitura de código de barras, adição de item ao carrinho, erro operacional e conclusão de venda.
 
+### 5.7 Ciclo de Vida PWA, Persistência Resiliente e Padrão Visual Mobile
+- **Prevenção de Perda de Dados por Gesto (*Pull-to-Refresh*):**
+  - Aplicado `overscroll-behavior-y: contain` nas tags raiz (`html, body, #root`) para desabilitar o recarregamento acidental ao arrastar a tela no navegador mobile.
+- **Detecção e Atualização Controlada do PWA:**
+  - Configurado `registerType: 'prompt'` no plugin `vite-plugin-pwa`. Atualizações em segundo plano geram um toast discreto (`src/components/pwa/ReloadPrompt.tsx`): *"Nova versão disponível! Clique para atualizar"*, disparando a ativação apenas quando o operador clica no botão.
+- **Persistência de Rascunho no PDV (`CartContext.tsx`):**
+  - O estado do carrinho (itens, cliente selecionado, tabelas de preço, descontos, dados de entrega e frete) é sincronizado defensivamente em `localStorage` sob a chave `hubi_pos_cart_draft_${lojaId}`, resistindo a recarregamento de página, trocas de aba ou atualizações do PWA sem perda de itens. O rascunho é expurgado ao limpar o carrinho ou concluir a venda.
+- **Padronização Visual no Tema Claro Mobile:**
+  - Telas e modais do ciclo de checkout e logística (`ModalAtualizarEnderecoCliente`, `ModalEscolherOutroEndereco`, `ShippingFulfillmentSelector`, `modalFechamento` e wrapper de fulfillment em `PosCheckout`) utilizam o padrão visual mobile claro: fundo branco e cinza suave (`slate-50`/`slate-100`), textos de alto contraste (`slate-800`/`slate-900`) e elementos de ação e sucesso destacados em Verde Esmeralda (`#10B981`), eliminando tons residuais em azul/índigo.
+- **Ajuste Financeiro e Discriminação de Frete no Fechamento:**
+  - O modal de fechamento discrimina formalmente Subtotal dos Produtos, Descontos aplicados, Valor do Frete (com identificação da transportadora ou retirada presencial) e Total Geral da Venda ($\text{Total} = \text{Subtotal} - \text{Descontos} + \text{Frete}$), garantindo que a conferência (100%) dos múltiplos meios de pagamento considere o valor consolidado incluindo o frete.
+
 ---
 
 > **Diretriz Final para Desenvolvedores e Agentes de IA:**
 > Este documento reflete com exatidão a implementação presente na base de código. Ao criar novos módulos, telas ou funcionalidades, **é obrigatório** seguir a modelagem relacional pura (sem colunas JSON genéricas para dados de negócio), manter o padrão de nomenclatura em `pt-BR`, preservar a segurança multitenant com validação de `loja_id` e respeitar a governança da suíte Google Mantis.
+

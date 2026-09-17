@@ -2427,30 +2427,30 @@ export const PosCheckout: React.FC = () => {
 
       {/* MODAL DE FECHAMENTO DE VENDA */}
       {modalFechamento && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-400" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-base text-slate-800 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600" />
                 <span>Pagamento & Fechamento</span>
               </h3>
-              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
+              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-0.5">
-              <span className="text-xs text-slate-400 block font-medium">Valor Total da Venda</span>
-              <span className="text-3xl font-black text-emerald-400">{formatarMoeda(total)}</span>
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-center space-y-0.5">
+              <span className="text-xs text-slate-500 block font-medium">Valor Total da Venda</span>
+              <span className="text-3xl font-black text-emerald-600">{formatarMoeda(total)}</span>
             </div>
 
             {/* Linhas de Pagamento (Múltiplas formas de pagamento) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300">
+                <span className="text-xs font-bold text-slate-700">
                   Meios de Pagamento ({linhasPagamento.length}):
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500">
                   Permite dividir o total em vários meios
                 </span>
               </div>
@@ -2460,10 +2460,10 @@ export const PosCheckout: React.FC = () => {
                 const maxParcelas = formaSelecionada?.maximo_parcelas || 12;
 
                 return (
-                  <div key={linha.id} className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2.5">
+                  <div key={linha.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 shadow-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px]">
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[10px] font-black">
                           {idx + 1}
                         </span>
                         Pagamento #{idx + 1}
@@ -2472,7 +2472,7 @@ export const PosCheckout: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleRemoverLinhaPagamento(linha.id)}
-                          className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                           title="Remover este pagamento"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2491,17 +2491,17 @@ export const PosCheckout: React.FC = () => {
                             onClick={() => handleAlterarFormaLinha(linha.id, fp)}
                             className={`p-2 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
                               estaSelecionado
-                                ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 shadow-sm'
-                                : 'border-slate-800 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
+                                ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/40 shadow-sm'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100/70 hover:border-slate-300'
                             }`}
                           >
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 shrink-0" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
+                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
                             {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && (
-                              <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <CreditCard className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                             )}
                             <span className="truncate">{fp.nome}</span>
                           </button>
@@ -2510,37 +2510,37 @@ export const PosCheckout: React.FC = () => {
                     </div>
 
                     {/* Valor deste pagamento */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-                      <span className="text-xs text-slate-300 font-bold">Valor a pagar:</span>
-                      <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30">
-                        <span className="text-xs text-emerald-400 font-black">R$</span>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200">
+                      <span className="text-xs text-slate-700 font-bold">Valor a pagar:</span>
+                      <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                        <span className="text-xs text-emerald-700 font-black">R$</span>
                         <MoneyInput
                           autoFocus={idx === 0}
                           valor={linha.valor}
                           onChange={(novoValor) => handleAlterarValorLinha(linha.id, novoValor)}
                           placeholder="0,00"
-                          className="w-28 bg-transparent text-right text-sm font-black text-white focus:outline-none placeholder:text-slate-500"
+                          className="w-28 bg-transparent text-right text-sm font-black text-slate-900 focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
 
                     {/* Dinheiro: Troco */}
                     {linha.forma_tipo === 'dinheiro' && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-800/60 text-xs">
+                      <div className="space-y-1.5 pt-1.5 border-t border-slate-200 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-300 font-medium">Valor Entregue pelo Cliente:</span>
-                          <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30">
-                            <span className="text-xs text-emerald-400 font-bold">R$</span>
+                          <span className="text-slate-700 font-medium">Valor Entregue pelo Cliente:</span>
+                          <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                            <span className="text-xs text-emerald-700 font-bold">R$</span>
                             <MoneyInput
                               valor={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : 0}
                               onChange={(novoValor) => handleAlterarEntregueLinha(linha.id, novoValor)}
                               placeholder="0,00"
-                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
+                              className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 focus:outline-none placeholder:text-slate-400"
                             />
                           </div>
                         </div>
                         {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                          <div className="flex justify-between font-bold text-amber-400">
+                          <div className="flex justify-between font-bold text-amber-700">
                             <span>Troco a devolver:</span>
                             <span>{formatarMoeda(linha.valor_entregue - linha.valor)}</span>
                           </div>
@@ -2550,12 +2550,12 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Cartão de Crédito: Parcelas */}
                     {linha.forma_tipo === 'cartao_credito' && (
-                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-800/60 text-xs">
-                        <span className="text-slate-400">Número de Parcelas:</span>
+                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200 text-xs">
+                        <span className="text-slate-600">Número de Parcelas:</span>
                         <select
                           value={linha.parcelas || 1}
                           onChange={(e) => handleAlterarParcelasLinha(linha.id, parseInt(e.target.value) || 1)}
-                          className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                          className="bg-white border border-slate-300 rounded-xl px-2 py-1 text-xs text-slate-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
                         >
                           {Array.from({ length: Math.min(12, maxParcelas) }, (_, i) => i + 1).map(num => (
                             <option key={num} value={num}>
@@ -2568,23 +2568,23 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Fiado: Informações do Cliente e Limite */}
                     {linha.forma_tipo === 'fiado' && (
-                      <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1 text-xs">
+                      <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1 text-xs text-amber-900">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-amber-300">Cliente Fiado:</span>
-                          <span className="text-slate-200 font-semibold truncate max-w-[200px]">
+                          <span className="font-bold text-amber-800">Cliente Fiado:</span>
+                          <span className="text-slate-800 font-semibold truncate max-w-[200px]">
                             {clienteSelecionado ? clienteSelecionado.nome : 'Nenhum selecionado'}
                           </span>
                         </div>
                         {clienteSelecionado && (
-                          <div className="flex justify-between text-[11px] text-slate-300">
+                          <div className="flex justify-between text-[11px] text-slate-600">
                             <span>Limite de Crédito Disponível:</span>
-                            <span className="font-bold text-emerald-400">
+                            <span className="font-bold text-emerald-700">
                               {formatarMoeda(Number(clienteSelecionado.limite_credito || 0))}
                             </span>
                           </div>
                         )}
                         {linha.valor > Number(clienteSelecionado?.limite_credito || 0) && (
-                          <p className="text-[11px] text-rose-400 font-bold">
+                          <p className="text-[11px] text-rose-600 font-bold">
                             ⚠️ Valor informado excede o limite disponível de {formatarMoeda(Number(clienteSelecionado?.limite_credito || 0))}.
                           </p>
                         )}
@@ -2598,7 +2598,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAdicionarLinhaPagamento}
-                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-800/40 hover:bg-slate-800/80 text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/50 text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4" />
                 <span>
@@ -2607,33 +2607,70 @@ export const PosCheckout: React.FC = () => {
               </button>
             </div>
 
-            {/* Resumo de Conferência dos Valores */}
-            <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400">
+            {/* Resumo de Conferência dos Valores com Discriminação de Frete */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Subtotal dos Produtos:</span>
+                <span className="font-semibold text-slate-800">{formatarMoeda(subtotal)}</span>
+              </div>
+
+              {desconto > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Desconto {tipoDesconto === 'percentual' ? `(${descontoPercentual}%)` : ''}:</span>
+                  <span className="font-semibold">- {formatarMoeda(desconto)}</span>
+                </div>
+              )}
+
+              {/* Discriminação explícita do Frete / Retirada */}
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>
+                    {pedidoEntrega?.tipo_atendimento === 'retirada'
+                      ? 'Retirada no Balcão:'
+                      : pedidoEntrega?.transportadora_nome
+                      ? `Frete (${pedidoEntrega.transportadora_nome}${pedidoEntrega.servico_codigo ? ` - ${pedidoEntrega.servico_codigo}` : ''}):`
+                      : 'Taxa de Entrega / Frete:'}
+                  </span>
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {taxaEntrega > 0 ? (
+                    formatarMoeda(taxaEntrega)
+                  ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
+                    <span className="text-slate-500 font-medium">Grátis (Balcão)</span>
+                  ) : (
+                    <span className="text-emerald-700 font-bold">Grátis</span>
+                  )}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-sm text-slate-900">
                 <span>Total da Venda:</span>
-                <span className="font-bold text-white">{formatarMoeda(total)}</span>
+                <span className="text-emerald-700 font-black text-base">{formatarMoeda(total)}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+
+              <div className="flex justify-between text-slate-600 pt-1 border-t border-dashed border-slate-200">
                 <span>Total dos Meios Informados:</span>
-                <span className="font-bold text-white">{formatarMoeda(totalLinhasPagamento)}</span>
+                <span className="font-bold text-slate-900">{formatarMoeda(totalLinhasPagamento)}</span>
               </div>
-              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800/80">
+
+              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200">
                 {Math.abs(diferencaPagamento) < 0.01 ? (
                   <>
-                    <span className="text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Total Conferido (100%)
+                    <span className="text-emerald-700 flex items-center gap-1 font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Total Conferido (100%)
                     </span>
-                    <span className="text-emerald-400">R$ 0,00</span>
+                    <span className="text-emerald-700">R$ 0,00</span>
                   </>
                 ) : diferencaPagamento > 0 ? (
                   <>
-                    <span className="text-amber-400">Restante a Definir:</span>
-                    <span className="text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
+                    <span className="text-amber-700">Restante a Definir:</span>
+                    <span className="text-amber-700">{formatarMoeda(diferencaPagamento)}</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-rose-400">Excedente Ultrapassado:</span>
-                    <span className="text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
+                    <span className="text-rose-700">Excedente Ultrapassado:</span>
+                    <span className="text-rose-700">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
                   </>
                 )}
               </div>
@@ -2643,7 +2680,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFechamento(false)}
-                className="py-3 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+                className="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs border border-slate-200 transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -2652,12 +2689,12 @@ export const PosCheckout: React.FC = () => {
                 type="button"
                 disabled={salvandoPendente || finalizandoVenda}
                 onClick={handleSalvarComFormaPagamento}
-                className="flex-1 py-3 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                className="flex-1 py-3 px-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-emerald-700 hover:text-emerald-800 font-bold text-xs border border-emerald-500/40 shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
               >
                 {salvandoPendente ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
                 ) : (
-                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <FileText className="w-4 h-4 text-emerald-600" />
                 )}
                 <span>Salvar</span>
               </button>
@@ -2671,7 +2708,7 @@ export const PosCheckout: React.FC = () => {
                   linhasPagamento.some(l => l.forma_tipo === 'fiado' && l.valor > (Number(clienteSelecionado?.limite_credito || 0) + 0.01))
                 }
                 onClick={handleFinalizarVenda}
-                className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-xs shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {finalizandoVenda ? (
                   <>
@@ -3055,18 +3092,18 @@ export const PosCheckout: React.FC = () => {
 
       {/* Modal de Gestão de Frete, Retirada e Endereços */}
       {modalFulfillmentAberto && loja && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
                   <Truck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-100">
+                  <h3 className="font-bold text-base text-slate-800">
                     Forma de Entrega / Retirada
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Selecione retirada na loja física ou entrega no endereço do cliente
                   </p>
                 </div>
@@ -3074,7 +3111,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFulfillmentAberto(false)}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3106,11 +3143,11 @@ export const PosCheckout: React.FC = () => {
               }}
             />
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setModalFulfillmentAberto(false)}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs border border-slate-200 transition cursor-pointer"
               >
                 Cancelar
               </button>

@@ -288,27 +288,27 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
         {/* Cabeçalho */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-slate-100">
+              <h3 className="font-extrabold text-sm sm:text-base text-slate-800">
                 Endereço Principal
               </h3>
-              <p className="text-xs text-slate-400">
-                Cliente: <strong className="text-slate-200">{cliente.nome}</strong>
+              <p className="text-xs text-slate-500">
+                Cliente: <strong className="text-slate-700">{cliente.nome}</strong>
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onFechar}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -317,25 +317,25 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
         {/* Formulário */}
         <form onSubmit={handleSalvar} className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
           {erroMsg && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{erroMsg}</span>
             </div>
           )}
 
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-300">Preencha o endereço completo</span>
+            <span className="text-xs font-bold text-slate-700">Preencha o endereço completo</span>
             {/* Botão de Localização Atual */}
             <button
               type="button"
               disabled={carregandoGeoloc}
               onClick={usarLocalizacaoAtual}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 transition disabled:opacity-50 cursor-pointer"
             >
               {carregandoGeoloc ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
               ) : (
-                <Navigation className="w-3.5 h-3.5 text-emerald-400" />
+                <Navigation className="w-3.5 h-3.5 text-emerald-600" />
               )}
               <span>{carregandoGeoloc ? 'Buscando GPS...' : 'Usar Localização Atual'}</span>
             </button>
@@ -345,12 +345,12 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
             {/* CEP com Botão Não Sei o CEP */}
             <div className="sm:col-span-3 space-y-1">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-300">CEP *</label>
+                <label className="text-xs font-semibold text-slate-700">CEP *</label>
                 <a
                   href="https://buscacepinter.correios.com.br/app/endereco/index.php"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1"
+                  className="text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 font-medium"
                 >
                   <HelpCircle className="w-3 h-3" />
                   <span>Não sei o CEP</span>
@@ -368,22 +368,22 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
                       buscarCep(formatado);
                     }
                   }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                   required
                 />
                 {carregandoCep && (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600 absolute right-3 top-1/2 -translate-y-1/2" />
                 )}
               </div>
             </div>
 
             {/* Estado (UF) */}
             <div className="sm:col-span-3 space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Estado (UF) *</label>
+              <label className="text-xs font-semibold text-slate-700 block">Estado (UF) *</label>
               <select
                 value={estado}
                 onChange={(e) => setEstado(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition cursor-pointer"
+                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
                 required
               >
                 <option value="">Selecione</option>
@@ -397,75 +397,75 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Cidade */}
             <div className="sm:col-span-3 space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Cidade *</label>
+              <label className="text-xs font-semibold text-slate-700 block">Cidade *</label>
               <input
                 type="text"
                 placeholder="Nome da cidade"
                 value={cidade}
                 onChange={(e) => setCidade(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 required
               />
             </div>
 
             {/* Bairro */}
             <div className="sm:col-span-3 space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Bairro *</label>
+              <label className="text-xs font-semibold text-slate-700 block">Bairro *</label>
               <input
                 type="text"
                 placeholder="Nome do bairro"
                 value={bairro}
                 onChange={(e) => setBairro(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 required
               />
             </div>
 
             {/* Logradouro / Rua */}
             <div className="sm:col-span-4 space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Rua / Logradouro *</label>
+              <label className="text-xs font-semibold text-slate-700 block">Rua / Logradouro *</label>
               <input
                 type="text"
                 placeholder="Av., Rua, Travessa..."
                 value={rua}
                 onChange={(e) => setRua(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 required
               />
             </div>
 
             {/* Número */}
             <div className="sm:col-span-2 space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Número *</label>
+              <label className="text-xs font-semibold text-slate-700 block">Número *</label>
               <input
                 type="text"
                 placeholder="Ex: 123 ou S/N"
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 required
               />
             </div>
 
             {/* Complemento */}
             <div className="sm:col-span-6 space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Complemento / Ponto de Ref.</label>
+              <label className="text-xs font-semibold text-slate-700 block">Complemento / Ponto de Ref.</label>
               <input
                 type="text"
                 placeholder="Apto, Bloco, Casa dos fundos..."
                 value={complemento}
                 onChange={(e) => setComplemento(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
               />
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onFechar}
               disabled={salvando}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             >
               Cancelar
             </button>

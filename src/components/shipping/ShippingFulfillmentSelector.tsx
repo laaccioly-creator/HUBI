@@ -501,14 +501,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     <div className={`space-y-4 ${className}`}>
       {/* SELEÇÃO ENTREGA x RETIRADA (apenas quando a loja permitir retirada) */}
       {permiteRetirada && (
-        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+        <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
           <button
             type="button"
             onClick={() => handleSelecionarModalidade('entrega')}
             className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
               modalidade === 'entrega'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Truck className="w-4 h-4" />
@@ -520,8 +520,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             onClick={() => handleSelecionarModalidade('retirada')}
             className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
               modalidade === 'retirada'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Store className="w-4 h-4" />
@@ -537,21 +537,21 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         <div className="space-y-3 animate-in fade-in duration-200">
           {/* Cenário: Loja NÃO configurou nem Uber nem Melhor Envio */}
           {!carregandoConfig && !temIntegracoesAtivas ? (
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-3">
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 space-y-3">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <span className="font-bold text-xs block text-amber-200">
+                  <span className="font-bold text-xs block text-amber-900">
                     Cotação Automática de Entrega Não Configurada
                   </span>
-                  <p className="text-xs text-amber-300/90 leading-relaxed">
+                  <p className="text-xs text-amber-800 leading-relaxed">
                     A loja ainda não configurou as integrações automáticas com Uber Direct ou Melhor Envio.
                     Favor entrar em contato com a loja para combinar a forma e o valor de entrega.
                   </p>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-amber-500/20 flex flex-wrap items-center gap-2">
+              <div className="pt-2 border-t border-amber-200 flex flex-wrap items-center gap-2">
                 <a
                   href={linkWhatsAppLoja}
                   target="_blank"
@@ -566,7 +566,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   <button
                     type="button"
                     onClick={() => handleSelecionarModalidade('retirada')}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition"
+                    className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs transition cursor-pointer"
                   >
                     Mudar para Retirada na Loja
                   </button>
@@ -577,37 +577,37 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             <>
               {/* Mensagem e Card do Endereço de Entrega */}
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>Calculamos os custos e prazos para este endereço:</span>
                 </div>
 
                 {carregandoEnderecos ? (
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center gap-2 text-slate-400 text-xs">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
                     <span>Carregando dados de endereço...</span>
                   </div>
                 ) : enderecoSelecionado ? (
-                  <div className="p-3.5 rounded-2xl bg-slate-800 border border-slate-700 space-y-2 relative overflow-hidden text-slate-100">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative overflow-hidden text-slate-800 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2.5">
-                        <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-100">
+                            <span className="text-xs font-bold text-slate-900">
                               {enderecoSelecionado.identificador || 'Endereço Principal'}
                             </span>
                             {enderecoSelecionado.is_principal && (
-                              <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
                                 Principal
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-200 mt-1">
+                          <p className="text-xs text-slate-700 mt-1">
                             {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
                             {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
                           </p>
-                          <p className="text-[11px] text-slate-300 mt-0.5">
+                          <p className="text-[11px] text-slate-500 mt-0.5">
                             {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                           </p>
                         </div>
@@ -615,11 +615,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     </div>
 
                     {/* Botão Escolher Outro Endereço */}
-                    <div className="pt-2 border-t border-slate-700/60 flex justify-end">
+                    <div className="pt-2 border-t border-slate-200 flex justify-end">
                       <button
                         type="button"
                         onClick={() => setModalEscolherOutroAberto(true)}
-                        className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition underline"
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline"
                       >
                         <span>Escolher outro endereço</span>
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -627,13 +627,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-2">
-                    <p className="text-xs text-slate-400">Nenhum endereço selecionado.</p>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2">
+                    <p className="text-xs text-slate-500">Nenhum endereço selecionado.</p>
                     {clienteId && (
                       <button
                         type="button"
                         onClick={() => setModalEscolherOutroAberto(true)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold text-xs"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs hover:bg-emerald-100 transition cursor-pointer"
                       >
                         Selecionar ou Cadastrar Endereço
                       </button>
@@ -644,20 +644,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               {/* Lista de Opções de Frete Cotadas */}
               <div className="space-y-2 pt-1">
-                <span className="text-xs font-bold text-slate-300 block">Opções de Frete Disponíveis</span>
+                <span className="text-xs font-bold text-slate-700 block">Opções de Frete Disponíveis</span>
 
                 {cotando ? (
-                  <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center gap-2 text-slate-400 text-xs">
-                    <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+                    <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
                     <span>Calculando opções de frete em tempo real...</span>
                   </div>
                 ) : erroCotacaoMsg ? (
-                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{erroCotacaoMsg}</span>
                   </div>
                 ) : cotacoes.length === 0 ? (
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
                     Nenhuma opção de frete retornada para este CEP.
                   </div>
                 ) : (
@@ -667,20 +667,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         return (
                           <div
                             key={opcao.id}
-                            className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start gap-3"
+                            className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-3"
                           >
-                            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                               <AlertCircle className="w-4 h-4" />
                             </div>
                             <div className="min-w-0 space-y-0.5">
-                              <span className="text-xs font-bold text-amber-200 block">
+                              <span className="text-xs font-bold text-amber-900 block">
                                 {opcao.transportadora_nome}: {opcao.servico_nome}
                               </span>
-                              <p className="text-[11px] text-amber-300/90 leading-relaxed">
+                              <p className="text-[11px] text-amber-800 leading-relaxed">
                                 {opcao.erro}
                               </p>
                               {opcao.prazo_estimado_texto && (
-                                <span className="text-[10px] text-amber-400 font-semibold block pt-0.5">
+                                <span className="text-[10px] text-amber-700 font-semibold block pt-0.5">
                                   {opcao.prazo_estimado_texto}
                                 </span>
                               )}
@@ -696,39 +696,39 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           onClick={() => handleEscolherCotacao(opcao)}
                           className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                             selecionada
-                              ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md shadow-emerald-500/10'
-                              : 'bg-slate-800 border border-slate-700 text-white hover:border-slate-600'
+                              ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                               opcao.provedor === 'uber'
-                                ? 'bg-slate-900 text-emerald-400 font-black text-[11px]'
-                                : 'bg-slate-900 text-indigo-400 font-bold text-xs'
+                                ? 'bg-black text-white font-black text-[11px] border-black'
+                                : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
                             }`}>
                               {opcao.provedor === 'uber' ? 'UBER' : <Truck className="w-4 h-4" />}
                             </div>
 
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-white truncate">
+                                <span className="text-xs font-bold text-slate-900 truncate">
                                   {opcao.transportadora_nome}
                                 </span>
                                 {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
-                                  <span className="text-[11px] text-slate-100 font-semibold truncate">
+                                  <span className="text-[11px] text-slate-600 font-semibold truncate">
                                     ({opcao.servico_nome})
                                   </span>
                                 )}
                                 {opcao.is_frete_gratis && (
-                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                                     Frete Grátis
                                   </span>
                                 )}
                               </div>
                               {opcao.prazo_estimado_texto && (
-                                <div className="flex items-center gap-1.5 text-xs text-slate-100 font-medium mt-1">
-                                  <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                  <span className="text-slate-100">{opcao.prazo_estimado_texto}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                                  <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="text-slate-600">{opcao.prazo_estimado_texto}</span>
                                 </div>
                               )}
                             </div>
@@ -739,33 +739,33 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               {opcao.is_frete_gratis ? (
                                 <div className="flex flex-col items-end leading-tight">
                                   {opcao.valor_original != null && opcao.valor_original > 0 && (
-                                    <span className="text-xs line-through text-slate-300 font-bold">
+                                    <span className="text-xs line-through text-slate-400 font-bold">
                                       R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   )}
-                                  <span className="font-extrabold text-sm text-emerald-400">
+                                  <span className="font-extrabold text-sm text-emerald-600">
                                     Grátis
                                   </span>
                                 </div>
                               ) : opcao.is_upgrade_subsidio ? (
                                 <div className="flex flex-col items-end leading-tight">
                                   {opcao.valor_original != null && (
-                                    <span className="text-xs line-through text-slate-300 font-bold">
+                                    <span className="text-xs line-through text-slate-400 font-bold">
                                       R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   )}
-                                  <span className="font-extrabold text-sm text-emerald-400">
+                                  <span className="font-extrabold text-sm text-emerald-600">
                                     R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="font-extrabold text-sm text-emerald-400">
+                                <span className="font-extrabold text-sm text-emerald-600">
                                   R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               )}
                             </div>
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                              selecionada ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/30' : 'border-2 border-slate-400'
+                              selecionada ? 'bg-emerald-600 text-white shadow-sm' : 'border-2 border-slate-300'
                             }`}>
                               {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </div>
@@ -786,22 +786,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       {/* ========================================================================= */}
       {permiteRetirada && modalidade === 'retirada' && (
         <div className="space-y-3 animate-in fade-in duration-200">
-          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700/80 text-slate-200 space-y-3 shadow-sm">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-3 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-slate-800 text-emerald-400 flex items-center justify-center shrink-0 border border-slate-700">
+              <div className="w-10 h-10 rounded-2xl bg-white text-emerald-600 flex items-center justify-center shrink-0 border border-slate-200 shadow-sm">
                 <Store className="w-5 h-5" />
               </div>
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-slate-100">
+                  <span className="font-bold text-xs text-slate-900">
                     Retirar na Loja
                   </span>
                 </div>
-                <p className="text-xs text-slate-300/90 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   Seu pedido será preparado e ficará disponível para retirada no balcão da loja física.
                 </p>
-                <div className="pt-1.5 text-xs text-slate-300 font-medium">
-                  <strong className="text-slate-200">Endereço da Loja:</strong>{' '}
+                <div className="pt-1.5 text-xs text-slate-600 font-medium">
+                  <strong className="text-slate-800">Endereço da Loja:</strong>{' '}
                   {[
                     dadosLojaFormatados.endereco_logradouro,
                     dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
@@ -818,13 +818,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
 
             {/* Ações: Ver no mapa e Enviar para WhatsApp */}
-            <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center gap-2">
+            <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setModalMapaLojaAberto(true)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Navigation className="w-3.5 h-3.5 text-emerald-400" />
+                <Navigation className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Ver no Mapa</span>
               </button>
 

@@ -82,6 +82,83 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
   const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente | null>(null);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
+  const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+  // Re-hidratação do rascunho do carrinho do PDV ao iniciar ou trocar de loja
+  useEffect(() => {
+    if (!loja?.id) return;
+    const draftKey = `hubi_pos_cart_draft_${loja.id}`;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft && Array.isArray(draft.itens) && draft.itens.length > 0) {
+          setItens(draft.itens);
+          if (draft.clienteSelecionado) setClienteSelecionadoState(draft.clienteSelecionado);
+          if (draft.tabelaPrecoGlobal) setTabelaPrecoGlobalState(draft.tabelaPrecoGlobal);
+          if (typeof draft.desconto === 'number') setDescontoState(draft.desconto);
+          if (typeof draft.descontoPercentual === 'number') setDescontoPercentualState(draft.descontoPercentual);
+          if (draft.tipoDesconto) setTipoDesconto(draft.tipoDesconto);
+          if (typeof draft.taxaEntrega === 'number') setTaxaEntrega(draft.taxaEntrega);
+          if (draft.pedidoEntrega) setPedidoEntrega(draft.pedidoEntrega);
+          if (draft.enderecoEntrega) setEnderecoEntrega(draft.enderecoEntrega);
+          if (draft.dadosEndereco) setDadosEndereco(draft.dadosEndereco);
+          if (draft.pedidoEmEdicao) setPedidoEmEdicao(draft.pedidoEmEdicao);
+          if (draft.snapshotPedidoOriginal) setSnapshotPedidoOriginal(draft.snapshotPedidoOriginal);
+        }
+      }
+    } catch (err) {
+      console.warn('[CartContext] Erro ao recuperar rascunho do carrinho:', err);
+    } finally {
+      setIsHydrated(true);
+    }
+  }, [loja?.id]);
+
+  // Persistência automática do rascunho em andamento para resistir a reloads, trocas de aba ou atualizações do PWA
+  useEffect(() => {
+    if (!isHydrated || !loja?.id) return;
+    const draftKey = `hubi_pos_cart_draft_${loja.id}`;
+    if (itens.length === 0 && !pedidoEmEdicao && !clienteSelecionado) {
+      localStorage.removeItem(draftKey);
+      return;
+    }
+    const draft = {
+      itens,
+      clienteSelecionado,
+      tabelaPrecoGlobal,
+      desconto,
+      descontoPercentual,
+      tipoDesconto,
+      taxaEntrega,
+      pedidoEntrega,
+      enderecoEntrega,
+      dadosEndereco,
+      pedidoEmEdicao,
+      snapshotPedidoOriginal,
+      updatedAt: Date.now()
+    };
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (err) {
+      console.warn('[CartContext] Falha ao salvar rascunho do carrinho:', err);
+    }
+  }, [
+    isHydrated,
+    loja?.id,
+    itens,
+    clienteSelecionado,
+    tabelaPrecoGlobal,
+    desconto,
+    descontoPercentual,
+    tipoDesconto,
+    taxaEntrega,
+    pedidoEntrega,
+    enderecoEntrega,
+    dadosEndereco,
+    pedidoEmEdicao,
+    snapshotPedidoOriginal
+  ]);
 
   const [configFreteState, setConfigFreteState] = useState<{
     frete_gratis_ativo: boolean;
@@ -363,8 +440,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDescontoValor(valor);
   };
 
-  const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
-
   const gerarSnapshotPedido = (
     itensAtuais: CartItem[],
     cli: Cliente | null,
@@ -428,6 +503,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPedidoEntrega(null);
     setPedidoEmEdicao(null);
     setSnapshotPedidoOriginal(null);
+    if (loja?.id) {
+      try {
+        localStorage.removeItem(`hubi_pos_cart_draft_${loja.id}`);
+      } catch (err) {
+        // ignora
+      }
+    }
   };
 
   const carregarPedidoParaEdicao = async (pedido: any) => {

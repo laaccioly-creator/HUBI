@@ -199,6 +199,8 @@ const AppRotasInternas: React.FC = () => {
 
 import { DataOperacaoProvider } from './contexts/DataOperacaoContext';
 
+import { ReloadPrompt } from './components/pwa/ReloadPrompt';
+
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
@@ -208,6 +210,7 @@ export const App: React.FC = () => {
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <FeedbackProvider>
                 <AppRotasInternas />
+                <ReloadPrompt />
               </FeedbackProvider>
             </Router>
           </CartProvider>
