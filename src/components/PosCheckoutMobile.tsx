@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -16,6 +17,7 @@ import {
   ChevronDown,
   ArrowLeft,
   Store,
+  Truck,
   ShoppingCart,
   ShoppingBag,
   Package,
@@ -57,6 +59,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
+import { formatarMoeda } from '../utils/formatters';
 
 interface PosCheckoutMobileProps {
   produtos: Produto[];
@@ -69,6 +72,7 @@ interface PosCheckoutMobileProps {
   salvandoPendente?: boolean;
   onAbrirNovoCliente: () => void;
   onAbrirVariacoesModal: (produto: Produto) => void;
+  onAbrirFormaEntrega?: () => void;
   isOnline?: boolean;
   pendentesCount?: number;
 }
@@ -85,6 +89,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   salvandoPendente = false,
   onAbrirNovoCliente,
   onAbrirVariacoesModal,
+  onAbrirFormaEntrega,
   isOnline = true,
   pendentesCount = 0
 }) => {
@@ -100,6 +105,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     desconto,
     descontoPercentual,
     tipoDesconto,
+    taxaEntrega,
+    pedidoEntrega,
     subtotal,
     total,
     totalItens,
@@ -120,6 +127,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
   // Estados de Navegação e Visualização
   const [subTela, setSubTela] = useState<SubTelaMobile>('vender');
+  const [origemClientes, setOrigemClientes] = useState<'vender' | 'carrinho'>('vender');
+
+  const abrirSelecaoCliente = (origem: 'vender' | 'carrinho' = 'vender') => {
+    setOrigemClientes(origem);
+    setSubTela('clientes');
+  };
+
   const [menuDrawerAberto, setMenuDrawerAberto] = useState<boolean>(false);
   const [modoVisualizacao, setModoVisualizacao] = useState<'grade' | 'lista'>('grade'); // Grade (tela001) vs Lista (tela007)
   const [buscaAberta, setBuscaAberta] = useState<boolean>(false); // Tela 004
@@ -428,6 +442,65 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
 
 
+  // Modal de Seleção de Tabela de Preço montado em Portal no document.body
+  const renderModalTabelaPreco = () => {
+    if (!modalTabelaPrecoAberto) return null;
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+        <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 text-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-emerald-600" />
+              <h3 className="font-bold text-sm text-slate-800">Tabela de Preço</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalTabelaPrecoAberto(false)}
+              className="p-1 rounded-full text-slate-400 hover:bg-slate-100 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            Selecione a tabela de preços a ser aplicada aos produtos desta venda:
+          </p>
+
+          <div className="space-y-2">
+            {[
+              { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal' },
+              { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume' },
+              { id: 'autoatacado', rotulo: '⚡ Distribuidor / Autoatacado', desc: 'Preço especial para grandes quantidades' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
+                  setModalTabelaPrecoAberto(false);
+                }}
+                className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
+                  (tabelaPrecoGlobal || 'varejo') === tab.id
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div>
+                  <span className="font-bold text-xs block">{tab.rotulo}</span>
+                  <span className="text-[10px] text-slate-500">{tab.desc}</span>
+                </div>
+                {(tabelaPrecoGlobal || 'varejo') === tab.id && (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   // =========================================================================
   // TELA 003: SELEÇÃO E CADASTRO DE CLIENTE
   // =========================================================================
@@ -439,8 +512,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setSubTela('vender')}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition"
+              onClick={() => setSubTela(origemClientes)}
+              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -493,7 +566,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setClienteSelecionado(null)}
-              className="text-[11px] font-bold text-rose-600 hover:underline"
+              className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
             >
               Remover
             </button>
@@ -512,7 +585,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 key={cliente.id}
                 onClick={() => {
                   setClienteSelecionado(cliente);
-                  setSubTela('vender');
+                  setSubTela(origemClientes);
                 }}
                 className="p-3.5 hover:bg-slate-50 transition flex items-center justify-between cursor-pointer"
               >
@@ -584,7 +657,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
             <button
               type="button"
-              onClick={() => setSubTela('clientes')}
+              onClick={() => abrirSelecaoCliente('vender')}
               className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs"
             >
               +8
@@ -792,20 +865,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setSubTela('vender')}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition"
+              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <h2 className="font-bold text-base text-slate-800">Carrinho</h2>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setSubTela('clientes')}
-            className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs"
-          >
-            +8
-          </button>
         </div>
 
         {/* Lista de Itens do Carrinho */}
@@ -869,7 +934,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               {/* Cliente Vinculado ou Cliente Balcão */}
               <button
                 type="button"
-                onClick={() => setSubTela('clientes')}
+                onClick={() => abrirSelecaoCliente('carrinho')}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 font-bold text-xs transition shadow-2xs cursor-pointer min-w-0 flex-1 truncate"
                 title="Toque para alterar ou vincular cliente"
               >
@@ -923,14 +988,59 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 setDescontoTempTipo(tipoDesconto);
                 setModalDescontoAberto(true);
               }}
-              className="text-xs font-bold text-emerald-600 hover:underline block text-right w-full"
+              className="text-xs font-bold text-emerald-600 hover:underline block text-right w-full cursor-pointer"
             >
               {desconto > 0 ? 'Alterar desconto' : 'Dar desconto'}
             </button>
 
+            {/* Linha de Forma de Entrega no Carrinho Mobile */}
+            <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? (
+                  <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
+                  <Store className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                ) : (
+                  <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                )}
+                <span className="text-slate-700 font-semibold truncate">
+                  Forma de Entrega:
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {!pedidoEntrega ? (
+                  <span className="text-amber-600 font-bold text-xs">
+                    Não selecionada
+                  </span>
+                ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
+                  <span className="text-purple-700 font-bold text-xs">
+                    Retirada na Loja (Grátis)
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-bold text-xs">
+                    {pedidoEntrega.transportadora_nome ? `${pedidoEntrega.transportadora_nome}: ` : ''}
+                    {taxaEntrega > 0 ? `+ ${formatarMoeda(taxaEntrega)}` : 'Grátis'}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onAbrirFormaEntrega?.()}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer active:scale-95 ${
+                    !pedidoEntrega
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-xs'
+                      : 'text-emerald-600 hover:text-emerald-700 underline'
+                  }`}
+                >
+                  {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
+                </button>
+              </div>
+            </div>
+
             <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200">
               <span>TOTAL:</span>
-              <span className="text-emerald-600">R$ {total.toFixed(2)}</span>
+              <span className="text-emerald-600">{formatarMoeda(total)}</span>
             </div>
           </div>
         )}
@@ -1131,6 +1241,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </div>
           </div>
         )}
+
+        {/* Modal de Tabela de Preço montado em Portal */}
+        {renderModalTabelaPreco()}
       </div>
     );
   }
@@ -1215,7 +1328,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           {/* Botão de Cliente */}
           <button
             type="button"
-            onClick={() => setSubTela('clientes')}
+            onClick={() => abrirSelecaoCliente('vender')}
             className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-black text-xs shadow-sm transition cursor-pointer active:scale-95"
             title="Adicionar ou Selecionar Cliente"
           >
@@ -1572,60 +1685,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         </div>
       )}
 
-      {/* Modal de Seleção de Tabela de Preço */}
-      {modalTabelaPrecoAberto && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-600" />
-                <h3 className="font-bold text-sm text-slate-800">Tabela de Preço</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalTabelaPrecoAberto(false)}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Selecione a tabela de preços a ser aplicada aos produtos desta venda:
-            </p>
-
-            <div className="space-y-2">
-              {[
-                { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal' },
-                { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume' },
-                { id: 'autoatacado', rotulo: '⚡ Distribuidor / Autoatacado', desc: 'Preço especial para grandes quantidades' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
-                    setModalTabelaPrecoAberto(false);
-                  }}
-                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between ${
-                    (tabelaPrecoGlobal || 'varejo') === tab.id
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div>
-                    <span className="font-bold text-xs block">{tab.rotulo}</span>
-                    <span className="text-[10px] text-slate-500">{tab.desc}</span>
-                  </div>
-                  {(tabelaPrecoGlobal || 'varejo') === tab.id && (
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de Seleção de Tabela de Preço montado em Portal */}
+      {renderModalTabelaPreco()}
 
       {/* DRAWER MENU UNIFICADO MOBILE */}
       <MobileMenuDrawer

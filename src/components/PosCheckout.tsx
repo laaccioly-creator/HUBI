@@ -1706,6 +1706,7 @@ export const PosCheckout: React.FC = () => {
           salvandoPendente={salvandoPendente}
           onAbrirNovoCliente={() => setModalNovoCliente(true)}
           onAbrirVariacoesModal={(produto) => setProdutoModalVariacao(produto)}
+          onAbrirFormaEntrega={handleClicarFormaEntrega}
           isOnline={isOnline}
           pendentesCount={pendentesCount}
         />
@@ -3054,7 +3055,7 @@ export const PosCheckout: React.FC = () => {
 
       {/* Modal de Gestão de Frete, Retirada e Endereços */}
       {modalFulfillmentAberto && loja && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">

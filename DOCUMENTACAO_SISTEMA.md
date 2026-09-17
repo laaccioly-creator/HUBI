@@ -1,6 +1,6 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.0.0  
+> **Versão do Documento:** 1.1.0  
 > **Data de Atualização:** 16/09/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
@@ -383,6 +383,53 @@ erDiagram
 | `saldo_declarado_dinheiro`| NUMERIC(12,2)| NULL | Valor contado fisicamente na gaveta |
 | `diferenca_dinheiro` | NUMERIC(12,2) | NULL | Quebra ou sobra de caixa (`declarado - esperado`) |
 
+#### 10. Tabela `loja_shipping_configs` (Configurações de Logística, Frete Grátis e Retirada)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do registro de configurações logísticas |
+| `loja_id` | UUID | UNIQUE, NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo 1:1 com a loja |
+| `uber_ativo` | BOOLEAN | DEFAULT FALSE | Ativação do módulo de cotação Uber Direct |
+| `uber_client_id` | TEXT | NULL | Client ID do app da Uber Direct (BYOK) |
+| `uber_client_secret` | TEXT | NULL | Client Secret da Uber Direct |
+| `uber_customer_id` | TEXT | NULL | Customer ID da conta Uber Direct |
+| `melhor_envio_ativo` | BOOLEAN | DEFAULT FALSE | Ativação do módulo de cotação Melhor Envio |
+| `melhor_envio_token` | TEXT | NULL | Token Bearer de acesso da API do Melhor Envio |
+| `melhor_envio_sandbox` | BOOLEAN | DEFAULT FALSE | Flag de ambiente sandbox/testes do Melhor Envio |
+| `retirada_balcao_ativa` | BOOLEAN | DEFAULT TRUE | Habilita opção de retirada presencial no balcão da loja |
+| `retirada_loja_ativa` | BOOLEAN | DEFAULT TRUE | Flag relacional equivalente para controle de retirada |
+| `permite_retirada_loja` | BOOLEAN | DEFAULT TRUE | Coluna de compatibilidade operacional |
+| `frete_gratis_ativo` | BOOLEAN | DEFAULT FALSE | Ativa benefício de frete grátis por valor mínimo |
+| `frete_gratis_valor_minimo`| NUMERIC(12,2)| DEFAULT 0.00 | Valor mínimo do subtotal de compras para gratuidade |
+| `origem_cep` | VARCHAR(9) | NOT NULL | CEP da loja física de onde saem os despachos |
+| `origem_logradouro` | VARCHAR(255) | NULL | Rua de coleta para transportadoras |
+| `origem_numero` | VARCHAR(20) | NULL | Número |
+| `origem_complemento` | VARCHAR(100) | NULL | Complemento |
+| `origem_bairro` | VARCHAR(100) | NULL | Bairro |
+| `origem_cidade` | VARCHAR(100) | NULL | Cidade |
+| `origem_uf` | VARCHAR(2) | NULL | Estado (UF) |
+| `origem_latitude` | NUMERIC | NULL | Latitude de origem para cálculo de rotas |
+| `origem_longitude` | NUMERIC | NULL | Longitude de origem para cálculo de rotas |
+| `dias_preparacao` | INTEGER | DEFAULT 0 | Dias extras adicionados ao prazo da transportadora |
+| `taxa_adicional_frete`| NUMERIC(10,2) | DEFAULT 0.00 | Sobretaxa ou margem adicionada ao valor cotado |
+
+#### 11. Tabela `cliente_enderecos` (Múltiplos Endereços do Cliente e Geolocalização)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do endereço |
+| `cliente_id` | UUID | NOT NULL, FK -> clientes(id) ON DELETE CASCADE | Cliente proprietário do endereço |
+| `identificador` | VARCHAR(50) | DEFAULT 'Outro' | Rótulo amigável (ex: 'Principal', 'Casa', 'Trabalho') |
+| `cep` | VARCHAR(9) | NOT NULL | CEP do endereço (formato 00000-000 ou 8 dígitos) |
+| `logradouro` | VARCHAR(255) | NOT NULL | Rua, avenida, travessa |
+| `numero` | VARCHAR(20) | NOT NULL | Número residencial/comercial ou 'S/N' |
+| `complemento` | VARCHAR(100) | NULL | Apartamento, bloco, sala, ponto de referência |
+| `bairro` | VARCHAR(100) | NOT NULL | Bairro |
+| `cidade` | VARCHAR(100) | NOT NULL | Município |
+| `uf` | VARCHAR(2) | NOT NULL | Estado (sigla com 2 caracteres, ex: CE, PE, SP) |
+| `latitude` | NUMERIC | NULL | Latitude obtida via geocodificação ou GPS |
+| `longitude` | NUMERIC | NULL | Longitude obtida via geocodificação ou GPS |
+| `is_principal` | BOOLEAN | DEFAULT FALSE | Flag indicadora se é o endereço padrão de entrega |
+| `criado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbo de inclusão do endereço |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -448,12 +495,24 @@ A edição de pedidos pendentes permite corrigir quantidades, trocar variações
 
 ### 4.3 Fluxo do Catálogo Online Integrado
 O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital pública:
-1. **Identificação da Loja:** A aplicação lê o parâmetro da rota (`/catalog/:slug`) e realiza a busca pública na tabela `lojas` filtrando por `slug_catalogo` e `aceita_pedidos_online = true`.
+1. **Identificação da Loja:** A aplicação lê o parâmetro da rota (`/catalog/:slug`) e realiza a busca pública na tabela `lojas` filtrando por `slug_catalogo` e `aceita_pedidos_online = true`. Carrega as configurações logísticas relacionais (`loja_shipping_configs`) contendo as flags `retirada_balcao_ativa`, `frete_gratis_ativo` e `frete_gratis_valor_minimo`.
 2. **Navegação e Filtros:** Os produtos com `exibir_catalogo = true` e `ativo = true` são carregados. O cliente final pode navegar por categorias, pesquisar termos ou abrir os detalhes do produto para ver fotos e variações.
-3. **Carrinho Persistente:** Os itens do carrinho são sincronizados no `sessionStorage` do navegador para garantir que o cliente não perca suas escolhas em caso de recarregamento.
-4. **Cálculo de Frete e Endereço:**
-   - O cliente insere seu CEP. O componente `ShippingFulfillmentSelector` consulta o `ShippingOrchestrator`, que dispara cotação assíncrona para Uber Direct (entregas locais raio curto) e Melhor Envio (Correios/Jadlog).
-   - O cliente pode alternar para "Retirada na Loja Física" (com custo R$ 0,00 e exibição do endereço da loja).
+3. **Carrinho Persistente e Termômetro de Frete Grátis:**
+   - Os itens do carrinho são sincronizados no `sessionStorage` do navegador para garantir que o cliente não perca suas escolhas em caso de recarregamento.
+   - Na gaveta lateral (`CartDrawer.tsx`), se `frete_gratis_ativo = true` e `frete_gratis_valor_minimo > 0`, é renderizada a barra de progresso dinâmica em tempo real:
+     - Enquanto o subtotal for inferior à meta, exibe a barra percentual e o saldo faltante (*"Faltam R$ XX,XX para você ganhar Frete Grátis"*).
+     - Ao atingir ou superar a meta, exibe o selo comemorativo *"Parabéns! Você ganhou Frete Grátis!"* com a barra preenchida em 100%.
+4. **Cálculo de Frete e Seleção de Modalidade (`ShippingFulfillmentSelector.tsx`):**
+   - **Respeito à Flag de Retirada na Loja:** A opção/aba "Retirar na Loja" só é renderizada se `retirada_balcao_ativa` (ou `retirada_loja_ativa`) for `true`. Se a loja desativar essa opção nas configurações, a interface oculta a aba e força o atendimento estritamente como "Entrega a Domicílio".
+   - **Aplicação e Exibição do Frete Grátis:**
+     - Ao atingir a meta, a opção mais econômica cotada (ex: PAC, Jadlog econômico ou Uber Direct local) **é mantida na lista e convertida em opção gratuita** com valor `R$ 0,00`, exibindo o valor original riscado e badge verde destacada: `~~R$ 21,50~~ GRÁTIS`.
+     - As demais modalidades mais rápidas (ex: Sedex) recebem um desconto de upgrade igual ao valor da modalidade econômica subsidiada pela loja.
+     - A opção gratuita vem pré-selecionada por padrão.
+   - **Múltiplos Endereços Secundários e Validação de Duplicidade:**
+     - O cliente pode gerenciar seus endereços de entrega via `ModalEscolherOutroEndereco.tsx`.
+     - O cliente pode cadastrar quantos endereços secundários distintos desejar (armazenados via `INSERT` relacional puro na tabela `cliente_enderecos`).
+     - **Validação contra duplicidade:** O sistema impede cadastros redundantes se já houver um endereço na lista com o mesmo CEP e Número (e complemento se existente), emitindo aviso claro: *"Este endereço já está cadastrado na sua lista."*.
+     - Ao cadastrar um novo endereço, o modal confirma a seleção, fecha automaticamente e dispara o recálculo imediato de cotação para o novo destino, sem reverter para o endereço principal ao re-renderizar.
 5. **Identificação do Cliente:** Modal simples com validação de telefone (WhatsApp), nome completo e endereço de entrega.
 6. **Gravação e Notificação:**
    - O pedido é gravado na tabela `pedidos` com `origem = 'catalogo_online'`, `status = 'pendente'` e seus itens em `itens_pedido`.
@@ -478,11 +537,13 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
 
 ### 5.2 Orquestrador e Serviços de Logística (Uber Direct e Melhor Envio)
 - **`shippingOrchestrator.ts`:**
-  - Ponto de entrada unificado para cotações e persistência de entrega.
-  - Recebe a lista de produtos (pesos e dimensões) e os CEPs de origem e destino.
-  - Consulta simultaneamente o `uberDirectService.ts` e o `melhorEnvioService.ts`.
-  - Agrupa, ordena por menor preço ou prazo e padroniza as opções em `OpcaoFreteCotada[]`.
-  - Contém a rotina `salvarPedidoEntrega()` que persiste os dados sanitizados na tabela `pedido_entregas` com tratamento defensivo de FKs e integridade referencial.
+  - Ponto de entrada unificado para cotações, persistência de entrega e governança de endereços de clientes.
+  - **`cotarOpcoesFrete(req)`:** Recebe a lista de produtos (pesos e dimensões), CEPs e logradouro de origem/destino. Dispara consultas paralelas e assíncronas ao `uberDirectService.ts` e `melhorEnvioService.ts`, agrupando as cotações em `OpcaoFreteCotada[]`.
+  - **`verificarMesmaRegiaoMetropolitana(origem, destino)`:** Algoritmo de proximidade geográfica que valida se o destino do cliente está contido no mesmo município ou raio de atendimento metropolitano da loja, filtrando rotas inviáveis da Uber Direct para outras cidades/estados.
+  - **`aplicarSubsidioFreteGratis(opcoes, config, subtotal)`:** Analisa o subtotal de compras em relação a `frete_gratis_valor_minimo`. Identifica a opção cotada mais econômica, transforma seu valor em `R$ 0,00` (`is_frete_gratis: true`), grava o `valor_original` e aplica o subsídio proporcional nas opções de frete expresso/premium (`is_upgrade_subsidio: true`).
+  - **`listarEnderecosCliente(clienteId)`:** Consulta a tabela `cliente_enderecos` com ordenação `is_principal DESC, criado_em DESC`. Caso o cliente só possua endereço gravado na tabela legada `clientes`, sintetiza defensivamente o registro principal garantindo disponibilidade imediata no seletor.
+  - **`salvarNovoEnderecoCliente(clienteId, input)`:** Valida regras contra duplicidade estrita (`cep` + `numero` + `complemento`) e efetua inserção relacional pura (`INSERT INTO cliente_enderecos`) preservando o isolamento e permitindo número ilimitado de endereços secundários.
+  - **`salvarPedidoEntrega(entrega)`:** Persiste o snapshot completo do despacho na tabela `pedido_entregas` com tratamento defensivo de FKs e integridade referencial.
 - **`uberDirectService.ts`:**
   - Gerencia autenticação OAuth2 (Client Credentials) com a API da Uber Direct.
   - Cota entregas expressas ponto a ponto retornando estimativas em minutos.
