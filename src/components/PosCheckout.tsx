@@ -48,6 +48,7 @@ import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
+import { ShippingSelectionResult } from '../types/shipping';
 import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL } from '../utils/formatters';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
@@ -205,6 +206,7 @@ export const PosCheckout: React.FC = () => {
   } = useCart();
 
   const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
+  const [draftFulfillment, setDraftFulfillment] = useState<ShippingSelectionResult | null>(null);
   const [modalAtualizarEnderecoAberto, setModalAtualizarEnderecoAberto] = useState<boolean>(false);
   const [subTelaMobile, setSubTelaMobile] = useState<SubTelaMobile>('vender');
 
@@ -432,37 +434,20 @@ export const PosCheckout: React.FC = () => {
   }, [loja?.id]);
 
   const handleClicarFormaEntrega = () => {
-    // 1. Verificar se há cliente selecionado
-    if (!clienteSelecionado) {
-      mostrarAviso(
-        'Para selecionar uma forma de entrega, primeiro selecione o cliente.',
-        'Cliente Não Selecionado'
-      );
-      setClienteDropdownAberto(true);
-      return;
-    }
+    const entregaAtual: Partial<PedidoEntrega> = pedidoEntrega ? { ...pedidoEntrega } : {
+      tipo_atendimento: 'retirada',
+      valor_frete: 0,
+      transportadora_nome: 'Retirada na Loja',
+      servico_codigo: 'retirada_balcao',
+      status_envio: 'pronto_para_retirar'
+    };
 
-    // 2. Verificar se os dados de endereço do cliente estão completos
-    const cepLimpo = (clienteSelecionado.endereco_cep || clienteSelecionado.cep || '').replace(/\D/g, '');
-    const rua = (clienteSelecionado.endereco_logradouro || clienteSelecionado.rua || clienteSelecionado.endereco || '').trim();
-    const num = (clienteSelecionado.endereco_numero || clienteSelecionado.numero || '').trim();
-    const bairro = (clienteSelecionado.endereco_bairro || clienteSelecionado.bairro || '').trim();
-    const cidade = (clienteSelecionado.endereco_cidade || clienteSelecionado.cidade || '').trim();
-    const uf = (clienteSelecionado.endereco_estado || clienteSelecionado.estado || '').trim();
-
-    const enderecoCompleto =
-      cepLimpo.length === 8 &&
-      rua.length > 0 &&
-      num.length > 0 &&
-      bairro.length > 0 &&
-      cidade.length > 0 &&
-      uf.length > 0;
-
-    if (!enderecoCompleto) {
-      setModalAtualizarEnderecoAberto(true);
-      return;
-    }
-
+    setDraftFulfillment({
+      tipo_atendimento: entregaAtual.tipo_atendimento || 'retirada',
+      valor_frete: taxaEntrega,
+      opcao_selecionada: null,
+      pedido_entrega: entregaAtual
+    });
     setModalFulfillmentAberto(true);
   };
 
@@ -3127,7 +3112,10 @@ export const PosCheckout: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setModalFulfillmentAberto(false)}
+                onClick={() => {
+                  setDraftFulfillment(null);
+                  setModalFulfillmentAberto(false);
+                }}
                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -3149,28 +3137,55 @@ export const PosCheckout: React.FC = () => {
                 altura_cm: (i.produto as any)?.altura_cm || 10,
                 comprimento_cm: (i.produto as any)?.comprimento_cm || 20
               }))}
-              valorFreteAtual={taxaEntrega}
-              opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
-              tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
-              onChange={(resultado) => {
-                setTaxaEntrega(resultado.valor_frete);
-                if (resultado.pedido_entrega) {
-                  setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+              valorFreteAtual={draftFulfillment ? draftFulfillment.valor_frete : taxaEntrega}
+              opcaoSelecionadaId={draftFulfillment?.pedido_entrega?.servico_codigo || pedidoEntrega?.servico_codigo}
+              tipoAtendimentoAtual={draftFulfillment?.tipo_atendimento || pedidoEntrega?.tipo_atendimento || 'retirada'}
+              enderecoEntregaAtual={pedidoEntrega?.destino_cep ? {
+                id: pedidoEntrega.cliente_endereco_id || undefined,
+                cep: pedidoEntrega.destino_cep,
+                logradouro: pedidoEntrega.destino_logradouro || '',
+                numero: pedidoEntrega.destino_numero || '',
+                complemento: pedidoEntrega.destino_complemento || null,
+                bairro: pedidoEntrega.destino_bairro || '',
+                cidade: pedidoEntrega.destino_cidade || '',
+                uf: pedidoEntrega.destino_uf || 'CE'
+              } : null}
+              onSolicitarAtualizarEndereco={() => {
+                if (!clienteSelecionado) {
+                  setModalFulfillmentAberto(false);
+                  setClienteDropdownAberto(true);
+                  mostrarAviso('Por favor, selecione ou cadastre um cliente com endereço para entrega.', 'Identificação do Cliente');
+                } else {
+                  setModalAtualizarEnderecoAberto(true);
                 }
+              }}
+              onChange={(resultado) => {
+                setDraftFulfillment(resultado);
               }}
             />
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setModalFulfillmentAberto(false)}
+                onClick={() => {
+                  setDraftFulfillment(null);
+                  setModalFulfillmentAberto(false);
+                }}
                 className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs border border-slate-200 transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={() => setModalFulfillmentAberto(false)}
+                onClick={() => {
+                  if (draftFulfillment) {
+                    setTaxaEntrega(draftFulfillment.valor_frete);
+                    if (draftFulfillment.pedido_entrega) {
+                      setPedidoEntrega(draftFulfillment.pedido_entrega as PedidoEntrega);
+                    }
+                  }
+                  setModalFulfillmentAberto(false);
+                }}
                 className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
               >
                 Confirmar Forma de Entrega

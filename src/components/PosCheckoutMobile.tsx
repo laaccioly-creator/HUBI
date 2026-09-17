@@ -482,7 +482,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             {[
               { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal' },
               { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume' },
-              { id: 'autoatacado', rotulo: '⚡ Distribuidor / Autoatacado', desc: 'Preço especial para grandes quantidades' }
+              { id: 'autoatacado', rotulo: '⚡ Distribuidor', desc: 'Preço especial para grandes quantidades' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -883,11 +883,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </button>
             <h2 className="font-bold text-base text-slate-800">Carrinho</h2>
           </div>
-          {itens.length > 0 && (
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-              {totalItens} {totalItens === 1 ? 'item' : 'itens'}
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setSubTela('vender')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer active:scale-95 border border-emerald-200"
+            title="Continuar adicionando produtos ao carrinho"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Continuar Comprando</span>
+          </button>
         </div>
 
         {/* 1. Termômetro Dinâmico de Frete Grátis (loja_shipping_configs) */}
@@ -928,83 +932,81 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         })()}
 
         {/* 2. Termômetro Dinâmico de Tabela de Preço por Volume (pricingEngine.ts) */}
-        {avaliacaoCarrinho && (
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 space-y-2 shrink-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span>Volume por Faixas de Preço</span>
-                <span className="text-[10px] text-slate-500 font-semibold">
-                  ({avaliacaoCarrinho.totalPecas} {avaliacaoCarrinho.totalPecas === 1 ? 'peça' : 'peças'})
-                </span>
-              </div>
-              {avaliacaoCarrinho.economiaTotal > 0 && (
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-black shrink-0">
-                  - R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
-                </span>
-              )}
-            </div>
+        {avaliacaoCarrinho && (() => {
+          const atingiuDistribuidor = tabelaPrecoCalculada === 'autoatacado' || !avaliacaoCarrinho.proximoNivel;
+          const proximaTabelaNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
+          const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
+          const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
+          const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
+          const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
 
-            {/* Stepper Visual das Faixas (Varejo -> Atacado -> Autoatacado) */}
-            <div className="flex items-center justify-between text-[11px] font-bold px-1">
-              <div className={`flex items-center gap-1.5 ${tabelaPrecoCalculada === 'varejo' ? 'text-emerald-700 font-black' : 'text-slate-500'}`}>
-                <span className={`w-2 h-2 rounded-full ${tabelaPrecoCalculada === 'varejo' ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-slate-300'}`} />
-                <span>Varejo</span>
-              </div>
-              <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-              <div className={`flex items-center gap-1.5 ${tabelaPrecoCalculada === 'atacado' ? 'text-blue-700 font-black' : 'text-slate-500'}`}>
-                <span className={`w-2 h-2 rounded-full ${tabelaPrecoCalculada === 'atacado' ? 'bg-blue-600 ring-2 ring-blue-200' : 'bg-slate-300'}`} />
-                <span>Atacado</span>
-              </div>
-              <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
-              <div className={`flex items-center gap-1.5 ${tabelaPrecoCalculada === 'autoatacado' ? 'text-purple-700 font-black' : 'text-slate-500'}`}>
-                <span className={`w-2 h-2 rounded-full ${tabelaPrecoCalculada === 'autoatacado' ? 'bg-purple-600 ring-2 ring-purple-200' : 'bg-slate-300'}`} />
-                <span>Autoatacado</span>
-              </div>
-            </div>
+          const progressoPercent = atingiuDistribuidor
+            ? 100
+            : Math.min(100, Math.max(5, avaliacaoCarrinho.progressoGeralPercent || 0));
 
-            {/* Barra de Progresso Dinâmica */}
-            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  tabelaPrecoCalculada === 'autoatacado'
-                    ? 'bg-purple-600'
-                    : tabelaPrecoCalculada === 'atacado'
-                    ? 'bg-blue-600'
-                    : 'bg-emerald-500'
-                }`}
-                style={{ width: `${Math.min(100, Math.max(5, avaliacaoCarrinho.progressoGeralPercent || 0))}%` }}
-              />
-            </div>
-
-            {/* Mensagem de Próximo Nível ou Meta Atingida */}
-            <div className="flex items-center justify-between text-[10px] text-slate-600">
-              <span className="truncate pr-2">
-                {(() => {
-                  if (!avaliacaoCarrinho.proximoNivel) {
-                    return tabelaPrecoCalculada === 'autoatacado'
-                      ? '🎉 Melhor tabela alcançada (Autoatacado)!'
-                      : 'Tabela padrão ativa';
-                  }
-                  const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado';
-                  const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
-                  const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
-                  const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
-                  const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
-
-                  if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
-                    const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
-                    return `Faltam ${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'} para ${proxNome}`;
-                  }
-                  return `Faltam R$ ${avaliacaoCarrinho.faltaValorParaProximo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} para ${proxNome}`;
-                })()}
+          let mensagemMeta: React.ReactNode;
+          if (atingiuDistribuidor) {
+            mensagemMeta = (
+              <span className="text-purple-700 font-black">
+                🎉 Parabéns! Você atingiu a tabela de Distribuidor!
               </span>
-              <span className="font-bold text-slate-700 shrink-0">
-                {avaliacaoCarrinho.progressoGeralPercent}%
+            );
+          } else if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+            const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
+            mensagemMeta = (
+              <span>
+                Faltam <strong className="font-black text-slate-900">{faltamPecas} {faltamPecas === 1 ? 'peça' : 'peças'}</strong> para tabela de {proximaTabelaNome}
               </span>
+            );
+          } else {
+            mensagemMeta = (
+              <span>
+                Faltam <strong className="font-black text-slate-900">R$ {avaliacaoCarrinho.faltaValorParaProximo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> para tabela de {proximaTabelaNome}
+              </span>
+            );
+          }
+
+          return (
+            <div className={`px-4 py-2.5 border-b space-y-1.5 shrink-0 ${
+              atingiuDistribuidor
+                ? 'bg-purple-50/70 border-purple-100 text-purple-900'
+                : tabelaPrecoCalculada === 'atacado'
+                ? 'bg-blue-50/70 border-blue-100 text-blue-900'
+                : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-bold min-w-0 pr-2">
+                  <Tag className={`w-4 h-4 shrink-0 ${
+                    atingiuDistribuidor ? 'text-purple-600' : tabelaPrecoCalculada === 'atacado' ? 'text-blue-600' : 'text-slate-600'
+                  }`} />
+                  <span className="truncate">{mensagemMeta}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {avaliacaoCarrinho.economiaTotal > 0 && (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full font-black">
+                      - R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                    </span>
+                  )}
+                  <span className={`font-black text-[11px] shrink-0 ${
+                    atingiuDistribuidor ? 'text-purple-700' : tabelaPrecoCalculada === 'atacado' ? 'text-blue-700' : 'text-slate-700'
+                  }`}>
+                    {progressoPercent}%
+                  </span>
+                </div>
+              </div>
+              <div className={`w-full rounded-full h-2 overflow-hidden ${
+                atingiuDistribuidor ? 'bg-purple-200/60' : tabelaPrecoCalculada === 'atacado' ? 'bg-blue-200/60' : 'bg-slate-200'
+              }`}>
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ease-out ${
+                    atingiuDistribuidor ? 'bg-purple-600' : tabelaPrecoCalculada === 'atacado' ? 'bg-blue-600' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${progressoPercent}%` }}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Lista de Itens do Carrinho */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white divide-y divide-slate-100">
@@ -1127,7 +1129,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </button>
 
             {/* Linha de Forma de Entrega no Carrinho Mobile */}
-            <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs">
+            <div
+              onClick={() => onAbrirFormaEntrega?.()}
+              className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/20 active:scale-[0.99] transition"
+              title="Toque para alterar forma de entrega ou retirada"
+            >
               <div className="flex items-center gap-1.5 min-w-0">
                 {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? (
                   <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -1159,7 +1165,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => onAbrirFormaEntrega?.()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAbrirFormaEntrega?.();
+                  }}
                   className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer active:scale-95 ${
                     !pedidoEntrega
                       ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-xs'

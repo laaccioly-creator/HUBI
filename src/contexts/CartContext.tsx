@@ -69,6 +69,19 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType>({} as CartContextType);
 
+export const FORMA_ENTREGA_RETIRADA_PADRAO: PedidoEntrega = {
+  pedido_id: '',
+  tipo_atendimento: 'retirada',
+  transportadora_nome: 'Retirada na Loja',
+  provedor: 'retirada_loja',
+  servico_codigo: 'retirada',
+  valor_frete: 0,
+  valor_original: 0,
+  valor_subsidio: 0,
+  is_frete_gratis: true,
+  status_envio: 'pendente'
+};
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { loja } = useAuth();
   const [itens, setItens] = useState<CartItem[]>([]);
@@ -78,7 +91,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [descontoPercentual, setDescontoPercentualState] = useState<number>(0);
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [taxaEntrega, setTaxaEntrega] = useState<number>(0);
-  const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
+  const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(FORMA_ENTREGA_RETIRADA_PADRAO);
   const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
   const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente | null>(null);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
@@ -261,6 +274,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setEnderecoEntrega(partes.join(' '));
         }
       }
+    } else {
+      setDadosEndereco(null);
+      setEnderecoEntrega(null);
+      setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+      setTaxaEntrega(0);
     }
   };
 
@@ -545,7 +563,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDescontoPercentualState(0);
     setTipoDesconto('valor');
     setTaxaEntrega(0);
-    setPedidoEntrega(null);
+    setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
     setPedidoEmEdicao(null);
     setSnapshotPedidoOriginal(null);
     if (loja?.id) {

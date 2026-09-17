@@ -70,6 +70,8 @@ export interface ShippingFulfillmentSelectorProps {
   valorFreteAtual?: number;
   opcaoSelecionadaId?: string | null;
   tipoAtendimentoAtual?: TipoAtendimento;
+  enderecoEntregaAtual?: Partial<ClienteEndereco> | null;
+  onSolicitarAtualizarEndereco?: () => void;
   onChange: (resultado: ShippingSelectionResult) => void;
   className?: string;
   modoCompacto?: boolean;
@@ -85,6 +87,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   valorFreteAtual = 0,
   opcaoSelecionadaId,
   tipoAtendimentoAtual,
+  enderecoEntregaAtual,
+  onSolicitarAtualizarEndereco,
   onChange,
   className = '',
   modoCompacto = false
@@ -92,8 +96,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [configLoja, setConfigLoja] = useState<LojaShippingConfig | null>(null);
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
 
-  // Aba ativa: 'retirada' ou 'entrega'
-  const [modalidade, setModalidade] = useState<TipoAtendimento>(tipoAtendimentoAtual || 'entrega');
+  // Aba ativa: 'retirada' ou 'entrega' (padrão 'retirada' se não informado)
+  const [modalidade, setModalidade] = useState<TipoAtendimento>(tipoAtendimentoAtual || 'retirada');
 
   // Endereço selecionado para entrega
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(null);
@@ -158,11 +162,33 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const clienteCid = (cliente?.endereco_cidade || cliente?.cidade || '').trim();
   const clienteUf = (cliente?.endereco_estado || cliente?.estado || 'CE').trim().toUpperCase();
 
-  // 2. Carregar Endereço Principal do Cliente
+  // 2. Carregar Endereço de Entrega (Prioriza endereço ativo do pedido)
   useEffect(() => {
     let ativo = true;
 
     async function carregarEnderecoInicial() {
+      // 1. Se já existe um endereço de entrega ativo no pedido com dados válidos, preservá-lo
+      if (enderecoEntregaAtual && (enderecoEntregaAtual.cep || enderecoEntregaAtual.logradouro)) {
+        const endAtualFormatado: ClienteEndereco = {
+          id: enderecoEntregaAtual.id || 'end-pedido-atual',
+          cliente_id: cliente?.id || clienteId || 'temp',
+          identificador: enderecoEntregaAtual.identificador || 'Endereço Atual do Pedido',
+          cep: (enderecoEntregaAtual.cep || '').replace(/\D/g, ''),
+          logradouro: enderecoEntregaAtual.logradouro || '',
+          numero: enderecoEntregaAtual.numero || 'S/N',
+          complemento: enderecoEntregaAtual.complemento || null,
+          bairro: enderecoEntregaAtual.bairro || '',
+          cidade: enderecoEntregaAtual.cidade || '',
+          uf: enderecoEntregaAtual.uf || 'CE',
+          is_principal: Boolean(enderecoEntregaAtual.is_principal)
+        };
+        if (ativo) {
+          setEnderecoSelecionado(endAtualFormatado);
+          setCarregandoEnderecos(false);
+        }
+        return;
+      }
+
       if (clienteId) {
         setCarregandoEnderecos(true);
         try {
@@ -238,7 +264,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     return () => {
       ativo = false;
     };
-  }, [clienteId, clienteCep, clienteLogr, clienteNum, clienteComp, clienteBairro, clienteCid, clienteUf]);
+  }, [enderecoEntregaAtual, clienteId, clienteCep, clienteLogr, clienteNum, clienteComp, clienteBairro, clienteCid, clienteUf]);
 
   // Identificação de integrações ativas ou configuradas
   const temUber = Boolean(
@@ -435,8 +461,17 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // Seleção de uma opção cotada específica
   const handleEscolherCotacao = (opcao: OpcaoFreteCotada) => {
+    const cepLimpo = (enderecoSelecionado?.cep || '').replace(/\D/g, '');
+    const logrLimpo = (enderecoSelecionado?.logradouro || '').trim();
+    const numLimpo = (enderecoSelecionado?.numero || '').trim();
+
+    if (!clienteId || !enderecoSelecionado || cepLimpo.length !== 8 || !logrLimpo || !numLimpo) {
+      onSolicitarAtualizarEndereco?.();
+      return;
+    }
+
+    setModalidade('entrega');
     setCotacaoEscolhida(opcao);
-    if (!enderecoSelecionado) return;
 
     const chaveEmissao = `${opcao.id}_${opcao.valor_frete}_${enderecoSelecionado.cep}_${enderecoSelecionado.numero}_entrega`;
     ultimoResultadoEmitidoRef.current = chaveEmissao;
@@ -642,11 +677,68 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 )}
               </div>
 
-              {/* Lista de Opções de Frete Cotadas */}
+              {/* Lista de Opções de Frete e Fulfillment Disponíveis */}
               <div className="space-y-2 pt-1">
-                <span className="text-xs font-bold text-slate-700 block">Opções de Frete Disponíveis</span>
+                <span className="text-xs font-bold text-slate-700 block">Opções de Entrega e Retirada</span>
 
-                {cotando ? (
+                {/* 1. Opção Fixa no Topo: Retirar na Loja (R$ 0,00 / Disponibilidade Imediata) */}
+                {permiteRetirada && (
+                  <div
+                    onClick={() => handleSelecionarModalidade('retirada')}
+                    className="p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 bg-slate-50 hover:bg-slate-100/70 border-slate-200 text-slate-800 hover:border-emerald-400"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-purple-50 text-purple-700 border-purple-200">
+                        <Store className="w-4 h-4" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            Retirar na Loja
+                          </span>
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                            Balcão Físico
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                          <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="text-slate-600">Disponibilidade Imediata</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <span className="font-extrabold text-sm text-emerald-600">
+                          Grátis
+                        </span>
+                      </div>
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center transition-all border-2 border-slate-300">
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-slate-800 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Endereço necessário para entrega via transportadora</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Para receber via Uber Direct, Melhor Envio ou Correios, informe o endereço de entrega do cliente.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onSolicitarAtualizarEndereco?.()}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>{clienteId ? 'Informar Endereço de Entrega' : 'Identificar / Vincular Cliente'}</span>
+                    </button>
+                  </div>
+                ) : cotando ? (
                   <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
                     <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
                     <span>Calculando opções de frete em tempo real...</span>
