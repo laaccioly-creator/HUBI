@@ -1,5 +1,5 @@
 export type TipoAtendimento = 'retirada' | 'entrega';
-export type ProvedorFrete = 'uber' | 'melhor_envio' | 'retirada_loja';
+export type ProvedorFrete = 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio';
 
 export interface LojaShippingConfig {
   id: string;
@@ -26,6 +26,9 @@ export interface LojaShippingConfig {
   retirada_loja_ativa?: boolean;
   frete_gratis_ativo: boolean;
   frete_gratis_valor_minimo: number;
+  frete_proprio_ativo?: boolean;
+  frete_proprio_tipo_cobranca?: 'fixo' | 'manual' | 'gratis';
+  frete_proprio_valor_padrao?: number;
   criado_em?: string;
   atualizado_em?: string;
 }
@@ -71,6 +74,11 @@ export interface PedidoEntrega {
   is_frete_gratis?: boolean | null;
   prazo_estimado_texto?: string | null;
   codigo_rastreio?: string | null;
+  link_rastreio?: string | null;
+  pin_entrega?: string | null;
+  entregador_nome?: string | null;
+  despachado_em?: string | null;
+  despachado_por?: string | null;
   status_envio?: string;
   criado_em?: string;
   atualizado_em?: string;

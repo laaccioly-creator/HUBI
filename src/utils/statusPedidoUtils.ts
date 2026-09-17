@@ -8,6 +8,7 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
   em_separacao: 'Em separação',
   em_producao: 'Em produção',
   em_expedicao: 'Em expedição',
+  aguardando_envio: 'Aguardando Envio',
   saiu_para_entrega: 'Saiu para Entrega',
   pronto_para_retirar: 'Pronto para retirar',
   concluido: 'Concluído',
@@ -17,7 +18,7 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
 
 /**
  * Verifica se um status de pedido está ativo nas configurações da loja.
- * - 'pendente', 'confirmado', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
+ * - 'pendente', 'confirmado', 'aguardando_envio', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
  * - 'em_producao', 'em_expedicao', 'saiu_para_entrega' e 'pronto_para_retirar'
  *   dependem das opções marcadas em Configurações > Pedidos e Vendas > Status de Pedido.
  */
@@ -25,7 +26,7 @@ export function isStatusPedidoAtivo(
   statusId: string,
   loja?: Loja | null
 ): boolean {
-  if (['todos', 'pendente', 'confirmado', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
+  if (['todos', 'pendente', 'confirmado', 'aguardando_envio', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
     return true;
   }
 
@@ -76,6 +77,8 @@ export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label
   if (isStatusPedidoAtivo('pronto_para_retirar', loja)) {
     abas.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
   }
+
+  abas.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
 
   // Status personalizados ativos
   const customizados = loja?.configuracoes_extras?.status_pedidos_ativos?.status_personalizados || [];
@@ -135,6 +138,10 @@ export function obterOpcoesStatusAlteracao(
 
   if (isStatusPedidoAtivo('pronto_para_retirar', loja) || statusAtual === 'pronto_para_retirar') {
     opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
+  }
+
+  if (statusAtual === 'aguardando_envio' || statusAtual === 'confirmado' || statusAtual === 'em_expedicao') {
+    opcoes.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
   }
 
   if (statusAtual === 'vencido') {
@@ -213,10 +220,10 @@ export function podeEditarItensPedido(status?: string): boolean {
 
 /**
  * Informa se o status do pedido permite aplicar ou alterar descontos.
- * Permitido em 'pendente' e 'confirmado'.
+ * Permitido em 'pendente', 'confirmado' e 'aguardando_envio'.
  */
 export function podeEditarDescontoPedido(status?: string): boolean {
-  return status === 'pendente' || status === 'confirmado';
+  return status === 'pendente' || status === 'confirmado' || status === 'aguardando_envio';
 }
 
 /**

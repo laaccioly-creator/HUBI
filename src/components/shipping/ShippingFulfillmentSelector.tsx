@@ -862,6 +862,26 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </div>
                           </div>
+
+                          {/* Campo de edição para frete próprio manual */}
+                          {selecionada && opcao.provedor === 'frete_proprio' && opcao.servico_codigo === 'manual' && (
+                            <div className="w-full mt-2 pt-2 border-t border-emerald-200 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-xs font-bold text-slate-700">Valor do frete a cobrar (R$):</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={opcao.valor_frete || ''}
+                                placeholder="0,00"
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  setCotacoes(prev => prev.map(c => c.id === opcao.id ? { ...c, valor_frete: val, valor_original: val } : c));
+                                  setCotacaoEscolhida(prev => prev && prev.id === opcao.id ? { ...prev, valor_frete: val, valor_original: val } : prev);
+                                }}
+                                className="w-24 px-2 py-1 text-right text-xs font-black rounded-lg border border-slate-300 focus:border-emerald-500 outline-none"
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })}

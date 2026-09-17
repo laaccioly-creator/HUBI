@@ -132,6 +132,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     cancelarEdicaoPedido
   } = useCart();
 
+  // Status de bloqueio de edição para pedidos confirmados ou em processamento
+  const isEdicaoTravada = Boolean(pedidoEmEdicao && pedidoEmEdicao.status !== 'pendente');
+
   // Estados de Navegação e Visualização
   const [subTelaInterna, setSubTelaInterna] = useState<SubTelaMobile>('vender');
   const subTela = subTelaControlada !== undefined ? subTelaControlada : subTelaInterna;
@@ -882,16 +885,30 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               <ChevronLeft className="w-6 h-6" />
             </button>
             <h2 className="font-bold text-base text-slate-800">Carrinho</h2>
+
+            {!isEdicaoTravada && itens.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setModalConfirmarLimparCarrinho(true)}
+                className="px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold transition cursor-pointer"
+                title="Limpar todos os produtos do carrinho"
+              >
+                Limpar
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => setSubTela('vender')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer active:scale-95 border border-emerald-200"
-            title="Continuar adicionando produtos ao carrinho"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Continuar Comprando</span>
-          </button>
+
+          {!isEdicaoTravada && (
+            <button
+              type="button"
+              onClick={() => setSubTela('vender')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer active:scale-95 border border-emerald-200"
+              title="Continuar adicionando produtos ao carrinho"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Continuar Comprando</span>
+            </button>
+          )}
         </div>
 
         {/* 1. Termômetro Dinâmico de Frete Grátis (loja_shipping_configs) */}
@@ -1034,29 +1051,38 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <span className="font-black text-sm text-slate-900">R$ {it.subtotal.toFixed(2)}</span>
 
                   {/* Controles de Quantidade */}
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (it.quantidade > 1) {
-                          atualizarQuantidade(it.id, it.quantidade - 1);
-                        } else {
-                          removerItem(it.id);
-                        }
-                      }}
-                      className="w-6 h-6 rounded-lg bg-white text-slate-700 flex items-center justify-center font-bold hover:bg-slate-200"
+                  {isEdicaoTravada ? (
+                    <div
+                      className="px-2.5 py-1 bg-slate-100 rounded-xl text-slate-500 text-xs font-bold border border-slate-200"
+                      title="Quantidade bloqueada para pedidos já confirmados"
                     >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="w-5 text-center text-xs font-black">{it.quantidade}</span>
-                    <button
-                      type="button"
-                      onClick={() => atualizarQuantidade(it.id, it.quantidade + 1)}
-                      className="w-6 h-6 rounded-lg bg-white text-slate-700 flex items-center justify-center font-bold hover:bg-slate-200"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
+                      {it.quantidade} un
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (it.quantidade > 1) {
+                            atualizarQuantidade(it.id, it.quantidade - 1);
+                          } else {
+                            removerItem(it.id);
+                          }
+                        }}
+                        className="w-6 h-6 rounded-lg bg-white text-slate-700 flex items-center justify-center font-bold hover:bg-slate-200 cursor-pointer"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-5 text-center text-xs font-black">{it.quantidade}</span>
+                      <button
+                        type="button"
+                        onClick={() => atualizarQuantidade(it.id, it.quantidade + 1)}
+                        className="w-6 h-6 rounded-lg bg-white text-slate-700 flex items-center justify-center font-bold hover:bg-slate-200 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -1069,41 +1095,69 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             {/* Identificação de Cliente e Tabela de Preço Ativa */}
             <div className="pb-2.5 border-b border-slate-200 flex items-center justify-between gap-2">
               {/* Cliente Vinculado ou Cliente Balcão */}
-              <button
-                type="button"
-                onClick={() => abrirSelecaoCliente('carrinho')}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 font-bold text-xs transition shadow-2xs cursor-pointer min-w-0 flex-1 truncate"
-                title="Toque para alterar ou vincular cliente"
-              >
-                <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="truncate">
-                  {clienteSelecionado ? clienteSelecionado.nome : 'Cliente Balcão'}
-                </span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-auto" />
-              </button>
+              {isEdicaoTravada ? (
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-bold text-xs min-w-0 flex-1 truncate cursor-not-allowed opacity-85"
+                  title="Cliente fixo para pedidos já confirmados"
+                >
+                  <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">
+                    {clienteSelecionado ? clienteSelecionado.nome : 'Cliente Balcão'}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => abrirSelecaoCliente('carrinho')}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 font-bold text-xs transition shadow-2xs cursor-pointer min-w-0 flex-1 truncate"
+                  title="Toque para alterar ou vincular cliente"
+                >
+                  <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="truncate">
+                    {clienteSelecionado ? clienteSelecionado.nome : 'Cliente Balcão'}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-auto" />
+                </button>
+              )}
 
               {/* Tabela de Preço Ativa */}
-              <button
-                type="button"
-                onClick={() => setModalTabelaPrecoAberto(true)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
-                  tabelaPrecoCalculada === 'autoatacado'
-                    ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
-                    : tabelaPrecoCalculada === 'atacado'
-                    ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-                title="Toque para alterar tabela de preços"
-              >
-                <Tag className="w-3 h-3 text-current" />
-                <span>
-                  {tabelaPrecoCalculada === 'autoatacado'
-                    ? 'Distribuidor'
-                    : tabelaPrecoCalculada === 'atacado'
-                    ? 'Atacado'
-                    : 'Varejo'}
-                </span>
-              </button>
+              {isEdicaoTravada ? (
+                <div
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0 cursor-not-allowed opacity-85"
+                  title="Tabela de preços bloqueada para este status"
+                >
+                  <Tag className="w-3 h-3 text-slate-400" />
+                  <span>
+                    {tabelaPrecoCalculada === 'autoatacado'
+                      ? 'Distribuidor'
+                      : tabelaPrecoCalculada === 'atacado'
+                      ? 'Atacado'
+                      : 'Varejo'}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setModalTabelaPrecoAberto(true)}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
+                    tabelaPrecoCalculada === 'autoatacado'
+                      ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
+                      : tabelaPrecoCalculada === 'atacado'
+                      ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title="Toque para alterar tabela de preços"
+                >
+                  <Tag className="w-3 h-3 text-current" />
+                  <span>
+                    {tabelaPrecoCalculada === 'autoatacado'
+                      ? 'Distribuidor'
+                      : tabelaPrecoCalculada === 'atacado'
+                      ? 'Atacado'
+                      : 'Varejo'}
+                  </span>
+                </button>
+              )}
             </div>
 
             <div className="flex justify-between text-xs text-slate-500">
@@ -1191,15 +1245,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* Barra Inferior com Botões de Salvar Pedido (Pendente) & Cobrança */}
         <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setModalOpcoesCarrinho(true)}
-            className="w-11 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-lg cursor-pointer shrink-0"
-            title="Mais Opções"
-          >
-            ...
-          </button>
-
           {onSalvarPedidoPendente && (
             <button
               type="button"
@@ -1301,51 +1346,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   Aplicar
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal de Opções do Carrinho (...) */}
-        {modalOpcoesCarrinho && (
-          <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center p-0">
-            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-sm text-slate-800">Opções da Venda</h3>
-                <button
-                  type="button"
-                  onClick={() => setModalOpcoesCarrinho(false)}
-                  className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {onSalvarPedidoPendente && (
-                <button
-                  type="button"
-                  disabled={itens.length === 0 || salvandoPendente}
-                  onClick={() => {
-                    setModalOpcoesCarrinho(false);
-                    onSalvarPedidoPendente();
-                  }}
-                  className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold flex items-center gap-2 transition text-left cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-emerald-600" />
-                  <span>{pedidoEmEdicao ? 'Atualizar Pedido (Pendente)' : 'Salvar Pedido como Pendente'}</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setModalOpcoesCarrinho(false);
-                  setModalConfirmarLimparCarrinho(true);
-                }}
-                className="w-full p-3 rounded-2xl bg-rose-50 text-rose-600 text-xs font-bold flex items-center gap-2 hover:bg-rose-100 transition text-left cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Limpar todos os itens do carrinho</span>
-              </button>
             </div>
           </div>
         )}

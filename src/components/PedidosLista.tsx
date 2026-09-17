@@ -40,13 +40,16 @@ import {
   ExternalLink,
   MessageCircle,
   Percent,
-  Plus
+  Plus,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
+import { PedidoEntrega } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { audioService } from '../services/audioService';
@@ -135,6 +138,28 @@ export const PedidosLista: React.FC = () => {
   const [novoDescontoValor, setNovoDescontoValor] = useState<string>('');
   const [observacaoTexto, setObservacaoTexto] = useState<string>('');
   const [exibirObsRecibo, setExibirObsRecibo] = useState<boolean>(true);
+
+  // Estados de Despacho Logístico e Contingência RBAC
+  const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
+  const [entregadorNomeDespacho, setEntregadorNomeDespacho] = useState<string>('');
+  const [despachando, setDespachando] = useState<boolean>(false);
+  const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
+  const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
+  const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
+
+  useEffect(() => {
+    if (pedidoSelecionado) {
+      if (pedidoSelecionado.pedido_entrega) {
+        setEntregaPedido(pedidoSelecionado.pedido_entrega);
+      } else {
+        ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id).then(entrega => {
+          setEntregaPedido(entrega);
+        });
+      }
+    } else {
+      setEntregaPedido(null);
+    }
+  }, [pedidoSelecionado]);
 
   const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
@@ -575,6 +600,75 @@ export const PedidosLista: React.FC = () => {
     } catch (err: any) {
       console.error('Erro ao atualizar status do pedido:', err);
       mostrarErro(`Erro ao atualizar status: ${err.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const handleConfirmarDespacho = async () => {
+    if (!pedidoSelecionado) return;
+    try {
+      setDespachando(true);
+      const agora = new Date().toISOString();
+      await ShippingOrchestrator.despacharPedido(
+        pedidoSelecionado.id,
+        {
+          entregador_nome: entregadorNomeDespacho.trim() || undefined,
+          despachado_por: usuario?.id || null
+        }
+      );
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id === pedidoSelecionado.id
+            ? {
+                ...p,
+                status: 'concluido',
+                entregador_nome: entregadorNomeDespacho.trim() || p.entregador_nome,
+                despachado_em: agora,
+                despachado_por: usuario?.id || null
+              }
+            : p
+        )
+      );
+      setPedidoSelecionado(null);
+      mostrarSucesso('Pedido despachado e concluído com sucesso!');
+      setModalDespachoAberto(false);
+      setEntregadorNomeDespacho('');
+    } catch (err: any) {
+      console.error('Erro ao despachar pedido:', err);
+      mostrarErro(`Erro ao despachar pedido: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setDespachando(false);
+    }
+  };
+
+  const handleForcarConclusaoContingencia = async () => {
+    if (!pedidoSelecionado) return;
+    try {
+      setExecutandoContingencia(true);
+      const agora = new Date().toISOString();
+      await ShippingOrchestrator.forcarConclusaoManual(
+        pedidoSelecionado.id,
+        usuario?.id || null
+      );
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id === pedidoSelecionado.id
+            ? {
+                ...p,
+                status: 'concluido',
+                despachado_em: agora,
+                despachado_por: usuario?.id || null
+              }
+            : p
+        )
+      );
+      setPedidoSelecionado(null);
+      mostrarSucesso('Pedido concluído manualmente via contingência!');
+      setModalContingenciaAberto(false);
+    } catch (err: any) {
+      console.error('Erro ao forçar conclusão:', err);
+      mostrarErro(`Erro ao forçar conclusão: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setExecutandoContingencia(false);
     }
   };
 
@@ -1155,6 +1249,48 @@ export const PedidosLista: React.FC = () => {
                   <DollarSign className="w-4 h-4" />
                   <span>Receber Pagamento</span>
                 </button>
+              ) : pedidoSelecionado.status === 'aguardando_envio' ? (
+                (() => {
+                  const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                  const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor;
+                  const ehParceiro = prov === 'uber' || prov === 'melhor_envio';
+
+                  if (ehParceiro) {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-amber-400" />
+                          <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
+                        </div>
+                        {(permissions.ehAdmin || permissions.ehGerente) && (
+                          <button
+                            type="button"
+                            onClick={() => setModalContingenciaAberto(true)}
+                            className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold border border-slate-700 flex items-center gap-1.5 cursor-pointer transition"
+                            title="Válvula de contingência RBAC exclusiva para administradores"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Forçar Conclusão (Admin)</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
+                        setModalDespachoAberto(true);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+                    >
+                      <Truck className="w-4 h-4" />
+                      <span>Despachar / Concluir Entrega</span>
+                    </button>
+                  );
+                })()
               ) : pedidoSelecionado.status !== 'concluido' ? (
                 <button
                   type="button"
@@ -1266,6 +1402,80 @@ export const PedidosLista: React.FC = () => {
                 </div>
               </div>
 
+              {/* Card Logística & Envio (Desktop) */}
+              {(() => {
+                const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || (Number(pedidoSelecionado.valor_frete || 0) > 0 ? 'frete_proprio' : null);
+                const temDadosEntrega = Boolean(prov || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio);
+                if (!temDadosEntrega) return null;
+
+                const provNome = prov === 'uber' ? 'Uber Direct' : prov === 'melhor_envio' ? 'Melhor Envio' : prov === 'retirada_loja' ? 'Retirada na Loja' : 'Frete Próprio / Entrega Local';
+                const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
+                const linkRastreio = pe?.link_rastreio || pedidoSelecionado.link_rastreio;
+                const pin = pe?.pin_entrega;
+                const despachadoEm = pe?.despachado_em || pedidoSelecionado.despachado_em;
+
+                return (
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                      <div className="flex items-center gap-2 font-bold text-slate-200 text-xs uppercase tracking-wider">
+                        <Truck className="w-4 h-4 text-emerald-400" />
+                        <span>Logística & Despacho</span>
+                      </div>
+                      <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                        {provNome}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {pedidoSelecionado.endereco_entrega && (
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Endereço de Entrega:</span>
+                          <span className="font-semibold text-slate-200">{pedidoSelecionado.endereco_entrega}</span>
+                        </div>
+                      )}
+
+                      {entregador && (
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                          <span className="text-slate-400">Entregador:</span>
+                          <span className="font-bold text-slate-200">{entregador}</span>
+                        </div>
+                      )}
+
+                      {pin && (
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                          <span className="text-slate-400">PIN de Confirmação:</span>
+                          <span className="font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            {pin}
+                          </span>
+                        </div>
+                      )}
+
+                      {despachadoEm && (
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                          <span className="text-slate-400">Despachado em:</span>
+                          <span className="text-slate-300">{new Date(despachadoEm).toLocaleString('pt-BR')}</span>
+                        </div>
+                      )}
+
+                      {linkRastreio && (
+                        <div className="pt-2">
+                          <a
+                            href={linkRastreio}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Acompanhar Rastreio em Tempo Real</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Card Itens do Pedido (TELA002 / TELA002A) */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1278,28 +1488,27 @@ export const PedidosLista: React.FC = () => {
                     className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
                   >
                     <Edit className="w-3.5 h-3.5" />
-                    <span>Editar</span>
+                    <span>Editar itens</span>
                   </button>
                 </div>
 
-                <div className="divide-y divide-slate-800/60">
-                  {pedidoSelecionado.itens?.map((item, idx) => (
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                  {pedidoSelecionado.itens?.map((item) => (
                     <div
-                      key={idx}
-                      className="py-3 flex items-center justify-between gap-3 group hover:bg-slate-800/30 px-2 rounded-xl transition"
+                      key={item.id}
+                      className="p-2.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-700 transition"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
-                          <Package className="w-5 h-5" />
+                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs shrink-0">
+                          {item.quantidade}x
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-emerald-400 text-xs">{item.quantidade}x</span>
-                            <span className="text-xs font-bold text-slate-100 truncate">{item.nome_produto}</span>
-                          </div>
-                          {item.rotulo_variacao && (
-                            <span className="text-[10px] text-slate-400 block">
-                              Variação: {item.rotulo_variacao}
+                          <span className="text-xs font-bold text-slate-200 block truncate">
+                            {item.nome_produto || item.produto?.nome || 'Produto'}
+                          </span>
+                          {item.codigo_barras && (
+                            <span className="text-[10px] text-slate-500 font-mono block">
+                              EAN: {item.codigo_barras}
                             </span>
                           )}
                         </div>
@@ -1348,6 +1557,15 @@ export const PedidosLista: React.FC = () => {
                       <span>-R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
                     </div>
                   )}
+
+                  <div className="flex justify-between text-slate-300">
+                    <span>Valor do frete</span>
+                    <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-400 font-bold" : "font-bold"}>
+                      {Number(pedidoSelecionado.valor_frete || 0) > 0
+                        ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}`
+                        : 'Grátis'}
+                    </span>
+                  </div>
 
                   <div className="flex justify-between text-base font-black text-slate-100 pt-2 border-t border-slate-800">
                     <span>Total</span>
@@ -2388,6 +2606,140 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setModalNovoClienteAberto(false)}
         onClienteCadastrado={handleClienteCriado}
       />
+
+      {/* MODAL DESPACHO FRETE PRÓPRIO (DESKTOP) */}
+      {modalDespachoAberto && pedidoSelecionado && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-100">
+                    Despachar Pedido #{pedidoSelecionado.numero_pedido}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Finalizar entrega com Frete Próprio</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalDespachoAberto(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {pedidoSelecionado.endereco_entrega && (
+                <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">
+                    Destino da Entrega:
+                  </span>
+                  <p className="text-slate-200 font-medium text-xs leading-relaxed">
+                    {pedidoSelecionado.endereco_entrega}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-200 block">
+                  Nome do Entregador / Motoboy
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Carlos (Moto Honda)"
+                  value={entregadorNomeDespacho}
+                  onChange={(e) => setEntregadorNomeDespacho(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-medium placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[11px] text-slate-400">
+                  O nome do entregador ficará gravado no pedido e no comprovante oficial.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setModalDespachoAberto(false)}
+                disabled={despachando}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarDespacho}
+                disabled={despachando}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{despachando ? 'Despachando...' : 'Confirmar e Concluir'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONTINGÊNCIA RBAC (DESKTOP) */}
+      {modalContingenciaAberto && pedidoSelecionado && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-100">
+                    Válvula de Contingência (Admin)
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Conclusão manual forçada</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalContingenciaAberto(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2 text-xs text-amber-300">
+              <p className="font-bold text-amber-200">
+                Deseja forçar a conclusão do Pedido #{pedidoSelecionado.numero_pedido}?
+              </p>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                Esta ação é exclusiva para Gerentes/Administradores e deve ser usada caso a API da transportadora parceira (Uber/Melhor Envio) esteja indisponível ou a entrega tenha sido resolvida por fora.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setModalContingenciaAberto(false)}
+                disabled={executandoContingencia}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleForcarConclusaoContingencia}
+                disabled={executandoContingencia}
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{executandoContingencia ? 'Concluindo...' : 'Sim, Forçar Conclusão'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -39,12 +39,18 @@ import {
   UserCheck2,
   FileText,
   Settings,
-  LogOut
+  LogOut,
+  Printer,
+  Truck,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
+import { PedidoEntrega } from '../types/shipping';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import {
   ROTULOS_STATUS_PEDIDO,
@@ -186,6 +192,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
   const { carregarPedidoParaEdicao } = useCart();
+  const { ehAdmin, ehGerente } = usePermissions();
+  const podeConcluirManual = ehAdmin || ehGerente;
 
   // Estados de Navegação de Telas
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
@@ -193,6 +201,88 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [drawerInternoAberto, setDrawerInternoAberto] = useState<boolean>(false);
   const [clienteHistoricoFiadoModal, setClienteHistoricoFiadoModal] = useState<Cliente | null>(null);
   const [filtroHistoricoFiadoModal, setFiltroHistoricoFiadoModal] = useState<'todos' | 'vencidos' | 'a_vencer'>('a_vencer');
+  const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+
+  // Estados de Despacho Logístico e Contingência RBAC
+  const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
+  const [entregadorNomeDespacho, setEntregadorNomeDespacho] = useState<string>('');
+  const [despachando, setDespachando] = useState<boolean>(false);
+  const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
+  const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
+  const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
+
+  useEffect(() => {
+    if (pedidoSelecionado) {
+      if (pedidoSelecionado.pedido_entrega) {
+        setEntregaPedido(pedidoSelecionado.pedido_entrega);
+      } else {
+        ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id).then(entrega => {
+          setEntregaPedido(entrega);
+        });
+      }
+    } else {
+      setEntregaPedido(null);
+    }
+  }, [pedidoSelecionado]);
+
+  const handleConfirmarDespacho = async () => {
+    if (!pedidoSelecionado) return;
+    try {
+      setDespachando(true);
+      const agora = new Date().toISOString();
+      await ShippingOrchestrator.despacharPedido(
+        pedidoSelecionado.id,
+        {
+          entregador_nome: entregadorNomeDespacho.trim() || undefined,
+          despachado_por: usuario?.id || null
+        }
+      );
+      const pedidoAtualizado: Pedido = {
+        ...pedidoSelecionado,
+        status: 'concluido',
+        entregador_nome: entregadorNomeDespacho.trim() || pedidoSelecionado.entregador_nome,
+        despachado_em: agora,
+        despachado_por: usuario?.id || null
+      };
+      setPedidoSelecionado(pedidoAtualizado);
+      onAlterarStatus(pedidoSelecionado.id, 'concluido');
+      if (onRecarregar) await onRecarregar();
+      setModalDespachoAberto(false);
+      setEntregadorNomeDespacho('');
+    } catch (err: any) {
+      console.error('Erro ao despachar pedido:', err);
+      alert(err.message || 'Erro ao despachar pedido.');
+    } finally {
+      setDespachando(false);
+    }
+  };
+
+  const handleForcarConclusaoContingencia = async () => {
+    if (!pedidoSelecionado) return;
+    try {
+      setExecutandoContingencia(true);
+      const agora = new Date().toISOString();
+      await ShippingOrchestrator.forcarConclusaoManual(
+        pedidoSelecionado.id,
+        usuario?.id || null
+      );
+      const pedidoAtualizado: Pedido = {
+        ...pedidoSelecionado,
+        status: 'concluido',
+        despachado_em: agora,
+        despachado_por: usuario?.id || null
+      };
+      setPedidoSelecionado(pedidoAtualizado);
+      onAlterarStatus(pedidoSelecionado.id, 'concluido');
+      if (onRecarregar) await onRecarregar();
+      setModalContingenciaAberto(false);
+    } catch (err: any) {
+      console.error('Erro ao forçar conclusão manual:', err);
+      alert(err.message || 'Erro ao forçar conclusão manual.');
+    } finally {
+      setExecutandoContingencia(false);
+    }
+  };
 
   // Estados de Busca e Filtros Rápidos (TELA001, TELA003, TELA004)
   const [busca, setBusca] = useState<string>('');
@@ -549,11 +639,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
             <button
               type="button"
-              onClick={() => PrintService.printReceipt(pedidoSelecionado, loja)}
+              onClick={() => setPedidoReciboModal(pedidoSelecionado)}
               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 cursor-pointer"
-              title="Compartilhar"
+              title="Ver Recibo"
             >
-              <Share2 className="w-5 h-5" />
+              <FileText className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -761,6 +851,78 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 </div>
               </div>
 
+              {/* Bloco Logística & Envio */}
+              {(() => {
+                const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || (Number(pedidoSelecionado.valor_frete || 0) > 0 ? 'frete_proprio' : null);
+                const temDadosEntrega = Boolean(prov || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio);
+                if (!temDadosEntrega) return null;
+
+                const provNome = prov === 'uber' ? 'Uber Direct' : prov === 'melhor_envio' ? 'Melhor Envio' : prov === 'retirada_loja' ? 'Retirada na Loja' : 'Frete Próprio / Entrega Local';
+                const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
+                const linkRastreio = pe?.link_rastreio || pedidoSelecionado.link_rastreio;
+                const pin = pe?.pin_entrega;
+                const despachadoEm = pe?.despachado_em || pedidoSelecionado.despachado_em;
+
+                return (
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                        <Truck className="w-4 h-4 text-emerald-600" />
+                        <span>Logística & Envio</span>
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                        {provNome}
+                      </span>
+                    </div>
+
+                    {pedidoSelecionado.endereco_entrega && (
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] text-slate-400">Endereço de Entrega:</span>
+                        <p className="font-semibold text-slate-800 text-[11px] leading-tight">
+                          {pedidoSelecionado.endereco_entrega}
+                        </p>
+                      </div>
+                    )}
+
+                    {entregador && (
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/40">
+                        <span className="text-slate-400">Entregador:</span>
+                        <span className="font-bold text-slate-800">{entregador}</span>
+                      </div>
+                    )}
+
+                    {pin && (
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/40">
+                        <span className="text-slate-400">PIN de Confirmação:</span>
+                        <span className="font-mono font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          {pin}
+                        </span>
+                      </div>
+                    )}
+
+                    {despachadoEm && (
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/40">
+                        <span className="text-slate-400">Despachado em:</span>
+                        <span className="text-slate-600">{new Date(despachadoEm).toLocaleString('pt-BR')}</span>
+                      </div>
+                    )}
+
+                    {linkRastreio && (
+                      <a
+                        href={linkRastreio}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition cursor-pointer"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Acompanhar Rastreio</span>
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Observação no Detalhe */}
               {(() => {
                 const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
@@ -830,6 +992,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <span>- R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
                   </div>
                 )}
+
+                <div className="flex justify-between text-slate-500">
+                  <span>Valor do Frete:</span>
+                  <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 font-medium" : ""}>
+                    {Number(pedidoSelecionado.valor_frete || 0) > 0 
+                      ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}` 
+                      : 'Grátis'}
+                  </span>
+                </div>
 
                 <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
                   <span>Total:</span>
@@ -963,6 +1134,48 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <DollarSign className="w-4 h-4" />
                 <span>Receber Fiado</span>
               </button>
+            ) : pedidoSelecionado.status === 'aguardando_envio' ? (
+              (() => {
+                const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor;
+                const ehParceiro = prov === 'uber' || prov === 'melhor_envio';
+
+                if (ehParceiro) {
+                  return (
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div className="h-11 px-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 font-bold text-[11px] uppercase flex items-center justify-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
+                      </div>
+                      {podeConcluirManual && (
+                        <button
+                          type="button"
+                          onClick={() => setModalContingenciaAberto(true)}
+                          className="w-full py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-slate-300 transition cursor-pointer active:scale-95"
+                          title="Válvula de contingência exclusiva para administradores"
+                        >
+                          <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          <span>Forçar Conclusão Manual (Admin)</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
+                      setModalDespachoAberto(true);
+                    }}
+                    className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                  >
+                    <Truck className="w-4 h-4" />
+                    <span>Despachar / Concluir Entrega</span>
+                  </button>
+                );
+              })()
             ) : pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' ? (
               <button
                 type="button"
@@ -992,6 +1205,138 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             )}
           </div>
         </div>
+
+        {/* MODAL DESPACHAR FRETE PRÓPRIO */}
+        {modalDespachoAberto && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl animate-in slide-in-from-bottom">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900">
+                      Despachar Pedido #{pedidoSelecionado.numero_pedido}
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Finalizar entrega com Frete Próprio</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalDespachoAberto(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                {pedidoSelecionado.endereco_entrega && (
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Destino da Entrega:</span>
+                    <p className="text-slate-800 font-medium text-[11px] leading-tight">
+                      {pedidoSelecionado.endereco_entrega}
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 block">
+                    Nome do Entregador / Motoboy
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Carlos (Moto Honda)"
+                    value={entregadorNomeDespacho}
+                    onChange={(e) => setEntregadorNomeDespacho(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    O nome do entregador ficará gravado no comprovante e histórico do pedido.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalDespachoAberto(false)}
+                  disabled={despachando}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmarDespacho}
+                  disabled={despachando}
+                  className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{despachando ? 'Despachando...' : 'Confirmar e Concluir'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CONTINGÊNCIA RBAC (FORÇAR CONCLUSÃO MANUAL) */}
+        {modalContingenciaAberto && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl animate-in slide-in-from-bottom">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900">
+                      Válvula de Contingência (Admin)
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Conclusão manual forçada</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalContingenciaAberto(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-1.5 text-xs text-amber-900">
+                <p className="font-bold">
+                  Deseja forçar a conclusão do Pedido #{pedidoSelecionado.numero_pedido}?
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Esta ação é exclusiva para Gerentes/Administradores e deve ser usada caso a API da transportadora parceira (Uber/Melhor Envio) esteja indisponível ou a entrega tenha sido resolvida por fora.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalContingenciaAberto(false)}
+                  disabled={executandoContingencia}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleForcarConclusaoContingencia}
+                  disabled={executandoContingencia}
+                  className="flex-1 py-3 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{executandoContingencia ? 'Concluindo...' : 'Sim, Forçar Conclusão'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TELA006: MODAL ALTERAR STATUS (BOTTOM SHEET) */}
         {modalAlterarStatus && (
@@ -1069,12 +1414,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 type="button"
                 onClick={() => {
                   setModalOpcoesPedido(false);
-                  PrintService.printReceipt(pedidoSelecionado, loja);
+                  setPedidoReciboModal(pedidoSelecionado);
                 }}
-                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left"
+                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left cursor-pointer"
               >
-                <Share2 className="w-4 h-4 text-slate-500" />
-                <span>Compartilhar recibo</span>
+                <FileText className="w-4 h-4 text-slate-500" />
+                <span>Recibo</span>
               </button>
 
               <button
@@ -1852,6 +2197,160 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           if (onRecarregar) onRecarregar();
         }}
       />
+
+      {/* MODAL NEUTRO DE RECIBO DO PEDIDO (MOBILE) */}
+      {pedidoReciboModal && (() => {
+        const pagInfo = obterDadosPagamentoRecibo(pedidoReciboModal);
+        const subtotalValor = Number(pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0);
+        const descontoValor = Number(pedidoReciboModal.valor_desconto || 0);
+        const freteValor = Number(pedidoReciboModal.valor_frete || 0);
+        const totalValor = Number(pedidoReciboModal.valor_total || 0);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in">
+            <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+              {/* Topo Neutro: Sem banner verde de 'Venda Concluída' */}
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs text-slate-800">
+                      Comprovante da Venda #{pedidoReciboModal.numero_pedido}
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Recibo oficial do pedido</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPedidoReciboModal(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Corpo do Recibo Fiel e Formatado */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs text-slate-900">
+                {/* Cabeçalho Estabelecimento */}
+                <div className="text-center space-y-0.5 border-b border-slate-200 border-dashed pb-2.5">
+                  <h4 className="font-black text-sm uppercase">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
+                  <p className="text-[10px] text-slate-500">
+                    {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {loja?.whatsapp ? `+55 ${loja.whatsapp}` : (loja?.telefone || '')}
+                  </p>
+                </div>
+
+                {/* Info Venda */}
+                <div className="flex justify-between items-center text-[10px] text-slate-500 border-b border-slate-200 border-dashed pb-2">
+                  <span className="font-bold text-slate-800">PEDIDO #{pedidoReciboModal.numero_pedido}</span>
+                  <span>{formatarDataRecibo(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em)}</span>
+                </div>
+
+                {/* Cliente */}
+                <div className="space-y-0.5 border-b border-slate-200 border-dashed pb-2 text-[10px]">
+                  <span className="text-slate-400">Cliente:</span>
+                  <p className="font-bold text-slate-800">{pedidoReciboModal.cliente?.nome || pedidoReciboModal.cliente_nome_avulso || 'Cliente Balcão'}</p>
+                </div>
+
+                {/* Itens */}
+                <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2.5">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+                    <span>Item</span>
+                    <span>Qtd x Unit</span>
+                    <span>Total</span>
+                  </div>
+                  {pedidoReciboModal.itens?.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-[11px] py-0.5">
+                      <span className="truncate max-w-[130px] font-medium">{item.nome_produto || item.produto?.nome}</span>
+                      <span className="text-slate-500 text-[10px]">{item.quantidade}x {Number(item.preco_unitario || item.preco_venda_unitario || 0).toFixed(2)}</span>
+                      <span className="font-bold">R$ {Number(item.subtotal).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Totais com Linha de Frete Explicita */}
+                <div className="space-y-1 text-xs pt-1 border-b border-slate-200 border-dashed pb-2.5">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Subtotal:</span>
+                    <span>R$ {subtotalValor.toFixed(2)}</span>
+                  </div>
+
+                  {descontoValor > 0 && (
+                    <div className="flex justify-between text-rose-600 font-bold">
+                      <span>Desconto:</span>
+                      <span>- R$ {descontoValor.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-slate-500">
+                    <span>Valor do Frete:</span>
+                    <span className={freteValor === 0 ? 'text-emerald-600 font-medium' : ''}>
+                      {freteValor > 0 ? `R$ ${freteValor.toFixed(2)}` : 'Grátis'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm font-black text-slate-900 pt-1 border-t border-slate-200">
+                    <span>TOTAL:</span>
+                    <span>R$ {totalValor.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Status e Pagamento */}
+                <div className={`p-2 rounded-xl border text-[11px] ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-600 uppercase text-[10px]">Pagamento:</span>
+                    <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ações do Recibo: Térmica, A4 e WhatsApp Livre */}
+              <div className="p-3 bg-slate-50 border-t border-slate-100 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, '80mm')}
+                    className="py-2.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Térmica 80mm</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, 'a4')}
+                    className="py-2.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Imprimir A4</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (loja && pedidoReciboModal) {
+                      const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
+                      // Protocolo livre: whatsapp://send?text=... sem fixar o phone=
+                      PrintService.openWhatsApp('', msg);
+                    }
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-98"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Compartilhar no WhatsApp</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -14,6 +14,7 @@ export type StatusPedido =
   | 'em_separacao'
   | 'em_producao'
   | 'em_expedicao'
+  | 'aguardando_envio'
   | 'saiu_para_entrega'
   | 'pronto_para_retirar'
   | 'concluido'
@@ -543,6 +544,11 @@ export interface Pedido {
   pagamentos_previstos?: PedidoPagamentoPrevisto[];
   historico?: HistoricoPedido[];
   pedido_entrega?: PedidoEntrega | null;
+  codigo_rastreio?: string | null;
+  link_rastreio?: string | null;
+  entregador_nome?: string | null;
+  despachado_em?: string | null;
+  despachado_por?: string | null;
 }
 
 export interface PedidoPagamentoPrevisto {
@@ -583,10 +589,13 @@ export interface ItemPedido {
   rotulo_variacao?: string | null;
   preco_custo_unitario: number;
   preco_venda_unitario: number;
+  preco_unitario?: number;
   quantidade: number;
   subtotal: number;
+  codigo_barras?: string | null;
   observacoes?: string | null;
   criado_em?: string;
+  produto?: Produto | null;
 }
 
 export interface PagamentoPedido {

@@ -41,7 +41,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPedido, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
@@ -205,6 +205,8 @@ export const PosCheckout: React.FC = () => {
     cancelarEdicaoPedido,
     atualizarStatusPedidoEmEdicao
   } = useCart();
+
+  const isEdicaoTravada = Boolean(pedidoEmEdicao && pedidoEmEdicao.status !== 'pendente');
 
   const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
   const [draftFulfillment, setDraftFulfillment] = useState<ShippingSelectionResult | null>(null);
@@ -542,7 +544,7 @@ export const PosCheckout: React.FC = () => {
 
     const fpPadrao = formasPagamentoDisponiveis.find(f => f.tipo === 'dinheiro') || formasPagamentoDisponiveis[0] || listaFPs[0];
 
-    if (pedidoEmEdicao?.pagamentos && pedidoEmEdicao.pagamentos.length > 0) {
+    if (pedidoEmEdicao?.pagamentos && pedidoEmEdicao.pagamentos.length > 1) {
       const linhasMapeadas: LinhaPagamentoPDV[] = pedidoEmEdicao.pagamentos.map((p: any, idx: number) => ({
         id: `linha_${p.id || idx}_${Date.now()}`,
         forma_pagamento_id: p.forma_pagamento_id,
@@ -555,18 +557,19 @@ export const PosCheckout: React.FC = () => {
       setLinhasPagamento(linhasMapeadas);
       setFormaPagamentoEscolhida(pedidoEmEdicao.pagamentos[0]?.forma_pagamento || fpPadrao);
     } else {
+      const fpInicial = (pedidoEmEdicao?.pagamentos && pedidoEmEdicao.pagamentos[0]?.forma_pagamento) || fpPadrao;
       setLinhasPagamento([
         {
           id: `linha_1_${Date.now()}`,
-          forma_pagamento_id: fpPadrao.id,
-          forma_tipo: fpPadrao.tipo,
-          forma_nome: fpPadrao.nome,
+          forma_pagamento_id: fpInicial.id,
+          forma_tipo: fpInicial.tipo,
+          forma_nome: fpInicial.nome,
           valor: total,
           valor_entregue: null,
           parcelas: 1
         }
       ]);
-      setFormaPagamentoEscolhida(fpPadrao);
+      setFormaPagamentoEscolhida(fpInicial);
     }
 
     setModalFechamento(true);
@@ -595,6 +598,11 @@ export const PosCheckout: React.FC = () => {
     }
 
     if (produtoEncontrado) {
+      if (isEdicaoTravada) {
+        mostrarAviso('Alteração de itens bloqueada para pedidos com status diferente de pendente.');
+        setBuscaCodigoBarras('');
+        return;
+      }
       if (produtoEncontrado.tem_variacoes && !variacaoEncontrada) {
         setProdutoModalVariacao(produtoEncontrado);
       } else {
@@ -1224,11 +1232,14 @@ export const PosCheckout: React.FC = () => {
       }
       delete metaExistente.pagamento_previsto;
 
-      if (dataVencimentoFiado) {
-        metaExistente.data_vencimento_fiado = dataVencimentoFiado;
-      }
+      const ehEntrega = pedidoEntrega?.tipo_atendimento === 'entrega' || taxaEntrega > 0;
+      let statusFinal: StatusPedido = 'concluido';
 
-      const statusFinal = (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente' ? pedidoEmEdicao.status : 'confirmado');
+      if (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente') {
+        statusFinal = pedidoEmEdicao.status;
+      } else {
+        statusFinal = ehEntrega ? 'aguardando_envio' : 'concluido';
+      }
 
       const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
         ? metaExistente.historico_edicoes
@@ -1913,6 +1924,10 @@ export const PosCheckout: React.FC = () => {
                   <div
                     key={produto.id}
                     onClick={() => {
+                      if (isEdicaoTravada) {
+                        mostrarAviso('Alteração de itens bloqueada para pedidos com status diferente de pendente.');
+                        return;
+                      }
                       if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                         setProdutoModalVariacao(produto);
                       } else {
@@ -2010,7 +2025,7 @@ export const PosCheckout: React.FC = () => {
                 {totalItens} un
               </span>
             </h2>
-            {itens.length > 0 && (
+            {itens.length > 0 && !isEdicaoTravada && (
               <button
                 type="button"
                 onClick={() => {
@@ -2032,21 +2047,25 @@ export const PosCheckout: React.FC = () => {
                 <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Buscar cliente ou avulso..."
+                  placeholder={isEdicaoTravada ? "Cliente fixo para pedidos neste status" : "Buscar cliente ou avulso..."}
                   value={clienteSelecionado ? clienteSelecionado.nome : clienteBuscaTexto}
+                  disabled={isEdicaoTravada}
                   onChange={(e) => {
+                    if (isEdicaoTravada) return;
                     if (clienteSelecionado) {
                       setClienteSelecionado(null);
                     }
                     setClienteBuscaTexto(e.target.value);
                     setClienteDropdownAberto(true);
                   }}
-                  onFocus={() => setClienteDropdownAberto(true)}
-                  className="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl pl-9 pr-14 py-2 text-xs text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition font-medium"
+                  onFocus={() => {
+                    if (!isEdicaoTravada) setClienteDropdownAberto(true);
+                  }}
+                  className={`w-full bg-slate-800/90 border border-slate-700/80 rounded-xl pl-9 pr-14 py-2 text-xs text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition font-medium ${isEdicaoTravada ? 'opacity-70 cursor-not-allowed' : ''}`}
                 />
 
                 <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                  {clienteSelecionado && (
+                  {clienteSelecionado && !isEdicaoTravada && (
                     <button
                       type="button"
                       onClick={() => {
@@ -2059,14 +2078,16 @@ export const PosCheckout: React.FC = () => {
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setClienteDropdownAberto(prev => !prev)}
-                    className="p-1 text-slate-400 hover:text-slate-200 rounded-md transition cursor-pointer"
-                    title="Ver lista completa de clientes"
-                  >
-                    {clienteDropdownAberto ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
+                  {!isEdicaoTravada && (
+                    <button
+                      type="button"
+                      onClick={() => setClienteDropdownAberto(prev => !prev)}
+                      className="p-1 text-slate-400 hover:text-slate-200 rounded-md transition cursor-pointer"
+                      title="Ver lista completa de clientes"
+                    >
+                      {clienteDropdownAberto ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2146,7 +2167,7 @@ export const PosCheckout: React.FC = () => {
             </div>
 
             {/* Se for Admin/Owner pode alterar manualmente; se for Comum/Vendedor fica bloqueado */}
-            {permissions.ehAdmin ? (
+            {permissions.ehAdmin && !isEdicaoTravada ? (
               <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
                 {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
                   <button
@@ -2165,7 +2186,7 @@ export const PosCheckout: React.FC = () => {
               </div>
             ) : (
               <span className="text-[10px] text-slate-500 font-medium bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
-                Fixo pelo Perfil
+                {isEdicaoTravada ? 'Fixo pelo Pedido' : 'Fixo pelo Perfil'}
               </span>
             )}
           </div>
@@ -2246,11 +2267,19 @@ export const PosCheckout: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
-                        <button onClick={() => atualizarQuantidade(item.id, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white">
+                        <button
+                          onClick={() => !isEdicaoTravada && atualizarQuantidade(item.id, item.quantidade - 1)}
+                          disabled={isEdicaoTravada}
+                          className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white cursor-pointer'}`}
+                        >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
                         <span className="px-2 text-xs font-bold text-slate-100">{item.quantidade}</span>
-                        <button onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white">
+                        <button
+                          onClick={() => !isEdicaoTravada && atualizarQuantidade(item.id, item.quantidade + 1)}
+                          disabled={isEdicaoTravada}
+                          className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white cursor-pointer'}`}
+                        >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -2259,22 +2288,26 @@ export const PosCheckout: React.FC = () => {
                         R$ {item.subtotal.toFixed(2)}
                       </span>
 
-                      <button onClick={() => removerItem(item.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isEdicaoTravada && (
+                        <button onClick={() => removerItem(item.id)} className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {skuFracionado && (
                     <div className="p-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between text-[10px] text-amber-300">
                       <span>Mín. {skuFracionado.quantidadeMinimaExigida} un (faltam {skuFracionado.faltamUnidades})</span>
-                      <button
-                        type="button"
-                        onClick={() => atualizarQuantidade(item.id, item.quantidade + skuFracionado.faltamUnidades)}
-                        className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 font-bold"
-                      >
-                        +{skuFracionado.faltamUnidades}
-                      </button>
+                      {!isEdicaoTravada && (
+                        <button
+                          type="button"
+                          onClick={() => atualizarQuantidade(item.id, item.quantidade + skuFracionado.faltamUnidades)}
+                          className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 font-bold"
+                        >
+                          +{skuFracionado.faltamUnidades}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2778,7 +2811,11 @@ export const PosCheckout: React.FC = () => {
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span className="truncate">Confirmar e Concluir</span>
+                    <span className="truncate">
+                      {pedidoEntrega?.tipo_atendimento === 'entrega' || taxaEntrega > 0
+                        ? 'Confirmar Pagamento'
+                        : 'Confirmar Pagamento e Concluir'}
+                    </span>
                   </>
                 )}
               </button>

@@ -396,6 +396,28 @@ export class ShippingOrchestrator {
       console.warn('[ShippingOrchestrator] Falha rejeitada no Melhor Envio:', resMelhorEnvio.reason);
     }
 
+    // 3. Frete Próprio da Loja
+    if (config?.frete_proprio_ativo) {
+      const tipoCobranca = config.frete_proprio_tipo_cobranca || 'fixo';
+      const valorFreteProprio = tipoCobranca === 'gratis' 
+        ? 0 
+        : Number(config.frete_proprio_valor_padrao || 0);
+
+      opcoesTotais.push({
+        id: 'opcao_frete_proprio',
+        provedor: 'frete_proprio',
+        transportadora_nome: 'Frete Próprio',
+        servico_codigo: tipoCobranca,
+        servico_nome: tipoCobranca === 'manual' ? 'Frete Próprio (Valor Manual)' : (tipoCobranca === 'gratis' ? 'Frete Próprio (Grátis)' : 'Frete Próprio (Fixo)'),
+        valor_frete: valorFreteProprio,
+        valor_original: valorFreteProprio,
+        valor_subsidio: 0,
+        is_frete_gratis: tipoCobranca === 'gratis',
+        prazo_estimado_texto: 'A combinar com o entregador',
+        icone_tipo: 'loja'
+      });
+    }
+
     return this.aplicarSubsidioFreteGratis(opcoesTotais, config, subtotal);
   }
 
@@ -507,10 +529,12 @@ export class ShippingOrchestrator {
       ? entrega.id
       : undefined;
 
-    // Assegura conformidade com o CHECK (provedor IN ('uber', 'melhor_envio', 'retirada_loja'))
-    let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' = 'melhor_envio';
+    // Assegura conformidade com o CHECK (provedor IN ('uber', 'melhor_envio', 'retirada_loja', 'frete_proprio'))
+    let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'melhor_envio';
     if (entrega.tipo_atendimento === 'retirada' || entrega.provedor === 'retirada_loja') {
       provedorFinal = 'retirada_loja';
+    } else if (entrega.provedor === 'frete_proprio' || (entrega.transportadora_nome || '').toLowerCase().includes('frete próprio') || (entrega.transportadora_nome || '').toLowerCase().includes('próprio')) {
+      provedorFinal = 'frete_proprio';
     } else if (entrega.provedor === 'uber' || (entrega.transportadora_nome || '').toLowerCase().includes('uber')) {
       provedorFinal = 'uber';
     } else {
@@ -554,6 +578,78 @@ export class ShippingOrchestrator {
     }
 
     return data as PedidoEntrega;
+  }
+
+  /**
+   * Registra o despacho logístico de um pedido com frete próprio ou transportadora
+   */
+  public static async despacharPedido(
+    pedidoId: string,
+    dadosDespacho: {
+      entregador_nome?: string | null;
+      link_rastreio?: string | null;
+      pin_entrega?: string | null;
+      despachado_por?: string | null;
+    }
+  ): Promise<void> {
+    const despachadoEm = new Date().toISOString();
+
+    // 1. Persistência canônica em pedido_entregas
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        entregador_nome: dadosDespacho.entregador_nome || null,
+        link_rastreio: dadosDespacho.link_rastreio || null,
+        pin_entrega: dadosDespacho.pin_entrega || null,
+        despachado_em: despachadoEm,
+        despachado_por: dadosDespacho.despachado_por || null,
+        status_envio: 'entregue',
+        atualizado_em: despachadoEm
+      })
+      .eq('pedido_id', pedidoId);
+
+    // 2. Snapshot derivado em pedidos e conclusão de status
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'concluido',
+        entregador_nome: dadosDespacho.entregador_nome || null,
+        link_rastreio: dadosDespacho.link_rastreio || null,
+        despachado_em: despachadoEm,
+        despachado_por: dadosDespacho.despachado_por || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('id', pedidoId);
+  }
+
+  /**
+   * Válvula de contingência RBAC: Força a conclusão manual de entrega (exclusivo admin/gerente)
+   */
+  public static async forcarConclusaoManual(
+    pedidoId: string,
+    usuarioLojaId?: string | null
+  ): Promise<void> {
+    const agora = new Date().toISOString();
+
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        status_envio: 'entregue',
+        despachado_em: agora,
+        despachado_por: usuarioLojaId || null,
+        atualizado_em: agora
+      })
+      .eq('pedido_id', pedidoId);
+
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'concluido',
+        despachado_em: agora,
+        despachado_por: usuarioLojaId || null,
+        atualizado_em: agora
+      })
+      .eq('id', pedidoId);
   }
 
   /**
