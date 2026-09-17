@@ -1592,10 +1592,39 @@ Agradecemos a sua preferência! ✨`;
   static openWhatsApp(phone: string, message: string): void {
     const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
     const formattedPhone = cleanPhone ? (cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`) : '';
-    const url = formattedPhone
-      ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    const encodedMsg = encodeURIComponent(message);
+
+    if (formattedPhone) {
+      // 1. Aciona o protocolo nativo de deep link do WhatsApp (pula telas intermediárias)
+      const deepLinkUrl = `whatsapp://send?phone=${formattedPhone}&text=${encodedMsg}`;
+      try {
+        window.location.href = deepLinkUrl;
+      } catch {
+        window.open(`https://wa.me/${formattedPhone}?text=${encodedMsg}`, '_blank');
+        return;
+      }
+
+      // 2. Salvaguarda caso o aplicativo não esteja instalado ou não seja interceptado pelo SO em 1.5s
+      setTimeout(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          window.open(`https://wa.me/${formattedPhone}?text=${encodedMsg}`, '_blank');
+        }
+      }, 1500);
+    } else {
+      const deepLinkUrl = `whatsapp://send?text=${encodedMsg}`;
+      try {
+        window.location.href = deepLinkUrl;
+      } catch {
+        window.open(`https://api.whatsapp.com/send?text=${encodedMsg}`, '_blank');
+        return;
+      }
+
+      setTimeout(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          window.open(`https://api.whatsapp.com/send?text=${encodedMsg}`, '_blank');
+        }
+      }, 1500);
+    }
   }
 
   /**

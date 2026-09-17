@@ -176,19 +176,10 @@ export class ReceiptPdfService {
       }
 
       if (!uploadRes.error) {
-        // Gera Signed URL com validade de 30 dias para acesso direto do cliente
-        const { data: signedData } = await supabase.storage
+        const { data: pubData } = supabase.storage
           .from(bucketUsado)
-          .createSignedUrl(pathStorage, 60 * 60 * 24 * 30);
-
-        if (signedData?.signedUrl) {
-          urlPublicaRecibo = signedData.signedUrl;
-        } else {
-          const { data: pubData } = supabase.storage
-            .from(bucketUsado)
-            .getPublicUrl(pathStorage);
-          urlPublicaRecibo = pubData?.publicUrl || null;
-        }
+          .getPublicUrl(pathStorage);
+        urlPublicaRecibo = pubData?.publicUrl || null;
       }
     } catch (storageErr) {
       console.warn('[ReceiptPdfService] Erro ao enviar comprovante para o Supabase Storage:', storageErr);
@@ -198,20 +189,15 @@ export class ReceiptPdfService {
     const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
     const totalFormatado = Number(pedido.valor_total || 0).toFixed(2);
     const nomeCliente = pedido.cliente?.nome || 'Cliente';
+    const baseUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
+    const urlReciboOficial = `${baseUrl}/recibo/${numId}`;
 
-    let mensagemWhatsApp = `🧾 *RECIBO PEDIDO #${numId} - ${nomeLoja}*\n\n` +
+    const mensagemWhatsApp = `🧾 *RECIBO PEDIDO #${numId} - ${nomeLoja}*\n\n` +
       `Olá, *${nomeCliente}*! Segue o comprovante da sua compra.\n\n` +
-      `💵 *Total:* R$ ${totalFormatado}\n` +
-      `📦 *Itens:* ${itens.length} produto(s) (${totalQtd} unid.)\n`;
-
-    if (urlPublicaRecibo) {
-      mensagemWhatsApp += `\n📄 *Acesse seu Comprovante Oficial (PDF):*\n${urlPublicaRecibo}\n\n` +
-        `_Clique no link acima para visualizar ou baixar seu recibo._\n\n`;
-    } else {
-      mensagemWhatsApp += `\n`;
-    }
-
-    mensagemWhatsApp += `Agradecemos a sua preferência! ✨`;
+      `💰 *Total: R$ ${totalFormatado}*\n` +
+      `📦 *Itens:* ${itens.length} produto(s) (${totalQtd} unid.)\n\n` +
+      `📄 *Acesse seu Recibo Oficial:*\n${urlReciboOficial}\n\n` +
+      `Agradecemos a sua preferência! ✨`;
 
     const telCliente = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
     PrintService.openWhatsApp(telCliente, mensagemWhatsApp);

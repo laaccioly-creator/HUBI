@@ -21,6 +21,7 @@ import { ShippingSettingsScreen } from './components/shipping/ShippingSettingsSc
 import { AssistenteRubi } from './components/AssistenteRubi';
 import { CatalogoPublico } from './components/CatalogoPublico';
 import { PedidoAndamentoPublico } from './components/PedidoAndamentoPublico';
+import { ReciboPublico } from './components/ReciboPublico';
 import { ConfiguracaoCatalogo } from './components/ConfiguracaoCatalogo';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
@@ -49,6 +50,9 @@ const AppRotasInternas: React.FC = () => {
 
       {/* Rota Pública de Acompanhamento / Andamento do Pedido (TELA003/TELA003A) */}
       <Route path="/order-tracking/:id" element={<PedidoAndamentoPublico />} />
+
+      {/* Rota Pública do Recibo Digital Oficial */}
+      <Route path="/recibo/:id" element={<ReciboPublico />} />
 
       {/* Rotas Internas do HUBI */}
       <Route path="/" element={<AppLayout />}>
