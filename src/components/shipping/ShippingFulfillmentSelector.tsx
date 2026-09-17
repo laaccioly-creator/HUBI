@@ -724,10 +724,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-slate-800 space-y-2">
                     <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
                       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Endereço necessário para entrega via transportadora</span>
+                      <span>Endereço incompleto</span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Para receber via Uber Direct, Melhor Envio ou Correios, informe o endereço de entrega do cliente.
+                      Para receber via Uber, Melhor Envio ou Correios, atualize o endereço do cliente.
                     </p>
                     <button
                       type="button"
@@ -735,7 +735,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
                     >
                       <MapPin className="w-3.5 h-3.5" />
-                      <span>{clienteId ? 'Informar Endereço de Entrega' : 'Identificar / Vincular Cliente'}</span>
+                      <span>{clienteId ? 'Atualizar endereço' : 'Identificar / Vincular Cliente'}</span>
                     </button>
                   </div>
                 ) : cotando ? (

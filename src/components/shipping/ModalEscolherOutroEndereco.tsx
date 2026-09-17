@@ -368,7 +368,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               </div>
             ) : enderecos.length === 0 ? (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                Nenhum endereço secundário cadastrado para este cliente.
+                Nenhum endereço cadastrado para este cliente.
               </div>
             ) : (
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">

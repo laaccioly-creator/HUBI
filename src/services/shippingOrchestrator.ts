@@ -208,39 +208,66 @@ export class ShippingOrchestrator {
       }
 
       const ends = (data || []) as ClienteEndereco[];
-      const temPrincipal = ends.some(e => e.is_principal);
 
-      if (!temPrincipal) {
-        const { data: cli } = await supabase
-          .from('clientes')
-          .select('id, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, cep, rua, numero, complemento, bairro, cidade, estado')
-          .eq('id', clienteId)
-          .maybeSingle();
+      // Sempre busca o endereço cadastral original na tabela clientes para consolidar
+      const { data: cli } = await supabase
+        .from('clientes')
+        .select('id, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, cep, rua, numero, complemento, bairro, cidade, estado')
+        .eq('id', clienteId)
+        .maybeSingle();
 
-        if (cli) {
-          const cCep = (cli.endereco_cep || cli.cep || '').replace(/\D/g, '');
-          const cLogr = (cli.endereco_logradouro || cli.rua || '').trim();
-          if (cCep || cLogr) {
+      let listaConsolidada = [...ends];
+
+      if (cli) {
+        const cCep = (cli.endereco_cep || cli.cep || '').replace(/\D/g, '');
+        const cLogr = (cli.endereco_logradouro || cli.rua || '').trim();
+        const cNum = (cli.endereco_numero || cli.numero || 'S/N').trim();
+
+        if (cCep || cLogr) {
+          const jaExiste = ends.some(e => {
+            const eCep = (e.cep || '').replace(/\D/g, '');
+            const eNum = (e.numero || '').trim().toLowerCase();
+            const eLogr = (e.logradouro || '').trim().toLowerCase();
+            return (eCep && eCep === cCep && eNum === cNum.toLowerCase()) || (eLogr && eLogr === cLogr.toLowerCase() && eNum === cNum.toLowerCase());
+          });
+
+          if (!jaExiste) {
+            const temPrincipalEmEnds = ends.some(e => e.is_principal);
             const endCli: ClienteEndereco = {
               id: 'cli-principal',
               cliente_id: clienteId,
               identificador: 'Principal',
               cep: cCep,
               logradouro: cLogr || 'Endereço Principal',
-              numero: (cli.endereco_numero || cli.numero || 'S/N').trim(),
+              numero: cNum,
               complemento: (cli.endereco_complemento || cli.complemento || '').trim() || null,
               bairro: (cli.endereco_bairro || cli.bairro || 'Centro').trim(),
               cidade: (cli.endereco_cidade || cli.cidade || 'Fortaleza').trim(),
               uf: (cli.endereco_estado || cli.estado || 'CE').trim().toUpperCase(),
-              is_principal: true,
-              criado_em: new Date().toISOString()
+              is_principal: !temPrincipalEmEnds,
+              criado_em: new Date(0).toISOString()
             };
-            return [endCli, ...ends];
+
+            if (endCli.is_principal) {
+              listaConsolidada = [endCli, ...ends];
+            } else {
+              listaConsolidada = [...ends, endCli];
+            }
           }
         }
       }
 
-      return ends;
+      // Se nenhum endereço estiver marcado como principal, define o primeiro como principal
+      if (listaConsolidada.length > 0 && !listaConsolidada.some(e => e.is_principal)) {
+        listaConsolidada[0] = { ...listaConsolidada[0], is_principal: true };
+      }
+
+      // Ordena com o principal no topo
+      return listaConsolidada.sort((a, b) => {
+        if (a.is_principal && !b.is_principal) return -1;
+        if (!a.is_principal && b.is_principal) return 1;
+        return 0;
+      });
     } catch (err: unknown) {
       console.warn('[ShippingOrchestrator] Exceção ao buscar endereços do cliente:', err);
       return [];

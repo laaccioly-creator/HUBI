@@ -58,6 +58,7 @@ import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
 import { PosCheckoutMobile, SubTelaMobile } from './PosCheckoutMobile';
 import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { ReceiptPdfService } from '../services/receiptPdfService';
 
 /**
  * Retorna o peso de prioridade da categoria para ordenação no PDV:
@@ -249,6 +250,9 @@ export const PosCheckout: React.FC = () => {
   const [salvandoPendente, setSalvandoPendente] = useState<boolean>(false);
   const [pedidoConcluido, setPedidoConcluido] = useState<Pedido | null>(null);
   const [ehVendaOfflineSalva, setEhVendaOfflineSalva] = useState<boolean>(false);
+  const [compartilhandoWhatsAppPdf, setCompartilhandoWhatsAppPdf] = useState<boolean>(false);
+  const [baixandoPdfRecibo, setBaixandoPdfRecibo] = useState<boolean>(false);
+  const reciboRef = useRef<HTMLDivElement>(null);
 
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [modalCameraBarcode, setModalCameraBarcode] = useState<boolean>(false);
@@ -1645,6 +1649,52 @@ export const PosCheckout: React.FC = () => {
     }
   };
 
+  const handleCompartilharWhatsAppPdf = async () => {
+    if (!loja || !pedidoConcluido) return;
+    if (!reciboRef.current) {
+      mostrarAviso('Elemento visual do recibo não encontrado.');
+      return;
+    }
+
+    try {
+      setCompartilhandoWhatsAppPdf(true);
+      await ReceiptPdfService.compartilharReciboWhatsApp(
+        reciboRef.current,
+        pedidoConcluido,
+        loja
+      );
+    } catch (err: unknown) {
+      console.error('Erro ao compartilhar comprovante via WhatsApp:', err);
+      const msg = err instanceof Error ? err.message : 'Falha ao processar PDF do recibo.';
+      mostrarErro(msg, 'Erro ao Compartilhar');
+    } finally {
+      setCompartilhandoWhatsAppPdf(false);
+    }
+  };
+
+  const handleBaixarReciboPdf = async () => {
+    if (!loja || !pedidoConcluido) return;
+    if (!reciboRef.current) {
+      mostrarAviso('Elemento visual do recibo não encontrado.');
+      return;
+    }
+
+    try {
+      setBaixandoPdfRecibo(true);
+      await ReceiptPdfService.baixarPdfRecibo(
+        reciboRef.current,
+        pedidoConcluido,
+        loja
+      );
+    } catch (err: unknown) {
+      console.error('Erro ao baixar recibo em PDF:', err);
+      const msg = err instanceof Error ? err.message : 'Falha ao baixar PDF do recibo.';
+      mostrarErro(msg, 'Erro no Download');
+    } finally {
+      setBaixandoPdfRecibo(false);
+    }
+  };
+
   const categoriasOrdenadas = useMemo(() => {
     return [...categorias].sort((a, b) => {
       const pesoA = getCategoriaPeso(a.nome);
@@ -2827,11 +2877,19 @@ export const PosCheckout: React.FC = () => {
                   </div>
                 )}
 
-                <div className="bg-white text-slate-900 p-6 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-xl font-mono">
+                <div
+                  ref={reciboRef}
+                  className="bg-white text-slate-900 p-6 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-xl font-mono"
+                >
                   {/* Logo da Loja se houver */}
                   {loja?.url_logo && (
                     <div className="text-center pb-1">
-                      <img src={loja.url_logo} alt={loja.nome_fantasia} className="max-h-12 max-w-[160px] mx-auto object-contain" />
+                      <img
+                        src={loja.url_logo}
+                        alt={loja.nome_fantasia}
+                        crossOrigin="anonymous"
+                        className="max-h-12 max-w-[160px] mx-auto object-contain"
+                      />
                     </div>
                   )}
 
@@ -3020,14 +3078,19 @@ export const PosCheckout: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
-                    }}
-                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                    disabled={baixandoPdfRecibo || compartilhandoWhatsAppPdf}
+                    onClick={handleBaixarReciboPdf}
+                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer disabled:opacity-50"
                     title="Baixar e Salvar Recibo em PDF"
                   >
-                    <Download className="w-3.5 h-3.5 text-sky-400" />
-                    <span className="truncate">Baixar PDF</span>
+                    {baixandoPdfRecibo ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 text-sky-400" />
+                    )}
+                    <span className="truncate">
+                      {baixandoPdfRecibo ? 'Gerando...' : 'Baixar PDF'}
+                    </span>
                   </button>
                 </div>
 
@@ -3046,16 +3109,19 @@ export const PosCheckout: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (loja && pedidoConcluido) {
-                        const msg = PrintService.generateWhatsAppMessage(pedidoConcluido, loja);
-                        PrintService.openWhatsApp(pedidoConcluido.cliente?.whatsapp || '', msg);
-                      }
-                    }}
-                    className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                    disabled={compartilhandoWhatsAppPdf || baixandoPdfRecibo}
+                    onClick={handleCompartilharWhatsAppPdf}
+                    className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer disabled:opacity-50"
+                    title="Gerar PDF do Recibo e Compartilhar via WhatsApp"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span className="truncate">WhatsApp</span>
+                    {compartilhandoWhatsAppPdf ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                    ) : (
+                      <Share2 className="w-3.5 h-3.5" />
+                    )}
+                    <span className="truncate">
+                      {compartilhandoWhatsAppPdf ? 'Gerando...' : 'WhatsApp'}
+                    </span>
                   </button>
 
                   <button
@@ -3151,8 +3217,8 @@ export const PosCheckout: React.FC = () => {
                 uf: pedidoEntrega.destino_uf || 'CE'
               } : null}
               onSolicitarAtualizarEndereco={() => {
+                setModalFulfillmentAberto(false);
                 if (!clienteSelecionado) {
-                  setModalFulfillmentAberto(false);
                   setClienteDropdownAberto(true);
                   mostrarAviso('Por favor, selecione ou cadastre um cliente com endereço para entrega.', 'Identificação do Cliente');
                 } else {
@@ -3199,11 +3265,15 @@ export const PosCheckout: React.FC = () => {
       {modalAtualizarEnderecoAberto && clienteSelecionado && (
         <ModalAtualizarEnderecoCliente
           aberto={modalAtualizarEnderecoAberto}
-          onFechar={() => setModalAtualizarEnderecoAberto(false)}
+          onFechar={() => {
+            setModalAtualizarEnderecoAberto(false);
+            setModalFulfillmentAberto(true);
+          }}
           cliente={clienteSelecionado}
           onSucesso={(clienteAtualizado) => {
             setClienteSelecionado(clienteAtualizado);
             setClientes(prev => prev.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c));
+            setModalAtualizarEnderecoAberto(false);
             setModalFulfillmentAberto(true);
           }}
         />

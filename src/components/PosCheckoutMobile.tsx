@@ -933,7 +933,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* 2. Termômetro Dinâmico de Tabela de Preço por Volume (pricingEngine.ts) */}
         {avaliacaoCarrinho && (() => {
-          const atingiuDistribuidor = tabelaPrecoCalculada === 'autoatacado' || !avaliacaoCarrinho.proximoNivel;
+          // Desacoplamento estrito: o termômetro reflete apenas o progresso orgânico acumulado em produtos
+          const tabelaOrganica = avaliacaoCarrinho.tabelaAtiva;
+          const atingiuDistribuidor = tabelaOrganica === 'autoatacado';
           const proximaTabelaNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
           const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
           const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
@@ -970,14 +972,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <div className={`px-4 py-2.5 border-b space-y-1.5 shrink-0 ${
               atingiuDistribuidor
                 ? 'bg-purple-50/70 border-purple-100 text-purple-900'
-                : tabelaPrecoCalculada === 'atacado'
+                : tabelaOrganica === 'atacado'
                 ? 'bg-blue-50/70 border-blue-100 text-blue-900'
                 : 'bg-slate-50 border-slate-200 text-slate-800'
             }`}>
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-bold min-w-0 pr-2">
                   <Tag className={`w-4 h-4 shrink-0 ${
-                    atingiuDistribuidor ? 'text-purple-600' : tabelaPrecoCalculada === 'atacado' ? 'text-blue-600' : 'text-slate-600'
+                    atingiuDistribuidor ? 'text-purple-600' : tabelaOrganica === 'atacado' ? 'text-blue-600' : 'text-slate-600'
                   }`} />
                   <span className="truncate">{mensagemMeta}</span>
                 </div>
@@ -988,18 +990,18 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     </span>
                   )}
                   <span className={`font-black text-[11px] shrink-0 ${
-                    atingiuDistribuidor ? 'text-purple-700' : tabelaPrecoCalculada === 'atacado' ? 'text-blue-700' : 'text-slate-700'
+                    atingiuDistribuidor ? 'text-purple-700' : tabelaOrganica === 'atacado' ? 'text-blue-700' : 'text-slate-700'
                   }`}>
                     {progressoPercent}%
                   </span>
                 </div>
               </div>
               <div className={`w-full rounded-full h-2 overflow-hidden ${
-                atingiuDistribuidor ? 'bg-purple-200/60' : tabelaPrecoCalculada === 'atacado' ? 'bg-blue-200/60' : 'bg-slate-200'
+                atingiuDistribuidor ? 'bg-purple-200/60' : tabelaOrganica === 'atacado' ? 'bg-blue-200/60' : 'bg-slate-200'
               }`}>
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ease-out ${
-                    atingiuDistribuidor ? 'bg-purple-600' : tabelaPrecoCalculada === 'atacado' ? 'bg-blue-600' : 'bg-emerald-500'
+                    atingiuDistribuidor ? 'bg-purple-600' : tabelaOrganica === 'atacado' ? 'bg-blue-600' : 'bg-emerald-500'
                   }`}
                   style={{ width: `${progressoPercent}%` }}
                 />
@@ -1374,6 +1376,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   onClick={() => {
                     limparCarrinho();
                     setModalConfirmarLimparCarrinho(false);
+                    setSubTela('vender');
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
                 >
@@ -1443,45 +1446,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               </span>
             ) : null}
           </div>
-
-          {/* Seletor Compacto de Tabela de Preço */}
-          <button
-            type="button"
-            onClick={() => setModalTabelaPrecoAberto(true)}
-            className={`px-2 py-1 rounded-lg text-[10px] font-black border transition cursor-pointer active:scale-95 flex items-center gap-1 ${
-              tabelaPrecoCalculada === 'autoatacado'
-                ? 'bg-purple-50 text-purple-700 border-purple-300'
-                : tabelaPrecoCalculada === 'atacado'
-                ? 'bg-blue-50 text-blue-700 border-blue-300'
-                : 'bg-slate-100 text-slate-700 border-slate-200'
-            }`}
-            title="Tabela de Preço Ativa"
-          >
-            <Tag className="w-2.5 h-2.5" />
-            <span>
-              {tabelaPrecoCalculada === 'autoatacado'
-                ? 'Distrib.'
-                : tabelaPrecoCalculada === 'atacado'
-                ? 'Atacado'
-                : 'Varejo'}
-            </span>
-          </button>
-
-          {/* Botão de Cliente */}
-          <button
-            type="button"
-            onClick={() => abrirSelecaoCliente('vender')}
-            className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-black text-xs shadow-sm transition cursor-pointer active:scale-95"
-            title="Adicionar ou Selecionar Cliente"
-          >
-            {clienteSelecionado ? (
-              <span className="text-[11px] uppercase truncate max-w-[32px] px-0.5">
-                {clienteSelecionado.nome.slice(0, 2)}
-              </span>
-            ) : (
-              '+8'
-            )}
-          </button>
         </div>
       </div>
 
