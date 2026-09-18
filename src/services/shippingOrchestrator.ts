@@ -418,7 +418,8 @@ export class ShippingOrchestrator {
     // 3. Frete Próprio da Loja - APENAS se ativado explicitamente
     if (config?.frete_proprio_ativo === true) {
       const tipoCobranca = config.frete_proprio_tipo_cobranca || 'fixo';
-      const valorFreteProprio = tipoCobranca === 'gratis' 
+      const ehManual = tipoCobranca === 'manual';
+      const valorFreteProprio = (tipoCobranca === 'gratis' || ehManual) 
         ? 0 
         : Number(config.frete_proprio_valor_padrao || 0);
 
@@ -427,13 +428,15 @@ export class ShippingOrchestrator {
         provedor: 'frete_proprio',
         transportadora_nome: 'Frete Próprio',
         servico_codigo: tipoCobranca,
-        servico_nome: tipoCobranca === 'manual' ? 'Frete Próprio (Valor Manual)' : (tipoCobranca === 'gratis' ? 'Frete Próprio (Grátis)' : 'Frete Próprio (Fixo)'),
+        servico_nome: ehManual ? 'Frete Próprio (Valor Manual)' : (tipoCobranca === 'gratis' ? 'Frete Próprio (Grátis)' : 'Frete Próprio (Fixo)'),
         valor_frete: valorFreteProprio,
         valor_original: valorFreteProprio,
         valor_subsidio: 0,
         is_frete_gratis: tipoCobranca === 'gratis',
         prazo_estimado_texto: 'A combinar com o entregador',
-        icone_tipo: 'loja'
+        icone_tipo: 'loja',
+        permite_edicao_valor: ehManual,
+        tipo_cobranca: tipoCobranca
       });
     }
 
@@ -461,6 +464,10 @@ export class ShippingOrchestrator {
     // Se frete grátis não está ativo ou o subtotal não alcançou a régua de gratuidade
     if (!freteGratisAtivo || subtotal < valorMinimo) {
       return opcoes.map(opcao => {
+        if (opcao.permite_edicao_valor) {
+          return opcao;
+        }
+
         const precoOriginal = (typeof opcao.valor_original === 'number' && opcao.valor_original > 0)
           ? opcao.valor_original
           : opcao.valor_frete;
@@ -475,9 +482,9 @@ export class ShippingOrchestrator {
       });
     }
 
-    // Identificar opções válidas (considerando tanto valor_original quanto valor_frete)
+    // Identificar opções válidas (considerando tanto valor_original quanto valor_frete, desconsiderando opções manuais que não possuem valor estático)
     const opcoesValidas = opcoes.filter(o => 
-      !o.erro && (
+      !o.erro && !o.permite_edicao_valor && (
         (typeof o.valor_original === 'number' && o.valor_original > 0) || 
         (typeof o.valor_frete === 'number' && o.valor_frete > 0) ||
         o.is_frete_gratis
@@ -495,7 +502,7 @@ export class ShippingOrchestrator {
     let gratisDefinido = false;
 
     return opcoes.map(opcao => {
-      if (opcao.erro) {
+      if (opcao.erro || opcao.permite_edicao_valor) {
         return opcao;
       }
 

@@ -100,6 +100,8 @@ export interface OpcaoFreteCotada {
   prazo_estimado_texto: string;
   icone_tipo: 'uber' | 'jadlog' | 'correios' | 'loja' | 'padrao';
   erro?: string | null;
+  permite_edicao_valor?: boolean;
+  tipo_cobranca?: 'fixo' | 'manual' | 'gratis';
 }
 
 export interface NovoEnderecoFormInput {

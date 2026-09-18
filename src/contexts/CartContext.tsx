@@ -35,6 +35,7 @@ interface CartContextType {
   descontoPercentual: number;
   tipoDesconto: 'valor' | 'percentual';
   taxaEntrega: number;
+  valor_frete: number;
   pedidoEntrega: PedidoEntrega | null;
   enderecoEntrega: string | null;
   dadosEndereco: DadosEnderecoCliente | null;
@@ -54,6 +55,7 @@ interface CartContextType {
   setTipoDesconto: (tipo: 'valor' | 'percentual') => void;
   setDesconto: (valor: number) => void;
   setTaxaEntrega: (valor: number) => void;
+  setValorFrete: (valor: number) => void;
   setPedidoEntrega: (entrega: PedidoEntrega | null) => void;
   setEnderecoEntrega: (endereco: string | null) => void;
   setDadosEndereco: (dados: DadosEnderecoCliente | null) => void;
@@ -90,13 +92,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [desconto, setDescontoState] = useState<number>(0);
   const [descontoPercentual, setDescontoPercentualState] = useState<number>(0);
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
-  const [taxaEntrega, setTaxaEntrega] = useState<number>(0);
+  const [taxaEntrega, setTaxaEntregaState] = useState<number>(0);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(FORMA_ENTREGA_RETIRADA_PADRAO);
   const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
   const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente | null>(null);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
   const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+  const setTaxaEntrega = (valor: number) => {
+    const valLimpo = Number(valor) || 0;
+    setTaxaEntregaState(valLimpo);
+    setPedidoEntrega(prev => prev ? { ...prev, valor_frete: valLimpo } : prev);
+  };
+  const setValorFrete = setTaxaEntrega;
 
   // Re-hidratação do rascunho do carrinho do PDV ao iniciar ou trocar de loja
   useEffect(() => {
@@ -113,7 +122,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (typeof draft.desconto === 'number') setDescontoState(draft.desconto);
           if (typeof draft.descontoPercentual === 'number') setDescontoPercentualState(draft.descontoPercentual);
           if (draft.tipoDesconto) setTipoDesconto(draft.tipoDesconto);
-          if (typeof draft.taxaEntrega === 'number') setTaxaEntrega(draft.taxaEntrega);
+          const taxaRecuperada = typeof draft.taxaEntrega === 'number'
+            ? draft.taxaEntrega
+            : (typeof draft.valor_frete === 'number' ? draft.valor_frete : (typeof draft.pedidoEntrega?.valor_frete === 'number' ? draft.pedidoEntrega.valor_frete : null));
+          if (typeof taxaRecuperada === 'number') {
+            setTaxaEntregaState(taxaRecuperada);
+          }
           if (draft.pedidoEntrega) setPedidoEntrega(draft.pedidoEntrega);
           if (draft.enderecoEntrega) setEnderecoEntrega(draft.enderecoEntrega);
           if (draft.dadosEndereco) setDadosEndereco(draft.dadosEndereco);
@@ -144,6 +158,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       descontoPercentual,
       tipoDesconto,
       taxaEntrega,
+      valor_frete: taxaEntrega,
       pedidoEntrega,
       enderecoEntrega,
       dadosEndereco,
@@ -429,6 +444,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Efeito reativo para revogação e recálculo dinâmico do Frete Grátis ao alterar subtotal_produtos
   useEffect(() => {
     if (!pedidoEntrega || pedidoEntrega.tipo_atendimento !== 'entrega') return;
+
+    // Frete próprio manual possui precificação arbitrária e não deve ser revogado ou modificado automaticamente por regras de frete grátis
+    if (pedidoEntrega.provedor === 'frete_proprio' && (pedidoEntrega.servico_codigo === 'manual' || (pedidoEntrega.transportadora_nome || '').toLowerCase().includes('manual'))) {
+      return;
+    }
 
     const freteGratisAtivo = configFreteState.frete_gratis_ativo;
     const valorMinimo = configFreteState.frete_gratis_valor_minimo;
@@ -771,6 +791,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         descontoPercentual,
         tipoDesconto,
         taxaEntrega,
+        valor_frete: taxaEntrega,
         pedidoEntrega,
         enderecoEntrega,
         dadosEndereco,
@@ -790,6 +811,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTipoDesconto,
         setDesconto,
         setTaxaEntrega,
+        setValorFrete,
         setPedidoEntrega,
         setEnderecoEntrega,
         setDadosEndereco,

@@ -105,11 +105,29 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [modalEscolherOutroAberto, setModalEscolherOutroAberto] = useState<boolean>(false);
   const [modalMapaLojaAberto, setModalMapaLojaAberto] = useState<boolean>(false);
 
-  // Cotações
   const [cotacoes, setCotacoes] = useState<OpcaoFreteCotada[]>([]);
   const [cotacaoEscolhida, setCotacaoEscolhida] = useState<OpcaoFreteCotada | null>(null);
   const [cotando, setCotando] = useState<boolean>(false);
   const [erroCotacaoMsg, setErroCotacaoMsg] = useState<string | null>(null);
+
+  // Valor digitado para frete próprio manual
+  const [valorManualInput, setValorManualInput] = useState<string>(() => {
+    if (typeof valorFreteAtual === 'number' && valorFreteAtual > 0) {
+      return valorFreteAtual.toString();
+    }
+    return '';
+  });
+
+  // Sincroniza se o valor do frete mudar externamente e a opção for manual
+  useEffect(() => {
+    if (
+      typeof valorFreteAtual === 'number' &&
+      valorFreteAtual > 0 &&
+      (opcaoSelecionadaId === 'manual' || opcaoSelecionadaId === 'opcao_frete_proprio' || opcaoSelecionadaId === 'frete_proprio')
+    ) {
+      setValorManualInput(valorFreteAtual.toString());
+    }
+  }, [valorFreteAtual, opcaoSelecionadaId]);
 
   // Refs de proteção contra re-renderizações e loops infinitos
   const onChangeRef = useRef(onChange);
@@ -356,56 +374,46 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
       // Descartar opções com erro para não poluir a interface do usuário
       const opcoesSemErro = opcoesComSubsidio.filter(o => !o.erro && o.id !== 'uber-blocked');
-      setCotacoes(opcoesSemErro);
 
-      const opcoesValidas = opcoesSemErro.filter(o => o.valor_frete > 0 || o.is_frete_gratis);
+      const opcoesAjustadas = opcoesSemErro.map(o => {
+        const ehManual = Boolean(o.permite_edicao_valor || (o.provedor === 'frete_proprio' && o.servico_codigo === 'manual'));
+        if (ehManual) {
+          const ehOpcaoAtiva = opcaoSelecionadaId === o.id || opcaoSelecionadaId === o.servico_codigo || opcaoSelecionadaId === 'frete_proprio' || opcaoSelecionadaId === 'manual';
+          const valorInicial = (ehOpcaoAtiva && typeof valorFreteAtual === 'number' && valorFreteAtual > 0)
+            ? valorFreteAtual
+            : (parseFloat(valorManualInput.replace(',', '.')) || 0);
+
+          return {
+            ...o,
+            valor_frete: valorInicial,
+            valor_original: valorInicial,
+            permite_edicao_valor: true
+          };
+        }
+        return o;
+      });
+
+      setCotacoes(opcoesAjustadas);
+
+      const opcoesValidas = opcoesAjustadas.filter(
+        o => o.valor_frete > 0 || o.is_frete_gratis || o.permite_edicao_valor || o.servico_codigo === 'manual'
+      );
 
       // Se a modalidade ativa for entrega, seleciona a melhor opção cotada automaticamente
       if (modalidade === 'entrega' && opcoesValidas.length > 0) {
         const opcaoGratis = opcoesValidas.find(o => o.is_frete_gratis);
-        const encontrada = opcaoGratis 
-          || opcoesValidas.find(o => 
+        const encontrada = (opcaoSelecionadaId
+          ? opcoesValidas.find(o => 
               o.id === opcaoSelecionadaId || 
               o.servico_codigo === opcaoSelecionadaId ||
               (opcaoSelecionadaId && (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo)))
             ) 
+          : null)
+          || opcaoGratis
           || opcoesValidas[0];
         setCotacaoEscolhida(encontrada);
 
-        const chaveEmissao = `${encontrada.id}_${encontrada.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega`;
-        if (ultimoResultadoEmitidoRef.current !== chaveEmissao) {
-          ultimoResultadoEmitidoRef.current = chaveEmissao;
-          onChangeRef.current({
-            tipo_atendimento: 'entrega',
-            valor_frete: encontrada.valor_frete,
-            opcao_frete: encontrada,
-            opcao_selecionada: encontrada,
-            endereco_selecionado: endAlvo,
-            pedido_entrega: {
-              pedido_id: '',
-              tipo_atendimento: 'entrega',
-              cliente_endereco_id: endAlvo.id && isUuidValido(endAlvo.id) ? endAlvo.id : null,
-              destino_cep: endAlvo.cep,
-              destino_logradouro: endAlvo.logradouro,
-              destino_numero: endAlvo.numero,
-              destino_complemento: endAlvo.complemento,
-              destino_bairro: endAlvo.bairro,
-              destino_cidade: endAlvo.cidade,
-              destino_uf: endAlvo.uf,
-              destino_latitude: endAlvo.latitude,
-              destino_longitude: endAlvo.longitude,
-              provedor: encontrada.provedor,
-              transportadora_nome: encontrada.transportadora_nome,
-              servico_codigo: encontrada.servico_codigo,
-              valor_frete: encontrada.valor_frete,
-              valor_original: encontrada.valor_original ?? encontrada.valor_frete,
-              valor_subsidio: encontrada.valor_subsidio ?? 0,
-              is_frete_gratis: encontrada.is_frete_gratis ?? (encontrada.valor_frete === 0),
-              prazo_estimado_texto: encontrada.prazo_estimado_texto,
-              status_envio: 'pendente'
-            }
-          });
-        }
+        emitirSelecao(encontrada, endAlvo);
       } else if (modalidade === 'entrega') {
         setCotacaoEscolhida(null);
       }
@@ -416,7 +424,65 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } finally {
       setCotando(false);
     }
-  }, [configLoja, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, temFreteProprio, opcaoSelecionadaId]);
+  }, [configLoja, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, temFreteProprio, opcaoSelecionadaId, valorFreteAtual, valorManualInput]);
+
+  // Função centralizada para emitir o resultado de entrega padronizado
+  const emitirSelecao = useCallback((opcao: OpcaoFreteCotada, endAlvo: ClienteEndereco | null) => {
+    if (!endAlvo) return;
+    const chaveEmissao = `${opcao.id}_${opcao.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega`;
+    if (ultimoResultadoEmitidoRef.current === chaveEmissao) return;
+    ultimoResultadoEmitidoRef.current = chaveEmissao;
+
+    onChangeRef.current({
+      tipo_atendimento: 'entrega',
+      valor_frete: opcao.valor_frete,
+      opcao_frete: opcao,
+      opcao_selecionada: opcao,
+      endereco_selecionado: endAlvo,
+      pedido_entrega: {
+        pedido_id: '',
+        tipo_atendimento: 'entrega',
+        cliente_endereco_id: endAlvo.id && isUuidValido(endAlvo.id) ? endAlvo.id : null,
+        destino_cep: endAlvo.cep,
+        destino_logradouro: endAlvo.logradouro,
+        destino_numero: endAlvo.numero,
+        destino_complemento: endAlvo.complemento,
+        destino_bairro: endAlvo.bairro,
+        destino_cidade: endAlvo.cidade,
+        destino_uf: endAlvo.uf,
+        destino_latitude: endAlvo.latitude,
+        destino_longitude: endAlvo.longitude,
+        provedor: opcao.provedor,
+        transportadora_nome: opcao.transportadora_nome,
+        servico_codigo: opcao.servico_codigo,
+        valor_frete: opcao.valor_frete,
+        valor_original: opcao.valor_original ?? opcao.valor_frete,
+        valor_subsidio: opcao.valor_subsidio ?? 0,
+        is_frete_gratis: opcao.is_frete_gratis ?? (opcao.valor_frete === 0),
+        prazo_estimado_texto: opcao.prazo_estimado_texto,
+        status_envio: 'pendente'
+      }
+    });
+  }, []);
+
+  // Manipulador de digitação direta de valor manual
+  const handleAlterarValorManual = (opcao: OpcaoFreteCotada, novoTexto: string) => {
+    setValorManualInput(novoTexto);
+    const numVal = parseFloat(novoTexto.replace(',', '.')) || 0;
+
+    const opcaoAtualizada: OpcaoFreteCotada = {
+      ...opcao,
+      valor_frete: numVal,
+      valor_original: numVal
+    };
+
+    setCotacoes(prev => prev.map(c => c.id === opcao.id ? opcaoAtualizada : c));
+    setModalidade('entrega');
+    setCotacaoEscolhida(opcaoAtualizada);
+    if (enderecoSelecionado) {
+      emitirSelecao(opcaoAtualizada, enderecoSelecionado);
+    }
+  };
 
   // Dispara cotação quando o endereço for definido e houver integrações ativas
   useEffect(() => {
@@ -465,43 +531,24 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
 
     setModalidade('entrega');
-    setCotacaoEscolhida(opcao);
 
-    const chaveEmissao = `${opcao.id}_${opcao.valor_frete}_${enderecoSelecionado.cep}_${enderecoSelecionado.numero}_entrega`;
-    ultimoResultadoEmitidoRef.current = chaveEmissao;
+    const ehManual = Boolean(
+      opcao.permite_edicao_valor ||
+      (opcao.provedor === 'frete_proprio' && opcao.servico_codigo === 'manual')
+    );
 
-    onChange({
-      tipo_atendimento: 'entrega',
-      valor_frete: opcao.valor_frete,
-      opcao_frete: opcao,
-      opcao_selecionada: opcao,
-      endereco_selecionado: enderecoSelecionado,
-      pedido_entrega: {
-        pedido_id: '',
-        tipo_atendimento: 'entrega',
-        cliente_endereco_id: enderecoSelecionado.id && isUuidValido(enderecoSelecionado.id)
-          ? enderecoSelecionado.id
-          : null,
-        destino_cep: enderecoSelecionado.cep,
-        destino_logradouro: enderecoSelecionado.logradouro,
-        destino_numero: enderecoSelecionado.numero,
-        destino_complemento: enderecoSelecionado.complemento,
-        destino_bairro: enderecoSelecionado.bairro,
-        destino_cidade: enderecoSelecionado.cidade,
-        destino_uf: enderecoSelecionado.uf,
-        destino_latitude: enderecoSelecionado.latitude,
-        destino_longitude: enderecoSelecionado.longitude,
-        provedor: opcao.provedor,
-        transportadora_nome: opcao.transportadora_nome,
-        servico_codigo: opcao.servico_codigo,
-        valor_frete: opcao.valor_frete,
-        valor_original: opcao.valor_original ?? opcao.valor_frete,
-        valor_subsidio: opcao.valor_subsidio ?? 0,
-        is_frete_gratis: opcao.is_frete_gratis ?? (opcao.valor_frete === 0),
-        prazo_estimado_texto: opcao.prazo_estimado_texto,
-        status_envio: 'pendente'
-      }
-    });
+    let opcaoFinal = opcao;
+    if (ehManual) {
+      const numVal = parseFloat(valorManualInput.replace(',', '.')) || 0;
+      opcaoFinal = {
+        ...opcao,
+        valor_frete: numVal,
+        valor_original: numVal
+      };
+    }
+
+    setCotacaoEscolhida(opcaoFinal);
+    emitirSelecao(opcaoFinal, enderecoSelecionado);
   };
 
   // Dados da Loja para Retirada
@@ -763,6 +810,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           <div className="space-y-2">
             {cotacoes.map((opcao) => {
               const selecionada = modalidade === 'entrega' && cotacaoEscolhida?.id === opcao.id;
+              const ehManual = Boolean(
+                opcao.permite_edicao_valor ||
+                (opcao.provedor === 'frete_proprio' && opcao.servico_codigo === 'manual')
+              );
+
               return (
                 <div
                   key={opcao.id}
@@ -777,9 +829,17 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                       opcao.provedor === 'uber'
                         ? 'bg-black text-white font-black text-[11px] border-black'
+                        : opcao.provedor === 'frete_proprio'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                         : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
                     }`}>
-                      {opcao.provedor === 'uber' ? 'UBER' : <Truck className="w-4 h-4" />}
+                      {opcao.provedor === 'uber' ? (
+                        'UBER'
+                      ) : opcao.provedor === 'frete_proprio' ? (
+                        <Truck className="w-4 h-4 text-emerald-700" />
+                      ) : (
+                        <Truck className="w-4 h-4" />
+                      )}
                     </div>
 
                     <div className="min-w-0">
@@ -797,6 +857,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             Frete Grátis
                           </span>
                         )}
+                        {ehManual && (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                            Valor Manual
+                          </span>
+                        )}
                       </div>
                       {opcao.prazo_estimado_texto && (
                         <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
@@ -808,61 +873,71 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
-                      {opcao.is_frete_gratis ? (
-                        <div className="flex flex-col items-end leading-tight">
-                          {opcao.valor_original != null && opcao.valor_original > 0 && (
-                            <span className="text-xs line-through text-slate-400 font-bold">
-                              R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {ehManual ? (
+                      <div
+                        className="flex items-center gap-1 bg-white border border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl px-2.5 py-1.5 transition shadow-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="text-xs font-bold text-slate-500 select-none">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0,00"
+                          value={valorManualInput}
+                          onClick={(e) => e.stopPropagation()}
+                          onFocus={(e) => {
+                            e.stopPropagation();
+                            if (!selecionada) {
+                              const numVal = parseFloat(valorManualInput.replace(',', '.')) || 0;
+                              handleEscolherCotacao({
+                                ...opcao,
+                                valor_frete: numVal,
+                                valor_original: numVal
+                              });
+                            }
+                          }}
+                          onChange={(e) => handleAlterarValorManual(opcao, e.target.value)}
+                          className="w-24 text-right font-extrabold text-sm text-slate-800 focus:text-emerald-600 outline-none bg-transparent"
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-right">
+                        {opcao.is_frete_gratis ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            {opcao.valor_original != null && opcao.valor_original > 0 && (
+                              <span className="text-xs line-through text-slate-400 font-bold">
+                                R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            )}
+                            <span className="font-extrabold text-sm text-emerald-600">
+                              Grátis
                             </span>
-                          )}
-                          <span className="font-extrabold text-sm text-emerald-600">
-                            Grátis
-                          </span>
-                        </div>
-                      ) : opcao.is_upgrade_subsidio ? (
-                        <div className="flex flex-col items-end leading-tight">
-                          {opcao.valor_original != null && (
-                            <span className="text-xs line-through text-slate-400 font-bold">
-                              R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        ) : opcao.is_upgrade_subsidio ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            {opcao.valor_original != null && (
+                              <span className="text-xs line-through text-slate-400 font-bold">
+                                R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            )}
+                            <span className="font-extrabold text-sm text-emerald-600">
+                              R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
-                          )}
+                          </div>
+                        ) : (
                           <span className="font-extrabold text-sm text-emerald-600">
                             R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                        </div>
-                      ) : (
-                        <span className="font-extrabold text-sm text-emerald-600">
-                          R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                       selecionada ? 'bg-emerald-600 text-white shadow-sm' : 'border-2 border-slate-300'
                     }`}>
                       {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
-
-                  {/* Campo de edição para frete próprio manual */}
-                  {selecionada && opcao.provedor === 'frete_proprio' && opcao.servico_codigo === 'manual' && (
-                    <div className="w-full mt-2 pt-2 border-t border-emerald-200 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                      <span className="text-xs font-bold text-slate-700">Valor do frete a cobrar (R$):</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={opcao.valor_frete || ''}
-                        placeholder="0,00"
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          setCotacoes(prev => prev.map(c => c.id === opcao.id ? { ...c, valor_frete: val, valor_original: val } : c));
-                          setCotacaoEscolhida(prev => prev && prev.id === opcao.id ? { ...prev, valor_frete: val, valor_original: val } : prev);
-                        }}
-                        className="w-24 px-2 py-1 text-right text-xs font-black rounded-lg border border-slate-300 focus:border-emerald-500 outline-none"
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })}
