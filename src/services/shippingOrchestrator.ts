@@ -372,32 +372,51 @@ export class ShippingOrchestrator {
       destino_cep
     ].filter(Boolean).join(', ');
 
-    // Disparo concorrente com Promise.allSettled
-    const resultados = await Promise.allSettled([
-      // 1. Uber Direct
-      UberDirectService.cotarEntrega(config, enderecoDestinoLinha, itens),
-      // 2. Melhor Envio v2
-      MelhorEnvioService.cotarFretes(config, destino_cep, subtotal, itens)
-    ]);
+    const promessas: Promise<{ provedor: 'uber' | 'melhor_envio'; valor: any }>[] = [];
 
-    // Tratar Uber Direct
-    const resUber = resultados[0];
-    if (resUber.status === 'fulfilled' && resUber.value) {
-      opcoesTotais.push(resUber.value);
-    } else if (resUber.status === 'rejected') {
-      console.warn('[ShippingOrchestrator] Falha rejeitada no Uber Direct:', resUber.reason);
+    // 1. Uber Direct - APENAS se ativado explicitamente na loja
+    if (config?.uber_ativo === true) {
+      promessas.push(
+        UberDirectService.cotarEntrega(config, enderecoDestinoLinha, itens)
+          .then(opcao => ({ provedor: 'uber' as const, valor: opcao }))
+          .catch(err => {
+            console.warn('[ShippingOrchestrator] Falha rejeitada no Uber Direct:', err);
+            return { provedor: 'uber' as const, valor: null };
+          })
+      );
     }
 
-    // Tratar Melhor Envio
-    const resMelhorEnvio = resultados[1];
-    if (resMelhorEnvio.status === 'fulfilled' && Array.isArray(resMelhorEnvio.value)) {
-      opcoesTotais.push(...resMelhorEnvio.value);
-    } else if (resMelhorEnvio.status === 'rejected') {
-      console.warn('[ShippingOrchestrator] Falha rejeitada no Melhor Envio:', resMelhorEnvio.reason);
+    // 2. Melhor Envio v2 - APENAS se ativado explicitamente na loja
+    if (config?.melhor_envio_ativo === true) {
+      promessas.push(
+        MelhorEnvioService.cotarFretes(config, destino_cep, subtotal, itens)
+          .then(opcoes => ({ provedor: 'melhor_envio' as const, valor: opcoes }))
+          .catch(err => {
+            console.warn('[ShippingOrchestrator] Falha rejeitada no Melhor Envio:', err);
+            return { provedor: 'melhor_envio' as const, valor: [] };
+          })
+      );
     }
 
-    // 3. Frete Próprio da Loja
-    if (config?.frete_proprio_ativo) {
+    if (promessas.length > 0) {
+      const resultados = await Promise.allSettled(promessas);
+      for (const res of resultados) {
+        if (res.status === 'fulfilled' && res.value) {
+          if (res.value.provedor === 'uber' && res.value.valor) {
+            const opcaoUber: OpcaoFreteCotada = res.value.valor;
+            // Se houver erro de bloqueio/cadastro ou conta desativada na Uber, não expor no PDV
+            if (opcaoUber.id !== 'uber-blocked' && !opcaoUber.erro) {
+              opcoesTotais.push(opcaoUber);
+            }
+          } else if (res.value.provedor === 'melhor_envio' && Array.isArray(res.value.valor)) {
+            opcoesTotais.push(...res.value.valor);
+          }
+        }
+      }
+    }
+
+    // 3. Frete Próprio da Loja - APENAS se ativado explicitamente
+    if (config?.frete_proprio_ativo === true) {
       const tipoCobranca = config.frete_proprio_tipo_cobranca || 'fixo';
       const valorFreteProprio = tipoCobranca === 'gratis' 
         ? 0 

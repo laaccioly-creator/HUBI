@@ -266,21 +266,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     };
   }, [enderecoEntregaAtual, clienteId, clienteCep, clienteLogr, clienteNum, clienteComp, clienteBairro, clienteCid, clienteUf]);
 
-  // Identificação de integrações ativas ou configuradas
-  const temUber = Boolean(
-    configLoja?.uber_ativo || 
-    (configLoja?.uber_client_id && configLoja?.uber_customer_id)
-  );
-  const temMelhorEnvio = Boolean(
-    configLoja?.melhor_envio_ativo || 
-    configLoja?.melhor_envio_token
-  );
-  const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio);
+  // Identificação de integrações ativas ou configuradas (estritamente booleanas)
+  const temUber = Boolean(configLoja?.uber_ativo === true);
+  const temMelhorEnvio = Boolean(configLoja?.melhor_envio_ativo === true);
+  const temFreteProprio = Boolean(configLoja?.frete_proprio_ativo === true);
+  const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio || temFreteProprio);
   const permiteRetirada = Boolean(
-    configLoja?.retirada_loja_ativa ?? 
-    configLoja?.retirada_balcao_ativa ?? 
-    configLoja?.permite_retirada_loja ?? 
-    false
+    configLoja?.retirada_loja_ativa !== false && 
+    configLoja?.retirada_balcao_ativa !== false
   );
 
   // Se a loja não permite retirada, garantir que a modalidade seja estritamente 'entrega'
@@ -296,12 +289,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
     if (!configLoja) return;
 
-    if (!temUber && !temMelhorEnvio) {
+    if (!temUber && !temMelhorEnvio && !temFreteProprio) {
       setCotacoes([]);
       return;
     }
 
-    const chaveCotacao = `${modalidade}_${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja.id}`;
+    const chaveCotacao = `${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja.id}`;
     if (!forcar && ultimaCotacaoParamRef.current === chaveCotacao) {
       return;
     }
@@ -314,7 +307,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       const runtimeConfig: LojaShippingConfig = {
         ...configLoja,
         uber_ativo: temUber,
-        melhor_envio_ativo: temMelhorEnvio
+        melhor_envio_ativo: temMelhorEnvio,
+        frete_proprio_ativo: temFreteProprio
       };
 
       const opcoesBrutas = await ShippingOrchestrator.cotarOpcoesFrete({
@@ -360,12 +354,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         subtotal
       );
 
-      setCotacoes(opcoesComSubsidio);
+      // Descartar opções com erro para não poluir a interface do usuário
+      const opcoesSemErro = opcoesComSubsidio.filter(o => !o.erro && o.id !== 'uber-blocked');
+      setCotacoes(opcoesSemErro);
 
-      const opcoesValidas = opcoesComSubsidio.filter(o => !o.erro && (o.valor_frete > 0 || o.is_frete_gratis));
+      const opcoesValidas = opcoesSemErro.filter(o => o.valor_frete > 0 || o.is_frete_gratis);
 
-      if (opcoesValidas.length > 0) {
-        // Prioriza e tica a opção de frete grátis por padrão se o cliente atingiu a meta
+      // Se a modalidade ativa for entrega, seleciona a melhor opção cotada automaticamente
+      if (modalidade === 'entrega' && opcoesValidas.length > 0) {
         const opcaoGratis = opcoesValidas.find(o => o.is_frete_gratis);
         const encontrada = opcaoGratis 
           || opcoesValidas.find(o => 
@@ -410,7 +406,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             }
           });
         }
-      } else {
+      } else if (modalidade === 'entrega') {
         setCotacaoEscolhida(null);
       }
     } catch (err: unknown) {
@@ -420,24 +416,25 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } finally {
       setCotando(false);
     }
-  }, [configLoja, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, opcaoSelecionadaId]);
+  }, [configLoja, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, temFreteProprio, opcaoSelecionadaId]);
 
-  // Dispara cotação quando o endereço for definido na aba de entrega
+  // Dispara cotação quando o endereço for definido e houver integrações ativas
   useEffect(() => {
-    if (modalidade === 'entrega' && enderecoSelecionado && configLoja) {
+    if (enderecoSelecionado && configLoja && (temUber || temMelhorEnvio || temFreteProprio)) {
       executarCotacao(enderecoSelecionado);
     }
-  }, [modalidade, enderecoSelecionado, configLoja, executarCotacao]);
+  }, [enderecoSelecionado, configLoja, temUber, temMelhorEnvio, temFreteProprio, executarCotacao]);
 
-  // Troca de Modalidade
-  const handleSelecionarModalidade = (novaModalidade: TipoAtendimento) => {
-    if (novaModalidade === 'retirada' && !permiteRetirada) {
-      return;
-    }
-    setModalidade(novaModalidade);
+  // Selecionar Modalidade de Retirada
+  const handleSelecionarRetirada = () => {
+    if (!permiteRetirada) return;
+    setModalidade('retirada');
+    setCotacaoEscolhida(null);
 
-    if (novaModalidade === 'retirada') {
-      const resultadoRetirada: ShippingSelectionResult = {
+    const chaveEmissao = `retirada_0_${lojaId}`;
+    if (ultimoResultadoEmitidoRef.current !== chaveEmissao) {
+      ultimoResultadoEmitidoRef.current = chaveEmissao;
+      onChangeRef.current({
         tipo_atendimento: 'retirada',
         valor_frete: 0.00,
         opcao_selecionada: null,
@@ -452,10 +449,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           prazo_estimado_texto: 'Disponível no balcão',
           status_envio: 'pronto_para_retirar'
         }
-      };
-      onChange(resultadoRetirada);
-    } else if (enderecoSelecionado) {
-      executarCotacao(enderecoSelecionado);
+      });
     }
   };
 
@@ -534,386 +528,134 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* SELEÇÃO ENTREGA x RETIRADA (apenas quando a loja permitir retirada) */}
-      {permiteRetirada && (
-        <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-          <button
-            type="button"
-            onClick={() => handleSelecionarModalidade('entrega')}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-              modalidade === 'entrega'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Truck className="w-4 h-4" />
-            <span>Receber por Entrega</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleSelecionarModalidade('retirada')}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-              modalidade === 'retirada'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            <span>Retirar na Loja</span>
-          </button>
+      {/* 1. CARD DE ENDEREÇO DE ENTREGA */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>Calculamos os custos e prazos para este endereço:</span>
         </div>
-      )}
 
-      {/* ========================================================================= */}
-      {/* FLUXO: RECEBER POR ENTREGA */}
-      {/* ========================================================================= */}
-      {modalidade === 'entrega' && (
-        <div className="space-y-3 animate-in fade-in duration-200">
-          {/* Cenário: Loja NÃO configurou nem Uber nem Melhor Envio */}
-          {!carregandoConfig && !temIntegracoesAtivas ? (
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 space-y-3">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <span className="font-bold text-xs block text-amber-900">
-                    Cotação Automática de Entrega Não Configurada
-                  </span>
-                  <p className="text-xs text-amber-800 leading-relaxed">
-                    A loja ainda não configurou as integrações automáticas com Uber Direct ou Melhor Envio.
-                    Favor entrar em contato com a loja para combinar a forma e o valor de entrega.
+        {carregandoEnderecos ? (
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
+            <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+            <span>Carregando dados de endereço...</span>
+          </div>
+        ) : enderecoSelecionado ? (
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative overflow-hidden text-slate-800 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      {enderecoSelecionado.identificador || 'Endereço Principal'}
+                    </span>
+                    {enderecoSelecionado.is_principal && (
+                      <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                        Principal
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-700 mt-1">
+                    {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
+                    {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                   </p>
                 </div>
               </div>
-
-              <div className="pt-2 border-t border-amber-200 flex flex-wrap items-center gap-2">
-                <a
-                  href={linkWhatsAppLoja}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition shadow-md shadow-emerald-600/20"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Falar no WhatsApp da Loja</span>
-                </a>
-
-                {permiteRetirada && (
-                  <button
-                    type="button"
-                    onClick={() => handleSelecionarModalidade('retirada')}
-                    className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs transition cursor-pointer"
-                  >
-                    Mudar para Retirada na Loja
-                  </button>
-                )}
-              </div>
             </div>
-          ) : (
-            <>
-              {/* Mensagem e Card do Endereço de Entrega */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Calculamos os custos e prazos para este endereço:</span>
+
+            {/* Botão Escolher Outro Endereço */}
+            <div className="pt-2 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModalEscolherOutroAberto(true)}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline"
+              >
+                <span>Escolher outro endereço</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2">
+            <p className="text-xs text-slate-500">Nenhum endereço selecionado.</p>
+            {clienteId && (
+              <button
+                type="button"
+                onClick={() => setModalEscolherOutroAberto(true)}
+                className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs hover:bg-emerald-100 transition cursor-pointer"
+              >
+                Selecionar ou Cadastrar Endereço
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 2. LISTA ÚNICA E UNIFICADA: OPÇÕES DE ENTREGA E RETIRADA */}
+      <div className="space-y-2 pt-1">
+        <span className="text-xs font-bold text-slate-700 block">Opções de Entrega e Retirada</span>
+
+        {/* 2.1. PRIMEIRA OPÇÃO: RETIRAR NA LOJA (BALCÃO FÍSICO) */}
+        {permiteRetirada && (
+          <div className="space-y-2">
+            <div
+              onClick={handleSelecionarRetirada}
+              className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                modalidade === 'retirada'
+                  ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                  : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                  modalidade === 'retirada'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-purple-50 text-purple-700 border-purple-200'
+                }`}>
+                  <Store className="w-4 h-4" />
                 </div>
 
-                {carregandoEnderecos ? (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                    <span>Carregando dados de endereço...</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 truncate">
+                      Retirar na Loja
+                    </span>
+                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                      Balcão Físico
+                    </span>
                   </div>
-                ) : enderecoSelecionado ? (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative overflow-hidden text-slate-800 shadow-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2.5">
-                        <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900">
-                              {enderecoSelecionado.identificador || 'Endereço Principal'}
-                            </span>
-                            {enderecoSelecionado.is_principal && (
-                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
-                                Principal
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-700 mt-1">
-                            {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
-                            {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Botão Escolher Outro Endereço */}
-                    <div className="pt-2 border-t border-slate-200 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setModalEscolherOutroAberto(true)}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline"
-                      >
-                        <span>Escolher outro endereço</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-slate-600">Disponibilidade Imediata</span>
                   </div>
-                ) : (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2">
-                    <p className="text-xs text-slate-500">Nenhum endereço selecionado.</p>
-                    {clienteId && (
-                      <button
-                        type="button"
-                        onClick={() => setModalEscolherOutroAberto(true)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs hover:bg-emerald-100 transition cursor-pointer"
-                      >
-                        Selecionar ou Cadastrar Endereço
-                      </button>
-                    )}
-                  </div>
-                )}
+                </div>
               </div>
 
-              {/* Lista de Opções de Frete e Fulfillment Disponíveis */}
-              <div className="space-y-2 pt-1">
-                <span className="text-xs font-bold text-slate-700 block">Opções de Entrega e Retirada</span>
-
-                {/* 1. Opção Fixa no Topo: Retirar na Loja (R$ 0,00 / Disponibilidade Imediata) */}
-                {permiteRetirada && (
-                  <div
-                    onClick={() => handleSelecionarModalidade('retirada')}
-                    className="p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 bg-slate-50 hover:bg-slate-100/70 border-slate-200 text-slate-800 hover:border-emerald-400"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-purple-50 text-purple-700 border-purple-200">
-                        <Store className="w-4 h-4" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-900 truncate">
-                            Retirar na Loja
-                          </span>
-                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
-                            Balcão Físico
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                          <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span className="text-slate-600">Disponibilidade Imediata</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right">
-                        <span className="font-extrabold text-sm text-emerald-600">
-                          Grátis
-                        </span>
-                      </div>
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center transition-all border-2 border-slate-300">
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
-                  <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-slate-800 space-y-2">
-                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Endereço incompleto</span>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Para receber via Uber, Melhor Envio ou Correios, atualize o endereço do cliente.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => onSolicitarAtualizarEndereco?.()}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
-                    >
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>{clienteId ? 'Atualizar endereço' : 'Identificar / Vincular Cliente'}</span>
-                    </button>
-                  </div>
-                ) : cotando ? (
-                  <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                    <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
-                    <span>Calculando opções de frete em tempo real...</span>
-                  </div>
-                ) : erroCotacaoMsg ? (
-                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{erroCotacaoMsg}</span>
-                  </div>
-                ) : cotacoes.length === 0 ? (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                    Nenhuma opção de frete retornada para este CEP.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {cotacoes.map((opcao) => {
-                      if (opcao.erro) {
-                        return (
-                          <div
-                            key={opcao.id}
-                            className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-3"
-                          >
-                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-                              <AlertCircle className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0 space-y-0.5">
-                              <span className="text-xs font-bold text-amber-900 block">
-                                {opcao.transportadora_nome}: {opcao.servico_nome}
-                              </span>
-                              <p className="text-[11px] text-amber-800 leading-relaxed">
-                                {opcao.erro}
-                              </p>
-                              {opcao.prazo_estimado_texto && (
-                                <span className="text-[10px] text-amber-700 font-semibold block pt-0.5">
-                                  {opcao.prazo_estimado_texto}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      const selecionada = cotacaoEscolhida?.id === opcao.id;
-                      return (
-                        <div
-                          key={opcao.id}
-                          onClick={() => handleEscolherCotacao(opcao)}
-                          className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
-                            selecionada
-                              ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                              : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                              opcao.provedor === 'uber'
-                                ? 'bg-black text-white font-black text-[11px] border-black'
-                                : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
-                            }`}>
-                              {opcao.provedor === 'uber' ? 'UBER' : <Truck className="w-4 h-4" />}
-                            </div>
-
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-slate-900 truncate">
-                                  {opcao.transportadora_nome}
-                                </span>
-                                {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
-                                  <span className="text-[11px] text-slate-600 font-semibold truncate">
-                                    ({opcao.servico_nome})
-                                  </span>
-                                )}
-                                {opcao.is_frete_gratis && (
-                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    Frete Grátis
-                                  </span>
-                                )}
-                              </div>
-                              {opcao.prazo_estimado_texto && (
-                                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                                  <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                  <span className="text-slate-600">{opcao.prazo_estimado_texto}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className="text-right">
-                              {opcao.is_frete_gratis ? (
-                                <div className="flex flex-col items-end leading-tight">
-                                  {opcao.valor_original != null && opcao.valor_original > 0 && (
-                                    <span className="text-xs line-through text-slate-400 font-bold">
-                                      R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  )}
-                                  <span className="font-extrabold text-sm text-emerald-600">
-                                    Grátis
-                                  </span>
-                                </div>
-                              ) : opcao.is_upgrade_subsidio ? (
-                                <div className="flex flex-col items-end leading-tight">
-                                  {opcao.valor_original != null && (
-                                    <span className="text-xs line-through text-slate-400 font-bold">
-                                      R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  )}
-                                  <span className="font-extrabold text-sm text-emerald-600">
-                                    R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="font-extrabold text-sm text-emerald-600">
-                                  R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                              )}
-                            </div>
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                              selecionada ? 'bg-emerald-600 text-white shadow-sm' : 'border-2 border-slate-300'
-                            }`}>
-                              {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                            </div>
-                          </div>
-
-                          {/* Campo de edição para frete próprio manual */}
-                          {selecionada && opcao.provedor === 'frete_proprio' && opcao.servico_codigo === 'manual' && (
-                            <div className="w-full mt-2 pt-2 border-t border-emerald-200 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                              <span className="text-xs font-bold text-slate-700">Valor do frete a cobrar (R$):</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={opcao.valor_frete || ''}
-                                placeholder="0,00"
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value) || 0;
-                                  setCotacoes(prev => prev.map(c => c.id === opcao.id ? { ...c, valor_frete: val, valor_original: val } : c));
-                                  setCotacaoEscolhida(prev => prev && prev.id === opcao.id ? { ...prev, valor_frete: val, valor_original: val } : prev);
-                                }}
-                                className="w-24 px-2 py-1 text-right text-xs font-black rounded-lg border border-slate-300 focus:border-emerald-500 outline-none"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* FLUXO: RETIRAR NA LOJA */}
-      {/* ========================================================================= */}
-      {permiteRetirada && modalidade === 'retirada' && (
-        <div className="space-y-3 animate-in fade-in duration-200">
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-3 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white text-emerald-600 flex items-center justify-center shrink-0 border border-slate-200 shadow-sm">
-                <Store className="w-5 h-5" />
-              </div>
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-slate-900">
-                    Retirar na Loja
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-right">
+                  <span className="font-extrabold text-sm text-emerald-600">
+                    Grátis
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Seu pedido será preparado e ficará disponível para retirada no balcão da loja física.
-                </p>
-                <div className="pt-1.5 text-xs text-slate-600 font-medium">
-                  <strong className="text-slate-800">Endereço da Loja:</strong>{' '}
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                  modalidade === 'retirada'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'border-2 border-slate-300'
+                }`}>
+                  {modalidade === 'retirada' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </div>
+              </div>
+            </div>
+
+            {/* Informações detalhadas da retirada física quando a opção estiver selecionada */}
+            {modalidade === 'retirada' && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-2.5 animate-in fade-in duration-200 text-xs shadow-sm">
+                <div className="text-slate-600 leading-relaxed">
+                  <strong className="text-slate-800">Endereço para Retirada:</strong>{' '}
                   {[
                     dadosLojaFormatados.endereco_logradouro,
                     dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
@@ -926,33 +668,207 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     .filter(Boolean)
                     .join(', ') || 'Consulte o balcão da loja'}
                 </div>
+
+                <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalMapaLojaAberto(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Ver no Mapa</span>
+                  </button>
+
+                  <a
+                    href={linkWhatsAppRetirada}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Enviar para o WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2.2. OPÇÕES DE ENTREGA: Validação de endereço e cotações */}
+        {(!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
+          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-slate-800 space-y-2">
+            <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Endereço incompleto</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Para receber via Uber, Melhor Envio ou Correios, atualize o endereço do cliente.
+            </p>
+            <button
+              type="button"
+              onClick={() => onSolicitarAtualizarEndereco?.()}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>{clienteId ? 'Atualizar endereço' : 'Identificar / Vincular Cliente'}</span>
+            </button>
+          </div>
+        ) : !carregandoConfig && !temIntegracoesAtivas ? (
+          /* Cenário: Nenhuma integração ativa para cotação automática */
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold text-xs block text-amber-900">
+                  Cotação Automática de Entrega Não Configurada
+                </span>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  A loja não possui integrações ativas de entrega automática no momento. Entre em contato para combinar o frete.
+                </p>
               </div>
             </div>
 
-            {/* Ações: Ver no mapa e Enviar para WhatsApp */}
-            <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setModalMapaLojaAberto(true)}
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Ver no Mapa</span>
-              </button>
-
+            <div className="pt-2 border-t border-amber-200 flex flex-wrap items-center gap-2">
               <a
-                href={linkWhatsAppRetirada}
+                href={linkWhatsAppLoja}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-md shadow-emerald-600/20 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition shadow-md shadow-emerald-600/20"
               >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>Enviar para o WhatsApp</span>
+                <MessageCircle className="w-4 h-4" />
+                <span>Falar no WhatsApp da Loja</span>
               </a>
             </div>
           </div>
-        </div>
-      )}
+        ) : cotando ? (
+          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+            <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+            <span>Calculando opções de frete em tempo real...</span>
+          </div>
+        ) : erroCotacaoMsg ? (
+          <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{erroCotacaoMsg}</span>
+          </div>
+        ) : cotacoes.length === 0 ? (
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+            Nenhuma opção de entrega encontrada para este CEP.
+          </div>
+        ) : (
+          /* Cards de Opções de Frete cotadas */
+          <div className="space-y-2">
+            {cotacoes.map((opcao) => {
+              const selecionada = modalidade === 'entrega' && cotacaoEscolhida?.id === opcao.id;
+              return (
+                <div
+                  key={opcao.id}
+                  onClick={() => handleEscolherCotacao(opcao)}
+                  className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                    selecionada
+                      ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                      : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                      opcao.provedor === 'uber'
+                        ? 'bg-black text-white font-black text-[11px] border-black'
+                        : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
+                    }`}>
+                      {opcao.provedor === 'uber' ? 'UBER' : <Truck className="w-4 h-4" />}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {opcao.transportadora_nome}
+                        </span>
+                        {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
+                          <span className="text-[11px] text-slate-600 font-semibold truncate">
+                            ({opcao.servico_nome})
+                          </span>
+                        )}
+                        {opcao.is_frete_gratis && (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Frete Grátis
+                          </span>
+                        )}
+                      </div>
+                      {opcao.prazo_estimado_texto && (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                          <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="text-slate-600">{opcao.prazo_estimado_texto}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      {opcao.is_frete_gratis ? (
+                        <div className="flex flex-col items-end leading-tight">
+                          {opcao.valor_original != null && opcao.valor_original > 0 && (
+                            <span className="text-xs line-through text-slate-400 font-bold">
+                              R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          )}
+                          <span className="font-extrabold text-sm text-emerald-600">
+                            Grátis
+                          </span>
+                        </div>
+                      ) : opcao.is_upgrade_subsidio ? (
+                        <div className="flex flex-col items-end leading-tight">
+                          {opcao.valor_original != null && (
+                            <span className="text-xs line-through text-slate-400 font-bold">
+                              R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          )}
+                          <span className="font-extrabold text-sm text-emerald-600">
+                            R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-extrabold text-sm text-emerald-600">
+                          R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      selecionada ? 'bg-emerald-600 text-white shadow-sm' : 'border-2 border-slate-300'
+                    }`}>
+                      {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                  </div>
+
+                  {/* Campo de edição para frete próprio manual */}
+                  {selecionada && opcao.provedor === 'frete_proprio' && opcao.servico_codigo === 'manual' && (
+                    <div className="w-full mt-2 pt-2 border-t border-emerald-200 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                      <span className="text-xs font-bold text-slate-700">Valor do frete a cobrar (R$):</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={opcao.valor_frete || ''}
+                        placeholder="0,00"
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setCotacoes(prev => prev.map(c => c.id === opcao.id ? { ...c, valor_frete: val, valor_original: val } : c));
+                          setCotacaoEscolhida(prev => prev && prev.id === opcao.id ? { ...prev, valor_frete: val, valor_original: val } : prev);
+                        }}
+                        className="w-24 px-2 py-1 text-right text-xs font-black rounded-lg border border-slate-300 focus:border-emerald-500 outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* MODAL: ESCOLHER OUTRO ENDEREÇO */}
       {clienteId && (
