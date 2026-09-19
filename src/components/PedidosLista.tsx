@@ -784,7 +784,7 @@ export const PedidosLista: React.FC = () => {
 
         mostrarSucesso(
           resultado.pin_entrega
-            ? `Corrida Uber Direct solicitada com sucesso! PIN: ${resultado.pin_entrega}`
+            ? `Corrida Uber Direct solicitada com sucesso! Código PIN: ${resultado.pin_entrega}`
             : 'Corrida Uber Direct solicitada com sucesso!'
         );
       } else if (prov === 'melhor_envio') {
