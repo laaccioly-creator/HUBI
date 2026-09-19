@@ -71,12 +71,7 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [freteGratisAtivo, setFreteGratisAtivo] = useState<boolean>(false);
   const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<string>('');
 
-  // 6. Frete Próprio da Loja
-  const [freteProprioAtivo, setFreteProprioAtivo] = useState<boolean>(false);
-  const [freteProprioTipoCobranca, setFreteProprioTipoCobranca] = useState<'fixo' | 'manual' | 'gratis'>('fixo');
-  const [freteProprioValorPadrao, setFreteProprioValorPadrao] = useState<string>('0.00');
-
-  // 7. Gestão de Formas de Entrega Relacionais (formas_entrega)
+  // 6. Gestão de Formas de Entrega Relacionais (formas_entrega)
   const [formasEntrega, setFormasEntrega] = useState<FormaEntrega[]>([]);
   const [carregandoFormas, setCarregandoFormas] = useState<boolean>(false);
   const [modalFormaAberto, setModalFormaAberto] = useState<boolean>(false);
@@ -226,10 +221,6 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           setFreteGratisAtivo(Boolean(config.frete_gratis_ativo));
           setFreteGratisValorMinimo(config.frete_gratis_valor_minimo != null ? String(config.frete_gratis_valor_minimo) : '');
-
-          setFreteProprioAtivo(Boolean(config.frete_proprio_ativo));
-          setFreteProprioTipoCobranca(config.frete_proprio_tipo_cobranca || 'fixo');
-          setFreteProprioValorPadrao(config.frete_proprio_valor_padrao != null ? String(config.frete_proprio_valor_padrao) : '0.00');
         } else if (ativo && loja) {
           // Preenchimento inicial inteligente com os dados cadastrais da loja
           setOrigemCep(loja.endereco_cep || '');
@@ -320,11 +311,7 @@ export const ShippingSettingsScreen: React.FC = () => {
         retirada_balcao_ativa: retiradaBalcaoAtiva,
 
         frete_gratis_ativo: freteGratisAtivo,
-        frete_gratis_valor_minimo: freteGratisValorMinimo.trim() ? parseFloat(freteGratisValorMinimo.replace(',', '.')) : 0,
-
-        frete_proprio_ativo: freteProprioAtivo,
-        frete_proprio_tipo_cobranca: freteProprioTipoCobranca,
-        frete_proprio_valor_padrao: freteProprioValorPadrao.trim() ? parseFloat(freteProprioValorPadrao.replace(',', '.')) : 0
+        frete_gratis_valor_minimo: freteGratisValorMinimo.trim() ? parseFloat(freteGratisValorMinimo.replace(',', '.')) : 0
       };
 
       await ShippingOrchestrator.salvarConfigLoja(loja.id, payload);
@@ -863,123 +850,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           )}
         </div>
 
-        {/* 6. BLOCO: FRETE PRÓPRIO DA LOJA */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black">
-                <Truck className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Frete Próprio / Entrega Local
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Entrega realizada pela frota da loja ou motoboy parceiro
-                </p>
-              </div>
-            </div>
-
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={freteProprioAtivo}
-                onChange={(e) => setFreteProprioAtivo(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-            </label>
-          </div>
-
-          {freteProprioAtivo && (
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Modo de Cobrança do Frete Próprio:
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFreteProprioTipoCobranca('fixo')}
-                    className={`p-3 rounded-xl border text-xs font-bold text-left transition cursor-pointer ${
-                      freteProprioTipoCobranca === 'fixo'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/40'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between pb-1">
-                      <span>Valor Fixo</span>
-                      {freteProprioTipoCobranca === 'fixo' && <Check className="w-4 h-4 text-emerald-600" />}
-                    </div>
-                    <p className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                      Sempre cobra um valor fixo pré-definido.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFreteProprioTipoCobranca('manual')}
-                    className={`p-3 rounded-xl border text-xs font-bold text-left transition cursor-pointer ${
-                      freteProprioTipoCobranca === 'manual'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/40'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between pb-1">
-                      <span>Manual no PDV</span>
-                      {freteProprioTipoCobranca === 'manual' && <Check className="w-4 h-4 text-emerald-600" />}
-                    </div>
-                    <p className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                      Operador informa o valor na hora da venda.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFreteProprioTipoCobranca('gratis')}
-                    className={`p-3 rounded-xl border text-xs font-bold text-left transition cursor-pointer ${
-                      freteProprioTipoCobranca === 'gratis'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/40'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between pb-1">
-                      <span>Grátis (Sem Custo)</span>
-                      {freteProprioTipoCobranca === 'gratis' && <Check className="w-4 h-4 text-emerald-600" />}
-                    </div>
-                    <p className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                      Entrega gratuita por conta da loja.
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {freteProprioTipoCobranca === 'fixo' && (
-                <div className="max-w-xs space-y-1">
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Valor Padrão da Entrega (R$) *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-sm font-bold text-slate-400 dark:text-slate-500">
-                      R$
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0,00"
-                      value={freteProprioValorPadrao}
-                      onChange={(e) => setFreteProprioValorPadrao(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 7. GESTÃO RELACIONAL DE FORMAS DE ENTREGA (formas_entrega) */}
+        {/* 6. GESTÃO RELACIONAL DE FORMAS DE ENTREGA (formas_entrega) */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="flex items-center gap-3">

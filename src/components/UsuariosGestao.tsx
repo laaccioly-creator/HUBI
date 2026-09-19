@@ -627,7 +627,19 @@ export const UsuariosGestao: React.FC = () => {
                               </span>
                             )}
 
-                            {!ehOwner && !ehAdmin && (
+                            {!ehOwner && !ehAdmin && user.perfil === 'gerente' && (
+                              <span className="text-[10px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                GERENTE
+                              </span>
+                            )}
+
+                            {!ehOwner && !ehAdmin && user.perfil === 'vendedor' && (
+                              <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                VENDEDOR
+                              </span>
+                            )}
+
+                            {!ehOwner && !ehAdmin && user.perfil !== 'gerente' && user.perfil !== 'vendedor' && (
                               <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 COMUM
                               </span>

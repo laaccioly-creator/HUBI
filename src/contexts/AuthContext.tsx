@@ -36,6 +36,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const activeLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID);
       const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
 
+      // Autocura inicial se houver sessão ativa no Supabase Auth
+      const { data: { session } } = await supabase.auth.getSession();
+      const authUser = session?.user || null;
+
+      if (authUser) {
+        try {
+          await supabase.rpc('sincronizar_meu_usuario_auth');
+        } catch (rpcErr) {
+          console.warn('Aviso ao sincronizar usuario_auth_id via RPC:', rpcErr);
+        }
+      }
+
       const { data: todasLojas, error: erroLojas } = await supabase
         .from('lojas')
         .select('*')
@@ -61,18 +73,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoja(lojaParaAtivar);
           localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaParaAtivar.id);
 
-          // Buscar usuário ativo específico salvo ou o primeiro da loja
+          // Buscar usuário ativo da loja com autocura e fallback
           let usuarioAtivo: UsuarioLoja | null = null;
 
-          if (activeUsuarioId) {
+          if (authUser?.id) {
+            // 1. Consulta prioritária por usuario_auth_id = user.id
+            const { data: userPorAuthId } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('usuario_auth_id', authUser.id)
+              .eq('loja_id', lojaParaAtivar.id)
+              .maybeSingle();
+
+            if (userPorAuthId) {
+              usuarioAtivo = userPorAuthId;
+            } else if (authUser.email) {
+              // 2. Fallback buscando por LOWER(email) = LOWER(user.email)
+              const emailAuthLimpo = authUser.email.trim().toLowerCase();
+              const { data: userPorEmail } = await supabase
+                .from('usuarios_loja')
+                .select('*')
+                .ilike('email', emailAuthLimpo)
+                .eq('loja_id', lojaParaAtivar.id)
+                .maybeSingle();
+
+              if (userPorEmail) {
+                try {
+                  await supabase
+                    .from('usuarios_loja')
+                    .update({ usuario_auth_id: authUser.id })
+                    .eq('id', userPorEmail.id);
+                  await supabase.rpc('sincronizar_meu_usuario_auth');
+                  usuarioAtivo = { ...userPorEmail, usuario_auth_id: authUser.id };
+                } catch (syncErr) {
+                  console.warn('Erro ao atualizar usuario_auth_id no fallback:', syncErr);
+                  usuarioAtivo = userPorEmail;
+                }
+              }
+            }
+          }
+
+          if (!usuarioAtivo && activeUsuarioId) {
             const { data: userSalvo } = await supabase
               .from('usuarios_loja')
               .select('*')
               .eq('id', activeUsuarioId)
               .eq('loja_id', lojaParaAtivar.id)
-              .single();
+              .maybeSingle();
 
-            if (userSalvo) usuarioAtivo = userSalvo;
+            if (userSalvo) {
+              const uSalvo = userSalvo as UsuarioLoja;
+              if (authUser?.id && !uSalvo.usuario_auth_id) {
+                try {
+                  await supabase
+                    .from('usuarios_loja')
+                    .update({ usuario_auth_id: authUser.id })
+                    .eq('id', uSalvo.id);
+                  await supabase.rpc('sincronizar_meu_usuario_auth');
+                  usuarioAtivo = { ...uSalvo, usuario_auth_id: authUser.id };
+                } catch (vErr) {
+                  console.warn('Aviso ao vincular usuario_auth_id:', vErr);
+                  usuarioAtivo = uSalvo;
+                }
+              } else {
+                usuarioAtivo = uSalvo;
+              }
+            }
           }
 
           if (!usuarioAtivo) {
@@ -83,7 +149,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .order('criado_em', { ascending: true });
 
             if (usuarios && usuarios.length > 0) {
-              usuarioAtivo = usuarios[0];
+              const primeiroUser = usuarios[0] as UsuarioLoja;
+              if (authUser?.id && !primeiroUser.usuario_auth_id) {
+                try {
+                  await supabase
+                    .from('usuarios_loja')
+                    .update({ usuario_auth_id: authUser.id })
+                    .eq('id', primeiroUser.id);
+                  await supabase.rpc('sincronizar_meu_usuario_auth');
+                  usuarioAtivo = { ...primeiroUser, usuario_auth_id: authUser.id };
+                } catch (vErr) {
+                  console.warn('Aviso ao vincular usuario_auth_id:', vErr);
+                  usuarioAtivo = primeiroUser;
+                }
+              } else {
+                usuarioAtivo = primeiroUser;
+              }
             }
           }
 
@@ -160,6 +241,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoja(lojaBuscada);
       localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaBuscada.id);
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const authUserId = session?.user?.id || null;
+
       const { data: usuarios } = await supabase
         .from('usuarios_loja')
         .select('*')
@@ -167,13 +251,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .order('criado_em', { ascending: true });
 
       if (usuarios && usuarios.length > 0) {
-        setUsuario(usuarios[0]);
-        localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarios[0].id);
+        let u = usuarios[0];
+        if (authUserId && (!u.usuario_auth_id || u.usuario_auth_id !== authUserId)) {
+          try {
+            await supabase
+              .from('usuarios_loja')
+              .update({ usuario_auth_id: authUserId })
+              .eq('id', u.id);
+            await supabase.rpc('sincronizar_meu_usuario_auth');
+            u = { ...u, usuario_auth_id: authUserId };
+          } catch (syncErr) {
+            console.warn('Aviso ao sincronizar usuario_auth_id na seleção de loja:', syncErr);
+          }
+        }
+        setUsuario(u);
+        localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
       } else {
         const { data: novoUser } = await supabase
           .from('usuarios_loja')
           .insert([{
             loja_id: lojaBuscada.id,
+            usuario_auth_id: authUserId,
             nome_completo: 'Proprietário',
             email: lojaBuscada.email,
             perfil: 'owner',
@@ -192,6 +290,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (novoUser) {
+          if (authUserId) {
+            try {
+              await supabase.rpc('sincronizar_meu_usuario_auth');
+            } catch (rpcErr) {
+              console.warn('Aviso ao sincronizar RPC após criar usuário:', rpcErr);
+            }
+          }
           setUsuario(novoUser);
           localStorage.setItem(STORAGE_KEY_USUARIO_ID, novoUser.id);
         }
@@ -206,53 +311,134 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Entrar com E-mail
-  const entrarComEmail = async (emailBusca: string): Promise<boolean> => {
+  // Entrar com E-mail e Senha (com autocura RPC)
+  const entrarComEmail = async (emailBusca: string, senha?: string): Promise<boolean> => {
     try {
       setCarregando(true);
       const emailTrim = emailBusca.trim().toLowerCase();
+      let authUserId: string | null = null;
 
-      // 1. Buscar primeiro em usuarios_loja (colaborador / admin)
-      const { data: usersFound } = await supabase
-        .from('usuarios_loja')
-        .select('*, loja:lojas(*)')
-        .ilike('email', emailTrim)
-        .limit(1);
+      // Autenticação oficial via Supabase Auth se senha for fornecida
+      if (senha && senha.trim().length > 0) {
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: emailTrim,
+          password: senha.trim()
+        });
 
-      if (usersFound && usersFound.length > 0) {
-        const u = usersFound[0];
-        const lojaAssociada = (u.loja || null) as Loja | null;
-        if (lojaAssociada) {
-          setLoja(lojaAssociada);
-          localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
+        if (authErr) {
+          const msg = authErr.message.toLowerCase();
+          if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+            throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+          }
+          if (msg.includes('email not confirmed')) {
+            throw new Error('E-mail ainda não confirmado no sistema. Verifique sua caixa de entrada.');
+          }
+          throw new Error(authErr.message || 'Falha ao autenticar usuário.');
         }
-        setUsuario(u);
-        localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
-        return true;
+
+        if (authData.session?.user) {
+          authUserId = authData.session.user.id;
+          try {
+            await supabase.rpc('sincronizar_meu_usuario_auth');
+          } catch (rpcErr) {
+            console.warn('Aviso ao sincronizar pós signInWithPassword:', rpcErr);
+          }
+        }
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        authUserId = session?.user?.id || null;
       }
 
-      // 2. Se não achou em usuarios_loja, buscar em lojas (proprietário)
-      const { data: lojasEncontradas } = await supabase
-        .from('lojas')
-        .select('*')
-        .ilike('email', emailTrim)
-        .limit(1);
+      // 1. Buscar perfil em usuarios_loja prioritariamente por usuario_auth_id (auth.uid())
+      let usuarioEncontrado: UsuarioLoja | null = null;
+      let lojaAssociada: Loja | null = null;
 
-      if (lojasEncontradas && lojasEncontradas.length > 0) {
-        const lojaEncontrada = lojasEncontradas[0];
-        setLoja(lojaEncontrada);
-        localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaEncontrada.id);
-
-        const { data: usuarios } = await supabase
+      if (authUserId) {
+        const { data: userAuth } = await supabase
           .from('usuarios_loja')
-          .select('*')
-          .eq('loja_id', lojaEncontrada.id)
-          .order('criado_em', { ascending: true });
+          .select('*, loja:lojas(*)')
+          .eq('usuario_auth_id', authUserId)
+          .maybeSingle();
 
-        if (usuarios && usuarios.length > 0) {
-          setUsuario(usuarios[0]);
-          localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarios[0].id);
+        if (userAuth) {
+          usuarioEncontrado = userAuth as UsuarioLoja;
+          lojaAssociada = (userAuth.loja || null) as Loja | null;
         }
+      }
+
+      // 2. Fallback por LOWER(email) = LOWER(session.user.email) com autocura imediata
+      if (!usuarioEncontrado) {
+        const { data: usersFound } = await supabase
+          .from('usuarios_loja')
+          .select('*, loja:lojas(*)')
+          .ilike('email', emailTrim)
+          .limit(1);
+
+        if (usersFound && usersFound.length > 0) {
+          const uRaw = usersFound[0] as any;
+          const u = uRaw as UsuarioLoja;
+          if (authUserId && (!u.usuario_auth_id || u.usuario_auth_id !== authUserId)) {
+            try {
+              await supabase
+                .from('usuarios_loja')
+                .update({ usuario_auth_id: authUserId })
+                .eq('id', u.id);
+              await supabase.rpc('sincronizar_meu_usuario_auth');
+              usuarioEncontrado = { ...u, usuario_auth_id: authUserId };
+            } catch (syncErr) {
+              console.warn('Aviso ao auto-vincular usuario_auth_id no login:', syncErr);
+              usuarioEncontrado = u;
+            }
+          } else {
+            usuarioEncontrado = u;
+          }
+          lojaAssociada = (uRaw.loja || null) as Loja | null;
+        }
+      }
+
+      // 3. Fallback para proprietários com registro direto na tabela de lojas
+      if (!usuarioEncontrado) {
+        const { data: lojasEncontradas } = await supabase
+          .from('lojas')
+          .select('*')
+          .ilike('email', emailTrim)
+          .limit(1);
+
+        if (lojasEncontradas && lojasEncontradas.length > 0) {
+          const lojaPrimeira = lojasEncontradas[0];
+          lojaAssociada = lojaPrimeira;
+          const { data: usuarios } = await supabase
+            .from('usuarios_loja')
+            .select('*')
+            .eq('loja_id', lojaPrimeira.id)
+            .order('criado_em', { ascending: true });
+
+          if (usuarios && usuarios.length > 0) {
+            let u = usuarios[0] as UsuarioLoja;
+            if (authUserId && (!u.usuario_auth_id || u.usuario_auth_id !== authUserId)) {
+              try {
+                await supabase
+                  .from('usuarios_loja')
+                  .update({ usuario_auth_id: authUserId })
+                  .eq('id', u.id);
+                await supabase.rpc('sincronizar_meu_usuario_auth');
+                u = { ...u, usuario_auth_id: authUserId };
+              } catch (syncErr) {
+                console.warn('Aviso ao sincronizar usuario_auth_id no login de loja:', syncErr);
+              }
+            }
+            usuarioEncontrado = u;
+          }
+        }
+      }
+
+      if (lojaAssociada) {
+        setLoja(lojaAssociada);
+        localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
+      }
+      if (usuarioEncontrado) {
+        setUsuario(usuarioEncontrado);
+        localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioEncontrado.id);
         return true;
       }
 
@@ -360,9 +546,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(`Erro ao criar conta: ${erroLoja?.message || 'Falha na criação da loja'}`);
     }
 
-    // Criar Usuário Proprietário (Owner) com todas as permissões ativas
+    // Obter sessão atual do Supabase Auth ou registrar usuário se senha for fornecida
+    let authUserId: string | null = null;
+    const { data: { session: sessaoAtual } } = await supabase.auth.getSession();
+    if (sessaoAtual?.user) {
+      authUserId = sessaoAtual.user.id;
+    } else if (params.senha && params.senha.trim().length >= 6) {
+      try {
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email: emailLimpo,
+          password: params.senha.trim(),
+          options: {
+            data: { full_name: nomeLimpo }
+          }
+        });
+        if (!signUpErr && signUpData?.user) {
+          authUserId = signUpData.user.id;
+        }
+      } catch (authErr) {
+        console.warn('Aviso ao registrar usuário no Supabase Auth:', authErr);
+      }
+    }
+
+    // Criar Usuário Proprietário (Owner) com todas as permissões ativas e usuario_auth_id vinculado
     const novoUsuarioPayload: Partial<UsuarioLoja> = {
       loja_id: lojaCriada.id,
+      usuario_auth_id: authUserId,
       nome_completo: nomeLimpo,
       email: emailLimpo,
       perfil: 'owner',
@@ -383,6 +592,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .insert([novoUsuarioPayload])
       .select()
       .single();
+
+    if (authUserId) {
+      try {
+        await supabase.rpc('sincronizar_meu_usuario_auth');
+      } catch (rpcErr) {
+        console.warn('Aviso ao sincronizar pós-criação da loja:', rpcErr);
+      }
+    }
 
     // Criar dados padrão essenciais do PDV (Formas de Pagamento e Entrega)
     try {
@@ -442,30 +659,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     carregarLoja();
 
-    // Escutar eventos de login com OAuth (Google, etc.)
+    // Escutar eventos de login com OAuth (Google, etc.) e restauração de sessão
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user?.email) {
-        const emailAuth = session.user.email.toLowerCase();
-        const nomeAuth = session.user.user_metadata?.full_name || session.user.user_metadata?.name || emailAuth.split('@')[0];
+      // 1. Autocura imediata para qualquer evento de autenticação
+      if (session?.user) {
+        try {
+          await supabase.rpc('sincronizar_meu_usuario_auth');
+        } catch (rpcErr) {
+          console.warn('Aviso ao executar sincronizar_meu_usuario_auth no onAuthStateChange:', rpcErr);
+        }
+      }
 
-        // Verificar se já existe uma loja para este e-mail
-        const { data: lojasExistentes } = await supabase
-          .from('lojas')
-          .select('*')
-          .ilike('email', emailAuth)
-          .limit(1);
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (session?.user?.email) {
+          const emailAuth = session.user.email.toLowerCase();
+          const nomeAuth = session.user.user_metadata?.full_name || session.user.user_metadata?.name || emailAuth.split('@')[0];
 
-        if (lojasExistentes && lojasExistentes.length > 0) {
-          setLoja(lojasExistentes[0]);
-          localStorage.setItem(STORAGE_KEY_LOJA_ID, lojasExistentes[0].id);
-        } else {
+          // Autocura / Sincronização referencial em usuarios_loja
           try {
-            await cadastrarMinimalista({
-              nome: nomeAuth,
-              email: emailAuth
-            });
-          } catch (e) {
-            console.error('Erro ao auto-criar conta pós-OAuth:', e);
+            await supabase
+              .from('usuarios_loja')
+              .update({ usuario_auth_id: session.user.id })
+              .ilike('email', emailAuth)
+              .is('usuario_auth_id', null);
+            await supabase.rpc('sincronizar_meu_usuario_auth');
+          } catch (syncErr) {
+            console.warn('Aviso ao sincronizar usuarios_loja no onAuthStateChange:', syncErr);
+          }
+
+          // 1. Verificar se este usuário autenticado já é um operador/administrador cadastrado em alguma loja
+          const { data: usersLoja } = await supabase
+            .from('usuarios_loja')
+            .select('*, loja:lojas(*)')
+            .or(`usuario_auth_id.eq.${session.user.id},email.ilike.${emailAuth}`)
+            .order('criado_em', { ascending: true })
+            .limit(1);
+
+          if (usersLoja && usersLoja.length > 0) {
+            const uRaw = usersLoja[0] as any;
+            const u = uRaw as UsuarioLoja;
+            const lojaAssoc = (uRaw.loja || null) as Loja | null;
+            if (lojaAssoc) {
+              setLoja(lojaAssoc);
+              localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssoc.id);
+            }
+            setUsuario(u);
+            localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
+            return;
+          }
+
+          // 2. Verificar se já existe uma loja diretamente para este e-mail (proprietário)
+          const { data: lojasExistentes } = await supabase
+            .from('lojas')
+            .select('*')
+            .ilike('email', emailAuth)
+            .limit(1);
+
+          if (lojasExistentes && lojasExistentes.length > 0) {
+            setLoja(lojasExistentes[0]);
+            localStorage.setItem(STORAGE_KEY_LOJA_ID, lojasExistentes[0].id);
+
+            // Carregar o usuário da loja correspondente
+            const { data: userLoja } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('loja_id', lojasExistentes[0].id)
+              .or(`usuario_auth_id.eq.${session.user.id},email.ilike.${emailAuth}`)
+              .order('criado_em', { ascending: true })
+              .limit(1);
+
+            if (userLoja && userLoja.length > 0) {
+              setUsuario(userLoja[0]);
+              localStorage.setItem(STORAGE_KEY_USUARIO_ID, userLoja[0].id);
+            }
+          } else {
+            try {
+              await cadastrarMinimalista({
+                nome: nomeAuth,
+                email: emailAuth
+              });
+            } catch (e) {
+              console.error('Erro ao auto-criar conta pós-OAuth:', e);
+            }
           }
         }
       }

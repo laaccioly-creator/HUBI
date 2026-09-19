@@ -313,8 +313,25 @@ export const ConfiguracoesLoja: React.FC = () => {
     const tabParam = searchParams.get('tab');
     if (tabParam) {
       setSubTela(tabParam as SubTelaConfig);
+    } else {
+      setSubTela('menu');
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const handleResetSubTela = (e: any) => {
+      if (!e?.detail?.path || e.detail.path === '/config' || e.detail.path === '/configuracoes') {
+        setSubTela('menu');
+      }
+    };
+
+    window.addEventListener('hubi_navegacao_menu', handleResetSubTela);
+    window.addEventListener('hubi_reset_configuracoes', handleResetSubTela);
+    return () => {
+      window.removeEventListener('hubi_navegacao_menu', handleResetSubTela);
+      window.removeEventListener('hubi_reset_configuracoes', handleResetSubTela);
+    };
+  }, []);
 
   // 1. GERAL
   const [telaInicialPadrao, setTelaInicialPadrao] = useState<string>('inicio');
@@ -3278,89 +3295,6 @@ export const ConfiguracoesLoja: React.FC = () => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
                     placeholder="Ex: Entregas feitas via Motoboy / Uber Envios"
                   />
-                </div>
-              )}
-            </div>
-
-            {/* Retirada na Loja */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Store className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <span className="font-bold text-xs text-slate-100 block">Retirar na Loja</span>
-                    <span className="text-[11px] text-slate-400">Cliente busca o pedido na sua loja física</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={trabalhoComRetirada}
-                    onChange={(e) => setTrabalhoComRetirada(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-
-              {trabalhoComRetirada && (
-                <div className="pt-2 border-t border-slate-800">
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Orientações de Retirada</label>
-                  <textarea
-                    rows={2}
-                    value={descricaoRetirada}
-                    onChange={(e) => setDescricaoRetirada(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
-                    placeholder="Ex: Retirada disponível no balcão da loja em horário comercial."
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Frete Grátis por Valor Mínimo */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Gift className="w-5 h-5 text-emerald-400" />
-                  <div>
-                    <span className="font-bold text-xs text-slate-100 block">Frete Grátis por Valor Mínimo</span>
-                    <span className="text-[11px] text-slate-400">Ofereça frete gratuito a partir de um valor de compra</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={freteGratisAtivo}
-                    onChange={(e) => setFreteGratisAtivo(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-
-              {freteGratisAtivo && (
-                <div className="pt-3 border-t border-slate-800 space-y-1.5 animate-in fade-in duration-150">
-                  <label className="text-[11px] font-bold text-slate-300 block">
-                    Valor Mínimo da Compra (R$)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">R$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={freteGratisValorMinimo === 0 || freteGratisValorMinimo === '0' ? '' : freteGratisValorMinimo}
-                      onChange={(e) => setFreteGratisValorMinimo(e.target.value)}
-                      onBlur={() => {
-                        const num = parseFloat(String(freteGratisValorMinimo).replace(',', '.'));
-                        setFreteGratisValorMinimo(isNaN(num) ? 0 : Math.max(0, num));
-                      }}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-100 font-bold focus:border-emerald-500 outline-none"
-                      placeholder="Ex: 250,00"
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    Acima deste valor no carrinho, o cliente terá direito ao frete mais econômico gratuitamente e um termômetro de progresso no catálogo.
-                  </p>
                 </div>
               )}
             </div>

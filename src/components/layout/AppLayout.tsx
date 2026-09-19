@@ -63,6 +63,9 @@ export const AppLayout: React.FC = () => {
     if (e) e.preventDefault();
     verificarSaidaComConfirmacao(() => {
       window.dispatchEvent(new CustomEvent('hubi_navegacao_menu', { detail: { path } }));
+      if (path === '/config' || path === '/configuracoes') {
+        window.dispatchEvent(new CustomEvent('hubi_reset_configuracoes'));
+      }
       navigate(path);
     });
   };

@@ -92,6 +92,9 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
     verificarSaidaComConfirmacao(() => {
       onFechar();
       window.dispatchEvent(new CustomEvent('hubi_navegacao_menu', { detail: { path: caminho } }));
+      if (caminho === '/config' || caminho === '/configuracoes') {
+        window.dispatchEvent(new CustomEvent('hubi_reset_configuracoes'));
+      }
       navigate(caminho);
     });
   };

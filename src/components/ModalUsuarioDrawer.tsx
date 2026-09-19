@@ -24,6 +24,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { UsuarioLoja, PerfilUsuario } from '../types';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { usuarioService } from '../services/usuarioService';
 
 interface ModalUsuarioDrawerProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [senha, setSenha] = useState<string>('');
   const [mostrarSenha, setMostrarSenha] = useState<boolean>(false);
   const [ativo, setAtivo] = useState<boolean>(true);
+  const [perfil, setPerfil] = useState<PerfilUsuario>('vendedor');
 
   // Permissões
   const [ehAdmin, setEhAdmin] = useState<boolean>(false);
@@ -65,11 +67,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
   const snapshotInicial = useMemo(() => {
     if (!isOpen) return '';
+    const perfilAtivo = usuarioEdicao ? (usuarioEdicao.perfil || 'comum') : 'vendedor';
     const isAdmin = usuarioEdicao ? (usuarioEdicao.perfil === 'admin' || usuarioEdicao.perfil === 'owner') : false;
     return JSON.stringify({
       nome: usuarioEdicao?.nome_completo || '',
       email: usuarioEdicao?.email || '',
       senha: '',
+      perfil: perfilAtivo,
       ativo: usuarioEdicao ? (usuarioEdicao.ativo ?? true) : true,
       ehAdmin: isAdmin,
       podeCelular: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_uso_celular_pessoal ?? true)) : true,
@@ -87,6 +91,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       nome,
       email,
       senha,
+      perfil,
       ativo,
       ehAdmin,
       podeCelular,
@@ -101,6 +106,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     nome,
     email,
     senha,
+    perfil,
     ativo,
     ehAdmin,
     podeCelular,
@@ -134,8 +140,10 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setEmail(usuarioEdicao.email || '');
       setSenha('');
       setAtivo(usuarioEdicao.ativo ?? true);
+      const p = usuarioEdicao.perfil || 'comum';
+      setPerfil(p);
 
-      if (usuarioEdicao.perfil === 'owner') {
+      if (p === 'owner') {
         // Se for Owner, todas as flags são verdadeiras e bloqueadas
         setEhAdmin(true);
         setPodeCelular(true);
@@ -146,7 +154,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeFiado(true);
         setPodeCaixa(true);
       } else {
-        const isAdmin = usuarioEdicao.perfil === 'admin';
+        const isAdmin = p === 'admin';
         setEhAdmin(isAdmin);
         setPodeCelular(isAdmin ? true : (usuarioEdicao.pode_uso_celular_pessoal ?? true));
         setPodeVerOutros(isAdmin ? true : (usuarioEdicao.pode_ver_transacoes_outros ?? false));
@@ -157,11 +165,12 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeCaixa(isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false));
       }
     } else {
-      // Novo usuário (Padrão: Comum com celular pessoal ativado)
+      // Novo usuário (Padrão: Vendedor com celular pessoal ativado)
       setNome('');
       setEmail('');
       setSenha('');
       setAtivo(true);
+      setPerfil('vendedor');
       setEhAdmin(false);
       setPodeCelular(true);
       setPodeVerOutros(false);
@@ -174,11 +183,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     setErro(null);
   }, [usuarioEdicao, isOpen]);
 
-  // Se marcar/desmarcar Admin
-  const handleToggleAdmin = (checked: boolean) => {
-    if (ehOwner) return; // Owner não altera
-    setEhAdmin(checked);
-    if (checked) {
+  // Alteração de Perfil de Acesso com predefinição inteligente de permissões
+  const handleMudarPerfil = (novoPerfil: PerfilUsuario) => {
+    if (ehOwner) return;
+    setPerfil(novoPerfil);
+
+    if (novoPerfil === 'admin') {
+      setEhAdmin(true);
       setPodeCelular(true);
       setPodeVerOutros(true);
       setPodeDesconto(true);
@@ -186,6 +197,51 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeEstoque(true);
       setPodeFiado(true);
       setPodeCaixa(true);
+    } else if (novoPerfil === 'gerente') {
+      setEhAdmin(false);
+      setPodeCelular(true);
+      setPodeVerOutros(true);
+      setPodeDesconto(true);
+      setPodeProdutos(true);
+      setPodeEstoque(true);
+      setPodeFiado(true);
+      setPodeCaixa(true);
+    } else if (novoPerfil === 'vendedor') {
+      setEhAdmin(false);
+      setPodeCelular(true);
+      setPodeVerOutros(false);
+      setPodeDesconto(false);
+      setPodeProdutos(false);
+      setPodeEstoque(false);
+      setPodeFiado(false);
+      setPodeCaixa(false);
+    } else {
+      setEhAdmin(false);
+      setPodeCelular(true);
+      setPodeVerOutros(false);
+      setPodeDesconto(false);
+      setPodeProdutos(false);
+      setPodeEstoque(false);
+      setPodeFiado(false);
+      setPodeCaixa(false);
+    }
+  };
+
+  // Se marcar/desmarcar Admin
+  const handleToggleAdmin = (checked: boolean) => {
+    if (ehOwner) return; // Owner não altera
+    setEhAdmin(checked);
+    if (checked) {
+      setPerfil('admin');
+      setPodeCelular(true);
+      setPodeVerOutros(true);
+      setPodeDesconto(true);
+      setPodeProdutos(true);
+      setPodeEstoque(true);
+      setPodeFiado(true);
+      setPodeCaixa(true);
+    } else {
+      setPerfil('comum');
     }
   };
 
@@ -217,46 +273,28 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
       const perfilFinal: PerfilUsuario = ehOwner 
         ? 'owner' 
-        : (ehAdmin ? 'admin' : 'comum');
+        : (ehAdmin ? 'admin' : perfil);
 
-      const payload: any = {
-        loja_id: lojaId,
-        nome_completo: nome.trim(),
-        email: email.trim().toLowerCase(),
+      await usuarioService.salvarOperador({
+        id: usuarioEdicao?.id,
+        lojaId,
+        nomeCompleto: nome,
+        email,
+        senha: senha.trim() || undefined,
         perfil: perfilFinal,
-        pode_uso_celular_pessoal: ehOwner ? true : (ehAdmin ? true : podeCelular),
-        pode_ver_transacoes_outros: ehOwner ? true : (ehAdmin ? true : podeVerOutros),
-        pode_dar_desconto: ehOwner ? true : (ehAdmin ? true : podeDesconto),
-        pode_cadastrar_alterar_produtos: ehOwner ? true : (ehAdmin ? true : podeProdutos),
-        pode_gerenciar_estoque: ehOwner ? true : (ehAdmin ? true : podeEstoque),
-        pode_ativar_fiado: ehOwner ? true : (ehAdmin ? true : podeFiado),
-        pode_abrir_fechar_caixa: ehOwner ? true : (ehAdmin ? true : podeCaixa),
-        pode_ver_preco_custo: ehOwner || ehAdmin,
-        pode_exportar_relatorios: ehOwner || ehAdmin,
-        pode_editar_vendas_passadas: ehOwner || ehAdmin,
-        ativo: ehOwner ? true : ativo
-      };
-
-      if (senha.trim()) {
-        payload.senha_hash = senha.trim();
-      }
-
-      if (usuarioEdicao?.id) {
-        // Atualizar usuário existente
-        const { error: errUpdate } = await supabase
-          .from('usuarios_loja')
-          .update(payload)
-          .eq('id', usuarioEdicao.id);
-
-        if (errUpdate) throw errUpdate;
-      } else {
-        // Inserir novo usuário
-        const { error: errInsert } = await supabase
-          .from('usuarios_loja')
-          .insert([payload]);
-
-        if (errInsert) throw errInsert;
-      }
+        ativo: ehOwner ? true : ativo,
+        usuarioAuthId: usuarioEdicao?.usuario_auth_id || null,
+        podeUsoCelularPessoal: ehOwner ? true : (ehAdmin ? true : podeCelular),
+        podeVerTransacoesOutros: ehOwner ? true : (ehAdmin ? true : podeVerOutros),
+        podeDarDesconto: ehOwner ? true : (ehAdmin ? true : podeDesconto),
+        podeCadastrarAlterarProdutos: ehOwner ? true : (ehAdmin ? true : podeProdutos),
+        podeGerenciarEstoque: ehOwner ? true : (ehAdmin ? true : podeEstoque),
+        podeAtivarFiado: ehOwner ? true : (ehAdmin ? true : podeFiado),
+        podeAbrirFecharCaixa: ehOwner ? true : (ehAdmin ? true : podeCaixa),
+        podeVerPrecoCusto: ehOwner || ehAdmin,
+        podeExportarRelatorios: ehOwner || ehAdmin,
+        podeEditarVendasPassadas: ehOwner || ehAdmin
+      });
 
       onSalvo();
       onClose();
@@ -275,13 +313,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
     try {
       setSalvando(true);
-      const { error: errDel } = await supabase
-        .from('usuarios_loja')
-        .delete()
-        .eq('id', usuarioEdicao.id);
-
-      if (errDel) throw errDel;
-
+      await usuarioService.excluirOperador(usuarioEdicao.id);
       onSalvo();
       onClose();
     } catch (err: any) {
@@ -458,6 +490,76 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <span className="text-[11px] text-slate-500 md:text-slate-400 block">
                 Esta senha é utilizada para entrar no HUBI Web e no aplicativo PDV.
               </span>
+            </div>
+
+            {/* Campo de Perfil de Acesso */}
+            <div className="space-y-2 pt-2 border-t border-slate-200/80 md:border-slate-800">
+              <label className="text-xs font-bold text-slate-700 md:text-slate-300 flex items-center justify-between">
+                <span>Perfil de Acesso *</span>
+                {ehOwner && (
+                  <span className="text-[10px] text-teal-400 font-bold">Proprietário (Imutável)</span>
+                )}
+              </label>
+
+              {ehOwner ? (
+                <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-xs text-teal-300 font-medium">
+                  Perfil de Proprietário da Conta com privilégios totais.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleMudarPerfil('admin')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      (ehAdmin || perfil === 'admin')
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 shadow-sm ring-1 ring-emerald-500/30'
+                        : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-slate-200">Admin</span>
+                    <span className="text-[10px] text-slate-400 mt-1">Acesso Total</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleMudarPerfil('gerente')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      (!ehAdmin && perfil === 'gerente')
+                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-300 shadow-sm ring-1 ring-indigo-500/30'
+                        : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-slate-200">Gerente</span>
+                    <span className="text-[10px] text-slate-400 mt-1">Gestão & IA</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleMudarPerfil('vendedor')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      (!ehAdmin && perfil === 'vendedor')
+                        ? 'bg-amber-500/10 border-amber-500 text-amber-300 shadow-sm ring-1 ring-amber-500/30'
+                        : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-slate-200">Vendedor</span>
+                    <span className="text-[10px] text-slate-400 mt-1">Frente de Caixa</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleMudarPerfil('comum')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      (!ehAdmin && perfil === 'comum')
+                        ? 'bg-slate-500/10 border-slate-400 text-slate-200 shadow-sm ring-1 ring-slate-400/30'
+                        : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-slate-200">Comum</span>
+                    <span className="text-[10px] text-slate-400 mt-1">Básico</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
