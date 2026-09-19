@@ -1,5 +1,4 @@
-import { PedidoEntrega } from './types/shipping';
-export type { PedidoEntrega };
+import type { PedidoEntrega, FormaEntrega } from './types/shipping';
 
 export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
@@ -478,22 +477,6 @@ export interface FormaPagamento {
   exibir_catalogo: boolean;
   descricao?: string | null;
   criado_em?: string;
-}
-
-export interface FormaEntrega {
-  id: string;
-  loja_id: string;
-  nome: string;
-  tipo: TipoEntrega;
-  valor_taxa: number;
-  valor_por_km?: number;
-  tempo_estimado?: string | null;
-  requer_codigo_rastreio?: boolean;
-  requer_entregador?: boolean;
-  padrao?: boolean;
-  ativo: boolean;
-  criado_em?: string;
-  atualizado_em?: string;
 }
 
 export * from './types/shipping';

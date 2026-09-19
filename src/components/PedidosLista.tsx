@@ -143,6 +143,7 @@ export const PedidosLista: React.FC = () => {
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
   const [entregadorNomeDespacho, setEntregadorNomeDespacho] = useState<string>('');
   const [codigoRastreioDespacho, setCodigoRastreioDespacho] = useState<string>('');
+  const [linkRastreioDespacho, setLinkRastreioDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
@@ -725,6 +726,7 @@ export const PedidosLista: React.FC = () => {
     if (prov === 'frete_proprio' || pe?.provedor === 'frete_proprio') {
       setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
       setCodigoRastreioDespacho(pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '');
+      setLinkRastreioDespacho(pedidoSelecionado.link_rastreio || pe?.link_rastreio || '');
       setModalDespachoAberto(true);
       return;
     }
@@ -849,6 +851,7 @@ export const PedidosLista: React.FC = () => {
         {
           entregadorNome: entregadorNomeDespacho.trim() || undefined,
           codigoRastreio: codigoRastreioDespacho.trim() || undefined,
+          linkRastreio: linkRastreioDespacho.trim() || undefined,
           usuarioId: usuario?.id || null
         }
       );
@@ -860,6 +863,7 @@ export const PedidosLista: React.FC = () => {
                 status: 'saiu_para_entrega',
                 entregador_nome: entregadorNomeDespacho.trim() || p.entregador_nome,
                 codigo_rastreio: codigoRastreioDespacho.trim() || p.codigo_rastreio,
+                link_rastreio: linkRastreioDespacho.trim() || p.link_rastreio,
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
@@ -873,6 +877,7 @@ export const PedidosLista: React.FC = () => {
               status: 'saiu_para_entrega',
               entregador_nome: entregadorNomeDespacho.trim() || prev.entregador_nome,
               codigo_rastreio: codigoRastreioDespacho.trim() || prev.codigo_rastreio,
+              link_rastreio: linkRastreioDespacho.trim() || prev.link_rastreio,
               despachado_em: agora,
               despachado_por: usuario?.id || null
             }
@@ -884,6 +889,7 @@ export const PedidosLista: React.FC = () => {
       setModalDespachoAberto(false);
       setEntregadorNomeDespacho('');
       setCodigoRastreioDespacho('');
+      setLinkRastreioDespacho('');
     } catch (err: any) {
       console.error('Erro ao despachar pedido:', err);
       mostrarErro(`Erro ao despachar pedido: ${err.message || 'Tente novamente.'}`);
@@ -2967,6 +2973,23 @@ export const PedidosLista: React.FC = () => {
                 />
                 <p className="text-[11px] text-slate-400">
                   Permite ao cliente rastrear a encomenda diretamente.
+                </p>
+              </div>
+
+              {/* Se for corrida externa (Uber Flash, 99 Entregas, etc.): exibir link de rastreio */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-200 block">
+                  Link de Rastreio da Corrida (Uber Flash / 99 Entregas)
+                </label>
+                <input
+                  type="url"
+                  placeholder="Ex: https://trip.uber.com/... ou https://99app.com/..."
+                  value={linkRastreioDespacho}
+                  onChange={(e) => setLinkRastreioDespacho(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-medium placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Link compartilhado do app de entrega para acompanhamento em tempo real.
                 </p>
               </div>
             </div>

@@ -86,6 +86,7 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [formaValorTaxa, setFormaValorTaxa] = useState<string>('0.00');
   const [formaRequerEntregador, setFormaRequerEntregador] = useState<boolean>(false);
   const [formaRequerRastreio, setFormaRequerRastreio] = useState<boolean>(false);
+  const [formaRequerLinkRastreio, setFormaRequerLinkRastreio] = useState<boolean>(false);
 
   const carregarFormasEntrega = async () => {
     if (!loja?.id) return;
@@ -107,6 +108,7 @@ export const ShippingSettingsScreen: React.FC = () => {
     setFormaValorTaxa('0.00');
     setFormaRequerEntregador(false);
     setFormaRequerRastreio(false);
+    setFormaRequerLinkRastreio(false);
     setModalFormaAberto(true);
   };
 
@@ -117,6 +119,7 @@ export const ShippingSettingsScreen: React.FC = () => {
     setFormaValorTaxa(forma.valor_taxa != null ? String(forma.valor_taxa) : '0.00');
     setFormaRequerEntregador(Boolean(forma.requer_entregador));
     setFormaRequerRastreio(Boolean(forma.requer_codigo_rastreio));
+    setFormaRequerLinkRastreio(Boolean(forma.requer_link_rastreio));
     setModalFormaAberto(true);
   };
 
@@ -133,6 +136,7 @@ export const ShippingSettingsScreen: React.FC = () => {
         valor_taxa: parseFloat(formaValorTaxa.replace(',', '.')) || 0,
         requer_entregador: formaRequerEntregador,
         requer_codigo_rastreio: formaRequerRastreio,
+        requer_link_rastreio: formaRequerLinkRastreio,
         ativo: formaEditando ? formaEditando.ativo : true
       });
       await carregarFormasEntrega();
@@ -1049,6 +1053,11 @@ export const ShippingSettingsScreen: React.FC = () => {
                             Requer Rastreio
                           </span>
                         )}
+                        {forma.requer_link_rastreio && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
+                            Link Corrida
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1162,7 +1171,6 @@ export const ShippingSettingsScreen: React.FC = () => {
                   <option value="transportadora">Transportadora (Correios, Jadlog, etc.)</option>
                   <option value="retirada">Retirada na Loja (Balcão Físico)</option>
                   <option value="manual">Manual no PDV</option>
-                  <option value="taxa_fixa">Taxa Fixa</option>
                 </select>
               </div>
 
@@ -1188,6 +1196,18 @@ export const ShippingSettingsScreen: React.FC = () => {
                   />
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                     Requer código de rastreamento no despacho
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formaRequerLinkRastreio}
+                    onChange={(e) => setFormaRequerLinkRastreio(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                  />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Requer link de rastreio da corrida no despacho (ex: Uber Flash, 99 Entregas)
                   </span>
                 </label>
               </div>

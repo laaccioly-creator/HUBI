@@ -151,3 +151,20 @@ export interface ShippingSelectionResult {
   pedido_entrega: Partial<PedidoEntrega>;
   valor_frete: number;
 }
+
+export interface FormaEntrega {
+  id: string;
+  loja_id: string;
+  nome: string;
+  tipo: 'retirada' | 'taxa_fixa' | 'bairro' | 'distancia_km' | 'proprio' | 'transportadora' | 'manual';
+  valor_taxa: number;
+  valor_por_km?: number;
+  tempo_estimado?: string | null;
+  requer_codigo_rastreio?: boolean;
+  requer_entregador?: boolean;
+  requer_link_rastreio?: boolean;
+  padrao?: boolean;
+  ativo: boolean;
+  criado_em?: string;
+  atualizado_em?: string;
+}

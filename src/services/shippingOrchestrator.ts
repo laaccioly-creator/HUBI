@@ -970,13 +970,20 @@ export class ShippingOrchestrator {
     if (!lojaId) throw new Error('Loja não identificada.');
     if (!forma.nome?.trim()) throw new Error('O nome da forma de entrega é obrigatório.');
 
+    // Sanitização rigorosa do tipo para respeitar a CHECK constraint do banco
+    const tiposValidos = ['proprio', 'transportadora', 'retirada', 'manual'];
+    const tipoSanitizado = (forma.tipo && tiposValidos.includes(forma.tipo))
+      ? forma.tipo
+      : 'proprio';
+
     const payload = {
       loja_id: lojaId,
       nome: forma.nome.trim(),
-      tipo: forma.tipo || 'proprio',
+      tipo: tipoSanitizado,
       valor_taxa: Number(forma.valor_taxa || 0),
       requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
       requer_entregador: Boolean(forma.requer_entregador),
+      requer_link_rastreio: Boolean(forma.requer_link_rastreio),
       ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
       padrao: Boolean(forma.padrao),
       atualizado_em: new Date().toISOString()
@@ -989,10 +996,10 @@ export class ShippingOrchestrator {
         .eq('id', forma.id)
         .eq('loja_id', lojaId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      return data as FormaEntrega;
+      return (data || { id: forma.id, ...payload }) as FormaEntrega;
     }
 
     const { data, error } = await supabase
@@ -1002,9 +1009,10 @@ export class ShippingOrchestrator {
         criado_em: new Date().toISOString()
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) throw new Error('Erro ao cadastrar forma de entrega.');
     return data as FormaEntrega;
   }
 
@@ -1042,7 +1050,7 @@ export class ShippingOrchestrator {
   }
 
   /**
-   * Despacho manual simplificado: persiste entregador_nome, codigo_rastreio
+   * Despacho manual simplificado: persiste entregador_nome, codigo_rastreio e link_rastreio
    * e transiciona para 'saiu_para_entrega' tanto em pedidos quanto em pedido_entregas
    */
   public static async despacharEntregaManual(
@@ -1050,6 +1058,7 @@ export class ShippingOrchestrator {
     dados: {
       entregadorNome?: string | null;
       codigoRastreio?: string | null;
+      linkRastreio?: string | null;
       usuarioId?: string | null;
     }
   ): Promise<void> {
@@ -1061,6 +1070,7 @@ export class ShippingOrchestrator {
       .update({
         entregador_nome: dados.entregadorNome?.trim() || null,
         codigo_rastreio: dados.codigoRastreio?.trim() || null,
+        link_rastreio: dados.linkRastreio?.trim() || null,
         status_envio: 'despachado',
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
@@ -1075,6 +1085,7 @@ export class ShippingOrchestrator {
         status: 'saiu_para_entrega',
         entregador_nome: dados.entregadorNome?.trim() || null,
         codigo_rastreio: dados.codigoRastreio?.trim() || null,
+        link_rastreio: dados.linkRastreio?.trim() || null,
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
         atualizado_em: despachadoEm
