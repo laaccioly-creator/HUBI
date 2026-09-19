@@ -6,7 +6,7 @@ export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum'
 export type TipoUnidade = 'un' | 'kg' | 'l' | 'm';
 export type TabelaPreco = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
 export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'outro';
-export type TipoEntrega = 'retirada' | 'taxa_fixa' | 'bairro' | 'distancia_km';
+export type TipoEntrega = 'retirada' | 'taxa_fixa' | 'bairro' | 'distancia_km' | 'proprio' | 'transportadora' | 'manual';
 export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online';
 export type StatusPedido =
   | 'pendente'
@@ -486,10 +486,14 @@ export interface FormaEntrega {
   nome: string;
   tipo: TipoEntrega;
   valor_taxa: number;
-  valor_por_km: number;
+  valor_por_km?: number;
   tempo_estimado?: string | null;
+  requer_codigo_rastreio?: boolean;
+  requer_entregador?: boolean;
+  padrao?: boolean;
   ativo: boolean;
   criado_em?: string;
+  atualizado_em?: string;
 }
 
 export * from './types/shipping';

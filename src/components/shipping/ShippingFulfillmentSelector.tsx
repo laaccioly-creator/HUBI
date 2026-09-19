@@ -21,6 +21,7 @@ import {
   ShippingSelectionResult,
   CotacaoItemProduto
 } from '../../types/shipping';
+import { FormaEntrega } from '../../types';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { isUuidValido } from '../../services/syncService';
 import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja } from '../../utils/geoUtils';
@@ -109,6 +110,28 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [cotacaoEscolhida, setCotacaoEscolhida] = useState<OpcaoFreteCotada | null>(null);
   const [cotando, setCotando] = useState<boolean>(false);
   const [erroCotacaoMsg, setErroCotacaoMsg] = useState<string | null>(null);
+
+  // Formas de Entrega Relacionais cadastradas na loja
+  const [formasEntrega, setFormasEntrega] = useState<FormaEntrega[]>([]);
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregarFormas() {
+      if (!lojaId) return;
+      try {
+        const lista = await ShippingOrchestrator.listarFormasEntrega(lojaId);
+        if (ativo) {
+          setFormasEntrega(lista.filter(f => f.ativo));
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar formas de entrega no seletor:', err);
+      }
+    }
+    carregarFormas();
+    return () => {
+      ativo = false;
+    };
+  }, [lojaId]);
 
   // Valor digitado para frete próprio manual
   const [valorManualInput, setValorManualInput] = useState<string>(() => {
@@ -288,7 +311,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const temUber = Boolean(configLoja?.uber_ativo === true);
   const temMelhorEnvio = Boolean(configLoja?.melhor_envio_ativo === true);
   const temFreteProprio = Boolean(configLoja?.frete_proprio_ativo === true);
-  const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio || temFreteProprio);
+  const temFormasEntregaEnvio = formasEntrega.some(f => f.tipo !== 'retirada');
+  const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio || temFreteProprio || temFormasEntregaEnvio);
   const permiteRetirada = Boolean(
     configLoja?.retirada_loja_ativa !== false && 
     configLoja?.retirada_balcao_ativa !== false
@@ -305,14 +329,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // 3. Executar Cotação com Filtro de Região Metropolitana para Uber Direct
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
-    if (!configLoja) return;
-
-    if (!temUber && !temMelhorEnvio && !temFreteProprio) {
+    if (!temUber && !temMelhorEnvio && !temFreteProprio && !temFormasEntregaEnvio) {
       setCotacoes([]);
       return;
     }
 
-    const chaveCotacao = `${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja.id}`;
+    const chaveCotacao = `${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja?.id || 'loja'}_${formasEntrega.length}`;
     if (!forcar && ultimaCotacaoParamRef.current === chaveCotacao) {
       return;
     }
@@ -323,27 +345,48 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
     try {
       const runtimeConfig: LojaShippingConfig = {
-        ...configLoja,
+        ...(configLoja || {
+          id: 'temp',
+          loja_id: lojaId,
+          origem_cep: '',
+          origem_logradouro: '',
+          origem_numero: '',
+          origem_bairro: '',
+          origem_cidade: '',
+          origem_uf: '',
+          uber_sandbox_mode: true,
+          uber_ativo: false,
+          melhor_envio_sandbox_mode: true,
+          melhor_envio_ativo: false,
+          permite_retirada_loja: true,
+          retirada_balcao_ativa: true,
+          frete_gratis_ativo: false,
+          frete_gratis_valor_minimo: 0
+        }),
         uber_ativo: temUber,
         melhor_envio_ativo: temMelhorEnvio,
         frete_proprio_ativo: temFreteProprio
       };
 
-      const opcoesBrutas = await ShippingOrchestrator.cotarOpcoesFrete({
-        origem_cep: configLoja.origem_cep,
-        destino_cep: endAlvo.cep,
-        destino_logradouro: endAlvo.logradouro,
-        destino_numero: endAlvo.numero,
-        destino_bairro: endAlvo.bairro,
-        destino_cidade: endAlvo.cidade,
-        destino_uf: endAlvo.uf,
-        subtotal,
-        itens,
-        config: runtimeConfig
-      });
+      const promessaCotacao = (temUber || temMelhorEnvio || temFreteProprio) && configLoja?.origem_cep
+        ? ShippingOrchestrator.cotarOpcoesFrete({
+            origem_cep: configLoja.origem_cep,
+            destino_cep: endAlvo.cep,
+            destino_logradouro: endAlvo.logradouro,
+            destino_numero: endAlvo.numero,
+            destino_bairro: endAlvo.bairro,
+            destino_cidade: endAlvo.cidade,
+            destino_uf: endAlvo.uf,
+            subtotal,
+            itens,
+            config: runtimeConfig
+          })
+        : Promise.resolve([] as OpcaoFreteCotada[]);
+
+      const opcoesBrutas = await promessaCotacao;
 
       // Validação de Região Metropolitana para Uber Direct
-      const mesmaRegiao = verificarMesmaRegiaoMetropolitana(
+      const mesmaRegiao = configLoja ? verificarMesmaRegiaoMetropolitana(
         {
           cidade: configLoja.origem_cidade,
           uf: configLoja.origem_uf,
@@ -356,7 +399,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           latitude: endAlvo.latitude,
           longitude: endAlvo.longitude
         }
-      );
+      ) : true;
 
       const opcoesFiltradas = opcoesBrutas.filter(op => {
         if (op.provedor === 'uber') {
@@ -375,13 +418,48 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       // Descartar opções com erro para não poluir a interface do usuário
       const opcoesSemErro = opcoesComSubsidio.filter(o => !o.erro && o.id !== 'uber-blocked');
 
-      const opcoesAjustadas = opcoesSemErro.map(o => {
+      // Mapeia opções ativas cadastradas em formas_entrega
+      const opcoesFormasEntrega: OpcaoFreteCotada[] = formasEntrega
+        .filter(forma => forma.tipo !== 'retirada')
+        .map(forma => {
+          const ehAtiva =
+            opcaoSelecionadaId === forma.id ||
+            opcaoSelecionadaId === `forma_${forma.id}` ||
+            opcaoSelecionadaId === forma.nome;
+          const valorPadrao = Number(forma.valor_taxa || 0);
+          const valorInicial = (ehAtiva && typeof valorFreteAtual === 'number' && valorFreteAtual >= 0)
+            ? valorFreteAtual
+            : (parseFloat(valorManualInput.replace(',', '.')) || valorPadrao);
+
+          return {
+            id: `forma_${forma.id}`,
+            forma_entrega_id: forma.id,
+            provedor: 'frete_proprio' as const,
+            transportadora_nome: forma.nome,
+            servico_codigo: forma.tipo,
+            servico_nome: forma.nome,
+            valor_frete: valorInicial,
+            valor_original: valorInicial,
+            valor_subsidio: 0,
+            is_frete_gratis: valorInicial === 0,
+            prazo_estimado_texto: forma.tipo === 'transportadora'
+              ? (forma.tempo_estimado || 'Envio com rastreamento')
+              : (forma.tempo_estimado || 'Entrega com frota própria / motoboy'),
+            icone_tipo: forma.tipo === 'transportadora' ? ('padrao' as const) : ('loja' as const),
+            permite_edicao_valor: true,
+            tipo_cobranca: 'manual' as const
+          };
+        });
+
+      const todasOpcoesCombinadas = [...opcoesFormasEntrega, ...opcoesSemErro];
+
+      const opcoesAjustadas = todasOpcoesCombinadas.map(o => {
         const ehManual = Boolean(o.permite_edicao_valor || (o.provedor === 'frete_proprio' && o.servico_codigo === 'manual'));
         if (ehManual) {
           const ehOpcaoAtiva = opcaoSelecionadaId === o.id || opcaoSelecionadaId === o.servico_codigo || opcaoSelecionadaId === 'frete_proprio' || opcaoSelecionadaId === 'manual';
           const valorInicial = (ehOpcaoAtiva && typeof valorFreteAtual === 'number' && valorFreteAtual > 0)
             ? valorFreteAtual
-            : (parseFloat(valorManualInput.replace(',', '.')) || 0);
+            : (parseFloat(valorManualInput.replace(',', '.')) || (o.valor_frete || 0));
 
           return {
             ...o,
@@ -424,7 +502,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } finally {
       setCotando(false);
     }
-  }, [configLoja, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, temFreteProprio, opcaoSelecionadaId, valorFreteAtual, valorManualInput]);
+  }, [configLoja, lojaId, modalidade, subtotal, itensSig, itens, temUber, temMelhorEnvio, temFreteProprio, temFormasEntregaEnvio, formasEntrega, opcaoSelecionadaId, valorFreteAtual, valorManualInput]);
 
   // Função centralizada para emitir o resultado de entrega padronizado
   const emitirSelecao = useCallback((opcao: OpcaoFreteCotada, endAlvo: ClienteEndereco | null) => {
@@ -441,6 +519,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       endereco_selecionado: endAlvo,
       pedido_entrega: {
         pedido_id: '',
+        forma_entrega_id: opcao.forma_entrega_id || null,
         tipo_atendimento: 'entrega',
         cliente_endereco_id: endAlvo.id && isUuidValido(endAlvo.id) ? endAlvo.id : null,
         destino_cep: endAlvo.cep,
@@ -484,12 +563,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
   };
 
-  // Dispara cotação quando o endereço for definido e houver integrações ativas
+  // Dispara cotação quando o endereço for definido e houver integrações ou formas de entrega ativas
   useEffect(() => {
-    if (enderecoSelecionado && configLoja && (temUber || temMelhorEnvio || temFreteProprio)) {
+    if (enderecoSelecionado && (configLoja || temFormasEntregaEnvio) && (temUber || temMelhorEnvio || temFreteProprio || temFormasEntregaEnvio)) {
       executarCotacao(enderecoSelecionado);
     }
-  }, [enderecoSelecionado, configLoja, temUber, temMelhorEnvio, temFreteProprio, executarCotacao]);
+  }, [enderecoSelecionado, configLoja, temUber, temMelhorEnvio, temFreteProprio, temFormasEntregaEnvio, executarCotacao]);
 
   // Selecionar Modalidade de Retirada
   const handleSelecionarRetirada = () => {
@@ -497,6 +576,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     setModalidade('retirada');
     setCotacaoEscolhida(null);
 
+    const formaRetirada = formasEntrega.find(f => f.tipo === 'retirada');
     const chaveEmissao = `retirada_0_${lojaId}`;
     if (ultimoResultadoEmitidoRef.current !== chaveEmissao) {
       ultimoResultadoEmitidoRef.current = chaveEmissao;
@@ -506,10 +586,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         opcao_selecionada: null,
         pedido_entrega: {
           pedido_id: '',
+          forma_entrega_id: formaRetirada?.id || null,
           tipo_atendimento: 'retirada',
           cliente_endereco_id: null,
           provedor: 'retirada_loja',
-          transportadora_nome: 'Retirada na Loja',
+          transportadora_nome: formaRetirada?.nome || 'Retirada na Loja',
           servico_codigo: 'retirada_balcao',
           valor_frete: 0.00,
           prazo_estimado_texto: 'Disponível no balcão',
@@ -539,11 +620,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
     let opcaoFinal = opcao;
     if (ehManual) {
-      const numVal = parseFloat(valorManualInput.replace(',', '.')) || 0;
+      const numVal = valorManualInput !== ''
+        ? (parseFloat(valorManualInput.replace(',', '.')) || 0)
+        : (typeof opcao.valor_frete === 'number' ? opcao.valor_frete : 0);
       opcaoFinal = {
         ...opcao,
         valor_frete: numVal,
-        valor_original: numVal
+        valor_original: numVal,
+        is_frete_gratis: numVal === 0
       };
     }
 
@@ -884,18 +968,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           step="0.01"
                           min="0"
                           placeholder="0,00"
-                          value={valorManualInput}
+                          value={selecionada ? valorManualInput : (opcao.valor_frete > 0 ? opcao.valor_frete.toString() : '0.00')}
                           onClick={(e) => e.stopPropagation()}
                           onFocus={(e) => {
                             e.stopPropagation();
-                            if (!selecionada) {
-                              const numVal = parseFloat(valorManualInput.replace(',', '.')) || 0;
-                              handleEscolherCotacao({
-                                ...opcao,
-                                valor_frete: numVal,
-                                valor_original: numVal
-                              });
-                            }
+                            setValorManualInput(opcao.valor_frete > 0 ? opcao.valor_frete.toString() : '');
+                            handleEscolherCotacao(opcao);
                           }}
                           onChange={(e) => handleAlterarValorManual(opcao, e.target.value)}
                           className="w-24 text-right font-extrabold text-sm text-slate-800 focus:text-emerald-600 outline-none bg-transparent"

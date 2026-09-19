@@ -206,6 +206,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
   const [entregadorNomeDespacho, setEntregadorNomeDespacho] = useState<string>('');
+  const [codigoRastreioDespacho, setCodigoRastreioDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
@@ -230,25 +231,28 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     try {
       setDespachando(true);
       const agora = new Date().toISOString();
-      await ShippingOrchestrator.despacharPedido(
+      await ShippingOrchestrator.despacharEntregaManual(
         pedidoSelecionado.id,
         {
-          entregador_nome: entregadorNomeDespacho.trim() || undefined,
-          despachado_por: usuario?.id || null
+          entregadorNome: entregadorNomeDespacho.trim() || undefined,
+          codigoRastreio: codigoRastreioDespacho.trim() || undefined,
+          usuarioId: usuario?.id || null
         }
       );
       const pedidoAtualizado: Pedido = {
         ...pedidoSelecionado,
-        status: 'concluido',
+        status: 'saiu_para_entrega',
         entregador_nome: entregadorNomeDespacho.trim() || pedidoSelecionado.entregador_nome,
+        codigo_rastreio: codigoRastreioDespacho.trim() || pedidoSelecionado.codigo_rastreio,
         despachado_em: agora,
         despachado_por: usuario?.id || null
       };
       setPedidoSelecionado(pedidoAtualizado);
-      onAlterarStatus(pedidoSelecionado.id, 'concluido');
+      onAlterarStatus(pedidoSelecionado.id, 'saiu_para_entrega');
       if (onRecarregar) await onRecarregar();
       setModalDespachoAberto(false);
       setEntregadorNomeDespacho('');
+      setCodigoRastreioDespacho('');
     } catch (err: any) {
       console.error('Erro ao despachar pedido:', err);
       alert(err.message || 'Erro ao despachar pedido.');
@@ -1254,6 +1258,22 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   />
                   <p className="text-[10px] text-slate-400">
                     O nome do entregador ficará gravado no comprovante e histórico do pedido.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 block">
+                    Código de Rastreamento (Correios / Transportadora)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: AA123456789BR ou JAD123456"
+                    value={codigoRastreioDespacho}
+                    onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    Permite ao cliente rastrear a encomenda diretamente.
                   </p>
                 </div>
               </div>

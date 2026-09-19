@@ -666,6 +666,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Fallback retrocompatível caso a tabela relacional não possua o registro ainda
       const fallbackEntrega: PedidoEntrega = {
         pedido_id: pedido.id,
+        forma_entrega_id: pedido.forma_entrega_id || null,
         tipo_atendimento: (pedido.metadados?.tipo_atendimento || (taxaFinal > 0 ? 'entrega' : 'retirada')) as any,
         transportadora_nome: pedido.metadados?.transportadora_nome || (taxaFinal > 0 ? 'Entrega Padrão' : 'Retirada na Loja'),
         provedor: pedido.metadados?.provedor_frete || (taxaFinal > 0 ? 'melhor_envio' : 'retirada_loja') as any,

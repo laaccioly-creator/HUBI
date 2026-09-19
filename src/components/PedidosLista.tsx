@@ -142,6 +142,7 @@ export const PedidosLista: React.FC = () => {
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
   const [entregadorNomeDespacho, setEntregadorNomeDespacho] = useState<string>('');
+  const [codigoRastreioDespacho, setCodigoRastreioDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
@@ -720,9 +721,10 @@ export const PedidosLista: React.FC = () => {
 
     const { prov, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
 
-    // Se for Frete Próprio, abre modal para informar o nome do entregador
-    if (prov === 'frete_proprio') {
+    // Se for Frete Próprio ou Entrega Manual/Transportadora da Loja, abre modal
+    if (prov === 'frete_proprio' || pe?.provedor === 'frete_proprio') {
       setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
+      setCodigoRastreioDespacho(pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '');
       setModalDespachoAberto(true);
       return;
     }
@@ -842,10 +844,13 @@ export const PedidosLista: React.FC = () => {
     try {
       setDespachando(true);
       const agora = new Date().toISOString();
-      await ShippingOrchestrator.despacharFreteProprio(
+      await ShippingOrchestrator.despacharEntregaManual(
         pedidoSelecionado.id,
-        entregadorNomeDespacho.trim() || undefined,
-        usuario?.id || null
+        {
+          entregadorNome: entregadorNomeDespacho.trim() || undefined,
+          codigoRastreio: codigoRastreioDespacho.trim() || undefined,
+          usuarioId: usuario?.id || null
+        }
       );
       setPedidos((prev) =>
         prev.map((p) =>
@@ -854,6 +859,7 @@ export const PedidosLista: React.FC = () => {
                 ...p,
                 status: 'saiu_para_entrega',
                 entregador_nome: entregadorNomeDespacho.trim() || p.entregador_nome,
+                codigo_rastreio: codigoRastreioDespacho.trim() || p.codigo_rastreio,
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
@@ -866,6 +872,7 @@ export const PedidosLista: React.FC = () => {
               ...prev,
               status: 'saiu_para_entrega',
               entregador_nome: entregadorNomeDespacho.trim() || prev.entregador_nome,
+              codigo_rastreio: codigoRastreioDespacho.trim() || prev.codigo_rastreio,
               despachado_em: agora,
               despachado_por: usuario?.id || null
             }
@@ -876,6 +883,7 @@ export const PedidosLista: React.FC = () => {
       mostrarSucesso('Pedido despachado para entrega com sucesso!');
       setModalDespachoAberto(false);
       setEntregadorNomeDespacho('');
+      setCodigoRastreioDespacho('');
     } catch (err: any) {
       console.error('Erro ao despachar pedido:', err);
       mostrarErro(`Erro ao despachar pedido: ${err.message || 'Tente novamente.'}`);
@@ -2902,7 +2910,9 @@ export const PedidosLista: React.FC = () => {
                   <h3 className="font-black text-sm text-slate-100">
                     Despachar Pedido #{pedidoSelecionado.numero_pedido}
                   </h3>
-                  <p className="text-[11px] text-slate-400">Finalizar entrega com Frete Próprio</p>
+                  <p className="text-[11px] text-slate-400">
+                    {entregaPedido?.transportadora_nome || 'Despacho Logístico'}
+                  </p>
                 </div>
               </div>
               <button
@@ -2926,6 +2936,7 @@ export const PedidosLista: React.FC = () => {
                 </div>
               )}
 
+              {/* Se for próprio ou motoboy: exibir campo para registrar o nome do entregador */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-200 block">
                   Nome do Entregador / Motoboy
@@ -2939,6 +2950,23 @@ export const PedidosLista: React.FC = () => {
                 />
                 <p className="text-[11px] text-slate-400">
                   O nome do entregador ficará gravado no pedido e no comprovante oficial.
+                </p>
+              </div>
+
+              {/* Se for transportadora (Correios/Jadlog): exibir campo para informar o código de rastreio */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-200 block">
+                  Código de Rastreamento (Correios / Transportadora)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: AA123456789BR ou JAD123456"
+                  value={codigoRastreioDespacho}
+                  onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 font-medium placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Permite ao cliente rastrear a encomenda diretamente.
                 </p>
               </div>
             </div>

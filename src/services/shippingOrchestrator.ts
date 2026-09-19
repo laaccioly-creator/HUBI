@@ -7,7 +7,7 @@ import {
   RequisicaoCotacaoOrquestrador,
   NovoEnderecoFormInput
 } from '../types/shipping';
-import { Loja, Pedido } from '../types';
+import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
@@ -874,5 +874,211 @@ export class ShippingOrchestrator {
       prazo_estimado_texto: `Disponível no local (${enderecoFormatado})`,
       icone_tipo: 'loja'
     };
+  }
+
+  /**
+   * Lista todas as formas de entrega cadastradas para a loja.
+   * Se a loja ainda não possuir opções, realiza seed idempotente das opções padrão.
+   */
+  public static async listarFormasEntrega(lojaId: string): Promise<FormaEntrega[]> {
+    if (!lojaId) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('formas_entrega')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .order('criado_em', { ascending: true });
+
+      if (error) {
+        console.warn('[ShippingOrchestrator] Erro ao listar formas de entrega:', error);
+        return [];
+      }
+
+      if (data && data.length > 0) {
+        return data as FormaEntrega[];
+      }
+
+      // Seed das opções padrão se não houver registros
+      const opcoesPadrao = [
+        {
+          loja_id: lojaId,
+          nome: 'Retirada na Loja',
+          tipo: 'retirada' as const,
+          valor_taxa: 0.00,
+          requer_codigo_rastreio: false,
+          requer_entregador: false,
+          ativo: true,
+          padrao: true
+        },
+        {
+          loja_id: lojaId,
+          nome: 'Motoboy / Frota Própria',
+          tipo: 'proprio' as const,
+          valor_taxa: 0.00,
+          requer_codigo_rastreio: false,
+          requer_entregador: true,
+          ativo: true,
+          padrao: true
+        },
+        {
+          loja_id: lojaId,
+          nome: 'Uber / 99 Manual',
+          tipo: 'proprio' as const,
+          valor_taxa: 0.00,
+          requer_codigo_rastreio: false,
+          requer_entregador: false,
+          ativo: true,
+          padrao: false
+        },
+        {
+          loja_id: lojaId,
+          nome: 'Correios / Transportadora',
+          tipo: 'transportadora' as const,
+          valor_taxa: 0.00,
+          requer_codigo_rastreio: true,
+          requer_entregador: false,
+          ativo: true,
+          padrao: false
+        }
+      ];
+
+      const { data: seeded, error: seedError } = await supabase
+        .from('formas_entrega')
+        .insert(opcoesPadrao)
+        .select();
+
+      if (seedError) {
+        console.warn('[ShippingOrchestrator] Falha ao criar seed de formas_entrega:', seedError);
+        return [];
+      }
+
+      return (seeded || []) as FormaEntrega[];
+    } catch (err: unknown) {
+      console.warn('[ShippingOrchestrator] Exceção ao listar formas de entrega:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Salva ou atualiza uma forma de entrega relacional para a loja
+   */
+  public static async salvarFormaEntrega(
+    lojaId: string,
+    forma: Partial<FormaEntrega>
+  ): Promise<FormaEntrega> {
+    if (!lojaId) throw new Error('Loja não identificada.');
+    if (!forma.nome?.trim()) throw new Error('O nome da forma de entrega é obrigatório.');
+
+    const payload = {
+      loja_id: lojaId,
+      nome: forma.nome.trim(),
+      tipo: forma.tipo || 'proprio',
+      valor_taxa: Number(forma.valor_taxa || 0),
+      requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
+      requer_entregador: Boolean(forma.requer_entregador),
+      ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
+      padrao: Boolean(forma.padrao),
+      atualizado_em: new Date().toISOString()
+    };
+
+    if (forma.id && isUuidValido(forma.id)) {
+      const { data, error } = await supabase
+        .from('formas_entrega')
+        .update(payload)
+        .eq('id', forma.id)
+        .eq('loja_id', lojaId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as FormaEntrega;
+    }
+
+    const { data, error } = await supabase
+      .from('formas_entrega')
+      .insert({
+        ...payload,
+        criado_em: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as FormaEntrega;
+  }
+
+  /**
+   * Alterna status ativo/inativo de uma forma de entrega
+   */
+  public static async alternarStatusFormaEntrega(
+    formaId: string,
+    lojaId: string,
+    ativo: boolean
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('formas_entrega')
+      .update({ ativo, atualizado_em: new Date().toISOString() })
+      .eq('id', formaId)
+      .eq('loja_id', lojaId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Remove uma forma de entrega
+   */
+  public static async removerFormaEntrega(
+    formaId: string,
+    lojaId: string
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('formas_entrega')
+      .delete()
+      .eq('id', formaId)
+      .eq('loja_id', lojaId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Despacho manual simplificado: persiste entregador_nome, codigo_rastreio
+   * e transiciona para 'saiu_para_entrega' tanto em pedidos quanto em pedido_entregas
+   */
+  public static async despacharEntregaManual(
+    pedidoId: string,
+    dados: {
+      entregadorNome?: string | null;
+      codigoRastreio?: string | null;
+      usuarioId?: string | null;
+    }
+  ): Promise<void> {
+    const despachadoEm = new Date().toISOString();
+
+    // 1. Atualizar pedido_entregas
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        entregador_nome: dados.entregadorNome?.trim() || null,
+        codigo_rastreio: dados.codigoRastreio?.trim() || null,
+        status_envio: 'despachado',
+        despachado_em: despachadoEm,
+        despachado_por: dados.usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('pedido_id', pedidoId);
+
+    // 2. Atualizar snapshot relacional em pedidos
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'saiu_para_entrega',
+        entregador_nome: dados.entregadorNome?.trim() || null,
+        codigo_rastreio: dados.codigoRastreio?.trim() || null,
+        despachado_em: despachadoEm,
+        despachado_por: dados.usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('id', pedidoId);
   }
 }
