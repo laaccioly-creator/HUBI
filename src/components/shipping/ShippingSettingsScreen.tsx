@@ -84,6 +84,7 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [formaRequerEntregador, setFormaRequerEntregador] = useState<boolean>(false);
   const [formaRequerRastreio, setFormaRequerRastreio] = useState<boolean>(false);
   const [formaRequerLinkRastreio, setFormaRequerLinkRastreio] = useState<boolean>(false);
+  const [formaRequerPin, setFormaRequerPin] = useState<boolean>(false);
 
   const carregarFormasEntrega = async () => {
     if (!loja?.id) return;
@@ -104,18 +105,22 @@ export const ShippingSettingsScreen: React.FC = () => {
       setFormaRequerEntregador(false);
       setFormaRequerRastreio(false);
       setFormaRequerLinkRastreio(false);
+      setFormaRequerPin(false);
     } else if (novoTipo === 'frota_propria' || novoTipo === 'motoboy' || novoTipo === 'proprio') {
       setFormaRequerEntregador(true);
       setFormaRequerRastreio(false);
       setFormaRequerLinkRastreio(false);
+      setFormaRequerPin(false);
     } else if (novoTipo === 'app_entrega') {
       setFormaRequerEntregador(false);
       setFormaRequerRastreio(false);
       setFormaRequerLinkRastreio(true);
+      setFormaRequerPin(true);
     } else if (novoTipo === 'correios' || novoTipo === 'transportadora') {
       setFormaRequerEntregador(false);
       setFormaRequerRastreio(true);
       setFormaRequerLinkRastreio(false);
+      setFormaRequerPin(false);
     }
   };
 
@@ -127,17 +132,20 @@ export const ShippingSettingsScreen: React.FC = () => {
     setFormaRequerEntregador(true);
     setFormaRequerRastreio(false);
     setFormaRequerLinkRastreio(false);
+    setFormaRequerPin(false);
     setModalFormaAberto(true);
   };
 
   const abrirModalEditarForma = (forma: FormaEntrega) => {
     setFormaEditando(forma);
     setFormaNome(forma.nome);
-    setFormaTipo(forma.tipo as TipoEntrega);
+    const tipoMapeado = (forma.tipo === 'proprio' ? 'frota_propria' : forma.tipo) as TipoEntrega;
+    setFormaTipo(tipoMapeado);
     setFormaValorTaxa(forma.valor_taxa != null ? String(forma.valor_taxa) : '0.00');
     setFormaRequerEntregador(Boolean(forma.requer_entregador));
     setFormaRequerRastreio(Boolean(forma.requer_codigo_rastreio));
     setFormaRequerLinkRastreio(Boolean(forma.requer_link_rastreio));
+    setFormaRequerPin(Boolean(forma.requer_pin));
     setModalFormaAberto(true);
   };
 
@@ -163,6 +171,7 @@ export const ShippingSettingsScreen: React.FC = () => {
         requer_entregador: Boolean(formaRequerEntregador),
         requer_codigo_rastreio: Boolean(formaRequerRastreio),
         requer_link_rastreio: Boolean(formaRequerLinkRastreio),
+        requer_pin: Boolean(formaRequerPin),
         ativo: formaEditando ? formaEditando.ativo : true,
         atualizado_em: new Date().toISOString()
       });
@@ -967,6 +976,11 @@ export const ShippingSettingsScreen: React.FC = () => {
                             Link Corrida
                           </span>
                         )}
+                        {forma.requer_pin && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">
+                            Requer PIN
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1077,11 +1091,11 @@ export const ShippingSettingsScreen: React.FC = () => {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                 >
                   <option value="retirada">Retirada na Loja (Balcão Físico)</option>
-                  <option value="frota_propria">Frota Própria (Veículo da Empresa)</option>
-                  <option value="motoboy">Motoboy (Terceirizado / Autônomo)</option>
-                  <option value="app_entrega">App de Corrida (Uber Flash / 99 Entregas / Lalamove)</option>
+                  <option value="frota_propria">Frota Própria (Entrega Local)</option>
+                  <option value="motoboy">Motoboy Terceirizado</option>
+                  <option value="app_entrega">App de Corrida (Uber / 99)</option>
                   <option value="correios">Correios (PAC / SEDEX)</option>
-                  <option value="transportadora">Transportadora (Jadlog, Total Express, etc.)</option>
+                  <option value="transportadora">Transportadora</option>
                 </select>
               </div>
 
@@ -1164,6 +1178,33 @@ export const ShippingSettingsScreen: React.FC = () => {
                   </div>
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                     Requer link de rastreio da corrida no despacho (ex: Uber Flash, 99 Entregas)
+                  </span>
+                </div>
+
+                <div
+                  role="checkbox"
+                  aria-checked={formaRequerPin}
+                  tabIndex={0}
+                  onClick={() => setFormaRequerPin(prev => !prev)}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormaRequerPin(prev => !prev);
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer select-none group"
+                >
+                  <div
+                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      formaRequerPin
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
+                    }`}
+                  >
+                    {formaRequerPin && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                  </div>
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                    Requer código PIN de confirmação (4 dígitos)
                   </span>
                 </div>
               </div>

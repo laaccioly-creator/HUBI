@@ -1000,6 +1000,7 @@ export class ShippingOrchestrator {
           requer_entregador: Boolean(forma.requer_entregador),
           requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
           requer_link_rastreio: Boolean(forma.requer_link_rastreio),
+          requer_pin: Boolean(forma.requer_pin),
           ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
           atualizado_em: agora
         })
@@ -1029,6 +1030,7 @@ export class ShippingOrchestrator {
         requer_entregador: Boolean(forma.requer_entregador),
         requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
         requer_link_rastreio: Boolean(forma.requer_link_rastreio),
+        requer_pin: Boolean(forma.requer_pin),
         ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
         padrao: Boolean(forma.padrao),
         criado_em: agora,

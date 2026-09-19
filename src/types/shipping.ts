@@ -195,6 +195,7 @@ export interface FormaEntrega {
   requer_codigo_rastreio?: boolean;
   requer_entregador?: boolean;
   requer_link_rastreio?: boolean;
+  requer_pin?: boolean;
   padrao?: boolean;
   ativo: boolean;
   criado_em?: string;

@@ -47,3 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_pedidos_pin_entrega
 CREATE INDEX IF NOT EXISTS idx_pedido_entregas_pin_entrega 
   ON public.pedido_entregas(pin_entrega) 
   WHERE pin_entrega IS NOT NULL;
+
+-- 5. Adicionar colunas relacionais requer_link_rastreio e requer_pin na tabela formas_entrega
+ALTER TABLE public.formas_entrega 
+  ADD COLUMN IF NOT EXISTS requer_link_rastreio BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS requer_pin BOOLEAN DEFAULT FALSE;
