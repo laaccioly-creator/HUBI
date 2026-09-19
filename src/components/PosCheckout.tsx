@@ -769,6 +769,9 @@ export const PosCheckout: React.FC = () => {
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         atualizado_por: usuario?.id || null,
         forma_entrega_id: pedidoEntrega?.forma_entrega_id || null,
+        codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
+        link_rastreio: pedidoEntrega?.link_rastreio || null,
+        entregador_nome: pedidoEntrega?.entregador_nome || null,
         valor_frete: taxaEntrega,
         endereco_entrega: enderecoEntregaFinal,
         valor_total: total,
@@ -1328,6 +1331,9 @@ export const PosCheckout: React.FC = () => {
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         valor_desconto: desconto,
         forma_entrega_id: pedidoEntrega?.forma_entrega_id || null,
+        codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
+        link_rastreio: pedidoEntrega?.link_rastreio || null,
+        entregador_nome: pedidoEntrega?.entregador_nome || null,
         valor_frete: taxaEntrega,
         endereco_entrega: enderecoEntregaFinal,
         valor_total: total,
@@ -3256,7 +3262,7 @@ export const PosCheckout: React.FC = () => {
                 comprimento_cm: (i.produto as any)?.comprimento_cm || 20
               }))}
               valorFreteAtual={draftFulfillment ? draftFulfillment.valor_frete : taxaEntrega}
-              opcaoSelecionadaId={draftFulfillment?.pedido_entrega?.servico_codigo || pedidoEntrega?.servico_codigo}
+              opcaoSelecionadaId={draftFulfillment?.pedido_entrega?.forma_entrega_id || draftFulfillment?.pedido_entrega?.servico_codigo || pedidoEntrega?.forma_entrega_id || pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={draftFulfillment?.tipo_atendimento || pedidoEntrega?.tipo_atendimento || 'retirada'}
               enderecoEntregaAtual={pedidoEntrega?.destino_cep ? {
                 id: pedidoEntrega.cliente_endereco_id || undefined,

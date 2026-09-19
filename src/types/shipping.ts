@@ -55,6 +55,8 @@ export interface PedidoEntrega {
   id?: string;
   pedido_id: string;
   forma_entrega_id?: string | null;
+  forma_entrega_nome?: string | null;
+  tipo_entrega?: 'retirada' | 'proprio' | 'transportadora' | 'manual' | string | null;
   tipo_atendimento: TipoAtendimento;
   cliente_endereco_id?: string | null;
   destino_cep?: string | null;
