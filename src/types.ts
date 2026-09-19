@@ -1,11 +1,22 @@
-import type { PedidoEntrega, FormaEntrega } from './types/shipping';
+import type { PedidoEntrega, FormaEntrega, TipoOperacaoEnvio } from './types/shipping';
 
 export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
 export type TipoUnidade = 'un' | 'kg' | 'l' | 'm';
 export type TabelaPreco = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
 export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'outro';
-export type TipoEntrega = 'retirada' | 'taxa_fixa' | 'bairro' | 'distancia_km' | 'proprio' | 'transportadora' | 'manual';
+export type TipoEntrega = 
+  | 'retirada' 
+  | 'frota_propria' 
+  | 'motoboy' 
+  | 'app_entrega' 
+  | 'correios' 
+  | 'transportadora' 
+  | 'taxa_fixa' 
+  | 'bairro' 
+  | 'distancia_km' 
+  | 'proprio' 
+  | 'manual';
 export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online';
 export type StatusPedido =
   | 'pendente'
@@ -534,6 +545,12 @@ export interface Pedido {
   codigo_rastreio?: string | null;
   link_rastreio?: string | null;
   entregador_nome?: string | null;
+  contato_entregador?: string | null;
+  pin_entrega?: string | null;
+  nome_app?: string | null;
+  servico_correios?: string | null;
+  nome_transportadora?: string | null;
+  tipo_operacao?: TipoOperacaoEnvio | string | null;
   despachado_em?: string | null;
   despachado_por?: string | null;
 }

@@ -98,12 +98,33 @@ export const ShippingSettingsScreen: React.FC = () => {
     }
   };
 
+  const handleMudarTipo = (novoTipo: TipoEntrega) => {
+    setFormaTipo(novoTipo);
+    if (novoTipo === 'retirada') {
+      setFormaRequerEntregador(false);
+      setFormaRequerRastreio(false);
+      setFormaRequerLinkRastreio(false);
+    } else if (novoTipo === 'frota_propria' || novoTipo === 'motoboy' || novoTipo === 'proprio') {
+      setFormaRequerEntregador(true);
+      setFormaRequerRastreio(false);
+      setFormaRequerLinkRastreio(false);
+    } else if (novoTipo === 'app_entrega') {
+      setFormaRequerEntregador(false);
+      setFormaRequerRastreio(false);
+      setFormaRequerLinkRastreio(true);
+    } else if (novoTipo === 'correios' || novoTipo === 'transportadora') {
+      setFormaRequerEntregador(false);
+      setFormaRequerRastreio(true);
+      setFormaRequerLinkRastreio(false);
+    }
+  };
+
   const abrirModalNovaForma = () => {
     setFormaEditando(null);
     setFormaNome('');
-    setFormaTipo('proprio');
+    setFormaTipo('frota_propria');
     setFormaValorTaxa('0.00');
-    setFormaRequerEntregador(false);
+    setFormaRequerEntregador(true);
     setFormaRequerRastreio(false);
     setFormaRequerLinkRastreio(false);
     setModalFormaAberto(true);
@@ -112,7 +133,7 @@ export const ShippingSettingsScreen: React.FC = () => {
   const abrirModalEditarForma = (forma: FormaEntrega) => {
     setFormaEditando(forma);
     setFormaNome(forma.nome);
-    setFormaTipo(forma.tipo);
+    setFormaTipo(forma.tipo as TipoEntrega);
     setFormaValorTaxa(forma.valor_taxa != null ? String(forma.valor_taxa) : '0.00');
     setFormaRequerEntregador(Boolean(forma.requer_entregador));
     setFormaRequerRastreio(Boolean(forma.requer_codigo_rastreio));
@@ -923,8 +944,13 @@ export const ShippingSettingsScreen: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 capitalize">
-                          {forma.tipo === 'proprio' ? 'Frota Própria' : forma.tipo}
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                          {forma.tipo === 'retirada' ? 'Retirada na Loja' :
+                           forma.tipo === 'frota_propria' || forma.tipo === 'proprio' ? 'Frota Própria' :
+                           forma.tipo === 'motoboy' ? 'Motoboy' :
+                           forma.tipo === 'app_entrega' ? 'App de Corrida' :
+                           forma.tipo === 'correios' ? 'Correios' :
+                           forma.tipo === 'transportadora' ? 'Transportadora' : forma.tipo}
                         </span>
                         {forma.requer_entregador && (
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
@@ -1047,13 +1073,15 @@ export const ShippingSettingsScreen: React.FC = () => {
                 </label>
                 <select
                   value={formaTipo}
-                  onChange={(e) => setFormaTipo(e.target.value as TipoEntrega)}
+                  onChange={(e) => handleMudarTipo(e.target.value as TipoEntrega)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                 >
-                  <option value="proprio">Frota Própria / Motoboy (Entrega Local)</option>
-                  <option value="transportadora">Transportadora (Correios, Jadlog, etc.)</option>
                   <option value="retirada">Retirada na Loja (Balcão Físico)</option>
-                  <option value="manual">Manual no PDV</option>
+                  <option value="frota_propria">Frota Própria (Veículo da Empresa)</option>
+                  <option value="motoboy">Motoboy (Terceirizado / Autônomo)</option>
+                  <option value="app_entrega">App de Corrida (Uber Flash / 99 Entregas / Lalamove)</option>
+                  <option value="correios">Correios (PAC / SEDEX)</option>
+                  <option value="transportadora">Transportadora (Jadlog, Total Express, etc.)</option>
                 </select>
               </div>
 

@@ -124,8 +124,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   // Estados isolados por ID da modalidade manual (chave: forma.id)
   const [valoresManuais, setValoresManuais] = useState<Record<string, string>>({});
   const [entregadores, setEntregadores] = useState<Record<string, string>>({});
+  const [contatosEntregadores, setContatosEntregadores] = useState<Record<string, string>>({});
   const [codigosRastreio, setCodigosRastreio] = useState<Record<string, string>>({});
   const [linksRastreio, setLinksRastreio] = useState<Record<string, string>>({});
+  const [pinsEntrega, setPinsEntrega] = useState<Record<string, string>>({});
+  const [nomesApp, setNomesApp] = useState<Record<string, string>>({});
+  const [servicosCorreios, setServicosCorreios] = useState<Record<string, 'PAC' | 'SEDEX'>>({});
+  const [nomesTransportadora, setNomesTransportadora] = useState<Record<string, string>>({});
 
   // ID da forma de entrega manual atualmente selecionada
   const [formaManualEscolhidaId, setFormaManualEscolhidaId] = useState<string | null>(null);
@@ -533,27 +538,36 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     endAlvo: ClienteEndereco | null,
     dadosAdicionais?: {
       entregador?: string;
+      contatoEntregador?: string;
       rastreio?: string;
       link?: string;
+      pin?: string;
+      nomeApp?: string;
+      servicoCorreios?: 'PAC' | 'SEDEX';
+      nomeTransportadora?: string;
     }
   ) => {
     if (!endAlvo) return;
     const numVal = parseFloat(valorStr.replace(',', '.')) || 0;
 
     let tipoEntregaCalculado: 'proprio' | 'transportadora' | 'manual' = 'manual';
-    if (forma.tipo === 'proprio' || forma.tipo === 'taxa_fixa') {
+    if (forma.tipo === 'proprio' || forma.tipo === 'frota_propria' || forma.tipo === 'motoboy' || forma.tipo === 'taxa_fixa') {
       tipoEntregaCalculado = 'proprio';
-    } else if (forma.tipo === 'transportadora') {
+    } else if (forma.tipo === 'transportadora' || forma.tipo === 'correios') {
       tipoEntregaCalculado = 'transportadora';
     } else {
       tipoEntregaCalculado = 'manual';
     }
 
-    const provedorFinal = forma.tipo === 'transportadora' ? 'melhor_envio' : 'frete_proprio';
+    const provedorFinal = (forma.tipo === 'transportadora' || forma.tipo === 'correios') ? 'melhor_envio' : 'frete_proprio';
 
     const entregadorFinal = dadosAdicionais?.entregador !== undefined
       ? dadosAdicionais.entregador
       : (entregadores[forma.id] || null);
+
+    const contatoFinal = dadosAdicionais?.contatoEntregador !== undefined
+      ? dadosAdicionais.contatoEntregador
+      : (contatosEntregadores[forma.id] || null);
 
     const rastreioFinal = dadosAdicionais?.rastreio !== undefined
       ? dadosAdicionais.rastreio
@@ -563,11 +577,27 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       ? dadosAdicionais.link
       : (linksRastreio[forma.id] || null);
 
+    const pinFinal = dadosAdicionais?.pin !== undefined
+      ? dadosAdicionais.pin
+      : (pinsEntrega[forma.id] || null);
+
+    const nomeAppFinal = dadosAdicionais?.nomeApp !== undefined
+      ? dadosAdicionais.nomeApp
+      : (nomesApp[forma.id] || (forma.tipo === 'app_entrega' ? 'Uber' : null));
+
+    const servicoCorreiosFinal = dadosAdicionais?.servicoCorreios !== undefined
+      ? dadosAdicionais.servicoCorreios
+      : (servicosCorreios[forma.id] || (forma.tipo === 'correios' ? 'SEDEX' : null));
+
+    const nomeTransportadoraFinal = dadosAdicionais?.nomeTransportadora !== undefined
+      ? dadosAdicionais.nomeTransportadora
+      : (nomesTransportadora[forma.id] || null);
+
     const opcaoManual: OpcaoFreteCotada = {
       id: `forma_${forma.id}`,
       forma_entrega_id: forma.id,
       provedor: provedorFinal,
-      transportadora_nome: forma.nome,
+      transportadora_nome: nomeTransportadoraFinal || forma.nome,
       servico_codigo: forma.tipo,
       servico_nome: forma.nome,
       valor_frete: numVal,
@@ -575,12 +605,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       valor_subsidio: 0,
       is_frete_gratis: numVal === 0,
       prazo_estimado_texto: forma.tempo_estimado || 'Entrega combinada',
-      icone_tipo: forma.tipo === 'transportadora' ? 'padrao' : 'loja',
+      icone_tipo: (forma.tipo === 'transportadora' || forma.tipo === 'correios') ? 'padrao' : 'loja',
       permite_edicao_valor: true,
       tipo_cobranca: 'manual'
     };
 
-    const chaveEmissao = `manual_${forma.id}_${numVal}_${endAlvo.cep}_${endAlvo.numero}_${entregadorFinal || ''}_${rastreioFinal || ''}_${linkFinal || ''}`;
+    const chaveEmissao = `manual_${forma.id}_${numVal}_${endAlvo.cep}_${endAlvo.numero}_${entregadorFinal || ''}_${rastreioFinal || ''}_${linkFinal || ''}_${pinFinal || ''}_${nomeAppFinal || ''}_${servicoCorreiosFinal || ''}_${nomeTransportadoraFinal || ''}`;
     if (ultimoResultadoEmitidoRef.current === chaveEmissao) return;
     ultimoResultadoEmitidoRef.current = chaveEmissao;
 
@@ -595,6 +625,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         forma_entrega_id: forma.id,
         forma_entrega_nome: forma.nome,
         tipo_entrega: tipoEntregaCalculado,
+        tipo_operacao: forma.tipo,
         tipo_atendimento: 'entrega',
         cliente_endereco_id: endAlvo.id && isUuidValido(endAlvo.id) ? endAlvo.id : null,
         destino_cep: endAlvo.cep,
@@ -607,7 +638,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         destino_latitude: endAlvo.latitude,
         destino_longitude: endAlvo.longitude,
         provedor: provedorFinal,
-        transportadora_nome: forma.nome,
+        transportadora_nome: nomeTransportadoraFinal || forma.nome,
         servico_codigo: forma.tipo,
         valor_frete: numVal,
         valor_original: numVal,
@@ -615,12 +646,17 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         is_frete_gratis: numVal === 0,
         prazo_estimado_texto: forma.tempo_estimado || 'Entrega combinada',
         entregador_nome: entregadorFinal,
+        contato_entregador: contatoFinal,
         codigo_rastreio: rastreioFinal,
         link_rastreio: linkFinal,
+        pin_entrega: pinFinal,
+        nome_app: nomeAppFinal,
+        servico_correios: servicoCorreiosFinal,
+        nome_transportadora: nomeTransportadoraFinal,
         status_envio: 'pendente'
       }
     });
-  }, [entregadores, codigosRastreio, linksRastreio]);
+  }, [entregadores, contatosEntregadores, codigosRastreio, linksRastreio, pinsEntrega, nomesApp, servicosCorreios, nomesTransportadora]);
 
   // Manipulador de digitação direta de valor na modalidade manual (estritamente isolado por forma.id)
   const handleAlterarValorManualForma = (forma: FormaEntrega, novoTexto: string) => {
@@ -641,6 +677,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
   };
 
+  const handleAlterarContatoEntregador = (forma: FormaEntrega, valor: string) => {
+    setContatosEntregadores(prev => ({ ...prev, [forma.id]: valor }));
+    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+      const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
+      emitirSelecaoManual(forma, preco, enderecoSelecionado, { contatoEntregador: valor });
+    }
+  };
+
   const handleAlterarCodigoRastreio = (forma: FormaEntrega, valor: string) => {
     setCodigosRastreio(prev => ({ ...prev, [forma.id]: valor }));
     if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
@@ -654,6 +698,39 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
       emitirSelecaoManual(forma, preco, enderecoSelecionado, { link: valor });
+    }
+  };
+
+  const handleAlterarPin = (forma: FormaEntrega, valor: string) => {
+    const limpo = valor.replace(/\D/g, '').slice(0, 4);
+    setPinsEntrega(prev => ({ ...prev, [forma.id]: limpo }));
+    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+      const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
+      emitirSelecaoManual(forma, preco, enderecoSelecionado, { pin: limpo });
+    }
+  };
+
+  const handleAlterarNomeApp = (forma: FormaEntrega, valor: string) => {
+    setNomesApp(prev => ({ ...prev, [forma.id]: valor }));
+    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+      const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
+      emitirSelecaoManual(forma, preco, enderecoSelecionado, { nomeApp: valor });
+    }
+  };
+
+  const handleAlterarServicoCorreios = (forma: FormaEntrega, valor: 'PAC' | 'SEDEX') => {
+    setServicosCorreios(prev => ({ ...prev, [forma.id]: valor }));
+    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+      const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
+      emitirSelecaoManual(forma, preco, enderecoSelecionado, { servicoCorreios: valor });
+    }
+  };
+
+  const handleAlterarNomeTransportadora = (forma: FormaEntrega, valor: string) => {
+    setNomesTransportadora(prev => ({ ...prev, [forma.id]: valor }));
+    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+      const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
+      emitirSelecaoManual(forma, preco, enderecoSelecionado, { nomeTransportadora: valor });
     }
   };
 
@@ -1163,9 +1240,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                         // Rótulo descritivo do tipo relacional
                         let rotuloTipo = 'Manual';
-                        if (forma.tipo === 'proprio') rotuloTipo = 'Frota / Motoboy';
+                        if (forma.tipo === 'frota_propria' || forma.tipo === 'proprio') rotuloTipo = 'Frota Própria';
+                        else if (forma.tipo === 'motoboy') rotuloTipo = 'Motoboy';
+                        else if (forma.tipo === 'app_entrega') rotuloTipo = 'App de Corrida';
+                        else if (forma.tipo === 'correios') rotuloTipo = 'Correios';
+                        else if (forma.tipo === 'transportadora') rotuloTipo = 'Transportadora';
                         else if (forma.tipo === 'taxa_fixa') rotuloTipo = 'Taxa Fixa';
-                        else if (forma.tipo === 'transportadora') rotuloTipo = 'Transportadora / Sedex';
                         else if (forma.tipo === 'bairro') rotuloTipo = 'Por Bairro';
                         else if (forma.tipo === 'distancia_km') rotuloTipo = 'Por Km';
 
@@ -1186,10 +1266,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                     ? 'bg-emerald-600 text-white border-emerald-600'
                                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 }`}>
-                                  {forma.tipo === 'proprio' ? (
+                                  {forma.tipo === 'motoboy' || forma.tipo === 'frota_propria' || forma.tipo === 'proprio' ? (
                                     <Bike className="w-4 h-4" />
-                                  ) : forma.tipo === 'transportadora' ? (
+                                  ) : forma.tipo === 'transportadora' || forma.tipo === 'correios' ? (
                                     <Package className="w-4 h-4" />
+                                  ) : forma.tipo === 'app_entrega' ? (
+                                    <Navigation className="w-4 h-4" />
                                   ) : (
                                     <Truck className="w-4 h-4" />
                                   )}
@@ -1244,53 +1326,162 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               </div>
                             </div>
 
-                            {/* Campos condicionais por requisitos da modalidade quando selecionada */}
-                            {selecionada && (forma.requer_entregador || forma.requer_codigo_rastreio || forma.requer_link_rastreio) && (
-                              <div className="pt-3 mt-3 border-t border-emerald-200/60 space-y-2.5 animate-in fade-in duration-200">
-                                {forma.requer_entregador && (
-                                  <div>
-                                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                      Nome / Contato do Entregador ou Motoboy:
-                                    </label>
-                                    <input
-                                      type="text"
-                                      placeholder="Ex: Carlos (85 99999-0000)"
-                                      value={entregadores[forma.id] || ''}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onChange={(e) => handleAlterarEntregador(forma, e.target.value)}
-                                      className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
-                                    />
+                            {/* Campos especializados por modalidade de operação quando selecionada */}
+                            {selecionada && (
+                              <div className="pt-3 mt-3 border-t border-emerald-200/60 space-y-3 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                                {/* MEIO: Frota Própria / Motoboy */}
+                                {(forma.tipo === 'frota_propria' || forma.tipo === 'motoboy' || forma.tipo === 'proprio' || forma.requer_entregador) && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Nome do Entregador / Motoboy:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        placeholder="Ex: Carlos"
+                                        value={entregadores[forma.id] || ''}
+                                        onChange={(e) => handleAlterarEntregador(forma, e.target.value)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Contato (Telefone / WhatsApp):
+                                      </label>
+                                      <input
+                                        type="text"
+                                        placeholder="Ex: (85) 99999-0000"
+                                        value={contatosEntregadores[forma.id] || ''}
+                                        onChange={(e) => handleAlterarContatoEntregador(forma, e.target.value)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
+                                      />
+                                    </div>
                                   </div>
                                 )}
 
-                                {forma.requer_codigo_rastreio && (
+                                {/* MEIO: App de Entrega (Uber / 99 / Lalamove) */}
+                                {(forma.tipo === 'app_entrega' || forma.requer_link_rastreio) && (
+                                  <div className="space-y-2.5">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                      <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                          App de Entrega:
+                                        </label>
+                                        <select
+                                          value={nomesApp[forma.id] || 'Uber'}
+                                          onChange={(e) => handleAlterarNomeApp(forma, e.target.value)}
+                                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                        >
+                                          <option value="Uber">Uber Flash</option>
+                                          <option value="99">99 Entregas</option>
+                                          <option value="Lalamove">Lalamove</option>
+                                          <option value="Outro">Outro Aplicativo</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                                          <span>PIN de Entrega (4 dígitos):</span>
+                                          <span className="text-[10px] text-emerald-700 font-bold uppercase">Código da corrida</span>
+                                        </label>
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          maxLength={4}
+                                          placeholder="Ex: 4892"
+                                          value={pinsEntrega[forma.id] || ''}
+                                          onChange={(e) => handleAlterarPin(forma, e.target.value)}
+                                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border-2 border-emerald-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 outline-none transition text-emerald-800 font-black tracking-widest text-center text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Link de Rastreio da Corrida:
+                                      </label>
+                                      <input
+                                        type="url"
+                                        placeholder="https://trip.uber.com/... ou https://99app.com/..."
+                                        value={linksRastreio[forma.id] || ''}
+                                        onChange={(e) => handleAlterarLinkRastreio(forma, e.target.value)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* MEIO: Correios */}
+                                {forma.tipo === 'correios' && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Serviço dos Correios:
+                                      </label>
+                                      <select
+                                        value={servicosCorreios[forma.id] || 'SEDEX'}
+                                        onChange={(e) => handleAlterarServicoCorreios(forma, e.target.value as 'PAC' | 'SEDEX')}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                      >
+                                        <option value="SEDEX">SEDEX</option>
+                                        <option value="PAC">PAC</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Código de Rastreamento:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        placeholder="Ex: QB123456789BR"
+                                        value={codigosRastreio[forma.id] || ''}
+                                        onChange={(e) => handleAlterarCodigoRastreio(forma, e.target.value)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition uppercase text-slate-800 font-mono font-bold"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* MEIO: Transportadora Geral */}
+                                {forma.tipo === 'transportadora' && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Nome da Transportadora:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        placeholder="Ex: Jadlog, Total Express, Braspress"
+                                        value={nomesTransportadora[forma.id] || ''}
+                                        onChange={(e) => handleAlterarNomeTransportadora(forma, e.target.value)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        Código de Rastreio:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        placeholder="Ex: JAD12345678"
+                                        value={codigosRastreio[forma.id] || ''}
+                                        onChange={(e) => handleAlterarCodigoRastreio(forma, e.target.value)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition uppercase text-slate-800 font-mono font-bold"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Fallback genérico de rastreio se a forma requer rastreio mas não é correios/transportadora */}
+                                {forma.requer_codigo_rastreio && forma.tipo !== 'correios' && forma.tipo !== 'transportadora' && (
                                   <div>
                                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                      Código de Rastreio (ex: Sedex / PAC / Jadlog):
+                                      Código de Rastreamento:
                                     </label>
                                     <input
                                       type="text"
-                                      placeholder="Ex: QB123456789BR"
+                                      placeholder="Ex: AA123456789BR"
                                       value={codigosRastreio[forma.id] || ''}
-                                      onClick={(e) => e.stopPropagation()}
                                       onChange={(e) => handleAlterarCodigoRastreio(forma, e.target.value)}
                                       className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition uppercase text-slate-800 font-mono"
-                                    />
-                                  </div>
-                                )}
-
-                                {forma.requer_link_rastreio && (
-                                  <div>
-                                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                      Link da Corrida / Rastreio (Uber Flash / 99 / Web):
-                                    </label>
-                                    <input
-                                      type="url"
-                                      placeholder="https://trip.uber.com/..."
-                                      value={linksRastreio[forma.id] || ''}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onChange={(e) => handleAlterarLinkRastreio(forma, e.target.value)}
-                                      className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
                                     />
                                   </div>
                                 )}

@@ -206,8 +206,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
   const [entregadorNomeDespacho, setEntregadorNomeDespacho] = useState<string>('');
+  const [contatoEntregadorDespacho, setContatoEntregadorDespacho] = useState<string>('');
   const [codigoRastreioDespacho, setCodigoRastreioDespacho] = useState<string>('');
   const [linkRastreioDespacho, setLinkRastreioDespacho] = useState<string>('');
+  const [pinEntregaDespacho, setPinEntregaDespacho] = useState<string>('');
+  const [nomeAppDespacho, setNomeAppDespacho] = useState<string>('Uber');
+  const [servicoCorreiosDespacho, setServicoCorreiosDespacho] = useState<'PAC' | 'SEDEX'>('SEDEX');
+  const [nomeTransportadoraDespacho, setNomeTransportadoraDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
@@ -232,12 +237,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     try {
       setDespachando(true);
       const agora = new Date().toISOString();
+      const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
       await ShippingOrchestrator.despacharEntregaManual(
         pedidoSelecionado.id,
         {
           entregadorNome: entregadorNomeDespacho.trim() || undefined,
+          contatoEntregador: contatoEntregadorDespacho.trim() || undefined,
           codigoRastreio: codigoRastreioDespacho.trim() || undefined,
           linkRastreio: linkRastreioDespacho.trim() || undefined,
+          pinEntrega: pinEntregaDespacho.trim() || undefined,
+          nomeApp: nomeAppDespacho.trim() || undefined,
+          servicoCorreios: servicoCorreiosDespacho || undefined,
+          nomeTransportadora: nomeTransportadoraDespacho.trim() || undefined,
+          tipoOperacao: (pe?.tipo_operacao || (pedidoSelecionado as any).tipo_operacao) || undefined,
           usuarioId: usuario?.id || null
         }
       );
@@ -245,8 +257,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         ...pedidoSelecionado,
         status: 'saiu_para_entrega',
         entregador_nome: entregadorNomeDespacho.trim() || pedidoSelecionado.entregador_nome,
+        contato_entregador: contatoEntregadorDespacho.trim() || pedidoSelecionado.contato_entregador,
         codigo_rastreio: codigoRastreioDespacho.trim() || pedidoSelecionado.codigo_rastreio,
         link_rastreio: linkRastreioDespacho.trim() || pedidoSelecionado.link_rastreio,
+        pin_entrega: pinEntregaDespacho.trim() || pedidoSelecionado.pin_entrega,
+        nome_app: nomeAppDespacho.trim() || pedidoSelecionado.nome_app,
+        servico_correios: servicoCorreiosDespacho || pedidoSelecionado.servico_correios,
+        nome_transportadora: nomeTransportadoraDespacho.trim() || pedidoSelecionado.nome_transportadora,
         despachado_em: agora,
         despachado_por: usuario?.id || null
       };
@@ -255,8 +272,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       if (onRecarregar) await onRecarregar();
       setModalDespachoAberto(false);
       setEntregadorNomeDespacho('');
+      setContatoEntregadorDespacho('');
       setCodigoRastreioDespacho('');
       setLinkRastreioDespacho('');
+      setPinEntregaDespacho('');
+      setNomeTransportadoraDespacho('');
     } catch (err: any) {
       console.error('Erro ao despachar pedido:', err);
       alert(err.message || 'Erro ao despachar pedido.');
@@ -1175,8 +1195,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     type="button"
                     onClick={() => {
                       setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
+                      setContatoEntregadorDespacho(pedidoSelecionado.contato_entregador || pe?.contato_entregador || '');
                       setCodigoRastreioDespacho(pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '');
                       setLinkRastreioDespacho(pedidoSelecionado.link_rastreio || pe?.link_rastreio || '');
+                      setPinEntregaDespacho(pedidoSelecionado.pin_entrega || pe?.pin_entrega || '');
+                      setNomeAppDespacho(pedidoSelecionado.nome_app || pe?.nome_app || 'Uber');
+                      setServicoCorreiosDespacho((pedidoSelecionado.servico_correios as any) || (pe?.servico_correios as any) || 'SEDEX');
+                      setNomeTransportadoraDespacho(pedidoSelecionado.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
                       setModalDespachoAberto(true);
                     }}
                     className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
@@ -1251,54 +1276,153 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   </div>
                 )}
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 block">
-                    Nome do Entregador / Motoboy
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Carlos (Moto Honda)"
-                    value={entregadorNomeDespacho}
-                    onChange={(e) => setEntregadorNomeDespacho(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
-                  />
-                  <p className="text-[10px] text-slate-400">
-                    O nome do entregador ficará gravado no comprovante e histórico do pedido.
-                  </p>
-                </div>
+                {(() => {
+                  const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                  const opTipo = pe?.tipo_operacao || (pedidoSelecionado as any)?.tipo_operacao || pe?.tipo_entrega;
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 block">
-                    Código de Rastreamento (Correios / Transportadora)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: AA123456789BR ou JAD123456"
-                    value={codigoRastreioDespacho}
-                    onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
-                  />
-                  <p className="text-[10px] text-slate-400">
-                    Permite ao cliente rastrear a encomenda diretamente.
-                  </p>
-                </div>
+                  return (
+                    <div className="space-y-3">
+                      {/* MEIO: Frota Própria / Motoboy */}
+                      {(opTipo === 'frota_propria' || opTipo === 'motoboy' || opTipo === 'proprio' || (!opTipo && (entregadorNomeDespacho || !linkRastreioDespacho))) && (
+                        <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide">
+                            🛵 Dados do Entregador
+                          </span>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-700 block">Nome do Entregador:</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Carlos (Moto)"
+                              value={entregadorNomeDespacho}
+                              onChange={(e) => setEntregadorNomeDespacho(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-700 block">Contato / Telefone:</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: (85) 99999-0000"
+                              value={contatoEntregadorDespacho}
+                              onChange={(e) => setContatoEntregadorDespacho(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+                      )}
 
-                {/* Se for corrida externa (Uber Flash, 99 Entregas, etc.): exibir link de rastreio */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 block">
-                    Link de Rastreio da Corrida (Uber Flash / 99 Entregas)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="Ex: https://trip.uber.com/... ou https://99app.com/..."
-                    value={linkRastreioDespacho}
-                    onChange={(e) => setLinkRastreioDespacho(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
-                  />
-                  <p className="text-[10px] text-slate-400">
-                    Link compartilhado do app de entrega para acompanhamento em tempo real.
-                  </p>
-                </div>
+                      {/* MEIO: App de Corrida (Uber / 99 / etc.) */}
+                      {(opTipo === 'app_entrega' || (!opTipo && (linkRastreioDespacho || pinEntregaDespacho))) && (
+                        <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide">
+                            📍 Corrida por Aplicativo (Uber / 99)
+                          </span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700 block">App:</label>
+                              <select
+                                value={nomeAppDespacho}
+                                onChange={(e) => setNomeAppDespacho(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                              >
+                                <option value="Uber">Uber Flash</option>
+                                <option value="99">99 Entregas</option>
+                                <option value="Lalamove">Lalamove</option>
+                                <option value="Outro">Outro App</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700 block flex items-center justify-between">
+                                <span>PIN:</span>
+                                <span className="text-[10px] text-emerald-600 font-bold">4 dígitos</span>
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={4}
+                                placeholder="Ex: 4892"
+                                value={pinEntregaDespacho}
+                                onChange={(e) => setPinEntregaDespacho(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                className="w-full bg-white border-2 border-emerald-400 rounded-xl px-2 py-2 text-xs text-emerald-800 font-black tracking-widest text-center focus:outline-none focus:border-emerald-600"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-700 block">Link de Rastreio da Corrida:</label>
+                            <input
+                              type="url"
+                              placeholder="https://trip.uber.com/... ou https://99app.com/..."
+                              value={linkRastreioDespacho}
+                              onChange={(e) => setLinkRastreioDespacho(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MEIO: Correios */}
+                      {opTipo === 'correios' && (
+                        <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide">
+                            📦 Correios (PAC / SEDEX)
+                          </span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700 block">Serviço:</label>
+                              <select
+                                value={servicoCorreiosDespacho}
+                                onChange={(e) => setServicoCorreiosDespacho(e.target.value as 'PAC' | 'SEDEX')}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                              >
+                                <option value="SEDEX">SEDEX</option>
+                                <option value="PAC">PAC</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700 block">Rastreamento:</label>
+                              <input
+                                type="text"
+                                placeholder="Ex: QB123456789BR"
+                                value={codigoRastreioDespacho}
+                                onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 uppercase font-mono font-bold placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MEIO: Transportadora */}
+                      {opTipo === 'transportadora' && (
+                        <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide">
+                            🚛 Transportadora
+                          </span>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-700 block">Nome da Transportadora:</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Jadlog, Total Express"
+                              value={nomeTransportadoraDespacho}
+                              onChange={(e) => setNomeTransportadoraDespacho(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-700 block">Código de Rastreio:</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: JAD12345678"
+                              value={codigoRastreioDespacho}
+                              onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 uppercase font-mono font-bold placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="pt-2 flex items-center gap-2">
@@ -1856,13 +1980,24 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between text-[10px] text-slate-500">
-                        <span className="truncate max-w-[230px]">
+                        <span className="truncate max-w-[200px]">
                           {(() => {
                             const its = ped.itens || ped.itens_pedido || [];
                             return `${its.length} itens: ${its.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}`;
                           })()}
                         </span>
-                        <span className="text-slate-400 font-mono">#{ped.numero_pedido}</span>
+                        <div className="flex items-center gap-1.5">
+                          {(() => {
+                            const pin = ped.pin_entrega || ped.pedido_entrega?.pin_entrega;
+                            if (!pin) return null;
+                            return (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded font-black text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono tracking-wider">
+                                PIN: {pin}
+                              </span>
+                            );
+                          })()}
+                          <span className="text-slate-400 font-mono">#{ped.numero_pedido}</span>
+                        </div>
                       </div>
 
                       {cli && (

@@ -971,10 +971,22 @@ export class ShippingOrchestrator {
     if (!forma.nome?.trim()) throw new Error('O nome da forma de entrega é obrigatório.');
 
     // Sanitização rigorosa do tipo para respeitar a CHECK constraint do banco
-    const tiposValidos = ['proprio', 'transportadora', 'retirada', 'manual'];
+    const tiposValidos = [
+      'retirada',
+      'frota_propria',
+      'motoboy',
+      'app_entrega',
+      'correios',
+      'transportadora',
+      'proprio',
+      'manual',
+      'taxa_fixa',
+      'bairro',
+      'distancia_km'
+    ];
     const tipoSanitizado = (forma.tipo && tiposValidos.includes(forma.tipo))
       ? forma.tipo
-      : 'proprio';
+      : 'frota_propria';
 
     const agora = new Date().toISOString();
 
@@ -1079,6 +1091,12 @@ export class ShippingOrchestrator {
       entregadorNome?: string | null;
       codigoRastreio?: string | null;
       linkRastreio?: string | null;
+      pinEntrega?: string | null;
+      nomeApp?: string | null;
+      servicoCorreios?: string | null;
+      nomeTransportadora?: string | null;
+      tipoOperacao?: string | null;
+      contatoEntregador?: string | null;
       usuarioId?: string | null;
     }
   ): Promise<void> {
@@ -1091,6 +1109,12 @@ export class ShippingOrchestrator {
         entregador_nome: dados.entregadorNome?.trim() || null,
         codigo_rastreio: dados.codigoRastreio?.trim() || null,
         link_rastreio: dados.linkRastreio?.trim() || null,
+        pin_entrega: dados.pinEntrega?.trim() || null,
+        nome_app: dados.nomeApp?.trim() || null,
+        servico_correios: dados.servicoCorreios?.trim() || null,
+        nome_transportadora: dados.nomeTransportadora?.trim() || null,
+        tipo_operacao: dados.tipoOperacao || null,
+        contato_entregador: dados.contatoEntregador?.trim() || null,
         status_envio: 'despachado',
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
@@ -1106,6 +1130,12 @@ export class ShippingOrchestrator {
         entregador_nome: dados.entregadorNome?.trim() || null,
         codigo_rastreio: dados.codigoRastreio?.trim() || null,
         link_rastreio: dados.linkRastreio?.trim() || null,
+        pin_entrega: dados.pinEntrega?.trim() || null,
+        nome_app: dados.nomeApp?.trim() || null,
+        servico_correios: dados.servicoCorreios?.trim() || null,
+        nome_transportadora: dados.nomeTransportadora?.trim() || null,
+        tipo_operacao: dados.tipoOperacao || null,
+        contato_entregador: dados.contatoEntregador?.trim() || null,
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
         atualizado_em: despachadoEm

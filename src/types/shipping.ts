@@ -1,6 +1,31 @@
 export type TipoAtendimento = 'retirada' | 'entrega';
 export type ProvedorFrete = 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio';
 
+export type TipoOperacaoEnvio = 
+  | 'retirada' 
+  | 'frota_propria' 
+  | 'motoboy' 
+  | 'app_entrega' 
+  | 'correios' 
+  | 'transportadora';
+
+export interface DadosDespachoEnvio {
+  tipo_operacao: TipoOperacaoEnvio;
+  valor_frete: number;
+  // Campos para frota_propria / motoboy
+  nome_entregador?: string;
+  contato_entregador?: string;
+  // Campos para app_entrega (Uber / 99 / etc.)
+  nome_app?: 'Uber' | '99' | 'Lalamove' | 'Outro' | string;
+  pin_entrega?: string; // Código numérico de 4 dígitos
+  link_rastreio?: string;
+  // Campos para correios
+  servico_correios?: 'PAC' | 'SEDEX';
+  codigo_rastreio?: string;
+  // Campos para transportadora
+  nome_transportadora?: string;
+}
+
 export interface LojaShippingConfig {
   id: string;
   loja_id: string;
@@ -80,6 +105,11 @@ export interface PedidoEntrega {
   link_rastreio?: string | null;
   pin_entrega?: string | null;
   entregador_nome?: string | null;
+  contato_entregador?: string | null;
+  nome_app?: string | null;
+  servico_correios?: 'PAC' | 'SEDEX' | string | null;
+  nome_transportadora?: string | null;
+  tipo_operacao?: TipoOperacaoEnvio | string | null;
   despachado_em?: string | null;
   despachado_por?: string | null;
   status_envio?: string;
@@ -158,7 +188,7 @@ export interface FormaEntrega {
   id: string;
   loja_id: string;
   nome: string;
-  tipo: 'retirada' | 'taxa_fixa' | 'bairro' | 'distancia_km' | 'proprio' | 'transportadora' | 'manual';
+  tipo: TipoOperacaoEnvio | 'proprio' | 'taxa_fixa' | 'bairro' | 'distancia_km' | 'manual' | string;
   valor_taxa: number;
   valor_por_km?: number;
   tempo_estimado?: string | null;
