@@ -149,18 +149,21 @@ export const PedidosLista: React.FC = () => {
 
   useEffect(() => {
     if (pedidoSelecionado) {
-      const raw = pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any).pedido_entregas;
+      const raw = (pedidoSelecionado as any).pedido_entregas || pedidoSelecionado.pedido_entrega;
       if (raw && (Array.isArray(raw) ? raw.length > 0 : true)) {
         setEntregaPedido(Array.isArray(raw) ? raw[0] : raw);
       } else {
         ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id).then((entrega) => {
-          setEntregaPedido(entrega);
+          if (entrega) {
+            setEntregaPedido(entrega);
+            setPedidoSelecionado((prev) => (prev && prev.id === pedidoSelecionado.id ? { ...prev, pedido_entrega: entrega } : prev));
+          }
         });
       }
     } else {
       setEntregaPedido(null);
     }
-  }, [pedidoSelecionado]);
+  }, [pedidoSelecionado?.id]);
 
   const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
@@ -202,6 +205,99 @@ export const PedidosLista: React.FC = () => {
     } catch (err: any) {
       console.error('Erro ao salvar observação do pedido:', err);
     }
+  };
+
+  const resolverProvedorEntrega = (
+    pedido: Pedido | null,
+    entregaState?: PedidoEntrega | null
+  ): {
+    prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja';
+    provNome: string;
+    pe: PedidoEntrega | null;
+    rawPe: any;
+    isRetirada: boolean;
+  } => {
+    if (!pedido) {
+      return {
+        prov: 'frete_proprio',
+        provNome: 'Frete Próprio / Entrega Local',
+        pe: null,
+        rawPe: null,
+        isRetirada: false
+      };
+    }
+
+    const rawPe = entregaState || (pedido as any).pedido_entregas || pedido.pedido_entrega;
+    const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+
+    const meta = (pedido as any)?.metadados || {};
+    const metaProvedor = String(meta.provedor_frete || '').toLowerCase();
+    const metaTransp = String(meta.transportadora_nome || '').trim();
+    const metaTipo = String(meta.tipo_atendimento || '').toLowerCase();
+
+    const diretoProvedor = String((pedido as any)?.entrega_provedor || '').toLowerCase();
+    const diretoTransp = String(
+      (pedido as any)?.transportadora_nome ||
+      (pedido as any)?.forma_entrega_nome ||
+      (pedido as any)?.forma_entrega?.nome ||
+      ''
+    ).trim();
+
+    const peProvedor = String(pe?.provedor || '').toLowerCase();
+    const peTransp = String(pe?.transportadora_nome || '').trim();
+    const peTipo = String(pe?.tipo_atendimento || '').toLowerCase();
+
+    const textoConsolidado = `${metaProvedor} ${metaTransp} ${diretoProvedor} ${diretoTransp} ${peProvedor} ${peTransp} ${pedido.observacoes || ''}`.toLowerCase();
+
+    const isRetirada =
+      peTipo === 'retirada' ||
+      metaTipo === 'retirada' ||
+      diretoProvedor === 'retirada_loja' ||
+      peProvedor === 'retirada_loja' ||
+      textoConsolidado.includes('retirada na loja') ||
+      textoConsolidado.includes('retirada') ||
+      (!pe && !metaTransp && !diretoTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+
+    let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
+    let provNome = 'Frete Próprio / Entrega Local';
+
+    if (isRetirada) {
+      prov = 'retirada_loja';
+      provNome = 'Retirada na Loja';
+    } else if (
+      peProvedor === 'uber' ||
+      metaProvedor === 'uber' ||
+      diretoProvedor === 'uber' ||
+      textoConsolidado.includes('uber')
+    ) {
+      prov = 'uber';
+      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
+    } else if (
+      peProvedor === 'melhor_envio' ||
+      metaProvedor === 'melhor_envio' ||
+      diretoProvedor === 'melhor_envio' ||
+      textoConsolidado.includes('melhor envio') ||
+      textoConsolidado.includes('melhorenvio') ||
+      textoConsolidado.includes('correios') ||
+      textoConsolidado.includes('jadlog') ||
+      textoConsolidado.includes('sedex') ||
+      textoConsolidado.includes('pac')
+    ) {
+      prov = 'melhor_envio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
+    } else if (
+      peProvedor === 'frete_proprio' ||
+      metaProvedor === 'frete_proprio' ||
+      diretoProvedor === 'frete_proprio'
+    ) {
+      prov = 'frete_proprio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
+    } else if (Number(pedido.valor_frete || 0) > 0 || pedido.endereco_entrega) {
+      prov = 'frete_proprio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
+    }
+
+    return { prov, provNome, pe, rawPe, isRetirada };
   };
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
@@ -339,7 +435,7 @@ export const PedidosLista: React.FC = () => {
           pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
           pagamentos_previstos:pedidos_pagamentos_previstos(*),
           historico:historico_pedidos(*, usuario:usuarios_loja(*)),
-          pedido_entrega:pedido_entregas(*)
+          pedido_entregas(*)
         `)
         .eq('loja_id', loja.id);
 
@@ -360,7 +456,7 @@ export const PedidosLista: React.FC = () => {
             atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
             itens:itens_pedido(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
-            pedido_entrega:pedido_entregas(*)
+            pedido_entregas(*)
           `)
           .eq('loja_id', loja.id);
 
@@ -397,7 +493,22 @@ export const PedidosLista: React.FC = () => {
           });
         }
 
-        setPedidos(data as unknown as Pedido[]);
+        const pedidosNormalizados = (data as any[]).map((p: any) => {
+          const rawEntrega = p.pedido_entregas || p.pedido_entrega;
+          const pe = Array.isArray(rawEntrega) ? (rawEntrega[0] || null) : (rawEntrega || null);
+          return {
+            ...p,
+            pedido_entrega: pe,
+            pedido_entregas: rawEntrega
+          };
+        });
+
+        setPedidos(pedidosNormalizados as unknown as Pedido[]);
+        setPedidoSelecionado((prev) => {
+          if (!prev) return null;
+          const atualizado = pedidosNormalizados.find((p: any) => p.id === prev.id);
+          return atualizado ? (atualizado as unknown as Pedido) : prev;
+        });
         if (tocarAlerta && somAtivo) {
           audioService.playNewOrderSound();
         }
@@ -607,9 +718,7 @@ export const PedidosLista: React.FC = () => {
   const handleDespacharPedido = async () => {
     if (!pedidoSelecionado || !loja?.id) return;
 
-    const rawPe = entregaPedido || pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any)?.pedido_entregas;
-    const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
-    const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || 'frete_proprio';
+    const { prov, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
 
     // Se for Frete Próprio, abre modal para informar o nome do entregador
     if (prov === 'frete_proprio') {
@@ -1397,9 +1506,7 @@ export const PedidosLista: React.FC = () => {
                 </button>
               ) : pedidoSelecionado.status === 'aguardando_envio' ? (
                 (() => {
-                  const rawPe = entregaPedido || pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any)?.pedido_entregas;
-                  const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
-                  const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || 'frete_proprio';
+                  const { prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
 
                   return (
                     <div className="flex items-center gap-2">
@@ -1555,24 +1662,12 @@ export const PedidosLista: React.FC = () => {
 
               {/* Card Logística & Envio (Desktop) */}
               {(() => {
-                const rawPe = entregaPedido || pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any)?.pedido_entregas;
-                const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
-                const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || (Number(pedidoSelecionado.valor_frete || 0) > 0 ? 'frete_proprio' : null);
-                const isRetirada = pe?.tipo_atendimento === 'retirada' || prov === 'retirada_loja' || (!prov && Number(pedidoSelecionado.valor_frete || 0) === 0 && !pedidoSelecionado.endereco_entrega);
+                const { prov, provNome, pe, rawPe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+
+                console.log('DEBUG PEDIDO ENTREGA:', { id: pedidoSelecionado.id, pe: rawPe, prov });
 
                 const temDadosEntrega = Boolean(pe || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || Number(pedidoSelecionado.valor_frete || 0) > 0);
                 if (!temDadosEntrega) return null;
-
-                let provNome = 'Frete Próprio / Entrega Local';
-                if (isRetirada) {
-                  provNome = 'Retirada na Loja';
-                } else if (prov === 'uber') {
-                  provNome = pe?.transportadora_nome || 'Uber Direct';
-                } else if (prov === 'melhor_envio') {
-                  provNome = pe?.transportadora_nome || 'Melhor Envio';
-                } else if (prov === 'frete_proprio') {
-                  provNome = 'Frete Próprio / Entrega Local';
-                }
 
                 const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
                 const linkRastreio = pe?.link_rastreio || pedidoSelecionado.link_rastreio;

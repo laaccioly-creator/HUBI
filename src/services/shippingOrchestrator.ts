@@ -625,18 +625,15 @@ export class ShippingOrchestrator {
       entrega
     });
 
-    // 1. Persistência canônica em pedido_entregas
-    await supabase
-      .from('pedido_entregas')
-      .update({
-        link_rastreio: resultado.link_rastreio,
-        pin_entrega: resultado.pin_entrega || null,
-        status_envio: 'despachado',
-        despachado_em: despachadoEm,
-        despachado_por: usuarioId || null,
-        atualizado_em: despachadoEm
-      })
-      .eq('pedido_id', pedido.id);
+    // 1. Persistência canônica em pedido_entregas (com upsert seguro)
+    await this.salvarPedidoEntrega(pedido.id, {
+      ...entrega,
+      link_rastreio: resultado.link_rastreio,
+      pin_entrega: resultado.pin_entrega || null,
+      status_envio: 'despachado',
+      despachado_em: despachadoEm,
+      despachado_por: usuarioId || null
+    });
 
     // 2. Snapshot e transição de status para saiu_para_entrega
     await supabase
@@ -671,18 +668,15 @@ export class ShippingOrchestrator {
       entrega
     });
 
-    // 1. Persistência canônica em pedido_entregas
-    await supabase
-      .from('pedido_entregas')
-      .update({
-        codigo_rastreio: resultado.codigo_rastreio,
-        link_rastreio: resultado.link_etiqueta,
-        status_envio: 'despachado',
-        despachado_em: despachadoEm,
-        despachado_por: usuarioId || null,
-        atualizado_em: despachadoEm
-      })
-      .eq('pedido_id', pedido.id);
+    // 1. Persistência canônica em pedido_entregas (com upsert seguro)
+    await this.salvarPedidoEntrega(pedido.id, {
+      ...entrega,
+      codigo_rastreio: resultado.codigo_rastreio,
+      link_rastreio: resultado.link_etiqueta,
+      status_envio: 'despachado',
+      despachado_em: despachadoEm,
+      despachado_por: usuarioId || null
+    });
 
     // 2. Snapshot e transição de status para saiu_para_entrega
     await supabase
