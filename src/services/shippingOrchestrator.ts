@@ -976,44 +976,64 @@ export class ShippingOrchestrator {
       ? forma.tipo
       : 'proprio';
 
-    const payload = {
-      loja_id: lojaId,
-      nome: forma.nome.trim(),
-      tipo: tipoSanitizado,
-      valor_taxa: Number(forma.valor_taxa || 0),
-      requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
-      requer_entregador: Boolean(forma.requer_entregador),
-      requer_link_rastreio: Boolean(forma.requer_link_rastreio),
-      ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
-      padrao: Boolean(forma.padrao),
-      atualizado_em: new Date().toISOString()
-    };
+    const agora = new Date().toISOString();
 
-    if (forma.id && isUuidValido(forma.id)) {
+    if (forma.id) {
       const { data, error } = await supabase
         .from('formas_entrega')
-        .update(payload)
+        .update({
+          nome: forma.nome.trim(),
+          tipo: tipoSanitizado,
+          valor_taxa: Number(forma.valor_taxa || 0),
+          requer_entregador: Boolean(forma.requer_entregador),
+          requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
+          requer_link_rastreio: Boolean(forma.requer_link_rastreio),
+          ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
+          atualizado_em: agora
+        })
         .eq('id', forma.id)
         .eq('loja_id', lojaId)
-        .select()
-        .maybeSingle();
+        .select();
 
-      if (error) throw error;
-      return (data || { id: forma.id, ...payload }) as FormaEntrega;
+      if (error) {
+        console.error('[ShippingOrchestrator] Erro ao atualizar forma de entrega:', error);
+        throw new Error(`Erro ao atualizar forma de entrega: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('Forma de entrega não encontrada para atualização ou sem permissão de acesso.');
+      }
+
+      return data[0] as FormaEntrega;
     }
 
     const { data, error } = await supabase
       .from('formas_entrega')
       .insert({
-        ...payload,
-        criado_em: new Date().toISOString()
+        loja_id: lojaId,
+        nome: forma.nome.trim(),
+        tipo: tipoSanitizado,
+        valor_taxa: Number(forma.valor_taxa || 0),
+        requer_entregador: Boolean(forma.requer_entregador),
+        requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
+        requer_link_rastreio: Boolean(forma.requer_link_rastreio),
+        ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
+        padrao: Boolean(forma.padrao),
+        criado_em: agora,
+        atualizado_em: agora
       })
-      .select()
-      .maybeSingle();
+      .select();
 
-    if (error) throw error;
-    if (!data) throw new Error('Erro ao cadastrar forma de entrega.');
-    return data as FormaEntrega;
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao cadastrar forma de entrega:', error);
+      throw new Error(`Erro ao cadastrar forma de entrega: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error('Erro ao cadastrar forma de entrega.');
+    }
+
+    return data[0] as FormaEntrega;
   }
 
   /**

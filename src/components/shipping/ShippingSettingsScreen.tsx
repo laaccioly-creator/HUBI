@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { LojaShippingConfig } from '../../types/shipping';
 import { FormaEntrega, TipoEntrega } from '../../types';
@@ -26,6 +27,7 @@ import { ModalTutorialMelhorEnvio } from './ModalTutorialMelhorEnvio';
 
 export const ShippingSettingsScreen: React.FC = () => {
   const { loja } = useAuth();
+  const { mostrarSucesso, mostrarErro } = useFeedbackModal();
 
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -125,26 +127,36 @@ export const ShippingSettingsScreen: React.FC = () => {
 
   const handleSalvarForma = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loja?.id || !formaNome.trim()) return;
+    if (!loja?.id) {
+      mostrarErro('Loja não identificada.');
+      return;
+    }
+    if (!formaNome.trim()) {
+      mostrarErro('O nome da modalidade de entrega é obrigatório.');
+      return;
+    }
 
     try {
       setSalvandoForma(true);
       await ShippingOrchestrator.salvarFormaEntrega(loja.id, {
         ...(formaEditando ? { id: formaEditando.id } : {}),
+        loja_id: loja.id,
         nome: formaNome.trim(),
         tipo: formaTipo,
         valor_taxa: parseFloat(formaValorTaxa.replace(',', '.')) || 0,
-        requer_entregador: formaRequerEntregador,
-        requer_codigo_rastreio: formaRequerRastreio,
-        requer_link_rastreio: formaRequerLinkRastreio,
-        ativo: formaEditando ? formaEditando.ativo : true
+        requer_entregador: Boolean(formaRequerEntregador),
+        requer_codigo_rastreio: Boolean(formaRequerRastreio),
+        requer_link_rastreio: Boolean(formaRequerLinkRastreio),
+        ativo: formaEditando ? formaEditando.ativo : true,
+        atualizado_em: new Date().toISOString()
       });
       await carregarFormasEntrega();
       setModalFormaAberto(false);
       setFormaEditando(null);
+      mostrarSucesso(formaEditando ? 'Forma de envio atualizada com sucesso!' : 'Forma de envio cadastrada com sucesso!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao salvar forma de entrega.';
-      alert(msg);
+      mostrarErro(msg);
     } finally {
       setSalvandoForma(false);
     }
@@ -1174,42 +1186,87 @@ export const ShippingSettingsScreen: React.FC = () => {
                 </select>
               </div>
 
-              <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formaRequerEntregador}
-                    onChange={(e) => setFormaRequerEntregador(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                  />
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div
+                  role="checkbox"
+                  aria-checked={formaRequerEntregador}
+                  tabIndex={0}
+                  onClick={() => setFormaRequerEntregador(prev => !prev)}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormaRequerEntregador(prev => !prev);
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer select-none group"
+                >
+                  <div
+                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      formaRequerEntregador
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
+                    }`}
+                  >
+                    {formaRequerEntregador && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                  </div>
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                     Requer registrar nome do entregador no despacho
                   </span>
-                </label>
+                </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formaRequerRastreio}
-                    onChange={(e) => setFormaRequerRastreio(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                  />
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                <div
+                  role="checkbox"
+                  aria-checked={formaRequerRastreio}
+                  tabIndex={0}
+                  onClick={() => setFormaRequerRastreio(prev => !prev)}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormaRequerRastreio(prev => !prev);
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer select-none group"
+                >
+                  <div
+                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      formaRequerRastreio
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
+                    }`}
+                  >
+                    {formaRequerRastreio && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                  </div>
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                     Requer código de rastreamento no despacho
                   </span>
-                </label>
+                </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formaRequerLinkRastreio}
-                    onChange={(e) => setFormaRequerLinkRastreio(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                  />
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                <div
+                  role="checkbox"
+                  aria-checked={formaRequerLinkRastreio}
+                  tabIndex={0}
+                  onClick={() => setFormaRequerLinkRastreio(prev => !prev)}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormaRequerLinkRastreio(prev => !prev);
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer select-none group"
+                >
+                  <div
+                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      formaRequerLinkRastreio
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
+                    }`}
+                  >
+                    {formaRequerLinkRastreio && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                  </div>
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                     Requer link de rastreio da corrida no despacho (ex: Uber Flash, 99 Entregas)
                   </span>
-                </label>
+                </div>
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
