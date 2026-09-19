@@ -160,10 +160,22 @@ export const ShippingSettingsScreen: React.FC = () => {
       return;
     }
 
+    console.log('[DEBUG handleSalvarForma] Salvando forma de entrega:', {
+      formaEditandoId: formaEditando?.id,
+      lojaId: loja.id,
+      formaNome: formaNome.trim(),
+      formaTipo,
+      formaValorTaxa,
+      formaRequerPin,
+      formaRequerEntregador,
+      formaRequerLinkRastreio,
+      formaRequerRastreio
+    });
+
     try {
       setSalvandoForma(true);
       await ShippingOrchestrator.salvarFormaEntrega(loja.id, {
-        ...(formaEditando ? { id: formaEditando.id } : {}),
+        ...(formaEditando?.id ? { id: formaEditando.id } : {}),
         loja_id: loja.id,
         nome: formaNome.trim(),
         tipo: formaTipo,
@@ -175,11 +187,14 @@ export const ShippingSettingsScreen: React.FC = () => {
         ativo: formaEditando ? formaEditando.ativo : true,
         atualizado_em: new Date().toISOString()
       });
+
+      // Recarregar imediatamente a listagem atualizada e fechar o modal
       await carregarFormasEntrega();
       setModalFormaAberto(false);
       setFormaEditando(null);
       mostrarSucesso(formaEditando ? 'Forma de envio atualizada com sucesso!' : 'Forma de envio cadastrada com sucesso!');
     } catch (err: unknown) {
+      console.error('[ERRO handleSalvarForma]:', err);
       const msg = err instanceof Error ? err.message : 'Erro ao salvar forma de entrega.';
       mostrarErro(msg);
     } finally {

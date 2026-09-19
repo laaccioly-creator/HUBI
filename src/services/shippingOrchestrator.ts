@@ -970,6 +970,17 @@ export class ShippingOrchestrator {
     if (!lojaId) throw new Error('Loja não identificada.');
     if (!forma.nome?.trim()) throw new Error('O nome da forma de entrega é obrigatório.');
 
+    console.log('[DEBUG salvarFormaEntrega] Dados a enviar:', {
+      id: forma.id,
+      lojaId,
+      nome: forma.nome,
+      tipo: forma.tipo,
+      requer_pin: forma.requer_pin,
+      requer_entregador: forma.requer_entregador,
+      requer_link_rastreio: forma.requer_link_rastreio,
+      requer_codigo_rastreio: forma.requer_codigo_rastreio
+    });
+
     // Sanitização rigorosa do tipo para respeitar a CHECK constraint do banco
     const tiposValidos = [
       'retirada',
@@ -991,39 +1002,7 @@ export class ShippingOrchestrator {
     const agora = new Date().toISOString();
 
     if (forma.id) {
-      const { data, error } = await supabase
-        .from('formas_entrega')
-        .update({
-          nome: forma.nome.trim(),
-          tipo: tipoSanitizado,
-          valor_taxa: Number(forma.valor_taxa || 0),
-          requer_entregador: Boolean(forma.requer_entregador),
-          requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
-          requer_link_rastreio: Boolean(forma.requer_link_rastreio),
-          requer_pin: Boolean(forma.requer_pin),
-          ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
-          atualizado_em: agora
-        })
-        .eq('id', forma.id)
-        .eq('loja_id', lojaId)
-        .select();
-
-      if (error) {
-        console.error('[ShippingOrchestrator] Erro ao atualizar forma de entrega:', error);
-        throw new Error(`Erro ao atualizar forma de entrega: ${error.message}`);
-      }
-
-      if (!data || data.length === 0) {
-        throw new Error('Forma de entrega não encontrada para atualização ou sem permissão de acesso.');
-      }
-
-      return data[0] as FormaEntrega;
-    }
-
-    const { data, error } = await supabase
-      .from('formas_entrega')
-      .insert({
-        loja_id: lojaId,
+      const payloadUpdate: any = {
         nome: forma.nome.trim(),
         tipo: tipoSanitizado,
         valor_taxa: Number(forma.valor_taxa || 0),
@@ -1032,14 +1011,52 @@ export class ShippingOrchestrator {
         requer_link_rastreio: Boolean(forma.requer_link_rastreio),
         requer_pin: Boolean(forma.requer_pin),
         ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
-        padrao: Boolean(forma.padrao),
-        criado_em: agora,
         atualizado_em: agora
-      })
+      };
+
+      // Atualizar usando o cliente oficial autenticado
+      const { data, error } = await supabase
+        .from('formas_entrega')
+        .update(payloadUpdate)
+        .eq('id', forma.id)
+        .select();
+
+      if (error) {
+        console.error('[ERRO Supabase UPDATE formas_entrega]:', error);
+        throw new Error(`Erro ao atualizar: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('[AVISO] Linhas afetadas: 0. Verifique RLS ou ID inexistente:', forma.id);
+        throw new Error('Nenhum registro atualizado. Verifique se o ID existe ou se a sessão de login está ativa.');
+      }
+
+      console.log('[SUCESSO salvarFormaEntrega]:', data);
+      return data[0] as FormaEntrega;
+    }
+
+    const payloadInsert: any = {
+      loja_id: lojaId,
+      nome: forma.nome.trim(),
+      tipo: tipoSanitizado,
+      valor_taxa: Number(forma.valor_taxa || 0),
+      requer_entregador: Boolean(forma.requer_entregador),
+      requer_codigo_rastreio: Boolean(forma.requer_codigo_rastreio),
+      requer_link_rastreio: Boolean(forma.requer_link_rastreio),
+      requer_pin: Boolean(forma.requer_pin),
+      ativo: forma.ativo !== undefined ? Boolean(forma.ativo) : true,
+      padrao: Boolean(forma.padrao),
+      criado_em: agora,
+      atualizado_em: agora
+    };
+
+    const { data, error } = await supabase
+      .from('formas_entrega')
+      .insert(payloadInsert)
       .select();
 
     if (error) {
-      console.error('[ShippingOrchestrator] Erro ao cadastrar forma de entrega:', error);
+      console.error('[ERRO Supabase INSERT formas_entrega]:', error);
       throw new Error(`Erro ao cadastrar forma de entrega: ${error.message}`);
     }
 
@@ -1047,6 +1064,7 @@ export class ShippingOrchestrator {
       throw new Error('Erro ao cadastrar forma de entrega.');
     }
 
+    console.log('[SUCESSO cadastrarFormaEntrega]:', data);
     return data[0] as FormaEntrega;
   }
 
