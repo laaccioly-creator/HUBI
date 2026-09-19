@@ -1727,19 +1727,32 @@ export const PedidosLista: React.FC = () => {
                         </div>
                       )}
 
-                      {linkRastreio && (
-                        <div className="pt-2">
-                          <a
-                            href={linkRastreio}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>Acompanhar Rastreio em Tempo Real</span>
-                          </a>
-                        </div>
-                      )}
+                      {linkRastreio && (() => {
+                        const ehMockOuInterno =
+                          linkRastreio.startsWith('/') ||
+                          linkRastreio.includes('mock') ||
+                          linkRastreio.includes('trip.uber.com/looking/mock');
+
+                        const urlFinal = ehMockOuInterno
+                          ? (linkRastreio.startsWith('/')
+                              ? `${window.location.origin}${linkRastreio}`
+                              : `${window.location.origin}/order-tracking/${pedidoSelecionado.id}`)
+                          : linkRastreio;
+
+                        return (
+                          <div className="pt-2">
+                            <a
+                              href={urlFinal}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Acompanhar Rastreio em Tempo Real</span>
+                            </a>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
