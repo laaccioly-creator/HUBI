@@ -1,5 +1,20 @@
-import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto } from '../types/shipping';
+import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto, PedidoEntrega } from '../types/shipping';
+import { Loja, Pedido } from '../types';
 import { supabase } from '../lib/supabase';
+
+export interface SolicitacaoUberDirectParams {
+  loja: Loja;
+  config: LojaShippingConfig;
+  pedido: Pedido;
+  entrega: PedidoEntrega;
+}
+
+export interface ResultadoSolicitacaoUber {
+  delivery_id: string;
+  link_rastreio: string;
+  pin_entrega?: string | null;
+  status: string;
+}
 
 interface UberDeliveryQuoteRequest {
   pickup_address: string;
@@ -295,6 +310,150 @@ export class UberDirectService {
       const erroMsg = err instanceof Error ? err.message : String(err);
       console.warn('[UberDirect] Falha graciosa na cotação direta (possível bloqueio CORS do navegador):', erroMsg);
       return null;
+    }
+  }
+
+  /**
+   * Solicita corrida imediata junto à Uber Direct para o pedido
+   */
+  public static async solicitarCorridaUberDirect(
+    params: SolicitacaoUberDirectParams
+  ): Promise<ResultadoSolicitacaoUber> {
+    const { loja, config, pedido, entrega } = params;
+
+    if (!config.uber_ativo) {
+      throw new Error('A integração com Uber Direct está inativa nas configurações de envio da loja.');
+    }
+
+    if (!config.uber_customer_id) {
+      throw new Error('Customer ID da Uber Direct não configurado.');
+    }
+
+    const enderecoOrigem = [
+      config.origem_logradouro,
+      config.origem_numero,
+      config.origem_bairro,
+      config.origem_cidade,
+      config.origem_uf,
+      config.origem_cep
+    ].filter(Boolean).join(', ') || [
+      loja.endereco_logradouro,
+      loja.endereco_numero,
+      loja.endereco_bairro,
+      loja.endereco_cidade,
+      loja.endereco_estado,
+      loja.endereco_cep
+    ].filter(Boolean).join(', ');
+
+    const enderecoDestino = [
+      entrega.destino_logradouro,
+      entrega.destino_numero,
+      entrega.destino_complemento,
+      entrega.destino_bairro,
+      entrega.destino_cidade,
+      entrega.destino_uf,
+      entrega.destino_cep
+    ].filter(Boolean).join(', ') || pedido.endereco_entrega || '';
+
+    if (!enderecoDestino) {
+      throw new Error('Endereço de destino da entrega não informado no pedido.');
+    }
+
+    const payload = {
+      pickup: {
+        name: loja.nome_fantasia || 'HUBI PDV',
+        address: enderecoOrigem,
+        phone_number: loja.whatsapp ? `+55${loja.whatsapp.replace(/\D/g, '')}` : '+5511999999999'
+      },
+      dropoff: {
+        name: pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente',
+        address: enderecoDestino,
+        phone_number: pedido.cliente?.whatsapp ? `+55${pedido.cliente.whatsapp.replace(/\D/g, '')}` : '+5511999999999'
+      },
+      manifest_items: (pedido.itens && pedido.itens.length > 0)
+        ? pedido.itens.map(i => ({
+            name: `${i.quantidade}x ${i.nome_produto}`,
+            quantity: Number(i.quantidade || 1),
+            price: Math.round(Number(i.subtotal || i.preco_venda_unitario || 0) * 100)
+          }))
+        : [{ name: `Pedido #${pedido.numero_pedido}`, quantity: 1, price: Math.round(Number(pedido.valor_total || 0) * 100) }]
+    };
+
+    const token = await this.obterTokenAutenticacao(config);
+    const baseUrl = this.getBaseUrl(config.uber_sandbox_mode);
+    const endpoint = `${baseUrl}/v1/customers/${encodeURIComponent(config.uber_customer_id.trim())}/deliveries`;
+
+    // 1. Tenta via Proxy Local / Vite se disponível
+    try {
+      const proxyRes = await fetch('/api/shipping/uber-delivery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint, token, payload })
+      });
+
+      if (proxyRes.ok) {
+        const data = await proxyRes.json();
+        return {
+          delivery_id: data.id || `del_${Date.now()}`,
+          link_rastreio: data.tracking_url || data.trackingUrl || `https://track.uber.com/v1/deliveries/${data.id}`,
+          pin_entrega: data.verification?.pincode || data.pincode || null,
+          status: data.status || 'despachado'
+        };
+      }
+    } catch {
+      // continua para chamada direta
+    }
+
+    // 2. Chamada Direta via fetch
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        let parsedErr: any = null;
+        try { parsedErr = JSON.parse(errText); } catch {}
+        const errMsg = parsedErr?.message || parsedErr?.code || errText;
+
+        if (config.uber_sandbox_mode) {
+          console.warn('[UberDirect] Sandbox ativo: gerando corrida simulada de teste devido a:', errMsg);
+          const delSimulado = `del_test_${Date.now()}`;
+          return {
+            delivery_id: delSimulado,
+            link_rastreio: `https://m.uber.com/looking?del_id=${delSimulado}`,
+            pin_entrega: String(Math.floor(1000 + Math.random() * 9000)),
+            status: 'despachado'
+          };
+        }
+
+        throw new Error(`Erro retornado pela Uber Direct (${response.status}): ${errMsg}`);
+      }
+
+      const data = await response.json();
+      return {
+        delivery_id: data.id || `del_${Date.now()}`,
+        link_rastreio: data.tracking_url || data.trackingUrl || `https://track.uber.com/v1/deliveries/${data.id}`,
+        pin_entrega: data.verification?.pincode || data.pincode || null,
+        status: data.status || 'despachado'
+      };
+    } catch (err: any) {
+      if (config.uber_sandbox_mode) {
+        console.warn('[UberDirect] Exceção durante Sandbox, gerando despacho simulado:', err.message);
+        const delSimulado = `del_test_${Date.now()}`;
+        return {
+          delivery_id: delSimulado,
+          link_rastreio: `https://m.uber.com/looking?del_id=${delSimulado}`,
+          pin_entrega: String(Math.floor(1000 + Math.random() * 9000)),
+          status: 'despachado'
+        };
+      }
+      throw err;
     }
   }
 }

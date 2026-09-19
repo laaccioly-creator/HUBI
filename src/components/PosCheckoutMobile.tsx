@@ -142,6 +142,19 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     setSubTelaInterna(nova);
     onSubTelaChange?.(nova);
   };
+
+  useEffect(() => {
+    if (subTelaControlada !== undefined) {
+      setSubTelaInterna(subTelaControlada);
+    }
+  }, [subTelaControlada]);
+
+  // Se o carrinho for limpo pós-venda/recibo, garantir retorno à tela de catálogo/vender
+  useEffect(() => {
+    if (subTela === 'carrinho' && itens.length === 0 && !pedidoEmEdicao) {
+      setSubTela('vender');
+    }
+  }, [subTela, itens.length, pedidoEmEdicao]);
   const [origemClientes, setOrigemClientes] = useState<'vender' | 'carrinho'>('vender');
 
   const abrirSelecaoCliente = (origem: 'vender' | 'carrinho' = 'vender') => {

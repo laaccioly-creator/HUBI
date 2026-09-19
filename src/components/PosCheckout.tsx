@@ -256,6 +256,11 @@ export const PosCheckout: React.FC = () => {
   const [baixandoPdfRecibo, setBaixandoPdfRecibo] = useState<boolean>(false);
   const reciboRef = useRef<HTMLDivElement>(null);
 
+  const handleFecharRecibo = () => {
+    setPedidoConcluido(null);
+    setSubTelaMobile('vender');
+  };
+
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [modalCameraBarcode, setModalCameraBarcode] = useState<boolean>(false);
   const [clienteBuscaTexto, setClienteBuscaTexto] = useState<string>('');
@@ -1584,6 +1589,7 @@ export const PosCheckout: React.FC = () => {
           setModalFechamento(false);
           limparCarrinho();
           setValorRecebidoDinheiro('');
+          setSubTelaMobile('vender');
           return;
         } catch (nuvemErr) {
           console.warn('Falha no envio para o Supabase, realizando fallback para o banco offline local:', nuvemErr);
@@ -1652,6 +1658,7 @@ export const PosCheckout: React.FC = () => {
       setModalFechamento(false);
       limparCarrinho();
       setValorRecebidoDinheiro('');
+      setSubTelaMobile('vender');
     } catch (err: any) {
       console.error('Erro ao finalizar venda:', err);
       mostrarErro(err.message || 'Tente novamente.', 'Erro ao processar venda');
@@ -2812,9 +2819,7 @@ export const PosCheckout: React.FC = () => {
                   <>
                     <CheckCircle2 className="w-4 h-4" />
                     <span className="truncate">
-                      {pedidoEntrega?.tipo_atendimento === 'entrega' || taxaEntrega > 0
-                        ? 'Confirmar Pagamento'
-                        : 'Confirmar Pagamento e Concluir'}
+                      Confirmar pagamento
                     </span>
                   </>
                 )}
@@ -2901,7 +2906,7 @@ export const PosCheckout: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setPedidoConcluido(null)}
+                  onClick={handleFecharRecibo}
                   className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
@@ -3171,7 +3176,7 @@ export const PosCheckout: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPedidoConcluido(null)}
+                    onClick={handleFecharRecibo}
                     className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
                   >
                     Nova Venda

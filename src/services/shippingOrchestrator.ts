@@ -7,6 +7,7 @@ import {
   RequisicaoCotacaoOrquestrador,
   NovoEnderecoFormInput
 } from '../types/shipping';
+import { Loja, Pedido } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
@@ -607,7 +608,165 @@ export class ShippingOrchestrator {
   }
 
   /**
-   * Registra o despacho logístico de um pedido com frete próprio ou transportadora
+   * Despacha pedido via Uber Direct: chama API da Uber, persiste rastreio/PIN e transiciona status para saiu_para_entrega
+   */
+  public static async despacharUberDirect(
+    loja: Loja,
+    config: LojaShippingConfig,
+    pedido: Pedido,
+    entrega: PedidoEntrega,
+    usuarioId?: string | null
+  ): Promise<{ link_rastreio: string; pin_entrega?: string | null; delivery_id: string }> {
+    const despachadoEm = new Date().toISOString();
+    const resultado = await UberDirectService.solicitarCorridaUberDirect({
+      loja,
+      config,
+      pedido,
+      entrega
+    });
+
+    // 1. Persistência canônica em pedido_entregas
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        link_rastreio: resultado.link_rastreio,
+        pin_entrega: resultado.pin_entrega || null,
+        status_envio: 'despachado',
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('pedido_id', pedido.id);
+
+    // 2. Snapshot e transição de status para saiu_para_entrega
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'saiu_para_entrega',
+        link_rastreio: resultado.link_rastreio,
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('id', pedido.id);
+
+    return resultado;
+  }
+
+  /**
+   * Despacha pedido via Melhor Envio: compra etiqueta, gera código de rastreamento e transiciona status para saiu_para_entrega
+   */
+  public static async despacharMelhorEnvio(
+    loja: Loja,
+    config: LojaShippingConfig,
+    pedido: Pedido,
+    entrega: PedidoEntrega,
+    usuarioId?: string | null
+  ): Promise<{ codigo_rastreio: string; link_etiqueta: string }> {
+    const despachadoEm = new Date().toISOString();
+    const resultado = await MelhorEnvioService.solicitarEnvioMelhorEnvio({
+      loja,
+      config,
+      pedido,
+      entrega
+    });
+
+    // 1. Persistência canônica em pedido_entregas
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        codigo_rastreio: resultado.codigo_rastreio,
+        link_rastreio: resultado.link_etiqueta,
+        status_envio: 'despachado',
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('pedido_id', pedido.id);
+
+    // 2. Snapshot e transição de status para saiu_para_entrega
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'saiu_para_entrega',
+        codigo_rastreio: resultado.codigo_rastreio,
+        link_rastreio: resultado.link_etiqueta,
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('id', pedido.id);
+
+    return resultado;
+  }
+
+  /**
+   * Despacha pedido via Frete Próprio: grava nome do entregador e transiciona status para saiu_para_entrega
+   */
+  public static async despacharFreteProprio(
+    pedidoId: string,
+    entregadorNome?: string | null,
+    usuarioId?: string | null
+  ): Promise<void> {
+    const despachadoEm = new Date().toISOString();
+
+    // 1. Persistência canônica em pedido_entregas
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        entregador_nome: entregadorNome || null,
+        status_envio: 'despachado',
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('pedido_id', pedidoId);
+
+    // 2. Snapshot e transição de status para saiu_para_entrega
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'saiu_para_entrega',
+        entregador_nome: entregadorNome || null,
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm
+      })
+      .eq('id', pedidoId);
+  }
+
+  /**
+   * Válvula de contingência RBAC: Força o despacho manual para saiu_para_entrega (exclusivo admin/gerente)
+   */
+  public static async forcarDespachoManual(
+    pedidoId: string,
+    usuarioLojaId?: string | null
+  ): Promise<void> {
+    const agora = new Date().toISOString();
+
+    await supabase
+      .from('pedido_entregas')
+      .update({
+        status_envio: 'despachado',
+        despachado_em: agora,
+        despachado_por: usuarioLojaId || null,
+        atualizado_em: agora
+      })
+      .eq('pedido_id', pedidoId);
+
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'saiu_para_entrega',
+        despachado_em: agora,
+        despachado_por: usuarioLojaId || null,
+        atualizado_em: agora
+      })
+      .eq('id', pedidoId);
+  }
+
+  /**
+   * Registra o despacho logístico de um pedido com frete próprio ou transportadora (retrocompatível)
    */
   public static async despacharPedido(
     pedidoId: string,

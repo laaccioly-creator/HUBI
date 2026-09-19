@@ -149,10 +149,11 @@ export const PedidosLista: React.FC = () => {
 
   useEffect(() => {
     if (pedidoSelecionado) {
-      if (pedidoSelecionado.pedido_entrega) {
-        setEntregaPedido(pedidoSelecionado.pedido_entrega);
+      const raw = pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any).pedido_entregas;
+      if (raw && (Array.isArray(raw) ? raw.length > 0 : true)) {
+        setEntregaPedido(Array.isArray(raw) ? raw[0] : raw);
       } else {
-        ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id).then(entrega => {
+        ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id).then((entrega) => {
           setEntregaPedido(entrega);
         });
       }
@@ -603,24 +604,146 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
+  const handleDespacharPedido = async () => {
+    if (!pedidoSelecionado || !loja?.id) return;
+
+    const rawPe = entregaPedido || pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any)?.pedido_entregas;
+    const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+    const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || 'frete_proprio';
+
+    // Se for Frete Próprio, abre modal para informar o nome do entregador
+    if (prov === 'frete_proprio') {
+      setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
+      setModalDespachoAberto(true);
+      return;
+    }
+
+    // Se for Uber Direct ou Melhor Envio, dispara chamada de API integrada
+    try {
+      setDespachando(true);
+      const agora = new Date().toISOString();
+      const config = await ShippingOrchestrator.buscarConfigLoja(loja.id);
+      if (!config) {
+        throw new Error('Configurações logísticas da loja não encontradas.');
+      }
+
+      const entregaValida: PedidoEntrega = pe || {
+        pedido_id: pedidoSelecionado.id,
+        tipo_atendimento: 'entrega',
+        valor_frete: Number(pedidoSelecionado.valor_frete || 0),
+        destino_logradouro: pedidoSelecionado.endereco_entrega || '',
+        provedor: prov
+      };
+
+      if (prov === 'uber') {
+        const resultado = await ShippingOrchestrator.despacharUberDirect(
+          loja,
+          config,
+          pedidoSelecionado,
+          entregaValida,
+          usuario?.id || null
+        );
+
+        setPedidos((prev) =>
+          prev.map((p) =>
+            p.id === pedidoSelecionado.id
+              ? {
+                  ...p,
+                  status: 'saiu_para_entrega',
+                  link_rastreio: resultado.link_rastreio,
+                  despachado_em: agora,
+                  despachado_por: usuario?.id || null
+                }
+              : p
+          )
+        );
+
+        setPedidoSelecionado((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'saiu_para_entrega',
+                link_rastreio: resultado.link_rastreio,
+                despachado_em: agora,
+                despachado_por: usuario?.id || null
+              }
+            : null
+        );
+
+        const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id);
+        if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
+
+        mostrarSucesso(
+          resultado.pin_entrega
+            ? `Corrida Uber Direct solicitada com sucesso! PIN: ${resultado.pin_entrega}`
+            : 'Corrida Uber Direct solicitada com sucesso!'
+        );
+      } else if (prov === 'melhor_envio') {
+        const resultado = await ShippingOrchestrator.despacharMelhorEnvio(
+          loja,
+          config,
+          pedidoSelecionado,
+          entregaValida,
+          usuario?.id || null
+        );
+
+        setPedidos((prev) =>
+          prev.map((p) =>
+            p.id === pedidoSelecionado.id
+              ? {
+                  ...p,
+                  status: 'saiu_para_entrega',
+                  codigo_rastreio: resultado.codigo_rastreio,
+                  link_rastreio: resultado.link_etiqueta,
+                  despachado_em: agora,
+                  despachado_por: usuario?.id || null
+                }
+              : p
+          )
+        );
+
+        setPedidoSelecionado((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'saiu_para_entrega',
+                codigo_rastreio: resultado.codigo_rastreio,
+                link_rastreio: resultado.link_etiqueta,
+                despachado_em: agora,
+                despachado_por: usuario?.id || null
+              }
+            : null
+        );
+
+        const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id);
+        if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
+
+        mostrarSucesso(`Etiqueta gerada com sucesso! Rastreio: ${resultado.codigo_rastreio}`);
+      }
+    } catch (err: any) {
+      console.error('Erro ao despachar pedido via API integrada:', err);
+      mostrarErro(err.message || 'Falha na comunicação com o provedor de frete.');
+    } finally {
+      setDespachando(false);
+    }
+  };
+
   const handleConfirmarDespacho = async () => {
     if (!pedidoSelecionado) return;
     try {
       setDespachando(true);
       const agora = new Date().toISOString();
-      await ShippingOrchestrator.despacharPedido(
+      await ShippingOrchestrator.despacharFreteProprio(
         pedidoSelecionado.id,
-        {
-          entregador_nome: entregadorNomeDespacho.trim() || undefined,
-          despachado_por: usuario?.id || null
-        }
+        entregadorNomeDespacho.trim() || undefined,
+        usuario?.id || null
       );
       setPedidos((prev) =>
         prev.map((p) =>
           p.id === pedidoSelecionado.id
             ? {
                 ...p,
-                status: 'concluido',
+                status: 'saiu_para_entrega',
                 entregador_nome: entregadorNomeDespacho.trim() || p.entregador_nome,
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
@@ -628,8 +751,20 @@ export const PedidosLista: React.FC = () => {
             : p
         )
       );
-      setPedidoSelecionado(null);
-      mostrarSucesso('Pedido despachado e concluído com sucesso!');
+      setPedidoSelecionado((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'saiu_para_entrega',
+              entregador_nome: entregadorNomeDespacho.trim() || prev.entregador_nome,
+              despachado_em: agora,
+              despachado_por: usuario?.id || null
+            }
+          : null
+      );
+      const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id);
+      if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
+      mostrarSucesso('Pedido despachado para entrega com sucesso!');
       setModalDespachoAberto(false);
       setEntregadorNomeDespacho('');
     } catch (err: any) {
@@ -645,7 +780,7 @@ export const PedidosLista: React.FC = () => {
     try {
       setExecutandoContingencia(true);
       const agora = new Date().toISOString();
-      await ShippingOrchestrator.forcarConclusaoManual(
+      await ShippingOrchestrator.forcarDespachoManual(
         pedidoSelecionado.id,
         usuario?.id || null
       );
@@ -654,19 +789,30 @@ export const PedidosLista: React.FC = () => {
           p.id === pedidoSelecionado.id
             ? {
                 ...p,
-                status: 'concluido',
+                status: 'saiu_para_entrega',
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
             : p
         )
       );
-      setPedidoSelecionado(null);
-      mostrarSucesso('Pedido concluído manualmente via contingência!');
+      setPedidoSelecionado((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'saiu_para_entrega',
+              despachado_em: agora,
+              despachado_por: usuario?.id || null
+            }
+          : null
+      );
+      const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id);
+      if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
+      mostrarSucesso('Despacho manual forçado com sucesso via contingência!');
       setModalContingenciaAberto(false);
     } catch (err: any) {
-      console.error('Erro ao forçar conclusão:', err);
-      mostrarErro(`Erro ao forçar conclusão: ${err.message || 'Tente novamente.'}`);
+      console.error('Erro ao forçar despacho manual:', err);
+      mostrarErro(`Erro ao forçar despacho manual: ${err.message || 'Tente novamente.'}`);
     } finally {
       setExecutandoContingencia(false);
     }
@@ -1251,44 +1397,49 @@ export const PedidosLista: React.FC = () => {
                 </button>
               ) : pedidoSelecionado.status === 'aguardando_envio' ? (
                 (() => {
-                  const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
-                  const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor;
-                  const ehParceiro = prov === 'uber' || prov === 'melhor_envio';
-
-                  if (ehParceiro) {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <div className="px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5">
-                          <Clock className="w-4 h-4 text-amber-400" />
-                          <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
-                        </div>
-                        {(permissions.ehAdmin || permissions.ehGerente) && (
-                          <button
-                            type="button"
-                            onClick={() => setModalContingenciaAberto(true)}
-                            className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold border border-slate-700 flex items-center gap-1.5 cursor-pointer transition"
-                            title="Válvula de contingência RBAC exclusiva para administradores"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Forçar Conclusão (Admin)</span>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  }
+                  const rawPe = entregaPedido || pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any)?.pedido_entregas;
+                  const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+                  const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || 'frete_proprio';
 
                   return (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
-                        setModalDespachoAberto(true);
-                      }}
-                      className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                    >
-                      <Truck className="w-4 h-4" />
-                      <span>Despachar / Concluir Entrega</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDespacharPedido}
+                        disabled={despachando}
+                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
+                      >
+                        {despachando ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Despachando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Truck className="w-4 h-4" />
+                            <span>
+                              {prov === 'uber'
+                                ? 'Chamar Uber Direct'
+                                : prov === 'melhor_envio'
+                                ? 'Gerar Etiqueta de Envio'
+                                : 'Despachar / Concluir Entrega'}
+                            </span>
+                          </>
+                        )}
+                      </button>
+
+                      {(prov === 'uber' || prov === 'melhor_envio') && (permissions.ehAdmin || permissions.ehGerente) && (
+                        <button
+                          type="button"
+                          onClick={() => setModalContingenciaAberto(true)}
+                          className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 cursor-pointer transition"
+                          title="Válvula de contingência RBAC: Forçar despacho manual caso a API externa falhe"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>Forçar Despacho Manual</span>
+                        </button>
+                      )}
+                    </div>
                   );
                 })()
               ) : pedidoSelecionado.status !== 'concluido' ? (
@@ -1404,14 +1555,28 @@ export const PedidosLista: React.FC = () => {
 
               {/* Card Logística & Envio (Desktop) */}
               {(() => {
-                const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                const rawPe = entregaPedido || pedidoSelecionado.pedido_entrega || (pedidoSelecionado as any)?.pedido_entregas;
+                const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
                 const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || (Number(pedidoSelecionado.valor_frete || 0) > 0 ? 'frete_proprio' : null);
-                const temDadosEntrega = Boolean(prov || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio);
+                const isRetirada = pe?.tipo_atendimento === 'retirada' || prov === 'retirada_loja' || (!prov && Number(pedidoSelecionado.valor_frete || 0) === 0 && !pedidoSelecionado.endereco_entrega);
+
+                const temDadosEntrega = Boolean(pe || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || Number(pedidoSelecionado.valor_frete || 0) > 0);
                 if (!temDadosEntrega) return null;
 
-                const provNome = prov === 'uber' ? 'Uber Direct' : prov === 'melhor_envio' ? 'Melhor Envio' : prov === 'retirada_loja' ? 'Retirada na Loja' : 'Frete Próprio / Entrega Local';
+                let provNome = 'Frete Próprio / Entrega Local';
+                if (isRetirada) {
+                  provNome = 'Retirada na Loja';
+                } else if (prov === 'uber') {
+                  provNome = pe?.transportadora_nome || 'Uber Direct';
+                } else if (prov === 'melhor_envio') {
+                  provNome = pe?.transportadora_nome || 'Melhor Envio';
+                } else if (prov === 'frete_proprio') {
+                  provNome = 'Frete Próprio / Entrega Local';
+                }
+
                 const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
                 const linkRastreio = pe?.link_rastreio || pedidoSelecionado.link_rastreio;
+                const codigoRastreio = pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio;
                 const pin = pe?.pin_entrega;
                 const despachadoEm = pe?.despachado_em || pedidoSelecionado.despachado_em;
 
@@ -1432,6 +1597,15 @@ export const PedidosLista: React.FC = () => {
                         <div>
                           <span className="text-slate-400 block text-[11px]">Endereço de Entrega:</span>
                           <span className="font-semibold text-slate-200">{pedidoSelecionado.endereco_entrega}</span>
+                        </div>
+                      )}
+
+                      {codigoRastreio && (
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                          <span className="text-slate-400">Código de Rastreio:</span>
+                          <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                            {codigoRastreio}
+                          </span>
                         </div>
                       )}
 
@@ -2697,7 +2871,7 @@ export const PedidosLista: React.FC = () => {
                   <h3 className="font-black text-sm text-slate-100">
                     Válvula de Contingência (Admin)
                   </h3>
-                  <p className="text-[11px] text-slate-400">Conclusão manual forçada</p>
+                  <p className="text-[11px] text-slate-400">Despacho manual forçado</p>
                 </div>
               </div>
               <button
@@ -2711,10 +2885,10 @@ export const PedidosLista: React.FC = () => {
 
             <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2 text-xs text-amber-300">
               <p className="font-bold text-amber-200">
-                Deseja forçar a conclusão do Pedido #{pedidoSelecionado.numero_pedido}?
+                Deseja forçar o despacho do Pedido #{pedidoSelecionado.numero_pedido}?
               </p>
               <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                Esta ação é exclusiva para Gerentes/Administradores e deve ser usada caso a API da transportadora parceira (Uber/Melhor Envio) esteja indisponível ou a entrega tenha sido resolvida por fora.
+                Esta ação é exclusiva para Gerentes/Administradores e deve ser usada caso a API da transportadora parceira (Uber/Melhor Envio) esteja indisponível ou a entrega tenha sido resolvida por fora. O status mudará para &quot;Saiu para Entrega&quot;.
               </p>
             </div>
 
@@ -2734,7 +2908,7 @@ export const PedidosLista: React.FC = () => {
                 className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 <Check className="w-4 h-4 stroke-[3]" />
-                <span>{executandoContingencia ? 'Concluindo...' : 'Sim, Forçar Conclusão'}</span>
+                <span>{executandoContingencia ? 'Despachando...' : 'Sim, Forçar Despacho'}</span>
               </button>
             </div>
           </div>
