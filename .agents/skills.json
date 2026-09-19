@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Configuração canônica de skills do workspace HUBI",
+  "inherits": [
+    {
+      "path": "~/.gemini/config/skills",
+      "exclude": [
+        "mantis-(?!meta-agent).*"
+      ]
+    }
+  ]
+}

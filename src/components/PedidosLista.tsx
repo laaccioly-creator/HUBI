@@ -2298,7 +2298,7 @@ export const PedidosLista: React.FC = () => {
         return (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
             <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80 shrink-0">
                 <h3 className="text-sm font-bold text-slate-100">
                   Recibo #{pedidoReciboModal.numero_pedido}
                 </h3>
@@ -2311,8 +2311,8 @@ export const PedidosLista: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950/90 flex justify-center">
-                <div className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-2xl border border-slate-300 font-mono text-xs space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-950/90 flex justify-center items-start custom-scrollbar">
+                <div className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 pb-8 sm:p-6 sm:pb-8 shadow-2xl border border-slate-300 font-mono text-xs space-y-3 min-h-fit mb-6">
                   {/* Logo e Cabeçalho do Recibo */}
                   <div className="text-center space-y-1 border-b border-slate-300 border-dashed pb-3">
                     {logoLojaUrl ? (
@@ -2462,7 +2462,7 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Footer do Modal de Recibo com Ações e Link "Editar meu recibo" (TELA007 / TELA010) */}
-              <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setModalConfigurarReciboAberto(true)}

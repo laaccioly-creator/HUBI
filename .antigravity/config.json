@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "project": "HUBI",
+  "version": "1.0.0",
+  "rules": {
+    "always_on": [
+      "GEMINI.md",
+      "AGENTS.md",
+      ".agents/rules/diff-patch-only.md",
+      ".agents/rules/supabase-rls-guard.md",
+      ".agents/rules/pii-leak-detector.md",
+      ".agents/rules/anti-jsonb-linter.md",
+      ".agents/rules/mantis-router.md"
+    ]
+  },
+  "token_optimization": {
+    "mode": "diff-patch-only",
+    "max_full_file_lines": 300,
+    "prefer_diff_format": true
+  },
+  "security": {
+    "enforce_supabase_rls": true,
+    "pii_sanitization": true,
+    "anti_jsonb_governance": true
+  },
+  "skills": {
+    "mantis_mode": "on-demand",
+    "boot_skills": [
+      "mantis-meta-agent",
+      "generative_ui",
+      "agy-customizations",
+      "antigravity-guide"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "project": "HUBI",
+  "version": "1.0.0",
+  "boot": {
+    "rules": [
+      "GEMINI.md",
+      "AGENTS.md",
+      ".agents/rules/*.md"
+    ],
+    "skills_config": ".agents/skills.json"
+  },
+  "governance": {
+    "diff_patch_only": true,
+    "supabase_rls_guard": true,
+    "pii_leak_detector": true,
+    "anti_jsonb_linter": true,
+    "mantis_on_demand": true
+  }
+}
