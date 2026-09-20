@@ -62,6 +62,7 @@ import { ModalReceberPagamento } from './ModalReceberPagamento';
 import { ModalReceberFiado } from './ModalReceberFiado';
 import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
+import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ShippingSelectionResult } from '../types/shipping';
 import { PedidosListaMobile } from './PedidosListaMobile';
@@ -2673,7 +2674,7 @@ export const PedidosLista: React.FC = () => {
       {/* MODAL 3: RECIBO COMPLETO (TELA007 / TELA008)                             */}
       {/* ========================================================================= */}
       {pedidoReciboModal && (() => {
-        const rawPe = (pedidoReciboModal as any).pedido_entrega;
+        const rawPe = (pedidoReciboModal as any).pedido_entrega || (pedidoReciboModal as any).pedido_entregas;
         const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
         const metaTransp = (pedidoReciboModal as any).metadados?.transportadora_nome;
         const metaTipo = (pedidoReciboModal as any).metadados?.tipo_atendimento;
@@ -2687,17 +2688,19 @@ export const PedidosLista: React.FC = () => {
         if (!ehRetirada) {
           badgeEstilo = 'bg-emerald-100 text-emerald-800';
           const provedor = (pe?.provedor || (pedidoReciboModal as any).metadados?.provedor_frete || '').toLowerCase();
-          const transp = (pe?.transportadora_nome || metaTransp || pedidoReciboModal.forma_entrega?.nome || '').trim();
+          const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedidoReciboModal.forma_entrega?.nome || (pedidoReciboModal as any).nome_transportadora || '').trim();
           const servico = (pe?.servico_codigo || (pedidoReciboModal as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
           if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
             formaEntregaTexto = 'CORREIOS';
           } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
-            formaEntregaTexto = 'UBER';
+            formaEntregaTexto = 'UBER FLASH';
           } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
             formaEntregaTexto = 'JADLOG';
-          } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+          } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
             formaEntregaTexto = transp.toUpperCase();
+          } else if (pedidoReciboModal.status === 'envio_pendente' && Number(pedidoReciboModal.valor_frete || 0) === 0) {
+            formaEntregaTexto = 'ENVIO (A DEFINIR)';
           } else {
             formaEntregaTexto = 'ENTREGA';
           }
@@ -2837,7 +2840,9 @@ export const PedidosLista: React.FC = () => {
                       <span className="font-semibold text-slate-900">
                         {valorFrete > 0 
                           ? `+ R$ ${valorFrete.toFixed(2)}` 
-                          : 'Grátis (Retirada)'}
+                          : ehRetirada 
+                            ? 'Grátis (Retirada)'
+                            : 'A Definir'}
                       </span>
                     </div>
 
@@ -3315,77 +3320,17 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setPedidoEtiquetaModal(null)}
       />
 
-      {/* MODAL ESCOLHER ENVIO (ETAPA 1 DO FLUXO DE EXPEDIÇÃO) */}
-      {pedidoEscolherEnvio && loja && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-slate-800">
-                    Definir Envio • Pedido #{pedidoEscolherEnvio.numero_pedido}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Selecione o meio de entrega para expedição do pedido
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPedidoEscolherEnvio(null)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <ShippingFulfillmentSelector
-              lojaId={loja.id}
-              loja={loja}
-              clienteId={pedidoEscolherEnvio.cliente_id || pedidoEscolherEnvio.cliente?.id || null}
-              cliente={pedidoEscolherEnvio.cliente || null}
-              subtotal={Number(pedidoEscolherEnvio.subtotal || pedidoEscolherEnvio.valor_total || 0)}
-              itens={(pedidoEscolherEnvio.itens || []).map((i: any) => ({
-                nome: i.nome_produto || i.produto?.nome || 'Item',
-                quantidade: Number(i.quantidade || 1),
-                preco_unitario: Number(i.preco_venda_unitario || i.preco_unitario || 0),
-                peso_kg: (i.produto as any)?.peso_kg || 0.3,
-                largura_cm: (i.produto as any)?.largura_cm || 15,
-                altura_cm: (i.produto as any)?.altura_cm || 10,
-                comprimento_cm: (i.produto as any)?.comprimento_cm || 20
-              }))}
-              valorFreteAtual={Number(pedidoEscolherEnvio.valor_frete || 0)}
-              tipoAtendimentoAtual="entrega"
-              enderecoEntregaAtual={pedidoEscolherEnvio.endereco_entrega ? {
-                cep: (pedidoEscolherEnvio as any).pedido_entrega?.destino_cep || '',
-                logradouro: pedidoEscolherEnvio.endereco_entrega,
-                numero: '',
-                bairro: '',
-                cidade: '',
-                uf: 'CE'
-              } : null}
-              onChange={async (resultado: ShippingSelectionResult) => {
-                try {
-                  await ShippingOrchestrator.definirEnvioPedido(
-                    pedidoEscolherEnvio.id,
-                    resultado,
-                    usuario?.id || null
-                  );
-                  mostrarSucesso('Forma de envio definida com sucesso!');
-                  setPedidoEscolherEnvio(null);
-                  carregarPedidos();
-                } catch (err: any) {
-                  console.error('Erro ao definir envio do pedido:', err);
-                  mostrarErro(err.message || 'Erro ao definir envio.');
-                }
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* MODAL DEFINIR ENVIO (FLUXO ESTÁTICO DE EXPEDIÇÃO COM CONFIRMAÇÃO EXPLÍCITA) */}
+      <ModalDefinirEnvio
+        isOpen={Boolean(pedidoEscolherEnvio)}
+        pedido={pedidoEscolherEnvio}
+        loja={loja}
+        usuario={usuario}
+        onClose={() => setPedidoEscolherEnvio(null)}
+        onSucesso={() => carregarPedidos()}
+        onFeedbackSucesso={(msg) => mostrarSucesso(msg)}
+        onFeedbackErro={(msg) => mostrarErro(msg)}
+      />
     </>
   );
 };

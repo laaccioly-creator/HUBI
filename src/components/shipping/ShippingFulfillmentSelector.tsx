@@ -462,21 +462,19 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
       setCotacoes(opcoesSemErro);
 
-      // Se a modalidade ativa for entrega e a via for cotar, seleciona a melhor opção cotada automaticamente
-      if (modalidade === 'entrega' && viaEntrega === 'cotar' && opcoesSemErro.length > 0) {
-        const opcaoGratis = opcoesSemErro.find(o => o.is_frete_gratis);
-        const encontrada = (opcaoSelecionadaId
-          ? opcoesSemErro.find(o => 
-              o.id === opcaoSelecionadaId || 
-              o.servico_codigo === opcaoSelecionadaId ||
-              (opcaoSelecionadaId && (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo)))
-            ) 
-          : null)
-          || opcaoGratis
-          || opcoesSemErro[0];
-        setCotacaoEscolhida(encontrada);
-
-        emitirSelecao(encontrada, endAlvo);
+      // Apenas pré-seleciona se houver uma opção selecionada previamente e explicitamente solicitada
+      if (modalidade === 'entrega' && viaEntrega === 'cotar' && opcoesSemErro.length > 0 && opcaoSelecionadaId) {
+        const encontrada = opcoesSemErro.find(o => 
+          o.id === opcaoSelecionadaId || 
+          o.servico_codigo === opcaoSelecionadaId ||
+          (o.id.endsWith(String(opcaoSelecionadaId)) || String(opcaoSelecionadaId).includes(o.servico_codigo))
+        );
+        if (encontrada) {
+          setCotacaoEscolhida(encontrada);
+          emitirSelecao(encontrada, endAlvo);
+        } else {
+          setCotacaoEscolhida(null);
+        }
       } else if (modalidade === 'entrega' && viaEntrega === 'cotar') {
         setCotacaoEscolhida(null);
       }
@@ -1040,10 +1038,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   onClick={() => {
                     setModalidade('entrega');
                     setViaEntrega('cotar');
-                    if (cotacoes.length > 0 && !cotacaoEscolhida) {
-                      setCotacaoEscolhida(cotacoes[0]);
-                      emitirSelecao(cotacoes[0], enderecoSelecionado);
-                    }
                   }}
                   className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
                     modalidade === 'entrega' && viaEntrega === 'cotar'
@@ -1060,13 +1054,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   onClick={() => {
                     setModalidade('entrega');
                     setViaEntrega('manual');
-                    const formasManuais = formasEntrega.filter(f => f.tipo !== 'retirada');
-                    if (formasManuais.length > 0 && !formaManualEscolhidaId) {
-                      const primeira = formasManuais[0];
-                      setFormaManualEscolhidaId(primeira.id);
-                      const val = valoresManuais[primeira.id] ?? (primeira.valor_taxa > 0 ? primeira.valor_taxa.toString() : '');
-                      emitirSelecaoManual(primeira, val, enderecoSelecionado);
-                    }
                   }}
                   className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
                     modalidade === 'entrega' && viaEntrega === 'manual'

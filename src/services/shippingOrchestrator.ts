@@ -1219,7 +1219,7 @@ export class ShippingOrchestrator {
     // 2. Buscar totais atuais do pedido para recalcular valor_total e saldo_devedor somando o frete
     const { data: pedAtual } = await supabase
       .from('pedidos')
-      .select('subtotal, valor_desconto, valor_total, valor_pago')
+      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados')
       .eq('id', pedidoId)
       .maybeSingle();
 
@@ -1228,6 +1228,17 @@ export class ShippingOrchestrator {
     const novoValorTotal = Math.max(0, subtotalPed - descontoPed + valorFrete);
     const valorPagoPed = Number(pedAtual?.valor_pago || 0);
     const novoSaldoDevedor = Math.max(0, novoValorTotal - valorPagoPed);
+
+    const nomeRealFrete = pe.transportadora_nome ||
+      pe.forma_entrega_nome ||
+      resultado.opcao_frete?.transportadora_nome ||
+      (pe.provedor === 'uber' || resultado.opcao_frete?.provedor === 'uber' ? 'Uber Flash' : 'Entrega');
+
+    const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
+    metaAtual.transportadora_nome = nomeRealFrete;
+    metaAtual.provedor_frete = pe.provedor || resultado.opcao_frete?.provedor || 'frete_proprio';
+    metaAtual.servico_frete_codigo = pe.servico_codigo || null;
+    metaAtual.tipo_atendimento = 'entrega';
 
     // 3. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio'
     await supabase
@@ -1241,8 +1252,10 @@ export class ShippingOrchestrator {
         tipo_operacao: pe.tipo_operacao || null,
         nome_app: pe.nome_app || null,
         servico_correios: pe.servico_correios || null,
-        nome_transportadora: pe.nome_transportadora || pe.transportadora_nome || null,
+        nome_transportadora: nomeRealFrete,
+        entregador_nome: pe.entregador_nome || null,
         pin_entrega: pe.pin_entrega || null,
+        metadados: metaAtual,
         atualizado_por: usuarioId || null,
         atualizado_em: agora
       })
