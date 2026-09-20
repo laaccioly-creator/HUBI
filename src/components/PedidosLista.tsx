@@ -758,19 +758,52 @@ export const PedidosLista: React.FC = () => {
         throw new Error('Configurações logísticas da loja não encontradas.');
       }
 
-      const entregaValida: PedidoEntrega = pe || {
-        pedido_id: ped.id,
-        tipo_atendimento: 'entrega',
-        valor_frete: Number(ped.valor_frete || 0),
-        destino_logradouro: ped.endereco_entrega || '',
-        provedor: prov
-      };
+      // 1. Buscar a entrega atualizada no banco caso pe esteja nulo ou incompleto
+      let entregaValida = pe;
+      if (!entregaValida || !entregaValida.destino_logradouro || !entregaValida.destino_cep) {
+        try {
+          const peDb = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
+          if (peDb) {
+            entregaValida = peDb;
+          }
+        } catch (peErr) {
+          console.warn('Falha ao buscar entrega no banco:', peErr);
+        }
+      }
+
+      if (!entregaValida) {
+        entregaValida = {
+          pedido_id: ped.id,
+          tipo_atendimento: 'entrega',
+          valor_frete: Number(ped.valor_frete || 0),
+          destino_logradouro: ped.endereco_entrega || '',
+          provedor: prov
+        };
+      }
+
+      // 2. Garantir que dados do cliente (nome, telefone) estejam presentes no pedido
+      let pedCompleto = ped;
+      if ((!pedCompleto.cliente || !pedCompleto.cliente.whatsapp) && pedCompleto.cliente_id) {
+        try {
+          const { data: cliDb } = await supabase
+            .from('clientes')
+            .select('*')
+            .eq('id', pedCompleto.cliente_id)
+            .maybeSingle();
+
+          if (cliDb) {
+            pedCompleto = { ...pedCompleto, cliente: cliDb };
+          }
+        } catch (cliErr) {
+          console.warn('Falha ao carregar dados do cliente para despacho:', cliErr);
+        }
+      }
 
       if (prov === 'uber') {
         const resultado = await ShippingOrchestrator.despacharUberDirect(
           loja,
           config,
-          ped,
+          pedCompleto,
           entregaValida,
           usuario?.id || null
         );

@@ -109,14 +109,22 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             }))}
             valorFreteAtual={Number(pedido.valor_frete || 0)}
             tipoAtendimentoAtual="entrega"
-            enderecoEntregaAtual={pedido.endereco_entrega ? {
-              cep: (pedido as any).pedido_entrega?.destino_cep || '',
-              logradouro: pedido.endereco_entrega,
-              numero: '',
-              bairro: '',
-              cidade: '',
-              uf: 'CE'
-            } : null}
+            enderecoEntregaAtual={(() => {
+              const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
+              if (pe?.destino_logradouro && pe?.destino_numero && pe?.destino_cep) {
+                return {
+                  id: pe.cliente_endereco_id || undefined,
+                  cep: pe.destino_cep,
+                  logradouro: pe.destino_logradouro,
+                  numero: pe.destino_numero,
+                  complemento: pe.destino_complemento || null,
+                  bairro: pe.destino_bairro || '',
+                  cidade: pe.destino_cidade || '',
+                  uf: pe.destino_uf || 'CE'
+                };
+              }
+              return null;
+            })()}
             onChange={(resultado: ShippingSelectionResult) => {
               // Apenas armazena a seleção no estado local do modal; JAMAIS fecha ou salva automaticamente!
               setSelecaoPendente(resultado);

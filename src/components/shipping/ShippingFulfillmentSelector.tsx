@@ -250,13 +250,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     let ativo = true;
 
     async function carregarEnderecoInicial() {
-      // 1. Se já existe um endereço de entrega ativo no pedido com dados válidos, preservá-lo
-      if (enderecoEntregaAtual && (enderecoEntregaAtual.cep || enderecoEntregaAtual.logradouro)) {
+      // 1. Se já existe um endereço de entrega ativo no pedido com dados completos, preservá-lo
+      const cepLimpoAtual = (enderecoEntregaAtual?.cep || '').replace(/\D/g, '');
+      const temEnderecoCompleto = Boolean(
+        enderecoEntregaAtual &&
+        cepLimpoAtual.length === 8 &&
+        enderecoEntregaAtual.logradouro &&
+        enderecoEntregaAtual.numero &&
+        enderecoEntregaAtual.numero !== 'S/N'
+      );
+
+      if (temEnderecoCompleto && enderecoEntregaAtual) {
         const endAtualFormatado: ClienteEndereco = {
           id: enderecoEntregaAtual.id || 'end-pedido-atual',
           cliente_id: cliente?.id || clienteId || 'temp',
           identificador: enderecoEntregaAtual.identificador || 'Endereço Atual do Pedido',
-          cep: (enderecoEntregaAtual.cep || '').replace(/\D/g, ''),
+          cep: cepLimpoAtual,
           logradouro: enderecoEntregaAtual.logradouro || '',
           numero: enderecoEntregaAtual.numero || 'S/N',
           complemento: enderecoEntregaAtual.complemento || null,

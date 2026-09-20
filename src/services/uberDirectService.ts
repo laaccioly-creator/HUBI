@@ -1,6 +1,7 @@
 import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto, PedidoEntrega } from '../types/shipping';
 import { Loja, Pedido } from '../types';
 import { supabase } from '../lib/supabase';
+import { isUuidValido } from './syncService';
 
 export interface SolicitacaoUberDirectParams {
   loja: Loja;
@@ -345,19 +346,91 @@ export class UberDirectService {
       loja.endereco_cep
     ].filter(Boolean).join(', ');
 
-    const enderecoDestino = [
-      entrega.destino_logradouro,
-      entrega.destino_numero,
-      entrega.destino_complemento,
-      entrega.destino_bairro,
-      entrega.destino_cidade,
-      entrega.destino_uf,
-      entrega.destino_cep
-    ].filter(Boolean).join(', ') || pedido.endereco_entrega || '';
+    let destinoLogradouro = entrega.destino_logradouro;
+    let destinoNumero = entrega.destino_numero;
+    let destinoComplemento = entrega.destino_complemento;
+    let destinoBairro = entrega.destino_bairro;
+    let destinoCidade = entrega.destino_cidade;
+    let destinoUf = entrega.destino_uf;
+    let destinoCep = entrega.destino_cep;
+
+    // Fallback 1: Buscar do cliente_enderecos se faltar dados estruturados de destino
+    if ((!destinoLogradouro || !destinoNumero || !destinoCep) && (entrega.cliente_endereco_id || pedido.cliente_id)) {
+      try {
+        let query = supabase.from('cliente_enderecos').select('*');
+        if (entrega.cliente_endereco_id && isUuidValido(entrega.cliente_endereco_id)) {
+          query = query.eq('id', entrega.cliente_endereco_id);
+        } else if (pedido.cliente_id) {
+          query = query.eq('cliente_id', pedido.cliente_id).order('is_principal', { ascending: false }).order('criado_em', { ascending: false });
+        }
+        const { data: endDb } = await query.limit(1).maybeSingle();
+        if (endDb) {
+          destinoLogradouro = destinoLogradouro || endDb.logradouro;
+          destinoNumero = destinoNumero || endDb.numero;
+          destinoComplemento = destinoComplemento || endDb.complemento;
+          destinoBairro = destinoBairro || endDb.bairro;
+          destinoCidade = destinoCidade || endDb.cidade;
+          destinoUf = destinoUf || endDb.uf;
+          destinoCep = destinoCep || endDb.cep;
+        }
+      } catch (errEnd) {
+        console.warn('[UberDirectService] Falha ao buscar endereço de fallback no cliente:', errEnd);
+      }
+    }
+
+    // Fallback 2: Parse da string pedido.endereco_entrega se ainda faltar logradouro
+    if (!destinoLogradouro && pedido.endereco_entrega) {
+      const partes = pedido.endereco_entrega.split(',').map((s: string) => s.trim());
+      if (partes.length > 0) destinoLogradouro = partes[0];
+      if (partes.length > 1 && !destinoNumero) {
+        const nMatch = partes[1].match(/\d+/);
+        if (nMatch) destinoNumero = nMatch[0];
+      }
+    }
+
+    const destinoCepLimpo = destinoCep ? destinoCep.replace(/\D/g, '') : '';
+    let enderecoDestino = [
+      destinoLogradouro,
+      destinoNumero ? `Nº ${destinoNumero}` : null,
+      destinoComplemento,
+      destinoBairro,
+      destinoCidade && destinoUf ? `${destinoCidade} - ${destinoUf}` : (destinoCidade || destinoUf),
+      destinoCepLimpo ? `CEP ${destinoCepLimpo.replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null
+    ].filter(Boolean).join(', ');
+
+    if (!enderecoDestino) {
+      enderecoDestino = pedido.endereco_entrega || '';
+    }
 
     if (!enderecoDestino) {
       throw new Error('Endereço de destino da entrega não informado no pedido.');
     }
+
+    // Hidratação segura dos dados de contato do cliente para dropoff
+    let clienteNome = pedido.cliente?.nome || pedido.cliente_nome_avulso || '';
+    let clienteTelefone = pedido.cliente?.whatsapp || pedido.cliente?.telefone || pedido.cliente_telefone_avulso || '';
+
+    if ((!clienteNome || !clienteTelefone) && pedido.cliente_id) {
+      try {
+        const { data: cliDb } = await supabase
+          .from('clientes')
+          .select('nome, whatsapp, telefone')
+          .eq('id', pedido.cliente_id)
+          .maybeSingle();
+
+        if (cliDb) {
+          clienteNome = clienteNome || cliDb.nome || '';
+          clienteTelefone = clienteTelefone || cliDb.whatsapp || cliDb.telefone || '';
+        }
+      } catch (cliErr) {
+        console.warn('[UberDirectService] Falha ao buscar dados do cliente para dropoff:', cliErr);
+      }
+    }
+
+    const telDigits = clienteTelefone.replace(/\D/g, '');
+    const dropoffPhone = telDigits.length >= 10
+      ? (telDigits.startsWith('55') ? `+${telDigits}` : `+55${telDigits}`)
+      : (loja.whatsapp ? `+55${loja.whatsapp.replace(/\D/g, '')}` : '+5511999999999');
 
     const payload = {
       pickup: {
@@ -366,9 +439,9 @@ export class UberDirectService {
         phone_number: loja.whatsapp ? `+55${loja.whatsapp.replace(/\D/g, '')}` : '+5511999999999'
       },
       dropoff: {
-        name: pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente',
+        name: clienteNome || 'Cliente',
         address: enderecoDestino,
-        phone_number: pedido.cliente?.whatsapp ? `+55${pedido.cliente.whatsapp.replace(/\D/g, '')}` : '+5511999999999'
+        phone_number: dropoffPhone
       },
       manifest_items: (pedido.itens && pedido.itens.length > 0)
         ? pedido.itens.map(i => ({

@@ -619,16 +619,73 @@ export class ShippingOrchestrator {
     usuarioId?: string | null
   ): Promise<{ link_rastreio: string; pin_entrega?: string | null; delivery_id: string }> {
     const despachadoEm = new Date().toISOString();
+
+    // 1. Hidratação segura de endereço de destino se a entrega estiver incompleta
+    let entregaAjustada: PedidoEntrega = { ...entrega, provedor: 'uber' };
+
+    const precisaHidratar = !entregaAjustada.destino_logradouro ||
+      !entregaAjustada.destino_numero ||
+      !entregaAjustada.destino_cep;
+
+    if (precisaHidratar && (entregaAjustada.cliente_endereco_id || pedido.cliente_id)) {
+      try {
+        let query = supabase.from('cliente_enderecos').select('*');
+        if (entregaAjustada.cliente_endereco_id && isUuidValido(entregaAjustada.cliente_endereco_id)) {
+          query = query.eq('id', entregaAjustada.cliente_endereco_id);
+        } else if (pedido.cliente_id) {
+          query = query.eq('cliente_id', pedido.cliente_id).order('is_principal', { ascending: false }).order('criado_em', { ascending: false });
+        }
+        const { data: endDb } = await query.limit(1).maybeSingle();
+        if (endDb) {
+          entregaAjustada.destino_logradouro = entregaAjustada.destino_logradouro || endDb.logradouro;
+          entregaAjustada.destino_numero = entregaAjustada.destino_numero || endDb.numero;
+          entregaAjustada.destino_complemento = entregaAjustada.destino_complemento || endDb.complemento;
+          entregaAjustada.destino_bairro = entregaAjustada.destino_bairro || endDb.bairro;
+          entregaAjustada.destino_cidade = entregaAjustada.destino_cidade || endDb.cidade;
+          entregaAjustada.destino_uf = entregaAjustada.destino_uf || endDb.uf;
+          entregaAjustada.destino_cep = (entregaAjustada.destino_cep || endDb.cep || '').replace(/\D/g, '');
+          if (!entregaAjustada.cliente_endereco_id && endDb.id && isUuidValido(endDb.id)) {
+            entregaAjustada.cliente_endereco_id = endDb.id;
+          }
+        }
+      } catch (errEnd) {
+        console.warn('[ShippingOrchestrator] Falha ao hidratar endereço para despacho Uber:', errEnd);
+      }
+    }
+
+    if (!entregaAjustada.destino_logradouro && pedido.endereco_entrega) {
+      const partes = pedido.endereco_entrega.split(',').map((s: string) => s.trim());
+      if (partes.length > 0) entregaAjustada.destino_logradouro = partes[0];
+      if (partes.length > 1 && !entregaAjustada.destino_numero) {
+        const nMatch = partes[1].match(/\d+/);
+        if (nMatch) entregaAjustada.destino_numero = nMatch[0];
+      }
+    }
+
+    // 2. Garantir hidratação do cliente (nome e telefone) no pedido
+    let pedidoAjustado: Pedido = { ...pedido };
+    if ((!pedidoAjustado.cliente || !pedidoAjustado.cliente.whatsapp) && pedidoAjustado.cliente_id) {
+      try {
+        const { data: cliDb } = await supabase.from('clientes').select('*').eq('id', pedidoAjustado.cliente_id).maybeSingle();
+        if (cliDb) {
+          pedidoAjustado.cliente = cliDb;
+        }
+      } catch (cliErr) {
+        console.warn('[ShippingOrchestrator] Falha ao hidratar cliente para despacho Uber:', cliErr);
+      }
+    }
+
+    // 3. Chamar API da Uber Direct
     const resultado = await UberDirectService.solicitarCorridaUberDirect({
       loja,
       config,
-      pedido,
-      entrega
+      pedido: pedidoAjustado,
+      entrega: entregaAjustada
     });
 
-    // 1. Persistência canônica em pedido_entregas (com upsert seguro)
+    // 4. Persistência canônica em pedido_entregas (com upsert seguro)
     await this.salvarPedidoEntrega(pedido.id, {
-      ...entrega,
+      ...entregaAjustada,
       link_rastreio: resultado.link_rastreio,
       pin_entrega: resultado.pin_entrega || null,
       status_envio: 'despachado',
@@ -636,12 +693,22 @@ export class ShippingOrchestrator {
       despachado_por: usuarioId || null
     });
 
-    // 2. Snapshot e transição de status para saiu_para_entrega
+    // 5. Snapshot e transição de status para saiu_para_entrega
+    const textoEndereco = [
+      entregaAjustada.destino_logradouro,
+      entregaAjustada.destino_numero ? `Nº ${entregaAjustada.destino_numero}` : null,
+      entregaAjustada.destino_complemento,
+      entregaAjustada.destino_bairro,
+      entregaAjustada.destino_cidade && entregaAjustada.destino_uf ? `${entregaAjustada.destino_cidade} - ${entregaAjustada.destino_uf}` : null,
+      entregaAjustada.destino_cep ? `CEP ${entregaAjustada.destino_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null
+    ].filter(Boolean).join(', ') || pedido.endereco_entrega || null;
+
     await supabase
       .from('pedidos')
       .update({
         status: 'saiu_para_entrega',
         link_rastreio: resultado.link_rastreio,
+        endereco_entrega: textoEndereco,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,
         atualizado_em: despachadoEm
@@ -1176,53 +1243,129 @@ export class ShippingOrchestrator {
     const pe = resultado.pedido_entrega || {};
     const valorFrete = Number(resultado.valor_frete || pe.valor_frete || 0);
 
-    // 1. Upsert em pedido_entregas
-    const { data: existente } = await supabase
-      .from('pedido_entregas')
-      .select('id')
-      .eq('pedido_id', pedidoId)
+    // 1. Buscar dados atuais do pedido e cliente
+    const { data: pedAtual } = await supabase
+      .from('pedidos')
+      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega')
+      .eq('id', pedidoId)
       .maybeSingle();
 
-    const dadosEntrega: any = {
-      tipo_atendimento: resultado.tipo_atendimento,
-      provedor: pe.provedor || 'frete_proprio',
-      transportadora_nome: pe.transportadora_nome || pe.forma_entrega_nome || null,
-      servico_codigo: pe.servico_codigo || null,
+    // 2. Hidratação completa e segura do endereço de entrega do cliente
+    let enderecoFinal = resultado.endereco_selecionado || null;
+    let clienteEnderecoId = (pe.cliente_endereco_id && isUuidValido(pe.cliente_endereco_id))
+      ? pe.cliente_endereco_id
+      : (enderecoFinal?.id && isUuidValido(enderecoFinal.id) ? enderecoFinal.id : null);
+
+    const precisaBuscarEndereco = !enderecoFinal?.logradouro ||
+      !enderecoFinal?.numero ||
+      !enderecoFinal?.cep ||
+      !enderecoFinal?.bairro ||
+      !enderecoFinal?.cidade;
+
+    if (precisaBuscarEndereco && (clienteEnderecoId || pedAtual?.cliente_id)) {
+      try {
+        let query = supabase.from('cliente_enderecos').select('*');
+        if (clienteEnderecoId) {
+          query = query.eq('id', clienteEnderecoId);
+        } else if (pedAtual?.cliente_id) {
+          query = query.eq('cliente_id', pedAtual.cliente_id).order('is_principal', { ascending: false }).order('criado_em', { ascending: false });
+        }
+        const { data: endDb } = await query.limit(1).maybeSingle();
+        if (endDb) {
+          enderecoFinal = {
+            ...endDb,
+            ...(enderecoFinal || {})
+          };
+          if (!clienteEnderecoId && endDb.id && isUuidValido(endDb.id)) {
+            clienteEnderecoId = endDb.id;
+          }
+        }
+      } catch (errEnd) {
+        console.warn('[ShippingOrchestrator] Falha ao buscar endereço do cliente:', errEnd);
+      }
+    }
+
+    const destinoCepLimpo = (pe.destino_cep || enderecoFinal?.cep || '').replace(/\D/g, '') || null;
+    let destinoLogradouro = pe.destino_logradouro || enderecoFinal?.logradouro || null;
+    let destinoNumero = pe.destino_numero || enderecoFinal?.numero || null;
+    let destinoComplemento = pe.destino_complemento || enderecoFinal?.complemento || null;
+    let destinoBairro = pe.destino_bairro || enderecoFinal?.bairro || null;
+    let destinoCidade = pe.destino_cidade || enderecoFinal?.cidade || null;
+    let destinoUf = pe.destino_uf || enderecoFinal?.uf || null;
+
+    // Fallback de parse de pedAtual.endereco_entrega se ainda faltar logradouro
+    if (!destinoLogradouro && pedAtual?.endereco_entrega) {
+      const partes = pedAtual.endereco_entrega.split(',').map((s: string) => s.trim());
+      if (partes.length > 0) destinoLogradouro = partes[0];
+      if (partes.length > 1 && !destinoNumero) {
+        const nMatch = partes[1].match(/\d+/);
+        if (nMatch) destinoNumero = nMatch[0];
+      }
+    }
+
+    // Identificação do provedor
+    let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'frete_proprio';
+    if (resultado.tipo_atendimento === 'retirada') {
+      provedorFinal = 'retirada_loja';
+    } else if (
+      pe.provedor === 'uber' ||
+      resultado.opcao_frete?.provedor === 'uber' ||
+      (pe.transportadora_nome || '').toLowerCase().includes('uber') ||
+      (pe.forma_entrega_nome || '').toLowerCase().includes('uber')
+    ) {
+      provedorFinal = 'uber';
+    } else if (
+      pe.provedor === 'melhor_envio' ||
+      resultado.opcao_frete?.provedor === 'melhor_envio' ||
+      (pe.transportadora_nome || '').toLowerCase().includes('melhor envio')
+    ) {
+      provedorFinal = 'melhor_envio';
+    }
+
+    // Texto consolidado do endereço para a coluna pedidos.endereco_entrega
+    const textoEnderecoEntrega = [
+      destinoLogradouro,
+      destinoNumero ? `Nº ${destinoNumero}` : null,
+      destinoComplemento,
+      destinoBairro,
+      destinoCidade && destinoUf ? `${destinoCidade} - ${destinoUf}` : (destinoCidade || destinoUf),
+      destinoCepLimpo ? `CEP ${destinoCepLimpo.replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null
+    ].filter(Boolean).join(', ') || pedAtual?.endereco_entrega || null;
+
+    const dadosEntrega: Partial<PedidoEntrega> = {
+      tipo_atendimento: resultado.tipo_atendimento || 'entrega',
+      provedor: provedorFinal,
+      cliente_endereco_id: clienteEnderecoId,
+      transportadora_nome: pe.transportadora_nome || pe.forma_entrega_nome || (provedorFinal === 'uber' ? 'Uber Direct' : null),
+      servico_codigo: pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null),
       valor_frete: valorFrete,
       valor_original: pe.valor_original ?? valorFrete,
       valor_subsidio: pe.valor_subsidio ?? 0,
       is_frete_gratis: Boolean(pe.is_frete_gratis),
-      destino_cep: pe.destino_cep || resultado.endereco_selecionado?.cep || null,
-      destino_logradouro: pe.destino_logradouro || resultado.endereco_selecionado?.logradouro || null,
-      destino_numero: pe.destino_numero || resultado.endereco_selecionado?.numero || null,
-      destino_complemento: pe.destino_complemento || resultado.endereco_selecionado?.complemento || null,
-      destino_bairro: pe.destino_bairro || resultado.endereco_selecionado?.bairro || null,
-      destino_cidade: pe.destino_cidade || resultado.endereco_selecionado?.cidade || null,
-      destino_uf: pe.destino_uf || resultado.endereco_selecionado?.uf || null,
+      destino_cep: destinoCepLimpo,
+      destino_logradouro: destinoLogradouro,
+      destino_numero: destinoNumero,
+      destino_complemento: destinoComplemento,
+      destino_bairro: destinoBairro,
+      destino_cidade: destinoCidade,
+      destino_uf: destinoUf,
+      destino_latitude: pe.destino_latitude || enderecoFinal?.latitude || null,
+      destino_longitude: pe.destino_longitude || enderecoFinal?.longitude || null,
       forma_entrega_id: pe.forma_entrega_id || null,
-      forma_entrega_nome: pe.forma_entrega_nome || null,
-      tipo_operacao: pe.tipo_operacao || null,
-      nome_app: pe.nome_app || null,
+      forma_entrega_nome: pe.forma_entrega_nome || (provedorFinal === 'uber' ? 'Uber Direct' : null),
+      tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
+      nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
       servico_correios: pe.servico_correios || null,
-      nome_transportadora: pe.nome_transportadora || null,
+      nome_transportadora: pe.nome_transportadora || (provedorFinal === 'uber' ? 'Uber Direct' : null),
       pin_entrega: pe.pin_entrega || null,
       status_envio: 'aguardando_despacho',
       atualizado_em: agora
     };
 
-    if (existente?.id) {
-      await supabase.from('pedido_entregas').update(dadosEntrega).eq('id', existente.id);
-    } else {
-      await supabase.from('pedido_entregas').insert({ ...dadosEntrega, pedido_id: pedidoId, criado_em: agora });
-    }
+    // 3. Salvar em pedido_entregas de forma canônica e resiliente
+    await this.salvarPedidoEntrega(pedidoId, dadosEntrega);
 
-    // 2. Buscar totais atuais do pedido para recalcular valor_total e saldo_devedor somando o frete
-    const { data: pedAtual } = await supabase
-      .from('pedidos')
-      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados')
-      .eq('id', pedidoId)
-      .maybeSingle();
-
+    // 4. Recalcular valores do pedido e atualizar snapshot
     const subtotalPed = Number(pedAtual?.subtotal || pedAtual?.valor_total || 0);
     const descontoPed = Number(pedAtual?.valor_desconto || 0);
     const novoValorTotal = Math.max(0, subtotalPed - descontoPed + valorFrete);
@@ -1232,25 +1375,26 @@ export class ShippingOrchestrator {
     const nomeRealFrete = pe.transportadora_nome ||
       pe.forma_entrega_nome ||
       resultado.opcao_frete?.transportadora_nome ||
-      (pe.provedor === 'uber' || resultado.opcao_frete?.provedor === 'uber' ? 'Uber Flash' : 'Entrega');
+      (provedorFinal === 'uber' ? 'Uber Flash' : 'Entrega');
 
     const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
     metaAtual.transportadora_nome = nomeRealFrete;
-    metaAtual.provedor_frete = pe.provedor || resultado.opcao_frete?.provedor || 'frete_proprio';
-    metaAtual.servico_frete_codigo = pe.servico_codigo || null;
-    metaAtual.tipo_atendimento = 'entrega';
+    metaAtual.provedor_frete = provedorFinal;
+    metaAtual.servico_frete_codigo = pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null);
+    metaAtual.tipo_atendimento = resultado.tipo_atendimento || 'entrega';
 
-    // 3. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio'
+    // 5. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio' e endereco_entrega
     await supabase
       .from('pedidos')
       .update({
         status: 'aguardando_envio',
+        endereco_entrega: textoEnderecoEntrega,
         valor_frete: valorFrete,
         valor_total: novoValorTotal,
         saldo_devedor: novoSaldoDevedor,
         forma_entrega_id: pe.forma_entrega_id || null,
-        tipo_operacao: pe.tipo_operacao || null,
-        nome_app: pe.nome_app || null,
+        tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
+        nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
         servico_correios: pe.servico_correios || null,
         nome_transportadora: nomeRealFrete,
         entregador_nome: pe.entregador_nome || null,
