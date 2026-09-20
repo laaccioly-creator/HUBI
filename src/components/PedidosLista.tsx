@@ -2379,6 +2379,17 @@ export const PedidosLista: React.FC = () => {
                                 <Edit className="w-3.5 h-3.5" />
                                 <span>Alterar</span>
                               </button>
+                            ) : pedido.status === 'envio_pendente' ? (
+                              /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento) */
+                              <button
+                                type="button"
+                                onClick={() => setPedidoEscolherEnvio(pedido)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95"
+                                title="Definir modalidade de envio do pedido"
+                              >
+                                <Truck className="w-3.5 h-3.5" />
+                                <span>Escolher Envio</span>
+                              </button>
                             ) : (statusPag === 'fiado' && pedido.status === 'confirmado') ? (
                               <button
                                 type="button"
@@ -2391,6 +2402,48 @@ export const PedidosLista: React.FC = () => {
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>Receber Fiado</span>
                               </button>
+                            ) : pedido.status === 'aguardando_envio' ? (
+                              /* ETAPA 2: Frete definido -> Permite receber pagamento com frete somado ao total e/ou despachar */
+                              <div className="flex items-center gap-1">
+                                {statusPag !== 'pago' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPedidoReceberModal(pedido);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
+                                    title="Receber pagamento com frete somado ao total"
+                                  >
+                                    <DollarSign className="w-3.5 h-3.5" />
+                                    <span>Receber</span>
+                                  </button>
+                                )}
+                                {(() => {
+                                  const { prov } = resolverProvedorEntrega(pedido);
+                                  const isUber = prov === 'uber';
+                                  const isMelhorEnvio = prov === 'melhor_envio';
+
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDespacharPedido(pedido)}
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
+                                        isUber
+                                          ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                                          : isMelhorEnvio
+                                          ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
+                                          : 'bg-emerald-600 hover:bg-emerald-500'
+                                      }`}
+                                      title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
+                                    >
+                                      <Truck className="w-3.5 h-3.5" />
+                                      <span>
+                                        {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
+                                      </span>
+                                    </button>
+                                  );
+                                })()}
+                              </div>
                             ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
                               <button
                                 type="button"
@@ -2402,44 +2455,6 @@ export const PedidosLista: React.FC = () => {
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>Receber</span>
                               </button>
-                            ) : pedido.status === 'envio_pendente' ? (
-                              /* ETAPA 1: Escolher Envio */
-                              <button
-                                type="button"
-                                onClick={() => setPedidoEscolherEnvio(pedido)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95"
-                                title="Definir modalidade de envio do pedido"
-                              >
-                                <Truck className="w-3.5 h-3.5" />
-                                <span>Escolher Envio</span>
-                              </button>
-                            ) : pedido.status === 'aguardando_envio' ? (
-                              /* ETAPA 2: Confirmar Envio / Chamar Uber / Gerar Envio */
-                              (() => {
-                                const { prov } = resolverProvedorEntrega(pedido);
-                                const isUber = prov === 'uber';
-                                const isMelhorEnvio = prov === 'melhor_envio';
-
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDespacharPedido(pedido)}
-                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
-                                      isUber
-                                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
-                                        : isMelhorEnvio
-                                        ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
-                                        : 'bg-emerald-600 hover:bg-emerald-500'
-                                    }`}
-                                    title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
-                                  >
-                                    <Truck className="w-3.5 h-3.5" />
-                                    <span>
-                                      {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
-                                    </span>
-                                  </button>
-                                );
-                              })()
                             ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega') ? (
                               /* ETAPA 3: Concluir Pedido */
                               <button

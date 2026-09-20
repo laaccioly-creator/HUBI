@@ -473,6 +473,14 @@ export const PosCheckout: React.FC = () => {
   const handleAbrirFechamento = () => {
     if (itens.length === 0) return;
 
+    if (pedidoEntrega?.tipo_atendimento === 'entrega') {
+      mostrarAviso(
+        'Para pedidos com entrega/envio, salve o pedido para cotar/informar o frete na tela de Pedidos antes de receber o pagamento.',
+        'Aguardando Cotação de Frete'
+      );
+      return;
+    }
+
     if (!pedidoEntrega) {
       mostrarAviso(
         'Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de prosseguir com o pagamento.',
@@ -686,7 +694,8 @@ export const PosCheckout: React.FC = () => {
 
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
-      const statusFinal = pedidoEmEdicao?.status || 'pendente';
+      const ehEnvioAtual = pedidoEntrega?.tipo_atendimento === 'entrega';
+      const statusFinal = pedidoEmEdicao?.status || (ehEnvioAtual ? 'envio_pendente' : 'pendente');
       const obsLimpa = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 
       let metaExistente: Record<string, any> = {};
@@ -2514,33 +2523,62 @@ export const PosCheckout: React.FC = () => {
             </div>
           </div>
 
-          {/* DOIS BOTÕES: SALVAR PEDIDO (PENDENTE) & FINALIZAR VENDA */}
+          {/* AVISO INFORMATIVO PARA PEDIDOS COM ENVIO */}
+          {pedidoEntrega?.tipo_atendimento === 'entrega' && (
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span>
+                Para pedidos com entrega/envio, salve o pedido para cotar/informar o frete na tela de Pedidos antes de receber o pagamento.
+              </span>
+            </div>
+          )}
+
+          {/* BOTÕES: SALVAR PEDIDO & FINALIZAR VENDA */}
           <div className="grid grid-cols-2 gap-2 pt-1">
             <button
               type="button"
               disabled={itens.length === 0 || salvandoPendente}
               onClick={handleSalvarPedidoPendente}
-              className="py-3 px-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs shadow transition disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
-              title="Salva o pedido como Pendente sem fechar pagamento"
+              className={`py-3 px-2 rounded-2xl font-bold text-xs shadow transition disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                pedidoEntrega?.tipo_atendimento === 'entrega'
+                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 font-black col-span-2 py-3.5'
+                  : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200'
+              }`}
+              title={
+                pedidoEntrega?.tipo_atendimento === 'entrega'
+                  ? 'Salvar pedido para cotar/informar o frete na tela de Pedidos'
+                  : 'Salva o pedido como Pendente sem fechar pagamento'
+              }
             >
               {salvandoPendente ? (
                 <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
               ) : (
-                <FileText className="w-4 h-4 text-emerald-400" />
+                <FileText className={`w-4 h-4 ${pedidoEntrega?.tipo_atendimento === 'entrega' ? 'text-white' : 'text-emerald-400'}`} />
               )}
               <span className="truncate">{pedidoEmEdicao ? 'Atualizar Pedido' : 'Salvar Pedido'}</span>
             </button>
 
-            <button
-              type="button"
-              disabled={itens.length === 0}
-              onClick={handleAbrirFechamento}
-              className="py-3 px-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-40 cursor-pointer active:scale-95"
-              title="Abrir tela de pagamento e concluir venda"
-            >
-              <span className="truncate">Finalizar Venda</span>
-              <ArrowRight className="w-4 h-4 shrink-0" />
-            </button>
+            {pedidoEntrega?.tipo_atendimento !== 'entrega' ? (
+              <button
+                type="button"
+                disabled={itens.length === 0}
+                onClick={handleAbrirFechamento}
+                className="py-3 px-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-40 cursor-pointer active:scale-95"
+                title="Abrir tela de pagamento e concluir venda"
+              >
+                <span className="truncate">Finalizar Venda</span>
+                <ArrowRight className="w-4 h-4 shrink-0" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={true}
+                className="hidden"
+                title="Para pedidos com entrega/envio, salve o pedido para cotar/informar o frete na tela de Pedidos antes de receber o pagamento."
+              >
+                Finalizar Venda
+              </button>
+            )}
           </div>
         </div>
       </div>

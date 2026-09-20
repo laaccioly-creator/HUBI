@@ -1216,12 +1216,27 @@ export class ShippingOrchestrator {
       await supabase.from('pedido_entregas').insert({ ...dadosEntrega, pedido_id: pedidoId, criado_em: agora });
     }
 
-    // 2. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio'
+    // 2. Buscar totais atuais do pedido para recalcular valor_total e saldo_devedor somando o frete
+    const { data: pedAtual } = await supabase
+      .from('pedidos')
+      .select('subtotal, valor_desconto, valor_total, valor_pago')
+      .eq('id', pedidoId)
+      .maybeSingle();
+
+    const subtotalPed = Number(pedAtual?.subtotal || pedAtual?.valor_total || 0);
+    const descontoPed = Number(pedAtual?.valor_desconto || 0);
+    const novoValorTotal = Math.max(0, subtotalPed - descontoPed + valorFrete);
+    const valorPagoPed = Number(pedAtual?.valor_pago || 0);
+    const novoSaldoDevedor = Math.max(0, novoValorTotal - valorPagoPed);
+
+    // 3. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio'
     await supabase
       .from('pedidos')
       .update({
         status: 'aguardando_envio',
         valor_frete: valorFrete,
+        valor_total: novoValorTotal,
+        saldo_devedor: novoSaldoDevedor,
         forma_entrega_id: pe.forma_entrega_id || null,
         tipo_operacao: pe.tipo_operacao || null,
         nome_app: pe.nome_app || null,
