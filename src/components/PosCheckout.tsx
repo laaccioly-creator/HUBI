@@ -2261,7 +2261,13 @@ export const PosCheckout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    handleClicarFormaEntrega();
+                    setTaxaEntrega(0);
+                    setPedidoEntrega({
+                      ...FORMA_ENTREGA_RETIRADA_PADRAO,
+                      tipo_atendimento: 'entrega',
+                      transportadora_nome: 'Envio a Definir',
+                      servico_codigo: 'pendente'
+                    });
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
@@ -2270,26 +2276,10 @@ export const PosCheckout: React.FC = () => {
                   }`}
                 >
                   <Truck className="w-3 h-3" />
-                  Envio {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? `(${formatarMoeda(taxaEntrega)})` : ''}
+                  Envio
                 </button>
               </div>
             </div>
-
-            {/* Resumo do Envio Selecionado com Botão de Alterar */}
-            {pedidoEntrega?.tipo_atendimento === 'entrega' && (
-              <div className="flex items-center justify-between px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[11px] text-emerald-300">
-                <span className="truncate font-medium">
-                  {pedidoEntrega.transportadora_nome || 'Envio configurado'}: <strong className="font-bold text-emerald-400">{taxaEntrega > 0 ? formatarMoeda(taxaEntrega) : 'Grátis'}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={handleClicarFormaEntrega}
-                  className="text-emerald-400 hover:text-emerald-200 underline font-bold ml-2 shrink-0 cursor-pointer"
-                >
-                  Alterar
-                </button>
-              </div>
-            )}
 
             {/* TERMÔMETROS COMPACTOS (ATACADO & FRETE GRÁTIS) */}
             {itens.length > 0 && (
