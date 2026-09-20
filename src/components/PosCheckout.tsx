@@ -39,7 +39,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { useCart } from '../contexts/CartContext';
+import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPedido, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
@@ -48,7 +48,7 @@ import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
-import { ShippingSelectionResult } from '../types/shipping';
+import { ShippingSelectionResult, LojaShippingConfig } from '../types/shipping';
 import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL } from '../utils/formatters';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
@@ -248,6 +248,7 @@ export const PosCheckout: React.FC = () => {
   const [valorRecebidoDinheiro, setValorRecebidoDinheiro] = useState<string>('');
   const [parcelasCartao, setParcelasCartao] = useState<number>(1);
   const [linhasPagamento, setLinhasPagamento] = useState<LinhaPagamentoPDV[]>([]);
+  const [configShippingLoja, setConfigShippingLoja] = useState<LojaShippingConfig | null>(null);
   const [finalizandoVenda, setFinalizandoVenda] = useState<boolean>(false);
   const [salvandoPendente, setSalvandoPendente] = useState<boolean>(false);
   const [pedidoConcluido, setPedidoConcluido] = useState<Pedido | null>(null);
@@ -428,7 +429,14 @@ export const PosCheckout: React.FC = () => {
         } catch (e) {
           console.warn('Categorias não puderam ser carregadas:', e);
         }
-        
+
+        try {
+          const cfgShipping = await ShippingOrchestrator.buscarConfigLoja(loja.id);
+          if (cfgShipping) setConfigShippingLoja(cfgShipping);
+        } catch (e) {
+          console.warn('Configurações de frete não puderam ser carregadas:', e);
+        }
+
         const fps = (dados.formasPagamento && dados.formasPagamento.length > 0) ? dados.formasPagamento : FORMAS_PADRAO;
         setFormasPagamento(fps);
         setFormaPagamentoEscolhida(prev => prev || fps[0]);
@@ -1257,7 +1265,7 @@ export const PosCheckout: React.FC = () => {
       if (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente') {
         statusFinal = pedidoEmEdicao.status;
       } else {
-        statusFinal = ehEntrega ? 'aguardando_envio' : 'concluido';
+        statusFinal = ehEntrega ? 'envio_pendente' : 'concluido';
       }
 
       const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
@@ -1791,6 +1799,11 @@ export const PosCheckout: React.FC = () => {
 
   const trocoCalculado = Math.max(0, (Number(valorRecebidoDinheiro) || 0) - total);
 
+  const freteGratisAtivoLoja = Boolean(configShippingLoja?.frete_gratis_ativo ?? (loja as any)?.frete_gratis_ativo);
+  const freteGratisMinimoLoja = Number(configShippingLoja?.frete_gratis_valor_minimo ?? (loja as any)?.frete_gratis_valor_minimo ?? 0);
+  const faltaParaFreteGratis = Math.max(0, freteGratisMinimoLoja - subtotal);
+  const progressoFreteGratis = freteGratisMinimoLoja > 0 ? Math.min(100, Math.round((subtotal / freteGratisMinimoLoja) * 100)) : 100;
+
   return (
     <div className="h-full w-full overflow-hidden bg-slate-950">
       {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 008) */}
@@ -1940,7 +1953,7 @@ export const PosCheckout: React.FC = () => {
           ) : produtosFiltrados.length === 0 ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">Nenhum produto encontrado.</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
               {produtosFiltrados.map((produto) => {
                 const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
                 const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
@@ -2008,7 +2021,7 @@ export const PosCheckout: React.FC = () => {
       </div>
 
       {/* PAINEL DIREITO: CARRINHO & TOTAL */}
-      <div className="w-full lg:w-[380px] bg-slate-900 flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-800">
+      <div className="w-full lg:w-[440px] xl:w-[480px] bg-slate-900 flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-800">
         {/* Header do Carrinho & Seleção de Cliente */}
         <div className="p-3.5 border-b border-slate-800 space-y-2.5">
           {/* Seletor de Status e Fechar X ao Editar Pedido */}
@@ -2185,86 +2198,158 @@ export const PosCheckout: React.FC = () => {
             )}
           </div>
 
-          {/* FRAME DE ESCOLHA DO TIPO DE VENDA (ABAIXO DO CLIENTE) */}
-          <div className="p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-emerald-400 shrink-0" />
-              <div>
-                <span className="text-[11px] text-slate-400 font-medium block">Tipo da Venda:</span>
-                <span className="text-xs font-bold text-slate-100 uppercase tracking-wide">
+          {/* SELETORES RÁPIDOS: TIPO DA VENDA & FORMA DE ENTREGA */}
+          <div className="space-y-2">
+            {/* Linha 1: Tipo da Venda */}
+            <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="text-[11px] text-slate-400 font-semibold">Tipo da Venda:</span>
+              </div>
+
+              {permissions.ehAdmin && !isEdicaoTravada ? (
+                <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                  {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setTabelaPrecoGlobal(tab)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition cursor-pointer ${
+                        tabelaPrecoCalculada === tab
+                          ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {tab === 'autoatacado' ? 'Distribuidor' : tab === 'atacado' ? 'Atacado' : 'Varejo'}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
                   {tabelaPrecoCalculada === 'autoatacado' ? 'Distribuidor' : tabelaPrecoCalculada === 'atacado' ? 'Atacado' : 'Varejo'}
                 </span>
-              </div>
-            </div>
-
-            {/* Se for Admin/Owner pode alterar manualmente; se for Comum/Vendedor fica bloqueado */}
-            {permissions.ehAdmin && !isEdicaoTravada ? (
-              <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
-                {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setTabelaPrecoGlobal(tab)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase transition cursor-pointer ${
-                      tabelaPrecoCalculada === tab
-                        ? 'bg-emerald-500 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {tab === 'autoatacado' ? 'Distr.' : tab === 'atacado' ? 'Atac.' : 'Var.'}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <span className="text-[10px] text-slate-500 font-medium bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
-                {isEdicaoTravada ? 'Fixo pelo Pedido' : 'Fixo pelo Perfil'}
-              </span>
-            )}
-          </div>
-
-          {/* BADGE DA TABELA ATIVA & PROGRESSO NO PDV */}
-          {itens.length > 0 && (
-            <div className={`p-2.5 rounded-xl border transition text-xs font-bold space-y-1.5 ${
-              tabelaPrecoCalculada === 'autoatacado'
-                ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-300'
-                : tabelaPrecoCalculada === 'atacado'
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span>
-                  {tabelaPrecoCalculada === 'autoatacado' ? '⚡ Tabela: Distribuidor' : tabelaPrecoCalculada === 'atacado' ? '🏷️ Tabela: Atacado' : '🛒 Tabela: Varejo'}
-                </span>
-                {avaliacaoCarrinho.economiaTotal > 0 && (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-black">
-                    -R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
-                  </span>
-                )}
-              </div>
-
-              {avaliacaoCarrinho.proximoNivel && (
-                <div className="text-[10px] font-normal text-slate-300 pt-1 border-t border-slate-700/50 flex justify-between items-center">
-                  <span>
-                    {(() => {
-                      const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
-                      const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
-                      const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
-                      const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
-                      const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
-
-                      if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
-                        const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
-                        return `Faltam ${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'} para ${proxNome}`;
-                      }
-                      const faltaVal = avaliacaoCarrinho.faltaValorParaProximo;
-                      return `Faltam R$ ${faltaVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} para ${proxNome}`;
-                    })()}
-                  </span>
-                  <span className="font-bold text-amber-300">{avaliacaoCarrinho.progressoGeralPercent}%</span>
-                </div>
               )}
             </div>
-          )}
+
+            {/* Linha 2: Forma de Entrega */}
+            <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
+                  <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                ) : (
+                  <Store className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                )}
+                <span className="text-[11px] text-slate-400 font-semibold truncate">Forma de Entrega:</span>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTaxaEntrega(0);
+                    setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                    pedidoEntrega?.tipo_atendimento !== 'entrega'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  <Store className="w-3 h-3" />
+                  Retirada
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClicarFormaEntrega();
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                    pedidoEntrega?.tipo_atendimento === 'entrega'
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  <Truck className="w-3 h-3" />
+                  Envio {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? `(${formatarMoeda(taxaEntrega)})` : ''}
+                </button>
+              </div>
+            </div>
+
+            {/* Resumo do Envio Selecionado com Botão de Alterar */}
+            {pedidoEntrega?.tipo_atendimento === 'entrega' && (
+              <div className="flex items-center justify-between px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[11px] text-emerald-300">
+                <span className="truncate font-medium">
+                  {pedidoEntrega.transportadora_nome || 'Envio configurado'}: <strong className="font-bold text-emerald-400">{taxaEntrega > 0 ? formatarMoeda(taxaEntrega) : 'Grátis'}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClicarFormaEntrega}
+                  className="text-emerald-400 hover:text-emerald-200 underline font-bold ml-2 shrink-0 cursor-pointer"
+                >
+                  Alterar
+                </button>
+              </div>
+            )}
+
+            {/* TERMÔMETROS COMPACTOS (ATACADO & FRETE GRÁTIS) */}
+            {itens.length > 0 && (
+              <div className="space-y-1.5 pt-0.5">
+                {/* Termômetro Atacado / Volume */}
+                {avaliacaoCarrinho.proximoNivel && (
+                  <div className="p-1.5 bg-slate-950/60 border border-slate-800 rounded-lg space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-slate-300">
+                      <span className="flex items-center gap-1 font-medium truncate">
+                        ⚡ {(() => {
+                          const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
+                          const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
+                          const valMin = isAuto ? loja?.valor_minimo_padrao_autoatacado : loja?.valor_minimo_padrao_atacado;
+                          const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
+                          const tipoMin = isAuto ? loja?.tipo_minimo_padrao_autoatacado : loja?.tipo_minimo_padrao_atacado;
+
+                          if (tipoMin === 'quantidade' || (Number(qtdMin) > 0 && (!valMin || Number(valMin) === 0))) {
+                            const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
+                            return `Faltam ${faltamPecas} ${faltamPecas === 1 ? 'peça' : 'peças'} para ${proxNome}`;
+                          }
+                          return `Faltam ${formatarMoeda(avaliacaoCarrinho.faltaValorParaProximo)} para ${proxNome}`;
+                        })()}
+                      </span>
+                      <span className="font-bold text-amber-400 shrink-0 ml-1.5">{avaliacaoCarrinho.progressoGeralPercent}%</span>
+                    </div>
+                    <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                      <div
+                        className="bg-amber-400 h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, avaliacaoCarrinho.progressoGeralPercent)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Termômetro Frete Grátis */}
+                {freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && (
+                  <div className="p-1.5 bg-slate-950/60 border border-slate-800 rounded-lg space-y-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="flex items-center gap-1 font-medium text-slate-300 truncate">
+                        {subtotal >= freteGratisMinimoLoja ? (
+                          <span className="text-emerald-400 font-bold">🎉 Frete Grátis Atingido!</span>
+                        ) : (
+                          <span>🚚 Faltam {formatarMoeda(faltaParaFreteGratis)} para Frete Grátis</span>
+                        )}
+                      </span>
+                      <span className={`font-bold shrink-0 ml-1.5 ${subtotal >= freteGratisMinimoLoja ? 'text-emerald-400' : 'text-blue-400'}`}>
+                        {progressoFreteGratis}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${subtotal >= freteGratisMinimoLoja ? 'bg-emerald-500' : 'bg-blue-400'}`}
+                        style={{ width: `${progressoFreteGratis}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Lista de Itens do Carrinho */}
@@ -2426,50 +2511,12 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
-            {/* Linha de Forma de Entrega no Carrinho */}
-            <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
-              <div className="flex items-center gap-1.5 min-w-0">
-                {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? (
-                  <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
-                  <Store className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                ) : (
-                  <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                )}
-                <span className="text-slate-300 font-semibold truncate">
-                  Forma de Entrega:
-                </span>
+            {taxaEntrega > 0 && (
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Taxa de Entrega:</span>
+                <span className="text-emerald-400 font-bold">+{formatarMoeda(taxaEntrega)}</span>
               </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {!pedidoEntrega ? (
-                  <span className="text-amber-400/90 font-medium text-xs">
-                    Não selecionada
-                  </span>
-                ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
-                  <span className="text-purple-300 font-bold text-xs">
-                    Retirada na Loja (Grátis)
-                  </span>
-                ) : (
-                  <span className="text-emerald-400 font-bold text-xs">
-                    {pedidoEntrega.transportadora_nome ? `${pedidoEntrega.transportadora_nome}: ` : ''}
-                    {taxaEntrega > 0 ? `+ ${formatarMoeda(taxaEntrega)}` : 'Grátis'}
-                  </span>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleClicarFormaEntrega}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
-                    !pedidoEntrega
-                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20'
-                      : 'text-emerald-400 hover:text-emerald-300 underline'
-                  }`}
-                >
-                  {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
-                </button>
-              </div>
-            </div>
+            )}
 
             <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
               <span>TOTAL A PAGAR:</span>

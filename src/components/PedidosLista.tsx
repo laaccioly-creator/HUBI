@@ -61,6 +61,9 @@ import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalReceberPagamento } from './ModalReceberPagamento';
 import { ModalReceberFiado } from './ModalReceberFiado';
 import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
+import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
+import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
+import { ShippingSelectionResult } from '../types/shipping';
 import { PedidosListaMobile } from './PedidosListaMobile';
 import {
   ROTULOS_STATUS_PEDIDO,
@@ -116,6 +119,8 @@ export const PedidosLista: React.FC = () => {
     return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, false);
   }, [loja, pedidoSelecionado?.status]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+  const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
+  const [pedidoEscolherEnvio, setPedidoEscolherEnvio] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
   const [pedidoReceberFiadoModal, setPedidoReceberFiadoModal] = useState<Pedido | null>(null);
@@ -722,21 +727,23 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
-  const handleDespacharPedido = async () => {
-    if (!pedidoSelecionado || !loja?.id) return;
+  const handleDespacharPedido = async (pedidoAlvo?: Pedido | React.MouseEvent<any>) => {
+    const ped = (pedidoAlvo && typeof pedidoAlvo === 'object' && 'numero_pedido' in pedidoAlvo) ? (pedidoAlvo as Pedido) : pedidoSelecionado;
+    if (!ped || !loja?.id) return;
+    setPedidoSelecionado(ped);
 
-    const { prov, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+    const { prov, pe } = resolverProvedorEntrega(ped, ped.id === pedidoSelecionado?.id ? entregaPedido : null);
 
     // Se for Frete Próprio ou Entrega Manual/Transportadora da Loja, abre modal
     if (prov === 'frete_proprio' || pe?.provedor === 'frete_proprio') {
-      setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
-      setContatoEntregadorDespacho(pedidoSelecionado.contato_entregador || pe?.contato_entregador || '');
-      setCodigoRastreioDespacho(pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '');
-      setLinkRastreioDespacho(pedidoSelecionado.link_rastreio || pe?.link_rastreio || '');
-      setPinEntregaDespacho(pedidoSelecionado.pin_entrega || pe?.pin_entrega || '');
-      setNomeAppDespacho(pedidoSelecionado.nome_app || pe?.nome_app || 'Uber');
-      setServicoCorreiosDespacho((pedidoSelecionado.servico_correios as any) || (pe?.servico_correios as any) || 'SEDEX');
-      setNomeTransportadoraDespacho(pedidoSelecionado.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
+      setEntregadorNomeDespacho(ped.entregador_nome || pe?.entregador_nome || '');
+      setContatoEntregadorDespacho(ped.contato_entregador || pe?.contato_entregador || '');
+      setCodigoRastreioDespacho(ped.codigo_rastreio || pe?.codigo_rastreio || '');
+      setLinkRastreioDespacho(ped.link_rastreio || pe?.link_rastreio || '');
+      setPinEntregaDespacho(ped.pin_entrega || pe?.pin_entrega || '');
+      setNomeAppDespacho(ped.nome_app || pe?.nome_app || 'Uber');
+      setServicoCorreiosDespacho((ped.servico_correios as any) || (pe?.servico_correios as any) || 'SEDEX');
+      setNomeTransportadoraDespacho(ped.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
       setModalDespachoAberto(true);
       return;
     }
@@ -751,10 +758,10 @@ export const PedidosLista: React.FC = () => {
       }
 
       const entregaValida: PedidoEntrega = pe || {
-        pedido_id: pedidoSelecionado.id,
+        pedido_id: ped.id,
         tipo_atendimento: 'entrega',
-        valor_frete: Number(pedidoSelecionado.valor_frete || 0),
-        destino_logradouro: pedidoSelecionado.endereco_entrega || '',
+        valor_frete: Number(ped.valor_frete || 0),
+        destino_logradouro: ped.endereco_entrega || '',
         provedor: prov
       };
 
@@ -762,18 +769,19 @@ export const PedidosLista: React.FC = () => {
         const resultado = await ShippingOrchestrator.despacharUberDirect(
           loja,
           config,
-          pedidoSelecionado,
+          ped,
           entregaValida,
           usuario?.id || null
         );
 
         setPedidos((prev) =>
           prev.map((p) =>
-            p.id === pedidoSelecionado.id
+            p.id === ped.id
               ? {
                   ...p,
-                  status: 'saiu_para_entrega',
+                  status: 'enviado',
                   link_rastreio: resultado.link_rastreio,
+                  pin_entrega: resultado.pin_entrega || p.pin_entrega,
                   despachado_em: agora,
                   despachado_por: usuario?.id || null
                 }
@@ -785,15 +793,16 @@ export const PedidosLista: React.FC = () => {
           prev
             ? {
                 ...prev,
-                status: 'saiu_para_entrega',
+                status: 'enviado',
                 link_rastreio: resultado.link_rastreio,
+                pin_entrega: resultado.pin_entrega || prev.pin_entrega,
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
             : null
         );
 
-        const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id);
+        const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
         mostrarSucesso(
@@ -805,17 +814,17 @@ export const PedidosLista: React.FC = () => {
         const resultado = await ShippingOrchestrator.despacharMelhorEnvio(
           loja,
           config,
-          pedidoSelecionado,
+          ped,
           entregaValida,
           usuario?.id || null
         );
 
         setPedidos((prev) =>
           prev.map((p) =>
-            p.id === pedidoSelecionado.id
+            p.id === ped.id
               ? {
                   ...p,
-                  status: 'saiu_para_entrega',
+                  status: 'enviado',
                   codigo_rastreio: resultado.codigo_rastreio,
                   link_rastreio: resultado.link_etiqueta,
                   despachado_em: agora,
@@ -829,7 +838,7 @@ export const PedidosLista: React.FC = () => {
           prev
             ? {
                 ...prev,
-                status: 'saiu_para_entrega',
+                status: 'enviado',
                 codigo_rastreio: resultado.codigo_rastreio,
                 link_rastreio: resultado.link_etiqueta,
                 despachado_em: agora,
@@ -838,7 +847,7 @@ export const PedidosLista: React.FC = () => {
             : null
         );
 
-        const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoSelecionado.id);
+        const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
         mostrarSucesso(`Etiqueta gerada com sucesso! Rastreio: ${resultado.codigo_rastreio}`);
@@ -2202,7 +2211,7 @@ export const PedidosLista: React.FC = () => {
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[120px]">Status Pedido</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Status Pagamento</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[115px]">Data Vencimento</th>
-                    <th className="py-2.5 px-2 font-semibold text-center min-w-[95px]">Tipo da Venda</th>
+                    <th className="py-2.5 px-2 font-semibold text-center min-w-[120px]">Etiqueta Envio</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Ações</th>
                   </tr>
                 </thead>
@@ -2292,15 +2301,9 @@ export const PedidosLista: React.FC = () => {
                             const infoVenc = obterInfoVencimentoFiado(pedido);
                             const temFiadoEmAberto = (pedido.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado') && !pedido.fiado_quitado;
                             const estaVencido = pedido.status === 'vencido' || (temFiadoEmAberto && pedido.status !== 'concluido' && pedido.status !== 'cancelado' && infoVenc.estaVencido);
-                            const pin = pedido.pin_entrega || pedido.pedido_entrega?.pin_entrega;
                             return (
-                              <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center justify-center">
                                 {getStatusBadge(estaVencido ? 'vencido' : pedido.status, pedido)}
-                                {pin && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono tracking-wider shadow-xs">
-                                    PIN: {pin}
-                                  </span>
-                                )}
                               </div>
                             );
                           })()}
@@ -2335,8 +2338,34 @@ export const PedidosLista: React.FC = () => {
                           )}
                         </td>
 
-                        <td className="py-2.5 px-2 whitespace-nowrap text-center text-slate-300 capitalize font-medium">
-                          {pedido.tabela_preco_aplicada || 'Varejo'}
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
+                          {(() => {
+                            const { prov, pe, isRetirada } = resolverProvedorEntrega(pedido);
+                            const temEtiqueta =
+                              !isRetirada &&
+                              (prov === 'melhor_envio' ||
+                               pe?.tipo_operacao === 'correios' ||
+                               pe?.tipo_operacao === 'transportadora' ||
+                               pe?.servico_correios ||
+                               pe?.nome_transportadora ||
+                               pedido.servico_correios ||
+                               pedido.nome_transportadora);
+
+                            if (temEtiqueta) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setPedidoEtiquetaModal(pedido)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition cursor-pointer"
+                                  title="Imprimir Etiqueta de Envio"
+                                >
+                                  <Tag className="w-3 h-3" />
+                                  <span>Imprimir Etiqueta</span>
+                                </button>
+                              );
+                            }
+                            return <span className="text-slate-600 font-mono text-xs">-</span>;
+                          })()}
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
@@ -2372,6 +2401,55 @@ export const PedidosLista: React.FC = () => {
                               >
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>Receber</span>
+                              </button>
+                            ) : pedido.status === 'envio_pendente' ? (
+                              /* ETAPA 1: Escolher Envio */
+                              <button
+                                type="button"
+                                onClick={() => setPedidoEscolherEnvio(pedido)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95"
+                                title="Definir modalidade de envio do pedido"
+                              >
+                                <Truck className="w-3.5 h-3.5" />
+                                <span>Escolher Envio</span>
+                              </button>
+                            ) : pedido.status === 'aguardando_envio' ? (
+                              /* ETAPA 2: Confirmar Envio / Chamar Uber / Gerar Envio */
+                              (() => {
+                                const { prov } = resolverProvedorEntrega(pedido);
+                                const isUber = prov === 'uber';
+                                const isMelhorEnvio = prov === 'melhor_envio';
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDespacharPedido(pedido)}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
+                                      isUber
+                                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                                        : isMelhorEnvio
+                                        ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
+                                        : 'bg-emerald-600 hover:bg-emerald-500'
+                                    }`}
+                                    title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
+                                  >
+                                    <Truck className="w-3.5 h-3.5" />
+                                    <span>
+                                      {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
+                                    </span>
+                                  </button>
+                                );
+                              })()
+                            ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega') ? (
+                              /* ETAPA 3: Concluir Pedido */
+                              <button
+                                type="button"
+                                onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                title="Concluir Pedido Entregue"
+                              >
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>Concluir Pedido</span>
                               </button>
                             ) : pedido.status !== 'concluido' ? (
                               <button
@@ -3210,6 +3288,86 @@ export const PedidosLista: React.FC = () => {
                 <span>{executandoContingencia ? 'Despachando...' : 'Sim, Forçar Despacho'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL IMPRIMIR ETIQUETA DE ENVIO */}
+      <ModalImprimirEtiqueta
+        isOpen={!!pedidoEtiquetaModal}
+        pedido={pedidoEtiquetaModal}
+        loja={loja}
+        onClose={() => setPedidoEtiquetaModal(null)}
+      />
+
+      {/* MODAL ESCOLHER ENVIO (ETAPA 1 DO FLUXO DE EXPEDIÇÃO) */}
+      {pedidoEscolherEnvio && loja && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-800">
+                    Definir Envio • Pedido #{pedidoEscolherEnvio.numero_pedido}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Selecione o meio de entrega para expedição do pedido
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPedidoEscolherEnvio(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <ShippingFulfillmentSelector
+              lojaId={loja.id}
+              loja={loja}
+              clienteId={pedidoEscolherEnvio.cliente_id || pedidoEscolherEnvio.cliente?.id || null}
+              cliente={pedidoEscolherEnvio.cliente || null}
+              subtotal={Number(pedidoEscolherEnvio.subtotal || pedidoEscolherEnvio.valor_total || 0)}
+              itens={(pedidoEscolherEnvio.itens || []).map((i: any) => ({
+                nome: i.nome_produto || i.produto?.nome || 'Item',
+                quantidade: Number(i.quantidade || 1),
+                preco_unitario: Number(i.preco_venda_unitario || i.preco_unitario || 0),
+                peso_kg: (i.produto as any)?.peso_kg || 0.3,
+                largura_cm: (i.produto as any)?.largura_cm || 15,
+                altura_cm: (i.produto as any)?.altura_cm || 10,
+                comprimento_cm: (i.produto as any)?.comprimento_cm || 20
+              }))}
+              valorFreteAtual={Number(pedidoEscolherEnvio.valor_frete || 0)}
+              tipoAtendimentoAtual="entrega"
+              enderecoEntregaAtual={pedidoEscolherEnvio.endereco_entrega ? {
+                cep: (pedidoEscolherEnvio as any).pedido_entrega?.destino_cep || '',
+                logradouro: pedidoEscolherEnvio.endereco_entrega,
+                numero: '',
+                bairro: '',
+                cidade: '',
+                uf: 'CE'
+              } : null}
+              onChange={async (resultado: ShippingSelectionResult) => {
+                try {
+                  await ShippingOrchestrator.definirEnvioPedido(
+                    pedidoEscolherEnvio.id,
+                    resultado,
+                    usuario?.id || null
+                  );
+                  mostrarSucesso('Forma de envio definida com sucesso!');
+                  setPedidoEscolherEnvio(null);
+                  carregarPedidos();
+                } catch (err: any) {
+                  console.error('Erro ao definir envio do pedido:', err);
+                  mostrarErro(err.message || 'Erro ao definir envio.');
+                }
+              }}
+            />
           </div>
         </div>
       )}

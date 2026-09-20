@@ -5,7 +5,8 @@ import {
   PedidoEntrega,
   OpcaoFreteCotada,
   RequisicaoCotacaoOrquestrador,
-  NovoEnderecoFormInput
+  NovoEnderecoFormInput,
+  ShippingSelectionResult
 } from '../types/shipping';
 import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
@@ -919,7 +920,7 @@ export class ShippingOrchestrator {
           requer_codigo_rastreio: false,
           requer_entregador: true,
           ativo: true,
-          padrao: true
+          padrao: false
         },
         {
           loja_id: lojaId,
@@ -1146,7 +1147,7 @@ export class ShippingOrchestrator {
     await supabase
       .from('pedidos')
       .update({
-        status: 'saiu_para_entrega',
+        status: 'enviado',
         entregador_nome: dados.entregadorNome?.trim() || null,
         codigo_rastreio: dados.codigoRastreio?.trim() || null,
         link_rastreio: dados.linkRastreio?.trim() || null,
@@ -1159,6 +1160,76 @@ export class ShippingOrchestrator {
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
         atualizado_em: despachadoEm
+      })
+      .eq('id', pedidoId);
+  }
+
+  /**
+   * Grava a forma de envio escolhida para o pedido e avança o status para 'aguardando_envio'
+   */
+  public static async definirEnvioPedido(
+    pedidoId: string,
+    resultado: ShippingSelectionResult,
+    usuarioId?: string | null
+  ): Promise<void> {
+    const agora = new Date().toISOString();
+    const pe = resultado.pedido_entrega || {};
+    const valorFrete = Number(resultado.valor_frete || pe.valor_frete || 0);
+
+    // 1. Upsert em pedido_entregas
+    const { data: existente } = await supabase
+      .from('pedido_entregas')
+      .select('id')
+      .eq('pedido_id', pedidoId)
+      .maybeSingle();
+
+    const dadosEntrega: any = {
+      tipo_atendimento: resultado.tipo_atendimento,
+      provedor: pe.provedor || 'frete_proprio',
+      transportadora_nome: pe.transportadora_nome || pe.forma_entrega_nome || null,
+      servico_codigo: pe.servico_codigo || null,
+      valor_frete: valorFrete,
+      valor_original: pe.valor_original ?? valorFrete,
+      valor_subsidio: pe.valor_subsidio ?? 0,
+      is_frete_gratis: Boolean(pe.is_frete_gratis),
+      destino_cep: pe.destino_cep || resultado.endereco_selecionado?.cep || null,
+      destino_logradouro: pe.destino_logradouro || resultado.endereco_selecionado?.logradouro || null,
+      destino_numero: pe.destino_numero || resultado.endereco_selecionado?.numero || null,
+      destino_complemento: pe.destino_complemento || resultado.endereco_selecionado?.complemento || null,
+      destino_bairro: pe.destino_bairro || resultado.endereco_selecionado?.bairro || null,
+      destino_cidade: pe.destino_cidade || resultado.endereco_selecionado?.cidade || null,
+      destino_uf: pe.destino_uf || resultado.endereco_selecionado?.uf || null,
+      forma_entrega_id: pe.forma_entrega_id || null,
+      forma_entrega_nome: pe.forma_entrega_nome || null,
+      tipo_operacao: pe.tipo_operacao || null,
+      nome_app: pe.nome_app || null,
+      servico_correios: pe.servico_correios || null,
+      nome_transportadora: pe.nome_transportadora || null,
+      pin_entrega: pe.pin_entrega || null,
+      status_envio: 'aguardando_despacho',
+      atualizado_em: agora
+    };
+
+    if (existente?.id) {
+      await supabase.from('pedido_entregas').update(dadosEntrega).eq('id', existente.id);
+    } else {
+      await supabase.from('pedido_entregas').insert({ ...dadosEntrega, pedido_id: pedidoId, criado_em: agora });
+    }
+
+    // 2. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio'
+    await supabase
+      .from('pedidos')
+      .update({
+        status: 'aguardando_envio',
+        valor_frete: valorFrete,
+        forma_entrega_id: pe.forma_entrega_id || null,
+        tipo_operacao: pe.tipo_operacao || null,
+        nome_app: pe.nome_app || null,
+        servico_correios: pe.servico_correios || null,
+        nome_transportadora: pe.nome_transportadora || pe.transportadora_nome || null,
+        pin_entrega: pe.pin_entrega || null,
+        atualizado_por: usuarioId || null,
+        atualizado_em: agora
       })
       .eq('id', pedidoId);
   }

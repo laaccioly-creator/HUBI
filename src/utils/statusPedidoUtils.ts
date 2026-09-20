@@ -8,8 +8,10 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
   em_separacao: 'Em separação',
   em_producao: 'Em produção',
   em_expedicao: 'Em expedição',
+  envio_pendente: 'Envio Pendente',
   aguardando_envio: 'Aguardando Envio',
   saiu_para_entrega: 'Saiu para Entrega',
+  enviado: 'Enviado',
   pronto_para_retirar: 'Pronto para retirar',
   concluido: 'Concluído',
   vencido: 'Vencido',
@@ -18,7 +20,7 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
 
 /**
  * Verifica se um status de pedido está ativo nas configurações da loja.
- * - 'pendente', 'confirmado', 'aguardando_envio', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
+ * - 'pendente', 'confirmado', 'envio_pendente', 'aguardando_envio', 'enviado', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
  * - 'em_producao', 'em_expedicao', 'saiu_para_entrega' e 'pronto_para_retirar'
  *   dependem das opções marcadas em Configurações > Pedidos e Vendas > Status de Pedido.
  */
@@ -26,7 +28,7 @@ export function isStatusPedidoAtivo(
   statusId: string,
   loja?: Loja | null
 ): boolean {
-  if (['todos', 'pendente', 'confirmado', 'aguardando_envio', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
+  if (['todos', 'pendente', 'confirmado', 'envio_pendente', 'aguardando_envio', 'enviado', 'saiu_para_entrega', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
     return true;
   }
 
@@ -78,7 +80,9 @@ export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label
     abas.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
   }
 
+  abas.push({ id: 'envio_pendente', label: 'Envio Pendente' });
   abas.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
+  abas.push({ id: 'enviado', label: 'Enviado' });
 
   // Status personalizados ativos
   const customizados = loja?.configuracoes_extras?.status_pedidos_ativos?.status_personalizados || [];
@@ -124,6 +128,11 @@ export function obterOpcoesStatusAlteracao(
     opcoes.push({ id: 'confirmado', label: 'Confirmado' });
   }
 
+  if (statusAtual === 'envio_pendente') {
+    opcoes.push({ id: 'envio_pendente', label: 'Envio Pendente' });
+    opcoes.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
+  }
+
   if (isStatusPedidoAtivo('em_producao', loja) || statusAtual === 'em_producao') {
     opcoes.push({ id: 'em_producao', label: 'Em produção' });
   }
@@ -136,12 +145,18 @@ export function obterOpcoesStatusAlteracao(
     opcoes.push({ id: 'saiu_para_entrega', label: 'Saiu para Entrega' });
   }
 
+  if (statusAtual === 'enviado') {
+    opcoes.push({ id: 'enviado', label: 'Enviado' });
+  }
+
   if (isStatusPedidoAtivo('pronto_para_retirar', loja) || statusAtual === 'pronto_para_retirar') {
     opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
   }
 
-  if (statusAtual === 'aguardando_envio' || statusAtual === 'confirmado' || statusAtual === 'em_expedicao') {
-    opcoes.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
+  if (statusAtual === 'aguardando_envio' || statusAtual === 'confirmado' || statusAtual === 'em_expedicao' || statusAtual === 'envio_pendente') {
+    if (!opcoes.some(o => o.id === 'aguardando_envio')) {
+      opcoes.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
+    }
   }
 
   if (statusAtual === 'vencido') {

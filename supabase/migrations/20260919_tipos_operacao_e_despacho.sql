@@ -52,3 +52,27 @@ CREATE INDEX IF NOT EXISTS idx_pedido_entregas_pin_entrega
 ALTER TABLE public.formas_entrega 
   ADD COLUMN IF NOT EXISTS requer_link_rastreio BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS requer_pin BOOLEAN DEFAULT FALSE;
+
+-- 6. Ampliar a constraint de status na tabela pedidos
+ALTER TABLE public.pedidos 
+  DROP CONSTRAINT IF EXISTS pedidos_status_check;
+
+ALTER TABLE public.pedidos 
+  ADD CONSTRAINT pedidos_status_check CHECK (
+    status IN (
+      'pendente',
+      'confirmado',
+      'em_separacao',
+      'em_producao',
+      'em_expedicao',
+      'envio_pendente',
+      'aguardando_envio',
+      'saiu_para_entrega',
+      'enviado',
+      'pronto_para_retirar',
+      'concluido',
+      'vencido',
+      'cancelado'
+    )
+  );
+
