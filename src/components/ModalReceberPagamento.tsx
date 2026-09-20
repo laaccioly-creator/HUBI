@@ -9,7 +9,9 @@ import {
   Loader2,
   Printer,
   Plus,
-  Trash2
+  Trash2,
+  Truck,
+  Store
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -135,6 +137,18 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
   const valorTotal = Number(pedido.valor_total || 0);
   const valorJaPago = Number(pedido.valor_pago || 0);
   const saldoDevedorAtual = Math.max(0, valorTotal - valorJaPago);
+  const valorFrete = Number(pedido.valor_frete || 0);
+  const valorDesconto = Number(pedido.valor_desconto || 0);
+  const subtotalProdutos = Number(
+    pedido.subtotal_produtos ?? pedido.subtotal ?? Math.max(0, valorTotal - valorFrete + valorDesconto)
+  );
+
+  const entregaObj = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
+  const formaEntregaObj = pedido.forma_entrega;
+  const tipoAtendimento = entregaObj?.tipo_atendimento || formaEntregaObj?.tipo;
+  const ehRetirada = tipoAtendimento === 'retirada' || (!pedido.endereco_entrega && valorFrete === 0 && !entregaObj);
+  const transportadoraNome = entregaObj?.transportadora_nome || (pedido as any).transportadora_nome || formaEntregaObj?.nome;
+  const servicoCodigo = entregaObj?.servico_codigo || (pedido as any).servico_codigo;
 
   const totalLinhasPagamento = Number(
     linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0).toFixed(2)
@@ -274,10 +288,13 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
       };
 
       if (quitado) {
-        if (concluirAoQuitarCheck) {
-          payloadUpdate.status = 'concluido';
-        } else if (pedido.status === 'pendente') {
-          payloadUpdate.status = 'confirmado';
+        const isStatusLogistico = ['envio_pendente', 'aguardando_envio', 'em_expedicao', 'enviado', 'saiu_para_entrega'].includes(pedido.status);
+        if (!isStatusLogistico) {
+          if (concluirAoQuitarCheck) {
+            payloadUpdate.status = 'concluido';
+          } else if (pedido.status === 'pendente') {
+            payloadUpdate.status = 'confirmado';
+          }
         }
       }
 
@@ -451,20 +468,21 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         ) : (
           /* FORMULÁRIO DE RECEBIMENTO (MÚLTIPLAS FORMAS DE PAGAMENTO IDÊNTICO AO CHECKOUT DO CARRINHO) */
           <form onSubmit={handleConfirmarRecebimento} className="space-y-4">
-            {/* Cards de Resumo dos Valores */}
-            <div className="grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800 text-center">
-              <div>
-                <span className="text-[10px] text-slate-500 font-semibold block">Total Pedido</span>
-                <span className="text-xs font-black text-slate-200">R$ {valorTotal.toFixed(2)}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-emerald-500/80 font-semibold block">Já Pago</span>
-                <span className="text-xs font-black text-emerald-400">R$ {valorJaPago.toFixed(2)}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-amber-500/80 font-semibold block">Saldo Pendente</span>
-                <span className="text-xs font-black text-amber-400">R$ {saldoDevedorAtual.toFixed(2)}</span>
-              </div>
+            {/* Card de Destaque do Valor Total / Saldo Pendente */}
+            <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 text-center space-y-0.5">
+              <span className="text-xs text-slate-400 block font-medium">
+                {valorJaPago > 0 ? 'Saldo Restante a Quitar' : 'Valor Total da Venda'}
+              </span>
+              <span className="text-3xl font-black text-emerald-400">
+                R$ {saldoDevedorAtual.toFixed(2)}
+              </span>
+              {valorJaPago > 0 && (
+                <div className="flex justify-center items-center gap-3 text-[11px] text-slate-400 pt-0.5">
+                  <span>Total Pedido: <strong className="text-slate-200">R$ {valorTotal.toFixed(2)}</strong></span>
+                  <span>•</span>
+                  <span>Já Pago: <strong className="text-emerald-400">R$ {valorJaPago.toFixed(2)}</strong></span>
+                </div>
+              )}
             </div>
 
             {/* Linhas de Pagamento */}
@@ -612,16 +630,83 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
               </button>
             </div>
 
-            {/* Resumo de Conferência dos Valores */}
-            <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
+            {/* Resumo de Conferência dos Valores com Discriminação de Frete */}
+            <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between text-slate-400">
-                <span>Saldo Pendente a Quitar:</span>
-                <span className="font-bold text-white">R$ {saldoDevedorAtual.toFixed(2)}</span>
+                <span>Subtotal dos Produtos:</span>
+                <span className="font-semibold text-slate-200">R$ {subtotalProdutos.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+
+              {valorDesconto > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>Desconto:</span>
+                  <span className="font-semibold">- R$ {valorDesconto.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* Discriminação explícita do Frete / Retirada */}
+              <div className="flex justify-between items-center text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  {ehRetirada ? (
+                    <Store className="w-3.5 h-3.5 text-purple-400" />
+                  ) : (
+                    <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                  <span>
+                    {ehRetirada
+                      ? 'Retirada (Balcão - Grátis)'
+                      : transportadoraNome
+                      ? `Frete (${transportadoraNome}${servicoCodigo ? ` - ${servicoCodigo}` : ''}):`
+                      : 'Taxa de Entrega / Frete:'}
+                  </span>
+                </span>
+                <span className="font-semibold">
+                  {ehRetirada ? (
+                    <span className="text-purple-400 font-bold">Grátis</span>
+                  ) : valorFrete > 0 ? (
+                    <span className="text-slate-200">+ R$ {valorFrete.toFixed(2)}</span>
+                  ) : (
+                    <span className="text-emerald-400 font-bold">Grátis</span>
+                  )}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-sm text-slate-200">
+                <span>Total da Venda:</span>
+                <span className="text-emerald-400 font-black text-base">R$ {valorTotal.toFixed(2)}</span>
+              </div>
+
+              {valorJaPago > 0 && (
+                <div className="flex justify-between text-slate-400">
+                  <span>Já Pago Anteriormente:</span>
+                  <span className="font-bold text-emerald-400">R$ {valorJaPago.toFixed(2)}</span>
+                </div>
+              )}
+
+              {valorJaPago > 0 && (
+                <div className="flex justify-between text-slate-300 font-bold">
+                  <span>Saldo Restante a Quitar:</span>
+                  <span className="font-bold text-amber-400">R$ {saldoDevedorAtual.toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-slate-400 pt-1 border-t border-dashed border-slate-800">
                 <span>Total dos Meios Informados:</span>
                 <span className="font-bold text-white">R$ {totalLinhasPagamento.toFixed(2)}</span>
               </div>
+
+              {/* Troco para dinheiro quando informado valor entregue */}
+              {linhasPagamento.some(l => l.forma_tipo === 'dinheiro' && (l.valor_entregue || 0) > l.valor) && (
+                <div className="flex justify-between font-bold text-emerald-400">
+                  <span>Troco a Devolver:</span>
+                  <span>
+                    R$ {linhasPagamento
+                      .reduce((acc, l) => (l.forma_tipo === 'dinheiro' && (l.valor_entregue || 0) > l.valor ? acc + ((l.valor_entregue || 0) - l.valor) : acc), 0)
+                      .toFixed(2)}
+                  </span>
+                </div>
+              )}
+
               <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800/80">
                 {Math.abs(diferencaPagamento) < 0.01 ? (
                   <>
@@ -684,7 +769,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Confirmar Pagamento e Concluir</span>
+                    <span>Confirmar Pagamento</span>
                   </>
                 )}
               </button>
