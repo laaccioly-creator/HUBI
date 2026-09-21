@@ -464,11 +464,13 @@ export class UberDirectService {
         });
 
         if (!edgeErr && edgeData && (edgeData.id || edgeData.delivery_id || edgeData.tracking_url || edgeData.link_rastreio)) {
-          const rawLink = edgeData.link_rastreio || edgeData.tracking_url || '';
+          const officialTrackingUrl = edgeData.tracking_url || edgeData.trackingUrl || edgeData.link_rastreio || (edgeData.id ? `https://direct.uber.com/tracking/${edgeData.id}` : '');
+          const deliveryId = edgeData.delivery_id || edgeData.id || `uber_${Date.now()}`;
+          const pin = edgeData.dropoff_pin || edgeData.pickup_pin || edgeData.verification?.pincode || edgeData.pin_entrega || edgeData.pincode || null;
           return {
-            delivery_id: edgeData.delivery_id || edgeData.id || `uber_${Date.now()}`,
-            link_rastreio: rawLink.includes('mock') ? `/order-tracking/${pedido.id}` : (rawLink || `https://trip.uber.com/looking/${edgeData.id || Date.now()}`),
-            pin_entrega: edgeData.pin_entrega || edgeData.verification?.pincode || edgeData.pincode || '1234',
+            delivery_id: deliveryId,
+            link_rastreio: officialTrackingUrl,
+            pin_entrega: pin,
             status: edgeData.status || 'processing'
           };
         }
@@ -490,11 +492,13 @@ export class UberDirectService {
 
         if (proxyRes.ok) {
           const data = await proxyRes.json();
-          const rawLink = data.tracking_url || data.link_rastreio || '';
+          const officialTrackingUrl = data.tracking_url || data.trackingUrl || data.link_rastreio || (data.id ? `https://direct.uber.com/tracking/${data.id}` : '');
+          const deliveryId = data.id || data.delivery_id || `uber_${Date.now()}`;
+          const pin = data.dropoff_pin || data.pickup_pin || data.verification?.pincode || data.pin_entrega || data.pincode || null;
           return {
-            delivery_id: data.id || data.delivery_id || `uber_${Date.now()}`,
-            link_rastreio: rawLink.includes('mock') ? `/order-tracking/${pedido.id}` : (rawLink || `https://trip.uber.com/looking/${data.id || Date.now()}`),
-            pin_entrega: data.verification?.pincode || data.pin_entrega || data.pincode || '1234',
+            delivery_id: deliveryId,
+            link_rastreio: officialTrackingUrl,
+            pin_entrega: pin,
             status: data.status || 'processing'
           };
         }
@@ -522,20 +526,23 @@ export class UberDirectService {
       }
 
       const data = await response.json();
-      const rawLink = data.tracking_url || data.trackingUrl || '';
+      const officialTrackingUrl = data.tracking_url || data.trackingUrl || data.link_rastreio || (data.id ? `https://direct.uber.com/tracking/${data.id}` : '');
+      const deliveryId = data.id || `uber_${Date.now()}`;
+      const pin = data.dropoff_pin || data.pickup_pin || data.verification?.pincode || data.pin_entrega || data.pincode || null;
       return {
-        delivery_id: data.id || `uber_${Date.now()}`,
-        link_rastreio: rawLink.includes('mock') ? `/order-tracking/${pedido.id}` : (rawLink || `https://trip.uber.com/looking/${data.id}`),
-        pin_entrega: data.verification?.pincode || data.pincode || '1234',
+        delivery_id: deliveryId,
+        link_rastreio: officialTrackingUrl,
+        pin_entrega: pin,
         status: data.status || 'processing'
       };
     } catch (err: any) {
       console.warn('[UberDirect] Bloqueio de CORS ou falha de rede na chamada direta à Uber. Acionando retorno seguro de teste/sandbox:', err?.message || err);
 
-      // Em ambiente de teste/sandbox ou quando a API externa bloquear requisição por CORS, aponta para rastreio interno do HUBI
+      // Em ambiente de teste/sandbox, gera link simulado da Uber Direct
+      const mockId = `mock_${Date.now()}`;
       return {
-        delivery_id: `uber_mock_${Date.now()}`,
-        link_rastreio: `/order-tracking/${pedido.id}`,
+        delivery_id: `uber_${mockId}`,
+        link_rastreio: `https://direct.uber.com/tracking/${mockId}`,
         pin_entrega: '1234',
         status: 'processing'
       };

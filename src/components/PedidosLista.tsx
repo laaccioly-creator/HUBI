@@ -1253,6 +1253,35 @@ export const PedidosLista: React.FC = () => {
     window.open(url, '_blank');
   };
 
+  const handleCompartilharRastreioUber = (ped: Pedido) => {
+    const pe = (ped as any).pedido_entrega || (ped as any).pedido_entregas?.[0];
+    const link = ped.link_rastreio || pe?.link_rastreio;
+    if (!link) {
+      mostrarAviso('Link de rastreio não disponível para este pedido.');
+      return;
+    }
+    const pin = ped.pin_entrega || pe?.pin_entrega;
+    const pinTexto = pin ? `\n*PIN de Confirmação:* ${pin}` : '';
+    const texto = `🚗 Olá! Seu pedido #${ped.numero_pedido} está a caminho via Uber Flash!\n\nAcompanhe o motorista no mapa ao vivo pelo link:\n${link}${pinTexto}\n\nObrigado por comprar conosco!`;
+    const tel = ped.cliente?.whatsapp || ped.cliente?.telefone || '';
+    const cleanTel = tel.replace(/\D/g, '');
+    const url = cleanTel
+      ? `https://wa.me/55${cleanTel}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleCopiarRastreioUber = (ped: Pedido) => {
+    const pe = (ped as any).pedido_entrega || (ped as any).pedido_entregas?.[0];
+    const link = ped.link_rastreio || pe?.link_rastreio;
+    if (!link) {
+      mostrarAviso('Link de rastreio não disponível para este pedido.');
+      return;
+    }
+    navigator.clipboard.writeText(link);
+    mostrarSucesso('Link de rastreio da Uber copiado para a área de transferência!');
+  };
+
   const handleCopiarReciboTexto = (pedido: Pedido) => {
     if (!loja) return;
     const msg = PrintService.generateWhatsAppMessage(pedido, loja);
@@ -1857,28 +1886,57 @@ export const PedidosLista: React.FC = () => {
                       )}
 
                       {linkRastreio && (() => {
-                        const ehMockOuInterno =
-                          linkRastreio.startsWith('/') ||
-                          linkRastreio.includes('mock') ||
-                          linkRastreio.includes('trip.uber.com/looking/mock');
-
-                        const urlFinal = ehMockOuInterno
-                          ? (linkRastreio.startsWith('/')
-                              ? `${window.location.origin}${linkRastreio}`
-                              : `${window.location.origin}/order-tracking/${pedidoSelecionado.id}`)
-                          : linkRastreio;
+                        const ehUber =
+                          prov === 'uber' ||
+                          (pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber')) ||
+                          linkRastreio.includes('uber.com') ||
+                          linkRastreio.includes('ubr.to');
 
                         return (
                           <div className="pt-2">
-                            <a
-                              href={urlFinal}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>Acompanhar Rastreio em Tempo Real</span>
-                            </a>
+                            {ehUber ? (
+                              <div className="space-y-2">
+                                <a
+                                  href={linkRastreio}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full py-2.5 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+                                >
+                                  <span>🚗 Acompanhar Motorista no Mapa ao Vivo</span>
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopiarRastreioUber(pedidoSelecionado)}
+                                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    title="Copiar link de rastreio da Uber"
+                                  >
+                                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Copiar Link</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCompartilharRastreioUber(pedidoSelecionado)}
+                                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    title="Enviar link de rastreio para o cliente no WhatsApp"
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <a
+                                href={linkRastreio}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Acompanhar Rastreio em Tempo Real</span>
+                              </a>
+                            )}
                           </div>
                         );
                       })()}
@@ -2540,16 +2598,54 @@ export const PedidosLista: React.FC = () => {
                                 <span>Receber</span>
                               </button>
                             ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega') ? (
-                              /* ETAPA 3: Concluir Pedido */
-                              <button
-                                type="button"
-                                onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
-                                title="Concluir Pedido Entregue"
-                              >
-                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                <span>Concluir Pedido</span>
-                              </button>
+                              /* ETAPA 3: Concluir Pedido com ações de rastreio ao vivo para Uber */
+                              <div className="flex items-center gap-1">
+                                {(() => {
+                                  const { prov, pe } = resolverProvedorEntrega(pedido);
+                                  const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
+                                  const ehUber =
+                                    prov === 'uber' ||
+                                    (pedido.nome_app && pedido.nome_app.toLowerCase().includes('uber')) ||
+                                    link.includes('uber.com') ||
+                                    link.includes('ubr.to');
+
+                                  if (ehUber && link) {
+                                    return (
+                                      <>
+                                        <a
+                                          href={link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
+                                          title="Abrir mapa de rastreio ao vivo da Uber Direct"
+                                        >
+                                          <span>🚗</span>
+                                          <span>Mapa Uber</span>
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCompartilharRastreioUber(pedido)}
+                                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
+                                          title="Enviar link de rastreio da Uber no WhatsApp"
+                                        >
+                                          <MessageCircle className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                                <button
+                                  type="button"
+                                  onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                  title="Concluir Pedido Entregue"
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>Concluir</span>
+                                </button>
+                              </div>
                             ) : pedido.status !== 'concluido' ? (
                               <button
                                 type="button"

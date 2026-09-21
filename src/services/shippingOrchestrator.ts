@@ -777,9 +777,10 @@ export class ShippingOrchestrator {
     // 4. Persistência canônica em pedido_entregas (com upsert seguro)
     await this.salvarPedidoEntrega(pedido.id, {
       ...entregaAjustada,
+      codigo_rastreio: resultado.delivery_id,
       link_rastreio: resultado.link_rastreio,
       pin_entrega: resultado.pin_entrega || null,
-      status_envio: 'despachado',
+      status_envio: 'em_transito',
       despachado_em: despachadoEm,
       despachado_por: usuarioId || null
     });
@@ -798,7 +799,9 @@ export class ShippingOrchestrator {
       .from('pedidos')
       .update({
         status: 'saiu_para_entrega',
+        codigo_rastreio: resultado.delivery_id,
         link_rastreio: resultado.link_rastreio,
+        pin_entrega: resultado.pin_entrega || null,
         endereco_entrega: textoEndereco,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,

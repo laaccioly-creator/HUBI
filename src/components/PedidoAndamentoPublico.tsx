@@ -38,7 +38,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
             *,
             cliente:clientes(*),
             itens:itens_pedido(*),
-            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
+            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+            pedido_entregas:pedido_entregas(*)
           `);
 
         if (id.includes('-') && id.length > 20) {
@@ -105,7 +106,17 @@ export const PedidoAndamentoPublico: React.FC = () => {
   ].filter(Boolean).join(', ') || 'Endereço da Loja';
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoLoja)}`;
-  const logoUrl = loja?.url_logo || (loja as any)?.logo_url;
+  const logoUrl = loja?.url_logo;
+  const pe = (pedido as any)?.pedido_entregas?.[0] || (pedido as any)?.pedido_entrega;
+  const linkRastreio = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
+  const provEntrega = (pe?.provedor || (pedido as any).metadados?.provedor_frete || pedido.nome_app || pedido.nome_transportadora || '').toLowerCase();
+  const ehModalidadeUber = provEntrega.includes('uber') || linkRastreio.includes('uber.com') || linkRastreio.includes('ubr.to');
+  const temLinkUberValido = Boolean(
+    ehModalidadeUber &&
+    linkRastreio &&
+    (linkRastreio.startsWith('http://') || linkRastreio.startsWith('https://'))
+  );
+  const pinEntrega = pe?.pin_entrega || pedido.pin_entrega || null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16 font-sans">
@@ -149,6 +160,10 @@ export const PedidoAndamentoPublico: React.FC = () => {
                     ? 'Pronto para Retirada'
                     : pedido.status === 'saiu_para_entrega'
                     ? 'Saiu para Entrega'
+                    : pedido.status === 'aguardando_envio'
+                    ? 'Aguardando Envio'
+                    : pedido.status === 'enviado'
+                    ? 'Pedido Enviado'
                     : 'Pendente'}
                 </h3>
                 <span className="text-xs text-slate-400">
@@ -156,6 +171,30 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   {new Date(pedido.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
+
+              {/* Botão Destacado Oficial da Uber Direct: Acompanhar Motorista no Mapa ao Vivo */}
+              {temLinkUberValido && (
+                <div className="pt-2">
+                  <a
+                    href={linkRastreio}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer active:scale-95 border border-emerald-400"
+                  >
+                    <span className="text-base">🚗</span>
+                    <span>Acompanhar Motorista no Mapa ao Vivo</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  {pinEntrega && (
+                    <div className="mt-2 text-xs text-slate-300 flex items-center justify-center gap-1.5 font-medium">
+                      <span>PIN de Entrega:</span>
+                      <span className="font-mono font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        {pinEntrega}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Botão Como Chegar */}
               <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
