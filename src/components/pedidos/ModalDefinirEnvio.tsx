@@ -1,3 +1,4 @@
+// HUBI - Modal de Definição e Cotação de Envio do Pedido
 import React, { useState, useEffect } from 'react';
 import { Truck, X, Check, Loader2 } from 'lucide-react';
 import { Pedido, Cliente } from '../../types';

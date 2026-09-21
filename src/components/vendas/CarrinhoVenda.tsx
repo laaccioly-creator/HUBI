@@ -1,3 +1,4 @@
+// HUBI - Rodapé de Ações do Carrinho de Venda (PDV Desktop)
 import React, { useState, useMemo, useEffect } from 'react';
 import { Store, Truck, FileText, ArrowRight } from 'lucide-react';
 import { Cliente, Pedido, StatusPedido } from '../../types';
