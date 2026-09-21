@@ -328,14 +328,7 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
             endereco_complemento: complemento.trim() || null,
             endereco_bairro: bairro.trim(),
             endereco_cidade: cidade.trim(),
-            endereco_estado: estado.trim().toUpperCase(),
-            cep: cepLimpo,
-            rua: rua.trim(),
-            numero: numero.trim(),
-            complemento: complemento.trim() || null,
-            bairro: bairro.trim(),
-            cidade: cidade.trim(),
-            estado: estado.trim().toUpperCase()
+            endereco_estado: estado.trim().toUpperCase()
           })
           .eq('id', idCli);
 

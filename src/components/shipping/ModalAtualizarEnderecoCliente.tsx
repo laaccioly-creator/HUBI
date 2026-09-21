@@ -47,6 +47,7 @@ interface ModalAtualizarEnderecoClienteProps {
   aberto: boolean;
   onFechar: () => void;
   cliente: Cliente;
+  enderecoIdAtual?: string | null;
   onSucesso: (clienteAtualizado: Cliente, enderecoSalvo: ClienteEndereco) => void;
 }
 
@@ -54,6 +55,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
   aberto,
   onFechar,
   cliente,
+  enderecoIdAtual,
   onSucesso
 }) => {
   const [cep, setCep] = useState<string>('');
@@ -250,19 +252,23 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
       }
 
       // 2. Cria ou atualiza em cliente_enderecos como endereço principal
-      const enderecoSalvo = await ShippingOrchestrator.salvarNovoEnderecoCliente(cliente.id, {
-        identificador: 'Principal',
-        cep: cepLimpo,
-        logradouro: rua.trim(),
-        numero: numero.trim(),
-        complemento: (complemento || '').trim(),
-        bairro: bairro.trim(),
-        cidade: cidade.trim(),
-        uf: estado.trim().toUpperCase(),
-        latitude,
-        longitude,
-        is_principal: true
-      });
+      const enderecoSalvo = await ShippingOrchestrator.salvarNovoEnderecoCliente(
+        cliente.id,
+        {
+          identificador: 'Principal',
+          cep: cepLimpo,
+          logradouro: rua.trim(),
+          numero: numero.trim(),
+          complemento: (complemento || '').trim(),
+          bairro: bairro.trim(),
+          cidade: cidade.trim(),
+          uf: estado.trim().toUpperCase(),
+          latitude,
+          longitude,
+          is_principal: true
+        },
+        enderecoIdAtual
+      );
 
       const clienteCompleto: Cliente = {
         ...cliente,

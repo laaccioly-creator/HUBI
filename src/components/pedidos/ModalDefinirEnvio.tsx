@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, X, Check, Loader2 } from 'lucide-react';
 import { Pedido, Cliente } from '../../types';
-import { ShippingSelectionResult } from '../../types/shipping';
+import { ShippingSelectionResult, ClienteEndereco } from '../../types/shipping';
 import { ShippingFulfillmentSelector } from '../shipping/ShippingFulfillmentSelector';
 import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
@@ -33,10 +33,12 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
   const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
   const [clienteAtivo, setClienteAtivo] = useState<Cliente | null>(null);
   const [versaoFulfillment, setVersaoFulfillment] = useState<number>(0);
+  const [enderecoAtualizadoLocal, setEnderecoAtualizadoLocal] = useState<Partial<ClienteEndereco> | null>(null);
 
   useEffect(() => {
     let ativo = true;
     if (isOpen && pedido) {
+      setEnderecoAtualizadoLocal(null);
       if (pedido.cliente) {
         setClienteAtivo(pedido.cliente);
       } else if (pedido.cliente_id) {
@@ -141,7 +143,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             }))}
             valorFreteAtual={Number(pedido.valor_frete || 0)}
             tipoAtendimentoAtual="entrega"
-            enderecoEntregaAtual={(() => {
+            enderecoEntregaAtual={enderecoAtualizadoLocal || (() => {
               const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
               if (pe?.destino_logradouro && pe?.destino_numero && pe?.destino_cep) {
                 return {
@@ -232,9 +234,63 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             aberto={modalEnderecoAberto}
             onFechar={() => setModalEnderecoAberto(false)}
             cliente={(clienteAtivo || ({ id: pedido.cliente_id, loja_id: loja.id, nome: pedido.cliente_nome_avulso || 'Cliente' } as Cliente))}
-            onSucesso={(cliAtualizado) => {
+            enderecoIdAtual={(() => {
+              const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
+              return enderecoAtualizadoLocal?.id || pe?.cliente_endereco_id || null;
+            })()}
+            onSucesso={async (cliAtualizado, enderecoSalvo) => {
               setClienteAtivo(cliAtualizado);
               setModalEnderecoAberto(false);
+
+              const cepLimpoDest = (enderecoSalvo.cep || '').replace(/\D/g, '');
+              const idEndValido = enderecoSalvo.id && !enderecoSalvo.id.startsWith('cli-') && !enderecoSalvo.id.startsWith('end-') ? enderecoSalvo.id : null;
+
+              setEnderecoAtualizadoLocal({
+                id: idEndValido || undefined,
+                cep: cepLimpoDest,
+                logradouro: enderecoSalvo.logradouro,
+                numero: enderecoSalvo.numero,
+                complemento: enderecoSalvo.complemento || null,
+                bairro: enderecoSalvo.bairro,
+                cidade: enderecoSalvo.cidade,
+                uf: enderecoSalvo.uf,
+                latitude: enderecoSalvo.latitude || null,
+                longitude: enderecoSalvo.longitude || null,
+                is_principal: true
+              });
+
+              // Atualiza pedidos e pedido_entregas com o novo snapshot do endereço
+              try {
+                const linhaEndereco = cliAtualizado.endereco_principal || `${enderecoSalvo.logradouro}, ${enderecoSalvo.numero}${enderecoSalvo.complemento ? ` (${enderecoSalvo.complemento})` : ''}, ${enderecoSalvo.bairro}, ${enderecoSalvo.cidade}-${enderecoSalvo.uf}`;
+
+                await supabase
+                  .from('pedidos')
+                  .update({
+                    endereco_entrega: linhaEndereco,
+                    atualizado_em: new Date().toISOString()
+                  })
+                  .eq('id', pedido.id);
+
+                await supabase
+                  .from('pedido_entregas')
+                  .update({
+                    cliente_endereco_id: idEndValido,
+                    destino_cep: cepLimpoDest,
+                    destino_logradouro: enderecoSalvo.logradouro,
+                    destino_numero: enderecoSalvo.numero,
+                    destino_complemento: enderecoSalvo.complemento || null,
+                    destino_bairro: enderecoSalvo.bairro,
+                    destino_cidade: enderecoSalvo.cidade,
+                    destino_uf: enderecoSalvo.uf,
+                    destino_latitude: enderecoSalvo.latitude || null,
+                    destino_longitude: enderecoSalvo.longitude || null,
+                    atualizado_em: new Date().toISOString()
+                  })
+                  .eq('pedido_id', pedido.id);
+              } catch (eSync) {
+                console.warn('[ModalDefinirEnvio] Aviso ao sincronizar endereço no pedido:', eSync);
+              }
+
               setVersaoFulfillment((v) => v + 1);
               onFeedbackSucesso?.('Endereço do cliente atualizado com sucesso!');
             }}

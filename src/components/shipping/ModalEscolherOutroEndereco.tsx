@@ -192,8 +192,8 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
     const numLimpo = novoNumero.trim().toLowerCase();
     const compLimpo = novoComplemento.trim().toLowerCase();
 
-    // Validação estrita contra duplicidade na lista do cliente
-    const ehDuplicado = enderecos.some(e => {
+    // Se o endereço já está cadastrado, seleciona-o e conclui sem travar com erro
+    const enderecoExistente = enderecos.find(e => {
       const eCep = (e.cep || '').replace(/\D/g, '');
       const eNum = (e.numero || '').trim().toLowerCase();
       const eComp = (e.complemento || '').trim().toLowerCase();
@@ -204,8 +204,9 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
       return false;
     });
 
-    if (ehDuplicado) {
-      setErroMsg('Este endereço já está cadastrado na sua lista.');
+    if (enderecoExistente) {
+      setEnderecoEscolhido(enderecoExistente);
+      setExibirFormNovo(false);
       return;
     }
 

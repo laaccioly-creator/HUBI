@@ -281,7 +281,8 @@ export class ShippingOrchestrator {
    */
   public static async salvarNovoEnderecoCliente(
     clienteId: string,
-    input: NovoEnderecoFormInput
+    input: NovoEnderecoFormInput,
+    enderecoIdAtual?: string | null
   ): Promise<ClienteEndereco> {
     if (!clienteId) {
       throw new Error('Cliente não identificado para salvar endereço.');
@@ -292,10 +293,46 @@ export class ShippingOrchestrator {
     const logrLimpo = input.logradouro.trim();
     const compLimpo = (input.complemento || '').trim();
 
-    // 1. Validação Prévia de Duplicidade contra todos os endereços do cliente
+    // 1. Se estiver editando um endereço existente com UUID real no banco, faz o update
+    if (enderecoIdAtual && !enderecoIdAtual.startsWith('cli-') && !enderecoIdAtual.startsWith('end-')) {
+      if (input.is_principal) {
+        await supabase
+          .from('cliente_enderecos')
+          .update({ is_principal: false })
+          .eq('cliente_id', clienteId);
+      }
+
+      const { data: atualizado, error: errUpd } = await supabase
+        .from('cliente_enderecos')
+        .update({
+          identificador: input.identificador?.trim() || (input.is_principal ? 'Principal' : 'Outro'),
+          cep: cepLimpo,
+          logradouro: logrLimpo,
+          numero: numLimpo,
+          bairro: input.bairro.trim(),
+          cidade: input.cidade.trim(),
+          uf: input.uf.trim().toUpperCase(),
+          complemento: compLimpo || null,
+          latitude: input.latitude || null,
+          longitude: input.longitude || null,
+          is_principal: Boolean(input.is_principal),
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', enderecoIdAtual)
+        .select()
+        .maybeSingle();
+
+      if (atualizado && !errUpd) {
+        return atualizado as ClienteEndereco;
+      }
+    }
+
+    // 2. Busca endereços existentes para reaproveitamento
     const listaExistentes = await this.listarEnderecosCliente(clienteId);
 
-    const ehDuplicado = listaExistentes.some((e: ClienteEndereco) => {
+    const enderecoExistente = listaExistentes.find((e: ClienteEndereco) => {
+      if (enderecoIdAtual && e.id === enderecoIdAtual) return false;
+
       const eCep = (e.cep || '').replace(/\D/g, '');
       const eNum = (e.numero || '').trim().toLowerCase();
       const eComp = (e.complemento || '').trim().toLowerCase();
@@ -312,11 +349,26 @@ export class ShippingOrchestrator {
       return false;
     });
 
-    if (ehDuplicado) {
-      throw new Error('Este endereço já está cadastrado na sua lista.');
+    // Se já existe um registro físico em cliente_enderecos correspondente, reutiliza e atualiza principal
+    if (enderecoExistente && enderecoExistente.id && !enderecoExistente.id.startsWith('cli-') && !enderecoExistente.id.startsWith('end-')) {
+      if (input.is_principal) {
+        await supabase
+          .from('cliente_enderecos')
+          .update({ is_principal: false })
+          .eq('cliente_id', clienteId);
+
+        await supabase
+          .from('cliente_enderecos')
+          .update({ is_principal: true, atualizado_em: new Date().toISOString() })
+          .eq('id', enderecoExistente.id);
+      }
+      return {
+        ...enderecoExistente,
+        is_principal: Boolean(input.is_principal || enderecoExistente.is_principal)
+      };
     }
 
-    // 2. Se for principal, desmarca anteriores
+    // 3. Se for principal, desmarca outros como principal antes de inserir
     if (input.is_principal) {
       await supabase
         .from('cliente_enderecos')
@@ -324,7 +376,7 @@ export class ShippingOrchestrator {
         .eq('cliente_id', clienteId);
     }
 
-    // 3. Inserção Relacional sem Limite de Quantidade (cliente_enderecos)
+    // 4. Inserção do endereço na tabela cliente_enderecos
     const { data: novoEndereco, error } = await supabase
       .from('cliente_enderecos')
       .insert({
@@ -582,6 +634,7 @@ export class ShippingOrchestrator {
     }
 
     // Sanitizar campos virtuais ou de precificação que não existem no schema de pedido_entregas
+    delete payload.forma_entrega_nome;
     delete payload.is_frete_gratis;
     delete payload.is_upgrade_subsidio;
     delete payload.valor_original;
@@ -1339,13 +1392,26 @@ export class ShippingOrchestrator {
       destinoCepLimpo ? `CEP ${destinoCepLimpo.replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null
     ].filter(Boolean).join(', ') || pedAtual?.endereco_entrega || null;
 
+    const nomeTransportadora = pe.transportadora_nome ||
+      pe.forma_entrega_nome ||
+      resultado.opcao_frete?.transportadora_nome ||
+      (provedorFinal === 'uber' ? 'Uber Direct' : null);
+
+    const prazoTexto = pe.prazo_estimado_texto || resultado.opcao_frete?.prazo_estimado_texto || null;
+
     const dadosEntrega: Partial<PedidoEntrega> = {
       tipo_atendimento: resultado.tipo_atendimento || 'entrega',
       provedor: provedorFinal,
       cliente_endereco_id: clienteEnderecoId,
-      transportadora_nome: pe.transportadora_nome || pe.forma_entrega_nome || (provedorFinal === 'uber' ? 'Uber Direct' : null),
+      transportadora_nome: nomeTransportadora,
+      nome_transportadora: nomeTransportadora,
+      nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
       servico_codigo: pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null),
-      valor_frete: valorFrete,
+      valor_frete: Number(valorFrete || 0),
+      prazo_estimado_texto: prazoTexto,
+      tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
+      servico_correios: pe.servico_correios || null,
+      pin_entrega: pe.pin_entrega || null,
       destino_cep: destinoCepLimpo,
       destino_logradouro: destinoLogradouro,
       destino_numero: destinoNumero,
@@ -1356,13 +1422,7 @@ export class ShippingOrchestrator {
       destino_latitude: pe.destino_latitude || enderecoFinal?.latitude || null,
       destino_longitude: pe.destino_longitude || enderecoFinal?.longitude || null,
       forma_entrega_id: pe.forma_entrega_id || null,
-      forma_entrega_nome: pe.forma_entrega_nome || (provedorFinal === 'uber' ? 'Uber Direct' : null),
-      tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
-      nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
-      servico_correios: pe.servico_correios || null,
-      nome_transportadora: pe.nome_transportadora || (provedorFinal === 'uber' ? 'Uber Direct' : null),
-      pin_entrega: pe.pin_entrega || null,
-      status_envio: 'aguardando_despacho',
+      status_envio: 'pendente',
       atualizado_em: agora
     };
 
@@ -1376,9 +1436,7 @@ export class ShippingOrchestrator {
     const valorPagoPed = Number(pedAtual?.valor_pago || 0);
     const novoSaldoDevedor = Math.max(0, novoValorTotal - valorPagoPed);
 
-    const nomeRealFrete = pe.transportadora_nome ||
-      pe.forma_entrega_nome ||
-      resultado.opcao_frete?.transportadora_nome ||
+    const nomeRealFrete = nomeTransportadora ||
       (provedorFinal === 'uber' ? 'Uber Flash' : 'Entrega');
 
     const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
@@ -1388,12 +1446,12 @@ export class ShippingOrchestrator {
     metaAtual.tipo_atendimento = resultado.tipo_atendimento || 'entrega';
 
     // 5. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio' e endereco_entrega
-    await supabase
+    const { error: errPed } = await supabase
       .from('pedidos')
       .update({
         status: 'aguardando_envio',
         endereco_entrega: textoEnderecoEntrega,
-        valor_frete: valorFrete,
+        valor_frete: Number(valorFrete || 0),
         valor_total: novoValorTotal,
         saldo_devedor: novoSaldoDevedor,
         forma_entrega_id: pe.forma_entrega_id || null,
@@ -1408,5 +1466,10 @@ export class ShippingOrchestrator {
         atualizado_em: agora
       })
       .eq('id', pedidoId);
+
+    if (errPed) {
+      console.error('[ShippingOrchestrator] Erro ao atualizar pedido:', errPed);
+      throw new Error(`Erro ao atualizar pedido: ${errPed.message}`);
+    }
   }
 }
