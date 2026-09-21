@@ -60,6 +60,7 @@ import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
 import { formatarMoeda } from '../utils/formatters';
+import { podeEditarPedido } from '../utils/statusPedidoUtils';
 
 interface PosCheckoutMobileProps {
   produtos: Produto[];
@@ -133,7 +134,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   } = useCart();
 
   // Status de bloqueio de edição para pedidos confirmados ou em processamento
-  const isEdicaoTravada = Boolean(pedidoEmEdicao && pedidoEmEdicao.status !== 'pendente');
+  const isEdicaoTravada = Boolean(pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao));
 
   // Estados de Navegação e Visualização
   const [subTelaInterna, setSubTelaInterna] = useState<SubTelaMobile>('vender');

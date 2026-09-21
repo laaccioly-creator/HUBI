@@ -12,7 +12,7 @@ import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { DadosEnderecoCliente } from '../components/ModalEnderecoClienteCatalogo';
 
 import { supabase } from '../lib/supabase';
-import { podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
+import { podeEditarPedido, podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
 
 export interface CartItem {
   id: string;
@@ -307,8 +307,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantidade: number = 1,
     observacoes?: string
   ) => {
-    if (pedidoEmEdicao && !podeEditarItensPedido(pedidoEmEdicao.status)) {
-      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem adicionar itens. Apenas pedidos em aberto (pendente) permitem alteração de itens.`);
+    if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem adicionar itens.`);
       return;
     }
 
@@ -370,15 +370,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removerItem = (cartId: string) => {
-    if (pedidoEmEdicao && !podeEditarItensPedido(pedidoEmEdicao.status)) {
-      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem remover itens. Apenas pedidos em aberto (pendente) permitem alteração de itens.`);
+    if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
+      alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem remover itens.`);
       return;
     }
     setItens(prev => prev.filter(i => i.id !== cartId));
   };
 
   const atualizarQuantidade = (cartId: string, quantidade: number) => {
-    if (pedidoEmEdicao && !podeEditarItensPedido(pedidoEmEdicao.status)) {
+    if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
       alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alterar quantidades de itens.`);
       return;
     }
@@ -492,7 +492,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [subtotal, configFreteState.frete_gratis_ativo, configFreteState.frete_gratis_valor_minimo]);
 
   const setDescontoValor = (valor: number) => {
-    if (pedidoEmEdicao && !podeEditarDescontoPedido(pedidoEmEdicao.status)) {
+    if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
       alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alteração de desconto.`);
       return;
     }
@@ -506,7 +506,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setDescontoPercentual = (percentual: number) => {
-    if (pedidoEmEdicao && !podeEditarDescontoPedido(pedidoEmEdicao.status)) {
+    if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
       alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alteração de desconto.`);
       return;
     }

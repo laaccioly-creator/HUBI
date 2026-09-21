@@ -72,7 +72,8 @@ import {
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
   obterInfoVencimentoFiado,
-  validarTransicaoStatusPedido
+  validarTransicaoStatusPedido,
+  podeEditarPedido
 } from '../utils/statusPedidoUtils';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
@@ -1261,8 +1262,8 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleEditarPedido = async (pedido: Pedido) => {
-    if (pedido.status !== 'pendente') {
-      mostrarAviso('A alteração completa de produtos só é permitida para pedidos com status Pendente.', 'Edição Restrita');
+    if (!podeEditarPedido(pedido)) {
+      mostrarAviso('A alteração de produtos só é permitida para pedidos Pendentes ou com Envio Pendente (aguardando pagamento).', 'Edição Restrita');
       return;
     }
     await carregarPedidoParaEdicao(pedido);
@@ -1559,6 +1560,19 @@ export const PedidosLista: React.FC = () => {
                 <span>WhatsApp</span>
               </button>
 
+              {/* Botão Editar Pedido */}
+              {podeEditarPedido(pedidoSelecionado) && (
+                <button
+                  type="button"
+                  onClick={() => handleEditarPedido(pedidoSelecionado)}
+                  className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-xs font-bold text-amber-300 transition flex items-center gap-1.5 cursor-pointer"
+                  title="Editar itens e informações do pedido no PDV"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Editar Pedido</span>
+                </button>
+              )}
+
               {/* Botão Cancelar Pedido (TELA004) */}
               <button
                 type="button"
@@ -1851,14 +1865,16 @@ export const PedidosLista: React.FC = () => {
                   <span className="text-sm font-bold text-slate-100">
                     {pedidoSelecionado.itens?.length || 0} itens no pedido
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleEditarPedido(pedidoSelecionado)}
-                    className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                    <span>Editar itens</span>
-                  </button>
+                  {podeEditarPedido(pedidoSelecionado) && (
+                    <button
+                      type="button"
+                      onClick={() => handleEditarPedido(pedidoSelecionado)}
+                      className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Editar itens</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
@@ -1903,13 +1919,15 @@ export const PedidosLista: React.FC = () => {
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resumo do pedido</span>
-                  <button
-                    type="button"
-                    onClick={() => handleEditarPedido(pedidoSelecionado)}
-                    className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
-                  >
-                    Editar
-                  </button>
+                  {podeEditarPedido(pedidoSelecionado) && (
+                    <button
+                      type="button"
+                      onClick={() => handleEditarPedido(pedidoSelecionado)}
+                      className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                    >
+                      Editar
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2 text-xs">
@@ -2404,16 +2422,19 @@ export const PedidosLista: React.FC = () => {
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            {pedido.status === 'pendente' ? (
+                            {podeEditarPedido(pedido) && (
                               <button
                                 type="button"
                                 onClick={() => handleEditarPedido(pedido)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer"
+                                title="Editar itens e informações do pedido no PDV"
                               >
                                 <Edit className="w-3.5 h-3.5" />
                                 <span>Alterar</span>
                               </button>
-                            ) : pedido.status === 'envio_pendente' ? (
+                            )}
+
+                            {pedido.status === 'envio_pendente' ? (
                               /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento) */
                               <button
                                 type="button"

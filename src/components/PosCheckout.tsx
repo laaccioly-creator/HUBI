@@ -58,7 +58,7 @@ import { VendaOfflineFila } from '../services/offlineDb';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
 import { PosCheckoutMobile, SubTelaMobile } from './PosCheckoutMobile';
-import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado, podeEditarPedido } from '../utils/statusPedidoUtils';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 
 /**
@@ -207,7 +207,7 @@ export const PosCheckout: React.FC = () => {
     atualizarStatusPedidoEmEdicao
   } = useCart();
 
-  const isEdicaoTravada = Boolean(pedidoEmEdicao && pedidoEmEdicao.status !== 'pendente');
+  const isEdicaoTravada = Boolean(pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao));
 
   const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
   const [draftFulfillment, setDraftFulfillment] = useState<ShippingSelectionResult | null>(null);
@@ -637,7 +637,7 @@ export const PosCheckout: React.FC = () => {
 
     if (produtoEncontrado) {
       if (isEdicaoTravada) {
-        mostrarAviso('Alteração de itens bloqueada para pedidos com status diferente de pendente.');
+        mostrarAviso('Alteração de itens bloqueada para pedidos que já foram pagos ou estão em trânsito/concluídos.');
         setBuscaCodigoBarras('');
         return;
       }

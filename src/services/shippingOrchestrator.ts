@@ -12,6 +12,7 @@ import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
+import { normalizarTexto } from '../utils/geoUtils';
 
 export class ShippingOrchestrator {
   /**
@@ -494,7 +495,37 @@ export class ShippingOrchestrator {
       });
     }
 
-    return this.aplicarSubsidioFreteGratis(opcoesTotais, config, subtotal);
+    // 4. Filtro Inteligente de Modalidades por Município (Origem vs Destino)
+    const cidadeOrigemNorm = normalizarTexto(config?.origem_cidade);
+    const cidadeDestinoNorm = normalizarTexto(destino_cidade);
+
+    let opcoesFiltradas = opcoesTotais;
+    if (cidadeOrigemNorm && cidadeDestinoNorm) {
+      const ehMesmaCidade = cidadeOrigemNorm === cidadeDestinoNorm;
+      opcoesFiltradas = opcoesTotais.filter(op => {
+        if (ehMesmaCidade) {
+          // Se Origem === Destino (Mesma Cidade / Entrega Municipal):
+          // - Ocultar transportadoras rodoviárias/interestaduais do Melhor Envio (Jadlog, Azul Cargo, Buslog, LATAM Cargo, etc.)
+          // - Exibir: Uber Direct e serviços rápidos/locais (ex.: Correios SEDEX e frete próprio/manual)
+          if (op.provedor === 'uber') return true;
+          if (op.provedor === 'melhor_envio') {
+            const texto = `${op.transportadora_nome || ''} ${op.servico_nome || ''}`.toLowerCase();
+            const ehRodoviariaInterestadual = ['jadlog', 'azul', 'buslog', 'latam', 'pac'].some(t => texto.includes(t));
+            if (ehRodoviariaInterestadual) return false;
+            return texto.includes('sedex');
+          }
+          return true;
+        } else {
+          // Se Origem !== Destino (Outra Cidade / Intermunicipal / Interestadual):
+          // - Ocultar Uber Direct (raio local urbano apenas)
+          // - Exibir: Todas as opções de transportadoras integradas do Melhor Envio (Jadlog, Correios PAC/SEDEX, etc.)
+          if (op.provedor === 'uber') return false;
+          return true;
+        }
+      });
+    }
+
+    return this.aplicarSubsidioFreteGratis(opcoesFiltradas, config, subtotal);
   }
 
   /**

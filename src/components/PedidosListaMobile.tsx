@@ -56,7 +56,8 @@ import {
   ROTULOS_STATUS_PEDIDO,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
-  obterInfoVencimentoFiado
+  obterInfoVencimentoFiado,
+  podeEditarPedido
 } from '../utils/statusPedidoUtils';
 
 interface HistoricoItemMobile {
@@ -1601,18 +1602,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <span>Alterar vendedor</span>
               </button>
 
-              <button
-                type="button"
-                onClick={async () => {
-                  setModalOpcoesPedido(false);
-                  await carregarPedidoParaEdicao(pedidoSelecionado);
-                  navigate('/pos', { state: { subTela: 'carrinho' } });
-                }}
-                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left cursor-pointer"
-              >
-                <Edit2 className="w-4 h-4 text-slate-500" />
-                <span>Editar pedido</span>
-              </button>
+              {podeEditarPedido(pedidoSelecionado) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setModalOpcoesPedido(false);
+                    await carregarPedidoParaEdicao(pedidoSelecionado);
+                    navigate('/pos', { state: { subTela: 'carrinho' } });
+                  }}
+                  className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left cursor-pointer"
+                >
+                  <Edit2 className="w-4 h-4 text-slate-500" />
+                  <span>Editar pedido</span>
+                </button>
+              )}
 
               <button
                 type="button"

@@ -226,19 +226,62 @@ export function validarTransicaoStatusPedido(
 }
 
 /**
- * Informa se o status do pedido permite edição estrutural do carrinho (itens e quantidades).
- * Apenas o status 'pendente' permite alteração estrutural de itens.
+ * Determina se um pedido pode ser editado no carrinho/PDV.
+ *
+ * Cenários permitidos:
+ * 1. status === 'pendente'
+ * 2. status === 'envio_pendente' OU status === 'aguardando_envio',
+ *    DESDE QUE status_pagamento === 'aguardando_pagamento'.
+ *
+ * Bloqueios mantidos:
+ * - Se status_pagamento === 'pago' (exceto status estrito 'pendente')
+ * - Se em trânsito ou finalizado: 'saiu_para_entrega', 'enviado', 'concluido', 'cancelado'
  */
-export function podeEditarItensPedido(status?: string): boolean {
-  return status === 'pendente';
+export function podeEditarPedido(
+  pedidoOuStatus?: { status?: string; status_pagamento?: string } | string | null,
+  statusPagamento?: string
+): boolean {
+  if (!pedidoOuStatus) return false;
+
+  const status = typeof pedidoOuStatus === 'string' ? pedidoOuStatus : pedidoOuStatus.status;
+  const statusPag = typeof pedidoOuStatus === 'object' ? pedidoOuStatus.status_pagamento : statusPagamento;
+
+  if (!status) return false;
+
+  // Bloqueio mantido: pedidos concluídos, cancelados ou em trânsito/expedição externa
+  const statusBloqueados = ['saiu_para_entrega', 'enviado', 'concluido', 'cancelado'];
+  if (statusBloqueados.includes(status)) {
+    return false;
+  }
+
+  // 1. Status 'pendente': sempre permitido
+  if (status === 'pendente') {
+    return true;
+  }
+
+  // 2. Status 'envio_pendente' ou 'aguardando_envio':
+  // Permitido DESDE QUE o status_pagamento seja 'aguardando_pagamento' (ou não esteja pago)
+  if (status === 'envio_pendente' || status === 'aguardando_envio') {
+    const ehPago = statusPag === 'pago';
+    const ehAguardando = statusPag === 'aguardando_pagamento' || !statusPag || statusPag === 'pendente';
+    return !ehPago && ehAguardando;
+  }
+
+  return false;
+}
+
+/**
+ * Informa se o status do pedido permite edição estrutural do carrinho (itens e quantidades).
+ */
+export function podeEditarItensPedido(status?: string, statusPagamento?: string): boolean {
+  return podeEditarPedido(status, statusPagamento);
 }
 
 /**
  * Informa se o status do pedido permite aplicar ou alterar descontos.
- * Permitido em 'pendente', 'confirmado' e 'aguardando_envio'.
  */
-export function podeEditarDescontoPedido(status?: string): boolean {
-  return status === 'pendente' || status === 'confirmado' || status === 'aguardando_envio';
+export function podeEditarDescontoPedido(status?: string, statusPagamento?: string): boolean {
+  return podeEditarPedido(status, statusPagamento);
 }
 
 /**

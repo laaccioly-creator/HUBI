@@ -28,7 +28,7 @@ import {
 import { FormaEntrega } from '../../types';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { isUuidValido } from '../../services/syncService';
-import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja } from '../../utils/geoUtils';
+import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja, normalizarTexto } from '../../utils/geoUtils';
 import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
 import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
 
@@ -397,16 +397,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     setErroCotacaoMsg(null);
 
     try {
+      const cidadeOrigemBase = configLoja?.origem_cidade || loja?.endereco_cidade || '';
+      const ufOrigemBase = configLoja?.origem_uf || loja?.endereco_estado || '';
+      const cepOrigemBase = configLoja?.origem_cep || loja?.endereco_cep || '';
+
       const runtimeConfig: LojaShippingConfig = {
         ...(configLoja || {
           id: 'temp',
           loja_id: lojaId,
-          origem_cep: '',
-          origem_logradouro: '',
-          origem_numero: '',
-          origem_bairro: '',
-          origem_cidade: '',
-          origem_uf: '',
+          origem_cep: cepOrigemBase,
+          origem_logradouro: loja?.endereco_logradouro || '',
+          origem_numero: loja?.endereco_numero || '',
+          origem_bairro: loja?.endereco_bairro || '',
+          origem_cidade: cidadeOrigemBase,
+          origem_uf: ufOrigemBase,
           uber_sandbox_mode: true,
           uber_ativo: false,
           melhor_envio_sandbox_mode: true,
@@ -416,14 +420,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           frete_gratis_ativo: false,
           frete_gratis_valor_minimo: 0
         }),
+        origem_cidade: configLoja?.origem_cidade || cidadeOrigemBase,
+        origem_uf: configLoja?.origem_uf || ufOrigemBase,
+        origem_cep: configLoja?.origem_cep || cepOrigemBase,
         uber_ativo: temUber,
         melhor_envio_ativo: temMelhorEnvio,
         frete_proprio_ativo: false
       };
 
-      const promessaCotacao = configLoja?.origem_cep
+      const cepOrigemFinal = runtimeConfig.origem_cep || cepOrigemBase;
+      const promessaCotacao = cepOrigemFinal
         ? ShippingOrchestrator.cotarOpcoesFrete({
-            origem_cep: configLoja.origem_cep,
+            origem_cep: cepOrigemFinal,
             destino_cep: endAlvo.cep,
             destino_logradouro: endAlvo.logradouro,
             destino_numero: endAlvo.numero,
@@ -438,25 +446,57 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
       const opcoesBrutas = await promessaCotacao;
 
-      // Validação de Região Metropolitana para Uber Direct
-      const mesmaRegiao = configLoja ? verificarMesmaRegiaoMetropolitana(
-        {
-          cidade: configLoja.origem_cidade,
-          uf: configLoja.origem_uf,
-          latitude: configLoja.origem_latitude,
-          longitude: configLoja.origem_longitude
-        },
-        {
-          cidade: endAlvo.cidade,
-          uf: endAlvo.uf,
-          latitude: endAlvo.latitude,
-          longitude: endAlvo.longitude
-        }
-      ) : true;
+      // Filtro Inteligente de Modalidades por Município (Origem vs Destino)
+      const cidadeOrigemNorm = normalizarTexto(runtimeConfig.origem_cidade || cidadeOrigemBase);
+      const cidadeDestinoNorm = normalizarTexto(endAlvo.cidade);
+      const cidadesInformadas = Boolean(cidadeOrigemNorm && cidadeDestinoNorm);
+      const ehMesmaCidade = cidadesInformadas && cidadeOrigemNorm === cidadeDestinoNorm;
 
       const opcoesFiltradas = opcoesBrutas.filter(op => {
+        if (cidadesInformadas) {
+          if (ehMesmaCidade) {
+            // Se Origem === Destino (Mesma Cidade / Entrega Municipal):
+            // 1. Ocultar transportadoras rodoviárias/interestaduais do Melhor Envio (Jadlog, Azul Cargo, Buslog, LATAM Cargo, PAC)
+            // 2. Exibir: Uber Direct e serviços rápidos/locais (ex.: Correios SEDEX e opções manuais de frete próprio)
+            if (op.provedor === 'uber') {
+              return true;
+            }
+            if (op.provedor === 'melhor_envio') {
+              const texto = `${op.transportadora_nome || ''} ${op.servico_nome || ''}`.toLowerCase();
+              const ehRodoviariaInterestadual = ['jadlog', 'azul', 'buslog', 'latam', 'pac'].some(t => texto.includes(t));
+              if (ehRodoviariaInterestadual) {
+                return false;
+              }
+              return texto.includes('sedex');
+            }
+            return true;
+          } else {
+            // Se Origem !== Destino (Outra Cidade / Intermunicipal / Interestadual):
+            // 1. Ocultar Uber Direct (raio local urbano apenas)
+            // 2. Exibir: Todas as opções de transportadoras integradas do Melhor Envio (Jadlog, Correios PAC/SEDEX, etc.)
+            if (op.provedor === 'uber') {
+              return false;
+            }
+            return true;
+          }
+        }
+
+        // Fallback caso cidade de origem ou destino não tenha sido informada
         if (op.provedor === 'uber') {
-          return mesmaRegiao;
+          return configLoja ? verificarMesmaRegiaoMetropolitana(
+            {
+              cidade: configLoja.origem_cidade,
+              uf: configLoja.origem_uf,
+              latitude: configLoja.origem_latitude,
+              longitude: configLoja.origem_longitude
+            },
+            {
+              cidade: endAlvo.cidade,
+              uf: endAlvo.uf,
+              latitude: endAlvo.latitude,
+              longitude: endAlvo.longitude
+            }
+          ) : true;
         }
         return true;
       });
