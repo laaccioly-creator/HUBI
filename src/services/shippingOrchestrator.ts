@@ -214,16 +214,16 @@ export class ShippingOrchestrator {
       // Sempre busca o endereço cadastral original na tabela clientes para consolidar
       const { data: cli } = await supabase
         .from('clientes')
-        .select('id, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, cep, rua, numero, complemento, bairro, cidade, estado')
+        .select('id, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado')
         .eq('id', clienteId)
         .maybeSingle();
 
       let listaConsolidada = [...ends];
 
       if (cli) {
-        const cCep = (cli.endereco_cep || cli.cep || '').replace(/\D/g, '');
-        const cLogr = (cli.endereco_logradouro || cli.rua || '').trim();
-        const cNum = (cli.endereco_numero || cli.numero || 'S/N').trim();
+        const cCep = (cli.endereco_cep || '').replace(/\D/g, '');
+        const cLogr = (cli.endereco_logradouro || '').trim();
+        const cNum = (cli.endereco_numero || 'S/N').trim();
 
         if (cCep || cLogr) {
           const jaExiste = ends.some(e => {
@@ -242,10 +242,10 @@ export class ShippingOrchestrator {
               cep: cCep,
               logradouro: cLogr || 'Endereço Principal',
               numero: cNum,
-              complemento: (cli.endereco_complemento || cli.complemento || '').trim() || null,
-              bairro: (cli.endereco_bairro || cli.bairro || 'Centro').trim(),
-              cidade: (cli.endereco_cidade || cli.cidade || 'Fortaleza').trim(),
-              uf: (cli.endereco_estado || cli.estado || 'CE').trim().toUpperCase(),
+              complemento: (cli.endereco_complemento || '').trim() || null,
+              bairro: (cli.endereco_bairro || 'Centro').trim(),
+              cidade: (cli.endereco_cidade || 'Fortaleza').trim(),
+              uf: (cli.endereco_estado || 'CE').trim().toUpperCase(),
               is_principal: !temPrincipalEmEnds,
               criado_em: new Date(0).toISOString()
             };
@@ -580,6 +580,13 @@ export class ShippingOrchestrator {
     if (!idSanitizado) {
       delete payload.id;
     }
+
+    // Sanitizar campos virtuais ou de precificação que não existem no schema de pedido_entregas
+    delete payload.is_frete_gratis;
+    delete payload.is_upgrade_subsidio;
+    delete payload.valor_original;
+    delete payload.valor_subsidio;
+    delete payload.tipo_entrega;
 
     let { data, error } = await supabase
       .from('pedido_entregas')
@@ -1339,9 +1346,6 @@ export class ShippingOrchestrator {
       transportadora_nome: pe.transportadora_nome || pe.forma_entrega_nome || (provedorFinal === 'uber' ? 'Uber Direct' : null),
       servico_codigo: pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null),
       valor_frete: valorFrete,
-      valor_original: pe.valor_original ?? valorFrete,
-      valor_subsidio: pe.valor_subsidio ?? 0,
-      is_frete_gratis: Boolean(pe.is_frete_gratis),
       destino_cep: destinoCepLimpo,
       destino_logradouro: destinoLogradouro,
       destino_numero: destinoNumero,

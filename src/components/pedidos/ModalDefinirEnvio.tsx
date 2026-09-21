@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Truck, X, Check, Loader2 } from 'lucide-react';
-import { Pedido } from '../../types';
+import { Pedido, Cliente } from '../../types';
 import { ShippingSelectionResult } from '../../types/shipping';
 import { ShippingFulfillmentSelector } from '../shipping/ShippingFulfillmentSelector';
+import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
+import { supabase } from '../../lib/supabase';
 
 export interface ModalDefinirEnvioProps {
   isOpen: boolean;
@@ -28,6 +30,34 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
 }) => {
   const [selecaoPendente, setSelecaoPendente] = useState<ShippingSelectionResult | null>(null);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
+  const [clienteAtivo, setClienteAtivo] = useState<Cliente | null>(null);
+  const [versaoFulfillment, setVersaoFulfillment] = useState<number>(0);
+
+  useEffect(() => {
+    let ativo = true;
+    if (isOpen && pedido) {
+      if (pedido.cliente) {
+        setClienteAtivo(pedido.cliente);
+      } else if (pedido.cliente_id) {
+        supabase
+          .from('clientes')
+          .select('id, loja_id, nome, whatsapp, telefone, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_principal')
+          .eq('id', pedido.cliente_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (ativo && data) {
+              setClienteAtivo(data as Cliente);
+            }
+          });
+      } else {
+        setClienteAtivo(null);
+      }
+    }
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, pedido]);
 
   if (!isOpen || !pedido || !loja) return null;
 
@@ -93,10 +123,12 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
         {/* Corpo com o Seletor de Fulfillment */}
         <div className="flex-1 overflow-y-auto pr-1">
           <ShippingFulfillmentSelector
+            key={`fulfillment-${pedido.id}-${versaoFulfillment}`}
             lojaId={loja.id}
             loja={loja}
             clienteId={pedido.cliente_id || pedido.cliente?.id || null}
-            cliente={pedido.cliente || null}
+            cliente={clienteAtivo || pedido.cliente || null}
+            permiteRetirada={false}
             subtotal={Number(pedido.subtotal || pedido.valor_total || 0)}
             itens={(pedido.itens || []).map((i: any) => ({
               nome: i.nome_produto || i.produto?.nome || 'Item',
@@ -125,6 +157,9 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               }
               return null;
             })()}
+            onSolicitarAtualizarEndereco={() => {
+              setModalEnderecoAberto(true);
+            }}
             onChange={(resultado: ShippingSelectionResult) => {
               // Apenas armazena a seleção no estado local do modal; JAMAIS fecha ou salva automaticamente!
               setSelecaoPendente(resultado);
@@ -190,6 +225,21 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Modal de Atualização de Endereço do Cliente */}
+        {modalEnderecoAberto && (clienteAtivo || (pedido.cliente_id ? ({ id: pedido.cliente_id, loja_id: loja.id, nome: pedido.cliente_nome_avulso || 'Cliente' } as Cliente) : null)) && (
+          <ModalAtualizarEnderecoCliente
+            aberto={modalEnderecoAberto}
+            onFechar={() => setModalEnderecoAberto(false)}
+            cliente={(clienteAtivo || ({ id: pedido.cliente_id, loja_id: loja.id, nome: pedido.cliente_nome_avulso || 'Cliente' } as Cliente))}
+            onSucesso={(cliAtualizado) => {
+              setClienteAtivo(cliAtualizado);
+              setModalEnderecoAberto(false);
+              setVersaoFulfillment((v) => v + 1);
+              onFeedbackSucesso?.('Endereço do cliente atualizado com sucesso!');
+            }}
+          />
+        )}
       </div>
     </div>
   );

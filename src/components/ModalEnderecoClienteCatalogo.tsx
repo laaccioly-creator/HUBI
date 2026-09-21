@@ -116,18 +116,18 @@ export const ModalEnderecoClienteCatalogo: React.FC<ModalEnderecoClienteCatalogo
           // 2. Se não encontrou em cliente_enderecos, busca na tabela clientes
           const { data: cli } = await supabase
             .from('clientes')
-            .select('endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, cep, rua, numero, complemento, bairro, cidade, estado')
+            .select('endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado')
             .eq('id', idCli)
             .single();
 
           if (ativo && cli) {
-            const cCep = cli.endereco_cep || cli.cep || '';
-            const cRua = cli.endereco_logradouro || cli.rua || '';
-            const cNum = cli.endereco_numero || cli.numero || '';
-            const cComp = cli.endereco_complemento || cli.complemento || '';
-            const cBairro = cli.endereco_bairro || cli.bairro || '';
-            const cCid = cli.endereco_cidade || cli.cidade || '';
-            const cEst = cli.endereco_estado || cli.estado || '';
+            const cCep = cli.endereco_cep || '';
+            const cRua = cli.endereco_logradouro || '';
+            const cNum = cli.endereco_numero || '';
+            const cComp = cli.endereco_complemento || '';
+            const cBairro = cli.endereco_bairro || '';
+            const cCid = cli.endereco_cidade || '';
+            const cEst = cli.endereco_estado || '';
 
             if (cRua || cCep || cCid) {
               const cepFormat = cCep.replace(/\D/g, '').slice(0, 8);

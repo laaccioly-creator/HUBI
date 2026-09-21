@@ -70,6 +70,7 @@ export interface ShippingFulfillmentSelectorProps {
     endereco_cidade?: string | null;
     endereco_estado?: string | null;
   } | null;
+  permiteRetirada?: boolean;
   subtotal: number;
   itens: CotacaoItemProduto[];
   valorFreteAtual?: number;
@@ -87,6 +88,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   loja,
   clienteId,
   cliente,
+  permiteRetirada: permiteRetiradaProp,
   subtotal,
   itens,
   valorFreteAtual = 0,
@@ -364,7 +366,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const temFreteProprio = Boolean(configLoja?.frete_proprio_ativo === true);
   const temFormasEntregaEnvio = formasEntrega.some(f => f.tipo !== 'retirada');
   const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio || temFreteProprio || temFormasEntregaEnvio);
-  const permiteRetirada = Boolean(
+  const permiteRetirada = permiteRetiradaProp !== undefined ? permiteRetiradaProp : Boolean(
     configLoja?.retirada_loja_ativa !== false && 
     configLoja?.retirada_balcao_ativa !== false
   );
@@ -838,19 +840,19 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* 1. CARD DE ENDEREÇO DE ENTREGA */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Calculamos os custos e prazos para este endereço:</span>
+      {/* 1. CARD DE ENDEREÇO DE ENTREGA (Exibido apenas quando há endereço válido ou durante carregamento) */}
+      {carregandoEnderecos ? (
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+          <span>Carregando dados de endereço...</span>
         </div>
-
-        {carregandoEnderecos ? (
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
-            <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-            <span>Carregando dados de endereço...</span>
+      ) : (enderecoSelecionado && (enderecoSelecionado.cep || '').replace(/\D/g, '') && (enderecoSelecionado.logradouro || '').trim()) ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Calculamos os custos e prazos para este endereço:</span>
           </div>
-        ) : enderecoSelecionado ? (
+
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative overflow-hidden text-slate-800 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
@@ -889,21 +891,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               </button>
             </div>
           </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2">
-            <p className="text-xs text-slate-500">Nenhum endereço selecionado.</p>
-            {clienteId && (
-              <button
-                type="button"
-                onClick={() => setModalEscolherOutroAberto(true)}
-                className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs hover:bg-emerald-100 transition cursor-pointer"
-              >
-                Selecionar ou Cadastrar Endereço
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* 2. FORMAS DE ATENDIMENTO (RETIRADA E ENTREGA) */}
       <div className="space-y-4 pt-1">
@@ -1027,7 +1016,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 <span>Endereço incompleto para entrega</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Para calcular e despachar entregas (automáticas ou manuais), informe ou selecione o endereço completo do cliente.
+                Para calcular e despachar entregas, atualize o endereço do cliente.
               </p>
               <button
                 type="button"
@@ -1035,7 +1024,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
               >
                 <MapPin className="w-3.5 h-3.5" />
-                <span>{clienteId ? 'Atualizar endereço' : 'Identificar / Vincular Cliente'}</span>
+                <span>Atualizar Endereço</span>
               </button>
             </div>
           ) : (
