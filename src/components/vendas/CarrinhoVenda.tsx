@@ -6,6 +6,8 @@ import { CartItem } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingSelectionResult } from '../../types/shipping';
+import { supabase } from '../../lib/supabase';
+import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 
 export interface DadosSalvarPedido {
   cliente_id: string | null;
@@ -15,6 +17,9 @@ export interface DadosSalvarPedido {
   valor_total: number;
   status: StatusPedido;
   status_pagamento: 'pago' | 'aguardando_pagamento';
+  forma_entrega_id?: string | null;
+  selecao_envio?: ShippingSelectionResult | null;
+  pedido_id?: string;
 }
 
 export interface CarrinhoVendaProps {
@@ -102,19 +107,96 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
     if (itens.length === 0 || salvando) return;
     try {
       setSalvando(true);
+      const dataIso = new Date().toISOString();
+      const ehEnvioComOpcao = ehEnvio && Boolean(selecaoEnvio);
+
+      const statusFinal: StatusPedido = ehEnvioComOpcao ? 'aguardando_envio' : 'pendente';
+      const valorFreteFinal = ehEnvioComOpcao ? Number(selecaoEnvio?.valor_frete || valorFrete || 0) : 0;
+      const formaEntregaIdFinal = ehEnvioComOpcao ? (selecaoEnvio?.pedido_entrega?.forma_entrega_id || null) : null;
+      const valorTotalFinal = subtotal + valorFreteFinal;
+
+      let pedidoIdCriado: string | null = null;
+
+      if (loja?.id) {
+        // Gravação direta no Supabase com integridade relacional
+        const dadosBasePedido = {
+          loja_id: loja.id,
+          cliente_id: clienteAtivo?.id || null,
+          origem: 'pdv_desktop' as const,
+          status: statusFinal,
+          status_pagamento: 'aguardando_pagamento' as const,
+          subtotal,
+          subtotal_produtos: subtotal,
+          valor_desconto: 0,
+          valor_frete: valorFreteFinal,
+          forma_entrega_id: formaEntregaIdFinal,
+          valor_total: valorTotalFinal,
+          valor_pago: 0,
+          saldo_devedor: valorTotalFinal,
+          atualizado_por: usuario?.id || null,
+          data_venda: dataIso,
+          criado_em: dataIso,
+          atualizado_em: dataIso
+        };
+
+        const { data: pedidoCriado, error: erroPedido } = await supabase
+          .from('pedidos')
+          .insert([dadosBasePedido])
+          .select()
+          .single();
+
+        if (erroPedido || !pedidoCriado) throw erroPedido;
+        pedidoIdCriado = pedidoCriado.id;
+
+        const itensFormatados = itens.map(item => ({
+          loja_id: loja.id,
+          pedido_id: pedidoCriado.id,
+          produto_id: item.produto.id,
+          variacao_id: item.variacao?.id || null,
+          nome_produto: item.produto.nome,
+          preco_venda_unitario: item.precoUnitario,
+          preco_custo_unitario: item.produto.preco_custo || 0,
+          quantidade: item.quantidade,
+          subtotal: (item.precoUnitario || 0) * item.quantidade
+        }));
+
+        await supabase.from('itens_pedido').insert(itensFormatados);
+
+        // Se houver opção de envio selecionada, persistir em public.pedido_entregas
+        if (ehEnvioComOpcao && selecaoEnvio) {
+          const entregaPayload = selecaoEnvio.pedido_entrega ? {
+            ...selecaoEnvio.pedido_entrega,
+            pedido_id: pedidoCriado.id,
+            valor_frete: valorFreteFinal
+          } : {
+            pedido_id: pedidoCriado.id,
+            tipo_atendimento: 'entrega' as const,
+            valor_frete: valorFreteFinal,
+            provedor: (selecaoEnvio.opcao_frete?.provedor || 'frete_proprio') as any,
+            transportadora_nome: selecaoEnvio.opcao_frete?.transportadora_nome || 'Envio',
+            status_envio: 'pendente' as const
+          };
+
+          await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
+        }
+      }
+
       const payload: DadosSalvarPedido = {
         cliente_id: clienteAtivo?.id || null,
         itens,
         subtotal,
-        valor_frete: valorFreteEfetivo,
-        valor_total: valorTotal,
-        status: ehEnvio ? 'envio_pendente' : 'pendente',
-        status_pagamento: 'aguardando_pagamento'
+        valor_frete: valorFreteFinal,
+        valor_total: valorTotalFinal,
+        status: statusFinal,
+        status_pagamento: 'aguardando_pagamento',
+        forma_entrega_id: formaEntregaIdFinal,
+        selecao_envio: selecaoEnvio,
+        pedido_id: pedidoIdCriado || undefined
       };
 
       if (onSalvarPedido) {
         await onSalvarPedido(payload);
-      } else {
+      } else if (!loja?.id) {
         await onFinalizarVenda(payload);
       }
 
@@ -122,6 +204,8 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
       setFreteConfirmado(false);
       setValorFrete(0);
       setSelecaoEnvio(null);
+    } catch (err) {
+      console.error('Erro ao salvar pedido no carrinho:', err);
     } finally {
       setSalvando(false);
     }
@@ -139,8 +223,10 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
         subtotal,
         valor_frete: valorFreteEfetivo,
         valor_total: valorTotal,
-        status: ehEnvio ? 'envio_pendente' : 'concluido',
-        status_pagamento: 'pago'
+        status: ehEnvio ? 'aguardando_envio' : 'concluido',
+        status_pagamento: 'pago',
+        forma_entrega_id: selecaoEnvio?.pedido_entrega?.forma_entrega_id || null,
+        selecao_envio: selecaoEnvio
       });
       onLimparCarrinho?.();
       setFreteConfirmado(false);

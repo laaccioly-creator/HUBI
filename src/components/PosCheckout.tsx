@@ -712,7 +712,7 @@ export const PosCheckout: React.FC = () => {
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
       const ehEnvioAtual = pedidoEntrega?.tipo_atendimento === 'entrega';
-      const statusFinal = pedidoEmEdicao?.status || (ehEnvioAtual ? 'envio_pendente' : 'pendente');
+      const statusFinal = pedidoEmEdicao?.status || (ehEnvioAtual ? 'aguardando_envio' : 'pendente');
       const obsLimpa = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 
       let metaExistente: Record<string, any> = {};
@@ -1291,7 +1291,7 @@ export const PosCheckout: React.FC = () => {
       if (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente') {
         statusFinal = pedidoEmEdicao.status;
       } else {
-        statusFinal = ehEntrega ? 'envio_pendente' : 'concluido';
+        statusFinal = ehEntrega ? 'aguardando_envio' : 'concluido';
       }
 
       const historicoExistente = Array.isArray(metaExistente.historico_edicoes)

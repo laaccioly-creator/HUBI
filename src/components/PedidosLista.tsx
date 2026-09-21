@@ -1573,6 +1573,34 @@ export const PedidosLista: React.FC = () => {
                 </button>
               )}
 
+              {/* Botão Imprimir Etiqueta no Modal */}
+              {(() => {
+                const { prov, pe, isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const temEtiquetaModal = !isRetirada && (
+                  prov === 'melhor_envio' ||
+                  pe?.tipo_operacao === 'correios' ||
+                  pe?.tipo_operacao === 'transportadora' ||
+                  pe?.servico_correios ||
+                  pe?.nome_transportadora ||
+                  pedidoSelecionado.servico_correios ||
+                  pedidoSelecionado.nome_transportadora
+                );
+                if (temEtiquetaModal) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                      className="px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-xs font-bold text-sky-300 transition flex items-center gap-1.5 cursor-pointer"
+                      title="Imprimir Etiqueta de Envio"
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Imprimir Etiqueta</span>
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Botão Cancelar Pedido (TELA004) */}
               <button
                 type="button"
@@ -2458,9 +2486,9 @@ export const PedidosLista: React.FC = () => {
                                 <span>Receber Fiado</span>
                               </button>
                             ) : pedido.status === 'aguardando_envio' ? (
-                              /* ETAPA 2: Frete definido -> Permite receber pagamento com frete somado ao total e/ou despachar */
+                              /* ETAPA 2: Frete definido -> Se aguardando pagamento: permite apenas [Receber] (e [Alterar] acima). Se pago/fiado: libera [Chamar Uber] ou [Confirmar Envio] */
                               <div className="flex items-center gap-1">
-                                {statusPag !== 'pago' && (
+                                {statusPag !== 'pago' && statusPag !== 'fiado' ? (
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -2472,32 +2500,33 @@ export const PedidosLista: React.FC = () => {
                                     <DollarSign className="w-3.5 h-3.5" />
                                     <span>Receber</span>
                                   </button>
-                                )}
-                                {(() => {
-                                  const { prov } = resolverProvedorEntrega(pedido);
-                                  const isUber = prov === 'uber';
-                                  const isMelhorEnvio = prov === 'melhor_envio';
+                                ) : (
+                                  (() => {
+                                    const { prov } = resolverProvedorEntrega(pedido);
+                                    const isUber = prov === 'uber';
+                                    const isMelhorEnvio = prov === 'melhor_envio';
 
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDespacharPedido(pedido)}
-                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
-                                        isUber
-                                          ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
-                                          : isMelhorEnvio
-                                          ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
-                                          : 'bg-emerald-600 hover:bg-emerald-500'
-                                      }`}
-                                      title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
-                                    >
-                                      <Truck className="w-3.5 h-3.5" />
-                                      <span>
-                                        {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
-                                      </span>
-                                    </button>
-                                  );
-                                })()}
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDespacharPedido(pedido)}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
+                                          isUber
+                                            ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                                            : isMelhorEnvio
+                                            ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
+                                            : 'bg-emerald-600 hover:bg-emerald-500'
+                                        }`}
+                                        title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
+                                      >
+                                        <Truck className="w-3.5 h-3.5" />
+                                        <span>
+                                          {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
+                                        </span>
+                                      </button>
+                                    );
+                                  })()
+                                )}
                               </div>
                             ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
                               <button
