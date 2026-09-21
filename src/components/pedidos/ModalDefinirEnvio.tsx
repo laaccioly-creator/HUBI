@@ -16,6 +16,7 @@ export interface ModalDefinirEnvioProps {
   onSucesso: () => void;
   onFeedbackSucesso?: (msg: string) => void;
   onFeedbackErro?: (msg: string) => void;
+  onConfirmarEnvio?: (resultado: ShippingSelectionResult) => void;
 }
 
 export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
@@ -26,7 +27,8 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
   onClose,
   onSucesso,
   onFeedbackSucesso,
-  onFeedbackErro
+  onFeedbackErro,
+  onConfirmarEnvio
 }) => {
   const [selecaoPendente, setSelecaoPendente] = useState<ShippingSelectionResult | null>(null);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -68,6 +70,20 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
 
     try {
       setSalvando(true);
+      if (onConfirmarEnvio) {
+        onConfirmarEnvio(selecaoPendente);
+        const nomeForma = selecaoPendente.pedido_entrega?.transportadora_nome ||
+          selecaoPendente.pedido_entrega?.forma_entrega_nome ||
+          (selecaoPendente.opcao_frete?.transportadora_nome) ||
+          (selecaoPendente.tipo_atendimento === 'retirada' ? 'Retirada na Loja' : 'Envio');
+
+        onFeedbackSucesso?.(`Forma de envio definida com sucesso: ${nomeForma}!`);
+        setSelecaoPendente(null);
+        onSucesso();
+        onClose();
+        return;
+      }
+
       await ShippingOrchestrator.definirEnvioPedido(
         pedido.id,
         selecaoPendente,
