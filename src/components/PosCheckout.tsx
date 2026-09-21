@@ -45,6 +45,7 @@ import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido,
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
+import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
@@ -211,7 +212,23 @@ export const PosCheckout: React.FC = () => {
   const [modalFulfillmentAberto, setModalFulfillmentAberto] = useState<boolean>(false);
   const [draftFulfillment, setDraftFulfillment] = useState<ShippingSelectionResult | null>(null);
   const [modalAtualizarEnderecoAberto, setModalAtualizarEnderecoAberto] = useState<boolean>(false);
+  const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
+  const [freteConfirmado, setFreteConfirmado] = useState<boolean>(false);
   const [subTelaMobile, setSubTelaMobile] = useState<SubTelaMobile>('vender');
+
+  const ehEnvio = pedidoEntrega?.tipo_atendimento === 'entrega';
+  const temCliente = Boolean(clienteSelecionado && clienteSelecionado.id);
+  const isFreteConfirmado = freteConfirmado || Boolean(
+    ehEnvio &&
+    pedidoEntrega &&
+    pedidoEntrega.servico_codigo &&
+    pedidoEntrega.servico_codigo !== 'pendente' &&
+    (taxaEntrega > 0 || (pedidoEntrega.transportadora_nome && pedidoEntrega.transportadora_nome !== 'Envio a Definir'))
+  );
+
+  useEffect(() => {
+    setFreteConfirmado(false);
+  }, [clienteSelecionado?.id]);
 
   useEffect(() => {
     if (pedidoEmEdicao) {
@@ -473,9 +490,9 @@ export const PosCheckout: React.FC = () => {
   const handleAbrirFechamento = () => {
     if (itens.length === 0) return;
 
-    if (pedidoEntrega?.tipo_atendimento === 'entrega') {
+    if (ehEnvio && !isFreteConfirmado) {
       mostrarAviso(
-        'Para pedidos com entrega/envio, salve o pedido para cotar/informar o frete na tela de Pedidos antes de receber o pagamento.',
+        'Defina as opções de frete antes de prosseguir com o pagamento do pedido.',
         'Aguardando Cotação de Frete'
       );
       return;
@@ -2257,6 +2274,7 @@ export const PosCheckout: React.FC = () => {
                   onClick={() => {
                     setTaxaEntrega(0);
                     setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+                    setFreteConfirmado(false);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento !== 'entrega'
@@ -2277,6 +2295,7 @@ export const PosCheckout: React.FC = () => {
                       transportadora_nome: 'Envio a Definir',
                       servico_codigo: 'pendente'
                     });
+                    setFreteConfirmado(false);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
@@ -2523,62 +2542,75 @@ export const PosCheckout: React.FC = () => {
             </div>
           </div>
 
-          {/* AVISO INFORMATIVO PARA PEDIDOS COM ENVIO */}
-          {pedidoEntrega?.tipo_atendimento === 'entrega' && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>
-                Para pedidos com entrega/envio, salve o pedido para cotar/informar o frete na tela de Pedidos antes de receber o pagamento.
-              </span>
-            </div>
-          )}
-
-          {/* BOTÕES: SALVAR PEDIDO & FINALIZAR VENDA */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
+          {/* BOTÕES: SALVAR, OPÇÕES DE ENVIO & FINALIZAR VENDA */}
+          <div className="flex flex-row items-center gap-2 pt-1">
+            {/* Botão Salvar */}
             <button
               type="button"
               disabled={itens.length === 0 || salvandoPendente}
               onClick={handleSalvarPedidoPendente}
-              className={`py-3 px-2 rounded-2xl font-bold text-xs shadow transition disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
-                pedidoEntrega?.tipo_atendimento === 'entrega'
-                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 font-black col-span-2 py-3.5'
-                  : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200'
-              }`}
-              title={
-                pedidoEntrega?.tipo_atendimento === 'entrega'
-                  ? 'Salvar pedido para cotar/informar o frete na tela de Pedidos'
-                  : 'Salva o pedido como Pendente sem fechar pagamento'
-              }
+              className="flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center active:scale-95"
+              title={pedidoEmEdicao ? 'Atualizar pedido' : 'Salvar pedido como orçamento/pendente'}
             >
               {salvandoPendente ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400 shrink-0" />
               ) : (
-                <FileText className={`w-4 h-4 ${pedidoEntrega?.tipo_atendimento === 'entrega' ? 'text-white' : 'text-emerald-400'}`} />
+                <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               )}
-              <span className="truncate">{pedidoEmEdicao ? 'Atualizar Pedido' : 'Salvar Pedido'}</span>
+              <span>{pedidoEmEdicao ? 'Atualizar' : 'Salvar'}</span>
             </button>
 
-            {pedidoEntrega?.tipo_atendimento !== 'entrega' ? (
+            {/* Botão Opções de Envio (visível exclusivamente quando tipoEntrega === 'envio') */}
+            {ehEnvio && (
               <button
                 type="button"
-                disabled={itens.length === 0}
-                onClick={handleAbrirFechamento}
-                className="py-3 px-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-40 cursor-pointer active:scale-95"
-                title="Abrir tela de pagamento e concluir venda"
+                disabled={!temCliente || salvandoPendente || itens.length === 0}
+                onClick={() => setModalDefinirEnvioAberto(true)}
+                className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${
+                  isFreteConfirmado
+                    ? 'bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 shadow-sm'
+                    : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow'
+                }`}
+                title={
+                  !temCliente
+                    ? 'Selecione um cliente para cotar o frete'
+                    : isFreteConfirmado
+                    ? 'Frete definido! Clique para alterar opções'
+                    : 'Definir opções de envio'
+                }
               >
-                <span className="truncate">Finalizar Venda</span>
-                <ArrowRight className="w-4 h-4 shrink-0" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={true}
-                className="hidden"
-                title="Para pedidos com entrega/envio, salve o pedido para cotar/informar o frete na tela de Pedidos antes de receber o pagamento."
-              >
-                Finalizar Venda
+                <Truck className={`w-3.5 h-3.5 shrink-0 ${isFreteConfirmado ? 'text-emerald-400' : 'text-amber-400'}`} />
+                <span className="leading-tight">
+                  Opções<br />de Envio
+                </span>
               </button>
             )}
+
+            {/* Botão Finalizar Venda */}
+            <button
+              type="button"
+              disabled={
+                itens.length === 0 ||
+                salvandoPendente ||
+                (ehEnvio && !isFreteConfirmado)
+              }
+              onClick={handleAbrirFechamento}
+              className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition text-center ${
+                ehEnvio && !isFreteConfirmado
+                  ? 'bg-slate-800 border border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95'
+              }`}
+              title={
+                ehEnvio && !isFreteConfirmado
+                  ? 'Defina as opções de frete antes de finalizar a venda'
+                  : 'Abrir tela de pagamento e concluir venda'
+              }
+            >
+              <span className="leading-tight">
+                Finalizar<br />Venda
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+            </button>
           </div>
         </div>
       </div>
@@ -3425,6 +3457,61 @@ export const PosCheckout: React.FC = () => {
             setModalAtualizarEnderecoAberto(false);
             setModalFulfillmentAberto(true);
           }}
+        />
+      )}
+
+      {/* Modal Definir Envio do PDV */}
+      {modalDefinirEnvioAberto && (
+        <ModalDefinirEnvio
+          isOpen={modalDefinirEnvioAberto}
+          pedido={{
+            id: pedidoEmEdicao?.id || 'carrinho_pos_temp',
+            numero_pedido: pedidoEmEdicao?.numero_pedido || 'PDV',
+            loja_id: loja?.id || '',
+            cliente_id: clienteSelecionado?.id || null,
+            cliente: clienteSelecionado || undefined,
+            subtotal,
+            valor_total: total,
+            valor_frete: taxaEntrega,
+            status: 'pendente',
+            status_pagamento: 'aguardando_pagamento',
+            pedido_entrega: pedidoEntrega || undefined,
+            itens: itens.map((item, idx) => ({
+              id: `item_${idx}`,
+              pedido_id: pedidoEmEdicao?.id || 'carrinho_pos_temp',
+              produto_id: item.produto.id,
+              produto: item.produto,
+              quantidade: item.quantidade,
+              preco_unitario: item.precoUnitario || 0,
+              preco_venda_unitario: item.precoUnitario || 0,
+              valor_total: (item.precoUnitario || 0) * item.quantidade,
+              nome_produto: item.produto.nome
+            })) as any
+          } as unknown as Pedido}
+          loja={loja}
+          usuario={usuario}
+          onClose={() => setModalDefinirEnvioAberto(false)}
+          onSucesso={() => {}}
+          onConfirmarEnvio={(resultado: ShippingSelectionResult) => {
+            setFreteConfirmado(true);
+            const valFrete = Number(resultado.valor_frete || 0);
+            setTaxaEntrega(valFrete);
+            if (resultado.pedido_entrega) {
+              setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+            } else {
+              setPedidoEntrega({
+                ...(pedidoEntrega || FORMA_ENTREGA_RETIRADA_PADRAO),
+                tipo_atendimento: 'entrega',
+                valor_frete: valFrete,
+                transportadora_nome: resultado.opcao_frete?.transportadora_nome || 'Envio Definido',
+                servico_codigo: resultado.opcao_frete?.servico_codigo || 'entrega_definida'
+              });
+            }
+            setModalDefinirEnvioAberto(false);
+            mostrarSucesso(`Frete definido: R$ ${valFrete.toFixed(2)}!`);
+          }}
+          onFeedbackSucesso={(msg) => mostrarSucesso(msg)}
+          onFeedbackErro={(msg) => mostrarErro(msg)}
         />
       )}
     </div>
