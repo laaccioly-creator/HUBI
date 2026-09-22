@@ -1461,10 +1461,22 @@ export const PosCheckout: React.FC = () => {
             }
           }
 
+          // Preservar o snapshot completo da entrega no pedido concluído antes de limpar o carrinho
+          const entregaFinalSnapshot = pedidoCriado.pedido_entrega || (pedidoEntrega ? {
+            ...pedidoEntrega,
+            pedido_id: pedidoCriado.id,
+            valor_frete: taxaEntrega
+          } as any : null);
+
+          const pedidoCompletoFinal: Pedido = {
+            ...pedidoCriado,
+            pedido_entrega: entregaFinalSnapshot
+          };
+
           resetarSnapshotPedido();
           setTemAlteracoesNaoSalvas(false);
           setEhVendaOfflineSalva(false);
-          setPedidoConcluido(pedidoCriado);
+          setPedidoConcluido(pedidoCompletoFinal);
           setModalFechamento(false);
           limparCarrinho();
           setValorRecebidoDinheiro('');
@@ -1528,6 +1540,11 @@ export const PosCheckout: React.FC = () => {
           id: idLocal + '_' + it.produto_id,
           tabela_preco_utilizada: it.tabela_preco_utilizada as TabelaPreco
         })) as ItemPedido[],
+        pedido_entrega: pedidoEntrega ? {
+          ...pedidoEntrega,
+          pedido_id: idLocal,
+          valor_frete: taxaEntrega
+        } as any : null,
         criado_em: dataIso
       };
 
@@ -2789,7 +2806,7 @@ export const PosCheckout: React.FC = () => {
           formaEntregaTexto,
           labelEndereco,
           enderecoExibicao
-        } = obterInfoEntregaRecibo(pedidoConcluido, loja, pedidoEntrega);
+        } = obterInfoEntregaRecibo(pedidoConcluido, loja, (pedidoConcluido as any).pedido_entrega);
 
         const badgeEstilo = ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800';
 
@@ -2938,7 +2955,7 @@ export const PosCheckout: React.FC = () => {
                       <span className="font-semibold text-slate-900">
                         {valorFrete > 0 
                           ? `+ R$ ${valorFrete.toFixed(2)}` 
-                          : 'Grátis (Retirada)'}
+                          : (ehRetirada ? 'Grátis (Retirada)' : 'Grátis')}
                       </span>
                     </div>
 

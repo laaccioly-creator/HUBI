@@ -179,9 +179,24 @@ export const obterInfoEntregaRecibo = (
   const metaTipo = (pedido as any).metadados?.tipo_atendimento;
   const metaProvedor = (pedido as any).metadados?.provedor_frete;
 
-  const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
+  const provedor = (pe?.provedor || metaProvedor || '').toLowerCase();
+  const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || (pedido as any).nome_transportadora || pedido.forma_entrega?.nome || '').trim();
+  const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || pe?.nome_app || '').toLowerCase();
+
+  const temFreteCobrado = Number(pedido.valor_frete || 0) > 0 || Number(pe?.valor_frete || 0) > 0;
+  const temProvedorEntrega = Boolean(
+    (provedor && provedor !== 'retirada_loja') ||
+    (transp && transp.toLowerCase() !== 'retirada na loja' && transp.toLowerCase() !== 'retirada no balcão') ||
+    (servico && servico !== 'retirada')
+  );
+  const temEnderecoEntrega = Boolean(pe?.destino_logradouro || pedido.endereco_entrega);
+
+  // É retirada APENAS se não houver frete cobrado, não houver provedor de entrega e o tipo for retirada ou sem dados de entrega
+  const ehRetirada = !temFreteCobrado && !temProvedorEntrega && (
+    pe?.tipo_atendimento === 'retirada' ||
     metaTipo === 'retirada' ||
-    (!pe && !metaTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+    (!pe && !metaTransp && !temEnderecoEntrega)
+  );
 
   if (ehRetirada) {
     const enderecoLoja = [
@@ -201,14 +216,10 @@ export const obterInfoEntregaRecibo = (
     };
   }
 
-  const provedor = (pe?.provedor || metaProvedor || '').toLowerCase();
-  const transp = (pe?.transportadora_nome || metaTransp || (pedido as any).nome_transportadora || pedido.forma_entrega?.nome || '').trim();
-  const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || pe?.nome_app || '').toLowerCase();
-
   let formaEntregaTexto = 'Frete Próprio';
 
   if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
-    formaEntregaTexto = 'Uber Direct';
+    formaEntregaTexto = 'Uber Flash';
   } else if (
     provedor === 'melhor_envio' ||
     transp.toLowerCase().includes('melhor envio') ||

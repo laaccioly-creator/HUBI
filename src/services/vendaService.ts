@@ -284,6 +284,7 @@ export class VendaService {
     }
 
     // 4. Gravar registro logístico em public.pedido_entregas
+    let entregaGravada: PedidoEntrega | null = null;
     try {
       const entregaPayload: any = pedidoEntrega ? {
         ...pedidoEntrega,
@@ -308,7 +309,7 @@ export class VendaService {
         transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
         status_envio: 'pendente'
       };
-      await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
+      entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
     } catch (eEntrega) {
       console.warn('[VendaService] Aviso não-bloqueante ao registrar pedido_entregas:', eEntrega);
     }
@@ -384,7 +385,12 @@ export class VendaService {
       cliente: clienteSelecionado,
       vendedor: usuario,
       itens: itensFormatados as any,
-      pagamentos: pagamentosFormatados as any
+      pagamentos: pagamentosFormatados as any,
+      pedido_entrega: entregaGravada || (pedidoEntrega ? {
+        ...pedidoEntrega,
+        pedido_id: pedidoId,
+        valor_frete: taxaEntrega
+      } as any : null)
     };
 
     return pedidoCompleto;
