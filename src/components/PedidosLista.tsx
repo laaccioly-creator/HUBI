@@ -2156,15 +2156,30 @@ export const PedidosLista: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <a
-                                href={linkRastreio}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                <span>Acompanhar Rastreio em Tempo Real</span>
-                              </a>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <a
+                                  href={linkRastreio}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition cursor-pointer"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  <span>Acompanhar Rastreio em Tempo Real</span>
+                                </a>
+
+                                {pe?.link_etiqueta && (
+                                  <a
+                                    href={pe.link_etiqueta}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                    title="Imprimir Etiqueta de Envio da Transportadora"
+                                  >
+                                    <Tag className="w-3.5 h-3.5" />
+                                    <span>Imprimir Etiqueta</span>
+                                  </a>
+                                )}
+                              </div>
                             )}
                           </div>
                         );

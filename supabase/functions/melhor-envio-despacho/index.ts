@@ -530,9 +530,12 @@ serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // PASSO 5: Obter Código de Rastreamento (GET /api/v2/me/orders/${orderId})
+    // PASSO 5: Obter Código de Rastreamento Real da Transportadora (GET /api/v2/me/orders/${orderId})
     // -------------------------------------------------------------------------
-    let codigoRastreio = cartData.tracking || cartData.protocol || "";
+    let codigoRastreio = "";
+    let linkRastreioOficial = "";
+    let transportadoraNome = entrega?.transportadora_nome || "Melhor Envio";
+
     try {
       const orderRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
         method: "GET",
@@ -540,17 +543,41 @@ serve(async (req: Request) => {
       });
       if (orderRes.ok) {
         const orderData = await orderRes.json();
-        codigoRastreio = orderData.tracking || orderData.protocol || codigoRastreio;
+        if (orderData.service?.company?.name) {
+          transportadoraNome = orderData.service.company.name;
+        }
+
+        const selfTracking = orderData.self_tracking; // ex: ME26006DUK4BR (código reconhecido no Melhor Rastreio)
+        const tracking = orderData.tracking; // ex: QB123456789BR (Correios)
+        const codBarraJadlog = orderData.additional_info?.volume?.[0]?.codbarra; // remessa Jadlog
+
+        // Prioridade para rastreio:
+        // 1. tracking oficial da transportadora (se preenchido)
+        // 2. self_tracking gerado pelo Melhor Envio (ME...BR)
+        // 3. código de barras da minuta do volume (Jadlog)
+        // NOTA: NUNCA usar protocol (ORD-...) como código de rastreamento!
+        codigoRastreio = tracking || selfTracking || codBarraJadlog || "";
+
+        if (selfTracking) {
+          linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${selfTracking}`;
+        } else if (tracking) {
+          linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${tracking}`;
+        } else if (codBarraJadlog) {
+          linkRastreioOficial = `https://www.jadlog.com.br/tracking`;
+        }
       }
     } catch (eOrder) {
       console.warn("[MelhorEnvio-Edge] Erro ao consultar dados atualizados da ordem:", eOrder);
     }
 
     if (!codigoRastreio) {
-      codigoRastreio = String(orderId);
+      codigoRastreio = cartData.tracking || cartData.self_tracking || "";
     }
 
-    const linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+    if (!linkRastreioOficial && codigoRastreio) {
+      linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+    }
+
     const despachadoEm = new Date().toISOString();
 
     // -------------------------------------------------------------------------
