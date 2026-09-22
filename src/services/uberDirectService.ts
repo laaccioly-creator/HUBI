@@ -427,31 +427,55 @@ export class UberDirectService {
       }
     }
 
-    const telDigits = clienteTelefone.replace(/\D/g, '');
-    const dropoffPhone = telDigits.length >= 10
-      ? (telDigits.startsWith('55') ? `+${telDigits}` : `+55${telDigits}`)
-      : (loja.whatsapp ? `+55${loja.whatsapp.replace(/\D/g, '')}` : '+5511999999999');
-
     const isSandbox = Boolean(config.uber_sandbox_mode);
 
+    // Formatação de telefone E.164
+    const formatarE164 = (tel?: string | null): string => {
+      const d = (tel || '').replace(/\D/g, '');
+      if (d.startsWith('55') && (d.length === 12 || d.length === 13)) return `+${d}`;
+      if (d.length === 10 || d.length === 11) return `+55${d}`;
+      if (d.startsWith('0') && (d.length === 11 || d.length === 12)) return `+55${d.substring(1)}`;
+      return d.length >= 10 ? `+55${d.slice(-11)}` : '+5585999999999';
+    };
+
+    const pickupPhone = formatarE164(loja.whatsapp || loja.telefone);
+    const dropoffPhone = formatarE164(clienteTelefone || pickupPhone);
+
+    const cepOrigemLimpo = (config.origem_cep || loja.endereco_cep || '60710790').replace(/\D/g, '');
+    const numOrigem = (config.origem_numero || loja.endereco_numero || 'S/N').trim();
+    const ruaOrigem = (config.origem_logradouro || loja.endereco_logradouro || 'Rua Principal').trim();
+    const pickupAddressJson = JSON.stringify({
+      street_address: [`${ruaOrigem}, ${numOrigem}`.replace(/,+$/, '').trim()],
+      city: (config.origem_cidade || loja.endereco_cidade || 'Fortaleza').trim(),
+      state: (config.origem_uf || loja.endereco_estado || 'CE').trim().toUpperCase(),
+      zip_code: cepOrigemLimpo.length === 8 ? cepOrigemLimpo : '60710790',
+      country: 'BR'
+    });
+
+    const dropoffAddressJson = JSON.stringify({
+      street_address: [`${destinoLogradouro || 'Rua Principal'}, ${destinoNumero || 'S/N'}`.replace(/,+$/, '').trim()],
+      city: (destinoCidade || 'Fortaleza').trim(),
+      state: (destinoUf || 'CE').trim().toUpperCase(),
+      zip_code: destinoCepLimpo.length === 8 ? destinoCepLimpo : '60710790',
+      country: 'BR'
+    });
+
+    const manifestItems = (pedido.itens && pedido.itens.length > 0)
+      ? pedido.itens.map(i => ({
+          name: `${i.nome_produto || 'Produto'}`,
+          quantity: Math.max(1, Math.round(Number(i.quantidade || 1))),
+          size: 'small'
+        }))
+      : [{ name: `Pedido #${pedido.numero_pedido || pedido.id.slice(0, 6)}`, quantity: 1, size: 'small' }];
+
     const payload = {
-      pickup: {
-        name: loja.nome_fantasia || 'HUBI PDV',
-        address: enderecoOrigem,
-        phone_number: loja.whatsapp ? (loja.whatsapp.replace(/\D/g, '').startsWith('55') ? `+${loja.whatsapp.replace(/\D/g, '')}` : `+55${loja.whatsapp.replace(/\D/g, '')}`) : '+5511999999999'
-      },
-      dropoff: {
-        name: clienteNome || 'Cliente',
-        address: enderecoDestino,
-        phone_number: dropoffPhone
-      },
-      manifest_items: (pedido.itens && pedido.itens.length > 0)
-        ? pedido.itens.map(i => ({
-            name: `${i.quantidade}x ${i.nome_produto}`,
-            quantity: Number(i.quantidade || 1),
-            price: Math.round(Number(i.subtotal || i.preco_venda_unitario || 0) * 100)
-          }))
-        : [{ name: `Pedido #${pedido.numero_pedido}`, quantity: 1, price: Math.round(Number(pedido.valor_total || 0) * 100) }],
+      pickup_name: loja.nome_fantasia || 'HUBI PDV',
+      pickup_address: pickupAddressJson,
+      pickup_phone_number: pickupPhone,
+      dropoff_name: clienteNome || 'Cliente',
+      dropoff_address: dropoffAddressJson,
+      dropoff_phone_number: dropoffPhone,
+      manifest_items: manifestItems,
       ...(isSandbox ? { test_specifications: { robo_courier_specification: { mode: 'auto' } } } : {})
     };
 

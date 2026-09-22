@@ -1,6 +1,6 @@
 // Supabase Edge Function: uber-dispatch
 // Endpoint de despacho e integração oficial com Uber Direct (Sandbox e Produção)
-// Deploy: supabase functions deploy uber-dispatch --no-verify-jwt
+// Deploy: npx supabase functions deploy uber-dispatch --no-verify-jwt
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -11,12 +11,144 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function formatarTelefoneE164(tel?: string | null, fallback = "+5511999999999"): string {
+/**
+ * 1. Formatação de Telefone (Padrão E.164 Obrigatório)
+ * - Remove qualquer caractere que não seja número.
+ * - Se começar com DDD (10 ou 11 dígitos), prefixa com "+55".
+ * - Se já começar com 55 e tiver 12 ou 13 dígitos, prefixa apenas com "+".
+ * - Formato final estrito: string no padrão "+55859XXXXXXXX".
+ */
+function formatarTelefoneE164(tel?: string | null, fallback = "+5585999999999"): string {
   if (!tel) return fallback;
-  const digits = tel.replace(/\D/g, "");
-  if (digits.length < 10) return fallback;
-  if (digits.startsWith("55") && digits.length >= 12) return `+${digits}`;
-  return `+55${digits}`;
+  const digits = String(tel).replace(/\D/g, "");
+  if (!digits) return fallback;
+
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+    return `+${digits}`;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `+55${digits}`;
+  }
+
+  if (digits.startsWith("0") && (digits.length === 11 || digits.length === 12)) {
+    return `+55${digits.substring(1)}`;
+  }
+
+  if (digits.length === 8 || digits.length === 9) {
+    return `+5585${digits}`;
+  }
+
+  if (digits.length > 11) {
+    return `+55${digits.slice(-11)}`;
+  }
+
+  return fallback;
+}
+
+interface UberAddressObj {
+  street_address: string[];
+  city: string;
+  state: string;
+  zip_code: string;
+  country: string;
+}
+
+/**
+ * 2. Formatação dos Endereços (pickup_address e dropoff_address)
+ * A Uber Direct exige JSON com as seguintes chaves exatas:
+ * {
+ *   "street_address": ["Rua Bélgica, 945"],
+ *   "city": "Fortaleza",
+ *   "state": "CE",
+ *   "zip_code": "60710790",
+ *   "country": "BR"
+ * }
+ * - Em street_address: array com 1 ou 2 strings (sem vírgula pendente).
+ * - Em zip_code: apenas os 8 dígitos numéricos (sem hífen ou ponto).
+ */
+function formatarEnderecoUber(
+  logradouro?: string | null,
+  numero?: string | null,
+  complemento?: string | null,
+  bairro?: string | null,
+  cidade?: string | null,
+  estado?: string | null,
+  cep?: string | null,
+  enderecoCompletoFallback?: string | null
+): string {
+  // Se o fallback já for um JSON válido com street_address, sanitiza e retorna
+  if (enderecoCompletoFallback && enderecoCompletoFallback.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(enderecoCompletoFallback);
+      if (parsed.street_address && Array.isArray(parsed.street_address)) {
+        const objValido: UberAddressObj = {
+          street_address: parsed.street_address.map((s: string) => String(s).replace(/,+$/, "").trim()),
+          city: parsed.city || cidade || "Fortaleza",
+          state: (parsed.state || estado || "CE").toUpperCase(),
+          zip_code: String(parsed.zip_code || cep || "60710790").replace(/\D/g, ""),
+          country: "BR",
+        };
+        return JSON.stringify(objValido);
+      }
+    } catch {
+      // continua para a montagem normal
+    }
+  }
+
+  let zipCode = (cep || "").replace(/\D/g, "");
+  let rua = (logradouro || "").trim();
+  let num = (numero || "").trim();
+  let comp = (complemento || "").trim();
+  let bair = (bairro || "").trim();
+  let cid = (cidade || "").trim();
+  let uf = (estado || "").trim().toUpperCase();
+
+  if ((!rua || !cid || !zipCode) && enderecoCompletoFallback) {
+    const partes = enderecoCompletoFallback.split(",").map((p: string) => p.trim());
+    if (!rua && partes.length > 0) rua = partes[0];
+    if (!num && partes.length > 1) {
+      const matchNum = partes[1].match(/\d+/);
+      if (matchNum) num = matchNum[0];
+    }
+    if (!zipCode) {
+      const matchCep = enderecoCompletoFallback.match(/\d{5}-?\d{3}|\d{8}/);
+      if (matchCep) zipCode = matchCep[0].replace(/\D/g, "");
+    }
+    if (!cid && partes.length >= 3) {
+      const parteFinal = partes[partes.length - 1] || "";
+      const parteCidUf = partes[partes.length - 2] || "";
+      if (parteCidUf.includes("-")) {
+        const sub = parteCidUf.split("-");
+        cid = sub[0].trim();
+        uf = sub[1].trim().toUpperCase();
+      } else if (parteFinal.includes("-")) {
+        const sub = parteFinal.split("-");
+        cid = sub[0].trim();
+        uf = sub[1].trim().toUpperCase();
+      }
+    }
+  }
+
+  if (!rua) rua = "Rua Principal";
+  if (!num) num = "S/N";
+  if (!cid) cid = "Fortaleza";
+  if (!uf || uf.length !== 2) uf = "CE";
+  if (!zipCode || zipCode.length !== 8) zipCode = "60710790";
+
+  const linha1 = (num && num !== "S/N" ? `${rua}, ${num}` : `${rua}, ${num}`).trim().replace(/,+$/, "");
+  const partesLinha2 = [comp, bair].filter(Boolean).join(" - ").trim().replace(/,+$/, "");
+  const streetAddress = partesLinha2 ? [linha1, partesLinha2] : [linha1];
+
+  const obj: UberAddressObj = {
+    street_address: streetAddress,
+    city: cid,
+    state: uf,
+    zip_code: zipCode,
+    country: "BR",
+  };
+
+  return JSON.stringify(obj);
 }
 
 serve(async (req: Request) => {
@@ -92,7 +224,6 @@ serve(async (req: Request) => {
     }
 
     // 2. Leitura de Credenciais da Uber Direct
-    // Busca preferencialmente na tabela loja_shipping_configs ou variáveis de ambiente
     let uberCustomerId = "";
     let uberClientId = "";
     let uberClientSecret = "";
@@ -134,8 +265,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // 3. Autenticação OAuth 2.0
-    // Endpoint oficial: https://login.uber.com/oauth/v2/token
+    // 3. Autenticação OAuth 2.0 (https://login.uber.com/oauth/v2/token)
     const tokenParams = new URLSearchParams();
     tokenParams.append("client_id", uberClientId);
     tokenParams.append("client_secret", uberClientSecret);
@@ -171,76 +301,112 @@ serve(async (req: Request) => {
     const { access_token } = await tokenRes.json();
 
     // 4. Montar Payload de Criação da Entrega (POST /v1/customers/{customer_id}/deliveries)
-    let deliveryPayload: any = null;
+    const pickupName =
+      customPayload?.pickup_name ||
+      customPayload?.pickup?.name ||
+      loja?.nome_fantasia ||
+      "HUBI Loja";
 
-    if (customPayload) {
-      deliveryPayload = { ...customPayload };
-    } else {
-      // Montagem automática a partir dos dados do pedido e da loja
-      const enderecoOrigem = [
-        loja?.endereco_logradouro,
-        loja?.endereco_numero ? `Nº ${loja.endereco_numero}` : null,
-        loja?.endereco_complemento,
-        loja?.endereco_bairro,
-        loja?.endereco_cidade && loja?.endereco_estado ? `${loja.endereco_cidade} - ${loja.endereco_estado}` : null,
-        loja?.endereco_cep ? `CEP ${loja.endereco_cep.replace(/\D/g, '')}` : null,
-      ].filter(Boolean).join(", ");
+    const pickupPhone = formatarTelefoneE164(
+      customPayload?.pickup_phone_number ||
+      customPayload?.pickup?.phone_number ||
+      loja?.whatsapp ||
+      loja?.telefone
+    );
 
-      const enderecoDestino = [
-        entrega?.destino_logradouro,
-        entrega?.destino_numero ? `Nº ${entrega.destino_numero}` : null,
-        entrega?.destino_complemento,
-        entrega?.destino_bairro,
-        entrega?.destino_cidade && entrega?.destino_uf ? `${entrega.destino_cidade} - ${entrega.destino_uf}` : null,
-        entrega?.destino_cep ? `CEP ${entrega.destino_cep.replace(/\D/g, '')}` : null,
-      ].filter(Boolean).join(", ") || pedido?.endereco_entrega || "";
+    const clienteNome =
+      customPayload?.dropoff_name ||
+      customPayload?.dropoff?.name ||
+      pedido?.cliente?.nome ||
+      pedido?.cliente_nome_avulso ||
+      "Cliente";
 
-      const clienteNome = pedido?.cliente?.nome || pedido?.cliente_nome_avulso || "Cliente";
-      const clienteTelefone = pedido?.cliente?.whatsapp || pedido?.cliente?.telefone || pedido?.cliente_telefone_avulso || "";
+    const clienteTelefone =
+      pedido?.cliente?.whatsapp ||
+      pedido?.cliente?.telefone ||
+      pedido?.cliente_telefone_avulso ||
+      "";
 
-      const manifestItems = (itens && itens.length > 0)
-        ? itens.map((i: any) => ({
-            name: `${i.quantidade || 1}x ${i.nome_produto || "Produto"}`,
-            quantity: Number(i.quantidade || 1),
-            price: Math.round(Number(i.subtotal || i.preco_venda_unitario || 0) * 100),
-          }))
-        : [
-            {
-              name: `Pedido #${pedido?.numero_pedido || pedido?.id?.slice(0, 6) || "HUBI"}`,
-              quantity: 1,
-              price: Math.round(Number(pedido?.valor_total || 0) * 100),
-            },
-          ];
+    const dropoffPhone = formatarTelefoneE164(
+      customPayload?.dropoff_phone_number ||
+      customPayload?.dropoff?.phone_number ||
+      clienteTelefone,
+      pickupPhone
+    );
 
-      deliveryPayload = {
-        pickup: {
-          name: loja?.nome_fantasia || "HUBI Loja",
-          address: enderecoOrigem,
-          phone_number: formatarTelefoneE164(loja?.whatsapp || loja?.telefone),
-        },
-        dropoff: {
-          name: clienteNome,
-          address: enderecoDestino,
-          phone_number: formatarTelefoneE164(clienteTelefone, formatarTelefoneE164(loja?.whatsapp)),
-        },
-        manifest_items: manifestItems,
-      };
-    }
+    const rawPickupAddress =
+      typeof customPayload?.pickup_address === "string"
+        ? customPayload.pickup_address
+        : customPayload?.pickup?.address;
+
+    const pickupAddressStr = formatarEnderecoUber(
+      loja?.endereco_logradouro,
+      loja?.endereco_numero,
+      loja?.endereco_complemento,
+      loja?.endereco_bairro,
+      loja?.endereco_cidade,
+      loja?.endereco_estado,
+      loja?.endereco_cep,
+      rawPickupAddress
+    );
+
+    const rawDropoffAddress =
+      typeof customPayload?.dropoff_address === "string"
+        ? customPayload.dropoff_address
+        : (customPayload?.dropoff?.address || pedido?.endereco_entrega);
+
+    const dropoffAddressStr = formatarEnderecoUber(
+      entrega?.destino_logradouro,
+      entrega?.destino_numero,
+      entrega?.destino_complemento,
+      entrega?.destino_bairro,
+      entrega?.destino_cidade,
+      entrega?.destino_uf,
+      entrega?.destino_cep,
+      rawDropoffAddress
+    );
+
+    // 3. Formatação de Itens (manifest_items)
+    const rawItems = customPayload?.manifest_items || itens;
+    const manifestItems = (rawItems && rawItems.length > 0)
+      ? rawItems.map((i: any) => ({
+          name: (i.nome_produto || i.name || "Produto").trim(),
+          quantity: Math.max(1, Math.round(Number(i.quantidade || i.quantity || 1))),
+          size: "small",
+        }))
+      : [
+          {
+            name: `Pedido #${pedido?.numero_pedido || pedido?.id?.slice(0, 6) || "HUBI"}`,
+            quantity: 1,
+            size: "small",
+          },
+        ];
+
+    const deliveryPayload: Record<string, any> = {
+      pickup_name: pickupName,
+      pickup_address: pickupAddressStr,
+      pickup_phone_number: pickupPhone,
+      dropoff_name: clienteNome,
+      dropoff_address: dropoffAddressStr,
+      dropoff_phone_number: dropoffPhone,
+      manifest_items: manifestItems,
+    };
 
     // Configuração de Sandbox na Uber Direct (RoboCourier automático)
     if (isSandbox) {
-      deliveryPayload.test_specifications = deliveryPayload.test_specifications || {
+      deliveryPayload.test_specifications = {
         robo_courier_specification: {
           mode: "auto",
         },
       };
-    } else {
-      delete deliveryPayload.test_specifications;
     }
+
+    // 4. Log Detalhado de Depuração
+    console.log("PAYLOAD ENVIADO UBER:", JSON.stringify(deliveryPayload));
 
     // 5. Chamada à API da Uber Direct
     const deliveryEndpoint = `https://api.uber.com/v1/customers/${encodeURIComponent(uberCustomerId)}/deliveries`;
-    const deliveryRes = await fetch(deliveryEndpoint, {
+    const uberResponse = await fetch(deliveryEndpoint, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${access_token}`,
@@ -249,53 +415,36 @@ serve(async (req: Request) => {
       body: JSON.stringify(deliveryPayload),
     });
 
-    // 6. Tratamento de Erros da Uber Direct (status >= 400)
-    // NÃO gerar mocks: repassar o código original e o JSON descritivo da Uber
-    if (!deliveryRes.ok) {
-      const errBodyText = await deliveryRes.text();
-      let errBody: any;
-      try {
-        errBody = JSON.parse(errBodyText);
-      } catch {
-        errBody = { message: errBodyText };
-      }
+    const uberData = await uberResponse.json();
 
-      const mensagemDetalhada =
-        errBody.message ||
-        errBody.error ||
-        errBody.code ||
-        `Erro retornado pela Uber Direct (HTTP ${deliveryRes.status})`;
-
+    if (!uberResponse.ok) {
+      console.error("UBER ERROR DETAILS:", JSON.stringify(uberData));
       return new Response(
         JSON.stringify({
-          error: mensagemDetalhada,
-          details: errBody,
-          code: errBody.code || "UBER_API_ERROR",
-          status: deliveryRes.status,
+          error: uberData.message || "Erro na Uber Direct",
+          details: uberData,
         }),
         {
-          status: deliveryRes.status,
+          status: uberResponse.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
 
     // 7. Tratamento de Sucesso
-    const deliveryData = await deliveryRes.json();
     const trackingUrl =
-      deliveryData.tracking_url ||
-      deliveryData.trackingUrl ||
-      (deliveryData.id ? `https://direct.uber.com/tracking/${deliveryData.id}` : "");
-    const deliveryId = deliveryData.id || deliveryData.delivery_id;
+      uberData.tracking_url ||
+      uberData.trackingUrl ||
+      (uberData.id ? `https://direct.uber.com/tracking/${uberData.id}` : "");
+    const deliveryId = uberData.id || uberData.delivery_id;
     const pin =
-      deliveryData.dropoff_pin ||
-      deliveryData.pickup_pin ||
-      deliveryData.verification?.pincode ||
-      deliveryData.pin_entrega ||
-      deliveryData.pincode ||
+      uberData.dropoff_pin ||
+      uberData.pickup_pin ||
+      uberData.verification?.pincode ||
+      uberData.pin_entrega ||
+      uberData.pincode ||
       null;
 
-    // Resposta estruturada para o frontend
     return new Response(
       JSON.stringify({
         tracking_url: trackingUrl,
@@ -304,13 +453,14 @@ serve(async (req: Request) => {
         id: deliveryId,
         pin: pin,
         pin_entrega: pin,
-        status: deliveryData.status || "em_transito",
+        status: uberData.status || "em_transito",
         is_sandbox: Boolean(isSandbox),
-        raw: deliveryData,
+        raw: uberData,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    console.error("ERRO INTERNO EDGE FUNCTION:", err);
     return new Response(
       JSON.stringify({
         error: err.message || "Erro interno inesperado no despacho da Uber Direct.",
