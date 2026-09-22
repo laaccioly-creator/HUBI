@@ -825,7 +825,7 @@ export class ShippingOrchestrator {
     pedido: Pedido,
     entrega: PedidoEntrega,
     usuarioId?: string | null
-  ): Promise<{ codigo_rastreio: string; link_etiqueta: string }> {
+  ): Promise<{ codigo_rastreio: string; link_etiqueta: string; link_rastreio?: string }> {
     if (pedido.status === 'cancelado') {
       throw new Error('Não é permitido despachar pedidos cancelados.');
     }
@@ -835,18 +835,20 @@ export class ShippingOrchestrator {
       loja,
       config,
       pedido,
-      entrega
+      entrega,
+      usuarioId
     });
 
-    const urlRastreioOficial = resultado.codigo_rastreio
+    const urlRastreioOficial = resultado.link_rastreio || (resultado.codigo_rastreio
       ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
-      : null;
+      : null);
 
     // 1. Persistência canônica em pedido_entregas (com upsert seguro)
     await this.salvarPedidoEntrega(pedido.id, {
       ...entrega,
       codigo_rastreio: resultado.codigo_rastreio,
       link_rastreio: urlRastreioOficial,
+      link_etiqueta: resultado.link_etiqueta,
       status_envio: 'despachado',
       despachado_em: despachadoEm,
       despachado_por: usuarioId || null

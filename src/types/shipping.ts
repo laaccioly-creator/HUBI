@@ -103,6 +103,7 @@ export interface PedidoEntrega {
   prazo_estimado_texto?: string | null;
   codigo_rastreio?: string | null;
   link_rastreio?: string | null;
+  link_etiqueta?: string | null;
   pin_entrega?: string | null;
   entregador_nome?: string | null;
   contato_entregador?: string | null;

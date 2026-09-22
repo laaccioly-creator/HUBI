@@ -7,6 +7,7 @@ export interface SolicitacaoMelhorEnvioParams {
   config: LojaShippingConfig;
   pedido: Pedido;
   entrega: PedidoEntrega;
+  usuarioId?: string | null;
 }
 
 export interface ResultadoSolicitacaoMelhorEnvio {
@@ -294,11 +295,12 @@ export class MelhorEnvioService {
 
   /**
    * Realiza a compra da etiqueta e geração do código de rastreamento no Melhor Envio
+   * através de Supabase Edge Function ou RPC segura (sem bloqueio de CORS no navegador).
    */
   public static async solicitarEnvioMelhorEnvio(
     params: SolicitacaoMelhorEnvioParams
   ): Promise<ResultadoSolicitacaoMelhorEnvio> {
-    const { loja, config, pedido, entrega } = params;
+    const { loja, config, pedido, entrega, usuarioId } = params;
 
     if (!config.melhor_envio_ativo || !config.melhor_envio_token) {
       throw new Error('A integração com Melhor Envio está inativa ou o token não foi configurado.');
@@ -312,7 +314,6 @@ export class MelhorEnvioService {
     }
 
     const baseUrl = this.getBaseUrl(config.melhor_envio_sandbox_mode);
-    const token = config.melhor_envio_token.trim();
 
     // Payload de inserção no carrinho do Melhor Envio
     const cartPayload = {
@@ -355,97 +356,105 @@ export class MelhorEnvioService {
       )
     };
 
+    // -------------------------------------------------------------------------
+    // MÉTODO 1: Supabase Edge Function 'melhor-envio-despacho' (Backend Deno sem CORS)
+    // -------------------------------------------------------------------------
     try {
-      const cartResponse = await fetch(`${baseUrl}/api/v2/me/cart`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
-        },
-        body: JSON.stringify(cartPayload)
-      });
-
-      if (!cartResponse.ok) {
-        const errText = await cartResponse.text();
-        throw new Error(`Erro ao adicionar envio ao Melhor Envio (${cartResponse.status}): ${errText}`);
-      }
-
-      const cartData = await cartResponse.json();
-      const orderId = cartData.id;
-
-      // Executa checkout da etiqueta
-      const checkoutRes = await fetch(`${baseUrl}/api/v2/me/shipment/checkout`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
-        },
-        body: JSON.stringify({ orders: [orderId] })
-      });
-
-      if (!checkoutRes.ok) {
-        const checkoutErr = await checkoutRes.text();
-        console.warn('[MelhorEnvio] Aviso ao executar checkout da etiqueta:', checkoutErr);
-      }
-
-      // Solicita geração da etiqueta
-      const generateRes = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
-        },
-        body: JSON.stringify({ orders: [orderId] })
-      });
-
-      if (!generateRes.ok) {
-        const genErr = await generateRes.text();
-        console.warn('[MelhorEnvio] Aviso ao solicitar geração da etiqueta:', genErr);
-      }
-
-      // Consulta os dados atualizados do pedido para obter o código de rastreio oficial gerado
-      let codigoRastreio = cartData.tracking || cartData.protocol || '';
-      if (!codigoRastreio) {
-        try {
-          const orderRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${token}`,
-              'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
-            }
-          });
-          if (orderRes.ok) {
-            const orderData = await orderRes.json();
-            codigoRastreio = orderData.tracking || orderData.protocol || '';
-          }
-        } catch (eOrder) {
-          console.warn('[MelhorEnvio] Aviso ao consultar tracking oficial da ordem:', eOrder);
+      console.log('[MelhorEnvio] Invocando Edge Function melhor-envio-despacho...');
+      const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('melhor-envio-despacho', {
+        body: {
+          pedidoId: pedido.id,
+          loja_id: config.loja_id,
+          usuarioId: usuarioId || null,
+          isSandbox: Boolean(config.melhor_envio_sandbox_mode),
+          payload: cartPayload
         }
+      });
+
+      if (!edgeErr && edgeData && edgeData.sucesso) {
+        console.log('[MelhorEnvio] Despacho realizado com sucesso via Edge Function.');
+        return {
+          ordem_id: String(edgeData.ordem_id),
+          codigo_rastreio: String(edgeData.codigo_rastreio),
+          link_etiqueta: edgeData.link_etiqueta || `${baseUrl}/painel/envios`,
+          link_rastreio: edgeData.link_rastreio || `https://melhorrastreio.com.br/rastreio/${edgeData.codigo_rastreio}`,
+          transportadora: edgeData.transportadora || entrega.transportadora_nome || 'Melhor Envio'
+        };
       }
 
-      if (!codigoRastreio) {
-        codigoRastreio = String(orderId);
+      if (edgeErr) {
+        let detalheErro = edgeErr.message || 'Falha na comunicação com o servidor do Melhor Envio.';
+        try {
+          if (edgeErr.context && typeof edgeErr.context.json === 'function') {
+            const jsonErr = await edgeErr.context.json();
+            detalheErro = jsonErr.error || jsonErr.message || JSON.stringify(jsonErr);
+          }
+        } catch {
+          // Mantém mensagem padrão
+        }
+
+        // Se a Edge Function não estiver instalada (404 / Function not found / network error), faz fallback para a RPC do Supabase
+        const errLower = detalheErro.toLowerCase();
+        if (
+          errLower.includes('function not found') ||
+          errLower.includes('404') ||
+          errLower.includes('failed to send a request') ||
+          errLower.includes('functionsfetcherror')
+        ) {
+          console.info('[MelhorEnvio] Edge Function indisponível. Tentando fallback para Supabase RPC despachar_melhor_envio_rpc...');
+        } else {
+          throw new Error(detalheErro);
+        }
+      } else if (edgeData && !edgeData.sucesso && edgeData.error) {
+        throw new Error(edgeData.error);
       }
-
-      const linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
-      const linkEtiqueta = `${baseUrl}/painel/envios`;
-
-      return {
-        ordem_id: String(orderId),
-        codigo_rastreio: String(codigoRastreio),
-        link_etiqueta: linkEtiqueta,
-        link_rastreio: linkRastreioOficial,
-        transportadora: entrega.transportadora_nome || 'Melhor Envio'
-      };
-    } catch (err: any) {
-      console.error('[MelhorEnvio] Erro na solicitação de despacho:', err);
-      throw err;
+    } catch (eEdge: any) {
+      const msgEdge = eEdge.message || String(eEdge);
+      if (
+        !msgEdge.toLowerCase().includes('function not found') &&
+        !msgEdge.toLowerCase().includes('404') &&
+        !msgEdge.toLowerCase().includes('failed to send a request') &&
+        !msgEdge.toLowerCase().includes('functionsfetcherror')
+      ) {
+        throw eEdge;
+      }
     }
+
+    // -------------------------------------------------------------------------
+    // MÉTODO 2: Supabase RPC (PostgreSQL extensions.http) - Sem Bloqueio de CORS
+    // -------------------------------------------------------------------------
+    try {
+      console.log('[MelhorEnvio] Executando despacho via Supabase RPC despachar_melhor_envio_rpc...');
+      const { data: rpcData, error: rpcError } = await supabase.rpc('despachar_melhor_envio_rpc', {
+        p_loja_id: config.loja_id,
+        p_pedido_id: pedido.id,
+        p_payload: cartPayload
+      });
+
+      if (!rpcError && rpcData && rpcData.sucesso) {
+        console.log('[MelhorEnvio] Despacho realizado com sucesso via Supabase RPC.');
+        return {
+          ordem_id: String(rpcData.ordem_id),
+          codigo_rastreio: String(rpcData.codigo_rastreio),
+          link_etiqueta: rpcData.link_etiqueta || `${baseUrl}/painel/envios`,
+          link_rastreio: rpcData.link_rastreio || `https://melhorrastreio.com.br/rastreio/${rpcData.codigo_rastreio}`,
+          transportadora: entrega.transportadora_nome || 'Melhor Envio'
+        };
+      }
+
+      if (rpcError) {
+        console.error('[MelhorEnvio] Erro na chamada RPC:', rpcError.message);
+        throw new Error(`Falha no servidor ao gerar envio: ${rpcError.message}`);
+      }
+
+      if (rpcData && !rpcData.sucesso) {
+        throw new Error(rpcData.erro || 'Falha ao processar etiqueta no Melhor Envio.');
+      }
+    } catch (eRpc: any) {
+      console.error('[MelhorEnvio] Exceção no fallback RPC:', eRpc);
+      throw eRpc;
+    }
+
+    throw new Error('Não foi possível se comunicar com o Melhor Envio. Verifique sua conexão e configurações.');
   }
 }

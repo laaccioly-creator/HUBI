@@ -912,7 +912,18 @@ export const PedidosLista: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Erro ao despachar pedido via API integrada:', err);
-      mostrarErro(err.message || 'Falha na comunicação com o provedor de frete.');
+      let mensagem = err?.message || 'Falha na comunicação com o provedor de frete.';
+      const msgLower = mensagem.toLowerCase();
+      if (msgLower.includes('saldo') || msgLower.includes('wallet')) {
+        mensagem = 'Saldo insuficiente na carteira do Melhor Envio para gerar a etiqueta. Adicione créditos no painel do Melhor Envio.';
+      } else if (msgLower.includes('token') && (msgLower.includes('missing') || msgLower.includes('não configurado'))) {
+        mensagem = 'Token do Melhor Envio não configurado nesta loja. Acesse Configurações > Frete e cadastre seu token.';
+      } else if (msgLower.includes('cep') && msgLower.includes('inválido')) {
+        mensagem = 'CEP de origem ou de entrega inválido para envio. Verifique o endereço do pedido.';
+      } else if (msgLower.includes('documento') && msgLower.includes('inválido')) {
+        mensagem = 'CPF ou CNPJ do cliente ou da loja inválido para emissão da etiqueta.';
+      }
+      mostrarErro(mensagem);
     } finally {
       setDespachando(false);
     }
