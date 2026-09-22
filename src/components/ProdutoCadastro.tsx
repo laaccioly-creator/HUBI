@@ -48,7 +48,13 @@ import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
 import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
-import { atualizarProdutoExistenteComIA, obterNomeSegmentoLoja } from '../services/geminiService';
+import {
+  atualizarProdutoExistenteComIA,
+  obterNomeSegmentoLoja,
+  getGeminiApiKey,
+  salvarGeminiApiKey,
+  obterOuBuscarGeminiApiKey
+} from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 
 export interface PrecoConcorrente {
@@ -82,24 +88,6 @@ export interface ProdutoSugeridoIA {
   diferencial?: string;
   opcoes_sugeridas?: ProdutoSugeridoIA[];
 }
-
-const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
-
-const getGeminiApiKey = (): string => {
-  return (
-    (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-    localStorage.getItem(STORAGE_KEY_GEMINI_KEY) ||
-    ''
-  );
-};
-
-const setGeminiApiKey = (key: string) => {
-  if (key.trim()) {
-    localStorage.setItem(STORAGE_KEY_GEMINI_KEY, key.trim());
-  } else {
-    localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
-  }
-};
 
 const comprimirArquivoImagem = async (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
   return new Promise((resolve) => {
@@ -411,9 +399,10 @@ const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promi
 
 const identificarProdutoPorFoto = async (
   imageBase64OrUrl: string,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
 
   if (apiKey) {
     try {
@@ -553,9 +542,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 export const pesquisarPrecosMercadoIA = async (
   nomeProduto: string,
   categoriaNome?: string,
-  barcode?: string
+  barcode?: string,
+  loja?: any
 ): Promise<DadosMercadoIA> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no topo da página.');
   }
@@ -610,9 +600,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 const identificarProdutoPorTextoOuEan = async (
   tipo: 'descricao' | 'barcode',
   valor: string,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no topo da página.');
   }
@@ -716,7 +707,21 @@ export const ProdutoCadastro: React.FC = () => {
 
   // Modal de Configuração de Chave Gemini
   const [modalKeyGemini, setModalKeyGemini] = useState<boolean>(false);
-  const [tempApiKey, setTempApiKey] = useState<string>(getGeminiApiKey());
+  const [tempApiKey, setTempApiKey] = useState<string>(() => getGeminiApiKey(loja));
+  const [salvandoKeyGemini, setSalvandoKeyGemini] = useState<boolean>(false);
+
+  useEffect(() => {
+    const carregarChave = async () => {
+      const k = getGeminiApiKey(loja);
+      if (k) {
+        setTempApiKey(k);
+      } else if (loja?.id) {
+        const buscada = await obterOuBuscarGeminiApiKey(loja);
+        if (buscada) setTempApiKey(buscada);
+      }
+    };
+    carregarChave();
+  }, [loja]);
 
   // Modal / Aba de Modo de Preenchimento Inteligente
   const [modoPreenchimentoIA, setModoPreenchimentoIA] = useState<'foto' | 'descricao' | 'barcode'>('foto');
@@ -1420,7 +1425,7 @@ export const ProdutoCadastro: React.FC = () => {
       setSucessoIAMsg(null);
 
       const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
-      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja);
+      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
 
       if (dadosSugeridos) {
         if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
@@ -1450,7 +1455,7 @@ export const ProdutoCadastro: React.FC = () => {
     try {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
-      const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto, segmentoLoja);
+      const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto, segmentoLoja, loja);
       if (dadosSugeridos) {
         aplicarDadosSugeridosIA(dadosSugeridos);
         setSucessoIAMsg('✨ Informações e ficha técnica preenchidas com sucesso a partir da descrição!');
@@ -1474,7 +1479,7 @@ export const ProdutoCadastro: React.FC = () => {
     try {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
-      const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean, segmentoLoja);
+      const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean, segmentoLoja, loja);
       if (dadosSugeridos) {
         aplicarDadosSugeridosIA(dadosSugeridos);
         setSucessoIAMsg('✨ Informações do produto identificadas com sucesso pelo código de barras!');
@@ -1507,7 +1512,8 @@ export const ProdutoCadastro: React.FC = () => {
         categoriaNome: catNome,
         codigoBarras: codigoBarras.trim(),
         precoVendaAtual: Number(precoVendaVarejo) || undefined,
-        segmentoLoja
+        segmentoLoja,
+        loja
       });
 
       if (dadosAtualizados) {
@@ -1548,7 +1554,7 @@ export const ProdutoCadastro: React.FC = () => {
       setBuscandoMercado(true);
       setErroMercado(null);
       const catNome = categorias.find(c => c.id === categoriaId)?.nome;
-      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras);
+      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras, loja);
       setDadosMercado(resultado);
     } catch (err: any) {
       setErroMercado(err.message || 'Erro ao pesquisar preços de mercado.');
@@ -1797,8 +1803,9 @@ export const ProdutoCadastro: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => {
-              setTempApiKey(getGeminiApiKey());
+            onClick={async () => {
+              const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
+              setTempApiKey(k);
               setModalKeyGemini(true);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 text-xs font-semibold transition cursor-pointer"
@@ -2934,14 +2941,43 @@ export const ProdutoCadastro: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setGeminiApiKey(tempApiKey);
-                  setModalKeyGemini(false);
-                  alert('Chave do Google Gemini salva com sucesso!');
+                disabled={salvandoKeyGemini}
+                onClick={async () => {
+                  try {
+                    setSalvandoKeyGemini(true);
+                    await salvarGeminiApiKey(tempApiKey, loja?.id, loja);
+                    if (loja && setLoja) {
+                      const metaAtual = (loja as any).configuracoes_extras || {};
+                      setLoja({
+                        ...loja,
+                        configuracoes_extras: {
+                          ...metaAtual,
+                          ia: {
+                            ...(metaAtual.ia || {}),
+                            gemini_api_key: tempApiKey.trim()
+                          }
+                        }
+                      });
+                    }
+                    setModalKeyGemini(false);
+                    setSucessoIAMsg(tempApiKey.trim() ? '✨ Chave do Google Gemini sincronizada e salva no banco de dados com sucesso!' : 'Chave removida.');
+                  } catch (e: any) {
+                    console.warn('Erro ao salvar chave do Gemini:', e);
+                    alert('Erro ao salvar no banco. A chave foi mantida neste navegador.');
+                  } finally {
+                    setSalvandoKeyGemini(false);
+                  }
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
               >
-                Salvar Chave
+                {salvandoKeyGemini ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  'Salvar Chave'
+                )}
               </button>
             </div>
           </div>

@@ -1,4 +1,6 @@
 // Serviço de Inteligência Artificial Google Gemini (Visão Multimodal e Processamento de Produtos)
+import { supabase } from '../lib/supabase';
+import { Loja } from '../types';
 import {
   obterSerpApiKey,
   obterOuBuscarSerpApiKey,
@@ -30,20 +32,132 @@ const STORAGE_KEY_GOOGLE_SEARCH_KEY = 'hubi_google_search_api_key';
 const STORAGE_KEY_GOOGLE_SEARCH_CX = 'hubi_google_search_cx';
 
 export const getGeminiApiKey = (loja?: any): string => {
-  return (
+  const chave = (
     loja?.configuracoes_extras?.ia?.gemini_api_key ||
     import.meta.env.VITE_GEMINI_API_KEY ||
     localStorage.getItem(STORAGE_KEY_GEMINI_KEY) ||
     ''
-  );
+  ).trim();
+
+  // Se veio do objeto da loja mas não estava no localStorage do aparelho, sincroniza no storage
+  if (chave && !localStorage.getItem(STORAGE_KEY_GEMINI_KEY)) {
+    try {
+      localStorage.setItem(STORAGE_KEY_GEMINI_KEY, chave);
+    } catch {}
+  }
+
+  return chave;
 };
 
-export const setGeminiApiKey = (key: string) => {
-  if (key.trim()) {
-    localStorage.setItem(STORAGE_KEY_GEMINI_KEY, key.trim());
+/**
+ * Obtém a chave Gemini de forma assíncrona, consultando o banco de dados Supabase
+ * caso ainda não esteja no localStorage do dispositivo.
+ */
+export const obterOuBuscarGeminiApiKey = async (loja?: Loja | any | null): Promise<string> => {
+  const chaveLocal = getGeminiApiKey(loja);
+  if (chaveLocal) return chaveLocal;
+
+  if (loja?.id) {
+    try {
+      const { data, error } = await supabase
+        .from('lojas')
+        .select('configuracoes_extras')
+        .eq('id', loja.id)
+        .maybeSingle();
+
+      if (!error && data?.configuracoes_extras) {
+        let meta = data.configuracoes_extras;
+        if (typeof meta === 'string') {
+          try {
+            meta = JSON.parse(meta);
+          } catch {
+            meta = {};
+          }
+        }
+        const chaveDb = (meta as any)?.ia?.gemini_api_key || '';
+        if (chaveDb && typeof chaveDb === 'string') {
+          const limpa = chaveDb.trim();
+          if (limpa) {
+            localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
+            return limpa;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn('[GeminiService] Erro ao buscar chave Gemini no Supabase:', e?.message || e);
+    }
+  }
+
+  return '';
+};
+
+/**
+ * Salva a chave da API do Google Gemini tanto no localStorage quanto no banco de dados Supabase
+ * garantindo persistência definitiva entre dispositivos e evitando perdas de sessão.
+ */
+export const salvarGeminiApiKey = async (
+  key: string,
+  lojaId?: string,
+  lojaAtual?: any
+): Promise<void> => {
+  const limpa = key.trim();
+
+  // 1. Grava no localStorage para acesso síncrono imediato no dispositivo
+  if (limpa) {
+    localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
   } else {
     localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
   }
+
+  // 2. Persiste no banco de dados Supabase
+  if (lojaId) {
+    try {
+      let configAtual = lojaAtual?.configuracoes_extras;
+
+      if (!configAtual) {
+        const { data } = await supabase
+          .from('lojas')
+          .select('configuracoes_extras')
+          .eq('id', lojaId)
+          .maybeSingle();
+        configAtual = data?.configuracoes_extras || {};
+      }
+
+      if (typeof configAtual === 'string') {
+        try {
+          configAtual = JSON.parse(configAtual);
+        } catch {
+          configAtual = {};
+        }
+      }
+
+      const novaConfig = {
+        ...(configAtual || {}),
+        ia: {
+          ...((configAtual && configAtual.ia) || {}),
+          gemini_api_key: limpa
+        }
+      };
+
+      const { error } = await supabase
+        .from('lojas')
+        .update({
+          configuracoes_extras: novaConfig,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', lojaId);
+
+      if (error) {
+        console.error('[GeminiService] Erro ao persistir chave Gemini no Supabase:', error);
+      }
+    } catch (err) {
+      console.error('[GeminiService] Falha ao salvar chave Gemini no banco:', err);
+    }
+  }
+};
+
+export const setGeminiApiKey = (key: string, lojaId?: string, lojaAtual?: any) => {
+  salvarGeminiApiKey(key, lojaId, lojaAtual);
 };
 
 export const getGoogleSearchConfig = (loja?: any): { apiKey: string; cx: string } => {
@@ -295,9 +409,10 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
  */
 export const identificarProdutoPorFoto = async (
   imageBase64OrUrl: string,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
 
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure sua chave Gemini nas configurações.');
@@ -420,9 +535,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 export const identificarProdutoPorTextoOuEan = async (
   tipo: 'texto' | 'barcode',
   valor: string,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
 
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no sistema.');
@@ -494,9 +610,10 @@ export const gerarDescricaoExclusivaIA = async (
   nomeProduto: string,
   categoria?: string,
   descricaoAtual?: string,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  loja?: any
 ): Promise<string> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
 
   if (apiKey && nomeProduto.trim()) {
     try {
@@ -821,8 +938,9 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   codigoBarras?: string;
   precoVendaAtual?: number;
   segmentoLoja?: string;
+  loja?: any;
 }): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(dados.loja);
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure sua chave Gemini nas configurações.');
   }

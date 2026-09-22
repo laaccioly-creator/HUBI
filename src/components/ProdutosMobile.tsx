@@ -67,6 +67,8 @@ import {
   atualizarProdutoExistenteComIA,
   getGeminiApiKey,
   setGeminiApiKey,
+  salvarGeminiApiKey,
+  obterOuBuscarGeminiApiKey,
   ProdutoSugeridoIA,
   obterNomeSegmentoLoja
 } from '../services/geminiService';
@@ -525,7 +527,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [promptTextoIA, setPromptTextoIA] = useState<string>('');
   const [promptCodigoIA, setPromptCodigoIA] = useState<string>('');
   const [modalKeyGemini, setModalKeyGemini] = useState<boolean>(false);
-  const [tempApiKey, setTempApiKey] = useState<string>(getGeminiApiKey());
+  const [tempApiKey, setTempApiKey] = useState<string>(() => getGeminiApiKey(loja));
+  const [salvandoKeyGemini, setSalvandoKeyGemini] = useState<boolean>(false);
+
+  useEffect(() => {
+    const carregarChaveGemini = async () => {
+      const k = getGeminiApiKey(loja);
+      if (k) {
+        setTempApiKey(k);
+      } else if (loja?.id) {
+        const buscada = await obterOuBuscarGeminiApiKey(loja);
+        if (buscada) setTempApiKey(buscada);
+      }
+    };
+    carregarChaveGemini();
+  }, [loja]);
 
   // Estados para Teclado Numérico (TELA012)
   const [tecladoValorEstoqueMin, setTecladoValorEstoqueMin] = useState<string>('0');
@@ -1330,7 +1346,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // MELHORAR DESCRIÇÃO COM IA (TELA017)
   // =========================================================================
   const melhorarDescricaoComIA = async () => {
-    if (!getGeminiApiKey()) {
+    let chave = getGeminiApiKey(loja);
+    if (!chave && loja?.id) {
+      chave = await obterOuBuscarGeminiApiKey(loja);
+    }
+    if (!chave) {
       setTempApiKey('');
       setModalKeyGemini(true);
       setMensagemFeedback({ texto: 'Configure sua Chave do Google Gemini para usar a IA.', tipo: 'erro' });
@@ -1343,7 +1363,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         formData.nome || 'PRODUTO',
         catNome,
         formData.descricao,
-        segmentoLoja
+        segmentoLoja,
+        loja
       );
       setFormData(prev => ({ ...prev, descricao: novaDescricao }));
       setMensagemFeedback({ texto: 'Descrição exclusiva gerada com sucesso!', tipo: 'sucesso' });
@@ -1371,25 +1392,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     if (sugestao.preco_venda_estimado) {
       const num = Number(sugestao.preco_venda_estimado);
       if (!isNaN(num) && num > 0) {
-        // Regra padrão: Preço médio sem os centavos (ex: R$ 37,40 vira R$ 37,00)
-        const semCentavos = Math.floor(num);
-        const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
-        const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
-        precoVendaFmt = semCentavos.toFixed(2).replace('.', ',');
-        atacadoSugerido = (semCentavos * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
-        autoSugerido = (semCentavos * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+        precoVendaFmt = num.toFixed(2).replace('.', ',');
+        // Auto-calcular atacado e auto-atacado sugeridos com margens inteligentes se não preenchidos
+        atacadoSugerido = (num * 0.90).toFixed(2).replace('.', ',');
+        autoSugerido = (num * 0.82).toFixed(2).replace('.', ',');
       }
     }
 
     setFormData(prev => ({
       ...prev,
-      nome: sugestao.nome ? sugestao.nome.toUpperCase() : prev.nome,
-      categoriaId: categoriaMatchId || prev.categoriaId,
-      precoVenda: precoVendaFmt !== undefined ? precoVendaFmt : prev.precoVenda,
-      precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
-      precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
-      precoCusto: sugestao.preco_custo_estimado ? String(sugestao.preco_custo_estimado).replace('.', ',') : prev.precoCusto,
-      descricao: sugestao.descricao || prev.descricao,
+      nome: (sugestao as any).nome_identificado || sugestao.nome || prev.nome,
+      categoriaId: categoriaMatchId,
+      precoVenda: precoVendaFmt || prev.precoVenda,
+      precoAtacado: prev.precoAtacado || atacadoSugerido || '',
+      precoAutoatacado: prev.precoAutoatacado || autoSugerido || '',
+      descricao: (sugestao as any).descricao_completa || sugestao.descricao || prev.descricao,
       codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
       tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
       fotos: fotoUrl ? [fotoUrl, ...prev.fotos.filter((f: string) => f !== fotoUrl)].slice(0, 6) : prev.fotos
@@ -1399,7 +1416,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // PREENCHIMENTO AUTOMÁTICO VIA IA (FOTO, TEXTO, CÓDIGO DE BARRAS)
   // =========================================================================
   const processarPreenchimentoIA = async (tipo: 'foto' | 'texto' | 'codigo', valor?: string) => {
-    if (!getGeminiApiKey()) {
+    let chave = getGeminiApiKey(loja);
+    if (!chave && loja?.id) {
+      chave = await obterOuBuscarGeminiApiKey(loja);
+    }
+    if (!chave) {
       setTempApiKey('');
       setModalKeyGemini(true);
       setMensagemFeedback({ texto: 'Configure sua Chave do Google Gemini para usar a IA.', tipo: 'erro' });
@@ -1410,12 +1431,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       let sugestao: any = null;
 
       if (tipo === 'foto' && valor) {
-        sugestao = await identificarProdutoPorFoto(valor, segmentoLoja);
+        sugestao = await identificarProdutoPorFoto(valor, segmentoLoja, loja);
       } else if (tipo === 'texto' && promptTextoIA.trim()) {
-        sugestao = await identificarProdutoPorTextoOuEan('texto', promptTextoIA.trim(), segmentoLoja);
+        sugestao = await identificarProdutoPorTextoOuEan('texto', promptTextoIA.trim(), segmentoLoja, loja);
       } else if (tipo === 'codigo' && (valor || promptCodigoIA.trim())) {
         const cod = valor || promptCodigoIA.trim();
-        sugestao = await identificarProdutoPorTextoOuEan('barcode', cod, segmentoLoja);
+        sugestao = await identificarProdutoPorTextoOuEan('barcode', cod, segmentoLoja, loja);
       }
 
       if (sugestao) {
@@ -3800,8 +3821,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setTempApiKey(getGeminiApiKey());
+                    onClick={async () => {
+                      const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
+                      setTempApiKey(k);
                       setModalKeyGemini(true);
                     }}
                     className="px-2 py-1 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 flex items-center gap-1 text-[11px] font-bold transition border border-teal-200"
@@ -4150,17 +4172,49 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setGeminiApiKey(tempApiKey);
-                    setModalKeyGemini(false);
-                    setMensagemFeedback({
-                      texto: tempApiKey.trim() ? 'Chave do Gemini salva com sucesso!' : 'Chave removida.',
-                      tipo: 'sucesso'
-                    });
+                  disabled={salvandoKeyGemini}
+                  onClick={async () => {
+                    try {
+                      setSalvandoKeyGemini(true);
+                      await salvarGeminiApiKey(tempApiKey, loja?.id, loja);
+                      if (loja && setLoja) {
+                        const metaAtual = (loja as any).configuracoes_extras || {};
+                        setLoja({
+                          ...loja,
+                          configuracoes_extras: {
+                            ...metaAtual,
+                            ia: {
+                              ...(metaAtual.ia || {}),
+                              gemini_api_key: tempApiKey.trim()
+                            }
+                          }
+                        });
+                      }
+                      setModalKeyGemini(false);
+                      setMensagemFeedback({
+                        texto: tempApiKey.trim() ? 'Chave do Gemini sincronizada e salva com sucesso!' : 'Chave removida.',
+                        tipo: 'sucesso'
+                      });
+                    } catch (e: any) {
+                      console.warn('Erro ao persistir chave do Gemini:', e);
+                      setMensagemFeedback({
+                        texto: 'Erro ao salvar no banco. A chave foi mantida neste dispositivo.',
+                        tipo: 'erro'
+                      });
+                    } finally {
+                      setSalvandoKeyGemini(false);
+                    }
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  Salvar Chave
+                  {salvandoKeyGemini ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    'Salvar Chave'
+                  )}
                 </button>
               </div>
             </div>
