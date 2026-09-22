@@ -84,6 +84,7 @@ export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label
   abas.push({ id: 'envio_pendente', label: 'Envio Pendente' });
   abas.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
   abas.push({ id: 'enviado', label: 'Enviado' });
+  abas.push({ id: 'entregue', label: 'Entregue' });
 
   // Status personalizados ativos
   const customizados = loja?.configuracoes_extras?.status_pedidos_ativos?.status_personalizados || [];

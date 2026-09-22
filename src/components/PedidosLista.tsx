@@ -1335,7 +1335,11 @@ export const PedidosLista: React.FC = () => {
       em_separacao: 0,
       em_producao: 0,
       em_expedicao: 0,
+      envio_pendente: 0,
+      aguardando_envio: 0,
       saiu_para_entrega: 0,
+      enviado: 0,
+      entregue: 0,
       pronto_para_retirar: 0,
       cancelado: 0
     };
@@ -1355,7 +1359,7 @@ export const PedidosLista: React.FC = () => {
 
   const pedidosAbertosCount = useMemo(() => {
     return pedidos.filter((p) =>
-      ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar'].includes(p.status)
+      ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'envio_pendente', 'aguardando_envio', 'saiu_para_entrega', 'enviado', 'entregue', 'pronto_para_retirar'].includes(p.status)
     ).length;
   }, [pedidos]);
 

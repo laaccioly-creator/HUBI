@@ -105,12 +105,14 @@ serve(async (req: Request) => {
     const agoraIso = new Date().toISOString();
 
     // 2. Regras de Atualização conforme o status notificado pela Uber
-    // Status de Entrega Concluída: delivered, completed, finished, dropoff
+    // Status de Entrega Concluída: delivered, completed, finished, dropoff ou complete === true
     const ehEntregaFinalizada =
       rawStatus === "delivered" ||
       rawStatus === "completed" ||
       rawStatus === "finished" ||
       rawStatus === "dropoff" ||
+      body.complete === true ||
+      body.data?.complete === true ||
       eventType.includes("delivered");
 
     // Status de Entrega Cancelada
@@ -123,7 +125,7 @@ serve(async (req: Request) => {
       console.log(`[UberWebhook] Marcando pedido #${pedido?.numero_pedido || pedidoId} como 'entregue' via Uber.`);
 
       // Atualiza pedido_entregas
-      await supabaseAdmin
+      const { error: errEntrega } = await supabaseAdmin
         .from("pedido_entregas")
         .update({
           status_envio: "entregue",
@@ -132,14 +134,22 @@ serve(async (req: Request) => {
         })
         .eq("pedido_id", pedidoId);
 
+      if (errEntrega) {
+        console.error("ERRO AO ATUALIZAR ENTREGA:", errEntrega);
+      }
+
       // Atualiza pedidos para status 'entregue' (mantém aberto para o operador clicar em [ Concluir ])
-      await supabaseAdmin
+      const { error: errPedido } = await supabaseAdmin
         .from("pedidos")
         .update({
           status: "entregue",
           atualizado_em: agoraIso,
         })
         .eq("id", pedidoId);
+
+      if (errPedido) {
+        console.error("ERRO AO ATUALIZAR PEDIDO:", errPedido);
+      }
 
       // Registra evento no historico_pedidos
       if (pedido?.loja_id) {
@@ -199,7 +209,7 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ received: true }),
+      JSON.stringify({ success: true, received: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
