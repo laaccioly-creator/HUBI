@@ -80,8 +80,19 @@ function limparTelefone(tel?: string | null): string {
   return t.length >= 10 ? t : "11999999999";
 }
 
+function extrairCepDeTexto(texto?: string | null): string {
+  if (!texto) return "";
+  const match = String(texto).match(/\b(\d{5})[-.\s]?(\d{3})\b/);
+  if (match) {
+    return `${match[1]}${match[2]}`;
+  }
+  return "";
+}
+
 function limparCep(cep?: string | null): string {
-  return (cep || "").replace(/\D/g, "").slice(0, 8);
+  const digitos = (cep || "").replace(/\D/g, "");
+  if (digitos.length === 7) return digitos.padStart(8, "0");
+  return digitos.slice(0, 8);
 }
 
 serve(async (req: Request) => {
@@ -143,7 +154,26 @@ serve(async (req: Request) => {
       pedido = pedData;
       lojaId = lojaId || pedido.loja_id;
       loja = pedido.loja;
-      entrega = pedido.pedido_entregas?.[0] || null;
+
+      // PostgREST pode retornar relação 1-1 como objeto ou 1-N como array
+      if (Array.isArray(pedido.pedido_entregas)) {
+        entrega = pedido.pedido_entregas[0] || null;
+      } else if (pedido.pedido_entregas && typeof pedido.pedido_entregas === "object") {
+        entrega = pedido.pedido_entregas;
+      }
+
+      // Fallback seguro: se o relacionamento não trouxe entrega, busca diretamente em pedido_entregas
+      if (!entrega) {
+        const { data: entDb } = await supabaseAdmin
+          .from("pedido_entregas")
+          .select("*")
+          .eq("pedido_id", pedidoId)
+          .maybeSingle();
+        if (entDb) {
+          entrega = entDb;
+        }
+      }
+
       itensPedido = pedido.itens || [];
 
       // Fallback seguro: se o join não trouxe os itens, busca diretamente em itens_pedido
@@ -204,15 +234,39 @@ serve(async (req: Request) => {
       ? "https://sandbox.melhorenvio.com.br"
       : "https://melhorenvio.com.br";
 
+    const headersComuns = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      "User-Agent": "HUBI Sistema (suporte@hubi.app)",
+    };
+
+    // Consulta perfil do titular no Melhor Envio para harmonizar regras de PF/PJ
+    let meUser: any = null;
+    try {
+      const meRes = await fetch(`${baseUrl}/api/v2/me`, { headers: headersComuns });
+      if (meRes.ok) {
+        meUser = await meRes.json();
+      }
+    } catch (eMe) {
+      console.warn("[MelhorEnvio-Edge] Falha ao consultar /api/v2/me:", eMe);
+    }
+
     // -------------------------------------------------------------------------
     // 3. Validação e Sanitização de Documentos (from.document e to.document)
     // -------------------------------------------------------------------------
-    // A. Remetente (from.document): Loja
+    // A. Remetente (from.document): Loja / Titular da Conta
     let docLoja = (loja?.numero_documento || "").replace(/\D/g, "");
-    if (!validarDocumentoReceita(docLoja)) {
-      if (isSandbox) {
-        // No sandbox, se a loja não tiver CNPJ válido cadastrado, utiliza o CNPJ homologado de testes
-        docLoja = "16571723000105";
+
+    // Se a conta no Melhor Envio for Pessoa Física (CPF), o remetente exige estritamente CPF da conta
+    if (meUser?.document_type === "cpf" && meUser?.document) {
+      docLoja = String(meUser.document).replace(/\D/g, "");
+    } else if (!validarDocumentoReceita(docLoja)) {
+      if (meUser?.document) {
+        docLoja = String(meUser.document).replace(/\D/g, "");
+      } else if (isSandbox) {
+        // No sandbox, utiliza o CPF homologado de testes
+        docLoja = "45666490400";
       } else {
         return new Response(
           JSON.stringify({
@@ -228,14 +282,29 @@ serve(async (req: Request) => {
     const cliente = pedido?.cliente;
     let docCliente = (cliente?.numero_documento || pedido?.cliente_documento_avulso || "").replace(/\D/g, "");
     if (!validarDocumentoReceita(docCliente)) {
-      if (isSandbox && !docCliente) {
+      if (isSandbox) {
         // Fallback apenas se for ambiente de sandbox estrito e sem documento informado
-        docCliente = "01234567890";
+        docCliente = "11144477735";
       } else {
         return new Response(
           JSON.stringify({
             error: "O CPF/CNPJ do cliente é obrigatório para emissão de frete via Melhor Envio.",
             code: "INVALID_RECEIVER_DOCUMENT",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    if (docCliente === docLoja) {
+      if (isSandbox) {
+        // No sandbox, se o lojista estiver testando consigo mesmo, usa CPF de destinatário de teste válido
+        docCliente = "11144477735";
+      } else {
+        return new Response(
+          JSON.stringify({
+            error: "O CPF do destinatário não pode ser igual ao CPF do remetente no Melhor Envio.",
+            code: "SAME_SENDER_RECEIVER_DOCUMENT",
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -280,8 +349,19 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     // 5. Montagem do cartPayload Oficial
     // -------------------------------------------------------------------------
-    const cepOrigem = limparCep(configShipping.origem_cep || loja?.endereco_cep);
-    const cepDestino = limparCep(entrega?.destino_cep);
+    const cepOrigem = limparCep(
+      configShipping?.origem_cep ||
+      loja?.endereco_cep ||
+      customPayload?.from?.postal_code ||
+      extrairCepDeTexto(loja?.endereco_logradouro)
+    );
+
+    const cepDestino = limparCep(
+      entrega?.destino_cep ||
+      customPayload?.to?.postal_code ||
+      cliente?.cep ||
+      extrairCepDeTexto(pedido?.endereco_entrega)
+    );
 
     if (cepOrigem.length !== 8 || cepDestino.length !== 8) {
       return new Response(
@@ -293,15 +373,15 @@ serve(async (req: Request) => {
       );
     }
 
-    const clienteNome = pedido?.cliente_nome_avulso || cliente?.nome || "Cliente";
-    const clienteTel = limparTelefone(cliente?.whatsapp || cliente?.telefone || pedido?.cliente_telefone_avulso);
-    const clienteEmail = cliente?.email || pedido?.cliente_email_avulso || "cliente@hubi.app";
+    const clienteNome = pedido?.cliente_nome_avulso || cliente?.nome || customPayload?.to?.name || "Cliente";
+    const clienteTel = limparTelefone(cliente?.whatsapp || cliente?.telefone || pedido?.cliente_telefone_avulso || customPayload?.to?.phone);
+    const clienteEmail = cliente?.email || pedido?.cliente_email_avulso || customPayload?.to?.email || "cliente@hubi.app";
 
-    const lojaNome = loja?.nome_fantasia || loja?.nome_loja || "HUBI PDV";
-    const lojaTel = limparTelefone(loja?.whatsapp || loja?.telefone);
-    const lojaEmail = loja?.email || "contato@hubi.app";
+    const lojaNome = loja?.nome_fantasia || loja?.nome_loja || customPayload?.from?.name || "HUBI PDV";
+    const lojaTel = limparTelefone(loja?.whatsapp || loja?.telefone || customPayload?.from?.phone);
+    const lojaEmail = loja?.email || customPayload?.from?.email || "contato@hubi.app";
 
-    const servicoCodigo = Number(entrega?.servico_codigo) || 1; // 1: PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
+    const servicoCodigo = Number(entrega?.servico_codigo || customPayload?.service) || 1; // 1: PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
 
     const cartPayload = {
       service: servicoCodigo,
@@ -311,12 +391,12 @@ serve(async (req: Request) => {
         phone: lojaTel,
         email: lojaEmail,
         document: docLoja,
-        address: configShipping.origem_logradouro || loja?.endereco_logradouro || "Rua",
-        complement: configShipping.origem_complemento || "",
-        number: configShipping.origem_numero || loja?.endereco_numero || "S/N",
-        district: configShipping.origem_bairro || loja?.endereco_bairro || "Bairro",
-        city: configShipping.origem_cidade || loja?.endereco_cidade || "Cidade",
-        state_abbr: (configShipping.origem_uf || loja?.endereco_estado || "SP").toUpperCase(),
+        address: configShipping.origem_logradouro || loja?.endereco_logradouro || customPayload?.from?.address || "Rua",
+        complement: configShipping.origem_complemento || customPayload?.from?.complement || "",
+        number: configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number || "S/N",
+        district: configShipping.origem_bairro || loja?.endereco_bairro || customPayload?.from?.district || "Bairro",
+        city: configShipping.origem_cidade || loja?.endereco_cidade || customPayload?.from?.city || "Cidade",
+        state_abbr: (configShipping.origem_uf || loja?.endereco_estado || customPayload?.from?.state_abbr || "SP").toUpperCase(),
         postal_code: cepOrigem,
       },
       to: {
@@ -324,12 +404,12 @@ serve(async (req: Request) => {
         phone: clienteTel,
         email: clienteEmail,
         document: docCliente,
-        address: entrega?.destino_logradouro || "Rua",
-        complement: entrega?.destino_complemento || "",
-        number: entrega?.destino_numero || "S/N",
-        district: entrega?.destino_bairro || "Bairro",
-        city: entrega?.destino_cidade || "Cidade",
-        state_abbr: (entrega?.destino_uf || "SP").toUpperCase(),
+        address: entrega?.destino_logradouro || customPayload?.to?.address || "Rua",
+        complement: entrega?.destino_complemento || customPayload?.to?.complement || "",
+        number: entrega?.destino_numero || customPayload?.to?.number || "S/N",
+        district: entrega?.destino_bairro || customPayload?.to?.district || "Bairro",
+        city: entrega?.destino_cidade || customPayload?.to?.city || "Cidade",
+        state_abbr: (entrega?.destino_uf || customPayload?.to?.state_abbr || "SP").toUpperCase(),
         postal_code: cepDestino,
       },
       products: productsList,
@@ -348,13 +428,6 @@ serve(async (req: Request) => {
         reverse: false,
         non_commercial: true,
       },
-    };
-
-    const headersComuns = {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      "User-Agent": "HUBI Sistema (suporte@hubi.app)",
     };
 
     // -------------------------------------------------------------------------
