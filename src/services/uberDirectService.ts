@@ -432,11 +432,13 @@ export class UberDirectService {
       ? (telDigits.startsWith('55') ? `+${telDigits}` : `+55${telDigits}`)
       : (loja.whatsapp ? `+55${loja.whatsapp.replace(/\D/g, '')}` : '+5511999999999');
 
+    const isSandbox = Boolean(config.uber_sandbox_mode);
+
     const payload = {
       pickup: {
         name: loja.nome_fantasia || 'HUBI PDV',
         address: enderecoOrigem,
-        phone_number: loja.whatsapp ? `+55${loja.whatsapp.replace(/\D/g, '')}` : '+5511999999999'
+        phone_number: loja.whatsapp ? (loja.whatsapp.replace(/\D/g, '').startsWith('55') ? `+${loja.whatsapp.replace(/\D/g, '')}` : `+55${loja.whatsapp.replace(/\D/g, '')}`) : '+5511999999999'
       },
       dropoff: {
         name: clienteNome || 'Cliente',
@@ -449,103 +451,50 @@ export class UberDirectService {
             quantity: Number(i.quantidade || 1),
             price: Math.round(Number(i.subtotal || i.preco_venda_unitario || 0) * 100)
           }))
-        : [{ name: `Pedido #${pedido.numero_pedido}`, quantity: 1, price: Math.round(Number(pedido.valor_total || 0) * 100) }]
+        : [{ name: `Pedido #${pedido.numero_pedido}`, quantity: 1, price: Math.round(Number(pedido.valor_total || 0) * 100) }],
+      ...(isSandbox ? { test_specifications: { robo_courier_specification: { mode: 'auto' } } } : {})
     };
 
-    try {
-      // 1. Roteamento via Supabase Edge Function (evita CORS no cliente e protege uber_client_secret)
-      try {
-        const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('uber-dispatch', {
-          body: {
-            loja_id: config.loja_id,
-            pedido_id: pedido.id,
-            payload
-          }
-        });
-
-        if (!edgeErr && edgeData && (edgeData.id || edgeData.delivery_id || edgeData.tracking_url || edgeData.link_rastreio)) {
-          const officialTrackingUrl = edgeData.tracking_url || edgeData.trackingUrl || edgeData.link_rastreio || (edgeData.id ? `https://direct.uber.com/tracking/${edgeData.id}` : '');
-          const deliveryId = edgeData.delivery_id || edgeData.id || `uber_${Date.now()}`;
-          const pin = edgeData.dropoff_pin || edgeData.pickup_pin || edgeData.verification?.pincode || edgeData.pin_entrega || edgeData.pincode || null;
-          return {
-            delivery_id: deliveryId,
-            link_rastreio: officialTrackingUrl,
-            pin_entrega: pin,
-            status: edgeData.status || 'processing'
-          };
-        }
-      } catch (edgeEx: any) {
-        console.info('[UberDirect] Supabase Edge Function indisponível ou não implantada:', edgeEx?.message);
+    // Invocação oficial da Supabase Edge Function 'uber-dispatch'
+    const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('uber-dispatch', {
+      body: {
+        pedidoId: pedido.id,
+        isSandbox,
+        loja_id: config.loja_id,
+        payload
       }
+    });
 
-      // 2. Roteamento via Proxy Local / Vite (/api/shipping/uber-delivery)
+    if (edgeErr) {
+      let detalheErro = edgeErr.message || 'Falha na comunicação com o servidor de despacho.';
       try {
-        const proxyRes = await fetch('/api/shipping/uber-delivery', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            loja_id: config.loja_id,
-            pedido_id: pedido.id,
-            payload
-          })
-        });
-
-        if (proxyRes.ok) {
-          const data = await proxyRes.json();
-          const officialTrackingUrl = data.tracking_url || data.trackingUrl || data.link_rastreio || (data.id ? `https://direct.uber.com/tracking/${data.id}` : '');
-          const deliveryId = data.id || data.delivery_id || `uber_${Date.now()}`;
-          const pin = data.dropoff_pin || data.pickup_pin || data.verification?.pincode || data.pin_entrega || data.pincode || null;
-          return {
-            delivery_id: deliveryId,
-            link_rastreio: officialTrackingUrl,
-            pin_entrega: pin,
-            status: data.status || 'processing'
-          };
+        if (edgeErr.context && typeof edgeErr.context.json === 'function') {
+          const jsonErr = await edgeErr.context.json();
+          detalheErro = jsonErr.error || jsonErr.message || jsonErr.details?.message || JSON.stringify(jsonErr);
         }
       } catch {
-        // Proxy local indisponível
+        // Mantém detalheErro
       }
-
-      // 3. Chamada Direta via Browser (pode sofrer bloqueio de CORS pela Uber)
-      const token = await this.obterTokenAutenticacao(config);
-      const baseUrl = this.getBaseUrl(config.uber_sandbox_mode);
-      const endpoint = `${baseUrl}/v1/customers/${encodeURIComponent(config.uber_customer_id.trim())}/deliveries`;
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Erro retornado pela Uber Direct (${response.status}): ${errText}`);
-      }
-
-      const data = await response.json();
-      const officialTrackingUrl = data.tracking_url || data.trackingUrl || data.link_rastreio || (data.id ? `https://direct.uber.com/tracking/${data.id}` : '');
-      const deliveryId = data.id || `uber_${Date.now()}`;
-      const pin = data.dropoff_pin || data.pickup_pin || data.verification?.pincode || data.pin_entrega || data.pincode || null;
-      return {
-        delivery_id: deliveryId,
-        link_rastreio: officialTrackingUrl,
-        pin_entrega: pin,
-        status: data.status || 'processing'
-      };
-    } catch (err: any) {
-      console.warn('[UberDirect] Bloqueio de CORS ou falha de rede na chamada direta à Uber. Acionando retorno seguro de teste/sandbox:', err?.message || err);
-
-      // Em ambiente de teste/sandbox, gera link simulado da Uber Direct
-      const mockId = `mock_${Date.now()}`;
-      return {
-        delivery_id: `uber_${mockId}`,
-        link_rastreio: `https://direct.uber.com/tracking/${mockId}`,
-        pin_entrega: '1234',
-        status: 'processing'
-      };
+      throw new Error(`Erro na Uber Direct: ${detalheErro}`);
     }
+
+    if (!edgeData || edgeData.error) {
+      throw new Error(`Erro na Uber Direct: ${edgeData?.error || 'A Uber não retornou os dados da entrega.'}`);
+    }
+
+    const officialTrackingUrl = edgeData.tracking_url || edgeData.link_rastreio || (edgeData.delivery_id ? `https://direct.uber.com/tracking/${edgeData.delivery_id}` : '');
+    const deliveryId = edgeData.delivery_id || edgeData.id;
+    const pin = edgeData.pin || edgeData.pin_entrega || edgeData.dropoff_pin || edgeData.pickup_pin || null;
+
+    if (!deliveryId) {
+      throw new Error('A Uber não retornou o identificador (delivery_id) da corrida.');
+    }
+
+    return {
+      delivery_id: deliveryId,
+      link_rastreio: officialTrackingUrl,
+      pin_entrega: pin,
+      status: edgeData.status || 'em_transito'
+    };
   }
 }
