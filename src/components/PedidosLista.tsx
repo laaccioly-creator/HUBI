@@ -58,7 +58,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
-import { ModalReceberPagamento } from './ModalReceberPagamento';
+import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 import { ModalReceberFiado } from './ModalReceberFiado';
 import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
@@ -828,7 +828,7 @@ export const PedidosLista: React.FC = () => {
             p.id === ped.id
               ? {
                   ...p,
-                  status: 'saiu_para_entrega',
+                  status: 'enviado',
                   link_rastreio: resultado.link_rastreio,
                   pin_entrega: resultado.pin_entrega || p.pin_entrega,
                   despachado_em: agora,
@@ -842,7 +842,7 @@ export const PedidosLista: React.FC = () => {
           prev
             ? {
                 ...prev,
-                status: 'saiu_para_entrega',
+                status: 'enviado',
                 link_rastreio: resultado.link_rastreio,
                 pin_entrega: resultado.pin_entrega || prev.pin_entrega,
                 despachado_em: agora,
@@ -868,6 +868,10 @@ export const PedidosLista: React.FC = () => {
           usuario?.id || null
         );
 
+        const urlRastreio = resultado.codigo_rastreio
+          ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
+          : resultado.link_etiqueta;
+
         setPedidos((prev) =>
           prev.map((p) =>
             p.id === ped.id
@@ -875,7 +879,7 @@ export const PedidosLista: React.FC = () => {
                   ...p,
                   status: 'enviado',
                   codigo_rastreio: resultado.codigo_rastreio,
-                  link_rastreio: resultado.link_etiqueta,
+                  link_rastreio: urlRastreio,
                   despachado_em: agora,
                   despachado_por: usuario?.id || null
                 }
@@ -889,7 +893,7 @@ export const PedidosLista: React.FC = () => {
                 ...prev,
                 status: 'enviado',
                 codigo_rastreio: resultado.codigo_rastreio,
-                link_rastreio: resultado.link_etiqueta,
+                link_rastreio: urlRastreio,
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
@@ -935,7 +939,7 @@ export const PedidosLista: React.FC = () => {
           p.id === pedidoSelecionado.id
             ? {
                 ...p,
-                status: 'saiu_para_entrega',
+                status: 'enviado',
                 entregador_nome: entregadorNomeDespacho.trim() || p.entregador_nome,
                 contato_entregador: contatoEntregadorDespacho.trim() || p.contato_entregador,
                 codigo_rastreio: codigoRastreioDespacho.trim() || p.codigo_rastreio,
@@ -954,7 +958,7 @@ export const PedidosLista: React.FC = () => {
         prev
           ? {
               ...prev,
-              status: 'saiu_para_entrega',
+              status: 'enviado',
               entregador_nome: entregadorNomeDespacho.trim() || prev.entregador_nome,
               contato_entregador: contatoEntregadorDespacho.trim() || prev.contato_entregador,
               codigo_rastreio: codigoRastreioDespacho.trim() || prev.codigo_rastreio,
@@ -1000,7 +1004,7 @@ export const PedidosLista: React.FC = () => {
           p.id === pedidoSelecionado.id
             ? {
                 ...p,
-                status: 'saiu_para_entrega',
+                status: 'enviado',
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
@@ -1011,7 +1015,7 @@ export const PedidosLista: React.FC = () => {
         prev
           ? {
               ...prev,
-              status: 'saiu_para_entrega',
+              status: 'enviado',
               despachado_em: agora,
               despachado_por: usuario?.id || null
             }
@@ -1335,9 +1339,7 @@ export const PedidosLista: React.FC = () => {
       em_separacao: 0,
       em_producao: 0,
       em_expedicao: 0,
-      envio_pendente: 0,
       aguardando_envio: 0,
-      saiu_para_entrega: 0,
       enviado: 0,
       entregue: 0,
       pronto_para_retirar: 0,
@@ -1351,6 +1353,10 @@ export const PedidosLista: React.FC = () => {
       }
       if (counts[p.status] !== undefined) {
         counts[p.status] += 1;
+      } else if (p.status === 'saiu_para_entrega') {
+        counts.enviado += 1;
+      } else if (p.status === 'envio_pendente') {
+        counts.aguardando_envio += 1;
       }
     });
 
@@ -1359,7 +1365,7 @@ export const PedidosLista: React.FC = () => {
 
   const pedidosAbertosCount = useMemo(() => {
     return pedidos.filter((p) =>
-      ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'envio_pendente', 'aguardando_envio', 'saiu_para_entrega', 'enviado', 'entregue', 'pronto_para_retirar'].includes(p.status)
+      ['pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'aguardando_envio', 'enviado', 'entregue', 'pronto_para_retirar'].includes(p.status)
     ).length;
   }, [pedidos]);
 
@@ -1461,8 +1467,11 @@ export const PedidosLista: React.FC = () => {
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">🔵 Em produção</span>;
       case 'em_expedicao':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">📦 Em expedição</span>;
+      case 'aguardando_envio':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">📦 Aguardando Envio</span>;
+      case 'enviado':
       case 'saiu_para_entrega':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">🚚 Saiu para Entrega</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">🚚 Enviado</span>;
       case 'pronto_para_retirar':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/15 text-teal-400 border border-teal-500/30">🏪 Pronto Retirada</span>;
       case 'vencido': {
@@ -1663,7 +1672,7 @@ export const PedidosLista: React.FC = () => {
                       title="Imprimir Etiqueta de Envio"
                     >
                       <Tag className="w-3.5 h-3.5" />
-                      <span>Imprimir Etiqueta</span>
+                      <span>Etiqueta</span>
                     </button>
                   );
                 }
@@ -2542,7 +2551,7 @@ export const PedidosLista: React.FC = () => {
                                   title="Imprimir Etiqueta de Envio"
                                 >
                                   <Tag className="w-3 h-3" />
-                                  <span>Imprimir Etiqueta</span>
+                                  <span>Etiqueta</span>
                                 </button>
                               );
                             }
@@ -2564,8 +2573,8 @@ export const PedidosLista: React.FC = () => {
                               </button>
                             )}
 
-                            {pedido.status === 'envio_pendente' ? (
-                              /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento) */
+                            {(pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
+                              /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */
                               <button
                                 type="button"
                                 onClick={() => setPedidoEscolherEnvio(pedido)}
@@ -3223,8 +3232,8 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setProdutoDetalhesModal(null)}
       />
 
-      {/* MODAL DE RECEBER PAGAMENTO NORMAL */}
-      <ModalReceberPagamento
+      {/* MODAL OFICIAL DE PAGAMENTO & FECHAMENTO */}
+      <ModalPagamentoFechamento
         isOpen={!!pedidoReceberModal}
         pedido={pedidoReceberModal}
         concluirAoQuitar={concluirAposReceber}

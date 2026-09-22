@@ -20,6 +20,7 @@ import {
   formatarDataRecibo,
   obterDadosPagamentoRecibo,
   formatarVendedorRecibo,
+  obterInfoEntregaRecibo,
   PrintService
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
@@ -43,51 +44,43 @@ export const ReciboPublico: React.FC = () => {
         return;
       }
 
-      setCarregando(true);
-      setErroMsg(null);
-
       try {
-        let query = supabase
+        setCarregando(true);
+        setErroMsg(null);
+
+        // Busca o pedido com todas as relações estruturadas
+        const { data: pedData, error: pedErr } = await supabase
           .from('pedidos')
           .select(`
             *,
             cliente:clientes(*),
+            vendedor:usuarios(*),
             itens:itens_pedido(*),
-            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
-          `);
+            pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+            pedido_entrega:pedido_entregas(*)
+          `)
+          .eq('id', id)
+          .single();
 
-        if (id.includes('-') && id.length > 20) {
-          query = query.eq('id', id);
-        } else {
-          query = query.eq('numero_pedido', Number(id) || 0);
+        if (pedErr || !pedData) {
+          throw new Error('Pedido não encontrado no sistema.');
         }
 
-        const { data: pedidosData, error: errPedido } = await query;
+        setPedido(pedData as unknown as Pedido);
 
-        if (errPedido || !pedidosData || pedidosData.length === 0) {
-          setErroMsg('Comprovante não encontrado ou pedido inexistente.');
-          setCarregando(false);
-          return;
-        }
-
-        const ped = pedidosData[0] as Pedido;
-        setPedido(ped);
-
-        if (ped.loja_id) {
+        // Busca os dados da loja
+        if (pedData.loja_id) {
           const { data: lojaData } = await supabase
             .from('lojas')
             .select('*')
-            .eq('id', ped.loja_id)
+            .eq('id', pedData.loja_id)
             .single();
 
-          if (lojaData) {
-            setLoja(lojaData as Loja);
-            document.title = `Recibo Pedido #${ped.numero_pedido || id} - ${lojaData.nome_fantasia || 'HUBI'}`;
-          }
+          if (lojaData) setLoja(lojaData as Loja);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Erro ao carregar recibo público:', err);
-        setErroMsg('Ocorreu um erro ao carregar os dados deste comprovante.');
+        setErroMsg((err as Error).message || 'Não foi possível carregar os dados do comprovante.');
       } finally {
         setCarregando(false);
       }
@@ -97,25 +90,24 @@ export const ReciboPublico: React.FC = () => {
   }, [id]);
 
   const handleBaixarPdf = async () => {
-    if (!pedido || !reciboRef.current) return;
+    if (!reciboRef.current || !pedido || !loja) return;
     try {
       setBaixandoPdf(true);
       await ReceiptPdfService.baixarPdfRecibo(reciboRef.current, pedido, loja);
     } catch (err) {
-      console.error('Erro ao baixar PDF:', err);
-      alert('Não foi possível gerar o PDF do comprovante.');
+      console.error('Erro ao gerar PDF do recibo:', err);
     } finally {
       setBaixandoPdf(false);
     }
   };
 
-  const handleCompartilhar = async () => {
-    if (!pedido || !loja || !reciboRef.current) return;
+  const handleCompartilharWhatsApp = async () => {
+    if (!reciboRef.current || !pedido || !loja) return;
     try {
       setCompartilhando(true);
       await ReceiptPdfService.compartilharReciboWhatsApp(reciboRef.current, pedido, loja);
     } catch (err) {
-      console.error('Erro ao compartilhar recibo:', err);
+      console.error('Erro ao compartilhar via WhatsApp:', err);
     } finally {
       setCompartilhando(false);
     }
@@ -152,59 +144,14 @@ export const ReciboPublico: React.FC = () => {
     );
   }
 
-  const rawPe = (pedido as unknown as { pedido_entrega?: unknown }).pedido_entrega;
-  const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-  const metaTransp = (pedido as unknown as { metadados?: { transportadora_nome?: string } }).metadados?.transportadora_nome;
-  const metaTipo = (pedido as unknown as { metadados?: { tipo_atendimento?: string } }).metadados?.tipo_atendimento;
-  const ehRetirada =
-    pe?.tipo_atendimento === 'retirada' ||
-    metaTipo === 'retirada' ||
-    (!pe && !metaTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+  const {
+    ehRetirada,
+    formaEntregaTexto,
+    labelEndereco,
+    enderecoExibicao
+  } = obterInfoEntregaRecibo(pedido, loja);
 
-  let formaEntregaTexto = 'RETIRADA NA LOJA';
-  let badgeEstilo = 'bg-purple-100 text-purple-800';
-
-  if (!ehRetirada) {
-    badgeEstilo = 'bg-emerald-100 text-emerald-800';
-    const provedor = (pe?.provedor || (pedido as unknown as { metadados?: { provedor_frete?: string } }).metadados?.provedor_frete || '').toLowerCase();
-    const transp = (pe?.transportadora_nome || metaTransp || pedido.forma_entrega?.nome || '').trim();
-    const servico = (pe?.servico_codigo || (pedido as unknown as { metadados?: { servico_frete_codigo?: string } }).metadados?.servico_frete_codigo || '').toLowerCase();
-
-    if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-      formaEntregaTexto = 'CORREIOS';
-    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
-      formaEntregaTexto = 'UBER';
-    } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-      formaEntregaTexto = 'JADLOG';
-    } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
-      formaEntregaTexto = transp.toUpperCase();
-    } else {
-      formaEntregaTexto = 'ENTREGA';
-    }
-  }
-
-  const enderecoDestino = (() => {
-    if (pe?.destino_logradouro) {
-      const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
-      const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
-      return `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
-    }
-    if (pedido.endereco_entrega) {
-      return pedido.endereco_entrega;
-    }
-    if (pedido.cliente?.endereco_principal) {
-      return pedido.cliente.endereco_principal;
-    }
-    return 'Endereço não informado';
-  })();
-
-  const enderecoLojaFormatado = [
-    loja?.endereco_logradouro,
-    loja?.endereco_numero,
-    loja?.endereco_bairro,
-    loja?.endereco_cidade,
-    loja?.endereco_estado
-  ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
+  const badgeEstilo = ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800';
 
   const valorSubtotal = Number(
     (pedido as unknown as { subtotal_produtos?: number }).subtotal_produtos ||
@@ -258,7 +205,7 @@ export const ReciboPublico: React.FC = () => {
           <button
             type="button"
             disabled={compartilhando}
-            onClick={handleCompartilhar}
+            onClick={handleCompartilharWhatsApp}
             className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
             title="Compartilhar no WhatsApp"
           >
@@ -331,8 +278,8 @@ export const ReciboPublico: React.FC = () => {
               </span>
             </div>
             <div className="text-slate-600 pt-0.5">
-              <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
-              <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+              <strong className="text-slate-800">{labelEndereco} </strong>
+              <span>{enderecoExibicao}</span>
             </div>
           </div>
 

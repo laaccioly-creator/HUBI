@@ -798,7 +798,7 @@ export class ShippingOrchestrator {
     await supabase
       .from('pedidos')
       .update({
-        status: 'saiu_para_entrega',
+        status: 'enviado',
         codigo_rastreio: resultado.delivery_id,
         link_rastreio: resultado.link_rastreio,
         pin_entrega: resultado.pin_entrega || null,
@@ -830,23 +830,27 @@ export class ShippingOrchestrator {
       entrega
     });
 
+    const urlRastreioOficial = resultado.codigo_rastreio
+      ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
+      : null;
+
     // 1. Persistência canônica em pedido_entregas (com upsert seguro)
     await this.salvarPedidoEntrega(pedido.id, {
       ...entrega,
       codigo_rastreio: resultado.codigo_rastreio,
-      link_rastreio: resultado.link_etiqueta,
+      link_rastreio: urlRastreioOficial,
       status_envio: 'despachado',
       despachado_em: despachadoEm,
       despachado_por: usuarioId || null
     });
 
-    // 2. Snapshot e transição de status para saiu_para_entrega
+    // 2. Snapshot e transição de status para enviado
     await supabase
       .from('pedidos')
       .update({
-        status: 'saiu_para_entrega',
+        status: 'enviado',
         codigo_rastreio: resultado.codigo_rastreio,
-        link_rastreio: resultado.link_etiqueta,
+        link_rastreio: urlRastreioOficial,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,
         atualizado_em: despachadoEm
@@ -878,11 +882,11 @@ export class ShippingOrchestrator {
       })
       .eq('pedido_id', pedidoId);
 
-    // 2. Snapshot e transição de status para saiu_para_entrega
+    // 2. Snapshot e transição de status para enviado
     await supabase
       .from('pedidos')
       .update({
-        status: 'saiu_para_entrega',
+        status: 'enviado',
         entregador_nome: entregadorNome || null,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,
@@ -892,7 +896,7 @@ export class ShippingOrchestrator {
   }
 
   /**
-   * Válvula de contingência RBAC: Força o despacho manual para saiu_para_entrega (exclusivo admin/gerente)
+   * Válvula de contingência RBAC: Força o despacho manual para enviado (exclusivo admin/gerente)
    */
   public static async forcarDespachoManual(
     pedidoId: string,
@@ -913,7 +917,7 @@ export class ShippingOrchestrator {
     await supabase
       .from('pedidos')
       .update({
-        status: 'saiu_para_entrega',
+        status: 'enviado',
         despachado_em: agora,
         despachado_por: usuarioLojaId || null,
         atualizado_em: agora

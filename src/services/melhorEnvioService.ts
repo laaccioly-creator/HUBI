@@ -13,6 +13,7 @@ export interface ResultadoSolicitacaoMelhorEnvio {
   ordem_id: string;
   codigo_rastreio: string;
   link_etiqueta: string;
+  link_rastreio: string;
   transportadora: string;
 }
 
@@ -368,16 +369,6 @@ export class MelhorEnvioService {
 
       if (!cartResponse.ok) {
         const errText = await cartResponse.text();
-        if (config.melhor_envio_sandbox_mode) {
-          console.warn('[MelhorEnvio] Sandbox ativo: gerando etiqueta simulada de teste devido a erro na API:', errText);
-          const codSimulado = `BR${Date.now().toString().slice(-8)}ME`;
-          return {
-            ordem_id: `me_sim_${Date.now()}`,
-            codigo_rastreio: codSimulado,
-            link_etiqueta: `https://sandbox.melhorenvio.com.br/painel/envios`,
-            transportadora: entrega.transportadora_nome || 'Melhor Envio'
-          };
-        }
         throw new Error(`Erro ao adicionar envio ao Melhor Envio (${cartResponse.status}): ${errText}`);
       }
 
@@ -385,7 +376,7 @@ export class MelhorEnvioService {
       const orderId = cartData.id;
 
       // Executa checkout da etiqueta
-      await fetch(`${baseUrl}/api/v2/me/shipment/checkout`, {
+      const checkoutRes = await fetch(`${baseUrl}/api/v2/me/shipment/checkout`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -395,9 +386,14 @@ export class MelhorEnvioService {
         },
         body: JSON.stringify({ orders: [orderId] })
       });
+
+      if (!checkoutRes.ok) {
+        const checkoutErr = await checkoutRes.text();
+        console.warn('[MelhorEnvio] Aviso ao executar checkout da etiqueta:', checkoutErr);
+      }
 
       // Solicita geração da etiqueta
-      await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
+      const generateRes = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -408,26 +404,47 @@ export class MelhorEnvioService {
         body: JSON.stringify({ orders: [orderId] })
       });
 
-      const codigoRastreio = cartData.tracking || cartData.protocol || `ME${orderId}`;
-      const linkEtiqueta = `${baseUrl}/api/v2/me/shipment/print`;
+      if (!generateRes.ok) {
+        const genErr = await generateRes.text();
+        console.warn('[MelhorEnvio] Aviso ao solicitar geração da etiqueta:', genErr);
+      }
+
+      // Consulta os dados atualizados do pedido para obter o código de rastreio oficial gerado
+      let codigoRastreio = cartData.tracking || cartData.protocol || '';
+      if (!codigoRastreio) {
+        try {
+          const orderRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
+            }
+          });
+          if (orderRes.ok) {
+            const orderData = await orderRes.json();
+            codigoRastreio = orderData.tracking || orderData.protocol || '';
+          }
+        } catch (eOrder) {
+          console.warn('[MelhorEnvio] Aviso ao consultar tracking oficial da ordem:', eOrder);
+        }
+      }
+
+      if (!codigoRastreio) {
+        codigoRastreio = String(orderId);
+      }
+
+      const linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+      const linkEtiqueta = `${baseUrl}/painel/envios`;
 
       return {
         ordem_id: String(orderId),
         codigo_rastreio: String(codigoRastreio),
         link_etiqueta: linkEtiqueta,
+        link_rastreio: linkRastreioOficial,
         transportadora: entrega.transportadora_nome || 'Melhor Envio'
       };
     } catch (err: any) {
-      if (config.melhor_envio_sandbox_mode) {
-        console.warn('[MelhorEnvio] Exceção durante Sandbox, gerando rastreio simulado:', err.message);
-        const codSimulado = `BR${Date.now().toString().slice(-8)}ME`;
-        return {
-          ordem_id: `me_sim_${Date.now()}`,
-          codigo_rastreio: codSimulado,
-          link_etiqueta: `https://sandbox.melhorenvio.com.br/painel/envios`,
-          transportadora: entrega.transportadora_nome || 'Melhor Envio'
-        };
-      }
+      console.error('[MelhorEnvio] Erro na solicitação de despacho:', err);
       throw err;
     }
   }

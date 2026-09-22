@@ -256,7 +256,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       );
       const pedidoAtualizado: Pedido = {
         ...pedidoSelecionado,
-        status: 'saiu_para_entrega',
+        status: 'enviado',
         entregador_nome: entregadorNomeDespacho.trim() || pedidoSelecionado.entregador_nome,
         contato_entregador: contatoEntregadorDespacho.trim() || pedidoSelecionado.contato_entregador,
         codigo_rastreio: codigoRastreioDespacho.trim() || pedidoSelecionado.codigo_rastreio,
@@ -269,7 +269,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         despachado_por: usuario?.id || null
       };
       setPedidoSelecionado(pedidoAtualizado);
-      onAlterarStatus(pedidoSelecionado.id, 'saiu_para_entrega');
+      onAlterarStatus(pedidoSelecionado.id, 'enviado');
       if (onRecarregar) await onRecarregar();
       setModalDespachoAberto(false);
       setEntregadorNomeDespacho('');
@@ -458,8 +458,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       confirmado: 0,
       em_separacao: 0,
       em_producao: 0,
-      em_expedicao: 0,
-      saiu_para_entrega: 0,
+      aguardando_envio: 0,
+      enviado: 0,
+      entregue: 0,
       pronto_para_retirar: 0,
       cancelado: 0
     };

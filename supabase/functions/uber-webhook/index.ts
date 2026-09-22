@@ -158,7 +158,7 @@ serve(async (req: Request) => {
             loja_id: pedido.loja_id,
             pedido_id: pedidoId,
             tipo_evento: "status_alterado",
-            status_anterior: pedido.status || "saiu_para_entrega",
+            status_anterior: pedido.status || "enviado",
             status_novo: "entregue",
             descricao: `Entrega concluída pelo motorista Uber Direct (Notificação automática do Webhook)`,
             criado_em: agoraIso,

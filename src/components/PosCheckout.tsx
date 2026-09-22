@@ -57,9 +57,11 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { VendaOfflineFila } from '../services/offlineDb';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { audioService } from '../services/audioService';
+import { VendaService } from '../services/vendaService';
 import { PosCheckoutMobile, SubTelaMobile } from './PosCheckoutMobile';
 import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado, podeEditarPedido } from '../utils/statusPedidoUtils';
 import { ReceiptPdfService } from '../services/receiptPdfService';
+import { obterInfoEntregaRecibo } from '../services/printService';
 
 /**
  * Retorna o peso de prioridade da categoria para ordenação no PDV:
@@ -1046,7 +1048,7 @@ export const PosCheckout: React.FC = () => {
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
-        forma_entrega_id: pedidoEntrega?.forma_entrega_id || null,
+        forma_entrega_id: pedidoEntrega?.forma_entrega_id && SyncService.isUuidValido(pedidoEntrega.forma_entrega_id) ? pedidoEntrega.forma_entrega_id : null,
         codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
         link_rastreio: pedidoEntrega?.link_rastreio || null,
         entregador_nome: pedidoEntrega?.entregador_nome || null,
@@ -1418,128 +1420,29 @@ export const PosCheckout: React.FC = () => {
       // Se estiver online, tenta enviar direto para o Supabase
       if (navigator.onLine) {
         try {
-          let pedidoCriado: any;
+          const pedidoCriado = await VendaService.gravarVendaSupabase({
+            lojaId: loja.id,
+            usuarioId: usuario?.id || vendedorId,
+            usuario: usuario,
+            clienteSelecionado: clienteSelecionado,
+            pedidoEmEdicao: pedidoEmEdicao,
+            pedidoEntrega: pedidoEntrega,
+            itens: itens,
+            linhasPagamento: linhasAtivas,
+            formasPagamentoDisponiveis: formasPagamento,
+            taxaEntrega: taxaEntrega,
+            subtotal: subtotal,
+            desconto: desconto,
+            descontoPercentual: descontoPercentual,
+            tipoDesconto: tipoDesconto,
+            total: total,
+            observacoes: obsFinal,
+            tabelaPrecoCalculada: tabelaPrecoCalculada,
+            dataIso: dataIso
+          });
 
-          if (pedidoEmEdicao?.id) {
-            const { data: pedAtualizado, error: erroUpd } = await supabase
-              .from('pedidos')
-              .update({
-                ...dadosBasePedido,
-                atualizado_em: dataIso
-              })
-              .eq('id', pedidoEmEdicao.id)
-              .select()
-              .single();
-
-            if (erroUpd || !pedAtualizado) throw erroUpd;
-            pedidoCriado = pedAtualizado;
-
-            await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
-          } else {
-            const { data: novoPed, error: erroPedido } = await supabase
-              .from('pedidos')
-              .insert([dadosBasePedido])
-              .select()
-              .single();
-
-            if (erroPedido || !novoPed) throw erroPedido;
-            pedidoCriado = novoPed;
-          }
-
-          // Salvar isolamento relacional da entrega em pedido_entregas
-          if (pedidoCriado?.id) {
-            try {
-              const entregaPayload = pedidoEntrega ? {
-                ...pedidoEntrega,
-                pedido_id: pedidoCriado.id,
-                valor_frete: taxaEntrega
-              } : {
-                pedido_id: pedidoCriado.id,
-                tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
-                valor_frete: taxaEntrega,
-                provedor: (taxaEntrega > 0 ? 'uber' : 'retirada_loja') as any,
-                transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
-                status_envio: 'pendente'
-              };
-              await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
-            } catch (eEntrega) {
-              console.warn('Aviso ao salvar pedido_entregas:', eEntrega);
-            }
-          }
-
-          const itensComId = itensFormatados.map(it => ({
-            ...it,
-            variacao_id: SyncService.isUuidValido(it.variacao_id) ? it.variacao_id : null,
-            pedido_id: pedidoCriado.id
-          }));
-          const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
-          if (erroItens) throw erroItens;
-
-          // Remove quaisquer formas de pagamento anteriores registradas para este pedido
-          await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoCriado.id);
-          try {
-            await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoCriado.id);
-          } catch (eDelPrev) {}
-
-          // Inserir cada linha de pagamento individual
-          const pagamentosFormatados = await Promise.all(linhasAtivas.map(async (l) => {
-            const fpIdReal = await SyncService.resolverFormaPagamentoId(
-              loja.id,
-              l.forma_pagamento_id,
-              l.forma_tipo
-            );
-            const fpRef = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).find(f => f.id === l.forma_pagamento_id || f.tipo === l.forma_tipo);
-            const taxaValor = (Number(l.valor) * Number(fpRef?.taxa_percentual || 0)) / 100;
-            const valorLiquido = Number(l.valor) - taxaValor;
-
-            return {
-              loja_id: loja.id,
-              pedido_id: pedidoCriado.id,
-              forma_pagamento_id: fpIdReal,
-              valor: Number(l.valor),
-              parcelas: l.parcelas || 1,
-              valor_taxa: taxaValor,
-              valor_liquido: valorLiquido,
-              data_pagamento: dataIso,
-              eh_pagamento_fiado: l.forma_tipo === 'fiado',
-              forma_pagamento: fpRef || {
-                id: fpIdReal,
-                loja_id: loja.id,
-                nome: l.forma_nome,
-                tipo: l.forma_tipo,
-                taxa_percentual: 0,
-                taxa_fixa: 0,
-                maximo_parcelas: 1,
-                ativo: true,
-                exibir_catalogo: true
-              }
-            };
-          }));
-
-          const pagamentosParaDb = pagamentosFormatados.map(({ forma_pagamento, ...resto }) => resto);
-          const { error: erroPagamento } = await supabase.from('pagamentos_pedido').insert(pagamentosParaDb);
-          if (erroPagamento) throw erroPagamento;
-
-          // Registrar auditoria na tabela relacional historico_pedidos
-          try {
-            await supabase.from('historico_pedidos').insert({
-              loja_id: loja.id,
-              pedido_id: pedidoCriado.id,
-              usuario_id: usuario?.id || null,
-              tipo_evento: pedidoEmEdicao ? 'edicao_pdv' : 'criacao',
-              status_anterior: pedidoEmEdicao?.status || null,
-              status_novo: statusFinal,
-              descricao: pedidoEmEdicao
-                ? (valorFiadoTotal > 0 ? 'Venda com parcela Fiado concluída no PDV' : 'Conclusão de pagamento no PDV')
-                : (valorFiadoTotal > 0 ? 'Venda realizada no PDV com parcela a prazo (Fiado)' : 'Venda finalizada no PDV')
-            });
-          } catch (errAudit) {
-            console.warn('Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
-          }
-
-          // Atualizar o Limite de Crédito e Saldo Devedor do Cliente se houve compra no Fiado ou alteração em pedido existente
+          // Atualizar o Limite de Crédito e Saldo Devedor do Cliente na memória local
           if (clienteSelecionado) {
-            // Calcular quanto este pedido JÁ possuía de fiado anterior não quitado
             const valorFiadoAnterior = pedidoEmEdicao
               ? (pedidoEmEdicao.pagamentos || [])
                   .filter((p: any) => (p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado') && !p.fiado_quitado)
@@ -1547,115 +1450,36 @@ export const PosCheckout: React.FC = () => {
               : 0;
 
             const diferencaFiado = valorFiadoTotal - valorFiadoAnterior;
-
-            // Se o cliente foi alterado durante a edição do pedido, estornar do cliente anterior
-            if (pedidoEmEdicao && pedidoEmEdicao.cliente_id && pedidoEmEdicao.cliente_id !== clienteSelecionado.id && valorFiadoAnterior > 0) {
-              try {
-                const { data: cliAntigo } = await supabase
-                  .from('clientes')
-                  .select('saldo_devedor_fiado, limite_credito')
-                  .eq('id', pedidoEmEdicao.cliente_id)
-                  .single();
-                if (cliAntigo) {
-                  await supabase.from('clientes').update({
-                    saldo_devedor_fiado: Math.max(0, Number(cliAntigo.saldo_devedor_fiado || 0) - valorFiadoAnterior),
-                    limite_credito: Number(cliAntigo.limite_credito || 0) + valorFiadoAnterior
-                  }).eq('id', pedidoEmEdicao.cliente_id);
-                }
-              } catch (eCliAntigo) {
-                console.warn('Erro ao reverter fiado do cliente anterior:', eCliAntigo);
-              }
-            }
-
-            // Aplicar o delta no cliente selecionado apenas se houver diferença líquida
             if (diferencaFiado !== 0) {
-              let saldoAtual = Number(clienteSelecionado.saldo_devedor_fiado || 0);
-              let limiteAtual = Number(clienteSelecionado.limite_credito || 0);
-
-              try {
-                const { data: cliDb } = await supabase
-                  .from('clientes')
-                  .select('saldo_devedor_fiado, limite_credito')
-                  .eq('id', clienteSelecionado.id)
-                  .single();
-                if (cliDb) {
-                  saldoAtual = Number(cliDb.saldo_devedor_fiado || 0);
-                  limiteAtual = Number(cliDb.limite_credito || 0);
-                }
-              } catch (eCliFetch) {
-                console.warn('Aviso ao buscar dados atualizados do cliente:', eCliFetch);
-              }
-
-              const novoLimite = Math.max(0, limiteAtual - diferencaFiado);
-              const novoSaldo = Math.max(0, saldoAtual + diferencaFiado);
-
-              try {
-                await supabase.from('clientes').update({
-                  limite_credito: novoLimite,
-                  saldo_devedor_fiado: novoSaldo
-                }).eq('id', clienteSelecionado.id);
-              } catch (errCli) {
-                console.warn('Erro ao atualizar limite de crédito do cliente:', errCli);
-              }
-
+              const novoLimite = Math.max(0, (clienteSelecionado.limite_credito || 0) - diferencaFiado);
+              const novoSaldo = Math.max(0, (clienteSelecionado.saldo_devedor_fiado || 0) + diferencaFiado);
               const clienteAtualizado: Cliente = {
                 ...clienteSelecionado,
                 limite_credito: novoLimite,
                 saldo_devedor_fiado: novoSaldo
               };
               setClienteSelecionado(clienteAtualizado);
-
-              setClientes(prev => prev.map(c => c.id === clienteSelecionado.id ? {
-                ...c,
-                limite_credito: novoLimite,
-                saldo_devedor_fiado: novoSaldo
-              } : c));
-            }
-          }
-
-          const pedidoCompleto: Pedido = {
-            ...pedidoCriado,
-            cliente: clienteSelecionado,
-            vendedor: usuario,
-            itens: itensComId as any,
-            pagamentos: pagamentosFormatados as any
-          };
-
-          // REGRA DE OURO DO CAIXA: Registrar automaticamente na sessão de caixa ativa SOMENTE pagamentos que NÃO forem fiado
-          const pagamentosCaixa = linhasAtivas.filter(l => l.forma_tipo !== 'fiado' && Number(l.valor) > 0);
-          if (pagamentosCaixa.length > 0) {
-            try {
-              await caixaService.registrarVendaPedido({
-                lojaId: loja.id,
-                pedido: pedidoCriado,
-                pagamentos: pagamentosCaixa.map(l => ({
-                  forma_nome: l.forma_nome,
-                  forma_tipo: l.forma_tipo,
-                  valor: Number(l.valor)
-                })),
-                usuarioId: usuario?.id || vendedorId || ''
-              });
-            } catch (errCaixa) {
-              console.warn('Aviso ao vincular venda à sessão de caixa:', errCaixa);
+              setClientes(prev => prev.map(c => c.id === clienteSelecionado.id ? clienteAtualizado : c));
             }
           }
 
           resetarSnapshotPedido();
           setTemAlteracoesNaoSalvas(false);
           setEhVendaOfflineSalva(false);
-          setPedidoConcluido(pedidoCompleto);
+          setPedidoConcluido(pedidoCriado);
           setModalFechamento(false);
           limparCarrinho();
           setValorRecebidoDinheiro('');
           setSubTelaMobile('vender');
           return;
-        } catch (nuvemErr) {
-          console.warn('Falha no envio para o Supabase, realizando fallback para o banco offline local:', nuvemErr);
-          // Continua para o salvamento offline abaixo
+        } catch (nuvemErr: any) {
+          console.error('[PosCheckout] Erro ao gravar venda no Supabase:', nuvemErr);
+          mostrarErro(nuvemErr?.message || 'Falha ao gravar pedido no banco de dados. Verifique a conexão.', 'Erro na Gravação');
+          return;
         }
       }
 
-      // SALVAMENTO OFFLINE RESILIENTE (IndexedDB)
+      // SALVAMENTO OFFLINE RESILIENTE (IndexedDB) - Apenas quando explicitamente desconectado
       const idLocal = 'offline_' + (typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now()));
       const numPedidoOffline = Math.floor(100000 + Math.random() * 900000);
 
@@ -2962,58 +2786,14 @@ export const PosCheckout: React.FC = () => {
 
       {/* MODAL DE RECIBO & FINALIZAÇÃO */}
       {pedidoConcluido && (() => {
-        const rawPe = (pedidoConcluido as any).pedido_entrega || pedidoEntrega;
-        const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-        const metaTransp = (pedidoConcluido as any).metadados?.transportadora_nome;
-        const metaTipo = (pedidoConcluido as any).metadados?.tipo_atendimento;
-        const ehRetirada = pe?.tipo_atendimento === 'retirada' ||
-          metaTipo === 'retirada' ||
-          (!pe && !metaTransp && Number(pedidoConcluido.valor_frete || 0) === 0 && !pedidoConcluido.endereco_entrega);
+        const {
+          ehRetirada,
+          formaEntregaTexto,
+          labelEndereco,
+          enderecoExibicao
+        } = obterInfoEntregaRecibo(pedidoConcluido, loja, pedidoEntrega);
 
-        let formaEntregaTexto = 'RETIRADA NA LOJA';
-        let badgeEstilo = 'bg-purple-100 text-purple-800';
-
-        if (!ehRetirada) {
-          badgeEstilo = 'bg-emerald-100 text-emerald-800';
-          const provedor = (pe?.provedor || (pedidoConcluido as any).metadados?.provedor_frete || '').toLowerCase();
-          const transp = (pe?.transportadora_nome || metaTransp || pedidoConcluido.forma_entrega?.nome || '').trim();
-          const servico = (pe?.servico_codigo || (pedidoConcluido as any).metadados?.servico_frete_codigo || '').toLowerCase();
-
-          if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-            formaEntregaTexto = 'CORREIOS';
-          } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
-            formaEntregaTexto = 'UBER';
-          } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-            formaEntregaTexto = 'JADLOG';
-          } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
-            formaEntregaTexto = transp.toUpperCase();
-          } else {
-            formaEntregaTexto = 'ENTREGA';
-          }
-        }
-
-        const enderecoDestino = (() => {
-          if (pe?.destino_logradouro) {
-            const comp = pe.destino_complemento ? ` - ${pe.destino_complemento}` : '';
-            const cep = pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : '';
-            return `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${comp}, ${pe.destino_bairro}, ${pe.destino_cidade}-${pe.destino_uf}${cep}`;
-          }
-          if (pedidoConcluido.endereco_entrega) {
-            return pedidoConcluido.endereco_entrega;
-          }
-          if (pedidoConcluido.cliente?.endereco_principal) {
-            return pedidoConcluido.cliente.endereco_principal;
-          }
-          return 'Endereço não informado';
-        })();
-
-        const enderecoLojaFormatado = [
-          loja?.endereco_logradouro,
-          loja?.endereco_numero,
-          loja?.endereco_bairro,
-          loja?.endereco_cidade,
-          loja?.endereco_estado
-        ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
+        const badgeEstilo = ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800';
 
         const valorSubtotal = Number((pedidoConcluido as any).subtotal_produtos || pedidoConcluido.subtotal || pedidoConcluido.valor_total || 0);
         const valorDesconto = Number(pedidoConcluido.valor_desconto || 0);
@@ -3117,8 +2897,8 @@ export const PosCheckout: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-slate-600 pt-0.5">
-                      <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
-                      <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+                      <strong className="text-slate-800">{labelEndereco} </strong>
+                      <span>{enderecoExibicao}</span>
                     </div>
                   </div>
 
