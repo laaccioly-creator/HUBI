@@ -171,7 +171,6 @@ export class VendaService {
       codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
       link_rastreio: pedidoEntrega?.link_rastreio || null,
       entregador_nome: pedidoEntrega?.entregador_nome || null,
-      contato_entregador: pedidoEntrega?.contato_entregador || null,
       pin_entrega: pedidoEntrega?.pin_entrega || null,
       nome_app: pedidoEntrega?.nome_app || null,
       servico_correios: pedidoEntrega?.servico_correios || null,
@@ -290,7 +289,16 @@ export class VendaService {
         ...pedidoEntrega,
         forma_entrega_id: formaEntregaIdSanitizada,
         pedido_id: pedidoId,
-        valor_frete: taxaEntrega
+        valor_frete: taxaEntrega,
+        contato_entregador: pedidoEntrega.contato_entregador?.trim() || null,
+        entregador_nome: pedidoEntrega.entregador_nome?.trim() || null,
+        codigo_rastreio: pedidoEntrega.codigo_rastreio?.trim() || null,
+        link_rastreio: pedidoEntrega.link_rastreio?.trim() || null,
+        pin_entrega: pedidoEntrega.pin_entrega?.trim() || null,
+        nome_app: pedidoEntrega.nome_app?.trim() || null,
+        servico_correios: pedidoEntrega.servico_correios?.trim() || null,
+        nome_transportadora: (pedidoEntrega.nome_transportadora || pedidoEntrega.transportadora_nome)?.trim() || null,
+        tipo_operacao: pedidoEntrega.tipo_operacao || null
       } : {
         pedido_id: pedidoId,
         tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,

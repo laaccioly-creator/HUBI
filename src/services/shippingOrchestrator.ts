@@ -1321,7 +1321,6 @@ export class ShippingOrchestrator {
         servico_correios: dados.servicoCorreios?.trim() || null,
         nome_transportadora: dados.nomeTransportadora?.trim() || null,
         tipo_operacao: dados.tipoOperacao || null,
-        contato_entregador: dados.contatoEntregador?.trim() || null,
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
         atualizado_em: despachadoEm
