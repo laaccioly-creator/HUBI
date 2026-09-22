@@ -670,6 +670,10 @@ export const PosCheckout: React.FC = () => {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar o pedido.');
       return;
     }
+    if (pedidoEmEdicao?.status === 'cancelado') {
+      mostrarAviso('Este pedido foi cancelado e não permite modificações.', 'Ação Bloqueada');
+      return;
+    }
     if (!pedidoEntrega) {
       mostrarAviso(
         'Por favor, selecione a Forma de Entrega (Retirada ou Entrega) antes de salvar o pedido.',
@@ -946,6 +950,10 @@ export const PosCheckout: React.FC = () => {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar.');
       return;
     }
+    if (pedidoEmEdicao?.status === 'cancelado') {
+      mostrarAviso('Este pedido foi cancelado e não permite modificações.', 'Ação Bloqueada');
+      return;
+    }
 
     try {
       setSalvandoPendente(true);
@@ -1199,6 +1207,10 @@ export const PosCheckout: React.FC = () => {
     }
     if (itens.length === 0) {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de fechar a venda.');
+      return;
+    }
+    if (pedidoEmEdicao?.status === 'cancelado') {
+      mostrarAviso('Este pedido foi cancelado e não permite modificações.', 'Ação Bloqueada');
       return;
     }
 

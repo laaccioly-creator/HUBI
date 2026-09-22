@@ -692,15 +692,22 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
           <div className="flex items-center gap-2">
             {/* Pílula de Status (Abre TELA006) */}
-            <button
-              type="button"
-              onClick={() => setModalAlterarStatus(true)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center gap-1.5 text-xs font-bold capitalize text-slate-700 cursor-pointer"
-            >
-              <Clock className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
+            {pedidoSelecionado.status === 'cancelado' ? (
+              <div className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 flex items-center gap-1.5 text-xs font-bold text-rose-700">
+                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                <span>Cancelado (Imutável)</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setModalAlterarStatus(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center gap-1.5 text-xs font-bold capitalize text-slate-700 cursor-pointer"
+              >
+                <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                <span>{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            )}
 
             {/* Pílula de Pagamento Real */}
             {(() => {
@@ -748,21 +755,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <p className="whitespace-pre-wrap break-words">{obsAtualLimpa}</p>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const obs = prompt('Adicionar observação ao pedido:', obsAtualLimpa);
-                    if (obs !== null) {
-                      const obsFinal = obs.trim() || null;
-                      await supabase.from('pedidos').update({ observacoes: obsFinal, atualizado_em: new Date().toISOString() }).eq('id', pedidoSelecionado.id);
-                      setPedidoSelecionado({ ...pedidoSelecionado, observacoes: obsFinal });
-                      if (onRecarregar) onRecarregar();
-                    }
-                  }}
-                  className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <span>+ {obsAtualLimpa ? 'Editar observação' : 'Adicionar observação'}</span>
-                </button>
+                {pedidoSelecionado.status !== 'cancelado' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const obs = prompt('Adicionar observação ao pedido:', obsAtualLimpa);
+                      if (obs !== null) {
+                        const obsFinal = obs.trim() || null;
+                        await supabase.from('pedidos').update({ observacoes: obsFinal, atualizado_em: new Date().toISOString() }).eq('id', pedidoSelecionado.id);
+                        setPedidoSelecionado({ ...pedidoSelecionado, observacoes: obsFinal });
+                        if (onRecarregar) onRecarregar();
+                      }
+                    }}
+                    className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>+ {obsAtualLimpa ? 'Editar observação' : 'Adicionar observação'}</span>
+                  </button>
+                )}
               </div>
             );
           })()}
@@ -1117,7 +1126,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <span>Opções</span>
             </button>
 
-            {pedidoSelecionado.status === 'pendente' ? (
+            {pedidoSelecionado.status === 'cancelado' ? (
+              <div className="flex-1 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                <XCircle className="w-4 h-4 text-rose-600" />
+                <span>Pedido Cancelado</span>
+              </div>
+            ) : pedidoSelecionado.status === 'pendente' ? (
               <button
                 type="button"
                 onClick={() => {
@@ -1213,7 +1227,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   </button>
                 );
               })()
-            ) : pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' ? (
+            ) : pedidoSelecionado.status !== 'concluido' ? (
               <button
                 type="button"
                 onClick={() => {
@@ -1591,17 +1605,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <span>Recibo</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setModalOpcoesPedido(false);
-                  setModalAlterarVendedor(true);
-                }}
-                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left"
-              >
-                <UserCheck2 className="w-4 h-4 text-slate-500" />
-                <span>Alterar vendedor</span>
-              </button>
+              {pedidoSelecionado.status !== 'cancelado' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalOpcoesPedido(false);
+                    setModalAlterarVendedor(true);
+                  }}
+                  className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-2 transition text-left"
+                >
+                  <UserCheck2 className="w-4 h-4 text-slate-500" />
+                  <span>Alterar vendedor</span>
+                </button>
+              )}
 
               {podeEditarPedido(pedidoSelecionado) && (
                 <button
@@ -1618,18 +1634,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setModalOpcoesPedido(false);
-                  onCancelarPedido(pedidoSelecionado);
-                  setPedidoSelecionado(null);
-                }}
-                className="w-full p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-2 transition text-left"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Cancelar pedido</span>
-              </button>
+              {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalOpcoesPedido(false);
+                    onCancelarPedido(pedidoSelecionado);
+                    setPedidoSelecionado(null);
+                  }}
+                  className="w-full p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-2 transition text-left"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Cancelar pedido</span>
+                </button>
+              )}
             </div>
           </div>
         )}

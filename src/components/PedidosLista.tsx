@@ -197,7 +197,7 @@ export const PedidosLista: React.FC = () => {
 
 
   const handleSalvarObservacao = async () => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
     const novoTexto = observacaoTexto.trim() || null;
     if (novoTexto === (pedidoSelecionado.observacoes || null)) return;
 
@@ -598,6 +598,11 @@ export const PedidosLista: React.FC = () => {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
       if (!pedAlvo) return;
 
+      if (pedAlvo.status === 'cancelado') {
+        mostrarAviso('Pedidos cancelados são estritamente somente leitura e não podem ter seu status alterado.', 'Ação Bloqueada');
+        return;
+      }
+
       // Validação estrita: não permitir alterar para status desativados nas configurações da loja
       if (!isStatusPedidoAtivo(novoStatus, loja) && pedAlvo.status !== novoStatus) {
         mostrarAviso(
@@ -745,7 +750,7 @@ export const PedidosLista: React.FC = () => {
 
   const handleDespacharPedido = async (pedidoAlvo?: Pedido | React.MouseEvent<any>) => {
     const ped = (pedidoAlvo && typeof pedidoAlvo === 'object' && 'numero_pedido' in pedidoAlvo) ? (pedidoAlvo as Pedido) : pedidoSelecionado;
-    if (!ped || !loja?.id) return;
+    if (!ped || !loja?.id || ped.status === 'cancelado') return;
     setPedidoSelecionado(ped);
 
     const { prov, pe } = resolverProvedorEntrega(ped, ped.id === pedidoSelecionado?.id ? entregaPedido : null);
@@ -914,7 +919,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleConfirmarDespacho = async () => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
     try {
       setDespachando(true);
       const agora = new Date().toISOString();
@@ -991,7 +996,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleForcarConclusaoContingencia = async () => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
     try {
       setExecutandoContingencia(true);
       const agora = new Date().toISOString();
@@ -1034,7 +1039,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleAlterarClientePedido = async (novoClienteId: string) => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
     try {
       const clienteEncontrado = clientes.find((c) => c.id === novoClienteId) || null;
       const clienteIdFinal = novoClienteId === 'avulso' ? null : novoClienteId;
@@ -1238,7 +1243,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleSalvarDesconto = async () => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
     const descontoNum = parseFloat(novoDescontoValor.replace(',', '.')) || 0;
     const subtotal = Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0);
     const novoTotal = Math.max(0, subtotal - descontoNum);
@@ -1597,21 +1602,28 @@ export const PedidosLista: React.FC = () => {
 
             {/* Ações Rápidas do Topo: Link de Andamento, Cancelar, Concluir Venda (TELA002) */}
             <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-              {/* Seletor de Status Interativo */}
-              <div className="relative inline-block">
-                <select
-                  value={pedidoSelecionado.status}
-                  onChange={(e) => atualizarStatus(pedidoSelecionado.id, e.target.value as StatusPedido)}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
-                >
-                  {opcoesStatusSelecionado.filter((op) => op.id !== 'concluido').map((op) => (
-                    <option key={op.id} value={op.id}>
-                      Status: {op.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+              {/* Seletor de Status Interativo ou Badge Fixo para Cancelado */}
+              {pedidoSelecionado.status === 'cancelado' ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold">
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Cancelado</span>
+                </div>
+              ) : (
+                <div className="relative inline-block">
+                  <select
+                    value={pedidoSelecionado.status}
+                    onChange={(e) => atualizarStatus(pedidoSelecionado.id, e.target.value as StatusPedido)}
+                    className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
+                  >
+                    {opcoesStatusSelecionado.filter((op) => op.id !== 'concluido').map((op) => (
+                      <option key={op.id} value={op.id}>
+                        Status: {op.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              )}
 
               {/* Botão Copiar Link e Compartilhar no WhatsApp (TELA002) */}
               <button
@@ -1650,7 +1662,7 @@ export const PedidosLista: React.FC = () => {
               {/* Botão Imprimir Etiqueta no Modal */}
               {(() => {
                 const { prov, pe, isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
-                const temEtiquetaModal = !isRetirada && (
+                const temEtiquetaModal = pedidoSelecionado.status !== 'cancelado' && !isRetirada && (
                   prov === 'melhor_envio' ||
                   prov === 'uber' ||
                   pe?.provedor === 'uber' ||
@@ -1680,17 +1692,24 @@ export const PedidosLista: React.FC = () => {
               })()}
 
               {/* Botão Cancelar Pedido (TELA004) */}
-              <button
-                type="button"
-                onClick={() => setModalCancelarPedidoAberto(true)}
-                className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 transition cursor-pointer"
-                title="Cancelar pedido"
-              >
-                <Ban className="w-4 h-4" />
-              </button>
+              {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
+                <button
+                  type="button"
+                  onClick={() => setModalCancelarPedidoAberto(true)}
+                  className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 transition cursor-pointer"
+                  title="Cancelar pedido"
+                >
+                  <Ban className="w-4 h-4" />
+                </button>
+              )}
 
               {/* Botão Principal Concluir Venda / Receber Fiado (TELA005) */}
-              {resolverStatusPagamento(pedidoSelecionado) === 'fiado' && pedidoSelecionado.status === 'confirmado' ? (
+              {pedidoSelecionado.status === 'cancelado' ? (
+                <div className="px-3.5 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1.5">
+                  <XCircle className="w-4 h-4" />
+                  <span>Pedido Cancelado</span>
+                </div>
+              ) : resolverStatusPagamento(pedidoSelecionado) === 'fiado' && pedidoSelecionado.status === 'confirmado' ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1774,6 +1793,24 @@ export const PedidosLista: React.FC = () => {
             </div>
           </div>
 
+          {/* BANNER VISUAL INFORMATIVO PARA PEDIDO CANCELADO */}
+          {pedidoSelecionado.status === 'cancelado' && (
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3 text-rose-300 text-xs">
+              <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-black text-rose-200 block">PEDIDO CANCELADO (SOMENTE LEITURA)</span>
+                <p className="text-rose-300/90 leading-relaxed">
+                  Este pedido foi cancelado e está congelado para histórico e auditoria. Não é permitida nenhuma alteração de status, itens, recebimento de pagamento ou despacho.
+                </p>
+                {pedidoSelecionado.observacoes && (
+                  <p className="text-rose-200/80 font-mono text-[11px] pt-1">
+                    Observação / Motivo: {pedidoSelecionado.observacoes}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* GRID PRINCIPAL: COLUNA ESQUERDA (CLIENTE, OBS, ITENS) + COLUNA DIREITA (RESUMO, PAGAMENTO, RECIBO, HISTÓRICO) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* COLUNA ESQUERDA (7 colunas) */}
@@ -1782,33 +1819,35 @@ export const PedidosLista: React.FC = () => {
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cliente</span>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <select
-                        value={pedidoSelecionado.cliente_id || 'avulso'}
-                        onChange={(e) => handleAlterarClientePedido(e.target.value)}
-                        className="bg-slate-950 border border-slate-700 hover:border-emerald-500 rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate"
-                        title="Alterar cliente do pedido"
-                      >
-                        <option value="avulso">Cliente Avulso (Balcão)</option>
-                        {clientes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
+                  {pedidoSelecionado.status !== 'cancelado' && (
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <select
+                          value={pedidoSelecionado.cliente_id || 'avulso'}
+                          onChange={(e) => handleAlterarClientePedido(e.target.value)}
+                          className="bg-slate-950 border border-slate-700 hover:border-emerald-500 rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate"
+                          title="Alterar cliente do pedido"
+                        >
+                          <option value="avulso">Cliente Avulso (Balcão)</option>
+                          {clientes.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nome}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setModalNovoClienteAberto(true)}
-                      className="p-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 transition cursor-pointer"
-                      title="Adicionar novo cliente"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setModalNovoClienteAberto(true)}
+                        className="p-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 transition cursor-pointer"
+                        title="Adicionar novo cliente"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1851,16 +1890,19 @@ export const PedidosLista: React.FC = () => {
                     type="text"
                     placeholder="Digite aqui uma observação para o pedido..."
                     value={observacaoTexto}
+                    disabled={pedidoSelecionado.status === 'cancelado'}
+                    readOnly={pedidoSelecionado.status === 'cancelado'}
                     onChange={(e) => setObservacaoTexto(e.target.value)}
                     onBlur={handleSalvarObservacao}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
-                  <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                  <label className={`flex items-center gap-2 text-xs text-slate-400 ${pedidoSelecionado.status === 'cancelado' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                     <input
                       type="checkbox"
+                      disabled={pedidoSelecionado.status === 'cancelado'}
                       checked={exibirObsRecibo}
                       onChange={(e) => setExibirObsRecibo(e.target.checked)}
-                      className="rounded text-emerald-500 focus:ring-emerald-500 border-slate-700 bg-slate-950"
+                      className="rounded text-emerald-500 focus:ring-emerald-500 border-slate-700 bg-slate-950 disabled:cursor-not-allowed"
                     />
                     <span>Exibir no recibo</span>
                   </label>
@@ -2109,13 +2151,15 @@ export const PedidosLista: React.FC = () => {
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Meios de pagamento</span>
-                  <button
-                    type="button"
-                    onClick={() => setPedidoReceberModal(pedidoSelecionado)}
-                    className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
-                  >
-                    Editar
-                  </button>
+                  {pedidoSelecionado.status !== 'cancelado' && (
+                    <button
+                      type="button"
+                      onClick={() => setPedidoReceberModal(pedidoSelecionado)}
+                      className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                    >
+                      Editar
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
@@ -2175,6 +2219,11 @@ export const PedidosLista: React.FC = () => {
                   <p className="text-xs font-black text-slate-200">
                     RECIBO #{pedidoSelecionado.numero_pedido}
                   </p>
+                  {pedidoSelecionado.status === 'cancelado' && (
+                    <div className="inline-block px-2.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-black uppercase tracking-wider">
+                      CANCELADO
+                    </div>
+                  )}
                   <p className="text-[10px] text-slate-500">
                     {loja?.nome_fantasia || 'HUBI PDV'} • {loja?.whatsapp || loja?.telefone}
                   </p>
@@ -2529,6 +2578,7 @@ export const PedidosLista: React.FC = () => {
                           {(() => {
                             const { prov, pe, isRetirada } = resolverProvedorEntrega(pedido);
                             const temEtiqueta =
+                              pedido.status !== 'cancelado' &&
                               !isRetirada &&
                               (prov === 'melhor_envio' ||
                                prov === 'uber' ||
@@ -2561,159 +2611,168 @@ export const PedidosLista: React.FC = () => {
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            {podeEditarPedido(pedido) && (
-                              <button
-                                type="button"
-                                onClick={() => handleEditarPedido(pedido)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer"
-                                title="Editar itens e informações do pedido no PDV"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                                <span>Alterar</span>
-                              </button>
-                            )}
+                            {pedido.status === 'cancelado' ? (
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30">
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>Cancelado</span>
+                              </div>
+                            ) : (
+                              <>
+                                {podeEditarPedido(pedido) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditarPedido(pedido)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer"
+                                    title="Editar itens e informações do pedido no PDV"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    <span>Alterar</span>
+                                  </button>
+                                )}
 
-                            {(pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
-                              /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */
-                              <button
-                                type="button"
-                                onClick={() => setPedidoEscolherEnvio(pedido)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95"
-                                title="Definir modalidade de envio do pedido"
-                              >
-                                <Truck className="w-3.5 h-3.5" />
-                                <span>Escolher Envio</span>
-                              </button>
-                            ) : (statusPag === 'fiado' && pedido.status === 'confirmado') ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPedidoReceberFiadoModal(pedido);
-                                }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition cursor-pointer active:scale-95"
-                                title="Receber pagamento do fiado"
-                              >
-                                <DollarSign className="w-3.5 h-3.5" />
-                                <span>Receber Fiado</span>
-                              </button>
-                            ) : pedido.status === 'aguardando_envio' ? (
-                              /* ETAPA 2: Frete definido -> Se aguardando pagamento: permite apenas [Receber] (e [Alterar] acima). Se pago/fiado: libera [Chamar Uber] ou [Confirmar Envio] */
-                              <div className="flex items-center gap-1">
-                                {statusPag !== 'pago' && statusPag !== 'fiado' ? (
+                                {(pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
+                                  /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */
+                                  <button
+                                    type="button"
+                                    onClick={() => setPedidoEscolherEnvio(pedido)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95"
+                                    title="Definir modalidade de envio do pedido"
+                                  >
+                                    <Truck className="w-3.5 h-3.5" />
+                                    <span>Escolher Envio</span>
+                                  </button>
+                                ) : (statusPag === 'fiado' && pedido.status === 'confirmado') ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPedidoReceberFiadoModal(pedido);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                    title="Receber pagamento do fiado"
+                                  >
+                                    <DollarSign className="w-3.5 h-3.5" />
+                                    <span>Receber Fiado</span>
+                                  </button>
+                                ) : pedido.status === 'aguardando_envio' ? (
+                                  /* ETAPA 2: Frete definido -> Se aguardando pagamento: permite apenas [Receber] (e [Alterar] acima). Se pago/fiado: libera [Chamar Uber] ou [Confirmar Envio] */
+                                  <div className="flex items-center gap-1">
+                                    {statusPag !== 'pago' && statusPag !== 'fiado' ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPedidoReceberModal(pedido);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
+                                        title="Receber pagamento com frete somado ao total"
+                                      >
+                                        <DollarSign className="w-3.5 h-3.5" />
+                                        <span>Receber</span>
+                                      </button>
+                                    ) : (
+                                      (() => {
+                                        const { prov } = resolverProvedorEntrega(pedido);
+                                        const isUber = prov === 'uber';
+                                        const isMelhorEnvio = prov === 'melhor_envio';
+
+                                        return (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDespacharPedido(pedido)}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
+                                              isUber
+                                                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+                                                : isMelhorEnvio
+                                                ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
+                                                : 'bg-emerald-600 hover:bg-emerald-500'
+                                            }`}
+                                            title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
+                                          >
+                                            <Truck className="w-3.5 h-3.5" />
+                                            <span>
+                                              {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
+                                            </span>
+                                          </button>
+                                        );
+                                      })()
+                                    )}
+                                  </div>
+                                ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setPedidoReceberModal(pedido);
                                     }}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
-                                    title="Receber pagamento com frete somado ao total"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
                                     <span>Receber</span>
                                   </button>
+                                ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega' || pedido.status === 'entregue') ? (
+                                  /* ETAPA 3: Concluir Pedido com ações de rastreio ao vivo para Uber */
+                                  <div className="flex items-center gap-1">
+                                    {(() => {
+                                      const { prov, pe } = resolverProvedorEntrega(pedido);
+                                      const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
+                                      const ehUber =
+                                        prov === 'uber' ||
+                                        (pedido.nome_app && pedido.nome_app.toLowerCase().includes('uber')) ||
+                                        link.includes('uber.com') ||
+                                        link.includes('ubr.to');
+
+                                      if (ehUber && link) {
+                                        return (
+                                          <>
+                                            <a
+                                              href={link}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
+                                              title="Abrir mapa de rastreio ao vivo da Uber Direct"
+                                            >
+                                              <span>🚗</span>
+                                              <span>Mapa Uber</span>
+                                              <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCompartilharRastreioUber(pedido)}
+                                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
+                                              title="Enviar link de rastreio da Uber no WhatsApp"
+                                            >
+                                              <MessageCircle className="w-3.5 h-3.5" />
+                                            </button>
+                                          </>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    <button
+                                      type="button"
+                                      onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                      title="Concluir Pedido Entregue"
+                                    >
+                                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                      <span>Concluir</span>
+                                    </button>
+                                  </div>
+                                ) : pedido.status !== 'concluido' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                    title="Concluir Pedido"
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <span>Concluir Pedido</span>
+                                  </button>
                                 ) : (
-                                  (() => {
-                                    const { prov } = resolverProvedorEntrega(pedido);
-                                    const isUber = prov === 'uber';
-                                    const isMelhorEnvio = prov === 'melhor_envio';
-
-                                    return (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDespacharPedido(pedido)}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
-                                          isUber
-                                            ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
-                                            : isMelhorEnvio
-                                            ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
-                                            : 'bg-emerald-600 hover:bg-emerald-500'
-                                        }`}
-                                        title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
-                                      >
-                                        <Truck className="w-3.5 h-3.5" />
-                                        <span>
-                                          {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
-                                        </span>
-                                      </button>
-                                    );
-                                  })()
+                                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Concluído</span>
+                                  </div>
                                 )}
-                              </div>
-                            ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPedidoReceberModal(pedido);
-                                }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
-                              >
-                                <DollarSign className="w-3.5 h-3.5" />
-                                <span>Receber</span>
-                              </button>
-                            ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega' || pedido.status === 'entregue') ? (
-                              /* ETAPA 3: Concluir Pedido com ações de rastreio ao vivo para Uber */
-                              <div className="flex items-center gap-1">
-                                {(() => {
-                                  const { prov, pe } = resolverProvedorEntrega(pedido);
-                                  const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
-                                  const ehUber =
-                                    prov === 'uber' ||
-                                    (pedido.nome_app && pedido.nome_app.toLowerCase().includes('uber')) ||
-                                    link.includes('uber.com') ||
-                                    link.includes('ubr.to');
-
-                                  if (ehUber && link) {
-                                    return (
-                                      <>
-                                        <a
-                                          href={link}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
-                                          title="Abrir mapa de rastreio ao vivo da Uber Direct"
-                                        >
-                                          <span>🚗</span>
-                                          <span>Mapa Uber</span>
-                                          <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleCompartilharRastreioUber(pedido)}
-                                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
-                                          title="Enviar link de rastreio da Uber no WhatsApp"
-                                        >
-                                          <MessageCircle className="w-3.5 h-3.5" />
-                                        </button>
-                                      </>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                                <button
-                                  type="button"
-                                  onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
-                                  title="Concluir Pedido Entregue"
-                                >
-                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                  <span>Concluir</span>
-                                </button>
-                              </div>
-                            ) : pedido.status !== 'concluido' ? (
-                              <button
-                                type="button"
-                                onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
-                                title="Concluir Pedido"
-                              >
-                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                <span>Concluir Pedido</span>
-                              </button>
-                            ) : (
-                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Concluído</span>
-                              </div>
+                              </>
                             )}
                           </div>
                         </td>

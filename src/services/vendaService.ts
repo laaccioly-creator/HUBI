@@ -190,6 +190,21 @@ export class VendaService {
     let pedidoGravado: any;
 
     if (pedidoEmEdicao?.id) {
+      if (pedidoEmEdicao.status === 'cancelado') {
+        throw new Error('Pedidos cancelados são estritamente somente leitura e não podem ser editados.');
+      }
+
+      // Verificação de segurança no banco de dados para evitar condições de corrida
+      const { data: checkPed } = await supabase
+        .from('pedidos')
+        .select('status')
+        .eq('id', pedidoEmEdicao.id)
+        .maybeSingle();
+
+      if (checkPed?.status === 'cancelado') {
+        throw new Error('Este pedido foi cancelado e não permite modificações.');
+      }
+
       // Edição: Atualiza registro existente
       const { data: pedAtualizado, error: erroUpd } = await supabase
         .from('pedidos')

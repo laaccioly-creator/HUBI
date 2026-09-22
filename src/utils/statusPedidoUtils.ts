@@ -107,6 +107,11 @@ export function obterOpcoesStatusAlteracao(
   statusAtual?: string,
   incluirConcluido: boolean = false
 ): { id: StatusPedido; label: string }[] {
+  // Pedidos cancelados são estritamente imutáveis (read-only)
+  if (statusAtual === 'cancelado') {
+    return [];
+  }
+
   // 1. Ciclo estrito para pedidos Pendentes: status atual é Pendente, e só pode evoluir para Confirmado ou Cancelado
   if (statusAtual === 'pendente') {
     return [
@@ -176,6 +181,14 @@ export function validarTransicaoStatusPedido(
 ): { permitido: boolean; motivo?: string; requerPagamento?: boolean } {
   if (!statusAtual || !novoStatus || statusAtual === novoStatus) {
     return { permitido: true };
+  }
+
+  // Pedidos cancelados são estritamente imutáveis (read-only)
+  if (statusAtual === 'cancelado') {
+    return {
+      permitido: false,
+      motivo: 'Pedidos cancelados são imutáveis e não permitem alteração de status.'
+    };
   }
 
   // Cancelamento é permitido a partir de qualquer status que não seja concluído
@@ -339,4 +352,13 @@ export function obterInfoVencimentoFiado(pedido: any): {
     estaVencido,
     temVencimento: !!dataVenc && formatada !== '-'
   };
+}
+
+/**
+ * Retorna true se o pedido ou status informado for 'cancelado'.
+ */
+export function isPedidoCancelado(pedidoOuStatus?: { status?: string } | string | null): boolean {
+  if (!pedidoOuStatus) return false;
+  const status = typeof pedidoOuStatus === 'string' ? pedidoOuStatus : pedidoOuStatus.status;
+  return status === 'cancelado';
 }

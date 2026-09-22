@@ -709,6 +709,10 @@ export class ShippingOrchestrator {
     entrega: PedidoEntrega,
     usuarioId?: string | null
   ): Promise<{ link_rastreio: string; pin_entrega?: string | null; delivery_id: string }> {
+    if (pedido.status === 'cancelado') {
+      throw new Error('Não é permitido despachar pedidos cancelados.');
+    }
+
     const despachadoEm = new Date().toISOString();
 
     // 1. Hidratação segura de endereço de destino se a entrega estiver incompleta
@@ -822,6 +826,10 @@ export class ShippingOrchestrator {
     entrega: PedidoEntrega,
     usuarioId?: string | null
   ): Promise<{ codigo_rastreio: string; link_etiqueta: string }> {
+    if (pedido.status === 'cancelado') {
+      throw new Error('Não é permitido despachar pedidos cancelados.');
+    }
+
     const despachadoEm = new Date().toISOString();
     const resultado = await MelhorEnvioService.solicitarEnvioMelhorEnvio({
       loja,
@@ -868,6 +876,11 @@ export class ShippingOrchestrator {
     entregadorNome?: string | null,
     usuarioId?: string | null
   ): Promise<void> {
+    const { data: pedDb } = await supabase.from('pedidos').select('status').eq('id', pedidoId).maybeSingle();
+    if (pedDb?.status === 'cancelado') {
+      throw new Error('Não é permitido despachar pedidos cancelados.');
+    }
+
     const despachadoEm = new Date().toISOString();
 
     // 1. Persistência canônica em pedido_entregas
@@ -902,6 +915,11 @@ export class ShippingOrchestrator {
     pedidoId: string,
     usuarioLojaId?: string | null
   ): Promise<void> {
+    const { data: pedDb } = await supabase.from('pedidos').select('status').eq('id', pedidoId).maybeSingle();
+    if (pedDb?.status === 'cancelado') {
+      throw new Error('Não é permitido despachar pedidos cancelados.');
+    }
+
     const agora = new Date().toISOString();
 
     await supabase
@@ -1286,6 +1304,11 @@ export class ShippingOrchestrator {
       usuarioId?: string | null;
     }
   ): Promise<void> {
+    const { data: pedDb } = await supabase.from('pedidos').select('status').eq('id', pedidoId).maybeSingle();
+    if (pedDb?.status === 'cancelado') {
+      throw new Error('Não é permitido despachar pedidos cancelados.');
+    }
+
     const despachadoEm = new Date().toISOString();
 
     // 1. Atualizar pedido_entregas
@@ -1343,9 +1366,13 @@ export class ShippingOrchestrator {
     // 1. Buscar dados atuais do pedido e cliente
     const { data: pedAtual } = await supabase
       .from('pedidos')
-      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega')
+      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega, status')
       .eq('id', pedidoId)
       .maybeSingle();
+
+    if (pedAtual?.status === 'cancelado') {
+      throw new Error('Não é permitido definir ou alterar forma de envio para pedidos cancelados.');
+    }
 
     // 2. Hidratação completa e segura do endereço de entrega do cliente
     let enderecoFinal = resultado.endereco_selecionado || null;
