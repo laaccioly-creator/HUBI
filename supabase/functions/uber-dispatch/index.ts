@@ -67,6 +67,38 @@ interface UberAddressObj {
  * - Em street_address: array com 1 ou 2 strings (sem vírgula pendente).
  * - Em zip_code: apenas os 8 dígitos numéricos (sem hífen ou ponto).
  */
+/**
+ * Sanitiza a linha principal do endereço (logradouro + número).
+ * Se o logradouro já contiver o número (ex: "Rua Bélgica, 945"), não repete o campo número.
+ * Garante string limpa sem vírgulas duplas ou números duplicados: ["Rua Bélgica, 945"].
+ */
+function sanitizarLinhaEndereco(rua?: string | null, numero?: string | null): string {
+  let r = (rua || "").trim().replace(/,+$/, "").trim();
+  const n = (numero || "").trim();
+
+  // Limpa vírgulas duplas/múltiplas de partida
+  r = r.replace(/,\s*,+/g, ",").trim();
+
+  // Detecta se o logradouro já inclui o número
+  const jaTemNumero =
+    /,\s*\d+/.test(r) ||
+    (n && n.toUpperCase() !== "S/N" && new RegExp(`(^|\\s|,)${n}(\\s|,|$)`).test(r));
+
+  if (n && n.toUpperCase() !== "S/N" && !jaTemNumero) {
+    r = `${r}, ${n}`;
+  } else if (!r) {
+    r = n && n.toUpperCase() !== "S/N" ? `Rua Principal, ${n}` : "Rua Principal";
+  }
+
+  // Remove vírgulas duplicadas/múltiplas, números repetidos em sequência e vírgula final
+  return r
+    .replace(/,\s*,+/g, ",")
+    .replace(/,+/g, ",")
+    .replace(/(\b\d+\b)\s*,\s*\1\b/g, "$1")
+    .replace(/,\s*$/, "")
+    .trim();
+}
+
 function formatarEnderecoUber(
   logradouro?: string | null,
   numero?: string | null,
@@ -83,7 +115,7 @@ function formatarEnderecoUber(
       const parsed = JSON.parse(enderecoCompletoFallback);
       if (parsed.street_address && Array.isArray(parsed.street_address)) {
         const objValido: UberAddressObj = {
-          street_address: parsed.street_address.map((s: string) => String(s).replace(/,+$/, "").trim()),
+          street_address: parsed.street_address.map((s: string) => sanitizarLinhaEndereco(String(s))),
           city: parsed.city || cidade || "Fortaleza",
           state: (parsed.state || estado || "CE").toUpperCase(),
           zip_code: String(parsed.zip_code || cep || "60710790").replace(/\D/g, ""),
@@ -131,12 +163,11 @@ function formatarEnderecoUber(
   }
 
   if (!rua) rua = "Rua Principal";
-  if (!num) num = "S/N";
   if (!cid) cid = "Fortaleza";
   if (!uf || uf.length !== 2) uf = "CE";
   if (!zipCode || zipCode.length !== 8) zipCode = "60710790";
 
-  const linha1 = (num && num !== "S/N" ? `${rua}, ${num}` : `${rua}, ${num}`).trim().replace(/,+$/, "");
+  const linha1 = sanitizarLinhaEndereco(rua, num);
   const partesLinha2 = [comp, bair].filter(Boolean).join(" - ").trim().replace(/,+$/, "");
   const streetAddress = partesLinha2 ? [linha1, partesLinha2] : [linha1];
 
@@ -419,9 +450,31 @@ serve(async (req: Request) => {
 
     if (!uberResponse.ok) {
       console.error("UBER ERROR DETAILS:", JSON.stringify(uberData));
+
+      const rawCode = String(uberData.code || "").toLowerCase();
+      const rawMsg = String(uberData.message || "").toLowerCase();
+      const metadataDetails = String(uberData.metadata?.details || uberData.details || "").toLowerCase();
+      const fullErrorText = `${rawCode} ${rawMsg} ${metadataDetails}`;
+
+      const ehErroRaioOuIndeliverable =
+        fullErrorText.includes("address_undeliverable") ||
+        fullErrorText.includes("outside the delivery radius") ||
+        fullErrorText.includes("outside_delivery_radius") ||
+        fullErrorText.includes("delivery radius") ||
+        fullErrorText.includes("max_distance_exceeded") ||
+        fullErrorText.includes("distance_exceeded");
+
+      const mensagemAmigavel = ehErroRaioOuIndeliverable
+        ? "Endereço fora do raio de atendimento da Uber (Distância máxima permitida: ~5 km). Escolha outra forma de envio como Frete Próprio ou Melhor Envio."
+        : (uberData.message || "Erro na Uber Direct");
+
       return new Response(
         JSON.stringify({
-          error: uberData.message || "Erro na Uber Direct",
+          error: mensagemAmigavel,
+          message: mensagemAmigavel,
+          raw_message: uberData.message,
+          code: uberData.code || (ehErroRaioOuIndeliverable ? "OUTSIDE_DELIVERY_RADIUS" : "UBER_ERROR"),
+          metadata_details: uberData.metadata?.details || null,
           details: uberData,
         }),
         {

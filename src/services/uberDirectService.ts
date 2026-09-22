@@ -444,16 +444,41 @@ export class UberDirectService {
     const cepOrigemLimpo = (config.origem_cep || loja.endereco_cep || '60710790').replace(/\D/g, '');
     const numOrigem = (config.origem_numero || loja.endereco_numero || 'S/N').trim();
     const ruaOrigem = (config.origem_logradouro || loja.endereco_logradouro || 'Rua Principal').trim();
+
+    // Sanitiza logradouro + número evitando duplicidade e vírgulas duplas
+    const sanitizarLinha = (rBase?: string | null, nBase?: string | null): string => {
+      let r = (rBase || '').trim().replace(/,+$/, '').trim().replace(/,\s*,+/g, ',');
+      const n = (nBase || '').trim();
+      const jaTemNumero =
+        /,\s*\d+/.test(r) ||
+        (n && n.toUpperCase() !== 'S/N' && new RegExp(`(^|\\s|,)${n}(\\s|,|$)`).test(r));
+
+      if (n && n.toUpperCase() !== 'S/N' && !jaTemNumero) {
+        r = `${r}, ${n}`;
+      } else if (!r) {
+        r = n && n.toUpperCase() !== 'S/N' ? `Rua Principal, ${n}` : 'Rua Principal';
+      }
+
+      return r
+        .replace(/,\s*,+/g, ',')
+        .replace(/,+/g, ',')
+        .replace(/(\b\d+\b)\s*,\s*\1\b/g, '$1')
+        .replace(/,\s*$/, '')
+        .trim();
+    };
+
+    const linha1Origem = sanitizarLinha(ruaOrigem, numOrigem);
     const pickupAddressJson = JSON.stringify({
-      street_address: [`${ruaOrigem}, ${numOrigem}`.replace(/,+$/, '').trim()],
+      street_address: [linha1Origem],
       city: (config.origem_cidade || loja.endereco_cidade || 'Fortaleza').trim(),
       state: (config.origem_uf || loja.endereco_estado || 'CE').trim().toUpperCase(),
       zip_code: cepOrigemLimpo.length === 8 ? cepOrigemLimpo : '60710790',
       country: 'BR'
     });
 
+    const linha1Destino = sanitizarLinha(destinoLogradouro || 'Rua Principal', destinoNumero || 'S/N');
     const dropoffAddressJson = JSON.stringify({
-      street_address: [`${destinoLogradouro || 'Rua Principal'}, ${destinoNumero || 'S/N'}`.replace(/,+$/, '').trim()],
+      street_address: [linha1Destino],
       city: (destinoCidade || 'Fortaleza').trim(),
       state: (destinoUf || 'CE').trim().toUpperCase(),
       zip_code: destinoCepLimpo.length === 8 ? destinoCepLimpo : '60710790',
@@ -491,19 +516,51 @@ export class UberDirectService {
 
     if (edgeErr) {
       let detalheErro = edgeErr.message || 'Falha na comunicação com o servidor de despacho.';
+      let metadataDetails = '';
       try {
         if (edgeErr.context && typeof edgeErr.context.json === 'function') {
           const jsonErr = await edgeErr.context.json();
           detalheErro = jsonErr.error || jsonErr.message || jsonErr.details?.message || JSON.stringify(jsonErr);
+          metadataDetails = jsonErr.metadata_details || jsonErr.details?.metadata?.details || '';
         }
       } catch {
         // Mantém detalheErro
       }
-      throw new Error(`Erro na Uber Direct: ${detalheErro}`);
+
+      const fullCheck = `${detalheErro} ${metadataDetails}`.toLowerCase();
+      if (
+        fullCheck.includes('outside the delivery radius') ||
+        fullCheck.includes('address_undeliverable') ||
+        fullCheck.includes('outside_delivery_radius') ||
+        fullCheck.includes('delivery radius') ||
+        fullCheck.includes('distância máxima permitida')
+      ) {
+        throw new Error(
+          'Endereço fora do raio de atendimento da Uber (Distância máxima permitida: ~5 km). Escolha outra forma de envio como Frete Próprio ou Melhor Envio.'
+        );
+      }
+
+      throw new Error(detalheErro.startsWith('Erro na Uber Direct') ? detalheErro : `Erro na Uber Direct: ${detalheErro}`);
     }
 
     if (!edgeData || edgeData.error) {
-      throw new Error(`Erro na Uber Direct: ${edgeData?.error || 'A Uber não retornou os dados da entrega.'}`);
+      const errTxt = edgeData?.error || 'A Uber não retornou os dados da entrega.';
+      const metaTxt = edgeData?.metadata_details || edgeData?.details?.metadata?.details || '';
+      const fullCheck = `${errTxt} ${metaTxt}`.toLowerCase();
+
+      if (
+        fullCheck.includes('outside the delivery radius') ||
+        fullCheck.includes('address_undeliverable') ||
+        fullCheck.includes('outside_delivery_radius') ||
+        fullCheck.includes('delivery radius') ||
+        fullCheck.includes('distância máxima permitida')
+      ) {
+        throw new Error(
+          'Endereço fora do raio de atendimento da Uber (Distância máxima permitida: ~5 km). Escolha outra forma de envio como Frete Próprio ou Melhor Envio.'
+        );
+      }
+
+      throw new Error(errTxt.startsWith('Erro na Uber Direct') ? errTxt : `Erro na Uber Direct: ${errTxt}`);
     }
 
     const officialTrackingUrl = edgeData.tracking_url || edgeData.link_rastreio || (edgeData.delivery_id ? `https://direct.uber.com/tracking/${edgeData.delivery_id}` : '');
