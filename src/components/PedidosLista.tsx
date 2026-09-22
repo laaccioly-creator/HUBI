@@ -647,7 +647,21 @@ export const PedidosLista: React.FC = () => {
 
       if (error) throw error;
 
-      // Inserir registro relacional na tabela historico_pedidos
+      // Se o pedido foi concluído ou entregue, atualiza a entrega correspondente
+      if (novoStatus === 'concluido' || (novoStatus as string) === 'entregue') {
+        try {
+          await supabase
+            .from('pedido_entregas')
+            .update({
+              status_envio: 'entregue',
+              entregue_em: dataIsoAlteracao,
+              atualizado_em: dataIsoAlteracao
+            })
+            .eq('pedido_id', pedidoId);
+        } catch (errEntrega) {
+          console.warn('Aviso ao atualizar status_envio em pedido_entregas:', errEntrega);
+        }
+      }
       if (loja?.id) {
         try {
           const rotulo = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
@@ -814,7 +828,7 @@ export const PedidosLista: React.FC = () => {
             p.id === ped.id
               ? {
                   ...p,
-                  status: 'enviado',
+                  status: 'saiu_para_entrega',
                   link_rastreio: resultado.link_rastreio,
                   pin_entrega: resultado.pin_entrega || p.pin_entrega,
                   despachado_em: agora,
@@ -828,7 +842,7 @@ export const PedidosLista: React.FC = () => {
           prev
             ? {
                 ...prev,
-                status: 'enviado',
+                status: 'saiu_para_entrega',
                 link_rastreio: resultado.link_rastreio,
                 pin_entrega: resultado.pin_entrega || prev.pin_entrega,
                 despachado_em: agora,
@@ -1166,6 +1180,20 @@ export const PedidosLista: React.FC = () => {
         .eq('id', pedidoSelecionado.id);
 
       if (error) throw error;
+
+      // Atualizar status_envio da entrega para entregue
+      try {
+        await supabase
+          .from('pedido_entregas')
+          .update({
+            status_envio: 'entregue',
+            entregue_em: dataIsoConclusao,
+            atualizado_em: dataIsoConclusao
+          })
+          .eq('pedido_id', pedidoSelecionado.id);
+      } catch (eEnt) {
+        console.warn('Aviso ao atualizar status_envio em pedido_entregas:', eEnt);
+      }
 
       // Inserir registro relacional na tabela historico_pedidos
       try {
@@ -1607,12 +1635,16 @@ export const PedidosLista: React.FC = () => {
                 const { prov, pe, isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
                 const temEtiquetaModal = !isRetirada && (
                   prov === 'melhor_envio' ||
+                  prov === 'uber' ||
+                  pe?.provedor === 'uber' ||
                   pe?.tipo_operacao === 'correios' ||
                   pe?.tipo_operacao === 'transportadora' ||
                   pe?.servico_correios ||
                   pe?.nome_transportadora ||
                   pedidoSelecionado.servico_correios ||
-                  pedidoSelecionado.nome_transportadora
+                  pedidoSelecionado.nome_transportadora ||
+                  Boolean(pedidoSelecionado.endereco_entrega) ||
+                  (pedidoSelecionado as any).tipo_entrega === 'envio'
                 );
                 if (temEtiquetaModal) {
                   return (
@@ -2482,12 +2514,16 @@ export const PedidosLista: React.FC = () => {
                             const temEtiqueta =
                               !isRetirada &&
                               (prov === 'melhor_envio' ||
+                               prov === 'uber' ||
+                               pe?.provedor === 'uber' ||
                                pe?.tipo_operacao === 'correios' ||
                                pe?.tipo_operacao === 'transportadora' ||
                                pe?.servico_correios ||
                                pe?.nome_transportadora ||
                                pedido.servico_correios ||
-                               pedido.nome_transportadora);
+                               pedido.nome_transportadora ||
+                               Boolean(pedido.endereco_entrega) ||
+                               (pedido as any).tipo_entrega === 'envio');
 
                             if (temEtiqueta) {
                               return (

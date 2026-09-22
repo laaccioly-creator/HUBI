@@ -25,17 +25,23 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
 
   const transportadora =
     pe?.transportadora_nome ||
+    (pe?.provedor === 'uber' ? 'Uber Direct' : null) ||
+    pedido.nome_transportadora ||
     pe?.servico_correios ||
     pe?.nome_transportadora ||
-    'Transportadora Padrão';
+    ((pedido as any).nome_app?.toLowerCase().includes('uber') ? 'Uber Direct' : null) ||
+    'Entrega Padrão';
 
   const codigoRastreio =
     pe?.codigo_rastreio ||
     pedido.codigo_rastreio ||
-    `PED-${pedido.numero_pedido}`;
+    `PED-${pedido.numero_pedido || pedido.id.slice(0, 6)}`;
 
-  const clienteNome = pedido.cliente?.nome || 'Cliente';
-  const clienteTelefone = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
+  const pinEntrega = pe?.pin_entrega || pedido.pin_entrega || null;
+  const itens = pedido.itens || (pedido as any).itens_pedido || [];
+
+  const clienteNome = pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente';
+  const clienteTelefone = pedido.cliente?.whatsapp || pedido.cliente?.telefone || pedido.cliente_telefone_avulso || '';
   const enderecoEntrega =
     pedido.endereco_entrega ||
     (pe?.destino_logradouro
@@ -158,6 +164,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             <div class="barcode-box">
               <div class="barcode-lines">||| | |||| | || |||| | |||</div>
               <div class="barcode-text">${codigoRastreio}</div>
+              ${pinEntrega ? `<div style="font-size: 11px; font-weight: bold; margin-top: 3px; color: #000;">CÓDIGO PIN: ${pinEntrega}</div>` : ''}
             </div>
 
             <div class="section">
@@ -166,6 +173,15 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
               ${clienteTelefone ? `<div>Tel: ${clienteTelefone}</div>` : ''}
               <div style="margin-top: 4px;">${enderecoEntrega}</div>
             </div>
+
+            ${itens.length > 0 ? `
+            <div class="section">
+              <div class="section-title">CONTEÚDO DO PACOTE (${itens.length} ${itens.length === 1 ? 'item' : 'itens'})</div>
+              <ul style="margin: 0; padding-left: 16px; font-size: 10px;">
+                ${itens.map((i: any) => `<li><strong>${i.quantidade || 1}x</strong> ${i.nome_produto || i.nome || 'Produto'}</li>`).join('')}
+              </ul>
+            </div>
+            ` : ''}
 
             <div class="section">
               <div class="section-title">REMETENTE</div>
@@ -253,6 +269,11 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
               <div className="font-mono text-xs font-bold text-slate-700 tracking-wider">
                 {codigoRastreio}
               </div>
+              {pinEntrega && (
+                <div className="font-mono text-[11px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded inline-block mt-1">
+                  PIN: {pinEntrega}
+                </div>
+              )}
             </div>
 
             {/* Bloco Destinatário */}
@@ -274,6 +295,23 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 <span>{enderecoEntrega}</span>
               </div>
             </div>
+
+            {/* Bloco Itens do Pacote */}
+            {itens.length > 0 && (
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider pb-1 border-b border-slate-200">
+                  <Package className="w-3.5 h-3.5 text-slate-700" />
+                  <span>Conteúdo do Pacote ({itens.length} {itens.length === 1 ? 'item' : 'itens'})</span>
+                </div>
+                <ul className="text-[11px] text-slate-700 space-y-0.5 pt-1">
+                  {itens.map((i: any, idx: number) => (
+                    <li key={idx} className="truncate">
+                      <span className="font-bold">{i.quantidade || 1}x</span> {i.nome_produto || i.nome || 'Produto'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Bloco Remetente */}
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
