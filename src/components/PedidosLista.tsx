@@ -161,6 +161,12 @@ export const PedidosLista: React.FC = () => {
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
   const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
 
+  // Modal para capturar CPF/CNPJ do cliente para o Melhor Envio sem travar o lojista
+  const [modalCpfClienteAberto, setModalCpfClienteAberto] = useState<boolean>(false);
+  const [cpfClienteInput, setCpfClienteInput] = useState<string>('');
+  const [salvandoCpfEDespachando, setSalvandoCpfEDespachando] = useState<boolean>(false);
+  const [pedidoPendenteDespacho, setPedidoPendenteDespacho] = useState<{ ped: Pedido; entrega: PedidoEntrega } | null>(null);
+
   useEffect(() => {
     if (pedidoSelecionado) {
       const raw = (pedidoSelecionado as any).pedido_entregas || pedidoSelecionado.pedido_entrega;
@@ -867,7 +873,9 @@ export const PedidosLista: React.FC = () => {
       } else if (prov === 'melhor_envio') {
         const docCliente = (pedCompleto.cliente?.numero_documento || pedCompleto.cliente_documento_avulso || '').replace(/\D/g, '');
         if (!docCliente) {
-          mostrarErro('Preencha o CPF do cliente antes de gerar o frete do Melhor Envio.');
+          setPedidoPendenteDespacho({ ped: pedCompleto, entrega: entregaValida });
+          setCpfClienteInput('');
+          setModalCpfClienteAberto(true);
           setDespachando(false);
           return;
         }
@@ -933,6 +941,118 @@ export const PedidosLista: React.FC = () => {
       mostrarErro(mensagem);
     } finally {
       setDespachando(false);
+    }
+  };
+
+  const formatarMascaraDocumento = (valor: string) => {
+    const limpo = valor.replace(/\D/g, '').slice(0, 14);
+    if (limpo.length <= 11) {
+      return limpo
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+    return limpo
+      .replace(/(\d{2})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1/$2')
+      .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+  };
+
+  const handleSalvarCpfEContinuarDespacho = async () => {
+    if (!pedidoPendenteDespacho || !loja) return;
+    const docLimpo = cpfClienteInput.replace(/\D/g, '');
+    if (!docLimpo || (docLimpo.length !== 11 && docLimpo.length !== 14)) {
+      mostrarErro('Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.');
+      return;
+    }
+
+    try {
+      setSalvandoCpfEDespachando(true);
+      const { ped, entrega } = pedidoPendenteDespacho;
+
+      // 1. Atualiza o documento no cliente (se cadastrado) e no pedido
+      if (ped.cliente_id) {
+        await supabase
+          .from('clientes')
+          .update({ numero_documento: docLimpo })
+          .eq('id', ped.cliente_id);
+      }
+
+      await supabase
+        .from('pedidos')
+        .update({ cliente_documento_avulso: docLimpo })
+        .eq('id', ped.id);
+
+      const pedAtualizado: Pedido = {
+        ...ped,
+        cliente_documento_avulso: docLimpo,
+        cliente: ped.cliente ? { ...ped.cliente, numero_documento: docLimpo } : ped.cliente
+      };
+
+      setModalCpfClienteAberto(false);
+      setDespachando(true);
+
+      const config = await ShippingOrchestrator.buscarConfigLoja(loja.id);
+      if (!config) throw new Error('Configuração de frete não encontrada.');
+
+      const resultado = await ShippingOrchestrator.despacharMelhorEnvio(
+        loja,
+        config,
+        pedAtualizado,
+        entrega,
+        usuario?.id || null
+      );
+
+      const agora = new Date().toISOString();
+      const urlRastreio = resultado.codigo_rastreio
+        ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
+        : resultado.link_etiqueta;
+
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id === ped.id
+            ? {
+                ...p,
+                status: 'enviado',
+                codigo_rastreio: resultado.codigo_rastreio,
+                link_rastreio: urlRastreio,
+                despachado_em: agora,
+                despachado_por: usuario?.id || null
+              }
+            : p
+        )
+      );
+
+      setPedidoSelecionado((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'enviado',
+              codigo_rastreio: resultado.codigo_rastreio,
+              link_rastreio: urlRastreio,
+              despachado_em: agora,
+              despachado_por: usuario?.id || null
+            }
+          : null
+      );
+
+      const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
+      if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
+
+      mostrarSucesso(`Etiqueta gerada com sucesso! Rastreio: ${resultado.codigo_rastreio}`);
+    } catch (err: any) {
+      console.error('Erro ao salvar CPF e despachar:', err);
+      let mensagem = err?.message || 'Falha na comunicação com o provedor de frete.';
+      const msgLower = mensagem.toLowerCase();
+      if (msgLower.includes('saldo') || msgLower.includes('wallet')) {
+        mensagem = 'Saldo insuficiente na carteira do Melhor Envio para gerar a etiqueta. Adicione créditos no painel do Melhor Envio.';
+      }
+      mostrarErro(mensagem);
+    } finally {
+      setSalvandoCpfEDespachando(false);
+      setDespachando(false);
+      setPedidoPendenteDespacho(null);
     }
   };
 
@@ -3640,6 +3760,105 @@ export const PedidosLista: React.FC = () => {
         onFeedbackSucesso={(msg) => mostrarSucesso(msg)}
         onFeedbackErro={(msg) => mostrarErro(msg)}
       />
+
+      {/* MODAL PARA PREENCHER CPF/CNPJ DO CLIENTE (MELHOR ENVIO) */}
+      {modalCpfClienteAberto && pedidoPendenteDespacho && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-100">
+                    CPF/CNPJ do Destinatário
+                  </h3>
+                  <p className="text-[11px] text-teal-400 font-semibold uppercase tracking-wider">
+                    Melhor Envio (Correios / Jadlog)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalCpfClienteAberto(false);
+                  setPedidoPendenteDespacho(null);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl space-y-1.5 text-xs text-slate-300">
+              <p className="font-bold text-slate-200">
+                Cliente: {pedidoPendenteDespacho.ped.cliente?.nome || pedidoPendenteDespacho.ped.cliente_nome_avulso || 'Destinatário'}
+              </p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                As transportadoras parceiras (Correios e Jadlog) exigem obrigatoriamente o CPF ou CNPJ do destinatário para emissão e rastreamento da etiqueta fiscal.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300">
+                CPF ou CNPJ do Cliente:
+              </label>
+              <input
+                type="text"
+                autoFocus
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                value={cpfClienteInput}
+                onChange={(e) => setCpfClienteInput(formatarMascaraDocumento(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none transition"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setCpfClienteInput('012.345.678-90')}
+                className="text-[11px] text-teal-400 hover:text-teal-300 underline font-semibold transition cursor-pointer"
+                title="Preencher documento fictício para testes no Sandbox"
+              >
+                Preencher CPF Teste
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalCpfClienteAberto(false);
+                    setPedidoPendenteDespacho(null);
+                  }}
+                  disabled={salvandoCpfEDespachando}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSalvarCpfEContinuarDespacho}
+                  disabled={salvandoCpfEDespachando || !cpfClienteInput.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-teal-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  {salvandoCpfEDespachando ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Gerando Envio...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>Salvar e Gerar Envio</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
