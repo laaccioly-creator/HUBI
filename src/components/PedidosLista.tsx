@@ -865,10 +865,17 @@ export const PedidosLista: React.FC = () => {
             : 'Corrida Uber Direct solicitada com sucesso!'
         );
       } else if (prov === 'melhor_envio') {
+        const docCliente = (pedCompleto.cliente?.numero_documento || pedCompleto.cliente_documento_avulso || '').replace(/\D/g, '');
+        if (!docCliente) {
+          mostrarErro('Preencha o CPF do cliente antes de gerar o frete do Melhor Envio.');
+          setDespachando(false);
+          return;
+        }
+
         const resultado = await ShippingOrchestrator.despacharMelhorEnvio(
           loja,
           config,
-          ped,
+          pedCompleto,
           entregaValida,
           usuario?.id || null
         );

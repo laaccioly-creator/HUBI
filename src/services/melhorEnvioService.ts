@@ -106,6 +106,33 @@ export class MelhorEnvioService {
   }
 
   /**
+   * Converte itens do pedido para o formato de produtos do carrinho da API v2 do Melhor Envio
+   * Exige: name, quantity, unitary_value, weight
+   */
+  private static formatarProdutosCartPayload(
+    itens?: Array<{ nome_produto?: string; nome?: string; quantidade?: number; preco_venda_unitario?: number; preco_unitario?: number; peso_kg?: number }>,
+    valorTotal = 1.00
+  ): Array<{ name: string; quantity: number; unitary_value: number; weight: number }> {
+    if (!itens || itens.length === 0) {
+      return [
+        {
+          name: 'Mercadoria',
+          quantity: 1,
+          unitary_value: Math.max(1.00, Number(valorTotal) || 1.00),
+          weight: 0.5
+        }
+      ];
+    }
+
+    return itens.map((it, idx) => ({
+      name: String(it.nome_produto || it.nome || `Produto ${idx + 1}`).trim().slice(0, 100),
+      quantity: Math.max(1, Math.round(Number(it.quantidade) || 1)),
+      unitary_value: Math.max(0.01, Number(it.preco_venda_unitario ?? it.preco_unitario ?? 1.00)),
+      weight: Math.max(0.1, Number(it.peso_kg || 0.3))
+    }));
+  }
+
+  /**
    * Processa e normaliza as opções retornadas pelo Melhor Envio
    */
   private static processarResultadoCotacoes(cotacoesRaw: MelhorEnvioServiceDeliveryResponse[]): OpcaoFreteCotada[] {
@@ -315,6 +342,41 @@ export class MelhorEnvioService {
 
     const baseUrl = this.getBaseUrl(config.melhor_envio_sandbox_mode);
 
+    const isSandbox = Boolean(config.melhor_envio_sandbox_mode);
+
+    // Validação de Documento da Loja (Remetente)
+    let docLoja = (loja.numero_documento || '').replace(/\D/g, '');
+    if (!docLoja || (docLoja.length !== 11 && docLoja.length !== 14)) {
+      if (isSandbox) {
+        docLoja = '16571723000105'; // CNPJ homologado de testes para sandbox
+      } else {
+        throw new Error('A sua loja precisa de um CNPJ ou CPF válido cadastrado para emitir fretes no Melhor Envio. Atualize os dados da loja nas configurações.');
+      }
+    }
+
+    // Validação de Documento do Cliente (Destinatário)
+    let docCliente = (pedido.cliente?.numero_documento || pedido.cliente_documento_avulso || '').replace(/\D/g, '');
+    if (!docCliente || (docCliente.length !== 11 && docCliente.length !== 14)) {
+      if (isSandbox && !docCliente) {
+        docCliente = '01234567890'; // CPF de testes
+      } else {
+        throw new Error('O CPF/CNPJ do cliente é obrigatório para emissão de frete via Melhor Envio.');
+      }
+    }
+
+    const productsCart = this.formatarProdutosCartPayload(
+      (pedido.itens || []).map(i => ({
+        nome_produto: i.nome_produto,
+        quantidade: Number(i.quantidade || 1),
+        preco_venda_unitario: Number(i.preco_venda_unitario || 0),
+        peso_kg: 0.3
+      })),
+      Number(pedido.valor_total || 0)
+    );
+
+    const pesoTotal = productsCart.reduce((acc, p) => acc + (p.weight * p.quantity), 0);
+    const valorSeguro = productsCart.reduce((acc, p) => acc + (p.unitary_value * p.quantity), 0);
+
     // Payload de inserção no carrinho do Melhor Envio
     const cartPayload = {
       service: Number(entrega.servico_codigo) || 1, // 1: Correios PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
@@ -323,7 +385,7 @@ export class MelhorEnvioService {
         name: loja.nome_fantasia || 'HUBI PDV',
         phone: loja.whatsapp ? loja.whatsapp.replace(/\D/g, '') : '11999999999',
         email: loja.email || 'contato@loja.com.br',
-        document: loja.numero_documento ? loja.numero_documento.replace(/\D/g, '') : '00000000000',
+        document: docLoja,
         address: config.origem_logradouro || loja.endereco_logradouro || 'Rua Principal',
         complement: config.origem_complemento || '',
         number: config.origem_numero || loja.endereco_numero || '100',
@@ -336,7 +398,7 @@ export class MelhorEnvioService {
         name: pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente',
         phone: pedido.cliente?.whatsapp ? pedido.cliente.whatsapp.replace(/\D/g, '') : '11999999999',
         email: pedido.cliente?.email || 'cliente@hubi.app',
-        document: pedido.cliente?.numero_documento ? pedido.cliente.numero_documento.replace(/\D/g, '') : '00000000000',
+        document: docCliente,
         address: entrega.destino_logradouro || 'Rua',
         complement: entrega.destino_complemento || '',
         number: entrega.destino_numero || 'S/N',
@@ -345,15 +407,22 @@ export class MelhorEnvioService {
         state_abbr: entrega.destino_uf || 'SP',
         postal_code: cepDestinoLimpo
       },
-      products: this.formatarProdutosPayload(
-        (pedido.itens || []).map(i => ({
-          nome: i.nome_produto,
-          quantidade: Number(i.quantidade || 1),
-          preco_unitario: Number(i.preco_venda_unitario || 0),
-          peso_kg: 0.3
-        })),
-        Number(pedido.valor_total || 0)
-      )
+      products: productsCart,
+      volumes: [
+        {
+          height: 10,
+          width: 15,
+          length: 20,
+          weight: Math.max(0.1, Number(pesoTotal.toFixed(2)))
+        }
+      ],
+      options: {
+        insurance_value: Number(valorSeguro.toFixed(2)),
+        receipt: false,
+        own_hand: false,
+        reverse: false,
+        non_commercial: true
+      }
     };
 
     // -------------------------------------------------------------------------
