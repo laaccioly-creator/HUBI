@@ -13,6 +13,7 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
   saiu_para_entrega: 'Saiu para Entrega',
   enviado: 'Enviado',
   pronto_para_retirar: 'Pronto para retirar',
+  entregue: 'Entregue',
   concluido: 'Concluído',
   vencido: 'Vencido',
   cancelado: 'Cancelado'
@@ -20,7 +21,7 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
 
 /**
  * Verifica se um status de pedido está ativo nas configurações da loja.
- * - 'pendente', 'confirmado', 'envio_pendente', 'aguardando_envio', 'enviado', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
+ * - 'pendente', 'confirmado', 'envio_pendente', 'aguardando_envio', 'enviado', 'entregue', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
  * - 'em_producao', 'em_expedicao', 'saiu_para_entrega' e 'pronto_para_retirar'
  *   dependem das opções marcadas em Configurações > Pedidos e Vendas > Status de Pedido.
  */
@@ -28,7 +29,7 @@ export function isStatusPedidoAtivo(
   statusId: string,
   loja?: Loja | null
 ): boolean {
-  if (['todos', 'pendente', 'confirmado', 'envio_pendente', 'aguardando_envio', 'enviado', 'saiu_para_entrega', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
+  if (['todos', 'pendente', 'confirmado', 'envio_pendente', 'aguardando_envio', 'enviado', 'saiu_para_entrega', 'entregue', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
     return true;
   }
 
@@ -149,6 +150,10 @@ export function obterOpcoesStatusAlteracao(
     opcoes.push({ id: 'enviado', label: 'Enviado' });
   }
 
+  if (statusAtual === 'entregue') {
+    opcoes.push({ id: 'entregue', label: 'Entregue' });
+  }
+
   if (isStatusPedidoAtivo('pronto_para_retirar', loja) || statusAtual === 'pronto_para_retirar') {
     opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
   }
@@ -249,7 +254,7 @@ export function podeEditarPedido(
   if (!status) return false;
 
   // Bloqueio mantido: pedidos concluídos, cancelados ou em trânsito/expedição externa
-  const statusBloqueados = ['saiu_para_entrega', 'enviado', 'concluido', 'cancelado'];
+  const statusBloqueados = ['saiu_para_entrega', 'enviado', 'entregue', 'concluido', 'cancelado'];
   if (statusBloqueados.includes(status)) {
     return false;
   }

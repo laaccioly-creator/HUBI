@@ -1477,6 +1477,10 @@ export const PedidosLista: React.FC = () => {
           </div>
         );
       }
+      case 'entregue':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40">📍 Entregue</span>;
+      case 'concluido':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">✅ Concluído</span>;
       case 'cancelado':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">❌ Cancelado</span>;
       default:
@@ -2633,7 +2637,7 @@ export const PedidosLista: React.FC = () => {
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>Receber</span>
                               </button>
-                            ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega') ? (
+                            ) : (pedido.status === 'enviado' || pedido.status === 'saiu_para_entrega' || pedido.status === 'entregue') ? (
                               /* ETAPA 3: Concluir Pedido com ações de rastreio ao vivo para Uber */
                               <div className="flex items-center gap-1">
                                 {(() => {

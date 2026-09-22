@@ -29,6 +29,7 @@ export type StatusPedido =
   | 'saiu_para_entrega'
   | 'enviado'
   | 'pronto_para_retirar'
+  | 'entregue'
   | 'concluido'
   | 'vencido'
   | 'cancelado';
