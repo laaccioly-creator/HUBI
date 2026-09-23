@@ -5,6 +5,7 @@ import {
   obterSerpApiKey,
   obterOuBuscarSerpApiKey,
   buscarFotosGoogleImagesSerpApi,
+  limparTermoParaBuscaGoogle,
   SerpApiQuotaError,
   SerpApiAuthError,
   FotoResultadoSerpApi
@@ -974,11 +975,8 @@ export const pesquisarFotosProdutoNaInternet = async (
     });
   };
 
-  // Limpa o termo removendo códigos internos e prefixos de SKU (ex: "7633 - VIBRADOR SOPHIE" vira "VIBRADOR SOPHIE")
-  const termoLimpo = termo
-    .replace(/^[\d\w#.-]+\s*-\s*/, '')
-    .replace(/^[0-9]+\s+/, '')
-    .trim() || termo.trim();
+  // Limpa o termo removendo códigos de SKU, variações de tamanho (- Tamanho G) e hifens excludentes
+  const termoLimpo = limparTermoParaBuscaGoogle(termo) || termo.trim();
 
   // Lista de termos a serem pesquisados no e-commerce
   const termosParaPesquisar: string[] = [];
@@ -1017,7 +1015,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o nome do produto / busca digitada
+  // O termo prioritário para SerpApi é o nome limpo do produto
   const termoPrincipal = termoLimpo || termosParaPesquisar[0];
 
   console.log(
@@ -1038,7 +1036,7 @@ export const pesquisarFotosProdutoNaInternet = async (
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
         termoPrincipal,
         serpApiKey,
-        { lojaId: loja?.id, numResultados: 20 }
+        { lojaId: loja?.id, numResultados: 24 }
       );
       console.log(
         `%c[HUBI IMAGENS]%c SerpApi retornou ${resultadosSerpApi.length} fotos para "${termoPrincipal}"`,
@@ -1055,6 +1053,36 @@ export const pesquisarFotosProdutoNaInternet = async (
           item.largura,
           item.altura
         );
+      }
+
+      // Se retornou menos de 6 fotos, faz busca complementar com palavras-chave essenciais
+      if (fotos.length < 6 && termoLimpo) {
+        const palavras = termoLimpo
+          .split(' ')
+          .filter(p => !['com', 'de', 'do', 'da', 'dos', 'das', 'para', 'em', 'um', 'uma', 'e', 'o', 'a', 'os', 'as'].includes(p.toLowerCase()));
+        if (palavras.length >= 2) {
+          const termoEssencial = palavras.slice(0, 4).join(' ');
+          if (termoEssencial && termoEssencial !== termoPrincipal) {
+            try {
+              const fotosComplementares = await buscarFotosGoogleImagesSerpApi(
+                termoEssencial,
+                serpApiKey,
+                { lojaId: loja?.id, numResultados: 16 }
+              );
+              for (const item of fotosComplementares) {
+                registrarFoto(
+                  item.urlOriginal,
+                  item.titulo,
+                  item.fonte || 'Google Imagens',
+                  item.urlThumbnail,
+                  item.urlOriginal,
+                  item.largura,
+                  item.altura
+                );
+              }
+            } catch {}
+          }
+        }
       }
     } catch (err) {
       if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {

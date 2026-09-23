@@ -67,6 +67,27 @@ const logSerpErro = (titulo: string, ...detalhes: any[]) => {
 };
 
 /**
+ * Sanitiza o termo de busca para o Google Imagens:
+ * - Remove códigos internos ou numerações de início (ex: "7633 - ")
+ * - Remove variações e tamanhos com hífen (ex: " - Tamanho G", " - Tam P", " - G")
+ * - Remove hifens isolados (para o Google não interpretar como operador de exclusão NOT)
+ */
+export const limparTermoParaBuscaGoogle = (termo: string): string => {
+  if (!termo) return '';
+  return termo
+    .replace(/^[\d\w#.-]+\s*-\s*/, '')
+    .replace(/^[0-9]+\s+/, '')
+    .replace(/\s*[-–—(]\s*tamanho\s+[a-z0-9]+\s*\)?/gi, '')
+    .replace(/\s*[-–—(]\s*tam\s+[a-z0-9]+\s*\)?/gi, '')
+    .replace(/\s*[-–—(]\s*(p|m|g|gg|xg|xgg)\b\s*\)?/gi, '')
+    .replace(/\s*[-–—(]\s*(grande|pequeno|medio|médio)\b\s*\)?/gi, '')
+    .replace(/\s*[-–—]\s*/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+/**
  * Formata os itens brutos retornados pela SerpApi em FotoResultadoSerpApi
  * Prioriza imagens em alta resolução e filtra miniaturas excessivamente pequenas
  */
@@ -101,8 +122,8 @@ export const formatarResultadosSerpApi = (
     const largura = typeof item.original_width === 'number' ? item.original_width : undefined;
     const altura = typeof item.original_height === 'number' ? item.original_height : undefined;
 
-    // Se tiver dimensões conhecidas, ignora imagens minúsculas (< 250px) para evitar fotos borradas ou ícones
-    if (largura && largura < 250 && altura && altura < 250) {
+    // Filtra apenas ícones minúsculos e favicons (< 100px)
+    if (largura && largura < 100 && altura && altura < 100) {
       continue;
     }
 
@@ -428,11 +449,8 @@ export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) =>
 export const buscarMiniaturaProduto = async (termo: string, loja?: any): Promise<string | null> => {
   if (!termo || !termo.trim()) return null;
 
-  const termoLimpo = termo
-    .replace(/^[\d\w#.-]+\s*-\s*/, '')
-    .replace(/^[0-9]+\s+/, '')
-    .trim();
-  const queryFinal = `${termoLimpo} produto`;
+  const queryFinal = limparTermoParaBuscaGoogle(termo);
+  if (!queryFinal) return null;
 
   // 1. Tenta obter do cache instantâneo (0ms)
   const emCache = obterCacheSerp(queryFinal);
@@ -450,7 +468,7 @@ export const buscarMiniaturaProduto = async (termo: string, loja?: any): Promise
 
   if (serpApiKey || loja?.id) {
     try {
-      const fotos = await buscarFotosGoogleImagesSerpApi(termoLimpo, serpApiKey, {
+      const fotos = await buscarFotosGoogleImagesSerpApi(queryFinal, serpApiKey, {
         lojaId: loja?.id,
         numResultados: 2
       });
@@ -488,13 +506,8 @@ export const buscarFotosGoogleImagesSerpApi = async (
     ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}`
     : chaveLimpa ? '***' : '(busca via lojaId no banco)';
 
-  const queryTratada = termo
-    .replace(/^[\d\w#.-]+\s*-\s*/, '')
-    .replace(/^[0-9]+\s+/, '')
-    .trim();
-
-  const queryFinal = `${queryTratada} produto`;
-  const num = opcoes?.numResultados || 12;
+  const queryFinal = limparTermoParaBuscaGoogle(termo);
+  const num = opcoes?.numResultados || 20;
 
   // 1. Verificação instantânea no Cache Local (Memória + sessionStorage)
   const fotosEmCache = obterCacheSerp(queryFinal);
@@ -516,7 +529,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     throw new SerpApiAuthError('Chave SerpApi não configurada.');
   }
 
-  if (!queryTratada) {
+  if (!queryFinal) {
     logSerpAviso('Termo de busca vazio após sanitização.');
     return [];
   }
@@ -566,7 +579,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
 
       if (rpcData.sucesso && Array.isArray(rpcData.results)) {
         if (rpcData.results.length > 0) {
-          const fotos = formatarResultadosSerpApi(rpcData.results, queryTratada, num);
+          const fotos = formatarResultadosSerpApi(rpcData.results, queryFinal, num);
           logSerpSucesso(`Encontradas ${fotos.length} fotos via Supabase RPC!`, fotos);
           salvarCacheSerp(queryFinal, fotos);
           return fotos;
@@ -675,7 +688,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
 
         if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
           const itens = rawJson.images_results || rawJson.results;
-          const fotos = formatarResultadosSerpApi(itens, queryTratada, num);
+          const fotos = formatarResultadosSerpApi(itens, queryFinal, num);
           logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
           salvarCacheSerp(queryFinal, fotos);
           return fotos;
@@ -722,8 +735,9 @@ export const buscarFotosGoogleImagesSerpApi = async (
     }
 
     if (response.ok && Array.isArray(rawJson.images_results)) {
-      const fotos = formatarResultadosSerpApi(rawJson.images_results, queryTratada, num);
+      const fotos = formatarResultadosSerpApi(rawJson.images_results, queryFinal, num);
       logSerpSucesso(`Encontradas ${fotos.length} fotos via chamada direta!`, fotos);
+      salvarCacheSerp(queryFinal, fotos);
       return fotos;
     }
   } catch (e: any) {

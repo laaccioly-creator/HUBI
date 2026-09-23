@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2, ExternalLink, Key, RefreshCw } from 'lucide-react';
 import { pesquisarFotosProdutoNaInternet, FotoResultadoInternet, SerpApiQuotaError, SerpApiAuthError } from '../services/geminiService';
+import { limparTermoParaBuscaGoogle } from '../services/serpApiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalQuotaExcedidaSerpApi } from './ModalQuotaExcedidaSerpApi';
 
@@ -103,11 +104,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   useEffect(() => {
     if (isOpen) {
       const termo = nomeInicial.trim() || codigoBarrasInicial.trim();
-      // Remove prefixos como "7633 - " ou códigos numéricos para buscar o nome real do produto
-      const termoTratado = termo
-        .replace(/^[\d\w#.-]+\s*-\s*/, '')
-        .replace(/^[0-9]+\s+/, '')
-        .trim() || termo;
+      const termoTratado = limparTermoParaBuscaGoogle(termo) || termo;
 
       setTermoBusca(termoTratado);
       setSelecionadas(new Set());
@@ -125,10 +122,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoLoja]);
 
   const realizarBusca = async (termo: string) => {
-    const termoTratado = termo
-      .replace(/^[\d\w#.-]+\s*-\s*/, '')
-      .replace(/^[0-9]+\s+/, '')
-      .trim() || termo.trim();
+    const termoTratado = limparTermoParaBuscaGoogle(termo) || termo.trim();
 
     if (!termoTratado && !fotoReferencia) {
       setErro('Digite o nome do produto ou selecione uma foto para pesquisar.');
