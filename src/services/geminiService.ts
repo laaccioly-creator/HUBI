@@ -380,45 +380,66 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
       const data = await res.json();
       const models = data?.models || [];
       const lista = models
-        .filter((m: any) =>
-          Array.isArray(m.supportedGenerationMethods) &&
-          m.supportedGenerationMethods.includes('generateContent') &&
-          !m.name.includes('embedding') &&
-          !m.name.includes('aqa') &&
-          !m.name.includes('bison')
-        )
+        .filter((m: any) => {
+          const nome = (m.name || '').replace('models/', '').toLowerCase();
+          const suportaGenerate = Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent');
+          if (!suportaGenerate) return false;
+
+          // Excluir modelos puramente de áudio, geração de imagens, embeddings e modelos depreciados com 404
+          if (
+            nome.includes('tts') ||
+            nome.includes('image') ||
+            nome.includes('embedding') ||
+            nome.includes('aqa') ||
+            nome.includes('bison') ||
+            nome.includes('live') ||
+            nome.includes('realtime') ||
+            nome.startsWith('gemini-2.5-') || // Depreciado pelo Google para novas chaves
+            nome.includes('omni')
+          ) {
+            return false;
+          }
+          return true;
+        })
         .map((m: any) => m.name.replace('models/', ''));
 
       if (lista.length > 0) {
         lista.sort((a: string, b: string) => {
           const getScore = (name: string) => {
             if (name === 'gemini-2.0-flash') return 100;
-            if (name === 'gemini-1.5-flash') return 90;
-            if (name.includes('2.0-flash')) return 85;
-            if (name.includes('1.5-flash')) return 80;
-            if (name.includes('flash')) return 50;
-            if (name.includes('pro')) return 20;
-            return 1;
+            if (name === 'gemini-1.5-flash') return 95;
+            if (name === 'gemini-3.6-flash') return 90;
+            if (name === 'gemini-3.5-flash') return 85;
+            if (name === 'gemini-3.5-flash-lite') return 80;
+            if (name === 'gemini-2.0-flash-lite') return 75;
+            if (name === 'gemini-1.5-flash-8b') return 70;
+            if (name.includes('2.0-flash')) return 65;
+            if (name.includes('1.5-flash')) return 60;
+            if (name === 'gemini-1.5-pro') return 50;
+            return 10;
           };
           return getScore(b) - getScore(a);
         });
-        modelosGeminiValidosCache = lista;
-        return lista;
+
+        // Selecionar os top 4 modelos mais estáveis para evitar sobrecarga de requisições
+        const topModelos = lista.slice(0, 4);
+        modelosGeminiValidosCache = topModelos;
+        return topModelos;
       }
     }
   } catch (e) {
     console.warn('Erro ao consultar lista de modelos do Gemini, usando lista padrão:', e);
   }
 
-  return [
+  const listaPadrao = [
     'gemini-2.0-flash',
     'gemini-1.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
     'gemini-2.0-flash-lite-preview-02-05',
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro-latest',
-    'gemini-1.5-pro'
+    'gemini-1.5-flash-8b'
   ];
+  return listaPadrao;
 };
 
 export const SAFETY_SETTINGS_VAREJO = [
@@ -443,6 +464,7 @@ export const SAFETY_SETTINGS_VAREJO = [
 export const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promise<any> => {
   const modelos = await obterModelosValidosGemini(apiKey);
   let primeiroErro: string | null = null;
+  let contador429 = 0;
 
   const payloadCompleto = {
     ...requestBody,
@@ -453,7 +475,8 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      // Timeout ampliado para 15 segundos para dar tempo suficiente ao processamento da IA
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -469,11 +492,26 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
         const errJson = await response.json().catch(() => ({}));
         const msg = errJson?.error?.message || response.statusText;
         if (!primeiroErro) primeiroErro = msg;
-        console.warn(`Tentativa com modelo ${modelo} retornou erro:`, msg);
+
+        if (response.status === 429) {
+          contador429++;
+          if (contador429 >= 2) {
+            console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata de tentativas.');
+            throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
+          }
+        }
+
+        console.warn(`Tentativa com modelo ${modelo} retornou erro (${response.status}):`, msg);
       }
     } catch (e: any) {
       if (!primeiroErro) primeiroErro = e?.message || String(e);
-      console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
+      if (e?.name === 'AbortError') {
+        console.warn(`Tempo limite excedido (15s) ao consultar modelo ${modelo}.`);
+      } else if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
+        throw e;
+      } else {
+        console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
+      }
     }
   }
 
