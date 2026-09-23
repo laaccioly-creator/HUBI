@@ -54,6 +54,10 @@ export interface LojaShippingConfig {
   frete_proprio_ativo?: boolean;
   frete_proprio_tipo_cobranca?: 'fixo' | 'manual' | 'gratis';
   frete_proprio_valor_padrao?: number;
+  embalagem_padrao_peso_kg?: number;
+  embalagem_padrao_altura_cm?: number;
+  embalagem_padrao_largura_cm?: number;
+  embalagem_padrao_comprimento_cm?: number;
   criado_em?: string;
   atualizado_em?: string;
 }

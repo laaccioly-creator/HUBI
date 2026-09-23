@@ -77,17 +77,23 @@ export class MelhorEnvioService {
    */
   private static formatarProdutosPayload(
     itens: CotacaoItemProduto[],
-    subtotal: number
+    subtotal: number,
+    config?: LojaShippingConfig
   ): MelhorEnvioProductPayload[] {
+    const defW = config?.embalagem_padrao_largura_cm || 15;
+    const defH = config?.embalagem_padrao_altura_cm || 10;
+    const defL = config?.embalagem_padrao_comprimento_cm || 20;
+    const defPeso = config?.embalagem_padrao_peso_kg || 0.3;
+
     if (!itens || itens.length === 0) {
       // Pacote padrão mínimo se a cesta estiver vazia ou com itens avulsos
       return [
         {
           id: 'padrao-1',
-          width: 15,
-          height: 10,
-          length: 20,
-          weight: 0.5,
+          width: Math.max(10, defW),
+          height: Math.max(4, defH),
+          length: Math.max(15, defL),
+          weight: Math.max(0.1, defPeso),
           insurance_value: Math.max(1, subtotal),
           quantity: 1
         }
@@ -96,10 +102,10 @@ export class MelhorEnvioService {
 
     return itens.map((it, idx) => ({
       id: `item-${idx + 1}`,
-      width: Math.max(10, it.largura_cm || 15),
-      height: Math.max(5, it.altura_cm || 10),
-      length: Math.max(15, it.comprimento_cm || 20),
-      weight: Math.max(0.1, it.peso_kg || 0.3),
+      width: Math.max(10, it.largura_cm || defW),
+      height: Math.max(4, it.altura_cm || defH),
+      length: Math.max(15, it.comprimento_cm || defL),
+      weight: Math.max(0.1, it.peso_kg || defPeso),
       insurance_value: Math.max(1, it.preco_unitario),
       quantity: Math.max(1, it.quantidade)
     }));
@@ -111,15 +117,18 @@ export class MelhorEnvioService {
    */
   private static formatarProdutosCartPayload(
     itens?: Array<{ nome_produto?: string; nome?: string; quantidade?: number; preco_venda_unitario?: number; preco_unitario?: number; peso_kg?: number }>,
-    valorTotal = 1.00
+    valorTotal = 1.00,
+    config?: LojaShippingConfig
   ): Array<{ name: string; quantity: number; unitary_value: number; weight: number }> {
+    const defPeso = config?.embalagem_padrao_peso_kg || 0.3;
+
     if (!itens || itens.length === 0) {
       return [
         {
           name: 'Mercadoria',
           quantity: 1,
           unitary_value: Math.max(1.00, Number(valorTotal) || 1.00),
-          weight: 0.5
+          weight: Math.max(0.1, defPeso)
         }
       ];
     }
@@ -128,7 +137,7 @@ export class MelhorEnvioService {
       name: String(it.nome_produto || it.nome || `Produto ${idx + 1}`).trim().slice(0, 100),
       quantity: Math.max(1, Math.round(Number(it.quantidade) || 1)),
       unitary_value: Math.max(0.01, Number(it.preco_venda_unitario ?? it.preco_unitario ?? 1.00)),
-      weight: Math.max(0.1, Number(it.peso_kg || 0.3))
+      weight: Math.max(0.1, Number(it.peso_kg || defPeso))
     }));
   }
 
@@ -214,7 +223,7 @@ export class MelhorEnvioService {
       to: {
         postal_code: cepDestinoLimpo
       },
-      products: this.formatarProdutosPayload(itens, subtotal)
+      products: this.formatarProdutosPayload(itens, subtotal, config)
     };
 
     // -------------------------------------------------------------------------
@@ -369,9 +378,10 @@ export class MelhorEnvioService {
         nome_produto: i.nome_produto,
         quantidade: Number(i.quantidade || 1),
         preco_venda_unitario: Number(i.preco_venda_unitario || 0),
-        peso_kg: 0.3
+        peso_kg: (i as any)?.peso_kg || (i as any)?.produto?.peso_kg || config.embalagem_padrao_peso_kg || 0.3
       })),
-      Number(pedido.valor_total || 0)
+      Number(pedido.valor_total || 0),
+      config
     );
 
     const pesoTotal = productsCart.reduce((acc, p) => acc + (p.weight * p.quantity), 0);
@@ -410,9 +420,9 @@ export class MelhorEnvioService {
       products: productsCart,
       volumes: [
         {
-          height: 10,
-          width: 15,
-          length: 20,
+          height: config.embalagem_padrao_altura_cm || 10,
+          width: config.embalagem_padrao_largura_cm || 15,
+          length: config.embalagem_padrao_comprimento_cm || 20,
           weight: Math.max(0.1, Number(pesoTotal.toFixed(2)))
         }
       ],
@@ -446,7 +456,9 @@ export class MelhorEnvioService {
           ordem_id: String(edgeData.ordem_id),
           codigo_rastreio: String(edgeData.codigo_rastreio),
           link_etiqueta: edgeData.link_etiqueta || `${baseUrl}/painel/envios`,
-          link_rastreio: edgeData.link_rastreio || `https://melhorrastreio.com.br/rastreio/${edgeData.codigo_rastreio}`,
+          link_rastreio: edgeData.codigo_rastreio
+            ? `https://melhorrastreio.com.br/rastreio/${edgeData.codigo_rastreio}`
+            : (edgeData.link_rastreio || ''),
           transportadora: edgeData.transportadora || entrega.transportadora_nome || 'Melhor Envio'
         };
       }
@@ -506,7 +518,9 @@ export class MelhorEnvioService {
           ordem_id: String(rpcData.ordem_id),
           codigo_rastreio: String(rpcData.codigo_rastreio),
           link_etiqueta: rpcData.link_etiqueta || `${baseUrl}/painel/envios`,
-          link_rastreio: rpcData.link_rastreio || `https://melhorrastreio.com.br/rastreio/${rpcData.codigo_rastreio}`,
+          link_rastreio: rpcData.codigo_rastreio
+            ? `https://melhorrastreio.com.br/rastreio/${rpcData.codigo_rastreio}`
+            : (rpcData.link_rastreio || ''),
           transportadora: entrega.transportadora_nome || 'Melhor Envio'
         };
       }

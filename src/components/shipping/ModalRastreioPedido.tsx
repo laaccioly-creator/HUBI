@@ -165,8 +165,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     texto += `Seu pedido *#${numPed}* foi despachado via *${transportadora}*!\n\n`;
     if (codigoRastreio) {
       texto += `📦 *Código de Rastreio:* ${codigoRastreio}\n`;
-    }
-    if (linkRastreio && !linkRastreio.includes('imprimir')) {
+      texto += `🔗 *Acompanhe a entrega:* https://melhorrastreio.com.br/rastreio/${codigoRastreio}\n\n`;
+    } else if (linkRastreio && !linkRastreio.includes('imprimir')) {
       texto += `🔗 *Acompanhe a entrega:* ${linkRastreio}\n\n`;
     }
     texto += `Agradecemos pela preferência! Qualquer dúvida, estamos à disposição. 😊`;
@@ -231,9 +231,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   ];
 
   const urlRastreioOficial =
-    linkRastreio && !linkRastreio.includes('imprimir')
-      ? linkRastreio
-      : (codigoRastreio ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}` : null);
+    codigoRastreio
+      ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`
+      : (linkRastreio && !linkRastreio.includes('imprimir') ? linkRastreio : null);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">

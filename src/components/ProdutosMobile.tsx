@@ -454,6 +454,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     quantidadeEstoque: number;
     dataValidade: string;
     variacoes: Partial<VariacaoProduto>[];
+    pesoKg?: string;
+    alturaCm?: string;
+    larguraCm?: string;
+    comprimentoCm?: string;
   }>({
     nome: '',
     precoVenda: '',
@@ -476,7 +480,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     gerenciarEstoque: true,
     quantidadeEstoque: 0,
     dataValidade: '',
-    variacoes: []
+    variacoes: [],
+    pesoKg: '',
+    alturaCm: '',
+    larguraCm: '',
+    comprimentoCm: ''
   });
 
   const { confirmar } = useFeedbackModal();
@@ -1090,7 +1098,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         quantidade_estoque: formData.tipoItem === 'servico' ? 0 : formData.quantidadeEstoque,
         data_validade: formData.tipoItem === 'servico' ? null : (formData.dataValidade || null),
         cor_etiqueta: formData.corEtiqueta,
-        ativo: true
+        ativo: true,
+        peso_kg: formData.pesoKg ? Number(formData.pesoKg.replace(',', '.')) : null,
+        altura_cm: formData.alturaCm ? Number(formData.alturaCm.replace(',', '.')) : null,
+        largura_cm: formData.larguraCm ? Number(formData.larguraCm.replace(',', '.')) : null,
+        comprimento_cm: formData.comprimentoCm ? Number(formData.comprimentoCm.replace(',', '.')) : null
       };
 
       if (produtoEditando?.id) {
@@ -1103,13 +1115,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           })
           .eq('id', produtoEditando.id);
 
-        if (error && (error.message?.includes('tipo_item') || (error as any).details?.includes('tipo_item'))) {
-          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando atualizar sem ela...');
-          const { tipo_item, ...payloadSemTipoItem } = payload;
+        if (error && (
+          error.message?.includes('tipo_item') || 
+          error.message?.includes('peso_kg') || 
+          error.message?.includes('altura_cm') ||
+          (error as any).details?.includes('peso_kg')
+        )) {
+          console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar sem elas...');
+          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .update({
-              ...payloadSemTipoItem,
+              ...payloadBase,
               atualizado_em: new Date().toISOString()
             })
             .eq('id', produtoEditando.id);
@@ -1130,6 +1147,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           }])
           .select()
           .single();
+
+        if (error && (
+          error.message?.includes('tipo_item') || 
+          error.message?.includes('peso_kg') || 
+          error.message?.includes('altura_cm') ||
+          (error as any).details?.includes('peso_kg')
+        )) {
+          console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar sem elas...');
+          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...payloadBase } = payload;
+          const retry = await supabase
+            .from('produtos')
+            .insert([{
+              ...payloadBase,
+              criado_em: new Date().toISOString(),
+              atualizado_em: new Date().toISOString()
+            }])
+            .select()
+            .single();
+          prodCriado = retry.data;
+          error = retry.error;
+        }
 
         if (error && (error.message?.includes('tipo_item') || (error as any).details?.includes('tipo_item'))) {
           console.warn('Coluna tipo_item ausente no schema de produtos. Tentando cadastrar sem ela...');
@@ -1409,7 +1447,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: (sugestao as any).descricao_completa || sugestao.descricao || prev.descricao,
       codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
       tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
-      fotos: fotoUrl ? [fotoUrl, ...prev.fotos.filter((f: string) => f !== fotoUrl)].slice(0, 6) : prev.fotos
+      fotos: fotoUrl ? [fotoUrl, ...prev.fotos.filter((f: string) => f !== fotoUrl)].slice(0, 6) : prev.fotos,
+      pesoKg: sugestao.peso_kg ? String(sugestao.peso_kg) : prev.pesoKg,
+      alturaCm: sugestao.altura_cm ? String(sugestao.altura_cm) : prev.alturaCm,
+      larguraCm: sugestao.largura_cm ? String(sugestao.largura_cm) : prev.larguraCm,
+      comprimentoCm: sugestao.comprimento_cm ? String(sugestao.comprimento_cm) : prev.comprimentoCm
     }));
   };
 

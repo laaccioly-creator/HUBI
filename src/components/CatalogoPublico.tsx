@@ -2673,10 +2673,10 @@ Fico no aguardo da confirmação! ✨`;
                 nome: i.produto.nome,
                 quantidade: i.quantidade,
                 preco_unitario: i.produto.preco_venda_varejo || 0,
-                peso_kg: (i.produto as any)?.peso_kg || 0.3,
-                largura_cm: (i.produto as any)?.largura_cm || 15,
-                altura_cm: (i.produto as any)?.altura_cm || 10,
-                comprimento_cm: (i.produto as any)?.comprimento_cm || 20
+                peso_kg: (i.produto as any)?.peso_kg || undefined,
+                largura_cm: (i.produto as any)?.largura_cm || undefined,
+                altura_cm: (i.produto as any)?.altura_cm || undefined,
+                comprimento_cm: (i.produto as any)?.comprimento_cm || undefined
               }))}
               valorFreteAtual={valorFreteEfetivo}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}

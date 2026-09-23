@@ -3186,10 +3186,10 @@ export const PosCheckout: React.FC = () => {
                 nome: i.produto.nome,
                 quantidade: i.quantidade,
                 preco_unitario: i.precoUnitario,
-                peso_kg: (i.produto as any)?.peso_kg || 0.3,
-                largura_cm: (i.produto as any)?.largura_cm || 15,
-                altura_cm: (i.produto as any)?.altura_cm || 10,
-                comprimento_cm: (i.produto as any)?.comprimento_cm || 20
+                peso_kg: (i.produto as any)?.peso_kg || undefined,
+                largura_cm: (i.produto as any)?.largura_cm || undefined,
+                altura_cm: (i.produto as any)?.altura_cm || undefined,
+                comprimento_cm: (i.produto as any)?.comprimento_cm || undefined
               }))}
               valorFreteAtual={draftFulfillment ? draftFulfillment.valor_frete : taxaEntrega}
               opcaoSelecionadaId={draftFulfillment?.pedido_entrega?.forma_entrega_id || draftFulfillment?.pedido_entrega?.servico_codigo || pedidoEntrega?.forma_entrega_id || pedidoEntrega?.servico_codigo}

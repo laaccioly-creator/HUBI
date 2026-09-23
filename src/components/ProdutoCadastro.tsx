@@ -18,6 +18,7 @@ import {
   X,
   AlertCircle,
   Package,
+  Truck,
   Wrench,
   Boxes,
   Eye,
@@ -53,7 +54,8 @@ import {
   obterNomeSegmentoLoja,
   getGeminiApiKey,
   salvarGeminiApiKey,
-  obterOuBuscarGeminiApiKey
+  obterOuBuscarGeminiApiKey,
+  extrairDimensoesEPesoTexto
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 
@@ -87,6 +89,10 @@ export interface ProdutoSugeridoIA {
   duvida?: boolean;
   diferencial?: string;
   opcoes_sugeridas?: ProdutoSugeridoIA[];
+  peso_kg?: number;
+  altura_cm?: number;
+  largura_cm?: number;
+  comprimento_cm?: number;
 }
 
 const comprimirArquivoImagem = async (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
@@ -429,6 +435,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "tipo_unidade": "un",
   "codigo_barras": "Código de barras numérico se visível na foto, senão vazio",
   "diferencial": "Breve resumo do diferencial (ex: Versão Tradicional)",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20,
   "opcoes_sugeridas": [
     {
       "nome": "Nome comercial da opção alternativa 1",
@@ -438,7 +448,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
       "descricao": "Descrição da opção 1",
       "tipo_unidade": "un",
       "codigo_barras": "",
-      "diferencial": "Ex: Versão Zero Açúcar"
+      "diferencial": "Ex: Versão Zero Açúcar",
+      "peso_kg": 0.35,
+      "altura_cm": 10,
+      "largura_cm": 15,
+      "comprimento_cm": 20
     }
   ],
   "concorrentes_mercado": [
@@ -449,6 +463,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
     { "loja": "Supermercados / Farmácias", "preco": 0.00, "tipo": "Varejo Físico" }
   ]
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.200 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') considerando o tipo, material e volume do produto para cálculo de frete nos Correios e Jadlog.
 `;
 
       const requestBody: any = {
@@ -498,12 +514,22 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
                 descricao: op.descricao || '',
                 tipo_unidade: op.tipo_unidade || 'un',
                 codigo_barras: op.codigo_barras || '',
-                diferencial: op.diferencial || ''
+                diferencial: op.diferencial || '',
+                peso_kg: Number(op.peso_kg) > 0 ? Number(op.peso_kg) : undefined,
+                altura_cm: Number(op.altura_cm) > 0 ? Number(op.altura_cm) : undefined,
+                largura_cm: Number(op.largura_cm) > 0 ? Number(op.largura_cm) : undefined,
+                comprimento_cm: Number(op.comprimento_cm) > 0 ? Number(op.comprimento_cm) : undefined
               };
             });
           }
 
           const temDuvida = Boolean(parsed.duvida && opcoesFormatadas && opcoesFormatadas.length > 1);
+
+          const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || ''} ${parsed.descricao || ''}`);
+          const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
+          const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
+          const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
+          const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
 
           return {
             duvida: temDuvida,
@@ -516,7 +542,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
             codigo_barras: parsed.codigo_barras || '',
             diferencial: parsed.diferencial || '',
             opcoes_sugeridas: opcoesFormatadas,
-            dados_mercado: dadosMercadoFormatados
+            dados_mercado: dadosMercadoFormatados,
+            peso_kg: pesoKgFinal,
+            altura_cm: alturaFinal,
+            largura_cm: larguraFinal,
+            comprimento_cm: compFinal
           };
         }
       }
@@ -623,6 +653,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "descricao": "Descrição comercial de alta conversão destacando benefícios e especificações",
   "tipo_unidade": "un",
   "codigo_barras": "${valor}",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20,
   "concorrentes_mercado": [
     { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
     { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "E-commerce" },
@@ -630,6 +664,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
     { "loja": "Shopee", "preco": 0.00, "tipo": "Marketplace" }
   ]
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.200 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') para cálculo de frete nos Correios e Jadlog.
 ` : `
 Você é um especialista em catálogo de produtos e precificação de varejo e e-commerce no Brasil.
 ${segmentoLoja ? `CONTEXTO DA LOJA - SEGMENTO: "${segmentoLoja}". O produto pertence a este segmento comercial.` : ''}
@@ -644,12 +680,18 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "descricao": "Descrição comercial completa de alta conversão para catálogo online e WhatsApp",
   "tipo_unidade": "un",
   "codigo_barras": "",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20,
   "concorrentes_mercado": [
     { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
     { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "E-commerce" },
     { "loja": "Shopee", "preco": 0.00, "tipo": "Marketplace" }
   ]
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.200 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') para cálculo de frete nos Correios e Jadlog.
 `;
 
   const requestBody = {
@@ -669,6 +711,12 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
     dadosMercadoFormatados = processarListaConcorrentes(parsed.concorrentes_mercado, precoEstimado);
   }
 
+  const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || valor} ${parsed.descricao || ''}`);
+  const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
+  const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
+  const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
+  const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
+
   return {
     nome: parsed.nome || 'Produto Identificado',
     categoria_sugerida: parsed.categoria_sugerida || 'Geral',
@@ -677,7 +725,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
     descricao: parsed.descricao || '',
     tipo_unidade: parsed.tipo_unidade || 'un',
     codigo_barras: parsed.codigo_barras || (tipo === 'barcode' ? valor : ''),
-    dados_mercado: dadosMercadoFormatados
+    dados_mercado: dadosMercadoFormatados,
+    peso_kg: pesoKgFinal,
+    altura_cm: alturaFinal,
+    largura_cm: larguraFinal,
+    comprimento_cm: compFinal
   };
 };
 
@@ -787,6 +839,12 @@ export const ProdutoCadastro: React.FC = () => {
   const [fornecedorId, setFornecedorId] = useState<string>(() => rascunhoSalvo?.fornecedorId || '');
   const [descricao, setDescricao] = useState<string>(() => rascunhoSalvo?.descricao || '');
   const [tipoUnidade, setTipoUnidade] = useState<string>(() => rascunhoSalvo?.tipoUnidade || 'un');
+
+  // Dimensões e Peso para Frete (Preenchido Automaticamente por IA / Regex)
+  const [pesoKg, setPesoKg] = useState<string>(() => rascunhoSalvo?.pesoKg || '');
+  const [alturaCm, setAlturaCm] = useState<string>(() => rascunhoSalvo?.alturaCm || '');
+  const [larguraCm, setLarguraCm] = useState<string>(() => rascunhoSalvo?.larguraCm || '');
+  const [comprimentoCm, setComprimentoCm] = useState<string>(() => rascunhoSalvo?.comprimentoCm || '');
 
   // Preços
   const [precoCusto, setPrecoCusto] = useState<string>(() => rascunhoSalvo?.precoCusto || '0.00');
@@ -1203,6 +1261,11 @@ export const ProdutoCadastro: React.FC = () => {
           setDestaque(Boolean(prod.destaque));
           setAtivo(prod.ativo !== false);
 
+          setPesoKg((prod as any).peso_kg !== null && (prod as any).peso_kg !== undefined ? String((prod as any).peso_kg) : '');
+          setAlturaCm((prod as any).altura_cm !== null && (prod as any).altura_cm !== undefined ? String((prod as any).altura_cm) : '');
+          setLarguraCm((prod as any).largura_cm !== null && (prod as any).largura_cm !== undefined ? String((prod as any).largura_cm) : '');
+          setComprimentoCm((prod as any).comprimento_cm !== null && (prod as any).comprimento_cm !== undefined ? String((prod as any).comprimento_cm) : '');
+
           const fotos = Array.isArray(prod.fotos_urls) ? prod.fotos_urls : [];
           setFotosUrls(fotos);
           setFotoPrincipal(fotos[0] || '');
@@ -1392,6 +1455,20 @@ export const ProdutoCadastro: React.FC = () => {
     }
     if (dadosSugeridos.codigo_barras) {
       setCodigoBarras(dadosSugeridos.codigo_barras);
+    }
+
+    // Preenchimento Automático das Dimensões e Peso de Frete via IA ou Regex
+    if (dadosSugeridos.peso_kg !== undefined && dadosSugeridos.peso_kg !== null && Number(dadosSugeridos.peso_kg) > 0) {
+      setPesoKg(String(dadosSugeridos.peso_kg));
+    }
+    if (dadosSugeridos.altura_cm !== undefined && dadosSugeridos.altura_cm !== null && Number(dadosSugeridos.altura_cm) > 0) {
+      setAlturaCm(String(dadosSugeridos.altura_cm));
+    }
+    if (dadosSugeridos.largura_cm !== undefined && dadosSugeridos.largura_cm !== null && Number(dadosSugeridos.largura_cm) > 0) {
+      setLarguraCm(String(dadosSugeridos.largura_cm));
+    }
+    if (dadosSugeridos.comprimento_cm !== undefined && dadosSugeridos.comprimento_cm !== null && Number(dadosSugeridos.comprimento_cm) > 0) {
+      setComprimentoCm(String(dadosSugeridos.comprimento_cm));
     }
 
     // Salvar dados de concorrentes e mercado identificados pela IA em memória
@@ -1678,7 +1755,11 @@ export const ProdutoCadastro: React.FC = () => {
         data_validade: dataValidade || null,
         exibir_catalogo: exibirCatalogo,
         destaque: destaque,
-        ativo: ativo
+        ativo: ativo,
+        peso_kg: pesoKg.trim() ? Number(pesoKg.replace(',', '.')) : null,
+        altura_cm: alturaCm.trim() ? Number(alturaCm.replace(',', '.')) : null,
+        largura_cm: larguraCm.trim() ? Number(larguraCm.replace(',', '.')) : null,
+        comprimento_cm: comprimentoCm.trim() ? Number(comprimentoCm.replace(',', '.')) : null
       };
 
       if (ehEdicao) {
@@ -1687,13 +1768,18 @@ export const ProdutoCadastro: React.FC = () => {
           .update(novoProduto)
           .eq('id', id);
 
-        // Fallback caso a coluna tipo_item ainda não exista no schema do banco
-        if (erroUpdate && (erroUpdate.message?.includes('tipo_item') || (erroUpdate as any).details?.includes('tipo_item'))) {
-          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando atualizar sem ela...');
-          const { tipo_item, ...dadosSemTipoItem } = novoProduto;
+        // Fallback caso colunas de dimensões ou tipo_item ainda não existam no schema do banco
+        if (erroUpdate && (
+          erroUpdate.message?.includes('tipo_item') || 
+          erroUpdate.message?.includes('peso_kg') || 
+          erroUpdate.message?.includes('altura_cm') ||
+          (erroUpdate as any).details?.includes('peso_kg')
+        )) {
+          console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar com payload base...');
+          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
           const retry = await supabase
             .from('produtos')
-            .update(dadosSemTipoItem)
+            .update(dadosSemNovasColunas)
             .eq('id', id);
           erroUpdate = retry.error;
         }
@@ -1725,13 +1811,18 @@ export const ProdutoCadastro: React.FC = () => {
           .select()
           .single();
 
-        // Fallback caso a coluna tipo_item ainda não exista no schema do banco
-        if (erroProd && (erroProd.message?.includes('tipo_item') || (erroProd as any).details?.includes('tipo_item'))) {
-          console.warn('Coluna tipo_item ausente no schema de produtos. Tentando cadastrar sem ela...');
-          const { tipo_item, ...dadosSemTipoItem } = novoProduto;
+        // Fallback caso colunas de dimensões ou tipo_item ainda não existam no schema do banco
+        if (erroProd && (
+          erroProd.message?.includes('tipo_item') || 
+          erroProd.message?.includes('peso_kg') || 
+          erroProd.message?.includes('altura_cm') ||
+          (erroProd as any).details?.includes('peso_kg')
+        )) {
+          console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar com payload base...');
+          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
           const retry = await supabase
             .from('produtos')
-            .insert([dadosSemTipoItem])
+            .insert([dadosSemNovasColunas])
             .select()
             .single();
           prodCriado = retry.data;
@@ -2826,6 +2917,103 @@ export const ProdutoCadastro: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* SEÇÃO 6: DIMENSÕES E PESO PARA FRETE (IA / CORREIOS / JADLOG) */}
+          {tipoItem !== 'servico' && (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-emerald-400" />
+                    <span>6. Dimensões e Peso para Envio (Melhor Envio / Correios / Jadlog)</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Preenchido automaticamente pela IA do HUBI. Usado para cotação exata de frete e emissão de etiquetas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const extraidos = extrairDimensoesEPesoTexto(`${nome} ${descricao}`);
+                    let detectou = false;
+                    if (extraidos.peso_kg) { setPesoKg(String(extraidos.peso_kg)); detectou = true; }
+                    if (extraidos.altura_cm) { setAlturaCm(String(extraidos.altura_cm)); detectou = true; }
+                    if (extraidos.largura_cm) { setLarguraCm(String(extraidos.largura_cm)); detectou = true; }
+                    if (extraidos.comprimento_cm) { setComprimentoCm(String(extraidos.comprimento_cm)); detectou = true; }
+                    if (!detectou) {
+                      alert('A IA já estimou os parâmetros ideais. Se desejar valores específicos, ajuste os campos abaixo.');
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 text-xs font-semibold border border-slate-700 transition cursor-pointer self-start sm:self-auto"
+                  title="Detectar medidas contidas no nome ou descrição"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Auto-detectar do Texto</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-300">Peso (kg)</label>
+                    <span className="text-[10px] text-emerald-400 font-medium">Balança</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0.01"
+                    placeholder="Ex: 0.350"
+                    value={pesoKg}
+                    onChange={(e) => setPesoKg(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 block">Ex: 0.500 para 500g</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">Altura (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    placeholder="Ex: 10"
+                    value={alturaCm}
+                    onChange={(e) => setAlturaCm(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 block">Mínimo: 4 cm</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">Largura (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    placeholder="Ex: 15"
+                    value={larguraCm}
+                    onChange={(e) => setLarguraCm(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 block">Mínimo: 10 cm</span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">Comprimento (cm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    placeholder="Ex: 20"
+                    value={comprimentoCm}
+                    onChange={(e) => setComprimentoCm(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 block">Mínimo: 15 cm</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* SEÇÃO 6: CATÁLOGO ONLINE E DESTAQUE */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">

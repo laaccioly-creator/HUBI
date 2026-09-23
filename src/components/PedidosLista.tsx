@@ -890,9 +890,9 @@ export const PedidosLista: React.FC = () => {
           usuario?.id || null
         );
 
-        const urlRastreio = resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir')
-          ? resultado.link_rastreio
-          : (resultado.codigo_rastreio ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}` : null);
+        const urlRastreio = resultado.codigo_rastreio
+          ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
+          : (resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir') ? resultado.link_rastreio : null);
 
         setPedidos((prev) =>
           prev.map((p) =>
@@ -1007,9 +1007,9 @@ export const PedidosLista: React.FC = () => {
       );
 
       const agora = new Date().toISOString();
-      const urlRastreio = resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir')
-        ? resultado.link_rastreio
-        : (resultado.codigo_rastreio ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}` : null);
+      const urlRastreio = resultado.codigo_rastreio
+        ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
+        : (resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir') ? resultado.link_rastreio : null);
 
       setPedidos((prev) =>
         prev.map((p) =>

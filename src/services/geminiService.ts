@@ -25,7 +25,83 @@ export interface ProdutoSugeridoIA {
   duvida?: boolean;
   diferencial?: string;
   opcoes_sugeridas?: ProdutoSugeridoIA[];
+  peso_kg?: number;
+  altura_cm?: number;
+  largura_cm?: number;
+  comprimento_cm?: number;
 }
+
+export interface DimensoesEPesoExtraidos {
+  peso_kg?: number;
+  altura_cm?: number;
+  largura_cm?: number;
+  comprimento_cm?: number;
+}
+
+/**
+ * Extrai instantaneamente peso e medidas a partir de termos no título ou descrição (ex: 500g, 5kg, 350ml, 20x15x10cm)
+ */
+export const extrairDimensoesEPesoTexto = (texto: string): DimensoesEPesoExtraidos => {
+  if (!texto) return {};
+  const t = texto.toLowerCase();
+  const res: DimensoesEPesoExtraidos = {};
+
+  // 1. Detecção de peso explícito em kg (ex: "5kg", "5,5 kg", "0.5kg")
+  const matchKg = t.match(/(\d+(?:[.,]\d+)?)\s*(?:kg|quilos?)\b/);
+  if (matchKg) {
+    const val = parseFloat(matchKg[1].replace(',', '.'));
+    if (!isNaN(val) && val > 0) res.peso_kg = Number(val.toFixed(3));
+  }
+
+  // 2. Detecção de peso em gramas (ex: "500g", "500 gramas", "250 g")
+  if (!res.peso_kg) {
+    const matchG = t.match(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|gramas?)\b/);
+    if (matchG) {
+      const val = parseFloat(matchG[1].replace(',', '.'));
+      if (!isNaN(val) && val > 0) res.peso_kg = Number((val / 1000).toFixed(3));
+    }
+  }
+
+  // 3. Detecção de líquidos em litros ou ml (calculando peso do líquido + tara da embalagem de despacho)
+  if (!res.peso_kg) {
+    const matchL = t.match(/(\d+(?:[.,]\d+)?)\s*(?:l|litros?)\b/);
+    if (matchL) {
+      const val = parseFloat(matchL[1].replace(',', '.'));
+      if (!isNaN(val) && val > 0) {
+        const ehVidro = t.includes('vidro') || t.includes('vinho') || t.includes('cerveja') || t.includes('azeite');
+        const tara = ehVidro ? 0.45 : 0.15;
+        res.peso_kg = Number((val + tara).toFixed(3));
+      }
+    } else {
+      const matchMl = t.match(/(\d+(?:[.,]\d+)?)\s*(?:ml)\b/);
+      if (matchMl) {
+        const val = parseFloat(matchMl[1].replace(',', '.'));
+        if (!isNaN(val) && val > 0) {
+          const litros = val / 1000;
+          const ehVidro = t.includes('vidro') || t.includes('vinho') || t.includes('cerveja') || t.includes('azeite') || t.includes('perfume');
+          const tara = ehVidro ? 0.25 : 0.08;
+          res.peso_kg = Number((litros + tara).toFixed(3));
+        }
+      }
+    }
+  }
+
+  // 4. Detecção de dimensões (ex: "20x15x10cm" ou "20 x 15 x 10 cm")
+  const matchDim = t.match(/(\d+(?:[.,]\d+)?)\s*[xX*]\s*(\d+(?:[.,]\d+)?)\s*[xX*]\s*(\d+(?:[.,]\d+)?)\s*(?:cm)?\b/);
+  if (matchDim) {
+    const d1 = parseFloat(matchDim[1].replace(',', '.'));
+    const d2 = parseFloat(matchDim[2].replace(',', '.'));
+    const d3 = parseFloat(matchDim[3].replace(',', '.'));
+    if (!isNaN(d1) && !isNaN(d2) && !isNaN(d3)) {
+      const sorted = [d1, d2, d3].sort((a, b) => b - a);
+      res.comprimento_cm = sorted[0];
+      res.largura_cm = sorted[1];
+      res.altura_cm = sorted[2];
+    }
+  }
+
+  return res;
+};
 
 const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
 const STORAGE_KEY_GOOGLE_SEARCH_KEY = 'hubi_google_search_api_key';
@@ -441,6 +517,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "tipo_unidade": "un",
   "codigo_barras": "Código de barras numérico se visível na foto ou embalagem, senão vazio",
   "diferencial": "Breve resumo do diferencial (ex: Versão Tradicional)",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20,
   "opcoes_sugeridas": [
     {
       "nome": "Nome comercial da opção alternativa 1",
@@ -450,10 +530,16 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
       "descricao": "Descrição comercial rica da opção 1",
       "tipo_unidade": "un",
       "codigo_barras": "",
-      "diferencial": "Ex: Versão Zero Açúcar"
+      "diferencial": "Ex: Versão Zero Açúcar",
+      "peso_kg": 0.35,
+      "altura_cm": 10,
+      "largura_cm": 15,
+      "comprimento_cm": 20
     }
   ]
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.200 para 1.2kg) e as dimensões mínimas da embalagem de envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') considerando o tipo, material e volume do produto para cálculo de frete nos Correios e Jadlog.
 `;
 
     const requestBody: any = {
@@ -499,13 +585,23 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
               descricao: op.descricao || '',
               tipo_unidade: op.tipo_unidade || 'un',
               codigo_barras: op.codigo_barras || '',
-              diferencial: op.diferencial || ''
+              diferencial: op.diferencial || '',
+              peso_kg: Number(op.peso_kg) > 0 ? Number(op.peso_kg) : undefined,
+              altura_cm: Number(op.altura_cm) > 0 ? Number(op.altura_cm) : undefined,
+              largura_cm: Number(op.largura_cm) > 0 ? Number(op.largura_cm) : undefined,
+              comprimento_cm: Number(op.comprimento_cm) > 0 ? Number(op.comprimento_cm) : undefined
             };
           });
         }
 
         // Se houver dúvida e opções sugeridas, inclui a opção principal também na lista se ela não estiver presente
         const temDuvida = Boolean(parsed.duvida && opcoesFormatadas && opcoesFormatadas.length > 1);
+
+        const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || ''} ${parsed.descricao || ''}`);
+        const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
+        const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
+        const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
+        const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
 
         return {
           duvida: temDuvida,
@@ -517,6 +613,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
           tipo_unidade: parsed.tipo_unidade || 'un',
           codigo_barras: parsed.codigo_barras || '',
           diferencial: parsed.diferencial || '',
+          peso_kg: pesoKgFinal,
+          altura_cm: alturaFinal,
+          largura_cm: larguraFinal,
+          comprimento_cm: compFinal,
           opcoes_sugeridas: opcoesFormatadas
         };
       }
@@ -558,8 +658,14 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "preco_custo_estimado": 0.00,
   "descricao": "Descrição comercial de alta conversão destacando benefícios reais, especificações e modo de uso",
   "tipo_unidade": "un",
-  "codigo_barras": "${valor}"
+  "codigo_barras": "${valor}",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.2 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') para cálculo de frete nos Correios e Jadlog.
 ` : `
 Você é um especialista em catálogo de produtos e inteligência de mercado de varejo e e-commerce no Brasil.
 ${segmentoLoja ? `CONTEXTO DA LOJA - SEGMENTO: "${segmentoLoja}". O item pertence a este segmento comercial.` : ''}
@@ -573,8 +679,14 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "preco_custo_estimado": 0.00,
   "descricao": "Descrição comercial persuasiva e detalhada destacando benefícios, modo de uso e diferenciais para catálogo e WhatsApp",
   "tipo_unidade": "un",
-  "codigo_barras": ""
+  "codigo_barras": "",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.2 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') para cálculo de frete nos Correios e Jadlog.
 `;
 
   const requestBody = {
@@ -588,6 +700,13 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   if (rawText) {
     const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(jsonLimpo);
+
+    const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || valor} ${parsed.descricao || ''}`);
+    const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
+    const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
+    const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
+    const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
+
     return {
       nome: parsed.nome || valor,
       categoria_sugerida: parsed.categoria_sugerida || 'Geral',
@@ -595,7 +714,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
       preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
       descricao: parsed.descricao || '',
       tipo_unidade: parsed.tipo_unidade || 'un',
-      codigo_barras: parsed.codigo_barras || (tipo === 'barcode' ? valor : '')
+      codigo_barras: parsed.codigo_barras || (tipo === 'barcode' ? valor : ''),
+      peso_kg: pesoKgFinal,
+      altura_cm: alturaFinal,
+      largura_cm: larguraFinal,
+      comprimento_cm: compFinal
     };
   }
 
@@ -971,8 +1094,14 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown):
   "preco_custo_estimado": 0.00,
   "descricao": "Descrição comercial completa, estruturada e detalhada",
   "tipo_unidade": "un",
-  "codigo_barras": "${dados.codigoBarras || ''}"
+  "codigo_barras": "${dados.codigoBarras || ''}",
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20
 }
+IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
+Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.2 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') para cálculo de frete nos Correios e Jadlog.
 `;
 
   let requestBody: any;
@@ -1020,6 +1149,12 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown):
   const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
 
+  const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || dados.nome} ${parsed.descricao || dados.descricao || ''}`);
+  const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
+  const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
+  const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
+  const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
+
   return {
     nome: parsed.nome || dados.nome,
     categoria_sugerida: parsed.categoria_sugerida || dados.categoriaNome || 'Geral',
@@ -1027,6 +1162,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown):
     preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
     descricao: parsed.descricao || dados.descricao || '',
     tipo_unidade: parsed.tipo_unidade || 'un',
-    codigo_barras: parsed.codigo_barras || dados.codigoBarras || ''
+    codigo_barras: parsed.codigo_barras || dados.codigoBarras || '',
+    peso_kg: pesoKgFinal,
+    altura_cm: alturaFinal,
+    largura_cm: larguraFinal,
+    comprimento_cm: compFinal
   };
 };

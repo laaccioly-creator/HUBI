@@ -839,9 +839,9 @@ export class ShippingOrchestrator {
       usuarioId
     });
 
-    const urlRastreioOficial = resultado.link_rastreio || (resultado.codigo_rastreio
+    const urlRastreioOficial = resultado.codigo_rastreio
       ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
-      : null);
+      : (resultado.link_rastreio || null);
 
     // 1. Persistência canônica em pedido_entregas (com upsert seguro)
     await this.salvarPedidoEntrega(pedido.id, {

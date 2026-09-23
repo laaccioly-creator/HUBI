@@ -366,10 +366,10 @@ serve(async (req: Request) => {
         codTracking || codAuth || codVolume || codBarraJadlog || codSelfTracking || entrega?.codigo_rastreio || "";
 
       let linkRastreioFinal = "";
-      if (codSelfTracking) {
-        linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codSelfTracking}`;
-      } else if (codigoRastreioFinal) {
+      if (codigoRastreioFinal) {
         linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codigoRastreioFinal}`;
+      } else if (codSelfTracking) {
+        linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codSelfTracking}`;
       }
 
       // 5. Mapeamento de Status
@@ -772,11 +772,7 @@ serve(async (req: Request) => {
           codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking;
 
           if (codigoRastreio) {
-            if (selfTracking) {
-              linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${selfTracking}`;
-            } else if (codigoRastreio) {
-              linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
-            }
+            linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
             console.log(`[MelhorEnvio-Edge] Código de rastreio obtido com sucesso: ${codigoRastreio}`);
             break;
           }

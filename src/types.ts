@@ -390,6 +390,10 @@ export interface Produto {
   cor_etiqueta?: string | null;
   ativo: boolean;
   permite_estoque_negativo?: boolean;
+  peso_kg?: number | null;
+  altura_cm?: number | null;
+  largura_cm?: number | null;
+  comprimento_cm?: number | null;
   criado_em?: string;
   atualizado_em?: string;
   variacoes?: VariacaoProduto[];

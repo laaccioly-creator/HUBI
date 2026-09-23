@@ -153,10 +153,10 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               nome: i.nome_produto || i.produto?.nome || 'Item',
               quantidade: Number(i.quantidade || 1),
               preco_unitario: Number(i.preco_venda_unitario || i.preco_unitario || 0),
-              peso_kg: (i.produto as any)?.peso_kg || 0.3,
-              largura_cm: (i.produto as any)?.largura_cm || 15,
-              altura_cm: (i.produto as any)?.altura_cm || 10,
-              comprimento_cm: (i.produto as any)?.comprimento_cm || 20
+              peso_kg: (i.produto as any)?.peso_kg || i.peso_kg || undefined,
+              largura_cm: (i.produto as any)?.largura_cm || i.largura_cm || undefined,
+              altura_cm: (i.produto as any)?.altura_cm || i.altura_cm || undefined,
+              comprimento_cm: (i.produto as any)?.comprimento_cm || i.comprimento_cm || undefined
             }))}
             valorFreteAtual={Number(pedido.valor_frete || 0)}
             tipoAtendimentoAtual="entrega"
