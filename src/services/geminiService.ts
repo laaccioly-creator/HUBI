@@ -178,6 +178,9 @@ export const salvarGeminiApiKey = async (
 ): Promise<void> => {
   const limpa = key.trim();
 
+  // Limpa cache de modelos para consultar imediatamente os modelos da nova chave
+  limparCacheModelosGemini();
+
   // 1. Grava no localStorage para acesso síncrono imediato no dispositivo
   if (limpa) {
     localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
@@ -367,11 +370,16 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
   });
 };
 
-let modelosGeminiValidosCache: string[] | null = null;
+const modelosGeminiValidosCache = new Map<string, string[]>();
+
+export const limparCacheModelosGemini = () => {
+  modelosGeminiValidosCache.clear();
+};
 
 export const obterModelosValidosGemini = async (apiKey: string): Promise<string[]> => {
-  if (modelosGeminiValidosCache && modelosGeminiValidosCache.length > 0) {
-    return modelosGeminiValidosCache;
+  const emCache = modelosGeminiValidosCache.get(apiKey);
+  if (emCache && emCache.length > 0) {
+    return emCache;
   }
 
   try {
@@ -385,7 +393,7 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
           const suportaGenerate = Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent');
           if (!suportaGenerate) return false;
 
-          // Excluir modelos puramente de áudio, geração de imagens, embeddings e modelos depreciados com 404
+          // Excluir modelos incompatíveis, puramente de áudio, geração de imagens, embeddings, ferramentas internas ou depreciados
           if (
             nome.includes('tts') ||
             nome.includes('image') ||
@@ -394,8 +402,16 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
             nome.includes('bison') ||
             nome.includes('live') ||
             nome.includes('realtime') ||
-            nome.startsWith('gemini-2.5-') || // Depreciado pelo Google para novas chaves
-            nome.includes('omni')
+            nome.includes('omni') ||
+            nome.includes('transcribe') ||
+            nome.includes('customtools') ||
+            nome.includes('computer-use') ||
+            nome.includes('deep-research') ||
+            nome.includes('antigravity') ||
+            nome.includes('lyria') ||
+            nome.includes('gemma') ||
+            nome.startsWith('gemini-2.5-') || // Google descontinuou modelos 2.5 para novos usuários (retornam 404)
+            nome.includes('pro') // CRÍTICO: Modelos 'pro' (ex: gemini-3.1-pro-preview) têm cota gratuita ZERO (limit: 0) no Google e causam erro 429 instantâneo!
           ) {
             return false;
           }
@@ -406,22 +422,24 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
       if (lista.length > 0) {
         lista.sort((a: string, b: string) => {
           const getScore = (name: string) => {
-            if (name === 'gemini-1.5-flash-8b') return 100; // Ultra-rápido (< 800ms)
-            if (name === 'gemini-1.5-flash') return 95;    // Altíssima estabilidade
-            if (name === 'gemini-2.0-flash') return 90;
-            if (name === 'gemini-2.0-flash-lite') return 85;
-            if (name === 'gemini-1.5-pro') return 60;
-            if (name.includes('1.5-flash')) return 50;
-            if (name.includes('2.0-flash')) return 40;
-            if (name.includes('3.')) return 10; // Modelos 3.x em preview sofrendo 503 temporário
-            return 5;
+            if (name === 'gemini-flash-lite-latest') return 100; // Ultra-rápido, alta cota gratuita
+            if (name === 'gemini-3.5-flash-lite') return 95;
+            if (name === 'gemini-3.6-flash') return 92;
+            if (name === 'gemini-flash-latest') return 90;
+            if (name === 'gemini-1.5-flash-8b') return 85;
+            if (name === 'gemini-1.5-flash') return 80;
+            if (name === 'gemini-2.0-flash-lite') return 75;
+            if (name === 'gemini-2.0-flash') return 70;
+            if (name.includes('flash-lite')) return 65;
+            if (name.includes('flash')) return 60;
+            return 10;
           };
           return getScore(b) - getScore(a);
         });
 
-        // Selecionar no máximo 3 modelos prioritários para respostas instantâneas
-        const topModelos = lista.slice(0, 3);
-        modelosGeminiValidosCache = topModelos;
+        // Selecionar os 4 melhores modelos flash para cascata de alta disponibilidade
+        const topModelos = lista.slice(0, 4);
+        modelosGeminiValidosCache.set(apiKey, topModelos);
         return topModelos;
       }
     }
@@ -430,10 +448,12 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
   }
 
   const listaPadrao = [
+    'gemini-flash-lite-latest',
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash',
+    'gemini-flash-latest',
     'gemini-1.5-flash-8b',
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite'
+    'gemini-1.5-flash'
   ];
   return listaPadrao;
 };
@@ -509,10 +529,15 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
         if (!primeiroErro) primeiroErro = msg;
 
         if (response.status === 429) {
-          contador429++;
-          if (contador429 >= 2) {
-            console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata.');
-            throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
+          const isZeroQuotaModel = msg.includes('limit: 0') || msg.includes('limit:0');
+          if (!isZeroQuotaModel) {
+            contador429++;
+            if (contador429 >= 3) {
+              console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata.');
+              throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
+            }
+          } else {
+            console.warn(`[Gemini] Modelo ${modelo} não possui cota gratuita ativa (limit: 0). Pulando para o próximo.`);
           }
         }
 
@@ -1191,22 +1216,26 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
     };
   }
 
-  const resData = await executarRequisicaoGemini(apiKey, requestBody);
-  const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Não foi possível obter resposta da IA para atualizar o produto.');
+  let parsed: any = null;
+  try {
+    const resData = await executarRequisicaoGemini(apiKey, requestBody);
+    const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (rawText) {
+      parsed = extrairJsonDoTexto(rawText);
+    }
+  } catch (err: any) {
+    console.warn('[GeminiService] Falha na chamada da IA para atualizar produto, aplicando extração heurística local:', err);
+  }
 
-  const parsed = extrairJsonDoTexto(rawText);
-  if (!parsed) throw new Error('Não foi possível obter os dados estruturados da IA para o produto.');
-
-  // Preço sugerido sempre sem os centavos (ex: Math.floor)
-  const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
+  // Se a IA não retornou JSON estruturado, utiliza fallback baseado nos dados do produto e heurística de regex
+  const extraidos = extrairDimensoesEPesoTexto(`${parsed?.nome || dados.nome} ${parsed?.descricao || dados.descricao || ''}`);
+  const precoEstimado = Number(parsed?.preco_venda_estimado) || Number(dados.precoVendaAtual) || 0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
 
-  const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || dados.nome} ${parsed.descricao || dados.descricao || ''}`);
-  const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
-  const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
-  const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
-  const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
+  const pesoKgFinal = Number(parsed?.peso_kg) > 0 ? Number(parsed.peso_kg) : (extraidos.peso_kg || 0.35);
+  const alturaFinal = Number(parsed?.altura_cm) > 0 ? Number(parsed.altura_cm) : (extraidos.altura_cm || 10);
+  const larguraFinal = Number(parsed?.largura_cm) > 0 ? Number(parsed.largura_cm) : (extraidos.largura_cm || 15);
+  const compFinal = Number(parsed?.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : (extraidos.comprimento_cm || 20);
 
   return {
     nome: parsed.nome || dados.nome,
