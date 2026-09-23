@@ -505,11 +505,18 @@ serve(async (req: Request) => {
     // PASSO 3: Solicitar Geração da Etiqueta (POST /api/v2/me/shipment/generate)
     // -------------------------------------------------------------------------
     console.log(`[MelhorEnvio-Edge] Solicitando geração da etiqueta para ${orderId}...`);
-    await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
-      method: "POST",
-      headers: headersComuns,
-      body: JSON.stringify({ orders: [orderId] }),
-    }).catch((e) => console.warn("[MelhorEnvio-Edge] generate catch:", e));
+    try {
+      await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
+        method: "POST",
+        headers: headersComuns,
+        body: JSON.stringify({ orders: [orderId] }),
+      });
+    } catch (e) {
+      console.warn("[MelhorEnvio-Edge] generate catch:", e);
+    }
+
+    // Aguarda o processamento assíncrono do Melhor Envio
+    await new Promise((resolve) => setTimeout(resolve, 1800));
 
     // -------------------------------------------------------------------------
     // PASSO 4: Obter URL de Impressão da Etiqueta (POST /api/v2/me/shipment/print)
@@ -530,46 +537,64 @@ serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // PASSO 5: Obter Código de Rastreamento Real da Transportadora (GET /api/v2/me/orders/${orderId})
+    // PASSO 5: Obter Código de Rastreamento Real com Retry Polling (GET /api/v2/me/orders/${orderId})
     // -------------------------------------------------------------------------
     let codigoRastreio = "";
     let linkRastreioOficial = "";
     let transportadoraNome = entrega?.transportadora_nome || "Melhor Envio";
+    let statusEnvioTransportadora = "despachado";
 
-    try {
-      const orderRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
-        method: "GET",
-        headers: headersComuns,
-      });
-      if (orderRes.ok) {
-        const orderData = await orderRes.json();
-        if (orderData.service?.company?.name) {
-          transportadoraNome = orderData.service.company.name;
+    for (let tentativa = 1; tentativa <= 4; tentativa++) {
+      try {
+        console.log(`[MelhorEnvio-Edge] Consultando dados da ordem ${orderId} (tentativa ${tentativa}/4)...`);
+        const orderRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
+          method: "GET",
+          headers: headersComuns,
+        });
+
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          if (orderData.service?.company?.name) {
+            transportadoraNome = orderData.service.company.name;
+          }
+
+          const selfTracking = (orderData.self_tracking || "").trim(); // ex: ME26006DUM4BR
+          const tracking = (orderData.tracking || "").trim(); // ex: QB123456789BR
+          const codBarraJadlog = (orderData.additional_info?.volume?.[0]?.codbarra || "").trim();
+
+          if (orderData.status === "delivered") {
+            statusEnvioTransportadora = "entregue";
+          } else if (orderData.status === "posted" || orderData.posted_at) {
+            statusEnvioTransportadora = "em_transito";
+          } else if (orderData.status === "released") {
+            statusEnvioTransportadora = "despachado";
+          }
+
+          // Prioridade: tracking oficial > self_tracking do Melhor Rastreio > código de barras da Jadlog
+          codigoRastreio = tracking || selfTracking || codBarraJadlog;
+
+          if (codigoRastreio) {
+            if (selfTracking) {
+              linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${selfTracking}`;
+            } else if (tracking) {
+              linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${tracking}`;
+            } else if (codBarraJadlog) {
+              linkRastreioOficial = `https://www.jadlog.com.br/tracking`;
+            }
+            console.log(`[MelhorEnvio-Edge] Código de rastreio obtido com sucesso: ${codigoRastreio}`);
+            break;
+          }
         }
-
-        const selfTracking = orderData.self_tracking; // ex: ME26006DUK4BR (código reconhecido no Melhor Rastreio)
-        const tracking = orderData.tracking; // ex: QB123456789BR (Correios)
-        const codBarraJadlog = orderData.additional_info?.volume?.[0]?.codbarra; // remessa Jadlog
-
-        // Prioridade para rastreio:
-        // 1. tracking oficial da transportadora (se preenchido)
-        // 2. self_tracking gerado pelo Melhor Envio (ME...BR)
-        // 3. código de barras da minuta do volume (Jadlog)
-        // NOTA: NUNCA usar protocol (ORD-...) como código de rastreamento!
-        codigoRastreio = tracking || selfTracking || codBarraJadlog || "";
-
-        if (selfTracking) {
-          linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${selfTracking}`;
-        } else if (tracking) {
-          linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${tracking}`;
-        } else if (codBarraJadlog) {
-          linkRastreioOficial = `https://www.jadlog.com.br/tracking`;
-        }
+      } catch (eOrder) {
+        console.warn(`[MelhorEnvio-Edge] Erro na tentativa ${tentativa} de consulta da ordem:`, eOrder);
       }
-    } catch (eOrder) {
-      console.warn("[MelhorEnvio-Edge] Erro ao consultar dados atualizados da ordem:", eOrder);
+
+      if (tentativa < 4) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
     }
 
+    // Fallback: se ainda assim não preencheu, tenta no cartData
     if (!codigoRastreio) {
       codigoRastreio = cartData.tracking || cartData.self_tracking || "";
     }

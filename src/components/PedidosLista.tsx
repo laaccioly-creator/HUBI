@@ -62,6 +62,7 @@ import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 import { ModalReceberFiado } from './ModalReceberFiado';
 import { ModalConfigurarRecibo } from './ModalConfigurarRecibo';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
+import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ShippingSelectionResult } from '../types/shipping';
@@ -122,6 +123,7 @@ export const PedidosLista: React.FC = () => {
   }, [loja, pedidoSelecionado?.status]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
+  const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
   const [pedidoEscolherEnvio, setPedidoEscolherEnvio] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
@@ -888,9 +890,9 @@ export const PedidosLista: React.FC = () => {
           usuario?.id || null
         );
 
-        const urlRastreio = resultado.codigo_rastreio
-          ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
-          : resultado.link_etiqueta;
+        const urlRastreio = resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir')
+          ? resultado.link_rastreio
+          : (resultado.codigo_rastreio ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}` : null);
 
         setPedidos((prev) =>
           prev.map((p) =>
@@ -1005,9 +1007,9 @@ export const PedidosLista: React.FC = () => {
       );
 
       const agora = new Date().toISOString();
-      const urlRastreio = resultado.codigo_rastreio
-        ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
-        : resultado.link_etiqueta;
+      const urlRastreio = resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir')
+        ? resultado.link_rastreio
+        : (resultado.codigo_rastreio ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}` : null);
 
       setPedidos((prev) =>
         prev.map((p) =>
@@ -2082,12 +2084,31 @@ export const PedidosLista: React.FC = () => {
                         </div>
                       )}
 
-                      {codigoRastreio && (
+                      {(codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
                           <span className="text-slate-400">Código de Rastreio:</span>
-                          <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                            {codigoRastreio}
-                          </span>
+                          {codigoRastreio ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                                {codigoRastreio}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(codigoRastreio);
+                                  mostrarSucesso('Código de rastreio copiado!');
+                                }}
+                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                title="Copiar código de rastreio"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-amber-400 italic">
+                              Pendente de sincronização
+                            </span>
+                          )}
                         </div>
                       )}
 
@@ -2114,16 +2135,15 @@ export const PedidosLista: React.FC = () => {
                         </div>
                       )}
 
-                      {linkRastreio && (() => {
+                      {(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (() => {
                         const ehUber =
                           prov === 'uber' ||
                           (pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber')) ||
-                          linkRastreio.includes('uber.com') ||
-                          linkRastreio.includes('ubr.to');
+                          (linkRastreio && (linkRastreio.includes('uber.com') || linkRastreio.includes('ubr.to')));
 
                         return (
                           <div className="pt-2">
-                            {ehUber ? (
+                            {ehUber && linkRastreio ? (
                               <div className="space-y-2">
                                 <a
                                   href={linkRastreio}
@@ -2157,23 +2177,22 @@ export const PedidosLista: React.FC = () => {
                               </div>
                             ) : (
                               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                <a
-                                  href={linkRastreio}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
                                   className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition cursor-pointer"
                                 >
                                   <ExternalLink className="w-3.5 h-3.5" />
                                   <span>Acompanhar Rastreio em Tempo Real</span>
-                                </a>
+                                </button>
 
-                                {pe?.link_etiqueta && (
+                                {(pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta) && (
                                   <a
-                                    href={pe.link_etiqueta}
+                                    href={pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
-                                    title="Imprimir Etiqueta de Envio da Transportadora"
+                                    title="Imprimir Etiqueta Oficial da Transportadora (PDF)"
                                   >
                                     <Tag className="w-3.5 h-3.5" />
                                     <span>Imprimir Etiqueta</span>
@@ -3762,6 +3781,16 @@ export const PedidosLista: React.FC = () => {
         pedido={pedidoEtiquetaModal}
         loja={loja}
         onClose={() => setPedidoEtiquetaModal(null)}
+      />
+
+      {/* MODAL RASTREIO E TIMELINE DA ENTREGA */}
+      <ModalRastreioPedido
+        isOpen={Boolean(pedidoRastreioModal)}
+        pedido={pedidoRastreioModal}
+        entrega={entregaPedido}
+        loja={loja}
+        onClose={() => setPedidoRastreioModal(null)}
+        onAtualizarStatus={() => carregarPedidos()}
       />
 
       {/* MODAL DEFINIR ENVIO (FLUXO ESTÁTICO DE EXPEDIÇÃO COM CONFIRMAÇÃO EXPLÍCITA) */}
