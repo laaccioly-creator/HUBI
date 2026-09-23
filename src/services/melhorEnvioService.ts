@@ -1,4 +1,4 @@
-import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto, PedidoEntrega } from '../types/shipping';
+import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto, PedidoEntrega, PacoteEnvioCotacao } from '../types/shipping';
 import { Loja, Pedido } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -18,6 +18,13 @@ export interface ResultadoSolicitacaoMelhorEnvio {
   transportadora: string;
 }
 
+interface MelhorEnvioPackagePayload {
+  width: number;
+  height: number;
+  length: number;
+  weight: number;
+}
+
 interface MelhorEnvioProductPayload {
   id: string;
   width: number;
@@ -35,7 +42,14 @@ interface MelhorEnvioCalculatePayload {
   to: {
     postal_code: string;
   };
-  products: MelhorEnvioProductPayload[];
+  package?: MelhorEnvioPackagePayload;
+  packages?: MelhorEnvioPackagePayload[];
+  products?: MelhorEnvioProductPayload[];
+  options?: {
+    insurance_value?: number;
+    receipt?: boolean;
+    own_hand?: boolean;
+  };
 }
 
 interface MelhorEnvioServiceDeliveryResponse {
@@ -202,7 +216,8 @@ export class MelhorEnvioService {
     config: LojaShippingConfig,
     destinoCep: string,
     subtotal: number,
-    itens: CotacaoItemProduto[]
+    itens: CotacaoItemProduto[],
+    pacote?: PacoteEnvioCotacao
   ): Promise<OpcaoFreteCotada[]> {
     if (!config.melhor_envio_ativo || !config.melhor_envio_token) {
       return [];
@@ -222,9 +237,36 @@ export class MelhorEnvioService {
       },
       to: {
         postal_code: cepDestinoLimpo
-      },
-      products: this.formatarProdutosPayload(itens, subtotal, config)
+      }
     };
+
+    if (pacote && pacote.peso_kg > 0 && pacote.largura_cm > 0 && pacote.altura_cm > 0 && pacote.comprimento_cm > 0) {
+      const qteVols = Math.max(1, pacote.quantidade_volumes || 1);
+      const pesoPorVol = Number((pacote.peso_kg / qteVols).toFixed(3));
+
+      if (qteVols > 1) {
+        payload.packages = Array.from({ length: qteVols }, () => ({
+          width: Math.max(10, Math.round(pacote.largura_cm)),
+          height: Math.max(4, Math.round(pacote.altura_cm)),
+          length: Math.max(15, Math.round(pacote.comprimento_cm)),
+          weight: Math.max(0.1, pesoPorVol)
+        }));
+      } else {
+        payload.package = {
+          width: Math.max(10, Math.round(pacote.largura_cm)),
+          height: Math.max(4, Math.round(pacote.altura_cm)),
+          length: Math.max(15, Math.round(pacote.comprimento_cm)),
+          weight: Math.max(0.1, Number(pacote.peso_kg.toFixed(3)))
+        };
+      }
+      payload.options = {
+        insurance_value: Math.max(1, subtotal),
+        receipt: false,
+        own_hand: false
+      };
+    } else {
+      payload.products = this.formatarProdutosPayload(itens, subtotal, config);
+    }
 
     // -------------------------------------------------------------------------
     // MÉTODO 1: Supabase RPC (PostgreSQL extensions.http) - Sem Bloqueio de CORS

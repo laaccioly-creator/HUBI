@@ -583,52 +583,73 @@ serve(async (req: Request) => {
 
     const servicoCodigo = Number(entrega?.servico_codigo || customPayload?.service) || 1; // 1: PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
 
-    const cartPayload = {
-      service: servicoCodigo,
-      agency: null,
-      from: {
-        name: lojaNome,
-        phone: lojaTel,
-        email: lojaEmail,
-        document: docLoja,
-        address: configShipping.origem_logradouro || loja?.endereco_logradouro || customPayload?.from?.address || "Rua",
-        complement: configShipping.origem_complemento || customPayload?.from?.complement || "",
-        number: configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number || "S/N",
-        district: configShipping.origem_bairro || loja?.endereco_bairro || customPayload?.from?.district || "Bairro",
-        city: configShipping.origem_cidade || loja?.endereco_cidade || customPayload?.from?.city || "Cidade",
-        state_abbr: (configShipping.origem_uf || loja?.endereco_estado || customPayload?.from?.state_abbr || "SP").toUpperCase(),
-        postal_code: cepOrigem,
-      },
-      to: {
-        name: clienteNome,
-        phone: clienteTel,
-        email: clienteEmail,
-        document: docCliente,
-        address: entrega?.destino_logradouro || customPayload?.to?.address || "Rua",
-        complement: entrega?.destino_complemento || customPayload?.to?.complement || "",
-        number: entrega?.destino_numero || customPayload?.to?.number || "S/N",
-        district: entrega?.destino_bairro || customPayload?.to?.district || "Bairro",
-        city: entrega?.destino_cidade || customPayload?.to?.city || "Cidade",
-        state_abbr: (entrega?.destino_uf || customPayload?.to?.state_abbr || "SP").toUpperCase(),
-        postal_code: cepDestino,
-      },
-      products: productsList,
-      volumes: [
+      const pacMeta = pedido?.metadados?.pacote_envio || customPayload?.pacote || {};
+      const defW = Number(pacMeta.largura_cm || customPayload?.volumes?.[0]?.width || configShipping.embalagem_padrao_largura_cm || 15);
+      const defH = Number(pacMeta.altura_cm || customPayload?.volumes?.[0]?.height || configShipping.embalagem_padrao_altura_cm || 10);
+      const defL = Number(pacMeta.comprimento_cm || customPayload?.volumes?.[0]?.length || configShipping.embalagem_padrao_comprimento_cm || 20);
+      const qteVols = Math.max(1, Number(pacMeta.quantidade_volumes || customPayload?.volumes?.length || 1));
+      const pesoFinalRemessa = Math.max(0.1, Number(pacMeta.peso_kg || customPayload?.volumes?.[0]?.weight || pesoTotal.toFixed(2)));
+      const pesoPorVol = Number((pesoFinalRemessa / qteVols).toFixed(3));
+
+      let volumesCart = [
         {
-          height: 10,
-          width: 15,
-          length: 20,
-          weight: Math.max(0.1, Number(pesoTotal.toFixed(2))),
+          height: Math.max(4, defH),
+          width: Math.max(10, defW),
+          length: Math.max(15, defL),
+          weight: Math.max(0.1, pesoPorVol),
         },
-      ],
-      options: {
-        insurance_value: Number(valorSeguro.toFixed(2)),
-        receipt: false,
-        own_hand: false,
-        reverse: false,
-        non_commercial: true,
-      },
-    };
+      ];
+
+      if (qteVols > 1) {
+        volumesCart = Array.from({ length: qteVols }, () => ({
+          height: Math.max(4, defH),
+          width: Math.max(10, defW),
+          length: Math.max(15, defL),
+          weight: Math.max(0.1, pesoPorVol),
+        }));
+      }
+
+      const cartPayload = {
+        service: servicoCodigo,
+        agency: null,
+        from: {
+          name: lojaNome,
+          phone: lojaTel,
+          email: lojaEmail,
+          document: docLoja,
+          address: configShipping.origem_logradouro || loja?.endereco_logradouro || customPayload?.from?.address || "Rua",
+          complement: configShipping.origem_complemento || customPayload?.from?.complement || "",
+          number: configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number || "S/N",
+          district: configShipping.origem_bairro || loja?.endereco_bairro || customPayload?.from?.district || "Bairro",
+          city: configShipping.origem_cidade || loja?.endereco_cidade || customPayload?.from?.city || "Cidade",
+          state_abbr: (configShipping.origem_uf || loja?.endereco_estado || customPayload?.from?.state_abbr || "SP").toUpperCase(),
+          postal_code: cepOrigem,
+        },
+        to: {
+          name: clienteNome,
+          phone: clienteTel,
+          email: clienteEmail,
+          document: docCliente,
+          address: entrega?.destino_logradouro || customPayload?.to?.address || "Rua",
+          complement: entrega?.destino_complemento || customPayload?.to?.complement || "",
+          number: entrega?.destino_numero || customPayload?.to?.number || "S/N",
+          district: entrega?.destino_bairro || customPayload?.to?.district || "Bairro",
+          city: entrega?.destino_cidade || customPayload?.to?.city || "Cidade",
+          state_abbr: (entrega?.destino_uf || customPayload?.to?.state_abbr || "SP").toUpperCase(),
+          postal_code: cepDestino,
+        },
+        products: productsList,
+        volumes: customPayload?.volumes && Array.isArray(customPayload.volumes) && customPayload.volumes.length > 0
+          ? customPayload.volumes
+          : volumesCart,
+        options: {
+          insurance_value: Number(valorSeguro.toFixed(2)),
+          receipt: false,
+          own_hand: false,
+          reverse: false,
+          non_commercial: true,
+        },
+      };
 
     // -------------------------------------------------------------------------
     // PASSO 1: Adicionar ao Carrinho (POST /api/v2/me/cart)

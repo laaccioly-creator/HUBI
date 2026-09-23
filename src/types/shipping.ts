@@ -118,8 +118,21 @@ export interface PedidoEntrega {
   despachado_em?: string | null;
   despachado_por?: string | null;
   status_envio?: string;
+  peso_kg?: number | null;
+  largura_cm?: number | null;
+  altura_cm?: number | null;
+  comprimento_cm?: number | null;
+  quantidade_volumes?: number | null;
   criado_em?: string;
   atualizado_em?: string;
+}
+
+export interface PacoteEnvioCotacao {
+  quantidade_volumes: number;
+  peso_kg: number;
+  comprimento_cm: number;
+  largura_cm: number;
+  altura_cm: number;
 }
 
 export interface OpcaoFreteCotada {
@@ -178,6 +191,7 @@ export interface RequisicaoCotacaoOrquestrador {
   subtotal: number;
   itens: CotacaoItemProduto[];
   config: LojaShippingConfig;
+  pacote?: PacoteEnvioCotacao;
 }
 
 export interface ShippingSelectionResult {
@@ -187,6 +201,7 @@ export interface ShippingSelectionResult {
   opcao_selecionada?: OpcaoFreteCotada | null;
   pedido_entrega: Partial<PedidoEntrega>;
   valor_frete: number;
+  pacote?: PacoteEnvioCotacao;
 }
 
 export interface FormaEntrega {

@@ -15,7 +15,8 @@ import {
   Zap,
   PenLine,
   Bike,
-  Package
+  Package,
+  RefreshCw
 } from 'lucide-react';
 import {
   TipoAtendimento,
@@ -23,7 +24,8 @@ import {
   ClienteEndereco,
   OpcaoFreteCotada,
   ShippingSelectionResult,
-  CotacaoItemProduto
+  CotacaoItemProduto,
+  PacoteEnvioCotacao
 } from '../../types/shipping';
 import { FormaEntrega } from '../../types';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
@@ -137,6 +139,66 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   // ID da forma de entrega manual atualmente selecionada
   const [formaManualEscolhidaId, setFormaManualEscolhidaId] = useState<string | null>(null);
 
+  // Conferência de Pacotes & Volumes para Cotação
+  const [volumesCount, setVolumesCount] = useState<number>(1);
+  const [pesoInput, setPesoInput] = useState<string>('0.300');
+  const [comprimentoInput, setComprimentoInput] = useState<string>('16');
+  const [larguraInput, setLarguraInput] = useState<string>('11');
+  const [alturaInput, setAlturaInput] = useState<string>('4');
+  const [pacoteManualEditado, setPacoteManualEditado] = useState<boolean>(false);
+
+  // Assinatura estável dos itens do carrinho para evitar disparo por recriação de array
+  const itensSig = useMemo(() => {
+    return (itens || [])
+      .map(i => `${i.nome}:${i.quantidade}:${i.preco_unitario}`)
+      .join('|');
+  }, [itens]);
+
+  // Inicializa ou recalcula dimensões e pesos sugeridos a partir dos itens do carrinho
+  useEffect(() => {
+    if (pacoteManualEditado) return;
+
+    let pesoTotal = 0;
+    let maxComp = configLoja?.embalagem_padrao_comprimento_cm || 16;
+    let maxLarg = configLoja?.embalagem_padrao_largura_cm || 11;
+    let maxAlt = configLoja?.embalagem_padrao_altura_cm || 4;
+
+    if (itens && itens.length > 0) {
+      itens.forEach(item => {
+        const p = (item.peso_kg && item.peso_kg > 0) ? item.peso_kg : 0.3;
+        pesoTotal += p * (item.quantidade || 1);
+        if (item.comprimento_cm && item.comprimento_cm > maxComp) maxComp = item.comprimento_cm;
+        if (item.largura_cm && item.largura_cm > maxLarg) maxLarg = item.largura_cm;
+        if (item.altura_cm && item.altura_cm > maxAlt) maxAlt = item.altura_cm;
+      });
+    } else if (configLoja?.embalagem_padrao_peso_kg) {
+      pesoTotal = configLoja.embalagem_padrao_peso_kg;
+    }
+
+    if (pesoTotal <= 0) pesoTotal = 0.3;
+
+    setPesoInput(pesoTotal.toFixed(3));
+    setComprimentoInput(Math.max(16, Math.ceil(maxComp)).toString());
+    setLarguraInput(Math.max(11, Math.ceil(maxLarg)).toString());
+    setAlturaInput(Math.max(2, Math.ceil(maxAlt)).toString());
+  }, [itensSig, configLoja, pacoteManualEditado]);
+
+  const obterPacoteAtual = useCallback((): PacoteEnvioCotacao => {
+    const peso = parseFloat(pesoInput.replace(',', '.')) || 0.3;
+    const comp = parseFloat(comprimentoInput.replace(',', '.')) || 16;
+    const larg = parseFloat(larguraInput.replace(',', '.')) || 11;
+    const alt = parseFloat(alturaInput.replace(',', '.')) || 4;
+    const qtd = Math.max(1, volumesCount || 1);
+
+    return {
+      quantidade_volumes: qtd,
+      peso_kg: Math.max(0.01, peso),
+      comprimento_cm: Math.max(16, comp),
+      largura_cm: Math.max(11, larg),
+      altura_cm: Math.max(2, alt)
+    };
+  }, [pesoInput, comprimentoInput, larguraInput, alturaInput, volumesCount]);
+
   useEffect(() => {
     let ativo = true;
     async function carregarFormas() {
@@ -205,12 +267,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const ultimaCotacaoParamRef = useRef<string>('');
   const ultimoResultadoEmitidoRef = useRef<string>('');
 
-  // Assinatura estável dos itens do carrinho para evitar disparo por recriação de array
-  const itensSig = useMemo(() => {
-    return (itens || [])
-      .map(i => `${i.nome}:${i.quantidade}:${i.preco_unitario}`)
-      .join('|');
-  }, [itens]);
 
   // 1. Carregar Configuração da Loja
   useEffect(() => {
@@ -387,7 +443,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       return;
     }
 
-    const chaveCotacao = `${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja?.id || 'loja'}`;
+    const pacoteAtual = obterPacoteAtual();
+    const chaveCotacao = `${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja?.id || 'loja'}_${pacoteAtual.quantidade_volumes}_${pacoteAtual.peso_kg}_${pacoteAtual.comprimento_cm}_${pacoteAtual.largura_cm}_${pacoteAtual.altura_cm}`;
     if (!forcar && ultimaCotacaoParamRef.current === chaveCotacao) {
       return;
     }
@@ -440,7 +497,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             destino_uf: endAlvo.uf,
             subtotal,
             itens,
-            config: runtimeConfig
+            config: runtimeConfig,
+            pacote: pacoteAtual
           })
         : Promise.resolve([] as OpcaoFreteCotada[]);
 
@@ -498,6 +556,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             }
           ) : true;
         }
+
         return true;
       });
 
@@ -536,12 +595,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } finally {
       setCotando(false);
     }
-  }, [configLoja, lojaId, modalidade, viaEntrega, subtotal, itensSig, itens, temUber, temMelhorEnvio, opcaoSelecionadaId]);
+  }, [configLoja, lojaId, modalidade, viaEntrega, subtotal, itensSig, itens, temUber, temMelhorEnvio, opcaoSelecionadaId, obterPacoteAtual]);
 
   // Emissão de cotação automática padronizada
   const emitirSelecao = useCallback((opcao: OpcaoFreteCotada, endAlvo: ClienteEndereco | null) => {
     if (!endAlvo) return;
-    const chaveEmissao = `${opcao.id}_${opcao.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_entrega_auto`;
+    const pacoteAtual = obterPacoteAtual();
+    const chaveEmissao = `${opcao.id}_${opcao.valor_frete}_${endAlvo.cep}_${endAlvo.numero}_${pacoteAtual.quantidade_volumes}_${pacoteAtual.peso_kg}_entrega_auto`;
     if (ultimoResultadoEmitidoRef.current === chaveEmissao) return;
     ultimoResultadoEmitidoRef.current = chaveEmissao;
 
@@ -551,6 +611,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       opcao_frete: opcao,
       opcao_selecionada: opcao,
       endereco_selecionado: endAlvo,
+      pacote: pacoteAtual,
       pedido_entrega: {
         pedido_id: '',
         forma_entrega_id: opcao.forma_entrega_id || null,
@@ -575,10 +636,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         valor_subsidio: opcao.valor_subsidio ?? 0,
         is_frete_gratis: opcao.is_frete_gratis ?? (opcao.valor_frete === 0),
         prazo_estimado_texto: opcao.prazo_estimado_texto,
+        peso_kg: pacoteAtual.peso_kg,
+        largura_cm: pacoteAtual.largura_cm,
+        altura_cm: pacoteAtual.altura_cm,
+        comprimento_cm: pacoteAtual.comprimento_cm,
+        quantidade_volumes: pacoteAtual.quantidade_volumes,
         status_envio: 'pendente'
       }
     });
-  }, []);
+  }, [obterPacoteAtual]);
 
   // Emissão de forma de entrega manual isolada
   const emitirSelecaoManual = useCallback((
@@ -1106,7 +1172,140 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               {/* VIA A: COTAÇÃO AUTOMÁTICA EM TEMPO REAL (UBER DIRECT / MELHOR ENVIO) */}
               {viaEntrega === 'cotar' && (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {/* Painel de Conferência de Volumes e Dimensões do Pacote */}
+                  {(temMelhorEnvio || temUber) && (
+                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-800">Conferência da Embalagem & Volumes</h4>
+                            <p className="text-[11px] text-slate-500">Ajuste peso e medidas antes de cotar no Melhor Envio</p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                          disabled={cotando}
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1.5 transition border border-emerald-200 cursor-pointer disabled:opacity-50 active:scale-95"
+                          title="Recalcular com as medidas informadas"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
+                          <span>Recalcular</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Volumes</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={volumesCount}
+                            onChange={(e) => {
+                              setPacoteManualEditado(true);
+                              setVolumesCount(Math.max(1, parseInt(e.target.value) || 1));
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && enderecoSelecionado) {
+                                executarCotacao(enderecoSelecionado, true);
+                              }
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Peso (kg)</label>
+                          <input
+                            type="text"
+                            value={pesoInput}
+                            onChange={(e) => {
+                              setPacoteManualEditado(true);
+                              setPesoInput(e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && enderecoSelecionado) {
+                                executarCotacao(enderecoSelecionado, true);
+                              }
+                            }}
+                            placeholder="0.300"
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Comp. (cm)</label>
+                          <input
+                            type="text"
+                            value={comprimentoInput}
+                            onChange={(e) => {
+                              setPacoteManualEditado(true);
+                              setComprimentoInput(e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && enderecoSelecionado) {
+                                executarCotacao(enderecoSelecionado, true);
+                              }
+                            }}
+                            placeholder="16"
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Largura (cm)</label>
+                          <input
+                            type="text"
+                            value={larguraInput}
+                            onChange={(e) => {
+                              setPacoteManualEditado(true);
+                              setLarguraInput(e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && enderecoSelecionado) {
+                                executarCotacao(enderecoSelecionado, true);
+                              }
+                            }}
+                            placeholder="11"
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                          />
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Altura (cm)</label>
+                          <input
+                            type="text"
+                            value={alturaInput}
+                            onChange={(e) => {
+                              setPacoteManualEditado(true);
+                              setAlturaInput(e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && enderecoSelecionado) {
+                                executarCotacao(enderecoSelecionado, true);
+                              }
+                            }}
+                            placeholder="4"
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+                        <span>
+                          Pacote: <strong>{volumesCount} vol.</strong> • <strong>{pesoInput} kg</strong> • <strong>{comprimentoInput}x{larguraInput}x{alturaInput} cm</strong>
+                        </span>
+                        <span className="text-[10px] text-emerald-700 bg-emerald-50 font-bold px-1.5 py-0.5 rounded border border-emerald-200/60">
+                          Utilizado na cotação
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {!carregandoConfig && !temUber && !temMelhorEnvio ? (
                     /* Alerta Amigável de Ausência de Integração Ativa */
                     <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 space-y-3">

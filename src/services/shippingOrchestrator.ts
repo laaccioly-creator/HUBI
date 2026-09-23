@@ -413,7 +413,7 @@ export class ShippingOrchestrator {
   public static async cotarOpcoesFrete(
     req: RequisicaoCotacaoOrquestrador
   ): Promise<OpcaoFreteCotada[]> {
-    const { config, destino_cep, destino_logradouro, destino_numero, destino_bairro, destino_cidade, destino_uf, subtotal, itens } = req;
+    const { config, destino_cep, destino_logradouro, destino_numero, destino_bairro, destino_cidade, destino_uf, subtotal, itens, pacote } = req;
 
     const opcoesTotais: OpcaoFreteCotada[] = [];
 
@@ -444,7 +444,7 @@ export class ShippingOrchestrator {
     // 2. Melhor Envio v2 - APENAS se ativado explicitamente na loja
     if (config?.melhor_envio_ativo === true) {
       promessas.push(
-        MelhorEnvioService.cotarFretes(config, destino_cep, subtotal, itens)
+        MelhorEnvioService.cotarFretes(config, destino_cep, subtotal, itens, pacote)
           .then(opcoes => ({ provedor: 'melhor_envio' as const, valor: opcoes }))
           .catch(err => {
             console.warn('[ShippingOrchestrator] Falha rejeitada no Melhor Envio:', err);
@@ -671,6 +671,12 @@ export class ShippingOrchestrator {
     delete payload.valor_original;
     delete payload.valor_subsidio;
     delete payload.tipo_entrega;
+    delete payload.peso_kg;
+    delete payload.largura_cm;
+    delete payload.altura_cm;
+    delete payload.comprimento_cm;
+    delete payload.quantidade_volumes;
+    delete payload.pacote;
 
     let { data, error } = await supabase
       .from('pedido_entregas')
@@ -1510,6 +1516,17 @@ export class ShippingOrchestrator {
     metaAtual.provedor_frete = provedorFinal;
     metaAtual.servico_frete_codigo = pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null);
     metaAtual.tipo_atendimento = resultado.tipo_atendimento || 'entrega';
+
+    const pacRes = (resultado as any)?.pacote;
+    if (pacRes || pe.largura_cm || pe.peso_kg) {
+      metaAtual.pacote_envio = {
+        quantidade_volumes: pacRes?.quantidade_volumes || pe.quantidade_volumes || 1,
+        peso_kg: pacRes?.peso_kg || pe.peso_kg || 0.3,
+        largura_cm: pacRes?.largura_cm || pe.largura_cm || 15,
+        altura_cm: pacRes?.altura_cm || pe.altura_cm || 10,
+        comprimento_cm: pacRes?.comprimento_cm || pe.comprimento_cm || 20
+      };
+    }
 
     // 5. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio' e endereco_entrega
     const { error: errPed } = await supabase
