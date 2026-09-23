@@ -326,7 +326,7 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const maxDim = 640;
+      const maxDim = 480;
       let width = img.width;
       let height = img.height;
 
@@ -351,7 +351,7 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       }
 
       ctx.drawImage(img, 0, 0, width, height);
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
       const cleanBase64 = compressedDataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
       resolve({
@@ -510,8 +510,12 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      // Timeout veloz de 5.5s por modelo para nunca travar o lojista
-      const timeoutId = setTimeout(() => controller.abort(), 5500);
+      // Timeout dinâmico: 9.5s para visão computacional com fotos e 6.5s para textos puros
+      const temImagem = payloadCompleto.contents?.some((c: any) =>
+        c.parts?.some((p: any) => p.inline_data || p.inlineData)
+      );
+      const timeoutMs = temImagem ? 9500 : 6500;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -546,7 +550,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     } catch (e: any) {
       if (!primeiroErro) primeiroErro = e?.message || String(e);
       if (e?.name === 'AbortError') {
-        console.warn(`Tempo limite excedido (5.5s) ao consultar modelo ${modelo}.`);
+        console.warn(`Tempo limite excedido ao consultar modelo ${modelo}.`);
       } else if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
         throw e;
       } else {
@@ -1238,13 +1242,13 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
   const compFinal = Number(parsed?.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : (extraidos.comprimento_cm || 20);
 
   return {
-    nome: parsed.nome || dados.nome,
-    categoria_sugerida: parsed.categoria_sugerida || dados.categoriaNome || 'Geral',
+    nome: parsed?.nome || dados.nome,
+    categoria_sugerida: parsed?.categoria_sugerida || dados.categoriaNome || 'Geral',
     preco_venda_estimado: precoSemCentavos,
-    preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
-    descricao: parsed.descricao || dados.descricao || '',
-    tipo_unidade: parsed.tipo_unidade || 'un',
-    codigo_barras: parsed.codigo_barras || dados.codigoBarras || '',
+    preco_custo_estimado: Number(parsed?.preco_custo_estimado) || 0,
+    descricao: parsed?.descricao || dados.descricao || '',
+    tipo_unidade: parsed?.tipo_unidade || 'un',
+    codigo_barras: parsed?.codigo_barras || dados.codigoBarras || '',
     peso_kg: pesoKgFinal,
     altura_cm: alturaFinal,
     largura_cm: larguraFinal,
