@@ -35,6 +35,13 @@ interface MelhorEnvioProductPayload {
   quantity: number;
 }
 
+interface MelhorEnvioVolumePayload {
+  width: number;
+  height: number;
+  length: number;
+  weight: number;
+}
+
 interface MelhorEnvioCalculatePayload {
   from: {
     postal_code: string;
@@ -42,8 +49,7 @@ interface MelhorEnvioCalculatePayload {
   to: {
     postal_code: string;
   };
-  package?: MelhorEnvioPackagePayload;
-  packages?: MelhorEnvioPackagePayload[];
+  volumes?: MelhorEnvioVolumePayload[];
   products?: MelhorEnvioProductPayload[];
   options?: {
     insurance_value?: number;
@@ -244,21 +250,13 @@ export class MelhorEnvioService {
       const qteVols = Math.max(1, pacote.quantidade_volumes || 1);
       const pesoPorVol = Number((pacote.peso_kg / qteVols).toFixed(3));
 
-      if (qteVols > 1) {
-        payload.packages = Array.from({ length: qteVols }, () => ({
-          width: Math.max(10, Math.round(pacote.largura_cm)),
-          height: Math.max(4, Math.round(pacote.altura_cm)),
-          length: Math.max(15, Math.round(pacote.comprimento_cm)),
-          weight: Math.max(0.1, pesoPorVol)
-        }));
-      } else {
-        payload.package = {
-          width: Math.max(10, Math.round(pacote.largura_cm)),
-          height: Math.max(4, Math.round(pacote.altura_cm)),
-          length: Math.max(15, Math.round(pacote.comprimento_cm)),
-          weight: Math.max(0.1, Number(pacote.peso_kg.toFixed(3)))
-        };
-      }
+      payload.volumes = Array.from({ length: qteVols }, () => ({
+        width: Math.max(10, Math.round(pacote.largura_cm)),
+        height: Math.max(2, Math.round(pacote.altura_cm)),
+        length: Math.max(15, Math.round(pacote.comprimento_cm)),
+        weight: Math.max(0.01, pesoPorVol)
+      }));
+
       payload.options = {
         insurance_value: Math.max(1, subtotal),
         receipt: false,

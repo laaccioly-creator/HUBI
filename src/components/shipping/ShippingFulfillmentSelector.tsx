@@ -1210,6 +1210,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               setPacoteManualEditado(true);
                               setVolumesCount(Math.max(1, parseInt(e.target.value) || 1));
                             }}
+                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && enderecoSelecionado) {
                                 executarCotacao(enderecoSelecionado, true);
@@ -1228,6 +1229,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               setPacoteManualEditado(true);
                               setPesoInput(e.target.value);
                             }}
+                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && enderecoSelecionado) {
                                 executarCotacao(enderecoSelecionado, true);
@@ -1247,6 +1249,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               setPacoteManualEditado(true);
                               setComprimentoInput(e.target.value);
                             }}
+                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && enderecoSelecionado) {
                                 executarCotacao(enderecoSelecionado, true);
@@ -1266,6 +1269,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               setPacoteManualEditado(true);
                               setLarguraInput(e.target.value);
                             }}
+                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && enderecoSelecionado) {
                                 executarCotacao(enderecoSelecionado, true);
@@ -1285,6 +1289,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               setPacoteManualEditado(true);
                               setAlturaInput(e.target.value);
                             }}
+                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && enderecoSelecionado) {
                                 executarCotacao(enderecoSelecionado, true);
@@ -1298,7 +1303,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                       <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100">
                         <span>
-                          Pacote: <strong>{volumesCount} vol.</strong> • <strong>{pesoInput} kg</strong> • <strong>{comprimentoInput}x{larguraInput}x{alturaInput} cm</strong>
+                          Pacote: <strong>{volumesCount} {volumesCount > 1 ? 'volumes' : 'volume'}</strong> • <strong>{pesoInput} kg {volumesCount > 1 ? `(${(parseFloat(pesoInput.replace(',', '.')) / volumesCount || 0).toFixed(2)} kg/vol)` : 'total'}</strong> • <strong>{comprimentoInput}x{larguraInput}x{alturaInput} cm</strong>
                         </span>
                         <span className="text-[10px] text-emerald-700 bg-emerald-50 font-bold px-1.5 py-0.5 rounded border border-emerald-200/60">
                           Utilizado na cotação
