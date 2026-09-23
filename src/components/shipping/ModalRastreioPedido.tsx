@@ -49,11 +49,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const peResolvido: PedidoEntrega | null =
     entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
 
+  // Ref para garantir execução única de auto-sincronização por abertura de modal
+  const sincronizadoRef = React.useRef<string | null>(null);
+
   const handleSincronizarRastreio = React.useCallback(async (silencioso = false) => {
     if (!pedido) return;
     try {
       if (!silencioso) setAtualizando(true);
-      setMensagemFeedback(null);
 
       // 1. Invoca Edge Function para sincronizar status atualizado com o Melhor Envio
       const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
@@ -71,15 +73,17 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         if (data.status_envio) setStatusEnvioLocal(data.status_envio);
         if (data.data_postagem) setDataPostagemLocal(data.data_postagem);
 
-        const statusLabel =
-          data.status_envio === 'em_transito'
-            ? 'Em Trânsito'
-            : data.status_envio === 'entregue'
-            ? 'Entregue'
-            : 'Atualizado';
+        if (!silencioso) {
+          const statusLabel =
+            data.status_envio === 'em_transito'
+              ? 'Em Trânsito'
+              : data.status_envio === 'entregue'
+              ? 'Entregue'
+              : 'Atualizado';
 
-        setMensagemFeedback(`Status atualizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
-        if (onAtualizarStatus) onAtualizarStatus();
+          setMensagemFeedback(`Status atualizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
+          if (onAtualizarStatus) onAtualizarStatus();
+        }
       } else if (!silencioso) {
         setMensagemFeedback('Rastreamento verificado. Nenhuma nova atualização.');
       }
@@ -88,12 +92,14 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         setMensagemFeedback('Não foi possível sincronizar no momento. Tente novamente mais tarde.');
       }
     } finally {
-      if (!silencioso) setAtualizando(false);
-      setTimeout(() => setMensagemFeedback(null), 4000);
+      if (!silencioso) {
+        setAtualizando(false);
+        setTimeout(() => setMensagemFeedback(null), 4000);
+      }
     }
   }, [pedido?.id, pedido?.loja_id, loja?.id, onAtualizarStatus]);
 
-  // Sincroniza estados reativos locais quando as props mudarem
+  // Sincroniza estados reativos locais apenas quando os identificadores das props mudarem
   React.useEffect(() => {
     if (!pedido) return;
     const peCurrent: PedidoEntrega | null =
@@ -103,21 +109,29 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     setLinkRastreioLocal((peCurrent?.link_rastreio || pedido?.link_rastreio || '').trim());
     setStatusEnvioLocal(peCurrent?.status_envio || (pedido?.status === 'concluido' ? 'entregue' : 'despachado'));
     setDataPostagemLocal(peCurrent?.despachado_em || pedido?.despachado_em || null);
-  }, [pedido, entrega, isOpen]);
+  }, [pedido?.id, entrega?.id, isOpen]);
 
-  // Sincroniza automaticamente ao abrir se for Melhor Envio e estiver sem código ou despachado
+  // Sincroniza automaticamente UMA ÚNICA VEZ ao abrir o modal
   React.useEffect(() => {
-    if (!isOpen || !pedido) return;
+    if (!isOpen || !pedido) {
+      sincronizadoRef.current = null;
+      return;
+    }
+
+    // Se já sincronizou nesta sessão de abertura para este pedido, não repete
+    if (sincronizadoRef.current === pedido.id) return;
+
     const peCurrent: PedidoEntrega | null =
       entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
     const prov = peCurrent?.provedor || (pedido?.metadados as any)?.provedor_frete;
-    const cod = (codigoRastreioLocal || peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim();
-    const st = statusEnvioLocal || peCurrent?.status_envio || pedido?.status;
+    const cod = (peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim();
+    const st = peCurrent?.status_envio || pedido?.status;
 
     if (prov === 'melhor_envio' && (!cod || st === 'despachado')) {
+      sincronizadoRef.current = pedido.id;
       handleSincronizarRastreio(true);
     }
-  }, [isOpen, pedido?.id, handleSincronizarRastreio]);
+  }, [isOpen, pedido?.id]);
 
   // Early return SÓ APÓS TODOS OS HOOKS TEREM SIDO DECLARADOS!
   if (!isOpen || !pedido) return null;
@@ -222,7 +236,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       : (codigoRastreio ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}` : null);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -302,7 +316,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         </div>
 
         {mensagemFeedback && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in">
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{mensagemFeedback}</span>
           </div>
@@ -316,7 +330,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           </h4>
 
           <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-            {etapas.map((etapa, idx) => {
+            {etapas.map((etapa) => {
               const concluido = etapa.concluido;
               const ativo = etapa.ativo;
 
@@ -328,7 +342,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                       concluido
                         ? 'bg-emerald-500 text-slate-950 ring-4 ring-emerald-500/20 shadow-md shadow-emerald-500/30'
                         : ativo
-                        ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/20 animate-pulse'
+                        ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/30 shadow-md shadow-amber-500/20'
                         : 'bg-slate-800 text-slate-600 border border-slate-700'
                     }`}
                   >
