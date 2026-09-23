@@ -29,6 +29,7 @@ export interface ProdutoSugeridoIA {
   altura_cm?: number;
   largura_cm?: number;
   comprimento_cm?: number;
+  foto_url?: string;
 }
 
 export interface DimensoesEPesoExtraidos {

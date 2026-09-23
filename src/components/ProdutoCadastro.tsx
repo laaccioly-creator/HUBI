@@ -98,6 +98,7 @@ export interface ProdutoSugeridoIA {
   altura_cm?: number;
   largura_cm?: number;
   comprimento_cm?: number;
+  foto_url?: string;
 }
 
 const comprimirArquivoImagem = async (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
@@ -1013,6 +1014,10 @@ export const ProdutoCadastro: React.FC = () => {
     }
     if (dadosSugeridos.codigo_barras) {
       setCodigoBarras(dadosSugeridos.codigo_barras);
+    }
+    if (dadosSugeridos.foto_url && !fotoPrincipal) {
+      setFotoPrincipal(dadosSugeridos.foto_url);
+      setFotosUrls(prev => [dadosSugeridos.foto_url!, ...prev.filter(f => f !== dadosSugeridos.foto_url!)]);
     }
 
     // Preenchimento Automático das Dimensões e Peso de Frete via IA ou Regex
@@ -3064,6 +3069,7 @@ export const ProdutoCadastro: React.FC = () => {
         onClose={() => setModalDuvidaAberto(false)}
         opcoes={opcoesDuvidaIA}
         fotoUrl={fotoPrincipal || fotosUrls[0]}
+        loja={loja}
         onSelecionarOpcao={(opcaoEscolhida) => {
           aplicarDadosSugeridosIA(opcaoEscolhida);
           setSucessoIAMsg(`✨ Produto preenchido com base na opção selecionada: "${opcaoEscolhida.nome}"!`);

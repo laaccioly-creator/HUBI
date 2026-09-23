@@ -423,6 +423,49 @@ export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) =>
 };
 
 /**
+ * Busca rápida de uma única miniatura para exibição nas opções do Modal de Dúvida da IA
+ */
+export const buscarMiniaturaProduto = async (termo: string, loja?: any): Promise<string | null> => {
+  if (!termo || !termo.trim()) return null;
+
+  const termoLimpo = termo
+    .replace(/^[\d\w#.-]+\s*-\s*/, '')
+    .replace(/^[0-9]+\s+/, '')
+    .trim();
+  const queryFinal = `${termoLimpo} produto`;
+
+  // 1. Tenta obter do cache instantâneo (0ms)
+  const emCache = obterCacheSerp(queryFinal);
+  if (emCache && emCache.length > 0) {
+    return emCache[0].urlThumbnail || emCache[0].urlOriginal || null;
+  }
+
+  // 2. Chave SerpApi
+  let serpApiKey = obterSerpApiKey(loja);
+  if (!serpApiKey && loja?.id) {
+    try {
+      serpApiKey = await obterOuBuscarSerpApiKey(loja);
+    } catch {}
+  }
+
+  if (serpApiKey || loja?.id) {
+    try {
+      const fotos = await buscarFotosGoogleImagesSerpApi(termoLimpo, serpApiKey, {
+        lojaId: loja?.id,
+        numResultados: 2
+      });
+      if (fotos && fotos.length > 0) {
+        return fotos[0].urlThumbnail || fotos[0].urlOriginal || null;
+      }
+    } catch (err) {
+      console.warn('Aviso: Não foi possível obter miniatura para opção:', termo, err);
+    }
+  }
+
+  return null;
+};
+
+/**
  * Executa a busca de fotos no Google Images via SerpApi
  */
 export const buscarFotosGoogleImagesSerpApi = async (

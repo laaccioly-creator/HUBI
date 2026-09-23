@@ -1451,7 +1451,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: (sugestao as any).descricao_completa || sugestao.descricao || prev.descricao,
       codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
       tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
-      fotos: fotoUrl ? [fotoUrl, ...prev.fotos.filter((f: string) => f !== fotoUrl)].slice(0, 6) : prev.fotos,
+      fotos: (fotoUrl || sugestao.foto_url) ? [(fotoUrl || sugestao.foto_url)!, ...prev.fotos.filter((f: string) => f !== (fotoUrl || sugestao.foto_url))].slice(0, 6) : prev.fotos,
       pesoKg: sugestao.peso_kg ? String(sugestao.peso_kg) : prev.pesoKg,
       alturaCm: sugestao.altura_cm ? String(sugestao.altura_cm) : prev.alturaCm,
       larguraCm: sugestao.largura_cm ? String(sugestao.largura_cm) : prev.larguraCm,
@@ -4135,6 +4135,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           onClose={() => setModalDuvidaAberto(false)}
           opcoes={opcoesDuvidaIA}
           fotoUrl={fotoTemporariaDuvida || formData.fotos[0]}
+          loja={loja}
           onSelecionarOpcao={(opcaoEscolhida) => {
             aplicarSugestaoMobile(opcaoEscolhida, fotoTemporariaDuvida || undefined);
             setMensagemFeedback({
