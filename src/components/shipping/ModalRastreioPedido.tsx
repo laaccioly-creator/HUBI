@@ -40,21 +40,39 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const [atualizando, setAtualizando] = useState(false);
   const [mensagemFeedback, setMensagemFeedback] = useState<string | null>(null);
 
+  // Estados reativos locais atualizados na hora ao sincronizar
+  const [codigoRastreioLocal, setCodigoRastreioLocal] = useState<string>('');
+  const [linkRastreioLocal, setLinkRastreioLocal] = useState<string>('');
+  const [statusEnvioLocal, setStatusEnvioLocal] = useState<string>('');
+  const [dataPostagemLocal, setDataPostagemLocal] = useState<string | null>(null);
+
+  // Sincroniza estados reativos locais quando as props mudarem
+  React.useEffect(() => {
+    if (!pedido) return;
+    const peCurrent: PedidoEntrega | null =
+      entrega || (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
+
+    setCodigoRastreioLocal((peCurrent?.codigo_rastreio || pedido.codigo_rastreio || '').trim());
+    setLinkRastreioLocal((peCurrent?.link_rastreio || pedido.link_rastreio || '').trim());
+    setStatusEnvioLocal(peCurrent?.status_envio || (pedido.status === 'concluido' ? 'entregue' : 'despachado'));
+    setDataPostagemLocal(peCurrent?.despachado_em || pedido.despachado_em || null);
+  }, [pedido, entrega, isOpen]);
+
   if (!isOpen || !pedido) return null;
 
   const pe: PedidoEntrega | null =
     entrega || (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
 
-  const codigoRastreio = (pe?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
-  const linkRastreio = (pe?.link_rastreio || pedido.link_rastreio || '').trim();
+  const codigoRastreio = (codigoRastreioLocal || pe?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
+  const linkRastreio = (linkRastreioLocal || pe?.link_rastreio || pedido.link_rastreio || '').trim();
   const linkEtiqueta = (pe?.link_etiqueta || (pedido as any).link_etiqueta || '').trim();
   const transportadora =
     pe?.transportadora_nome ||
     pe?.nome_transportadora ||
     (pe?.provedor === 'uber' ? 'Uber Direct' : 'Melhor Envio / Jadlog');
 
-  const statusEnvio = pe?.status_envio || (pedido.status === 'concluido' ? 'entregue' : 'despachado');
-  const despachadoEm = pe?.despachado_em || pedido.despachado_em || pedido.criado_em;
+  const statusEnvio = statusEnvioLocal || pe?.status_envio || (pedido.status === 'concluido' ? 'entregue' : 'despachado');
+  const despachadoEm = dataPostagemLocal || pe?.despachado_em || pedido.despachado_em || pedido.criado_em;
 
   const handleCopiarCodigo = () => {
     if (!codigoRastreio) return;
@@ -85,9 +103,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     window.open(url, '_blank');
   };
 
-  const handleSincronizarRastreio = async () => {
+  const handleSincronizarRastreio = async (silencioso = false) => {
     try {
-      setAtualizando(true);
+      if (!silencioso) setAtualizando(true);
       setMensagemFeedback(null);
 
       // 1. Invoca Edge Function para sincronizar status atualizado com o Melhor Envio
@@ -95,23 +113,49 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         body: {
           pedidoId: pedido.id,
           loja_id: loja?.id || pedido.loja_id,
+          acao: 'sincronizar_rastreio',
           isSandbox: true
         }
       });
 
       if (!error && data?.sucesso) {
-        setMensagemFeedback('Status de envio sincronizado com sucesso!');
+        if (data.codigo_rastreio) setCodigoRastreioLocal(data.codigo_rastreio);
+        if (data.link_rastreio) setLinkRastreioLocal(data.link_rastreio);
+        if (data.status_envio) setStatusEnvioLocal(data.status_envio);
+        if (data.data_postagem) setDataPostagemLocal(data.data_postagem);
+
+        const statusLabel =
+          data.status_envio === 'em_transito'
+            ? 'Em Trânsito'
+            : data.status_envio === 'entregue'
+            ? 'Entregue'
+            : 'Atualizado';
+
+        setMensagemFeedback(`Status atualizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
         if (onAtualizarStatus) onAtualizarStatus();
-      } else {
+      } else if (!silencioso) {
         setMensagemFeedback('Rastreamento verificado. Nenhuma nova atualização.');
       }
     } catch (e: any) {
-      setMensagemFeedback('Não foi possível sincronizar no momento. Tente novamente mais tarde.');
+      if (!silencioso) {
+        setMensagemFeedback('Não foi possível sincronizar no momento. Tente novamente mais tarde.');
+      }
     } finally {
-      setAtualizando(false);
+      if (!silencioso) setAtualizando(false);
       setTimeout(() => setMensagemFeedback(null), 4000);
     }
   };
+
+  // Sincroniza automaticamente ao abrir se for Melhor Envio e estiver sem código ou pendente
+  React.useEffect(() => {
+    if (isOpen && pedido) {
+      const peCurrent = entrega || (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
+      const prov = peCurrent?.provedor || (pedido.metadados as any)?.provedor_frete;
+      if (prov === 'melhor_envio' && (!codigoRastreio || statusEnvio === 'despachado')) {
+        handleSincronizarRastreio(true);
+      }
+    }
+  }, [isOpen, pedido?.id]);
 
   // Definição das etapas da linha do tempo
   const etapas = [
@@ -135,9 +179,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       id: 'postado',
       titulo: 'Objeto Postado na Agência',
       descricao: 'Pacote conferido e recebido pela transportadora',
-      data: null,
+      data: dataPostagemLocal || (statusEnvio === 'em_transito' || statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue' ? despachadoEm : null),
       concluido: statusEnvio === 'em_transito' || statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue',
-      ativo: statusEnvio === 'em_transito'
+      ativo: false
     },
     {
       id: 'transito',
@@ -145,7 +189,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       descricao: 'Transferência entre centros operacionais e de distribuição',
       data: null,
       concluido: statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue',
-      ativo: false
+      ativo: statusEnvio === 'em_transito'
     },
     {
       id: 'saiu_entrega',
@@ -229,7 +273,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleSincronizarRastreio}
+              onClick={() => handleSincronizarRastreio(false)}
               disabled={atualizando}
               className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               title="Consultar atualizações na transportadora"

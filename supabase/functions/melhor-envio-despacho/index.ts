@@ -253,6 +253,202 @@ serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
+    // AÇÃO DEDICADA: Sincronização / Consulta de Rastreamento em Tempo Real
+    // -------------------------------------------------------------------------
+    const acao = body.acao || body.action || "despachar";
+    if (acao === "sincronizar_rastreio" || acao === "consultar_rastreio") {
+      console.log(`[MelhorEnvio-Edge] Executando sincronização de rastreio para o pedido ${pedidoId}...`);
+      let orderId =
+        body.ordem_id ||
+        body.ordemId ||
+        pedido?.metadados?.melhor_envio_order_id ||
+        null;
+
+      let orderData: any = null;
+
+      // 1. Se já temos o ID da ordem no Melhor Envio, consulta diretamente
+      if (orderId) {
+        try {
+          const oRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
+            headers: headersComuns,
+          });
+          if (oRes.ok) {
+            orderData = await oRes.json();
+          }
+        } catch (eOrder) {
+          console.warn("[MelhorEnvio-Edge] Falha ao buscar ordem por ID direto:", eOrder);
+        }
+      }
+
+      // 2. Se não encontrou por ID direto, busca na listagem recente de ordens
+      if (!orderData) {
+        try {
+          const listRes = await fetch(`${baseUrl}/api/v2/me/orders`, {
+            headers: headersComuns,
+          });
+          if (listRes.ok) {
+            const listJson = await listRes.json();
+            const ordersList: any[] = Array.isArray(listJson) ? listJson : (listJson.data || []);
+
+            const cepDestinoLimpo = limparCep(
+              entrega?.destino_cep ||
+              pedido?.cliente?.cep ||
+              extrairCepDeTexto(pedido?.endereco_entrega)
+            );
+            const nomeCli = (pedido?.cliente_nome_avulso || pedido?.cliente?.nome || "").toLowerCase().trim();
+            const docCli = (pedido?.cliente?.numero_documento || pedido?.cliente_documento_avulso || "").replace(/\D/g, "");
+            const linkEtq = (entrega?.link_etiqueta || "").trim();
+
+            const found = ordersList.find((ord: any) => {
+              if (body.protocolo && ord.protocol === body.protocolo) return true;
+              if (linkEtq && ord.id && linkEtq.includes(ord.id)) return true;
+
+              const ordCep = limparCep(ord.to?.postal_code);
+              const ordDoc = (ord.to?.document || "").replace(/\D/g, "");
+              const ordNome = (ord.to?.name || "").toLowerCase().trim();
+
+              if (cepDestinoLimpo && ordCep && cepDestinoLimpo === ordCep) {
+                if (nomeCli && ordNome && (ordNome.includes(nomeCli) || nomeCli.includes(ordNome))) return true;
+                if (docCli && ordDoc && docCli === ordDoc) return true;
+                return true; // Match por CEP recente
+              }
+              return false;
+            });
+
+            if (found) {
+              orderData = found;
+              orderId = found.id;
+            }
+          }
+        } catch (eList) {
+          console.warn("[MelhorEnvio-Edge] Falha ao listar ordens recentes:", eList);
+        }
+      }
+
+      if (!orderData) {
+        return new Response(
+          JSON.stringify({
+            sucesso: false,
+            error: "Ordem de envio não localizada no Melhor Envio para sincronização.",
+            code: "ORDER_NOT_FOUND_ON_PROVIDER",
+            codigo_rastreio: entrega?.codigo_rastreio || pedido?.codigo_rastreio || "",
+            status_envio: entrega?.status_envio || "despachado",
+          }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 3. Consulta complementar ao endpoint de tracking em tempo real
+      let trackingInfo: any = null;
+      try {
+        const trkRes = await fetch(`${baseUrl}/api/v2/me/shipment/tracking`, {
+          method: "POST",
+          headers: headersComuns,
+          body: JSON.stringify({ orders: [orderId] }),
+        });
+        if (trkRes.ok) {
+          const trkData = await trkRes.json();
+          trackingInfo = trkData[orderId] || trkData[orderData.protocol] || null;
+        }
+      } catch (eTrk) {
+        console.warn("[MelhorEnvio-Edge] Falha na consulta de tracking complementar:", eTrk);
+      }
+
+      // 4. Extração minuciosa do Código de Rastreio Oficial
+      const codTracking = (orderData.tracking || trackingInfo?.tracking || "").trim();
+      const codAuth = (orderData.authorization_code || trackingInfo?.authorization_code || "").trim();
+      const codBarraJadlog = (orderData.additional_info?.volume?.[0]?.codbarra || "").trim();
+      const codVolume = (orderData.volumes?.[0]?.tracking || "").trim();
+      const codSelfTracking = (orderData.self_tracking || trackingInfo?.self_tracking || "").trim();
+
+      // Prioridade: Código numérico Jadlog / Correios > Authorization Code > Self Tracking
+      const codigoRastreioFinal =
+        codTracking || codAuth || codVolume || codBarraJadlog || codSelfTracking || entrega?.codigo_rastreio || "";
+
+      let linkRastreioFinal = "";
+      if (codSelfTracking) {
+        linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codSelfTracking}`;
+      } else if (codigoRastreioFinal) {
+        linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codigoRastreioFinal}`;
+      }
+
+      // 5. Mapeamento de Status
+      const rawStatus = (trackingInfo?.status || orderData.status || "").toLowerCase();
+      let statusEnvioMapeado = "despachado";
+      let statusPedidoMapeado = "enviado";
+
+      if (rawStatus === "delivered" || orderData.delivered_at) {
+        statusEnvioMapeado = "entregue";
+        statusPedidoMapeado = "concluido";
+      } else if (rawStatus === "posted" || orderData.posted_at) {
+        statusEnvioMapeado = "em_transito";
+        statusPedidoMapeado = "enviado";
+      } else if (rawStatus === "released" || rawStatus === "generated") {
+        statusEnvioMapeado = "despachado";
+        statusPedidoMapeado = "enviado";
+      } else if (rawStatus === "canceled") {
+        statusEnvioMapeado = "cancelado";
+      }
+
+      const atualizadoEm = new Date().toISOString();
+      const dataPostagem = orderData.posted_at || (statusEnvioMapeado === "em_transito" ? (entrega?.despachado_em || atualizadoEm) : null);
+
+      // 6. Atualiza o banco de dados Supabase
+      if (pedidoId) {
+        await supabaseAdmin
+          .from("pedido_entregas")
+          .update({
+            codigo_rastreio: codigoRastreioFinal,
+            link_rastreio: linkRastreioFinal,
+            status_envio: statusEnvioMapeado,
+            despachado_em: dataPostagem || entrega?.despachado_em || atualizadoEm,
+            atualizado_em: atualizadoEm,
+          })
+          .eq("pedido_id", pedidoId);
+
+        await supabaseAdmin
+          .from("pedidos")
+          .update({
+            codigo_rastreio: codigoRastreioFinal,
+            link_rastreio: linkRastreioFinal,
+            status: statusPedidoMapeado,
+            despachado_em: dataPostagem || pedido.despachado_em || atualizadoEm,
+            metadados: {
+              ...(pedido.metadados || {}),
+              melhor_envio_order_id: orderId,
+              melhor_envio_protocol: orderData.protocol,
+              melhor_envio_status: rawStatus,
+              melhor_envio_posted_at: orderData.posted_at,
+              melhor_envio_delivered_at: orderData.delivered_at,
+            },
+            atualizado_em: atualizadoEm,
+          })
+          .eq("id", pedidoId);
+      }
+
+      console.log(`[MelhorEnvio-Edge] Sincronização concluída com sucesso! Rastreio: ${codigoRastreioFinal}, Status: ${statusEnvioMapeado}`);
+
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          acao: "sincronizar_rastreio",
+          ordem_id: String(orderId),
+          protocolo: orderData.protocol,
+          status_melhor_envio: rawStatus,
+          status_envio: statusEnvioMapeado,
+          status_pedido: statusPedidoMapeado,
+          codigo_rastreio: codigoRastreioFinal,
+          link_rastreio: linkRastreioFinal,
+          link_etiqueta: entrega?.link_etiqueta || null,
+          data_postagem: dataPostagem,
+          data_entrega: orderData.delivered_at || null,
+          transportadora: orderData.service?.company?.name || entrega?.transportadora_nome || "Jadlog",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // -------------------------------------------------------------------------
     // 3. Validação e Sanitização de Documentos (from.document e to.document)
     // -------------------------------------------------------------------------
     // A. Remetente (from.document): Loja / Titular da Conta
@@ -559,27 +755,27 @@ serve(async (req: Request) => {
           }
 
           const selfTracking = (orderData.self_tracking || "").trim(); // ex: ME26006DUM4BR
-          const tracking = (orderData.tracking || "").trim(); // ex: QB123456789BR
+          const tracking = (orderData.tracking || "").trim(); // ex: 830803761 ou QB123456789BR
+          const codAuth = (orderData.authorization_code || "").trim();
+          const codVolume = (orderData.volumes?.[0]?.tracking || "").trim();
           const codBarraJadlog = (orderData.additional_info?.volume?.[0]?.codbarra || "").trim();
 
-          if (orderData.status === "delivered") {
+          if (orderData.status === "delivered" || orderData.delivered_at) {
             statusEnvioTransportadora = "entregue";
           } else if (orderData.status === "posted" || orderData.posted_at) {
             statusEnvioTransportadora = "em_transito";
-          } else if (orderData.status === "released") {
+          } else if (orderData.status === "released" || orderData.status === "generated") {
             statusEnvioTransportadora = "despachado";
           }
 
-          // Prioridade: tracking oficial > self_tracking do Melhor Rastreio > código de barras da Jadlog
-          codigoRastreio = tracking || selfTracking || codBarraJadlog;
+          // Prioridade: tracking oficial (ex: código numérico Jadlog 830803761) > authorization_code > volumes > self_tracking
+          codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking;
 
           if (codigoRastreio) {
             if (selfTracking) {
               linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${selfTracking}`;
-            } else if (tracking) {
-              linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${tracking}`;
-            } else if (codBarraJadlog) {
-              linkRastreioOficial = `https://www.jadlog.com.br/tracking`;
+            } else if (codigoRastreio) {
+              linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
             }
             console.log(`[MelhorEnvio-Edge] Código de rastreio obtido com sucesso: ${codigoRastreio}`);
             break;
@@ -596,7 +792,7 @@ serve(async (req: Request) => {
 
     // Fallback: se ainda assim não preencheu, tenta no cartData
     if (!codigoRastreio) {
-      codigoRastreio = cartData.tracking || cartData.self_tracking || "";
+      codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || "";
     }
 
     if (!linkRastreioOficial && codigoRastreio) {
@@ -616,7 +812,7 @@ serve(async (req: Request) => {
           codigo_rastreio: String(codigoRastreio),
           link_rastreio: linkRastreioOficial,
           link_etiqueta: linkEtiqueta,
-          status_envio: "despachado",
+          status_envio: statusEnvioTransportadora,
           despachado_em: despachadoEm,
           despachado_por: usuarioId || null,
           atualizado_em: despachadoEm,
@@ -627,11 +823,15 @@ serve(async (req: Request) => {
       await supabaseAdmin
         .from("pedidos")
         .update({
-          status: "enviado",
+          status: statusEnvioTransportadora === "entregue" ? "concluido" : "enviado",
           codigo_rastreio: String(codigoRastreio),
           link_rastreio: linkRastreioOficial,
           despachado_em: despachadoEm,
           despachado_por: usuarioId || null,
+          metadados: {
+            ...(pedido.metadados || {}),
+            melhor_envio_order_id: String(orderId),
+          },
           atualizado_em: despachadoEm,
         })
         .eq("id", pedidoId);

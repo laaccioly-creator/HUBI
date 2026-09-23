@@ -2105,9 +2105,35 @@ export const PedidosLista: React.FC = () => {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs text-amber-400 italic">
-                              Pendente de sincronização
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-amber-400 italic">
+                                Pendente de sincronização
+                              </span>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    mostrarSucesso('Sincronizando com a transportadora...');
+                                    await supabase.functions.invoke('melhor-envio-despacho', {
+                                      body: {
+                                        pedidoId: pedidoSelecionado.id,
+                                        loja_id: loja?.id || pedidoSelecionado.loja_id,
+                                        acao: 'sincronizar_rastreio',
+                                        isSandbox: true
+                                      }
+                                    });
+                                    await carregarPedidos();
+                                    mostrarSucesso('Rastreamento sincronizado com sucesso!');
+                                  } catch {
+                                    mostrarErro('Não foi possível sincronizar no momento.');
+                                  }
+                                }}
+                                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                title="Sincronizar código de rastreio agora"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
