@@ -1031,7 +1031,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       gerenciarEstoque: true,
       quantidadeEstoque: getEstoqueReal(p),
       dataValidade: p.data_validade ? p.data_validade.split('T')[0] : '',
-      variacoes: p.variacoes ? [...p.variacoes] : []
+      variacoes: p.variacoes ? [...p.variacoes] : [],
+      pesoKg: (p as any).peso_kg != null ? String((p as any).peso_kg) : '',
+      alturaCm: (p as any).altura_cm != null ? String((p as any).altura_cm) : '',
+      larguraCm: (p as any).largura_cm != null ? String((p as any).largura_cm) : '',
+      comprimentoCm: (p as any).comprimento_cm != null ? String((p as any).comprimento_cm) : ''
     };
     setFormData(initialEditData);
     setSnapshotInicialForm(JSON.stringify(initialEditData));

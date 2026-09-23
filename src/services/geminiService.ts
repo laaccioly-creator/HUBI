@@ -1169,3 +1169,130 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
     comprimento_cm: compFinal
   };
 };
+
+/**
+ * Estima com IA (Google Gemini) ou regras especializadas de varejo as dimensões e peso bruto de um produto
+ * para despacho por transportadoras (Melhor Envio / Correios / Jadlog).
+ */
+export const estimarDimensoesEPesoProduto = async (
+  nomeProduto: string,
+  descricao?: string,
+  categoriaNome?: string,
+  loja?: any
+): Promise<DimensoesEPesoExtraidos> => {
+  const textoCompleto = `${nomeProduto || ''} ${descricao || ''}`.trim();
+  const extraidos = extrairDimensoesEPesoTexto(textoCompleto);
+
+  // Se já tiver todas as 4 propriedades detectadas por regex explícito no texto, retorna imediatamente
+  if (
+    extraidos.peso_kg && extraidos.peso_kg > 0 &&
+    extraidos.altura_cm && extraidos.altura_cm > 0 &&
+    extraidos.largura_cm && extraidos.largura_cm > 0 &&
+    extraidos.comprimento_cm && extraidos.comprimento_cm > 0
+  ) {
+    return extraidos;
+  }
+
+  // Tentar estimativa profunda com Google Gemini
+  let chave = getGeminiApiKey(loja);
+  if (!chave && loja?.id) {
+    try {
+      chave = await obterOuBuscarGeminiApiKey(loja);
+    } catch {}
+  }
+
+  if (chave && nomeProduto.trim()) {
+    try {
+      const prompt = `
+Você é um especialista em logística de e-commerce e despacho de encomendas no Brasil (Correios e Jadlog).
+Estime com inteligência o peso bruto com embalagem ('peso_kg') e as dimensões mínimas para embalagem de envio ('altura_cm', 'largura_cm', 'comprimento_cm') para o seguinte produto:
+
+Produto: "${nomeProduto}"
+${categoriaNome ? `Categoria: "${categoriaNome}"` : ''}
+${descricao ? `Descrição: "${descricao.slice(0, 300)}"` : ''}
+
+REGRAS OBRIGATÓRIAS:
+- 'peso_kg': Peso total bruto da mercadoria com a caixa/pacote em kg (ex: 0.35 para 350g, 1.2 para 1.2kg).
+- 'altura_cm', 'largura_cm', 'comprimento_cm': Dimensões da embalagem para envio. Mínimos aceitos nos Correios/Jadlog: altura >= 4cm, largura >= 10cm, comprimento >= 15cm.
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem texto extra, sem bloco markdown):
+{
+  "peso_kg": 0.35,
+  "altura_cm": 10,
+  "largura_cm": 15,
+  "comprimento_cm": 20
+}
+`;
+
+      const requestBody = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          response_mime_type: 'application/json'
+        }
+      };
+
+      const resData = await executarRequisicaoGemini(chave, requestBody);
+      const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) {
+        const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(jsonLimpo);
+
+        return {
+          peso_kg: extraidos.peso_kg || (Number(parsed.peso_kg) > 0 ? Number(Number(parsed.peso_kg).toFixed(3)) : 0.35),
+          altura_cm: extraidos.altura_cm || Math.max(4, Math.round(Number(parsed.altura_cm) || 10)),
+          largura_cm: extraidos.largura_cm || Math.max(10, Math.round(Number(parsed.largura_cm) || 15)),
+          comprimento_cm: extraidos.comprimento_cm || Math.max(15, Math.round(Number(parsed.comprimento_cm) || 20))
+        };
+      }
+    } catch (err) {
+      console.warn('[GeminiService] Falha na estimativa de medidas com IA, aplicando fallback heurístico:', err);
+    }
+  }
+
+  // Fallback inteligente baseado em palavras-chave e categorias de varejo
+  const t = textoCompleto.toLowerCase();
+  let fallbackPeso = extraidos.peso_kg || 0.35;
+  let fallbackAltura = extraidos.altura_cm || 10;
+  let fallbackLargura = extraidos.largura_cm || 15;
+  let fallbackComprimento = extraidos.comprimento_cm || 20;
+
+  if (t.includes('camiseta') || t.includes('camisa') || t.includes('blusa') || t.includes('short') || t.includes('bermuda') || t.includes('vestido') || t.includes('saia')) {
+    fallbackPeso = extraidos.peso_kg || 0.25;
+    fallbackAltura = extraidos.altura_cm || 4;
+    fallbackLargura = extraidos.largura_cm || 20;
+    fallbackComprimento = extraidos.comprimento_cm || 28;
+  } else if (t.includes('calça') || t.includes('jeans') || t.includes('casaco') || t.includes('moletom') || t.includes('jaqueta')) {
+    fallbackPeso = extraidos.peso_kg || 0.65;
+    fallbackAltura = extraidos.altura_cm || 8;
+    fallbackLargura = extraidos.largura_cm || 25;
+    fallbackComprimento = extraidos.comprimento_cm || 32;
+  } else if (t.includes('tenis') || t.includes('tênis') || t.includes('sapato') || t.includes('bota') || t.includes('sandalia') || t.includes('sandália') || t.includes('chinelo')) {
+    fallbackPeso = extraidos.peso_kg || 0.85;
+    fallbackAltura = extraidos.altura_cm || 12;
+    fallbackLargura = extraidos.largura_cm || 20;
+    fallbackComprimento = extraidos.comprimento_cm || 32;
+  } else if (t.includes('celular') || t.includes('smartphone') || t.includes('fone') || t.includes('relogio') || t.includes('smartwatch') || t.includes('carregador') || t.includes('cabo')) {
+    fallbackPeso = extraidos.peso_kg || 0.3;
+    fallbackAltura = extraidos.altura_cm || 5;
+    fallbackLargura = extraidos.largura_cm || 12;
+    fallbackComprimento = extraidos.comprimento_cm || 18;
+  } else if (t.includes('garrafa') || t.includes('vinho') || t.includes('whisky') || t.includes('bebida') || t.includes('copo') || t.includes('caneca')) {
+    fallbackPeso = extraidos.peso_kg || 0.85;
+    fallbackAltura = extraidos.altura_cm || 28;
+    fallbackLargura = extraidos.largura_cm || 12;
+    fallbackComprimento = extraidos.comprimento_cm || 12;
+  } else if (t.includes('creme') || t.includes('shampoo') || t.includes('condicionador') || t.includes('perfume') || t.includes('hidratante') || t.includes('oleo') || t.includes('óleo')) {
+    fallbackPeso = extraidos.peso_kg || 0.45;
+    fallbackAltura = extraidos.altura_cm || 18;
+    fallbackLargura = extraidos.largura_cm || 10;
+    fallbackComprimento = extraidos.comprimento_cm || 15;
+  }
+
+  return {
+    peso_kg: fallbackPeso,
+    altura_cm: Math.max(4, fallbackAltura),
+    largura_cm: Math.max(10, fallbackLargura),
+    comprimento_cm: Math.max(15, fallbackComprimento)
+  };
+};

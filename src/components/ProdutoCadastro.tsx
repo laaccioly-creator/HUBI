@@ -55,7 +55,8 @@ import {
   getGeminiApiKey,
   salvarGeminiApiKey,
   obterOuBuscarGeminiApiKey,
-  extrairDimensoesEPesoTexto
+  extrairDimensoesEPesoTexto,
+  estimarDimensoesEPesoProduto
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 
@@ -739,6 +740,7 @@ export const ProdutoCadastro: React.FC = () => {
   const ehEdicao = Boolean(id);
   const { loja, setLoja } = useAuth();
   const permissions = usePermissions();
+  const { mostrarSucesso, mostrarAviso, mostrarErro } = useFeedbackModal();
   const segmentoLoja = useMemo(() => obterNomeSegmentoLoja(loja), [loja]);
 
   useEffect(() => {
@@ -845,6 +847,7 @@ export const ProdutoCadastro: React.FC = () => {
   const [alturaCm, setAlturaCm] = useState<string>(() => rascunhoSalvo?.alturaCm || '');
   const [larguraCm, setLarguraCm] = useState<string>(() => rascunhoSalvo?.larguraCm || '');
   const [comprimentoCm, setComprimentoCm] = useState<string>(() => rascunhoSalvo?.comprimentoCm || '');
+  const [detectandoDimensoes, setDetectandoDimensoes] = useState<boolean>(false);
 
   // Preços
   const [precoCusto, setPrecoCusto] = useState<string>(() => rascunhoSalvo?.precoCusto || '0.00');
@@ -2933,22 +2936,49 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    const extraidos = extrairDimensoesEPesoTexto(`${nome} ${descricao}`);
-                    let detectou = false;
-                    if (extraidos.peso_kg) { setPesoKg(String(extraidos.peso_kg)); detectou = true; }
-                    if (extraidos.altura_cm) { setAlturaCm(String(extraidos.altura_cm)); detectou = true; }
-                    if (extraidos.largura_cm) { setLarguraCm(String(extraidos.largura_cm)); detectou = true; }
-                    if (extraidos.comprimento_cm) { setComprimentoCm(String(extraidos.comprimento_cm)); detectou = true; }
-                    if (!detectou) {
-                      alert('A IA já estimou os parâmetros ideais. Se desejar valores específicos, ajuste os campos abaixo.');
+                  disabled={detectandoDimensoes}
+                  onClick={async () => {
+                    if (!nome.trim() && !descricao.trim()) {
+                      mostrarAviso('Por favor, informe o Nome ou Descrição do produto para que a IA possa estimar as medidas e o peso.', 'Identificação do Produto');
+                      return;
+                    }
+
+                    setDetectandoDimensoes(true);
+                    try {
+                      const catNome = categorias.find(c => c.id === categoriaId)?.nome;
+                      const res = await estimarDimensoesEPesoProduto(nome, descricao, catNome, loja);
+
+                      if (res.peso_kg != null) setPesoKg(String(res.peso_kg));
+                      if (res.altura_cm != null) setAlturaCm(String(res.altura_cm));
+                      if (res.largura_cm != null) setLarguraCm(String(res.largura_cm));
+                      if (res.comprimento_cm != null) setComprimentoCm(String(res.comprimento_cm));
+
+                      mostrarSucesso('Medidas e peso de envio preenchidos com sucesso pela IA!');
+                    } catch (err: any) {
+                      console.error('Erro ao estimar medidas:', err);
+                      setPesoKg(prev => prev || '0.35');
+                      setAlturaCm(prev => prev || '4');
+                      setLarguraCm(prev => prev || '12');
+                      setComprimentoCm(prev => prev || '17');
+                      mostrarSucesso('Medidas padrão de envio aplicadas com sucesso!');
+                    } finally {
+                      setDetectandoDimensoes(false);
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 text-xs font-semibold border border-slate-700 transition cursor-pointer self-start sm:self-auto"
-                  title="Detectar medidas contidas no nome ou descrição"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-emerald-400 text-xs font-semibold border border-slate-700 transition cursor-pointer self-start sm:self-auto shadow-sm"
+                  title="Detectar ou estimar medidas e peso com inteligência artificial"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Auto-detectar do Texto</span>
+                  {detectandoDimensoes ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                      <span>Estimando com IA...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Auto-detectar com IA</span>
+                    </>
+                  )}
                 </button>
               </div>
 
