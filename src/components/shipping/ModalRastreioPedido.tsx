@@ -46,22 +46,83 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const [statusEnvioLocal, setStatusEnvioLocal] = useState<string>('');
   const [dataPostagemLocal, setDataPostagemLocal] = useState<string | null>(null);
 
+  const peResolvido: PedidoEntrega | null =
+    entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+
+  const handleSincronizarRastreio = React.useCallback(async (silencioso = false) => {
+    if (!pedido) return;
+    try {
+      if (!silencioso) setAtualizando(true);
+      setMensagemFeedback(null);
+
+      // 1. Invoca Edge Function para sincronizar status atualizado com o Melhor Envio
+      const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
+        body: {
+          pedidoId: pedido.id,
+          loja_id: loja?.id || pedido.loja_id,
+          acao: 'sincronizar_rastreio',
+          isSandbox: true
+        }
+      });
+
+      if (!error && data?.sucesso) {
+        if (data.codigo_rastreio) setCodigoRastreioLocal(data.codigo_rastreio);
+        if (data.link_rastreio) setLinkRastreioLocal(data.link_rastreio);
+        if (data.status_envio) setStatusEnvioLocal(data.status_envio);
+        if (data.data_postagem) setDataPostagemLocal(data.data_postagem);
+
+        const statusLabel =
+          data.status_envio === 'em_transito'
+            ? 'Em Trânsito'
+            : data.status_envio === 'entregue'
+            ? 'Entregue'
+            : 'Atualizado';
+
+        setMensagemFeedback(`Status atualizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
+        if (onAtualizarStatus) onAtualizarStatus();
+      } else if (!silencioso) {
+        setMensagemFeedback('Rastreamento verificado. Nenhuma nova atualização.');
+      }
+    } catch {
+      if (!silencioso) {
+        setMensagemFeedback('Não foi possível sincronizar no momento. Tente novamente mais tarde.');
+      }
+    } finally {
+      if (!silencioso) setAtualizando(false);
+      setTimeout(() => setMensagemFeedback(null), 4000);
+    }
+  }, [pedido?.id, pedido?.loja_id, loja?.id, onAtualizarStatus]);
+
   // Sincroniza estados reativos locais quando as props mudarem
   React.useEffect(() => {
     if (!pedido) return;
     const peCurrent: PedidoEntrega | null =
-      entrega || (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
+      entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
 
-    setCodigoRastreioLocal((peCurrent?.codigo_rastreio || pedido.codigo_rastreio || '').trim());
-    setLinkRastreioLocal((peCurrent?.link_rastreio || pedido.link_rastreio || '').trim());
-    setStatusEnvioLocal(peCurrent?.status_envio || (pedido.status === 'concluido' ? 'entregue' : 'despachado'));
-    setDataPostagemLocal(peCurrent?.despachado_em || pedido.despachado_em || null);
+    setCodigoRastreioLocal((peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim());
+    setLinkRastreioLocal((peCurrent?.link_rastreio || pedido?.link_rastreio || '').trim());
+    setStatusEnvioLocal(peCurrent?.status_envio || (pedido?.status === 'concluido' ? 'entregue' : 'despachado'));
+    setDataPostagemLocal(peCurrent?.despachado_em || pedido?.despachado_em || null);
   }, [pedido, entrega, isOpen]);
 
+  // Sincroniza automaticamente ao abrir se for Melhor Envio e estiver sem código ou despachado
+  React.useEffect(() => {
+    if (!isOpen || !pedido) return;
+    const peCurrent: PedidoEntrega | null =
+      entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+    const prov = peCurrent?.provedor || (pedido?.metadados as any)?.provedor_frete;
+    const cod = (codigoRastreioLocal || peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim();
+    const st = statusEnvioLocal || peCurrent?.status_envio || pedido?.status;
+
+    if (prov === 'melhor_envio' && (!cod || st === 'despachado')) {
+      handleSincronizarRastreio(true);
+    }
+  }, [isOpen, pedido?.id, handleSincronizarRastreio]);
+
+  // Early return SÓ APÓS TODOS OS HOOKS TEREM SIDO DECLARADOS!
   if (!isOpen || !pedido) return null;
 
-  const pe: PedidoEntrega | null =
-    entrega || (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
+  const pe: PedidoEntrega | null = peResolvido;
 
   const codigoRastreio = (codigoRastreioLocal || pe?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
   const linkRastreio = (linkRastreioLocal || pe?.link_rastreio || pedido.link_rastreio || '').trim();
@@ -102,60 +163,6 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
     window.open(url, '_blank');
   };
-
-  const handleSincronizarRastreio = async (silencioso = false) => {
-    try {
-      if (!silencioso) setAtualizando(true);
-      setMensagemFeedback(null);
-
-      // 1. Invoca Edge Function para sincronizar status atualizado com o Melhor Envio
-      const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
-        body: {
-          pedidoId: pedido.id,
-          loja_id: loja?.id || pedido.loja_id,
-          acao: 'sincronizar_rastreio',
-          isSandbox: true
-        }
-      });
-
-      if (!error && data?.sucesso) {
-        if (data.codigo_rastreio) setCodigoRastreioLocal(data.codigo_rastreio);
-        if (data.link_rastreio) setLinkRastreioLocal(data.link_rastreio);
-        if (data.status_envio) setStatusEnvioLocal(data.status_envio);
-        if (data.data_postagem) setDataPostagemLocal(data.data_postagem);
-
-        const statusLabel =
-          data.status_envio === 'em_transito'
-            ? 'Em Trânsito'
-            : data.status_envio === 'entregue'
-            ? 'Entregue'
-            : 'Atualizado';
-
-        setMensagemFeedback(`Status atualizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
-        if (onAtualizarStatus) onAtualizarStatus();
-      } else if (!silencioso) {
-        setMensagemFeedback('Rastreamento verificado. Nenhuma nova atualização.');
-      }
-    } catch (e: any) {
-      if (!silencioso) {
-        setMensagemFeedback('Não foi possível sincronizar no momento. Tente novamente mais tarde.');
-      }
-    } finally {
-      if (!silencioso) setAtualizando(false);
-      setTimeout(() => setMensagemFeedback(null), 4000);
-    }
-  };
-
-  // Sincroniza automaticamente ao abrir se for Melhor Envio e estiver sem código ou pendente
-  React.useEffect(() => {
-    if (isOpen && pedido) {
-      const peCurrent = entrega || (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
-      const prov = peCurrent?.provedor || (pedido.metadados as any)?.provedor_frete;
-      if (prov === 'melhor_envio' && (!codigoRastreio || statusEnvio === 'despachado')) {
-        handleSincronizarRastreio(true);
-      }
-    }
-  }, [isOpen, pedido?.id]);
 
   // Definição das etapas da linha do tempo
   const etapas = [
