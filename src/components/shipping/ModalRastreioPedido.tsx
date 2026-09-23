@@ -62,8 +62,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         body: {
           pedidoId: pedido.id,
           loja_id: loja?.id || pedido.loja_id,
-          acao: 'sincronizar_rastreio',
-          isSandbox: true
+          acao: 'sincronizar_rastreio'
         }
       });
 
@@ -73,19 +72,23 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         if (data.status_envio) setStatusEnvioLocal(data.status_envio);
         if (data.data_postagem) setDataPostagemLocal(data.data_postagem);
 
-        if (!silencioso) {
-          const statusLabel =
-            data.status_envio === 'em_transito'
-              ? 'Em Trânsito'
-              : data.status_envio === 'entregue'
-              ? 'Entregue'
-              : 'Atualizado';
+        const statusLabel =
+          data.status_envio === 'em_transito'
+            ? 'Em Trânsito'
+            : data.status_envio === 'saiu_para_entrega'
+            ? 'Saiu para Entrega'
+            : data.status_envio === 'entregue'
+            ? 'Entregue'
+            : data.status_envio === 'despachado'
+            ? 'Despachado'
+            : 'Atualizado';
 
-          setMensagemFeedback(`Status atualizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
-          if (onAtualizarStatus) onAtualizarStatus();
+        if (!silencioso) {
+          setMensagemFeedback(`Status sincronizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
         }
+        if (onAtualizarStatus) onAtualizarStatus();
       } else if (!silencioso) {
-        setMensagemFeedback('Rastreamento verificado. Nenhuma nova atualização.');
+        setMensagemFeedback('Rastreamento verificado. Nenhuma nova movimentação.');
       }
     } catch {
       if (!silencioso) {
@@ -107,11 +110,11 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
     setCodigoRastreioLocal((peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim());
     setLinkRastreioLocal((peCurrent?.link_rastreio || pedido?.link_rastreio || '').trim());
-    setStatusEnvioLocal(peCurrent?.status_envio || (pedido?.status === 'concluido' ? 'entregue' : 'despachado'));
+    setStatusEnvioLocal(peCurrent?.status_envio || (peCurrent?.despachado_em || pedido?.despachado_em ? 'despachado' : 'pendente'));
     setDataPostagemLocal(peCurrent?.despachado_em || pedido?.despachado_em || null);
   }, [pedido?.id, entrega?.id, isOpen]);
 
-  // Sincroniza automaticamente UMA ÚNICA VEZ ao abrir o modal
+  // Sincroniza automaticamente ao abrir o modal
   React.useEffect(() => {
     if (!isOpen || !pedido) {
       sincronizadoRef.current = null;
@@ -125,13 +128,23 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
     const prov = peCurrent?.provedor || (pedido?.metadados as any)?.provedor_frete;
     const cod = (peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim();
-    const st = peCurrent?.status_envio || pedido?.status;
+    const st = peCurrent?.status_envio;
 
-    if (prov === 'melhor_envio' && (!cod || st === 'despachado')) {
+    const podeSincronizar =
+      (prov === 'melhor_envio' ||
+       prov === 'jadlog' ||
+       prov === 'correios' ||
+       Boolean((pedido.metadados as any)?.melhor_envio_order_id) ||
+       Boolean(peCurrent?.link_etiqueta || (pedido as any)?.link_etiqueta) ||
+       Boolean(cod)) &&
+      st !== 'entregue' &&
+      st !== 'cancelado';
+
+    if (podeSincronizar) {
       sincronizadoRef.current = pedido.id;
-      handleSincronizarRastreio(true);
+      handleSincronizarRastreio(false);
     }
-  }, [isOpen, pedido?.id]);
+  }, [isOpen, pedido?.id, handleSincronizarRastreio]);
 
   // Early return SÓ APÓS TODOS OS HOOKS TEREM SIDO DECLARADOS!
   if (!isOpen || !pedido) return null;
@@ -146,7 +159,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     pe?.nome_transportadora ||
     (pe?.provedor === 'uber' ? 'Uber Direct' : 'Melhor Envio / Jadlog');
 
-  const statusEnvio = statusEnvioLocal || pe?.status_envio || (pedido.status === 'concluido' ? 'entregue' : 'despachado');
+  const statusEnvio = statusEnvioLocal || pe?.status_envio || (pe?.despachado_em || pedido.despachado_em ? 'despachado' : 'pendente');
   const despachadoEm = dataPostagemLocal || pe?.despachado_em || pedido.despachado_em || pedido.criado_em;
 
   const handleCopiarCodigo = () => {
@@ -193,8 +206,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       titulo: 'Etiqueta Emitida & Despachado',
       descricao: `Envio gerado via ${transportadora}`,
       data: despachadoEm,
-      concluido: Boolean(despachadoEm),
-      ativo: statusEnvio === 'despachado' || statusEnvio === 'pendente'
+      concluido: Boolean(despachadoEm || statusEnvio !== 'pendente'),
+      ativo: statusEnvio === 'pendente' && !despachadoEm
     },
     {
       id: 'postado',
@@ -202,7 +215,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       descricao: 'Pacote conferido e recebido pela transportadora',
       data: dataPostagemLocal || (statusEnvio === 'em_transito' || statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue' ? despachadoEm : null),
       concluido: statusEnvio === 'em_transito' || statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue',
-      ativo: false
+      ativo: statusEnvio === 'despachado'
     },
     {
       id: 'transito',
@@ -224,9 +237,11 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       id: 'entregue',
       titulo: 'Objeto Entregue',
       descricao: 'Entrega finalizada com sucesso ao destinatário',
-      data: pedido.status === 'concluido' ? (pe?.atualizado_em || null) : null,
-      concluido: statusEnvio === 'entregue' || pedido.status === 'concluido',
-      ativo: statusEnvio === 'entregue' || pedido.status === 'concluido'
+      data: statusEnvio === 'entregue'
+        ? ((pe as any)?.entregue_em || (pedido.metadados as any)?.melhor_envio_delivered_at || pe?.atualizado_em || null)
+        : null,
+      concluido: statusEnvio === 'entregue',
+      ativo: statusEnvio === 'entregue'
     }
   ];
 
