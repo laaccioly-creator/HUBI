@@ -326,7 +326,8 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const maxDim = 480;
+      // 380px é o equilíbrio de ouro: ultra-rápido para upload e inferência visual, mantendo textos e rótulos nítidos para OCR
+      const maxDim = 380;
       let width = img.width;
       let height = img.height;
 
@@ -351,7 +352,7 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       }
 
       ctx.drawImage(img, 0, 0, width, height);
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
       const cleanBase64 = compressedDataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
       resolve({
@@ -410,8 +411,12 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
             nome.includes('antigravity') ||
             nome.includes('lyria') ||
             nome.includes('gemma') ||
+            nome.includes('3.7') || // Sofre com 503 frequente
+            nome.includes('3.8') || // Fica travado por ~27s
+            nome === 'gemini-flash-latest' || // Retorna 503 com frequência
+            nome.includes('preview') || // Instável em contas gratuitas
             nome.startsWith('gemini-2.5-') || // Google descontinuou modelos 2.5 para novos usuários (retornam 404)
-            nome.includes('pro') // CRÍTICO: Modelos 'pro' (ex: gemini-3.1-pro-preview) têm cota gratuita ZERO (limit: 0) no Google e causam erro 429 instantâneo!
+            nome.includes('pro') // CRÍTICO: Modelos 'pro' têm cota gratuita ZERO (limit: 0) no Google e causam erro 429 instantâneo!
           ) {
             return false;
           }
@@ -422,23 +427,16 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
       if (lista.length > 0) {
         lista.sort((a: string, b: string) => {
           const getScore = (name: string) => {
-            if (name === 'gemini-flash-lite-latest') return 100; // Ultra-rápido, alta cota gratuita
+            if (name === 'gemini-flash-lite-latest') return 100; // Ultra-rápido (< 1s), alta disponibilidade
             if (name === 'gemini-3.5-flash-lite') return 95;
-            if (name === 'gemini-3.6-flash') return 92;
-            if (name === 'gemini-flash-latest') return 90;
-            if (name === 'gemini-1.5-flash-8b') return 85;
-            if (name === 'gemini-1.5-flash') return 80;
-            if (name === 'gemini-2.0-flash-lite') return 75;
-            if (name === 'gemini-2.0-flash') return 70;
-            if (name.includes('flash-lite')) return 65;
-            if (name.includes('flash')) return 60;
+            if (name === 'gemini-3.6-flash') return 90;
             return 10;
           };
           return getScore(b) - getScore(a);
         });
 
-        // Selecionar os 4 melhores modelos flash para cascata de alta disponibilidade
-        const topModelos = lista.slice(0, 4);
+        // Selecionar os 2 melhores modelos rápidos para respostas instantâneas
+        const topModelos = lista.slice(0, 2);
         modelosGeminiValidosCache.set(apiKey, topModelos);
         return topModelos;
       }
@@ -450,10 +448,7 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
   const listaPadrao = [
     'gemini-flash-lite-latest',
     'gemini-3.5-flash-lite',
-    'gemini-3.6-flash',
-    'gemini-flash-latest',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-flash'
+    'gemini-3.6-flash'
   ];
   return listaPadrao;
 };
@@ -514,11 +509,11 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
       break;
     }
 
-    // Timeout ágil: 7s para fotos e 3.8s para texto puro
+    // Timeout equilibrado: 9.5s para fotos e 6.5s para texto puro estruturado
     const temImagem = payloadCompleto.contents?.some((c: any) =>
       c.parts?.some((p: any) => p.inline_data || p.inlineData)
     );
-    const timeoutMs = temImagem ? 7000 : 3800;
+    const timeoutMs = temImagem ? 9500 : 6500;
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
@@ -648,6 +643,7 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
       ],
       generationConfig: {
         temperature: 0.2,
+        maxOutputTokens: 1500,
         response_mime_type: 'application/json'
       }
     };
@@ -723,7 +719,7 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
  * Analisa produto a partir de texto (nome, descrição ou código de barras) usando Gemini
  */
 export const identificarProdutoPorTextoOuEan = async (
-  tipo: 'texto' | 'barcode',
+  tipo: 'texto' | 'barcode' | 'descricao',
   valor: string,
   segmentoLoja?: string,
   loja?: any
@@ -781,7 +777,7 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
 
   const requestBody = {
     contents: [{ parts: [{ text: promptInstrucao }] }],
-    generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
+    generationConfig: { temperature: 0.2, maxOutputTokens: 1200, response_mime_type: 'application/json' }
   };
 
   const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -1158,25 +1154,22 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     throw new Error('Chave da API do Google Gemini não configurada. Configure sua chave Gemini nas configurações.');
   }
 
+  const termoReferencia = (dados.nome && dados.nome.trim() !== 'Produto') ? dados.nome.trim() : (dados.descricao?.trim() || 'Produto');
   const promptAtualizacao = `
-Você é um especialista em catálogo de produtos, copywriting comercial e precificação de varejo no Brasil${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
-O lojista possui um produto já cadastrado e solicitou a ATUALIZAÇÃO E ENRIQUECIMENTO INTELIGENTE deste item.
-${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}". O item é deste segmento comercial.` : ''}
-
-DADOS ATUAIS DO PRODUTO:
-- Nome Atual: "${dados.nome}"
-${dados.categoriaNome ? `- Categoria Atual: "${dados.categoriaNome}"` : ''}
-${dados.descricao ? `- Descrição Atual: "${dados.descricao}"` : ''}
+Você é um especialista em catálogo de produtos, copywriting comercial e precificação de varejo e e-commerce no Brasil${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
+Com base no nome e dados do produto: "${termoReferencia}", pesquise e gere a ficha cadastral enriquecida, profissional e completa deste item.
+${dados.categoriaNome ? `- Categoria Atual informada: "${dados.categoriaNome}"` : ''}
+${dados.descricao ? `- Descrição Existente: "${dados.descricao}"` : ''}
 ${dados.codigoBarras ? `- Código de Barras / EAN: "${dados.codigoBarras}"` : ''}
 ${dados.precoVendaAtual ? `- Preço de Venda Atual: R$ ${dados.precoVendaAtual}` : ''}
 
 SUA TAREFA:
-1. Padronize e melhore o Nome Comercial do produto (deixando-o preciso, profissional e atraente).
+1. Padronize e gere o Nome Comercial completo, atraente e oficial do produto em português.
 2. Indique a Categoria comercial mais adequada no varejo.
-3. Elabore uma Descrição Comercial rica, completa, persuasiva e sem truncamento (com benefícios, especificações e modo de uso).
+3. Elabore uma Descrição Comercial rica, persuasiva, completa e detalhada para catálogo online e WhatsApp (com benefícios reais, especificações de material e modo de uso).
 4. Estime o preço de venda de mercado praticado no Brasil e concorrentes.
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown):
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
 {
   "nome": "Nome comercial melhorado e completo",
   "categoria_sugerida": "Nome da categoria mais adequada",
@@ -1219,18 +1212,18 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
             ]
           }
         ],
-        generationConfig: { temperature: 0.3, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.25, maxOutputTokens: 1200, response_mime_type: 'application/json' }
       };
     } catch {
       requestBody = {
         contents: [{ parts: [{ text: promptAtualizacao }] }],
-        generationConfig: { temperature: 0.3, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.25, maxOutputTokens: 1200, response_mime_type: 'application/json' }
       };
     }
   } else {
     requestBody = {
       contents: [{ parts: [{ text: promptAtualizacao }] }],
-      generationConfig: { temperature: 0.3, response_mime_type: 'application/json' }
+      generationConfig: { temperature: 0.25, maxOutputTokens: 1200, response_mime_type: 'application/json' }
     };
   }
 

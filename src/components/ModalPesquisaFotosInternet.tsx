@@ -409,8 +409,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                   {fotosValidas.map((foto, idx) => {
                     const urlAlvo = foto.urlOriginal || foto.url;
                     const falhouOriginal = falhasOriginal.has(urlAlvo);
-                    // Prioriza a imagem em alta resolução (urlOriginal). Se falhar na rede, usa o thumbnail do Google
-                    const urlExibicao = (!falhouOriginal && foto.urlOriginal) ? foto.urlOriginal : (foto.thumbnail || foto.url);
+                    // Prioriza o thumbnail do Google para carregamento instantâneo (CDN do Google). Se falhar, tenta a URL original
+                    const urlExibicao = (!falhouOriginal && foto.thumbnail) ? foto.thumbnail : (foto.urlOriginal || foto.url);
                     const estaSelecionada = selecionadas.has(urlAlvo);
                     const estaCarregada = imagensCarregadas.has(urlExibicao);
 
@@ -429,7 +429,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                           {!estaCarregada && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 gap-1.5">
                               <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
-                              <span className="text-[10px] text-slate-400 font-medium">Carregando foto HD...</span>
+                              <span className="text-[10px] text-slate-400 font-medium">Carregando foto...</span>
                             </div>
                           )}
 
@@ -445,8 +445,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                               setImagensCarregadas(prev => new Set(prev).add(urlExibicao));
                             }}
                             onError={() => {
-                              if (!falhouOriginal && foto.thumbnail && foto.thumbnail !== urlExibicao) {
-                                // Se a URL original de alta resolução falhar, recorre ao thumbnail do Google
+                              if (!falhouOriginal && foto.urlOriginal && foto.urlOriginal !== urlExibicao) {
+                                // Se o thumbnail do Google falhar, tenta a URL original
                                 setFalhasOriginal(prev => new Set(prev).add(urlAlvo));
                               } else {
                                 setImagensComErro(prev => new Set(prev).add(urlAlvo));

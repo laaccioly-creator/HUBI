@@ -4134,6 +4134,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           isOpen={modalDuvidaAberto}
           onClose={() => setModalDuvidaAberto(false)}
           opcoes={opcoesDuvidaIA}
+          fotoUrl={fotoTemporariaDuvida || formData.fotos[0]}
           onSelecionarOpcao={(opcaoEscolhida) => {
             aplicarSugestaoMobile(opcaoEscolhida, fotoTemporariaDuvida || undefined);
             setMensagemFeedback({

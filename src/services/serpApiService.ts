@@ -390,6 +390,38 @@ export const testarConexaoSerpApi = async (
   };
 };
 
+// Cache em Memória e sessionStorage para respostas instantâneas (0ms) e economia de cota
+const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
+
+export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
+  const chave = `hubi_serp_cache_${termo.toLowerCase().trim()}`;
+  const emMemoria = cacheSerpMemoria.get(chave);
+  if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
+    return emMemoria.fotos;
+  }
+  try {
+    const salvo = sessionStorage.getItem(chave);
+    if (salvo) {
+      const item = JSON.parse(salvo);
+      if (Date.now() - item.timestamp < 1000 * 60 * 60 * 6) {
+        cacheSerpMemoria.set(chave, item);
+        return item.fotos;
+      }
+    }
+  } catch {}
+  return null;
+};
+
+export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
+  if (!fotos || fotos.length === 0) return;
+  const chave = `hubi_serp_cache_${termo.toLowerCase().trim()}`;
+  const item = { timestamp: Date.now(), fotos };
+  cacheSerpMemoria.set(chave, item);
+  try {
+    sessionStorage.setItem(chave, JSON.stringify(item));
+  } catch {}
+};
+
 /**
  * Executa a busca de fotos no Google Images via SerpApi
  */
@@ -419,7 +451,14 @@ export const buscarFotosGoogleImagesSerpApi = async (
     .trim();
 
   const queryFinal = `${queryTratada} produto`;
-  const num = opcoes?.numResultados || 20;
+  const num = opcoes?.numResultados || 12;
+
+  // 1. Verificação instantânea no Cache Local (Memória + sessionStorage)
+  const fotosEmCache = obterCacheSerp(queryFinal);
+  if (fotosEmCache && fotosEmCache.length > 0) {
+    logSerpSucesso(`⚡ [CACHE INSTANTÂNEO] Recuperadas ${fotosEmCache.length} fotos em 0ms para "${queryFinal}"`);
+    return fotosEmCache;
+  }
 
   logSerp(`🔍 Iniciando busca de fotos Google Images na SerpApi...`, {
     termoOriginal: termo,
@@ -452,14 +491,14 @@ export const buscarFotosGoogleImagesSerpApi = async (
     });
 
     // Se a primeira chamada falhar por timeout de conexão inicial (quando a SerpApi está raspando o termo pela 1ª vez),
-    // aguarda 2s e faz uma retentativa automática (pois a SerpApi já concluiu o scrape no servidor e retorna em 0.2s)
+    // aguarda 400ms e faz uma retentativa automática (pois a SerpApi já concluiu o scrape no servidor e retorna em 0.2s)
     if (rpcResponse.error && (
       rpcResponse.error.code === '57014' ||
       rpcResponse.error.message?.toLowerCase().includes('timeout') ||
       rpcResponse.error.message?.toLowerCase().includes('canceling')
     )) {
-      logSerpAviso('Timeout na primeira raspagem da SerpApi. Retentando automaticamente em 2s com cache quente...');
-      await new Promise(res => setTimeout(res, 2000));
+      logSerpAviso('Timeout na primeira raspagem da SerpApi. Retentando rapidamente em 400ms com cache quente...');
+      await new Promise(res => setTimeout(res, 400));
       rpcResponse = await supabase.rpc('buscar_fotos_serpapi_rpc', {
         p_termo: queryFinal,
         p_loja_id: lojaId || null,
@@ -486,6 +525,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
         if (rpcData.results.length > 0) {
           const fotos = formatarResultadosSerpApi(rpcData.results, queryTratada, num);
           logSerpSucesso(`Encontradas ${fotos.length} fotos via Supabase RPC!`, fotos);
+          salvarCacheSerp(queryFinal, fotos);
           return fotos;
         } else {
           logSerpAviso(`Busca concluída na SerpApi, mas nenhum resultado encontrado para "${queryFinal}".`);
@@ -529,6 +569,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
       }
       if (Array.isArray(edgeData.results) && edgeData.results.length > 0) {
         logSerpSucesso(`Encontradas ${edgeData.results.length} fotos via Edge Function!`, edgeData.results);
+        salvarCacheSerp(queryFinal, edgeData.results);
         return edgeData.results;
       }
     }
@@ -593,6 +634,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
           const itens = rawJson.images_results || rawJson.results;
           const fotos = formatarResultadosSerpApi(itens, queryTratada, num);
           logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
+          salvarCacheSerp(queryFinal, fotos);
           return fotos;
         }
       }

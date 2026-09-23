@@ -7,13 +7,15 @@ interface ModalDuvidaProdutoIAProps {
   onClose: () => void;
   opcoes: ProdutoSugeridoIA[];
   onSelecionarOpcao: (opcao: ProdutoSugeridoIA) => void;
+  fotoUrl?: string;
 }
 
 export const ModalDuvidaProdutoIA: React.FC<ModalDuvidaProdutoIAProps> = ({
   isOpen,
   onClose,
   opcoes,
-  onSelecionarOpcao
+  onSelecionarOpcao,
+  fotoUrl
 }) => {
   if (!isOpen || !opcoes || opcoes.length === 0) return null;
 
@@ -46,6 +48,25 @@ export const ModalDuvidaProdutoIA: React.FC<ModalDuvidaProdutoIAProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Foto do Produto Analisado */}
+        {fotoUrl && (
+          <div className="mx-4 sm:mx-5 mt-4 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center gap-3.5 shadow-inner">
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-white border border-slate-600/50 shrink-0 flex items-center justify-center shadow-sm">
+              <img
+                src={fotoUrl}
+                alt="Foto analisada"
+                className="w-full h-full object-contain p-1"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-extrabold text-teal-400 uppercase tracking-wider block">Foto Analisada</span>
+              <p className="text-xs text-slate-300 font-medium">
+                Selecione qual opção abaixo corresponde ao item desta imagem:
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Lista de Opções Sugeridas */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1">
