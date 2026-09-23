@@ -506,15 +506,23 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
+  let tentativas = 0;
   for (const modelo of modelos) {
+    tentativas++;
+    if (tentativas > 2) {
+      // Limita a 2 tentativas para nunca deixar o lojista esperando na tela
+      break;
+    }
+
+    // Timeout ágil: 7s para fotos e 3.8s para texto puro
+    const temImagem = payloadCompleto.contents?.some((c: any) =>
+      c.parts?.some((p: any) => p.inline_data || p.inlineData)
+    );
+    const timeoutMs = temImagem ? 7000 : 3800;
+
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      // Timeout dinâmico: 9.5s para visão computacional com fotos e 6.5s para textos puros
-      const temImagem = payloadCompleto.contents?.some((c: any) =>
-        c.parts?.some((p: any) => p.inline_data || p.inlineData)
-      );
-      const timeoutMs = temImagem ? 9500 : 6500;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch(endpoint, {
@@ -536,7 +544,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
           const isZeroQuotaModel = msg.includes('limit: 0') || msg.includes('limit:0');
           if (!isZeroQuotaModel) {
             contador429++;
-            if (contador429 >= 3) {
+            if (contador429 >= 2) {
               console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata.');
               throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
             }
@@ -550,7 +558,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     } catch (e: any) {
       if (!primeiroErro) primeiroErro = e?.message || String(e);
       if (e?.name === 'AbortError') {
-        console.warn(`Tempo limite excedido ao consultar modelo ${modelo}.`);
+        console.warn(`Tempo limite excedido (${timeoutMs}ms) ao consultar modelo ${modelo}.`);
       } else if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
         throw e;
       } else {
@@ -1188,9 +1196,15 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
 
   let requestBody: any;
 
-  if (dados.fotoUrl) {
+  // Prioridade de velocidade máxima: se a descrição ou o nome estiverem preenchidos,
+  // consulta exclusivamente via texto puro e ignora a foto (eliminando transferências pesadas de imagem e timeouts)
+  const temDescricao = Boolean(dados.descricao && dados.descricao.trim().length > 2);
+  const temNome = Boolean(dados.nome && dados.nome.trim().length > 2 && dados.nome.trim().toLowerCase() !== 'produto');
+  const usarFoto = dados.fotoUrl && !temDescricao && !temNome;
+
+  if (usarFoto) {
     try {
-      const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(dados.fotoUrl);
+      const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(dados.fotoUrl!);
       requestBody = {
         contents: [
           {
