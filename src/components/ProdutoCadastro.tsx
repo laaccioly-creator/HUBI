@@ -56,7 +56,8 @@ import {
   salvarGeminiApiKey,
   obterOuBuscarGeminiApiKey,
   extrairDimensoesEPesoTexto,
-  estimarDimensoesEPesoProduto
+  estimarDimensoesEPesoProduto,
+  extrairJsonDoTexto
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 
@@ -621,8 +622,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawText) throw new Error('Resposta vazia da IA.');
 
-  const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(jsonLimpo);
+  const parsed = extrairJsonDoTexto(rawText);
+  if (!parsed) throw new Error('Não foi possível interpretar a resposta da IA.');
 
   const lista = parsed.concorrentes || [];
   return processarListaConcorrentes(lista, Number(parsed.preco_medio) || 0);
@@ -703,8 +704,8 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
   const resData = await executarRequisicaoGemini(apiKey, requestBody);
   const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawText) throw new Error('Resposta vazia da IA.');
-  const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(jsonLimpo);
+  const parsed = extrairJsonDoTexto(rawText);
+  if (!parsed) throw new Error('Não foi possível interpretar a resposta estruturada da IA.');
   const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
 
   let dadosMercadoFormatados: DadosMercadoIA | undefined = undefined;

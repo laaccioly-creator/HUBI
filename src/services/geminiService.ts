@@ -406,23 +406,21 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
       if (lista.length > 0) {
         lista.sort((a: string, b: string) => {
           const getScore = (name: string) => {
-            if (name === 'gemini-2.0-flash') return 100;
-            if (name === 'gemini-1.5-flash') return 95;
-            if (name === 'gemini-3.6-flash') return 90;
-            if (name === 'gemini-3.5-flash') return 85;
-            if (name === 'gemini-3.5-flash-lite') return 80;
-            if (name === 'gemini-2.0-flash-lite') return 75;
-            if (name === 'gemini-1.5-flash-8b') return 70;
-            if (name.includes('2.0-flash')) return 65;
-            if (name.includes('1.5-flash')) return 60;
-            if (name === 'gemini-1.5-pro') return 50;
-            return 10;
+            if (name === 'gemini-1.5-flash-8b') return 100; // Ultra-rápido (< 800ms)
+            if (name === 'gemini-1.5-flash') return 95;    // Altíssima estabilidade
+            if (name === 'gemini-2.0-flash') return 90;
+            if (name === 'gemini-2.0-flash-lite') return 85;
+            if (name === 'gemini-1.5-pro') return 60;
+            if (name.includes('1.5-flash')) return 50;
+            if (name.includes('2.0-flash')) return 40;
+            if (name.includes('3.')) return 10; // Modelos 3.x em preview sofrendo 503 temporário
+            return 5;
           };
           return getScore(b) - getScore(a);
         });
 
-        // Selecionar os top 4 modelos mais estáveis para evitar sobrecarga de requisições
-        const topModelos = lista.slice(0, 4);
+        // Selecionar no máximo 3 modelos prioritários para respostas instantâneas
+        const topModelos = lista.slice(0, 3);
         modelosGeminiValidosCache = topModelos;
         return topModelos;
       }
@@ -432,14 +430,31 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
   }
 
   const listaPadrao = [
-    'gemini-2.0-flash',
+    'gemini-1.5-flash-8b',
     'gemini-1.5-flash',
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
-    'gemini-2.0-flash-lite-preview-02-05',
-    'gemini-1.5-flash-8b'
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite'
   ];
   return listaPadrao;
+};
+
+/**
+ * Extrai e parseia de forma segura objetos JSON a partir de respostas de IA,
+ * mesmo se a IA incluir texto conversacional, listas com marcadores (* Role:), ou markdown.
+ */
+export const extrairJsonDoTexto = (texto: string): any => {
+  if (!texto) return null;
+  try {
+    const match = texto.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+    const limpo = texto.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(limpo);
+  } catch (e) {
+    console.warn('[GeminiService] Falha ao extrair JSON do texto retornado pela IA:', e);
+    return null;
+  }
 };
 
 export const SAFETY_SETTINGS_VAREJO = [
@@ -475,8 +490,8 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      // Timeout ampliado para 15 segundos para dar tempo suficiente ao processamento da IA
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      // Timeout veloz de 5.5s por modelo para nunca travar o lojista
+      const timeoutId = setTimeout(() => controller.abort(), 5500);
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -496,7 +511,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
         if (response.status === 429) {
           contador429++;
           if (contador429 >= 2) {
-            console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata de tentativas.');
+            console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata.');
             throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
           }
         }
@@ -506,7 +521,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     } catch (e: any) {
       if (!primeiroErro) primeiroErro = e?.message || String(e);
       if (e?.name === 'AbortError') {
-        console.warn(`Tempo limite excedido (15s) ao consultar modelo ${modelo}.`);
+        console.warn(`Tempo limite excedido (5.5s) ao consultar modelo ${modelo}.`);
       } else if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
         throw e;
       } else {
@@ -605,10 +620,9 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
     if (resData) {
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawText) {
-        const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(jsonLimpo);
-
-        const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
+        const parsed = extrairJsonDoTexto(rawText);
+        if (parsed) {
+          const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
         const semCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
 
         let opcoesFormatadas: ProdutoSugeridoIA[] | undefined = undefined;
@@ -657,6 +671,7 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
           comprimento_cm: compFinal,
           opcoes_sugeridas: opcoesFormatadas
         };
+        }
       }
     }
   } catch (err: any) {
@@ -1180,8 +1195,8 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
   const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawText) throw new Error('Não foi possível obter resposta da IA para atualizar o produto.');
 
-  const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(jsonLimpo);
+  const parsed = extrairJsonDoTexto(rawText);
+  if (!parsed) throw new Error('Não foi possível obter os dados estruturados da IA para o produto.');
 
   // Preço sugerido sempre sem os centavos (ex: Math.floor)
   const precoEstimado = Number(parsed.preco_venda_estimado) || 0;
@@ -1273,15 +1288,15 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem texto extra, sem bloco markdo
       const resData = await executarRequisicaoGemini(chave, requestBody);
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawText) {
-        const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(jsonLimpo);
-
-        return {
-          peso_kg: extraidos.peso_kg || (Number(parsed.peso_kg) > 0 ? Number(Number(parsed.peso_kg).toFixed(3)) : 0.35),
-          altura_cm: extraidos.altura_cm || Math.max(4, Math.round(Number(parsed.altura_cm) || 10)),
-          largura_cm: extraidos.largura_cm || Math.max(10, Math.round(Number(parsed.largura_cm) || 15)),
-          comprimento_cm: extraidos.comprimento_cm || Math.max(15, Math.round(Number(parsed.comprimento_cm) || 20))
-        };
+        const parsed = extrairJsonDoTexto(rawText);
+        if (parsed) {
+          return {
+            peso_kg: extraidos.peso_kg || (Number(parsed.peso_kg) > 0 ? Number(Number(parsed.peso_kg).toFixed(3)) : 0.35),
+            altura_cm: extraidos.altura_cm || Math.max(4, Math.round(Number(parsed.altura_cm) || 10)),
+            largura_cm: extraidos.largura_cm || Math.max(10, Math.round(Number(parsed.largura_cm) || 15)),
+            comprimento_cm: extraidos.comprimento_cm || Math.max(15, Math.round(Number(parsed.comprimento_cm) || 20))
+          };
+        }
       }
     } catch (err) {
       console.warn('[GeminiService] Falha na estimativa de medidas com IA, aplicando fallback heurístico:', err);
