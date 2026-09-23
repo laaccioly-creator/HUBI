@@ -310,7 +310,7 @@ serve(async (req: Request) => {
               if (cepDestinoLimpo && ordCep && cepDestinoLimpo === ordCep) {
                 if (nomeCli && ordNome && (ordNome.includes(nomeCli) || nomeCli.includes(ordNome))) return true;
                 if (docCli && ordDoc && docCli === ordDoc) return true;
-                return true; // Match por CEP recente
+                if (!nomeCli && !docCli) return true;
               }
               return false;
             });
@@ -372,20 +372,16 @@ serve(async (req: Request) => {
         linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codSelfTracking}`;
       }
 
-      // 5. Mapeamento de Status
+      // 5. Mapeamento de Status Logístico (pedido_entregas)
       const rawStatus = (trackingInfo?.status || orderData.status || "").toLowerCase();
       let statusEnvioMapeado = "despachado";
-      let statusPedidoMapeado = "enviado";
 
       if (rawStatus === "delivered" || orderData.delivered_at) {
         statusEnvioMapeado = "entregue";
-        statusPedidoMapeado = "concluido";
       } else if (rawStatus === "posted" || orderData.posted_at) {
         statusEnvioMapeado = "em_transito";
-        statusPedidoMapeado = "enviado";
       } else if (rawStatus === "released" || rawStatus === "generated") {
         statusEnvioMapeado = "despachado";
-        statusPedidoMapeado = "enviado";
       } else if (rawStatus === "canceled") {
         statusEnvioMapeado = "cancelado";
       }
@@ -406,23 +402,31 @@ serve(async (req: Request) => {
           })
           .eq("pedido_id", pedidoId);
 
+        // NUNCA marcar pedidos.status como 'concluido' por sincronização da transportadora.
+        // A conclusão da venda é uma operação comercial manual exclusiva do lojista no HUBI.
+        const updatePedidoPayload: Record<string, any> = {
+          codigo_rastreio: codigoRastreioFinal,
+          link_rastreio: linkRastreioFinal,
+          despachado_em: dataPostagem || pedido.despachado_em || atualizadoEm,
+          metadados: {
+            ...(pedido.metadados || {}),
+            melhor_envio_order_id: orderId,
+            melhor_envio_protocol: orderData.protocol,
+            melhor_envio_status: rawStatus,
+            melhor_envio_posted_at: orderData.posted_at,
+            melhor_envio_delivered_at: orderData.delivered_at,
+          },
+          atualizado_em: atualizadoEm,
+        };
+
+        // Apenas evolui pedidos.status para 'entregue' se o pedido já estava 'enviado' e ainda não está concluído
+        if (statusEnvioMapeado === "entregue" && pedido?.status === "enviado") {
+          updatePedidoPayload.status = "entregue";
+        }
+
         await supabaseAdmin
           .from("pedidos")
-          .update({
-            codigo_rastreio: codigoRastreioFinal,
-            link_rastreio: linkRastreioFinal,
-            status: statusPedidoMapeado,
-            despachado_em: dataPostagem || pedido.despachado_em || atualizadoEm,
-            metadados: {
-              ...(pedido.metadados || {}),
-              melhor_envio_order_id: orderId,
-              melhor_envio_protocol: orderData.protocol,
-              melhor_envio_status: rawStatus,
-              melhor_envio_posted_at: orderData.posted_at,
-              melhor_envio_delivered_at: orderData.delivered_at,
-            },
-            atualizado_em: atualizadoEm,
-          })
+          .update(updatePedidoPayload)
           .eq("id", pedidoId);
       }
 
@@ -815,11 +819,11 @@ serve(async (req: Request) => {
         })
         .eq("pedido_id", pedidoId);
 
-      // 2. Atualiza pedidos
+      // 2. Atualiza pedidos (sem nunca forçar 'concluido')
       await supabaseAdmin
         .from("pedidos")
         .update({
-          status: statusEnvioTransportadora === "entregue" ? "concluido" : "enviado",
+          status: pedido?.status === "concluido" ? "concluido" : (statusEnvioTransportadora === "entregue" ? "entregue" : "enviado"),
           codigo_rastreio: String(codigoRastreio),
           link_rastreio: linkRastreioOficial,
           despachado_em: despachadoEm,
