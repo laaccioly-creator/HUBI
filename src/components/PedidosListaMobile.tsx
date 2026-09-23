@@ -168,6 +168,8 @@ interface PedidosListaMobileProps {
   clientes: Cliente[];
   usuarios: UsuarioLoja[];
   carregando: boolean;
+  pedidoSelecionadoInicial?: Pedido | null;
+  onVoltarOrigem?: () => void;
   onAlterarStatus: (pedidoId: string, novoStatus: StatusPedido) => void;
   onCancelarPedido: (pedido: Pedido) => void;
   onAbrirReceberPagamento: (pedido: Pedido) => void;
@@ -182,6 +184,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   clientes,
   usuarios,
   carregando,
+  pedidoSelecionadoInicial,
+  onVoltarOrigem,
   onAlterarStatus,
   onCancelarPedido,
   onAbrirReceberPagamento,
@@ -197,7 +201,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const podeConcluirManual = ehAdmin || ehGerente;
 
   // Estados de Navegação de Telas
-  const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
+  const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(pedidoSelecionadoInicial || null);
+
+  useEffect(() => {
+    if (pedidoSelecionadoInicial) {
+      setPedidoSelecionado(pedidoSelecionadoInicial);
+    }
+  }, [pedidoSelecionadoInicial]);
   const [clientePerfilSelecionado, setClientePerfilSelecionado] = useState<Cliente | null>(null);
   const [drawerInternoAberto, setDrawerInternoAberto] = useState<boolean>(false);
   const [clienteHistoricoFiadoModal, setClienteHistoricoFiadoModal] = useState<Cliente | null>(null);
@@ -630,7 +640,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
-              onClick={() => setPedidoSelecionado(null)}
+              onClick={() => {
+                setPedidoSelecionado(null);
+                if (onVoltarOrigem) {
+                  onVoltarOrigem();
+                }
+              }}
               className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />

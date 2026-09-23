@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Printer,
@@ -114,8 +114,27 @@ export const PedidosLista: React.FC = () => {
     }
   }, [abasStatus, statusFiltro]);
   
+  // Parâmetros de URL (?id=... ou ?numero=... e ?origem=sales)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pedidoIdParam = searchParams.get('id');
+  const numeroPedidoParam = searchParams.get('numero');
+  const origemParam = searchParams.get('origem');
+
   // Modais e Detalhes
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
+
+  const handleVoltarListaPedidos = () => {
+    setPedidoSelecionado(null);
+    if (origemParam === 'sales') {
+      navigate('/sales');
+    } else if (searchParams.has('id') || searchParams.has('numero') || searchParams.has('origem')) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('id');
+      nextParams.delete('numero');
+      nextParams.delete('origem');
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
 
   // Opções de status permitidas para alteração no pedido selecionado
   const opcoesStatusSelecionado = useMemo(() => {
@@ -192,16 +211,83 @@ export const PedidosLista: React.FC = () => {
   const [campoOrdenacao, setCampoOrdenacao] = useState<OrdenacaoCampo>('data');
   const [direcaoOrdenacao, setDirecaoOrdenacao] = useState<OrdenacaoDirecao>('desc');
 
+  // Seleciona pedido automaticamente se fornecido via parâmetro na URL (?id=... ou ?numero=...)
+  useEffect(() => {
+    if (!pedidoIdParam && !numeroPedidoParam) return;
+
+    if (
+      pedidoSelecionado &&
+      (pedidoSelecionado.id === pedidoIdParam ||
+        (numeroPedidoParam && String(pedidoSelecionado.numero_pedido) === String(numeroPedidoParam)))
+    ) {
+      return;
+    }
+
+    if (pedidos.length > 0) {
+      const match = pedidos.find(
+        (p) =>
+          p.id === pedidoIdParam ||
+          (numeroPedidoParam && String(p.numero_pedido) === String(numeroPedidoParam))
+      );
+      if (match) {
+        setPedidoSelecionado(match);
+        return;
+      }
+    }
+
+    if (loja?.id && !carregando) {
+      let q = supabase
+        .from('pedidos')
+        .select(`
+          *,
+          cliente:clientes(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+          atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
+          itens:itens_pedido(*),
+          pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+          pagamentos_previstos:pedidos_pagamentos_previstos(*),
+          historico:historico_pedidos(*, usuario:usuarios_loja(*)),
+          pedido_entregas(*)
+        `)
+        .eq('loja_id', loja.id);
+
+      if (pedidoIdParam) {
+        q = q.eq('id', pedidoIdParam);
+      } else if (numeroPedidoParam) {
+        q = q.eq('numero_pedido', Number(numeroPedidoParam));
+      }
+
+      q.maybeSingle().then(({ data, error }) => {
+        if (!error && data) {
+          const rawEntrega = (data as any).pedido_entregas || data.pedido_entrega;
+          const pe = Array.isArray(rawEntrega) ? (rawEntrega[0] || null) : (rawEntrega || null);
+          setPedidoSelecionado({
+            ...data,
+            pedido_entrega: pe,
+            pedido_entregas: rawEntrega
+          } as unknown as Pedido);
+        }
+      });
+    }
+  }, [pedidoIdParam, numeroPedidoParam, pedidos, loja?.id, carregando]);
+
   // Escuta reset de navegação do menu superior
   useEffect(() => {
     const handleMenuNav = (e: any) => {
       if (e.detail?.path === '/orders') {
         setPedidoSelecionado(null);
+        if (searchParams.has('id') || searchParams.has('numero') || searchParams.has('origem')) {
+          const nextParams = new URLSearchParams(searchParams);
+          nextParams.delete('id');
+          nextParams.delete('numero');
+          nextParams.delete('origem');
+          setSearchParams(nextParams, { replace: true });
+        }
       }
     };
     window.addEventListener('hubi_navegacao_menu', handleMenuNav);
     return () => window.removeEventListener('hubi_navegacao_menu', handleMenuNav);
-  }, []);
+  }, [searchParams]);
 
 
   const handleSalvarObservacao = async () => {
@@ -1669,6 +1755,8 @@ export const PedidosLista: React.FC = () => {
           clientes={clientes}
           usuarios={usuarios}
           carregando={carregando}
+          pedidoSelecionadoInicial={pedidoSelecionado}
+          onVoltarOrigem={handleVoltarListaPedidos}
           onAlterarStatus={atualizarStatus}
           onCancelarPedido={(ped) => atualizarStatus(ped.id, 'cancelado')}
           onAbrirReceberPagamento={(ped) => {
@@ -1694,9 +1782,9 @@ export const PedidosLista: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPedidoSelecionado(null)}
+                onClick={handleVoltarListaPedidos}
                 className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
-                title="Voltar para a lista de pedidos"
+                title={origemParam === 'sales' ? 'Voltar para Vendas' : 'Voltar para a lista de pedidos'}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>

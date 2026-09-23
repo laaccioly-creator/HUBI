@@ -953,13 +953,13 @@ export const VendasHistorico: React.FC = () => {
                         foiCancelada ? 'opacity-60 bg-rose-950/10' : ''
                       }`}
                     >
-                      {/* Código da Venda (TELA006) */}
+                      {/* Código da Venda / Pedido */}
                       <td className="py-3.5 px-4 font-mono font-medium">
                         <button
                           type="button"
-                          onClick={() => setVendaReciboModal(venda)}
+                          onClick={() => navigate(`/orders?id=${venda.id}&origem=sales`)}
                           className="inline-flex items-center gap-1.5 text-slate-300 hover:text-emerald-400 transition cursor-pointer font-bold"
-                          title="Clique para abrir o Recibo da Venda (TELA006)"
+                          title={`Clique para abrir o Pedido ${codigoFormatado}`}
                         >
                           <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400" />
                           <span>{codigoFormatado}</span>
@@ -1028,22 +1028,32 @@ export const VendasHistorico: React.FC = () => {
                         })()}
                       </td>
 
-                      {/* Ações: Cancelar Venda (TELA005) */}
+                      {/* Ações: Recibo da Venda (TELA006) e Cancelamento (TELA005) */}
                       <td className="py-3.5 px-4 text-center">
-                        {foiCancelada ? (
-                          <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">
-                            Cancelada
-                          </span>
-                        ) : (
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
-                            onClick={() => setVendaCancelarModal(venda)}
-                            className="p-1.5 rounded-lg text-rose-400/80 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
-                            title="Cancelar venda (TELA005)"
+                            onClick={() => setVendaReciboModal(venda)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition cursor-pointer"
+                            title="Ver Recibo da Venda (TELA006)"
                           >
-                            <Ban className="w-4 h-4" />
+                            <Receipt className="w-4 h-4" />
                           </button>
-                        )}
+                          {foiCancelada ? (
+                            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">
+                              Cancelada
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setVendaCancelarModal(venda)}
+                              className="p-1.5 rounded-lg text-rose-400/80 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
+                              title="Cancelar venda (TELA005)"
+                            >
+                              <Ban className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -609,6 +609,28 @@ serve(async (req: Request) => {
         }));
       }
 
+      // Sanitização de logradouro para remover caracteres especiais, vírgulas no final e evitar duplicar o número
+      const limparLogradouro = (logr: string, num?: string) => {
+        let limpo = (logr || "").trim();
+        limpo = limpo.replace(/,\s*$/, "");
+        if (num && num !== "S/N" && limpo.endsWith(num)) {
+          limpo = limpo.slice(0, -num.length).trim().replace(/,\s*$/, "");
+        }
+        return limpo.replace(/[/;:"]/g, " ").trim() || "Rua";
+      };
+
+      const numOrigem = configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number || "S/N";
+      const ruaOrigem = limparLogradouro(
+        configShipping.origem_logradouro || loja?.endereco_logradouro || customPayload?.from?.address || "Rua",
+        numOrigem
+      );
+
+      const numDestino = entrega?.destino_numero || customPayload?.to?.number || "S/N";
+      const ruaDestino = limparLogradouro(
+        entrega?.destino_logradouro || customPayload?.to?.address || "Rua",
+        numDestino
+      );
+
       const cartPayload = {
         service: servicoCodigo,
         agency: null,
@@ -617,9 +639,10 @@ serve(async (req: Request) => {
           phone: lojaTel,
           email: lojaEmail,
           document: docLoja,
-          address: configShipping.origem_logradouro || loja?.endereco_logradouro || customPayload?.from?.address || "Rua",
+          state_register: (docLoja && docLoja.length > 11) ? undefined : "ISENTO",
+          address: ruaOrigem,
           complement: configShipping.origem_complemento || customPayload?.from?.complement || "",
-          number: configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number || "S/N",
+          number: numOrigem,
           district: configShipping.origem_bairro || loja?.endereco_bairro || customPayload?.from?.district || "Bairro",
           city: configShipping.origem_cidade || loja?.endereco_cidade || customPayload?.from?.city || "Cidade",
           state_abbr: (configShipping.origem_uf || loja?.endereco_estado || customPayload?.from?.state_abbr || "SP").toUpperCase(),
@@ -630,9 +653,9 @@ serve(async (req: Request) => {
           phone: clienteTel,
           email: clienteEmail,
           document: docCliente,
-          address: entrega?.destino_logradouro || customPayload?.to?.address || "Rua",
+          address: ruaDestino,
           complement: entrega?.destino_complemento || customPayload?.to?.complement || "",
-          number: entrega?.destino_numero || customPayload?.to?.number || "S/N",
+          number: numDestino,
           district: entrega?.destino_bairro || customPayload?.to?.district || "Bairro",
           city: entrega?.destino_cidade || customPayload?.to?.city || "Cidade",
           state_abbr: (entrega?.destino_uf || customPayload?.to?.state_abbr || "SP").toUpperCase(),

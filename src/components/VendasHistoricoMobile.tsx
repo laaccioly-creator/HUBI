@@ -21,7 +21,8 @@ import {
   Copy,
   Printer,
   Mail,
-  ArrowLeft
+  ArrowLeft,
+  Package
 } from 'lucide-react';
 import { Pedido, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
@@ -402,6 +403,18 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               </button>
             </div>
 
+            <button
+              type="button"
+              onClick={() => {
+                setVendaDetalhes(null);
+                navigate(`/orders?id=${vendaDetalhes.id}&origem=sales`);
+              }}
+              className="w-full mt-2 p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <Package className="w-4 h-4" />
+              <span>Ver Pedido Completo</span>
+            </button>
+
             {!cancelado && permissions.ehAdmin && (
               <button
                 type="button"
@@ -575,7 +588,17 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                         <span className="truncate max-w-[220px]">
                           {itens.length} itens: {itens.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                         </span>
-                        <span className="text-slate-400 font-mono">#{v.numero_pedido}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/orders?id=${v.id}&origem=sales`);
+                          }}
+                          className="text-slate-400 hover:text-emerald-600 font-mono font-bold transition cursor-pointer"
+                          title={`Abrir Pedido #${v.numero_pedido}`}
+                        >
+                          #{v.numero_pedido}
+                        </button>
                       </div>
 
                       {cli && (
