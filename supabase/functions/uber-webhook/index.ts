@@ -138,17 +138,20 @@ serve(async (req: Request) => {
         console.error("ERRO AO ATUALIZAR ENTREGA:", errEntrega);
       }
 
-      // Atualiza pedidos para status 'entregue' (mantém aberto para o operador clicar em [ Concluir ])
-      const { error: errPedido } = await supabaseAdmin
-        .from("pedidos")
-        .update({
-          status: "entregue",
-          atualizado_em: agoraIso,
-        })
-        .eq("id", pedidoId);
+      // Atualiza pedidos para status 'entregue' (preservando pedidos concluídos ou cancelados)
+      const { data: pedDbUber } = await supabaseAdmin.from("pedidos").select("status").eq("id", pedidoId).maybeSingle();
+      if (pedDbUber?.status !== "concluido" && pedDbUber?.status !== "cancelado") {
+        const { error: errPedido } = await supabaseAdmin
+          .from("pedidos")
+          .update({
+            status: "entregue",
+            atualizado_em: agoraIso,
+          })
+          .eq("id", pedidoId);
 
-      if (errPedido) {
-        console.error("ERRO AO ATUALIZAR PEDIDO:", errPedido);
+        if (errPedido) {
+          console.error("ERRO AO ATUALIZAR PEDIDO:", errPedido);
+        }
       }
 
       // Registra evento no historico_pedidos

@@ -863,11 +863,18 @@ serve(async (req: Request) => {
         })
         .eq("pedido_id", pedidoId);
 
-      // 2. Atualiza pedidos (sem nunca forçar 'concluido')
+      // 2. Atualiza pedidos (preservando rigorosamente status 'concluido' ou 'cancelado')
+      const { data: pedDbME } = await supabaseAdmin.from("pedidos").select("status").eq("id", pedidoId).maybeSingle();
+      const statusFinal = (pedDbME?.status === "concluido" || pedido?.status === "concluido")
+        ? "concluido"
+        : (pedDbME?.status === "cancelado" || pedido?.status === "cancelado")
+          ? "cancelado"
+          : (statusEnvioTransportadora === "entregue" ? "entregue" : "enviado");
+
       await supabaseAdmin
         .from("pedidos")
         .update({
-          status: pedido?.status === "concluido" ? "concluido" : (statusEnvioTransportadora === "entregue" ? "entregue" : "enviado"),
+          status: statusFinal,
           codigo_rastreio: String(codigoRastreio),
           link_rastreio: linkRastreioOficial,
           despachado_em: despachadoEm,

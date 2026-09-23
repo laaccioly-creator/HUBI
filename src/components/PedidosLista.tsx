@@ -697,6 +697,11 @@ export const PedidosLista: React.FC = () => {
         return;
       }
 
+      if (pedAlvo.status === 'concluido' && novoStatus !== 'cancelado') {
+        mostrarAviso('Pedidos já concluídos (Vendas) são definitivos e não podem ter seu status alterado, exceto por cancelamento da venda.', 'Ação Bloqueada');
+        return;
+      }
+
       // Validação estrita: não permitir alterar para status desativados nas configurações da loja
       if (!isStatusPedidoAtivo(novoStatus, loja) && pedAlvo.status !== novoStatus) {
         mostrarAviso(

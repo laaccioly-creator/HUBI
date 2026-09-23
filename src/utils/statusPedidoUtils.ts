@@ -112,6 +112,14 @@ export function obterOpcoesStatusAlteracao(
     return [];
   }
 
+  // Pedidos concluídos (Vendas): a única ação permitida é o cancelamento
+  if (statusAtual === 'concluido') {
+    return [
+      { id: 'concluido', label: 'Concluído' },
+      { id: 'cancelado', label: 'Cancelar Venda' }
+    ];
+  }
+
   // 1. Ciclo estrito para pedidos Pendentes: status atual é Pendente, e só pode evoluir para Confirmado ou Cancelado
   if (statusAtual === 'pendente') {
     return [
@@ -191,11 +199,19 @@ export function validarTransicaoStatusPedido(
     };
   }
 
-  // Cancelamento é permitido a partir de qualquer status que não seja concluído
-  if (novoStatus === 'cancelado') {
-    if (statusAtual === 'concluido') {
-      return { permitido: false, motivo: 'Pedidos já concluídos não podem ser cancelados diretamente por este seletor.' };
+  // Pedidos concluídos (Vendas): a única transição permitida é o cancelamento
+  if (statusAtual === 'concluido') {
+    if (novoStatus === 'cancelado') {
+      return { permitido: true };
     }
+    return {
+      permitido: false,
+      motivo: 'Pedidos já concluídos (Vendas) são definitivos e não podem ter seu status alterado para outros fluxos, permitindo apenas o cancelamento.'
+    };
+  }
+
+  // Cancelamento é permitido a partir de qualquer status
+  if (novoStatus === 'cancelado') {
     return { permitido: true };
   }
 

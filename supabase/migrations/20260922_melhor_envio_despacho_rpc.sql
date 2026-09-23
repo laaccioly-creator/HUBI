@@ -132,7 +132,7 @@ BEGIN
         WHERE pedido_id = p_pedido_id;
 
         UPDATE public.pedidos
-        SET status = 'enviado',
+        SET status = CASE WHEN status = 'concluido' THEN 'concluido' WHEN status = 'cancelado' THEN 'cancelado' ELSE 'enviado' END,
             codigo_rastreio = v_tracking,
             link_rastreio = v_url_rastreio,
             despachado_em = v_now,

@@ -805,10 +805,17 @@ export class ShippingOrchestrator {
       entregaAjustada.destino_cep ? `CEP ${entregaAjustada.destino_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null
     ].filter(Boolean).join(', ') || pedido.endereco_entrega || null;
 
+    const { data: pedDbUber } = await supabase.from('pedidos').select('status').eq('id', pedido.id).maybeSingle();
+    const statusDestinoUber = (pedDbUber?.status === 'concluido' || pedido.status === 'concluido')
+      ? 'concluido'
+      : (pedDbUber?.status === 'cancelado')
+        ? 'cancelado'
+        : 'enviado';
+
     await supabase
       .from('pedidos')
       .update({
-        status: 'enviado',
+        status: statusDestinoUber,
         codigo_rastreio: resultado.delivery_id,
         link_rastreio: resultado.link_rastreio,
         pin_entrega: resultado.pin_entrega || null,
@@ -860,11 +867,18 @@ export class ShippingOrchestrator {
       despachado_por: usuarioId || null
     });
 
-    // 2. Snapshot e transição de status para enviado
+    // 2. Snapshot e transição de status para enviado (preservando pedidos já concluídos ou cancelados)
+    const { data: pedDbME } = await supabase.from('pedidos').select('status').eq('id', pedido.id).maybeSingle();
+    const statusDestinoME = (pedDbME?.status === 'concluido' || pedido.status === 'concluido')
+      ? 'concluido'
+      : (pedDbME?.status === 'cancelado')
+        ? 'cancelado'
+        : 'enviado';
+
     await supabase
       .from('pedidos')
       .update({
-        status: 'enviado',
+        status: statusDestinoME,
         codigo_rastreio: resultado.codigo_rastreio,
         link_rastreio: urlRastreioOficial,
         despachado_em: despachadoEm,
@@ -903,11 +917,13 @@ export class ShippingOrchestrator {
       })
       .eq('pedido_id', pedidoId);
 
-    // 2. Snapshot e transição de status para enviado
+    // 2. Snapshot e transição de status para enviado (preservando pedidos já concluídos ou cancelados)
+    const statusDestinoProprio = pedDb?.status === 'concluido' ? 'concluido' : 'enviado';
+
     await supabase
       .from('pedidos')
       .update({
-        status: 'enviado',
+        status: statusDestinoProprio,
         entregador_nome: entregadorNome || null,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,
@@ -940,10 +956,12 @@ export class ShippingOrchestrator {
       })
       .eq('pedido_id', pedidoId);
 
+    const statusDestinoManual = pedDb?.status === 'concluido' ? 'concluido' : 'enviado';
+
     await supabase
       .from('pedidos')
       .update({
-        status: 'enviado',
+        status: statusDestinoManual,
         despachado_em: agora,
         despachado_por: usuarioLojaId || null,
         atualizado_em: agora
@@ -1339,11 +1357,13 @@ export class ShippingOrchestrator {
       })
       .eq('pedido_id', pedidoId);
 
-    // 2. Atualizar snapshot relacional em pedidos
+    // 2. Atualizar snapshot relacional em pedidos (preservando status concluído ou cancelado)
+    const statusDestinoTransp = pedDb?.status === 'concluido' ? 'concluido' : 'enviado';
+
     await supabase
       .from('pedidos')
       .update({
-        status: 'enviado',
+        status: statusDestinoTransp,
         entregador_nome: dados.entregadorNome?.trim() || null,
         codigo_rastreio: dados.codigoRastreio?.trim() || null,
         link_rastreio: dados.linkRastreio?.trim() || null,
@@ -1528,11 +1548,15 @@ export class ShippingOrchestrator {
       };
     }
 
-    // 5. Atualizar snapshot relacional na tabela pedidos com status = 'aguardando_envio' e endereco_entrega
+    // 5. Atualizar snapshot relacional na tabela pedidos (preservando pedidos concluídos ou cancelados)
+    const statusDestinoEnvio = (pedAtual?.status === 'concluido' || pedAtual?.status === 'cancelado')
+      ? pedAtual.status
+      : 'aguardando_envio';
+
     const { error: errPed } = await supabase
       .from('pedidos')
       .update({
-        status: 'aguardando_envio',
+        status: statusDestinoEnvio,
         endereco_entrega: textoEnderecoEntrega,
         valor_frete: Number(valorFrete || 0),
         valor_total: novoValorTotal,
