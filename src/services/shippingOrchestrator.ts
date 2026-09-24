@@ -1336,6 +1336,24 @@ export class ShippingOrchestrator {
     }
   }
 
+  private static sanitizarErroLogistica(error: unknown, fallback: string): Error {
+    if (!error) return new Error(fallback);
+    const msg = typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : String(error);
+
+    if (/row-level security|policy|permission denied|42501/i.test(msg)) {
+      return new Error('Não foi possível salvar os dados devido a restrições de permissão. Tente novamente.');
+    }
+    if (/foreign key|violates foreign key|23503/i.test(msg)) {
+      return new Error('Registro referenciado não foi encontrado.');
+    }
+    if (/unique|duplicate key|23505/i.test(msg)) {
+      return new Error('Já existe um registro com estes dados.');
+    }
+    return new Error(fallback);
+  }
+
   public static async criarAppEntrega(lojaId: string, nome: string): Promise<AppEntrega> {
     if (!lojaId) throw new Error('ID da loja é obrigatório.');
     if (!nome.trim()) throw new Error('Nome do aplicativo é obrigatório.');
@@ -1352,7 +1370,7 @@ export class ShippingOrchestrator {
 
     if (error) {
       console.error('[ShippingOrchestrator] Erro ao criar app_entrega:', error);
-      throw new Error(error.message || 'Erro ao cadastrar aplicativo de entrega.');
+      throw this.sanitizarErroLogistica(error, 'Erro ao cadastrar aplicativo de entrega.');
     }
     return data as AppEntrega;
   }
@@ -1367,7 +1385,7 @@ export class ShippingOrchestrator {
 
     if (error) {
       console.error('[ShippingOrchestrator] Erro ao atualizar app_entrega:', error);
-      throw new Error(error.message || 'Erro ao atualizar aplicativo.');
+      throw this.sanitizarErroLogistica(error, 'Erro ao atualizar aplicativo.');
     }
   }
 
@@ -1381,7 +1399,7 @@ export class ShippingOrchestrator {
 
     if (error) {
       console.error('[ShippingOrchestrator] Erro ao excluir app_entrega:', error);
-      throw new Error(error.message || 'Erro ao excluir aplicativo.');
+      throw this.sanitizarErroLogistica(error, 'Erro ao excluir aplicativo.');
     }
   }
 
@@ -1453,7 +1471,7 @@ export class ShippingOrchestrator {
 
     if (error) {
       console.error('[ShippingOrchestrator] Erro ao criar transportadora:', error);
-      throw new Error(error.message || 'Erro ao cadastrar transportadora.');
+      throw this.sanitizarErroLogistica(error, 'Erro ao cadastrar transportadora.');
     }
     return data as Transportadora;
   }
@@ -1472,7 +1490,7 @@ export class ShippingOrchestrator {
 
     if (error) {
       console.error('[ShippingOrchestrator] Erro ao atualizar transportadora:', error);
-      throw new Error(error.message || 'Erro ao atualizar transportadora.');
+      throw this.sanitizarErroLogistica(error, 'Erro ao atualizar transportadora.');
     }
   }
 
@@ -1486,7 +1504,7 @@ export class ShippingOrchestrator {
 
     if (error) {
       console.error('[ShippingOrchestrator] Erro ao excluir transportadora:', error);
-      throw new Error(error.message || 'Erro ao excluir transportadora.');
+      throw this.sanitizarErroLogistica(error, 'Erro ao excluir transportadora.');
     }
   }
 
