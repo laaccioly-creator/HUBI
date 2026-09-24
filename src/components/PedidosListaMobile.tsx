@@ -266,7 +266,6 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
     if (codRastreio) {
       navigator.clipboard.writeText(codRastreio);
-      alert(`Código "${codRastreio}" copiado! Abrindo site da transportadora...`);
     }
 
     const transpId = pe?.transportadora_id || (ped as any)?.transportadora_id;

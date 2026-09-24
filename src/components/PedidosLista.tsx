@@ -208,7 +208,6 @@ export const PedidosLista: React.FC = () => {
 
     if (codRastreio) {
       navigator.clipboard.writeText(codRastreio);
-      mostrarSucesso(`Código "${codRastreio}" copiado! Abrindo site da transportadora...`);
     }
 
     const transpId = pe?.transportadora_id || (ped as any)?.transportadora_id;
