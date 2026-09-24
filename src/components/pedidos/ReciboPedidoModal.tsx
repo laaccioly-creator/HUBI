@@ -45,12 +45,20 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedido.forma_entrega?.nome || (pedido as any).nome_transportadora || '').trim();
     const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
+    const ehMelhorEnvio =
+      provedor === 'melhor_envio' ||
+      (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
+      (pe?.provedor as any) === 'melhor_envio' ||
+      transp.toLowerCase().includes('melhor envio') ||
+      transp.toLowerCase().includes('melhorenvio');
+
     const ehTransportadoraPrivada =
-      pe?.tipo_operacao === 'transportadora' ||
+      !ehMelhorEnvio &&
+      (pe?.tipo_operacao === 'transportadora' ||
       (pedido as any)?.tipo_operacao === 'transportadora' ||
       Boolean(pe?.transportadora_id) ||
       transp.toLowerCase().includes('jadlog') ||
-      (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios'));
+      (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios')));
 
     const servicoCorreios =
       (pedido as any).servico_correios ||
@@ -82,7 +90,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
         transp.toLowerCase().includes('lalamove')
       ));
 
-    if (ehTransportadoraPrivada) {
+    if (ehMelhorEnvio) {
+      if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+        formaEntregaTexto = 'MELHOR ENVIO (JADLOG)';
+      } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+        formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'MELHOR ENVIO (CORREIOS)';
+      } else {
+        formaEntregaTexto = transp ? (transp.toUpperCase().includes('MELHOR ENVIO') ? transp.toUpperCase() : `MELHOR ENVIO (${transp.toUpperCase()})`) : 'MELHOR ENVIO';
+      }
+    } else if (ehTransportadoraPrivada) {
       formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog').toUpperCase();
     } else if (ehCorreios) {
       formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';

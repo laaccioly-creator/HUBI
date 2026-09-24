@@ -229,15 +229,18 @@ export const obterInfoEntregaRecibo = (
 
   const ehMelhorEnvio =
     provedor === 'melhor_envio' ||
+    (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
+    (pe?.provedor as any) === 'melhor_envio' ||
     transp.toLowerCase().includes('melhor envio') ||
     transp.toLowerCase().includes('melhorenvio');
 
   const ehTransportadoraPrivada =
-    pe?.tipo_operacao === 'transportadora' ||
+    !ehMelhorEnvio &&
+    (pe?.tipo_operacao === 'transportadora' ||
     (pedido as any)?.tipo_operacao === 'transportadora' ||
     Boolean(pe?.transportadora_id) ||
     transp.toLowerCase().includes('jadlog') ||
-    (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios'));
+    (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios')));
 
   const servicoCorreios =
     (pedido as any).servico_correios ||

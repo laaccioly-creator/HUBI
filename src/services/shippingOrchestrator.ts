@@ -646,10 +646,14 @@ export class ShippingOrchestrator {
     let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'melhor_envio';
     if (entrega.tipo_atendimento === 'retirada' || entrega.provedor === 'retirada_loja') {
       provedorFinal = 'retirada_loja';
+    } else if (entrega.provedor === 'melhor_envio') {
+      provedorFinal = 'melhor_envio';
+    } else if (entrega.tipo_operacao === 'app_entrega') {
+      provedorFinal = 'frete_proprio';
+    } else if (entrega.provedor === 'uber' || (entrega.transportadora_nome || '').toLowerCase().includes('uber direct')) {
+      provedorFinal = 'uber';
     } else if (entrega.provedor === 'frete_proprio' || (entrega.transportadora_nome || '').toLowerCase().includes('frete próprio') || (entrega.transportadora_nome || '').toLowerCase().includes('próprio')) {
       provedorFinal = 'frete_proprio';
-    } else if (entrega.provedor === 'uber' || (entrega.transportadora_nome || '').toLowerCase().includes('uber')) {
-      provedorFinal = 'uber';
     } else {
       provedorFinal = 'melhor_envio';
     }
@@ -1670,23 +1674,25 @@ export class ShippingOrchestrator {
     if (resultado.tipo_atendimento === 'retirada') {
       provedorFinal = 'retirada_loja';
     } else if (
-      pe.tipo_operacao === 'app_entrega' ||
-      pe.tipo_operacao === 'transportadora' ||
-      pe.provedor === 'frete_proprio'
-    ) {
-      provedorFinal = 'frete_proprio';
-    } else if (
-      pe.provedor === 'uber' ||
-      resultado.opcao_frete?.provedor === 'uber' ||
-      ((pe.transportadora_nome || '').toLowerCase().includes('uber direct') && pe.tipo_operacao !== 'app_entrega')
-    ) {
-      provedorFinal = 'uber';
-    } else if (
       pe.provedor === 'melhor_envio' ||
       resultado.opcao_frete?.provedor === 'melhor_envio' ||
       (pe.transportadora_nome || '').toLowerCase().includes('melhor envio')
     ) {
       provedorFinal = 'melhor_envio';
+    } else if (
+      pe.tipo_operacao !== 'app_entrega' && (
+        pe.provedor === 'uber' ||
+        resultado.opcao_frete?.provedor === 'uber' ||
+        ((pe.transportadora_nome || '').toLowerCase().includes('uber direct'))
+      )
+    ) {
+      provedorFinal = 'uber';
+    } else if (
+      pe.tipo_operacao === 'app_entrega' ||
+      pe.tipo_operacao === 'transportadora' ||
+      pe.provedor === 'frete_proprio'
+    ) {
+      provedorFinal = 'frete_proprio';
     }
 
     // Texto consolidado do endereço para a coluna pedidos.endereco_entrega

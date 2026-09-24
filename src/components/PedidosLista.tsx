@@ -417,14 +417,38 @@ export const PedidosLista: React.FC = () => {
     let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
     let provNome = 'Frete Próprio / Entrega Local';
 
+    const ehMelhorEnvio =
+      peProvedor === 'melhor_envio' ||
+      metaProvedor === 'melhor_envio' ||
+      diretoProvedor === 'melhor_envio' ||
+      textoConsolidado.includes('melhor envio') ||
+      textoConsolidado.includes('melhorenvio');
+
+    const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
+    const ehAppEntrega =
+      pe?.tipo_operacao === 'app_entrega' ||
+      (pedido as any)?.tipo_operacao === 'app_entrega' ||
+      Boolean(pe?.app_entrega_id) ||
+      Boolean(nomeApp);
+
+    const ehUberDirect =
+      !ehMelhorEnvio &&
+      !ehAppEntrega &&
+      (peProvedor === 'uber' ||
+      metaProvedor === 'uber' ||
+      diretoProvedor === 'uber' ||
+      textoConsolidado.includes('uber direct'));
+
     const ehTransportadoraPrivada =
-      pe?.tipo_operacao === 'transportadora' ||
+      !ehMelhorEnvio &&
+      !ehUberDirect &&
+      (pe?.tipo_operacao === 'transportadora' ||
       (pedido as any)?.tipo_operacao === 'transportadora' ||
       Boolean(pe?.transportadora_id) ||
       peTransp.toLowerCase().includes('jadlog') ||
       metaTransp.toLowerCase().includes('jadlog') ||
       diretoTransp.toLowerCase().includes('jadlog') ||
-      ((peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) && !textoConsolidado.includes('correios'));
+      ((peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) && !textoConsolidado.includes('correios')));
 
     const servicoCorreios =
       (pedido as any)?.servico_correios ||
@@ -434,6 +458,8 @@ export const PedidosLista: React.FC = () => {
       (!ehTransportadoraPrivada ? detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio) : null);
 
     const ehCorreios =
+      !ehMelhorEnvio &&
+      !ehUberDirect &&
       !ehTransportadoraPrivada &&
       (peProvedor === 'correios' ||
       metaProvedor === 'correios' ||
@@ -445,16 +471,20 @@ export const PedidosLista: React.FC = () => {
       diretoTransp.toLowerCase().includes('correios') ||
       Boolean(servicoCorreios));
 
-    const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
-    const ehAppEntrega =
-      pe?.tipo_operacao === 'app_entrega' ||
-      (pedido as any)?.tipo_operacao === 'app_entrega' ||
-      Boolean(pe?.app_entrega_id) ||
-      Boolean(nomeApp);
-
     if (isRetirada) {
       prov = 'retirada_loja';
       provNome = 'Retirada na Loja';
+    } else if (ehMelhorEnvio) {
+      prov = 'melhor_envio';
+      const transpNomeBase = peTransp || metaTransp || diretoTransp || '';
+      if (transpNomeBase && !transpNomeBase.toLowerCase().includes('melhor envio')) {
+        provNome = `Melhor Envio (${formatarNomeTransportadora(transpNomeBase)})`;
+      } else {
+        provNome = transpNomeBase || 'Melhor Envio';
+      }
+    } else if (ehUberDirect) {
+      prov = 'uber';
+      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
     } else if (ehAppEntrega) {
       prov = 'frete_proprio';
       provNome = nomeApp || (peTransp && peTransp.toLowerCase() !== 'entrega' && !peTransp.toLowerCase().includes('corrida') ? peTransp : 'Uber Flash');
@@ -471,31 +501,6 @@ export const PedidosLista: React.FC = () => {
     ) {
       prov = 'frete_proprio';
       provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
-    } else if (
-      peProvedor === 'uber' ||
-      metaProvedor === 'uber' ||
-      diretoProvedor === 'uber'
-    ) {
-      prov = 'uber';
-      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
-    } else if (
-      peProvedor === 'melhor_envio' ||
-      metaProvedor === 'melhor_envio' ||
-      diretoProvedor === 'melhor_envio'
-    ) {
-      prov = 'melhor_envio';
-      provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
-    } else if (
-      textoConsolidado.includes('uber direct')
-    ) {
-      prov = 'uber';
-      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
-    } else if (
-      textoConsolidado.includes('melhor envio') ||
-      textoConsolidado.includes('melhorenvio')
-    ) {
-      prov = 'melhor_envio';
-      provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
     } else if (Number(pedido.valor_frete || 0) > 0 || pedido.endereco_entrega) {
       prov = 'frete_proprio';
       provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
@@ -511,7 +516,10 @@ export const PedidosLista: React.FC = () => {
     if (opTipo === 'transportadora' || opTipo === 'motoboy' || opTipo === 'app_entrega' || opTipo === 'retirada') {
       return false;
     }
-    const { provNome, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+    const { provNome, pe, prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+    if (prov === 'melhor_envio' || prov === 'uber') {
+      return false;
+    }
     if (provNome.toLowerCase().includes('jadlog') || provNome.toLowerCase().includes('transportadora')) {
       return false;
     }
@@ -1034,7 +1042,7 @@ export const PedidosLista: React.FC = () => {
     }
 
     // Se for Frete Próprio ou Entrega Manual/Transportadora da Loja, abre modal
-    if (prov === 'frete_proprio' || pe?.provedor === 'frete_proprio') {
+    if (prov === 'frete_proprio' || (pe?.provedor === 'frete_proprio' && prov !== 'melhor_envio' && prov !== 'uber')) {
       const servicoDetectado = (ped.servico_correios as any) || (pe?.servico_correios as any) || (detectarServicoPorCodigo(ped.codigo_rastreio || pe?.codigo_rastreio) === 'PAC' ? 'PAC' : 'SEDEX');
       setEntregadorNomeDespacho(ped.entregador_nome || pe?.entregador_nome || '');
       setContatoEntregadorDespacho(ped.contato_entregador || pe?.contato_entregador || '');

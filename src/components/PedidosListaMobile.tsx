@@ -1022,12 +1022,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const diretoTransp = String((pedidoSelecionado as any)?.nome_transportadora || (pedidoSelecionado as any)?.transportadora_nome || (pedidoSelecionado as any)?.forma_entrega_nome || '').trim();
                 const tipoOperacao = (pedidoSelecionado as any)?.tipo_operacao || pe?.tipo_operacao;
 
+                const ehMelhorEnvio =
+                  prov === 'melhor_envio' ||
+                  pe?.provedor === 'melhor_envio' ||
+                  (pedidoSelecionado as any)?.metadados?.provedor_frete === 'melhor_envio' ||
+                  transpRaw.toLowerCase().includes('melhor envio');
+
                 const ehTransportadoraPrivada =
-                  tipoOperacao === 'transportadora' ||
+                  !ehMelhorEnvio &&
+                  (tipoOperacao === 'transportadora' ||
                   Boolean(pe?.transportadora_id) ||
                   Boolean((pedidoSelecionado as any)?.transportadora_id) ||
                   (Boolean(metaTransp) && !metaTransp.toLowerCase().includes('correios')) ||
-                  (Boolean(diretoTransp) && !diretoTransp.toLowerCase().includes('correios') && (diretoTransp.toLowerCase().includes('jadlog') || diretoTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('braspress') || diretoTransp.toLowerCase().includes('azul') || diretoTransp.toLowerCase().includes('latam') || diretoTransp.toLowerCase().includes('total express') || diretoTransp.toLowerCase().includes('rodonaves')));
+                  (Boolean(diretoTransp) && !diretoTransp.toLowerCase().includes('correios') && (diretoTransp.toLowerCase().includes('jadlog') || diretoTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('braspress') || diretoTransp.toLowerCase().includes('azul') || diretoTransp.toLowerCase().includes('latam') || diretoTransp.toLowerCase().includes('total express') || diretoTransp.toLowerCase().includes('rodonaves'))));
 
                 const servicoDetectado = ehTransportadoraPrivada ? null : detectarServicoPorCodigo(codigoRastreio);
                 const servicoCorreios = !ehTransportadoraPrivada
@@ -1035,6 +1042,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   : null;
 
                 const ehCorreios =
+                  !ehMelhorEnvio &&
                   !ehTransportadoraPrivada &&
                   (pe?.tipo_operacao === 'correios' ||
                   (pedidoSelecionado as any)?.tipo_operacao === 'correios' ||
@@ -1042,14 +1050,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   transpRaw.toLowerCase().includes('correios') ||
                   Boolean(servicoCorreios));
 
-                const temDadosEntrega = Boolean(prov || ehCorreios || ehTransportadoraPrivada || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio || codigoRastreio);
+                const temDadosEntrega = Boolean(prov || ehMelhorEnvio || ehCorreios || ehTransportadoraPrivada || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio || codigoRastreio);
                 if (!temDadosEntrega) return null;
 
-                const provNome = ehTransportadoraPrivada
+                const provNome = ehMelhorEnvio
+                  ? (transpRaw && !transpRaw.toLowerCase().includes('melhor envio') ? `Melhor Envio (${formatarNomeTransportadora(transpRaw)})` : (transpRaw || 'Melhor Envio'))
+                  : ehTransportadoraPrivada
                   ? formatarNomeTransportadora(transpRaw || metaTransp || diretoTransp || 'Jadlog')
                   : ehCorreios
                   ? (servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios')
-                  : prov === 'uber' ? 'Uber Direct' : prov === 'melhor_envio' ? 'Melhor Envio' : prov === 'retirada_loja' ? 'Retirada na Loja' : (transpRaw || 'Frete Próprio / Entrega Local');
+                  : prov === 'uber' ? 'Uber Direct' : prov === 'retirada_loja' ? 'Retirada na Loja' : (transpRaw || 'Frete Próprio / Entrega Local');
                 const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
                 const linkRastreio = pe?.link_rastreio || pedidoSelecionado.link_rastreio;
                 const pin = pe?.pin_entrega;
