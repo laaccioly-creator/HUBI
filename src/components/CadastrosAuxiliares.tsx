@@ -183,7 +183,6 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [transpEditando, setTranspEditando] = useState<Transportadora | null>(null);
   const [transpNome, setTranspNome] = useState<string>('');
   const [transpSite, setTranspSite] = useState<string>('');
-  const [transpUrlRastreio, setTranspUrlRastreio] = useState<string>('');
   const [transpContato, setTranspContato] = useState<string>('');
   const [transpTelefone, setTranspTelefone] = useState<string>('');
   const [transpWhatsapp, setTranspWhatsapp] = useState<string>('');
@@ -898,7 +897,6 @@ export const CadastrosAuxiliares: React.FC = () => {
     setTranspEditando(null);
     setTranspNome('');
     setTranspSite('');
-    setTranspUrlRastreio('');
     setTranspContato('');
     setTranspTelefone('');
     setTranspWhatsapp('');
@@ -910,7 +908,6 @@ export const CadastrosAuxiliares: React.FC = () => {
     setTranspEditando(t);
     setTranspNome(t.nome || '');
     setTranspSite(t.site || '');
-    setTranspUrlRastreio(t.url_rastreio || '');
     setTranspContato(t.pessoa_contato || '');
     setTranspTelefone(t.telefone || '');
     setTranspWhatsapp(t.whatsapp || '');
@@ -927,7 +924,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       const dados = {
         nome: transpNome.trim(),
         site: transpSite.trim() || null,
-        url_rastreio: transpUrlRastreio.trim() || null,
+        url_rastreio: null,
         pessoa_contato: transpContato.trim() || null,
         telefone: transpTelefone.trim() || null,
         whatsapp: transpWhatsapp.trim() || null,
@@ -2523,12 +2520,6 @@ export const CadastrosAuxiliares: React.FC = () => {
                               </a>
                             </div>
                           )}
-                          {t.url_rastreio && (
-                            <div className="flex items-center gap-1.5 font-mono text-[10px] text-slate-400 md:text-slate-500 truncate" title={t.url_rastreio}>
-                              <ExternalLink className="w-3.5 h-3.5 shrink-0 text-amber-500" />
-                              <span className="truncate">{t.url_rastreio}</span>
-                            </div>
-                          )}
                           <div className="flex items-center gap-3 flex-wrap pt-0.5">
                             {t.telefone && (
                               <div className="flex items-center gap-1">
@@ -3269,22 +3260,6 @@ export const CadastrosAuxiliares: React.FC = () => {
                     className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
-                  URL Direta para Rastreamento:
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://rastreio.transportadora.com.br?codigo={codigo}"
-                  value={transpUrlRastreio}
-                  onChange={(e) => setTranspUrlRastreio(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
-                />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  💡 Use <code className="bg-slate-200 md:bg-slate-800 px-1 py-0.5 rounded text-amber-500 font-bold">&#123;codigo&#125;</code> para que o sistema insira automaticamente o código do pedido.
-                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

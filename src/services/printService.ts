@@ -10,6 +10,7 @@
 import { Pedido, Loja, ItemPedido } from '../types';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { detectarServicoPorCodigo } from '../utils/correiosValidator';
+import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 
 export const formatarDataRecibo = (dataIso?: string | null): string => {
   if (!dataIso) return '';
@@ -217,25 +218,48 @@ export const obterInfoEntregaRecibo = (
     };
   }
 
+  const ehMelhorEnvio =
+    provedor === 'melhor_envio' ||
+    transp.toLowerCase().includes('melhor envio') ||
+    transp.toLowerCase().includes('melhorenvio');
+
+  const ehTransportadoraPrivada =
+    pe?.tipo_operacao === 'transportadora' ||
+    (pedido as any)?.tipo_operacao === 'transportadora' ||
+    Boolean(pe?.transportadora_id) ||
+    transp.toLowerCase().includes('jadlog') ||
+    (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios'));
+
   const servicoCorreios =
     (pedido as any).servico_correios ||
     pe?.servico_correios ||
-    (servico === '1' || servico.includes('sedex') || transp.toLowerCase().includes('sedex') ? 'SEDEX' : '') ||
-    (servico === '2' || servico.includes('pac') || transp.toLowerCase().includes('pac') ? 'PAC' : '') ||
-    detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio);
+    (servico === '1' || servico.includes('sedex') || (transp.toLowerCase().includes('sedex') && !ehTransportadoraPrivada) ? 'SEDEX' : '') ||
+    (servico === '2' || servico.includes('pac') || (transp.toLowerCase().includes('pac') && !ehTransportadoraPrivada) ? 'PAC' : '') ||
+    (!ehTransportadoraPrivada ? detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio) : null);
 
   const ehCorreios =
-    provedor === 'correios' ||
+    !ehTransportadoraPrivada &&
+    (provedor === 'correios' ||
     pe?.tipo_operacao === 'correios' ||
     transp.toLowerCase().includes('correios') ||
     servico.includes('correios') ||
     servico === '1' ||
     servico === '2' ||
-    Boolean(servicoCorreios);
+    Boolean(servicoCorreios));
 
   let formaEntregaTexto = 'Frete Próprio';
 
-  if (ehCorreios) {
+  if (ehMelhorEnvio) {
+    if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+      formaEntregaTexto = 'Melhor Envio (Jadlog)';
+    } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+      formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Melhor Envio (Correios)';
+    } else {
+      formaEntregaTexto = transp ? `Melhor Envio (${transp})` : 'Melhor Envio';
+    }
+  } else if (ehTransportadoraPrivada) {
+    formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog');
+  } else if (ehCorreios) {
     formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
   } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
     formaEntregaTexto = 'Uber Flash';
@@ -244,18 +268,6 @@ export const obterInfoEntregaRecibo = (
       formaEntregaTexto = transp;
     } else {
       formaEntregaTexto = 'Frete Próprio';
-    }
-  } else if (
-    provedor === 'melhor_envio' ||
-    transp.toLowerCase().includes('melhor envio') ||
-    transp.toLowerCase().includes('melhorenvio')
-  ) {
-    if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-      formaEntregaTexto = 'Melhor Envio (Jadlog)';
-    } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-      formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Melhor Envio (Correios)';
-    } else {
-      formaEntregaTexto = transp ? `Melhor Envio (${transp})` : 'Melhor Envio';
     }
   } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
     formaEntregaTexto = transp;

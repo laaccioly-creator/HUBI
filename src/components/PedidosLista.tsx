@@ -50,10 +50,11 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
-import { PedidoEntrega } from '../types/shipping';
+import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
+import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { audioService } from '../services/audioService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -190,6 +191,51 @@ export const PedidosLista: React.FC = () => {
   const [cpfClienteInput, setCpfClienteInput] = useState<string>('');
   const [salvandoCpfEDespachando, setSalvandoCpfEDespachando] = useState<boolean>(false);
   const [pedidoPendenteDespacho, setPedidoPendenteDespacho] = useState<{ ped: Pedido; entrega: PedidoEntrega } | null>(null);
+  const [transportadorasLista, setTransportadorasLista] = useState<Transportadora[]>([]);
+
+  useEffect(() => {
+    if (loja?.id) {
+      ShippingOrchestrator.listarTransportadoras(loja.id)
+        .then(setTransportadorasLista)
+        .catch(() => {});
+    }
+  }, [loja?.id]);
+
+  const handleRastrearTransportadora = (ped: Pedido) => {
+    const raw = (ped as any).pedido_entregas || ped.pedido_entrega || entregaPedido;
+    const pe: PedidoEntrega | null = Array.isArray(raw) ? (raw[0] || null) : (raw || null);
+    const codRastreio = (pe?.codigo_rastreio || ped.codigo_rastreio || '').trim();
+
+    if (codRastreio) {
+      navigator.clipboard.writeText(codRastreio);
+      mostrarSucesso(`Código "${codRastreio}" copiado! Abrindo site da transportadora...`);
+    }
+
+    const transpId = pe?.transportadora_id || (ped as any)?.transportadora_id;
+    const transpNome = pe?.transportadora_nome || (ped as any)?.nome_transportadora || (ped as any)?.transportadora_nome || '';
+
+    const transpObj = transportadorasLista.find(t =>
+      (transpId && t.id === transpId) ||
+      (transpNome && t.nome.toLowerCase() === transpNome.toLowerCase()) ||
+      (transpNome && t.nome.toLowerCase().includes('jadlog') && transpNome.toLowerCase().includes('jadlog'))
+    );
+
+    let siteUrl = transpObj?.site?.trim() || '';
+    if (!siteUrl && (transpNome.toLowerCase().includes('jadlog') || String((ped as any)?.forma_entrega_nome || '').toLowerCase().includes('jadlog'))) {
+      siteUrl = 'https://www.jadlog.com.br/jadlog/home';
+    }
+
+    if (siteUrl) {
+      const urlFinal = siteUrl.startsWith('http://') || siteUrl.startsWith('https://')
+        ? siteUrl
+        : `https://${siteUrl}`;
+      window.open(urlFinal, '_blank', 'noopener,noreferrer');
+    } else {
+      const termo = transpNome ? `rastreamento ${transpNome}` : 'rastreamento transportadora';
+      const busca = `https://www.google.com/search?q=${encodeURIComponent(termo)}`;
+      window.open(busca, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   useEffect(() => {
     if (pedidoSelecionado) {
@@ -372,15 +418,25 @@ export const PedidosLista: React.FC = () => {
     let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
     let provNome = 'Frete Próprio / Entrega Local';
 
+    const ehTransportadoraPrivada =
+      pe?.tipo_operacao === 'transportadora' ||
+      (pedido as any)?.tipo_operacao === 'transportadora' ||
+      Boolean(pe?.transportadora_id) ||
+      peTransp.toLowerCase().includes('jadlog') ||
+      metaTransp.toLowerCase().includes('jadlog') ||
+      diretoTransp.toLowerCase().includes('jadlog') ||
+      ((peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) && !textoConsolidado.includes('correios'));
+
     const servicoCorreios =
       (pedido as any)?.servico_correios ||
       pe?.servico_correios ||
-      (textoConsolidado.includes('sedex') ? 'SEDEX' : '') ||
-      (textoConsolidado.includes('pac') ? 'PAC' : '') ||
-      detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio);
+      (textoConsolidado.includes('sedex') && !ehTransportadoraPrivada ? 'SEDEX' : '') ||
+      (textoConsolidado.includes('pac') && !ehTransportadoraPrivada ? 'PAC' : '') ||
+      (!ehTransportadoraPrivada ? detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio) : null);
 
     const ehCorreios =
-      peProvedor === 'correios' ||
+      !ehTransportadoraPrivada &&
+      (peProvedor === 'correios' ||
       metaProvedor === 'correios' ||
       diretoProvedor === 'correios' ||
       pe?.tipo_operacao === 'correios' ||
@@ -388,11 +444,14 @@ export const PedidosLista: React.FC = () => {
       peTransp.toLowerCase().includes('correios') ||
       metaTransp.toLowerCase().includes('correios') ||
       diretoTransp.toLowerCase().includes('correios') ||
-      Boolean(servicoCorreios);
+      Boolean(servicoCorreios));
 
     if (isRetirada) {
       prov = 'retirada_loja';
       provNome = 'Retirada na Loja';
+    } else if (ehTransportadoraPrivada) {
+      prov = 'frete_proprio';
+      provNome = formatarNomeTransportadora(peTransp || metaTransp || diretoTransp || 'Jadlog');
     } else if (ehCorreios) {
       prov = 'frete_proprio';
       provNome = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
@@ -441,7 +500,13 @@ export const PedidosLista: React.FC = () => {
   const ehDespachoCorreios = useMemo(() => {
     if (!pedidoSelecionado) return false;
     const opTipo = entregaPedido?.tipo_operacao || (pedidoSelecionado as any)?.tipo_operacao || entregaPedido?.tipo_entrega;
+    if (opTipo === 'transportadora' || opTipo === 'motoboy' || opTipo === 'app_entrega' || opTipo === 'retirada') {
+      return false;
+    }
     const { provNome, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+    if (provNome.toLowerCase().includes('jadlog') || provNome.toLowerCase().includes('transportadora')) {
+      return false;
+    }
     return (
       opTipo === 'correios' ||
       pe?.tipo_operacao === 'correios' ||
@@ -453,6 +518,22 @@ export const PedidosLista: React.FC = () => {
       String(entregaPedido?.transportadora_nome || '').toLowerCase().includes('correios') ||
       Boolean(pedidoSelecionado.servico_correios) ||
       Boolean(pe?.servico_correios)
+    );
+  }, [pedidoSelecionado, entregaPedido]);
+
+  // Identificação para despacho via Transportadora Privada (Jadlog, etc.)
+  const ehDespachoTransportadora = useMemo(() => {
+    if (!pedidoSelecionado) return false;
+    const opTipo = entregaPedido?.tipo_operacao || (pedidoSelecionado as any)?.tipo_operacao || entregaPedido?.tipo_entrega;
+    const { provNome, pe, prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+    if (prov === 'melhor_envio') return false;
+    return (
+      opTipo === 'transportadora' ||
+      pe?.tipo_operacao === 'transportadora' ||
+      Boolean(pe?.transportadora_id) ||
+      provNome.toLowerCase().includes('transportadora') ||
+      provNome.toLowerCase().includes('jadlog') ||
+      String(entregaPedido?.transportadora_nome || pedidoSelecionado.nome_transportadora || '').toLowerCase().includes('jadlog')
     );
   }, [pedidoSelecionado, entregaPedido]);
 
@@ -2358,6 +2439,34 @@ export const PedidosLista: React.FC = () => {
                       )}
 
                       {(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (() => {
+                        if (ehDespachoTransportadora) {
+                          return (
+                            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRastrearTransportadora(pedidoSelecionado)}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                <span>Rastrear Envio na Transportadora</span>
+                              </button>
+
+                              {(pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta) && (
+                                <a
+                                  href={pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                  title="Imprimir Etiqueta Oficial da Transportadora (PDF)"
+                                >
+                                  <Tag className="w-3.5 h-3.5" />
+                                  <span>Imprimir Etiqueta</span>
+                                </a>
+                              )}
+                            </div>
+                          );
+                        }
+
                         if (ehDespachoCorreios) {
                           return (
                             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -3136,12 +3245,36 @@ export const PedidosLista: React.FC = () => {
                                       const { prov, pe, provNome } = resolverProvedorEntrega(pedido);
                                       const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
                                       const cod = (pedido.codigo_rastreio || pe?.codigo_rastreio || '').trim();
+
+                                      const ehTranspManual =
+                                        prov !== 'melhor_envio' &&
+                                        (provNome.toLowerCase().includes('transportadora') ||
+                                        provNome.toLowerCase().includes('jadlog') ||
+                                        pe?.tipo_operacao === 'transportadora' ||
+                                        (pedido as any)?.tipo_operacao === 'transportadora' ||
+                                        Boolean(pe?.transportadora_id));
+
                                       const ehCorreios =
-                                        provNome.toLowerCase().includes('correios') ||
+                                        !ehTranspManual &&
+                                        (provNome.toLowerCase().includes('correios') ||
                                         pe?.tipo_operacao === 'correios' ||
                                         (pedido as any)?.tipo_operacao === 'correios' ||
                                         Boolean(pedido.servico_correios || pe?.servico_correios) ||
-                                        detectarServicoPorCodigo(cod) !== null;
+                                        detectarServicoPorCodigo(cod) !== null);
+
+                                      if (ehTranspManual && cod) {
+                                        return (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRastrearTransportadora(pedido)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
+                                            title="Rastrear envio na Transportadora"
+                                          >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                            <span>Rastrear</span>
+                                          </button>
+                                        );
+                                      }
 
                                       if (ehCorreios && cod) {
                                         return (
@@ -3426,29 +3559,38 @@ export const PedidosLista: React.FC = () => {
           const provedor = (pe?.provedor || (pedidoReciboModal as any).metadados?.provedor_frete || '').toLowerCase();
           const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedidoReciboModal.forma_entrega?.nome || (pedidoReciboModal as any).nome_transportadora || '').trim();
           const servico = (pe?.servico_codigo || (pedidoReciboModal as any).metadados?.servico_frete_codigo || '').toLowerCase();
+
+          const ehTransportadoraPrivada =
+            pe?.tipo_operacao === 'transportadora' ||
+            (pedidoReciboModal as any)?.tipo_operacao === 'transportadora' ||
+            Boolean(pe?.transportadora_id) ||
+            transp.toLowerCase().includes('jadlog') ||
+            (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios'));
+
           const servicoCorreios =
             (pedidoReciboModal as any)?.servico_correios ||
             pe?.servico_correios ||
-            (servico === '1' || servico.includes('sedex') || transp.toLowerCase().includes('sedex') ? 'SEDEX' : '') ||
-            (servico === '2' || servico.includes('pac') || transp.toLowerCase().includes('pac') ? 'PAC' : '') ||
-            detectarServicoPorCodigo(pe?.codigo_rastreio || pedidoReciboModal.codigo_rastreio);
+            (servico === '1' || servico.includes('sedex') || (transp.toLowerCase().includes('sedex') && !ehTransportadoraPrivada) ? 'SEDEX' : '') ||
+            (servico === '2' || servico.includes('pac') || (transp.toLowerCase().includes('pac') && !ehTransportadoraPrivada) ? 'PAC' : '') ||
+            (!ehTransportadoraPrivada ? detectarServicoPorCodigo(pe?.codigo_rastreio || pedidoReciboModal.codigo_rastreio) : null);
 
           const ehCorreios =
-            provedor === 'correios' ||
+            !ehTransportadoraPrivada &&
+            (provedor === 'correios' ||
             pe?.tipo_operacao === 'correios' ||
             (pedidoReciboModal as any)?.tipo_operacao === 'correios' ||
             transp.toLowerCase().includes('correios') ||
             servico.includes('correios') ||
             servico === '1' ||
             servico === '2' ||
-            Boolean(servicoCorreios);
+            Boolean(servicoCorreios));
 
-          if (ehCorreios) {
+          if (ehTransportadoraPrivada) {
+            formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog').toUpperCase();
+          } else if (ehCorreios) {
             formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';
           } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
             formaEntregaTexto = 'UBER FLASH';
-          } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-            formaEntregaTexto = 'JADLOG';
           } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
             formaEntregaTexto = transp.toUpperCase();
           } else if (pedidoReciboModal.status === 'envio_pendente' && Number(pedidoReciboModal.valor_frete || 0) === 0) {

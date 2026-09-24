@@ -31,7 +31,12 @@ export interface ValidacaoRastreioCorreios {
 export function detectarServicoPorCodigo(codigo: string | null | undefined): 'SEDEX' | 'PAC' | 'OUTRO' | null {
   if (!codigo) return null;
   const limpo = codigo.trim().toUpperCase().replace(/\s+/g, '');
-  if (limpo.length < 2) return null;
+  // Código oficial dos Correios (SRO) possui exatamente 13 caracteres e termina com BR
+  if (limpo.length !== 13 || !limpo.endsWith('BR')) return null;
+
+  // Valida estrutura alfanumérica básica dos Correios: 2 letras + 9 números + BR
+  const regexEstrutura = /^[A-Z]{2}[0-9]{9}BR$/;
+  if (!regexEstrutura.test(limpo)) return null;
 
   const prefixo = limpo.slice(0, 2);
   const p1 = prefixo[0];
