@@ -88,6 +88,50 @@ export interface ShippingFulfillmentSelectorProps {
   modoCompacto?: boolean;
 }
 
+const resolverEnderecoInicial = (
+  atual?: Partial<ClienteEndereco> | null,
+  cli?: ShippingFulfillmentSelectorProps['cliente'],
+  cliId?: string | null
+): ClienteEndereco | null => {
+  const cepAtual = (atual?.cep || '').replace(/\D/g, '');
+  if (atual && cepAtual.length === 8 && atual.logradouro && atual.numero && atual.numero !== 'S/N') {
+    return {
+      id: atual.id || 'end-pedido-atual',
+      cliente_id: cli?.id || cliId || 'temp',
+      identificador: atual.identificador || 'Endereço Atual do Pedido',
+      cep: cepAtual,
+      logradouro: atual.logradouro || '',
+      numero: atual.numero || 'S/N',
+      complemento: atual.complemento || null,
+      bairro: atual.bairro || '',
+      cidade: atual.cidade || '',
+      uf: atual.uf || 'CE',
+      is_principal: Boolean(atual.is_principal)
+    };
+  }
+
+  const cepCli = (cli?.endereco_cep || cli?.cep || '').replace(/\D/g, '');
+  const logrCli = (cli?.endereco_logradouro || cli?.rua || cli?.endereco || '').trim();
+  const numCli = (cli?.endereco_numero || cli?.numero || '').trim();
+  if (cepCli.length === 8 && logrCli) {
+    return {
+      id: 'cli-inicial',
+      cliente_id: cli?.id || cliId || 'temp',
+      identificador: 'Principal',
+      cep: cepCli,
+      logradouro: logrCli,
+      numero: numCli || 'S/N',
+      complemento: (cli?.endereco_complemento || cli?.complemento || null)?.trim() || null,
+      bairro: (cli?.endereco_bairro || cli?.bairro || 'Centro').trim(),
+      cidade: (cli?.endereco_cidade || cli?.cidade || 'Fortaleza').trim(),
+      uf: (cli?.endereco_estado || cli?.estado || 'CE').trim().toUpperCase(),
+      is_principal: true
+    };
+  }
+
+  return null;
+};
+
 export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorProps> = ({
   lojaId,
   loja,
@@ -111,9 +155,25 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   // Aba ativa: 'retirada' ou 'entrega' (padrão 'retirada' se não informado)
   const [modalidade, setModalidade] = useState<TipoAtendimento>(tipoAtendimentoAtual || 'retirada');
 
-  // Endereço selecionado para entrega
-  const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(null);
-  const [carregandoEnderecos, setCarregandoEnderecos] = useState<boolean>(false);
+  // Endereço selecionado para entrega (resolução imediata para evitar tela piscando)
+  const enderecoInicialDetectado = useMemo(() => {
+    return resolverEnderecoInicial(enderecoEntregaAtual, cliente, clienteId);
+  }, [enderecoEntregaAtual, cliente, clienteId]);
+
+  const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(enderecoInicialDetectado);
+  const [carregandoEnderecos, setCarregandoEnderecos] = useState<boolean>(!enderecoInicialDetectado && Boolean(clienteId));
+
+  useEffect(() => {
+    if (enderecoInicialDetectado) {
+      setEnderecoSelecionado(prev => {
+        if (!prev || (prev.cep !== enderecoInicialDetectado.cep || prev.logradouro !== enderecoInicialDetectado.logradouro)) {
+          return enderecoInicialDetectado;
+        }
+        return prev;
+      });
+    }
+  }, [enderecoInicialDetectado]);
+
   const [modalEscolherOutroAberto, setModalEscolherOutroAberto] = useState<boolean>(false);
   const [modalMapaLojaAberto, setModalMapaLojaAberto] = useState<boolean>(false);
 
@@ -356,7 +416,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       }
 
       if (clienteId) {
-        setCarregandoEnderecos(true);
+        setEnderecoSelecionado(prev => {
+          if (!prev) setCarregandoEnderecos(true);
+          return prev;
+        });
         try {
           const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
           if (ativo) {
@@ -1030,7 +1093,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   return (
     <div className={`space-y-4 ${className}`}>
       {/* 1. CARD DE ENDEREÇO DE ENTREGA (Exibido apenas quando há endereço válido ou durante carregamento) */}
-      {carregandoEnderecos ? (
+      {carregandoEnderecos && !enderecoSelecionado ? (
         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
           <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
           <span>Carregando dados de endereço...</span>
@@ -1198,7 +1261,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           </div>
 
           {/* Validação de Endereço do Cliente */}
-          {(!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
+          {carregandoEnderecos && !enderecoSelecionado ? (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-400 text-xs">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+              <span>Verificando endereço para entrega...</span>
+            </div>
+          ) : (!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
             <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-slate-800 space-y-2">
               <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
