@@ -54,7 +54,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const [eventosRastreioLocal, setEventosRastreioLocal] = useState<any[]>([]);
 
   const peResolvido: PedidoEntrega | null =
-    entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+    entrega || (Array.isArray((pedido as any)?.pedido_entregas) ? (pedido as any)?.pedido_entregas[0] : (pedido as any)?.pedido_entregas) || pedido?.pedido_entrega || null;
 
   // Carrega dados da transportadora vinculada caso seja modalidade transportadora manual
   React.useEffect(() => {
@@ -62,7 +62,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     async function carregarTransp() {
       if (!isOpen || !pedido) return;
       const peCurrent: PedidoEntrega | null =
-        entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+        entrega || (Array.isArray((pedido as any)?.pedido_entregas) ? (pedido as any)?.pedido_entregas[0] : (pedido as any)?.pedido_entregas) || pedido?.pedido_entrega || null;
       const transpId = peCurrent?.transportadora_id;
       const lojaId = loja?.id || pedido?.loja_id;
 
@@ -173,7 +173,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     if (sincronizadoRef.current === pedido.id) return;
 
     const peCurrent: PedidoEntrega | null =
-      entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+      entrega || (Array.isArray((pedido as any)?.pedido_entregas) ? (pedido as any)?.pedido_entregas[0] : (pedido as any)?.pedido_entregas) || pedido?.pedido_entrega || null;
     const prov = peCurrent?.provedor || (pedido?.metadados as any)?.provedor_frete;
     const cod = (peCurrent?.codigo_rastreio || pedido?.codigo_rastreio || '').trim();
     const st = peCurrent?.status_envio;
@@ -201,7 +201,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
   const codigoRastreio = (codigoRastreioLocal || pe?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
   const linkRastreio = (linkRastreioLocal || pe?.link_rastreio || pedido.link_rastreio || '').trim();
-  const linkEtiqueta = (pe?.link_etiqueta || (pedido as any).link_etiqueta || '').trim();
+  const linkEtiqueta = (pe?.link_etiqueta || (pedido as any).link_etiqueta || (pedido as any).metadados?.link_etiqueta || '').trim();
 
   const servicoDetectado = detectarServicoPorCodigo(codigoRastreio);
   const servicoCorreios =

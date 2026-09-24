@@ -1173,16 +1173,28 @@ export const PedidosLista: React.FC = () => {
           ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
           : (resultado.link_rastreio && !resultado.link_rastreio.includes('imprimir') ? resultado.link_rastreio : null);
 
+        const codRastreioFinal = resultado.codigo_rastreio || (resultado as any).protocolo || ((resultado as any).ordem_id ? `ORD-${(resultado as any).ordem_id.slice(0, 8)}` : '');
+        const linkEtqFinal = resultado.link_etiqueta || '';
+
         setPedidos((prev) =>
           prev.map((p) =>
             p.id === ped.id
               ? {
                   ...p,
                   status: 'enviado',
-                  codigo_rastreio: resultado.codigo_rastreio,
+                  codigo_rastreio: codRastreioFinal,
                   link_rastreio: urlRastreio,
+                  link_etiqueta: linkEtqFinal,
                   despachado_em: agora,
-                  despachado_por: usuario?.id || null
+                  despachado_por: usuario?.id || null,
+                  pedido_entrega: p.pedido_entrega ? {
+                    ...p.pedido_entrega,
+                    status_envio: 'despachado',
+                    codigo_rastreio: codRastreioFinal,
+                    link_rastreio: urlRastreio,
+                    link_etiqueta: linkEtqFinal,
+                    despachado_em: agora
+                  } : p.pedido_entrega
                 }
               : p
           )
@@ -1193,10 +1205,19 @@ export const PedidosLista: React.FC = () => {
             ? {
                 ...prev,
                 status: 'enviado',
-                codigo_rastreio: resultado.codigo_rastreio,
+                codigo_rastreio: codRastreioFinal,
                 link_rastreio: urlRastreio,
+                link_etiqueta: linkEtqFinal,
                 despachado_em: agora,
-                despachado_por: usuario?.id || null
+                despachado_por: usuario?.id || null,
+                pedido_entrega: prev.pedido_entrega ? {
+                  ...prev.pedido_entrega,
+                  status_envio: 'despachado',
+                  codigo_rastreio: codRastreioFinal,
+                  link_rastreio: urlRastreio,
+                  link_etiqueta: linkEtqFinal,
+                  despachado_em: agora
+                } : prev.pedido_entrega
               }
             : null
         );
@@ -1204,7 +1225,15 @@ export const PedidosLista: React.FC = () => {
         const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
-        mostrarSucesso(`Etiqueta gerada com sucesso! Rastreio: ${resultado.codigo_rastreio}`);
+        mostrarSucesso(
+          codRastreioFinal
+            ? `Etiqueta gerada com sucesso! Rastreio: ${codRastreioFinal}`
+            : 'Etiqueta gerada com sucesso no Melhor Envio!'
+        );
+
+        if (linkEtqFinal) {
+          window.open(linkEtqFinal, '_blank', 'noopener,noreferrer');
+        }
       }
     } catch (err: any) {
       console.error('Erro ao despachar pedido via API integrada:', err);
@@ -3201,6 +3230,22 @@ export const PedidosLista: React.FC = () => {
                                (pedido as any).tipo_entrega === 'envio');
 
                             if (temEtiqueta) {
+                              const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
+                              if (linkEtqOficial) {
+                                return (
+                                  <a
+                                    href={linkEtqOficial}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition cursor-pointer"
+                                    title="Abrir Etiqueta Oficial do Melhor Envio (PDF)"
+                                  >
+                                    <Tag className="w-3 h-3" />
+                                    <span>Etiqueta</span>
+                                  </a>
+                                );
+                              }
+
                               return (
                                 <button
                                   type="button"

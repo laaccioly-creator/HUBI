@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { X, Printer, Package, Truck, MapPin, Building2, User, Barcode } from 'lucide-react';
+import { X, Printer, Package, Truck, MapPin, Building2, User, Barcode, Tag, ExternalLink } from 'lucide-react';
 import { Pedido, Loja } from '../../types';
 import { PedidoEntrega } from '../../types/shipping';
 
@@ -20,8 +20,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
 
   if (!isOpen || !pedido) return null;
 
-  const pe: PedidoEntrega | null =
-    (pedido as any).pedido_entregas?.[0] || pedido.pedido_entrega || null;
+  const rawPe = (pedido as any).pedido_entregas || pedido.pedido_entrega;
+  const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+  const linkEtiquetaOficial = (pe?.link_etiqueta || (pedido as any).link_etiqueta || (pedido as any).metadados?.link_etiqueta || '').trim();
 
   const transportadora =
     pe?.transportadora_nome ||
@@ -226,6 +227,25 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           </button>
         </div>
 
+        {/* Banner Etiqueta Oficial da Transportadora (Melhor Envio) */}
+        {linkEtiquetaOficial && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sky-300 text-xs font-bold">
+              <Tag className="w-4 h-4 shrink-0 text-sky-400" />
+              <span>Etiqueta Oficial gerada pelo Melhor Envio disponível para impressão!</span>
+            </div>
+            <a
+              href={linkEtiquetaOficial}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-sky-600/25 transition cursor-pointer active:scale-95"
+            >
+              <span>Abrir Etiqueta Oficial (PDF)</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        )}
+
         {/* Prévia da Etiqueta */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-950 flex justify-center">
           <div
@@ -319,13 +339,25 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           >
             Fechar
           </button>
+          {linkEtiquetaOficial && (
+            <a
+              href={linkEtiquetaOficial}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-sky-500/20 transition cursor-pointer active:scale-95"
+              title="Abrir Etiqueta Oficial do Melhor Envio (PDF)"
+            >
+              <Tag className="w-4 h-4" />
+              <span>Etiqueta Oficial (PDF)</span>
+            </a>
+          )}
           <button
             type="button"
             onClick={handleImprimir}
             className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" />
-            <span>Imprimir Etiqueta</span>
+            <span>Imprimir Etiqueta Térmica</span>
           </button>
         </div>
       </div>

@@ -951,8 +951,8 @@ serve(async (req: Request) => {
             statusEnvioTransportadora = "despachado";
           }
 
-          // Prioridade: tracking oficial (ex: código numérico Jadlog 830803761) > authorization_code > volumes > self_tracking
-          codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking;
+          // Prioridade: tracking oficial (ex: código numérico Jadlog 830803761) > authorization_code > volumes > self_tracking > protocol
+          codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking || orderData.protocol || "";
 
           if (codigoRastreio) {
             linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
@@ -971,7 +971,7 @@ serve(async (req: Request) => {
 
     // Fallback: se ainda assim não preencheu, tenta no cartData
     if (!codigoRastreio) {
-      codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || "";
+      codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || cartData.protocol || "";
     }
 
     if (!linkRastreioOficial && codigoRastreio) {
