@@ -12,28 +12,25 @@ import {
   Building2,
   AlertCircle,
   Gift,
-  Plus,
-  Edit,
-  Trash2,
   Package,
   X,
   Navigation,
-  Globe,
-  Phone,
-  MessageSquare,
-  ExternalLink
+  ChevronRight,
+  Layers,
+  PackageCheck
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
-import { LojaShippingConfig, AppEntrega, Transportadora } from '../../types/shipping';
-import { FormaEntrega, TipoEntrega } from '../../types';
+import { LojaShippingConfig } from '../../types/shipping';
 import { ModalTutorialUberDirect } from './ModalTutorialUberDirect';
 import { ModalTutorialMelhorEnvio } from './ModalTutorialMelhorEnvio';
 
 export const ShippingSettingsScreen: React.FC = () => {
   const { loja } = useAuth();
+  const navigate = useNavigate();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
 
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -45,9 +42,6 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [modalUberAberto, setModalUberAberto] = useState<boolean>(false);
   const [modalMelhorEnvioAberto, setModalMelhorEnvioAberto] = useState<boolean>(false);
 
-  // Gestão de exclusão de forma de entrega
-  const [formaExcluindo, setFormaExcluindo] = useState<FormaEntrega | null>(null);
-  const [excluindoForma, setExcluindoForma] = useState<boolean>(false);
 
   // Estados dos Campos
   // 1. Origem
@@ -86,357 +80,6 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [freteGratisAtivo, setFreteGratisAtivo] = useState<boolean>(false);
   const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<string>('');
 
-  // 6. Gestão de Formas de Entrega Relacionais (formas_entrega)
-  const [formasEntrega, setFormasEntrega] = useState<FormaEntrega[]>([]);
-  const [carregandoFormas, setCarregandoFormas] = useState<boolean>(false);
-  const [modalFormaAberto, setModalFormaAberto] = useState<boolean>(false);
-  const [formaEditando, setFormaEditando] = useState<FormaEntrega | null>(null);
-  const [salvandoForma, setSalvandoForma] = useState<boolean>(false);
-
-  const [formaNome, setFormaNome] = useState<string>('');
-  const [formaTipo, setFormaTipo] = useState<TipoEntrega>('proprio');
-  const [formaValorTaxa, setFormaValorTaxa] = useState<string>('0.00');
-  const [formaRequerEntregador, setFormaRequerEntregador] = useState<boolean>(false);
-  const [formaRequerRastreio, setFormaRequerRastreio] = useState<boolean>(false);
-  const [formaRequerLinkRastreio, setFormaRequerLinkRastreio] = useState<boolean>(false);
-  const [formaRequerPin, setFormaRequerPin] = useState<boolean>(false);
-
-  const carregarFormasEntrega = async () => {
-    if (!loja?.id) return;
-    setCarregandoFormas(true);
-    try {
-      const lista = await ShippingOrchestrator.listarFormasEntrega(loja.id);
-      setFormasEntrega(lista);
-    } catch (err) {
-      console.warn('Erro ao carregar formas de entrega:', err);
-    } finally {
-      setCarregandoFormas(false);
-    }
-  };
-
-  // 7. Gestão de Apps de Corrida (apps_entrega)
-  const [appsEntrega, setAppsEntrega] = useState<AppEntrega[]>([]);
-  const [carregandoApps, setCarregandoApps] = useState<boolean>(false);
-  const [modalAppAberto, setModalAppAberto] = useState<boolean>(false);
-  const [appNome, setAppNome] = useState<string>('');
-  const [salvandoApp, setSalvandoApp] = useState<boolean>(false);
-  const [appExcluindo, setAppExcluindo] = useState<AppEntrega | null>(null);
-  const [excluindoApp, setExcluindoApp] = useState<boolean>(false);
-
-  const carregarApps = async () => {
-    if (!loja?.id) return;
-    setCarregandoApps(true);
-    try {
-      const lista = await ShippingOrchestrator.listarAppsEntrega(loja.id);
-      setAppsEntrega(lista);
-    } catch (err) {
-      console.warn('Erro ao carregar apps de entrega:', err);
-    } finally {
-      setCarregandoApps(false);
-    }
-  };
-
-  const handleSalvarApp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loja?.id || !appNome.trim()) return;
-    setSalvandoApp(true);
-    try {
-      await ShippingOrchestrator.criarAppEntrega(loja.id, appNome.trim());
-      await carregarApps();
-      setModalAppAberto(false);
-      setAppNome('');
-      mostrarSucesso('Aplicativo de corrida cadastrado com sucesso!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao cadastrar aplicativo.';
-      mostrarErro(msg);
-    } finally {
-      setSalvandoApp(false);
-    }
-  };
-
-  const handleAlternarStatusApp = async (app: AppEntrega) => {
-    if (!loja?.id) return;
-    try {
-      await ShippingOrchestrator.atualizarAppEntrega(app.id, loja.id, { ativo: !app.ativo });
-      setAppsEntrega(prev => prev.map(a => a.id === app.id ? { ...a, ativo: !a.ativo } : a));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao atualizar status.';
-      mostrarErro(msg);
-    }
-  };
-
-  const handleConfirmarExclusaoApp = async () => {
-    if (!loja?.id || !appExcluindo) return;
-    setExcluindoApp(true);
-    try {
-      await ShippingOrchestrator.excluirAppEntrega(appExcluindo.id, loja.id);
-      await carregarApps();
-      setAppExcluindo(null);
-      mostrarSucesso('Aplicativo excluído com sucesso!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao excluir aplicativo.';
-      mostrarErro(msg);
-    } finally {
-      setExcluindoApp(false);
-    }
-  };
-
-  // 8. Gestão de Transportadoras (transportadoras)
-  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
-  const [carregandoTransp, setCarregandoTransp] = useState<boolean>(false);
-  const [modalTranspAberto, setModalTranspAberto] = useState<boolean>(false);
-  const [transpEditando, setTranspEditando] = useState<Transportadora | null>(null);
-  const [salvandoTransp, setSalvandoTransp] = useState<boolean>(false);
-  const [transpExcluindo, setTranspExcluindo] = useState<Transportadora | null>(null);
-  const [excluindoTransp, setExcluindoTransp] = useState<boolean>(false);
-
-  // Form Transportadora
-  const [transpNome, setTranspNome] = useState<string>('');
-  const [transpSite, setTranspSite] = useState<string>('');
-  const [transpUrlRastreio, setTranspUrlRastreio] = useState<string>('');
-  const [transpContato, setTranspContato] = useState<string>('');
-  const [transpTelefone, setTranspTelefone] = useState<string>('');
-  const [transpWhatsapp, setTranspWhatsapp] = useState<string>('');
-  const [transpObservacoes, setTranspObservacoes] = useState<string>('');
-
-  const carregarTransportadoras = async () => {
-    if (!loja?.id) return;
-    setCarregandoTransp(true);
-    try {
-      const lista = await ShippingOrchestrator.listarTransportadoras(loja.id);
-      setTransportadoras(lista);
-    } catch (err) {
-      console.warn('Erro ao carregar transportadoras:', err);
-    } finally {
-      setCarregandoTransp(false);
-    }
-  };
-
-  const abrirModalNovaTransp = () => {
-    setTranspEditando(null);
-    setTranspNome('');
-    setTranspSite('');
-    setTranspUrlRastreio('');
-    setTranspContato('');
-    setTranspTelefone('');
-    setTranspWhatsapp('');
-    setTranspObservacoes('');
-    setModalTranspAberto(true);
-  };
-
-  const abrirModalEditarTransp = (t: Transportadora) => {
-    setTranspEditando(t);
-    setTranspNome(t.nome || '');
-    setTranspSite(t.site || '');
-    setTranspUrlRastreio(t.url_rastreio || '');
-    setTranspContato(t.pessoa_contato || '');
-    setTranspTelefone(t.telefone || '');
-    setTranspWhatsapp(t.whatsapp || '');
-    setTranspObservacoes(t.observacoes || '');
-    setModalTranspAberto(true);
-  };
-
-  const handleSalvarTransp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loja?.id || !transpNome.trim()) return;
-    setSalvandoTransp(true);
-    try {
-      const dados = {
-        nome: transpNome.trim(),
-        site: transpSite.trim() || null,
-        url_rastreio: transpUrlRastreio.trim() || null,
-        pessoa_contato: transpContato.trim() || null,
-        telefone: transpTelefone.trim() || null,
-        whatsapp: transpWhatsapp.trim() || null,
-        observacoes: transpObservacoes.trim() || null,
-        ativo: transpEditando ? transpEditando.ativo : true
-      };
-
-      if (transpEditando) {
-        await ShippingOrchestrator.atualizarTransportadora(transpEditando.id, loja.id, dados);
-        mostrarSucesso('Transportadora atualizada com sucesso!');
-      } else {
-        await ShippingOrchestrator.criarTransportadora(loja.id, dados);
-        mostrarSucesso('Transportadora cadastrada com sucesso!');
-      }
-      await carregarTransportadoras();
-      setModalTranspAberto(false);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao salvar transportadora.';
-      mostrarErro(msg);
-    } finally {
-      setSalvandoTransp(false);
-    }
-  };
-
-  const handleAlternarStatusTransp = async (t: Transportadora) => {
-    if (!loja?.id) return;
-    try {
-      await ShippingOrchestrator.atualizarTransportadora(t.id, loja.id, { ativo: !t.ativo });
-      setTransportadoras(prev => prev.map(item => item.id === t.id ? { ...item, ativo: !item.ativo } : item));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao alterar status.';
-      mostrarErro(msg);
-    }
-  };
-
-  const handleConfirmarExclusaoTransp = async () => {
-    if (!loja?.id || !transpExcluindo) return;
-    setExcluindoTransp(true);
-    try {
-      await ShippingOrchestrator.excluirTransportadora(transpExcluindo.id, loja.id);
-      await carregarTransportadoras();
-      setTranspExcluindo(null);
-      mostrarSucesso('Transportadora removida com sucesso!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao excluir transportadora.';
-      mostrarErro(msg);
-    } finally {
-      setExcluindoTransp(false);
-    }
-  };
-
-  const handleMudarTipo = (novoTipo: TipoEntrega) => {
-    setFormaTipo(novoTipo);
-    if (novoTipo === 'retirada') {
-      setFormaRequerEntregador(false);
-      setFormaRequerRastreio(false);
-      setFormaRequerLinkRastreio(false);
-      setFormaRequerPin(false);
-    } else if (novoTipo === 'frota_propria' || novoTipo === 'motoboy' || novoTipo === 'proprio') {
-      setFormaRequerEntregador(true);
-      setFormaRequerRastreio(false);
-      setFormaRequerLinkRastreio(false);
-      setFormaRequerPin(false);
-    } else if (novoTipo === 'app_entrega') {
-      setFormaRequerEntregador(false);
-      setFormaRequerRastreio(false);
-      setFormaRequerLinkRastreio(true);
-      setFormaRequerPin(true);
-    } else if (novoTipo === 'correios' || novoTipo === 'transportadora') {
-      setFormaRequerEntregador(false);
-      setFormaRequerRastreio(true);
-      setFormaRequerLinkRastreio(false);
-      setFormaRequerPin(false);
-    }
-  };
-
-  const abrirModalNovaForma = () => {
-    setFormaEditando(null);
-    setFormaNome('');
-    setFormaTipo('frota_propria');
-    setFormaValorTaxa('0.00');
-    setFormaRequerEntregador(true);
-    setFormaRequerRastreio(false);
-    setFormaRequerLinkRastreio(false);
-    setFormaRequerPin(false);
-    setModalFormaAberto(true);
-  };
-
-  const abrirModalEditarForma = (forma: FormaEntrega) => {
-    setFormaEditando(forma);
-    setFormaNome(forma.nome);
-    const tipoMapeado = (forma.tipo === 'proprio' ? 'frota_propria' : forma.tipo) as TipoEntrega;
-    setFormaTipo(tipoMapeado);
-    setFormaValorTaxa(forma.valor_taxa != null ? String(forma.valor_taxa) : '0.00');
-    setFormaRequerEntregador(Boolean(forma.requer_entregador));
-    setFormaRequerRastreio(Boolean(forma.requer_codigo_rastreio));
-    setFormaRequerLinkRastreio(Boolean(forma.requer_link_rastreio));
-    setFormaRequerPin(Boolean(forma.requer_pin));
-    setModalFormaAberto(true);
-  };
-
-  const handleSalvarForma = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loja?.id) {
-      mostrarErro('Loja não identificada.');
-      return;
-    }
-    if (!formaNome.trim()) {
-      mostrarErro('O nome da modalidade de entrega é obrigatório.');
-      return;
-    }
-
-    console.log('[DEBUG handleSalvarForma] Salvando forma de entrega:', {
-      formaEditandoId: formaEditando?.id,
-      lojaId: loja.id,
-      formaNome: formaNome.trim(),
-      formaTipo,
-      formaValorTaxa,
-      formaRequerPin,
-      formaRequerEntregador,
-      formaRequerLinkRastreio,
-      formaRequerRastreio
-    });
-
-    try {
-      setSalvandoForma(true);
-      await ShippingOrchestrator.salvarFormaEntrega(loja.id, {
-        ...(formaEditando?.id ? { id: formaEditando.id } : {}),
-        loja_id: loja.id,
-        nome: formaNome.trim(),
-        tipo: formaTipo,
-        valor_taxa: parseFloat(formaValorTaxa.replace(',', '.')) || 0,
-        requer_entregador: Boolean(formaRequerEntregador),
-        requer_codigo_rastreio: Boolean(formaRequerRastreio),
-        requer_link_rastreio: Boolean(formaRequerLinkRastreio),
-        requer_pin: Boolean(formaRequerPin),
-        ativo: formaEditando ? formaEditando.ativo : true,
-        atualizado_em: new Date().toISOString()
-      });
-
-      // Recarregar imediatamente a listagem atualizada e fechar o modal
-      await carregarFormasEntrega();
-      setModalFormaAberto(false);
-      setFormaEditando(null);
-      mostrarSucesso(formaEditando ? 'Forma de envio atualizada com sucesso!' : 'Forma de envio cadastrada com sucesso!');
-    } catch (err: unknown) {
-      console.error('[ERRO handleSalvarForma]:', err);
-      const msg = err instanceof Error ? err.message : 'Erro ao salvar forma de entrega.';
-      mostrarErro(msg);
-    } finally {
-      setSalvandoForma(false);
-    }
-  };
-
-  const handleAlternarStatusForma = async (forma: FormaEntrega) => {
-    if (!loja?.id) return;
-    try {
-      const novoAtivo = !forma.ativo;
-      setFormasEntrega(prev => prev.map(f => f.id === forma.id ? { ...f, ativo: novoAtivo } : f));
-      await ShippingOrchestrator.alternarStatusFormaEntrega(forma.id, loja.id, novoAtivo);
-    } catch (err) {
-      console.error('Erro ao alternar status da forma de entrega:', err);
-      carregarFormasEntrega();
-    }
-  };
-
-  const handleConfirmarExclusao = async () => {
-    if (!formaExcluindo) return;
-    try {
-      setExcluindoForma(true);
-      const { error } = await supabase
-        .from('formas_entrega')
-        .delete()
-        .eq('id', formaExcluindo.id);
-
-      if (error) {
-        console.error('[ERRO Supabase DELETE formas_entrega]:', error);
-        throw new Error(`Erro ao excluir modalidade: ${error.message}`);
-      }
-
-      await carregarFormasEntrega();
-      setFormaExcluindo(null);
-      mostrarSucesso('Modalidade de entrega removida com sucesso!');
-    } catch (err: unknown) {
-      console.error('[ERRO handleConfirmarExclusao]:', err);
-      const msg = err instanceof Error ? err.message : 'Erro ao excluir modalidade de entrega.';
-      mostrarErro(msg);
-    } finally {
-      setExcluindoForma(false);
-    }
-  };
-
   // Carregar configurações
   useEffect(() => {
     let ativo = true;
@@ -445,9 +88,6 @@ export const ShippingSettingsScreen: React.FC = () => {
       if (!loja?.id) return;
       setCarregando(true);
       setErroMsg(null);
-      carregarFormasEntrega();
-      carregarApps();
-      carregarTransportadoras();
 
       try {
         const config = await ShippingOrchestrator.buscarConfigLoja(loja.id);
@@ -1192,373 +832,103 @@ export const ShippingSettingsScreen: React.FC = () => {
           )}
         </div>
 
-        {/* 6. GESTÃO RELACIONAL DE FORMAS DE ENTREGA (formas_entrega) */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+        {/* 6. ATALHOS PARA CADASTROS & TABELAS DE LOGÍSTICA */}
+        <div className="p-6 rounded-3xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black">
-                <Truck className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black">
+                <Layers className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Formas de Envio e Entrega da Loja
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  Tabelas e Cadastros de Entrega
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Centralizado
+                  </span>
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Cadastre e personalize os meios de entrega próprios ou parceiros oferecidos no checkout
+                <p className="text-xs text-slate-400">
+                  Os cadastros de modalidades, aplicativos de corrida e transportadoras agora ficam reunidos em Cadastros & Tabelas
                 </p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={abrirModalNovaForma}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition cursor-pointer shadow-sm active:scale-95 self-start sm:self-auto"
+              onClick={() => navigate('/cadastros?tab=formas_envio')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition cursor-pointer self-start sm:self-auto"
             >
-              <Plus className="w-4 h-4" />
-              <span>Nova Forma de Envio</span>
+              <span>Abrir Central de Cadastros</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {carregandoFormas ? (
-            <div className="p-8 flex items-center justify-center gap-2 text-xs text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              <span>Carregando formas de entrega...</span>
-            </div>
-          ) : formasEntrega.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-center">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Nenhuma forma de envio cadastrada. Clique em "Nova Forma de Envio" para adicionar.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {formasEntrega.map((forma) => (
-                <div
-                  key={forma.id}
-                  className={`p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 ${
-                    forma.ativo
-                      ? 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60'
-                      : 'bg-slate-100/40 dark:bg-slate-900/30 border-slate-200/50 dark:border-slate-800 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                      forma.tipo === 'retirada'
-                        ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                        : forma.tipo === 'transportadora'
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    }`}>
-                      {forma.tipo === 'retirada' ? <Store className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {forma.nome}
-                        </span>
-                        {forma.tipo === 'retirada' && forma.padrao && (
-                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                            Padrão
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                          {forma.tipo === 'retirada' ? 'Retirada na Loja' :
-                           forma.tipo === 'frota_propria' || forma.tipo === 'proprio' ? 'Frota Própria' :
-                           forma.tipo === 'motoboy' ? 'Motoboy' :
-                           forma.tipo === 'app_entrega' ? 'App de Corrida' :
-                           forma.tipo === 'correios' ? 'Correios' :
-                           forma.tipo === 'transportadora' ? 'Transportadora' : forma.tipo}
-                        </span>
-                        {forma.requer_entregador && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
-                            Requer Motoboy
-                          </span>
-                        )}
-                        {forma.requer_codigo_rastreio && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">
-                            Requer Rastreio
-                          </span>
-                        )}
-                        {forma.requer_link_rastreio && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
-                            Link Corrida
-                          </span>
-                        )}
-                        {forma.requer_pin && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">
-                            Requer PIN
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => abrirModalEditarForma(forma)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition cursor-pointer"
-                      title="Editar forma de envio"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-
-                    {forma.tipo !== 'retirada' && (
-                      <button
-                        type="button"
-                        onClick={() => setFormaExcluindo(forma)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                        title="Excluir modalidade"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    <label className="relative inline-flex items-center cursor-pointer ml-1">
-                      <input
-                        type="checkbox"
-                        checked={forma.ativo}
-                        onChange={() => handleAlternarStatusForma(forma)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Atalho 1: Formas de Envio */}
+            <div
+              onClick={() => navigate('/cadastros?tab=formas_envio')}
+              className="p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-blue-500/50 transition cursor-pointer group flex flex-col justify-between space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Truck className="w-4 h-4" />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 7. GESTÃO DE APLICATIVOS DE CORRIDA (apps_entrega) */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black">
-                <Navigation className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Aplicativos de Corrida & Entregas Rápidas
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Cadastre os serviços de corrida usados nos despachos manuais (ex: Uber Flash, 99Entrega, Lalamove)
+                <h4 className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors">
+                  Formas de Envio da Loja
+                </h4>
+                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
+                  Modalidades próprias, balcão, motoboy e regras de despacho.
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setAppNome('');
-                setModalAppAberto(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition cursor-pointer shadow-sm active:scale-95 self-start sm:self-auto"
+            {/* Atalho 2: Apps de Corrida */}
+            <div
+              onClick={() => navigate('/cadastros?tab=apps_corrida')}
+              className="p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-amber-500/50 transition cursor-pointer group flex flex-col justify-between space-y-3"
             >
-              <Plus className="w-4 h-4" />
-              <span>Novo Aplicativo</span>
-            </button>
-          </div>
-
-          {carregandoApps ? (
-            <div className="p-8 flex items-center justify-center gap-2 text-xs text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-              <span>Carregando aplicativos de entrega...</span>
-            </div>
-          ) : appsEntrega.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-center">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Nenhum aplicativo cadastrado. Clique em "Novo Aplicativo" para cadastrar (ex: Uber Flash, 99Entrega).
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {appsEntrega.map((app) => (
-                <div
-                  key={app.id}
-                  className={`p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 ${
-                    app.ativo
-                      ? 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60'
-                      : 'bg-slate-100/40 dark:bg-slate-900/30 border-slate-200/50 dark:border-slate-800 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Navigation className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {app.nome}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setAppExcluindo(app)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                      title="Excluir aplicativo"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-
-                    <label className="relative inline-flex items-center cursor-pointer ml-1">
-                      <input
-                        type="checkbox"
-                        checked={app.ativo}
-                        onChange={() => handleAlternarStatusApp(app)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Navigation className="w-4 h-4" />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 8. GESTÃO DE TRANSPORTADORAS (transportadoras) */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
-                <Truck className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Transportadoras Privadas & Cargas
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Cadastre empresas de logística parceiras com URLs de rastreamento direto e canais de contato
+                <h4 className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors">
+                  Apps de Corrida & Flash
+                </h4>
+                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
+                  Uber Flash, 99 Entrega, Lalamove, Borzo e links rápidos.
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={abrirModalNovaTransp}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 transition cursor-pointer shadow-sm active:scale-95 self-start sm:self-auto"
+            {/* Atalho 3: Transportadoras */}
+            <div
+              onClick={() => navigate('/cadastros?tab=transportadoras')}
+              className="p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-purple-500/50 transition cursor-pointer group flex flex-col justify-between space-y-3"
             >
-              <Plus className="w-4 h-4" />
-              <span>Nova Transportadora</span>
-            </button>
-          </div>
-
-          {carregandoTransp ? (
-            <div className="p-8 flex items-center justify-center gap-2 text-xs text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
-              <span>Carregando transportadoras...</span>
-            </div>
-          ) : transportadoras.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-center">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Nenhuma transportadora cadastrada. Clique em "Nova Transportadora" para adicionar (ex: Jadlog, Braspress, Total Express).
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {transportadoras.map((t) => (
-                <div
-                  key={t.id}
-                  className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 ${
-                    t.ativo
-                      ? 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60'
-                      : 'bg-slate-100/40 dark:bg-slate-900/30 border-slate-200/50 dark:border-slate-800 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 font-black">
-                        <Truck className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
-                          {t.nome}
-                        </span>
-                        {t.pessoa_contato && (
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
-                            Contato: {t.pessoa_contato}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => abrirModalEditarTransp(t)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition cursor-pointer"
-                        title="Editar transportadora"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setTranspExcluindo(t)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                        title="Excluir transportadora"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-
-                      <label className="relative inline-flex items-center cursor-pointer ml-1">
-                        <input
-                          type="checkbox"
-                          checked={t.ativo}
-                          onChange={() => handleAlternarStatusTransp(t)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Informações complementares */}
-                  <div className="space-y-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-                    {t.site && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Globe className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                        <a
-                          href={t.site.startsWith('http') ? t.site : `https://${t.site}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline truncate"
-                        >
-                          {t.site}
-                        </a>
-                      </div>
-                    )}
-                    {t.url_rastreio && (
-                      <div className="flex items-center gap-1.5 font-mono text-[10px] text-slate-400 dark:text-slate-500 truncate" title={t.url_rastreio}>
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0 text-amber-500" />
-                        <span className="truncate">{t.url_rastreio}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 flex-wrap pt-0.5">
-                      {t.telefone && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>{t.telefone}</span>
-                        </div>
-                      )}
-                      {t.whatsapp && (
-                        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                          <MessageSquare className="w-3 h-3" />
-                          <span>{t.whatsapp}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <PackageCheck className="w-4 h-4" />
                 </div>
-              ))}
+                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-white group-hover:text-purple-400 transition-colors">
+                  Transportadoras & Cargas
+                </h4>
+                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
+                  Braspress, Jadlog, Total Express, URLs de rastreio e SAC.
+                </p>
+              </div>
             </div>
-          )}
+          </div>
         </div>
+
+
 
         {/* Botão de Salvar Inferior */}
         <div className="flex justify-end pt-4">
@@ -1582,568 +952,11 @@ export const ShippingSettingsScreen: React.FC = () => {
         </div>
       </form>
 
-      {/* MODAL CADASTRAR / EDITAR FORMA DE ENTREGA */}
-      {modalFormaAberto && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <h3 className="font-black text-sm text-slate-800 dark:text-slate-100">
-                  {formaEditando ? 'Editar Forma de Envio' : 'Nova Forma de Envio'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalFormaAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSalvarForma} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Nome da Modalidade *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Transportadora Regional, Motoboy Terceirizado"
-                  value={formaNome}
-                  onChange={(e) => setFormaNome(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Tipo de Operação *
-                </label>
-                <select
-                  value={formaTipo}
-                  onChange={(e) => handleMudarTipo(e.target.value as TipoEntrega)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option value="retirada">Retirada na Loja (Balcão Físico)</option>
-                  <option value="frota_propria">Frota Própria (Entrega Local)</option>
-                  <option value="motoboy">Motoboy Terceirizado</option>
-                  <option value="app_entrega">App de Corrida (Uber / 99)</option>
-                  <option value="correios">Correios (PAC / SEDEX)</option>
-                  <option value="transportadora">Transportadora</option>
-                </select>
-              </div>
 
-              <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div
-                  role="checkbox"
-                  aria-checked={formaRequerEntregador}
-                  tabIndex={0}
-                  onClick={() => setFormaRequerEntregador(prev => !prev)}
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.key === 'Enter') {
-                      e.preventDefault();
-                      setFormaRequerEntregador(prev => !prev);
-                    }
-                  }}
-                  className="flex items-center gap-3 cursor-pointer select-none group"
-                >
-                  <div
-                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      formaRequerEntregador
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
-                    }`}
-                  >
-                    {formaRequerEntregador && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                  </div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                    Requer registrar nome do entregador no despacho
-                  </span>
-                </div>
 
-                <div
-                  role="checkbox"
-                  aria-checked={formaRequerRastreio}
-                  tabIndex={0}
-                  onClick={() => setFormaRequerRastreio(prev => !prev)}
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.key === 'Enter') {
-                      e.preventDefault();
-                      setFormaRequerRastreio(prev => !prev);
-                    }
-                  }}
-                  className="flex items-center gap-3 cursor-pointer select-none group"
-                >
-                  <div
-                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      formaRequerRastreio
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
-                    }`}
-                  >
-                    {formaRequerRastreio && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                  </div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                    Requer código de rastreamento no despacho
-                  </span>
-                </div>
 
-                <div
-                  role="checkbox"
-                  aria-checked={formaRequerLinkRastreio}
-                  tabIndex={0}
-                  onClick={() => setFormaRequerLinkRastreio(prev => !prev)}
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.key === 'Enter') {
-                      e.preventDefault();
-                      setFormaRequerLinkRastreio(prev => !prev);
-                    }
-                  }}
-                  className="flex items-center gap-3 cursor-pointer select-none group"
-                >
-                  <div
-                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      formaRequerLinkRastreio
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
-                    }`}
-                  >
-                    {formaRequerLinkRastreio && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                  </div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                    Requer link de rastreio da corrida no despacho (ex: Uber Flash, 99 Entregas)
-                  </span>
-                </div>
-
-                <div
-                  role="checkbox"
-                  aria-checked={formaRequerPin}
-                  tabIndex={0}
-                  onClick={() => setFormaRequerPin(prev => !prev)}
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.key === 'Enter') {
-                      e.preventDefault();
-                      setFormaRequerPin(prev => !prev);
-                    }
-                  }}
-                  className="flex items-center gap-3 cursor-pointer select-none group"
-                >
-                  <div
-                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      formaRequerPin
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 group-hover:border-slate-400'
-                    }`}
-                  >
-                    {formaRequerPin && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                  </div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                    Requer código PIN de confirmação (4 dígitos)
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setModalFormaAberto(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvandoForma}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition cursor-pointer shadow-md shadow-blue-600/20 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {salvandoForma && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{formaEditando ? 'Salvar Alterações' : 'Cadastrar Forma'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
-      {formaExcluindo && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-black text-sm text-slate-800 dark:text-slate-100">
-                  Excluir Modalidade
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Esta ação não poderá ser desfeita.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Deseja realmente remover a modalidade <strong className="text-slate-900 dark:text-white">"{formaExcluindo.nome}"</strong>?
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                disabled={excluindoForma}
-                onClick={() => setFormaExcluindo(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={excluindoForma}
-                onClick={handleConfirmarExclusao}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition cursor-pointer disabled:opacity-50 shadow-md shadow-red-600/20"
-              >
-                {excluindoForma ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Excluir Modalidade
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CADASTRAR APLICATIVO DE CORRIDA */}
-      {modalAppAberto && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <Navigation className="w-5 h-5" />
-                </div>
-                <h3 className="font-black text-sm text-slate-800 dark:text-slate-100">
-                  Novo Aplicativo de Corrida
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalAppAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSalvarApp} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Nome do Aplicativo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Uber Flash, 99Entrega, Lalamove, Borzo"
-                  value={appNome}
-                  onChange={(e) => setAppNome(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setModalAppAberto(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvandoApp || !appNome.trim()}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer shadow-md shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {salvandoApp && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Cadastrar Aplicativo</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EXCLUIR APLICATIVO */}
-      {appExcluindo && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-black text-sm text-slate-800 dark:text-slate-100">
-                  Excluir Aplicativo
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Esta ação não poderá ser desfeita.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Deseja realmente remover o aplicativo <strong className="text-slate-900 dark:text-white">"{appExcluindo.nome}"</strong>?
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                disabled={excluindoApp}
-                onClick={() => setAppExcluindo(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={excluindoApp}
-                onClick={handleConfirmarExclusaoApp}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition cursor-pointer disabled:opacity-50 shadow-md shadow-red-600/20"
-              >
-                {excluindoApp ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Excluir
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CADASTRAR / EDITAR TRANSPORTADORA */}
-      {modalTranspAberto && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <h3 className="font-black text-sm text-slate-800 dark:text-slate-100">
-                  {transpEditando ? 'Editar Transportadora' : 'Nova Transportadora'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalTranspAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSalvarTransp} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Nome da Transportadora *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Jadlog, Braspress, Total Express"
-                  value={transpNome}
-                  onChange={(e) => setTranspNome(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                    Site Oficial (URL)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://www.transportadora.com.br"
-                    value={transpSite}
-                    onChange={(e) => setTranspSite(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                    Pessoa de Contato / Representante
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Marcos (Comercial)"
-                    value={transpContato}
-                    onChange={(e) => setTranspContato(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                    URL de Rastreamento
-                  </label>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
-                    Use {'{{codigo}}'}
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  placeholder="https://tracking.empresa.com.br?codigo={{codigo}}"
-                  value={transpUrlRastreio}
-                  onChange={(e) => setTranspUrlRastreio(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                />
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                  Dica: Coloque <strong>{'{{codigo}}'}</strong> na posição em que o código de rastreio ou CTE do cliente deve ser inserido automaticamente.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                    Telefone
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="(11) 4000-0000"
-                    value={transpTelefone}
-                    onChange={(e) => setTranspTelefone(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                    WhatsApp para Suporte / Coleta
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="(11) 99999-9999"
-                    value={transpWhatsapp}
-                    onChange={(e) => setTranspWhatsapp(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Observações Internas
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Instruções de agendamento de coleta, faturamento quinzenal, etc."
-                  value={transpObservacoes}
-                  onChange={(e) => setTranspObservacoes(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setModalTranspAberto(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvandoTransp || !transpNome.trim()}
-                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition cursor-pointer shadow-md shadow-amber-600/20 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {salvandoTransp && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{transpEditando ? 'Salvar Alterações' : 'Cadastrar Transportadora'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EXCLUIR TRANSPORTADORA */}
-      {transpExcluindo && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-black text-sm text-slate-800 dark:text-slate-100">
-                  Excluir Transportadora
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Esta ação não poderá ser desfeita.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Deseja realmente remover a transportadora <strong className="text-slate-900 dark:text-white">"{transpExcluindo.nome}"</strong>?
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                disabled={excluindoTransp}
-                onClick={() => setTranspExcluindo(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={excluindoTransp}
-                onClick={handleConfirmarExclusaoTransp}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition cursor-pointer disabled:opacity-50 shadow-md shadow-red-600/20"
-              >
-                {excluindoTransp ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Excluir
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
