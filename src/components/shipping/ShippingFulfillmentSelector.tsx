@@ -674,7 +674,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       tipoEntregaCalculado = 'manual';
     }
 
-    const provedorFinal = (forma.tipo === 'transportadora' || forma.tipo === 'correios') ? 'melhor_envio' : 'frete_proprio';
+    // Frete manual (frete próprio, correios manual, transportadora manual) nunca deve acionar integração automática
+    const provedorFinal = 'frete_proprio';
 
     const entregadorFinal = dadosAdicionais?.entregador !== undefined
       ? dadosAdicionais.entregador

@@ -173,7 +173,7 @@ export const obterInfoEntregaRecibo = (
   loja?: Loja | null,
   pedidoEntregaRef?: any
 ): InfoEntregaRecibo => {
-  const rawPe = (pedido as any).pedido_entrega || pedidoEntregaRef;
+  const rawPe = (pedido as any).pedido_entrega || (pedido as any).pedido_entregas || pedidoEntregaRef;
   const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
   const metaTransp = (pedido as any).metadados?.transportadora_nome;
   const metaTipo = (pedido as any).metadados?.tipo_atendimento;
@@ -218,15 +218,18 @@ export const obterInfoEntregaRecibo = (
 
   let formaEntregaTexto = 'Frete Próprio';
 
-  if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+  if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
     formaEntregaTexto = 'Uber Flash';
+  } else if (provedor === 'frete_proprio' || provedor === 'proprio' || pe?.tipo_atendimento === 'proprio') {
+    if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
+      formaEntregaTexto = transp;
+    } else {
+      formaEntregaTexto = 'Frete Próprio';
+    }
   } else if (
     provedor === 'melhor_envio' ||
     transp.toLowerCase().includes('melhor envio') ||
-    transp.toLowerCase().includes('jadlog') ||
-    servico.includes('jadlog') ||
-    servico === '3' ||
-    servico === '4'
+    transp.toLowerCase().includes('melhorenvio')
   ) {
     if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
       formaEntregaTexto = 'Melhor Envio (Jadlog)';
@@ -235,10 +238,6 @@ export const obterInfoEntregaRecibo = (
     } else {
       formaEntregaTexto = transp ? `Melhor Envio (${transp})` : 'Melhor Envio';
     }
-  } else if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios')) {
-    formaEntregaTexto = 'Melhor Envio (Correios)';
-  } else if (provedor === 'proprio' || transp.toLowerCase().includes('próprio') || transp.toLowerCase().includes('proprio') || transp.toLowerCase().includes('motoboy')) {
-    formaEntregaTexto = 'Frete Próprio';
   } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
     formaEntregaTexto = transp;
   } else {

@@ -669,7 +669,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         forma_entrega_id: pedido.forma_entrega_id || null,
         tipo_atendimento: (pedido.metadados?.tipo_atendimento || (taxaFinal > 0 ? 'entrega' : 'retirada')) as any,
         transportadora_nome: pedido.metadados?.transportadora_nome || (taxaFinal > 0 ? 'Entrega Padrão' : 'Retirada na Loja'),
-        provedor: pedido.metadados?.provedor_frete || (taxaFinal > 0 ? 'melhor_envio' : 'retirada_loja') as any,
+        provedor: pedido.metadados?.provedor_frete || (taxaFinal > 0 ? 'frete_proprio' : 'retirada_loja') as any,
         servico_codigo: pedido.metadados?.servico_frete_codigo || null,
         valor_frete: taxaFinal,
         status_envio: 'pendente'

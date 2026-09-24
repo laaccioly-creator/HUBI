@@ -373,33 +373,38 @@ export const PedidosLista: React.FC = () => {
       prov = 'retirada_loja';
       provNome = 'Retirada na Loja';
     } else if (
-      peProvedor === 'uber' ||
-      metaProvedor === 'uber' ||
-      diretoProvedor === 'uber' ||
-      textoConsolidado.includes('uber')
-    ) {
-      prov = 'uber';
-      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
-    } else if (
-      peProvedor === 'melhor_envio' ||
-      metaProvedor === 'melhor_envio' ||
-      diretoProvedor === 'melhor_envio' ||
-      textoConsolidado.includes('melhor envio') ||
-      textoConsolidado.includes('melhorenvio') ||
-      textoConsolidado.includes('correios') ||
-      textoConsolidado.includes('jadlog') ||
-      textoConsolidado.includes('sedex') ||
-      textoConsolidado.includes('pac')
-    ) {
-      prov = 'melhor_envio';
-      provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
-    } else if (
       peProvedor === 'frete_proprio' ||
       metaProvedor === 'frete_proprio' ||
       diretoProvedor === 'frete_proprio'
     ) {
       prov = 'frete_proprio';
       provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
+    } else if (
+      peProvedor === 'uber' ||
+      metaProvedor === 'uber' ||
+      diretoProvedor === 'uber'
+    ) {
+      prov = 'uber';
+      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
+    } else if (
+      peProvedor === 'melhor_envio' ||
+      metaProvedor === 'melhor_envio' ||
+      diretoProvedor === 'melhor_envio'
+    ) {
+      prov = 'melhor_envio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
+    } else if (
+      textoConsolidado.includes('uber direct') ||
+      textoConsolidado.includes('uber flash')
+    ) {
+      prov = 'uber';
+      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
+    } else if (
+      textoConsolidado.includes('melhor envio') ||
+      textoConsolidado.includes('melhorenvio')
+    ) {
+      prov = 'melhor_envio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
     } else if (Number(pedido.valor_frete || 0) > 0 || pedido.endereco_entrega) {
       prov = 'frete_proprio';
       provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';

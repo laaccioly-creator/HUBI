@@ -889,7 +889,7 @@ export const PosCheckout: React.FC = () => {
               pedido_id: pedidoIdFinal,
               tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
               valor_frete: taxaEntrega,
-              provedor: (taxaEntrega > 0 ? 'uber' : 'retirada_loja') as any,
+              provedor: (taxaEntrega > 0 ? 'frete_proprio' : 'retirada_loja') as any,
               transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
               status_envio: 'pendente'
             };
