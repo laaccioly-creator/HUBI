@@ -41,7 +41,8 @@ import {
   MessageCircle,
   Percent,
   Plus,
-  AlertTriangle
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -52,6 +53,7 @@ import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto
 import { PedidoEntrega } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
+import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { audioService } from '../services/audioService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -369,9 +371,30 @@ export const PedidosLista: React.FC = () => {
     let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
     let provNome = 'Frete Próprio / Entrega Local';
 
+    const servicoCorreios =
+      (pedido as any)?.servico_correios ||
+      pe?.servico_correios ||
+      (textoConsolidado.includes('sedex') ? 'SEDEX' : '') ||
+      (textoConsolidado.includes('pac') ? 'PAC' : '') ||
+      detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio);
+
+    const ehCorreios =
+      peProvedor === 'correios' ||
+      metaProvedor === 'correios' ||
+      diretoProvedor === 'correios' ||
+      pe?.tipo_operacao === 'correios' ||
+      (pedido as any)?.tipo_operacao === 'correios' ||
+      peTransp.toLowerCase().includes('correios') ||
+      metaTransp.toLowerCase().includes('correios') ||
+      diretoTransp.toLowerCase().includes('correios') ||
+      Boolean(servicoCorreios);
+
     if (isRetirada) {
       prov = 'retirada_loja';
       provNome = 'Retirada na Loja';
+    } else if (ehCorreios) {
+      prov = 'frete_proprio';
+      provNome = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
     } else if (
       peProvedor === 'frete_proprio' ||
       metaProvedor === 'frete_proprio' ||
@@ -412,6 +435,32 @@ export const PedidosLista: React.FC = () => {
 
     return { prov, provNome, pe, rawPe, isRetirada };
   };
+
+  // Identificação e crítica em tempo real para despacho via Correios (SEDEX / PAC)
+  const ehDespachoCorreios = useMemo(() => {
+    if (!pedidoSelecionado) return false;
+    const opTipo = entregaPedido?.tipo_operacao || (pedidoSelecionado as any)?.tipo_operacao || entregaPedido?.tipo_entrega;
+    const { provNome, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+    return (
+      opTipo === 'correios' ||
+      pe?.tipo_operacao === 'correios' ||
+      (pedidoSelecionado as any)?.tipo_operacao === 'correios' ||
+      (pe?.provedor as any) === 'correios' ||
+      provNome.toLowerCase().includes('correios') ||
+      String((pedidoSelecionado as any).forma_entrega_nome || pedidoSelecionado.forma_entrega?.nome || '').toLowerCase().includes('correios') ||
+      String(pedidoSelecionado.nome_transportadora || '').toLowerCase().includes('correios') ||
+      String(entregaPedido?.transportadora_nome || '').toLowerCase().includes('correios') ||
+      Boolean(pedidoSelecionado.servico_correios) ||
+      Boolean(pe?.servico_correios)
+    );
+  }, [pedidoSelecionado, entregaPedido]);
+
+  const validacaoCorreiosDespacho = useMemo(() => {
+    if (!ehDespachoCorreios) {
+      return { valido: true, motivo: '', codigoFormatado: codigoRastreioDespacho };
+    }
+    return validarRastreioCorreios(codigoRastreioDespacho, servicoCorreiosDespacho);
+  }, [ehDespachoCorreios, codigoRastreioDespacho, servicoCorreiosDespacho]);
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
     const temFiado = (pedido.pagamentos || []).some(
@@ -740,6 +789,34 @@ export const PedidosLista: React.FC = () => {
         return;
       }
 
+      // Validação estrita para Correios: não permite confirmar envio sem código válido
+      if (novoStatus === 'enviado') {
+        const { pe, provNome } = resolverProvedorEntrega(pedAlvo, entregaPedido);
+        const ehPedCorreios =
+          pe?.tipo_operacao === 'correios' ||
+          (pedAlvo as any)?.tipo_operacao === 'correios' ||
+          (pe?.provedor as any) === 'correios' ||
+          provNome.toLowerCase().includes('correios') ||
+          String((pedAlvo as any).forma_entrega_nome || pedAlvo.forma_entrega?.nome || '').toLowerCase().includes('correios') ||
+          String(pedAlvo.nome_transportadora || '').toLowerCase().includes('correios') ||
+          Boolean(pedAlvo.servico_correios);
+
+        if (ehPedCorreios) {
+          const rastreioAtual = pedAlvo.codigo_rastreio || pe?.codigo_rastreio;
+          const servicoAtual = pedAlvo.servico_correios || pe?.servico_correios || 'SEDEX';
+          const validacao = validarRastreioCorreios(rastreioAtual, servicoAtual);
+
+          if (!validacao.valido) {
+            handleDespacharPedido(pedAlvo);
+            mostrarAviso(
+              'Para despachar pedidos via Correios, é obrigatório selecionar o serviço (SEDEX ou PAC) e informar o código de rastreamento válido.',
+              'Código de Rastreamento Obrigatório'
+            );
+            return;
+          }
+        }
+      }
+
       // Limpar tag legada e metadados de cliente em observações caso ainda existam
       let obsLimpa = extrairObservacaoLimpa(pedAlvo?.observacoes);
 
@@ -861,13 +938,14 @@ export const PedidosLista: React.FC = () => {
 
     // Se for Frete Próprio ou Entrega Manual/Transportadora da Loja, abre modal
     if (prov === 'frete_proprio' || pe?.provedor === 'frete_proprio') {
+      const servicoDetectado = (ped.servico_correios as any) || (pe?.servico_correios as any) || (detectarServicoPorCodigo(ped.codigo_rastreio || pe?.codigo_rastreio) === 'PAC' ? 'PAC' : 'SEDEX');
       setEntregadorNomeDespacho(ped.entregador_nome || pe?.entregador_nome || '');
       setContatoEntregadorDespacho(ped.contato_entregador || pe?.contato_entregador || '');
       setCodigoRastreioDespacho(ped.codigo_rastreio || pe?.codigo_rastreio || '');
       setLinkRastreioDespacho(ped.link_rastreio || pe?.link_rastreio || '');
       setPinEntregaDespacho(ped.pin_entrega || pe?.pin_entrega || '');
-      setNomeAppDespacho(ped.nome_app || pe?.nome_app || 'Uber');
-      setServicoCorreiosDespacho((ped.servico_correios as any) || (pe?.servico_correios as any) || 'SEDEX');
+      setNomeAppDespacho(ped.nome_app || pe?.nome_app || '');
+      setServicoCorreiosDespacho(servicoDetectado);
       setNomeTransportadoraDespacho(ped.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
       setModalDespachoAberto(true);
       return;
@@ -1156,21 +1234,40 @@ export const PedidosLista: React.FC = () => {
 
   const handleConfirmarDespacho = async () => {
     if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
+
+    if (ehDespachoCorreios) {
+      const validacao = validarRastreioCorreios(codigoRastreioDespacho, servicoCorreiosDespacho);
+      if (!validacao.valido) {
+        mostrarAviso(
+          validacao.motivo || 'Código de rastreamento inválido para os Correios.',
+          'Validação dos Correios'
+        );
+        return;
+      }
+    }
+
     try {
       setDespachando(true);
+      const rastreioNormalizado = codigoRastreioDespacho.trim().toUpperCase().replace(/\s+/g, '');
       const agora = new Date().toISOString();
       const { pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+      const nomeAppFinal = ehDespachoCorreios ? undefined : (nomeAppDespacho.trim() || undefined);
+      const nomeTranspFinal = ehDespachoCorreios ? 'Correios' : (nomeTransportadoraDespacho.trim() || undefined);
+      const linkRastreioFinal = ehDespachoCorreios && rastreioNormalizado
+        ? `https://rastreamento.correios.com.br/app/index.php?objeto=${rastreioNormalizado}`
+        : (linkRastreioDespacho.trim() || undefined);
+
       await ShippingOrchestrator.despacharEntregaManual(
         pedidoSelecionado.id,
         {
           entregadorNome: entregadorNomeDespacho.trim() || undefined,
           contatoEntregador: contatoEntregadorDespacho.trim() || undefined,
-          codigoRastreio: codigoRastreioDespacho.trim() || undefined,
-          linkRastreio: linkRastreioDespacho.trim() || undefined,
+          codigoRastreio: rastreioNormalizado || undefined,
+          linkRastreio: linkRastreioFinal,
           pinEntrega: pinEntregaDespacho.trim() || undefined,
-          nomeApp: nomeAppDespacho.trim() || undefined,
+          nomeApp: nomeAppFinal,
           servicoCorreios: servicoCorreiosDespacho || undefined,
-          nomeTransportadora: nomeTransportadoraDespacho.trim() || undefined,
+          nomeTransportadora: nomeTranspFinal,
           tipoOperacao: (pe?.tipo_operacao || (pedidoSelecionado as any).tipo_operacao) || undefined,
           usuarioId: usuario?.id || null
         }
@@ -1183,12 +1280,12 @@ export const PedidosLista: React.FC = () => {
                 status: 'enviado',
                 entregador_nome: entregadorNomeDespacho.trim() || p.entregador_nome,
                 contato_entregador: contatoEntregadorDespacho.trim() || p.contato_entregador,
-                codigo_rastreio: codigoRastreioDespacho.trim() || p.codigo_rastreio,
-                link_rastreio: linkRastreioDespacho.trim() || p.link_rastreio,
+                codigo_rastreio: rastreioNormalizado || p.codigo_rastreio,
+                link_rastreio: linkRastreioFinal || p.link_rastreio,
                 pin_entrega: pinEntregaDespacho.trim() || p.pin_entrega,
-                nome_app: nomeAppDespacho.trim() || p.nome_app,
+                nome_app: ehDespachoCorreios ? undefined : (nomeAppFinal || p.nome_app),
                 servico_correios: servicoCorreiosDespacho || p.servico_correios,
-                nome_transportadora: nomeTransportadoraDespacho.trim() || p.nome_transportadora,
+                nome_transportadora: nomeTranspFinal || p.nome_transportadora,
                 despachado_em: agora,
                 despachado_por: usuario?.id || null
               }
@@ -1202,12 +1299,12 @@ export const PedidosLista: React.FC = () => {
               status: 'enviado',
               entregador_nome: entregadorNomeDespacho.trim() || prev.entregador_nome,
               contato_entregador: contatoEntregadorDespacho.trim() || prev.contato_entregador,
-              codigo_rastreio: codigoRastreioDespacho.trim() || prev.codigo_rastreio,
-              link_rastreio: linkRastreioDespacho.trim() || prev.link_rastreio,
+              codigo_rastreio: rastreioNormalizado || prev.codigo_rastreio,
+              link_rastreio: linkRastreioFinal || prev.link_rastreio,
               pin_entrega: pinEntregaDespacho.trim() || prev.pin_entrega,
-              nome_app: nomeAppDespacho.trim() || prev.nome_app,
+              nome_app: ehDespachoCorreios ? undefined : (nomeAppFinal || prev.nome_app),
               servico_correios: servicoCorreiosDespacho || prev.servico_correios,
-              nome_transportadora: nomeTransportadoraDespacho.trim() || prev.nome_transportadora,
+              nome_transportadora: nomeTranspFinal || prev.nome_transportadora,
               despachado_em: agora,
               despachado_por: usuario?.id || null
             }
@@ -2260,6 +2357,34 @@ export const PedidosLista: React.FC = () => {
                       )}
 
                       {(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (() => {
+                        if (ehDespachoCorreios) {
+                          return (
+                            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                              >
+                                <Package className="w-4 h-4" />
+                                <span>Rastrear Envio nos Correios</span>
+                              </button>
+
+                              {(pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta) && (
+                                <a
+                                  href={pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                  title="Imprimir Etiqueta Oficial dos Correios (PDF)"
+                                >
+                                  <Tag className="w-3.5 h-3.5" />
+                                  <span>Imprimir Etiqueta</span>
+                                </a>
+                              )}
+                            </div>
+                          );
+                        }
+
                         const ehUber =
                           prov === 'uber' ||
                           (pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber')) ||
@@ -3007,13 +3132,36 @@ export const PedidosLista: React.FC = () => {
                                   /* ETAPA 3: Concluir Pedido com ações de rastreio ao vivo para Uber */
                                   <div className="flex items-center gap-1">
                                     {(() => {
-                                      const { prov, pe } = resolverProvedorEntrega(pedido);
+                                      const { prov, pe, provNome } = resolverProvedorEntrega(pedido);
                                       const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
+                                      const cod = (pedido.codigo_rastreio || pe?.codigo_rastreio || '').trim();
+                                      const ehCorreios =
+                                        provNome.toLowerCase().includes('correios') ||
+                                        pe?.tipo_operacao === 'correios' ||
+                                        (pedido as any)?.tipo_operacao === 'correios' ||
+                                        Boolean(pedido.servico_correios || pe?.servico_correios) ||
+                                        detectarServicoPorCodigo(cod) !== null;
+
+                                      if (ehCorreios && cod) {
+                                        return (
+                                          <button
+                                            type="button"
+                                            onClick={() => setPedidoRastreioModal(pedido)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
+                                            title="Rastrear envio nos Correios"
+                                          >
+                                            <Package className="w-3.5 h-3.5" />
+                                            <span>Rastrear</span>
+                                          </button>
+                                        );
+                                      }
+
                                       const ehUber =
-                                        prov === 'uber' ||
+                                        !ehCorreios &&
+                                        (prov === 'uber' ||
                                         (pedido.nome_app && pedido.nome_app.toLowerCase().includes('uber')) ||
                                         link.includes('uber.com') ||
-                                        link.includes('ubr.to');
+                                        link.includes('ubr.to'));
 
                                       if (ehUber && link) {
                                         return (
@@ -3277,9 +3425,25 @@ export const PedidosLista: React.FC = () => {
           const provedor = (pe?.provedor || (pedidoReciboModal as any).metadados?.provedor_frete || '').toLowerCase();
           const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedidoReciboModal.forma_entrega?.nome || (pedidoReciboModal as any).nome_transportadora || '').trim();
           const servico = (pe?.servico_codigo || (pedidoReciboModal as any).metadados?.servico_frete_codigo || '').toLowerCase();
+          const servicoCorreios =
+            (pedidoReciboModal as any)?.servico_correios ||
+            pe?.servico_correios ||
+            (servico === '1' || servico.includes('sedex') || transp.toLowerCase().includes('sedex') ? 'SEDEX' : '') ||
+            (servico === '2' || servico.includes('pac') || transp.toLowerCase().includes('pac') ? 'PAC' : '') ||
+            detectarServicoPorCodigo(pe?.codigo_rastreio || pedidoReciboModal.codigo_rastreio);
 
-          if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-            formaEntregaTexto = 'CORREIOS';
+          const ehCorreios =
+            provedor === 'correios' ||
+            pe?.tipo_operacao === 'correios' ||
+            (pedidoReciboModal as any)?.tipo_operacao === 'correios' ||
+            transp.toLowerCase().includes('correios') ||
+            servico.includes('correios') ||
+            servico === '1' ||
+            servico === '2' ||
+            Boolean(servicoCorreios);
+
+          if (ehCorreios) {
+            formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';
           } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
             formaEntregaTexto = 'UBER FLASH';
           } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
@@ -3753,14 +3917,30 @@ export const PedidosLista: React.FC = () => {
                     )}
 
                     {/* MEIO: Correios */}
-                    {opTipo === 'correios' && (
-                      <div className="space-y-2.5 p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                        <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">
-                          📦 Correios (PAC / SEDEX)
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(opTipo === 'correios' || ehDespachoCorreios) && (
+                      <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+                            <span>📦</span> Correios (PAC / SEDEX)
+                          </span>
+                          {codigoRastreioDespacho && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                validacaoCorreiosDespacho.valido
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                              }`}
+                            >
+                              {validacaoCorreiosDespacho.valido ? 'Padrão Válido' : 'Padrão Inválido'}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-300 block">Serviço:</label>
+                            <label className="text-[11px] font-bold text-slate-300 block">
+                              Serviço: <span className="text-rose-400">*</span>
+                            </label>
                             <select
                               value={servicoCorreiosDespacho}
                               onChange={(e) => setServicoCorreiosDespacho(e.target.value as 'PAC' | 'SEDEX')}
@@ -3771,15 +3951,74 @@ export const PedidosLista: React.FC = () => {
                             </select>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-300 block">Código de Rastreamento:</label>
-                            <input
-                              type="text"
-                              placeholder="Ex: QB123456789BR"
-                              value={codigoRastreioDespacho}
-                              onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 uppercase font-mono font-bold placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                            />
+                            <label className="text-[11px] font-bold text-slate-300 block">
+                              Código de Rastreamento: <span className="text-rose-400">*</span>
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                maxLength={13}
+                                placeholder={servicoCorreiosDespacho === 'PAC' ? 'Ex: QB123456789BR' : 'Ex: SB123456789BR'}
+                                value={codigoRastreioDespacho}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase().replace(/\s+/g, '').slice(0, 13);
+                                  setCodigoRastreioDespacho(val);
+                                }}
+                                className={`w-full bg-slate-900 border rounded-xl px-3 py-2 text-xs text-slate-100 uppercase font-mono font-bold placeholder:text-slate-500 focus:outline-none tracking-wider ${
+                                  codigoRastreioDespacho.length > 0
+                                    ? validacaoCorreiosDespacho.valido
+                                      ? 'border-emerald-500/80 focus:border-emerald-500 text-emerald-300'
+                                      : 'border-rose-500/80 focus:border-rose-500 text-rose-300'
+                                    : 'border-slate-700 focus:border-emerald-500'
+                                }`}
+                              />
+                              {codigoRastreioDespacho && (
+                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                                  {validacaoCorreiosDespacho.valido ? (
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                  ) : (
+                                    <AlertCircle className="w-4 h-4 text-rose-400" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
+                        </div>
+
+                        {/* Mensagens de Crítica e Feedback em tempo real */}
+                        <div className="pt-0.5">
+                          {!codigoRastreioDespacho ? (
+                            <p className="text-[11px] text-amber-400/90 font-medium flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                              <span>Obrigatório preencher o código no padrão dos Correios (13 dígitos: 2 letras + 9 números + BR).</span>
+                            </p>
+                          ) : !validacaoCorreiosDespacho.valido ? (
+                            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 space-y-1.5 text-[11px]">
+                              <div className="flex items-start gap-1.5 font-bold">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-400 mt-0.5" />
+                                <span>{validacaoCorreiosDespacho.motivo}</span>
+                              </div>
+                              {validacaoCorreiosDespacho.servicoDetectado &&
+                                validacaoCorreiosDespacho.servicoDetectado !== servicoCorreiosDespacho &&
+                                validacaoCorreiosDespacho.servicoDetectado !== 'OUTRO' && (
+                                  <div className="pt-0.5 flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-300">Prefixo identificado como {validacaoCorreiosDespacho.servicoDetectado}:</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setServicoCorreiosDespacho(validacaoCorreiosDespacho.servicoDetectado as 'PAC' | 'SEDEX')}
+                                      className="px-2 py-0.5 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-rose-100 text-[10px] font-bold underline cursor-pointer transition"
+                                    >
+                                      Mudar serviço para {validacaoCorreiosDespacho.servicoDetectado}
+                                    </button>
+                                  </div>
+                                )}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                              <span>Código de rastreamento {servicoCorreiosDespacho} validado com sucesso!</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -3828,15 +4067,25 @@ export const PedidosLista: React.FC = () => {
               >
                 Cancelar
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmarDespacho}
-                disabled={despachando}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
-              >
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>{despachando ? 'Despachando...' : 'Confirmar e Concluir'}</span>
-              </button>
+              {(() => {
+                const podeConfirmar = !despachando && (!ehDespachoCorreios || validacaoCorreiosDespacho.valido);
+                return (
+                  <button
+                    type="button"
+                    onClick={handleConfirmarDespacho}
+                    disabled={!podeConfirmar}
+                    className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition ${
+                      podeConfirmar
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 cursor-pointer active:scale-95'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700/80 cursor-not-allowed opacity-60'
+                    }`}
+                    title={!podeConfirmar && ehDespachoCorreios ? validacaoCorreiosDespacho.motivo || 'Informe o código de rastreamento válido dos Correios' : undefined}
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>{despachando ? 'Despachando...' : 'Confirmar e Concluir'}</span>
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

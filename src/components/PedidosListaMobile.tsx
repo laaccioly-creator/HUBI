@@ -23,6 +23,7 @@ import {
   Trash2,
   Calendar,
   AlertTriangle,
+  AlertCircle,
   Store,
   ArrowRight,
   ArrowLeft,
@@ -52,6 +53,8 @@ import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega } from '../types/shipping';
 import { extrairObservacaoLimpa } from '../utils/formatters';
+import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
+import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import {
   ROTULOS_STATUS_PEDIDO,
   obterAbasStatusVisiveis,
@@ -213,6 +216,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [clienteHistoricoFiadoModal, setClienteHistoricoFiadoModal] = useState<Cliente | null>(null);
   const [filtroHistoricoFiadoModal, setFiltroHistoricoFiadoModal] = useState<'todos' | 'vencidos' | 'a_vencer'>('a_vencer');
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+  const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
 
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
@@ -221,7 +225,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [codigoRastreioDespacho, setCodigoRastreioDespacho] = useState<string>('');
   const [linkRastreioDespacho, setLinkRastreioDespacho] = useState<string>('');
   const [pinEntregaDespacho, setPinEntregaDespacho] = useState<string>('');
-  const [nomeAppDespacho, setNomeAppDespacho] = useState<string>('Uber');
+  const [nomeAppDespacho, setNomeAppDespacho] = useState<string>('');
   const [servicoCorreiosDespacho, setServicoCorreiosDespacho] = useState<'PAC' | 'SEDEX'>('SEDEX');
   const [nomeTransportadoraDespacho, setNomeTransportadoraDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
@@ -243,10 +247,45 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     }
   }, [pedidoSelecionado]);
 
+  // Identificação e crítica em tempo real para despacho via Correios (SEDEX / PAC)
+  const ehDespachoCorreios = useMemo(() => {
+    if (!pedidoSelecionado) return false;
+    const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+    const opTipo = pe?.tipo_operacao || (pedidoSelecionado as any)?.tipo_operacao || pe?.tipo_entrega;
+    return (
+      opTipo === 'correios' ||
+      pe?.tipo_operacao === 'correios' ||
+      (pedidoSelecionado as any)?.tipo_operacao === 'correios' ||
+      (pe?.provedor as any) === 'correios' ||
+      String((pedidoSelecionado as any).forma_entrega_nome || pedidoSelecionado.forma_entrega?.nome || '').toLowerCase().includes('correios') ||
+      String(pedidoSelecionado.nome_transportadora || '').toLowerCase().includes('correios') ||
+      String(pe?.transportadora_nome || '').toLowerCase().includes('correios') ||
+      Boolean(pedidoSelecionado.servico_correios) ||
+      Boolean(pe?.servico_correios)
+    );
+  }, [pedidoSelecionado, entregaPedido]);
+
+  const validacaoCorreiosDespacho = useMemo(() => {
+    if (!ehDespachoCorreios) {
+      return { valido: true, motivo: '', codigoFormatado: codigoRastreioDespacho };
+    }
+    return validarRastreioCorreios(codigoRastreioDespacho, servicoCorreiosDespacho);
+  }, [ehDespachoCorreios, codigoRastreioDespacho, servicoCorreiosDespacho]);
+
   const handleConfirmarDespacho = async () => {
     if (!pedidoSelecionado) return;
+
+    if (ehDespachoCorreios) {
+      const validacao = validarRastreioCorreios(codigoRastreioDespacho, servicoCorreiosDespacho);
+      if (!validacao.valido) {
+        alert(validacao.motivo || 'Código de rastreamento inválido para os Correios.');
+        return;
+      }
+    }
+
     try {
       setDespachando(true);
+      const rastreioNormalizado = codigoRastreioDespacho.trim().toUpperCase().replace(/\s+/g, '');
       const agora = new Date().toISOString();
       const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
       await ShippingOrchestrator.despacharEntregaManual(
@@ -254,7 +293,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {
           entregadorNome: entregadorNomeDespacho.trim() || undefined,
           contatoEntregador: contatoEntregadorDespacho.trim() || undefined,
-          codigoRastreio: codigoRastreioDespacho.trim() || undefined,
+          codigoRastreio: rastreioNormalizado || undefined,
           linkRastreio: linkRastreioDespacho.trim() || undefined,
           pinEntrega: pinEntregaDespacho.trim() || undefined,
           nomeApp: nomeAppDespacho.trim() || undefined,
@@ -909,10 +948,25 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               {(() => {
                 const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
                 const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor || (Number(pedidoSelecionado.valor_frete || 0) > 0 ? 'frete_proprio' : null);
-                const temDadosEntrega = Boolean(prov || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio);
+                const codigoRastreio = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
+                const servicoDetectado = detectarServicoPorCodigo(codigoRastreio);
+                const servicoCorreios = (pedidoSelecionado as any)?.servico_correios || pe?.servico_correios || (servicoDetectado && servicoDetectado !== 'OUTRO' ? servicoDetectado : null);
+                const transpRaw = (pe?.transportadora_nome || pe?.nome_transportadora || (pedidoSelecionado as any)?.nome_transportadora || (pedidoSelecionado as any)?.forma_entrega_nome || '').trim();
+
+                const ehCorreios =
+                  pe?.tipo_operacao === 'correios' ||
+                  (pedidoSelecionado as any)?.tipo_operacao === 'correios' ||
+                  (pe?.provedor as any) === 'correios' ||
+                  transpRaw.toLowerCase().includes('correios') ||
+                  Boolean(servicoCorreios) ||
+                  (servicoDetectado !== null && servicoDetectado !== 'OUTRO');
+
+                const temDadosEntrega = Boolean(prov || ehCorreios || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || pe?.entregador_nome || pe?.link_rastreio || codigoRastreio);
                 if (!temDadosEntrega) return null;
 
-                const provNome = prov === 'uber' ? 'Uber Direct' : prov === 'melhor_envio' ? 'Melhor Envio' : prov === 'retirada_loja' ? 'Retirada na Loja' : 'Frete Próprio / Entrega Local';
+                const provNome = ehCorreios
+                  ? (servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios')
+                  : prov === 'uber' ? 'Uber Direct' : prov === 'melhor_envio' ? 'Melhor Envio' : prov === 'retirada_loja' ? 'Retirada na Loja' : (transpRaw || 'Frete Próprio / Entrega Local');
                 const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
                 const linkRastreio = pe?.link_rastreio || pedidoSelecionado.link_rastreio;
                 const pin = pe?.pin_entrega;
@@ -939,6 +993,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </div>
                     )}
 
+                    {codigoRastreio && (
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/40">
+                        <span className="text-slate-400">Código de Rastreio:</span>
+                        <span className="font-mono font-bold text-slate-800 bg-slate-200/80 px-2 py-0.5 rounded">
+                          {codigoRastreio}
+                        </span>
+                      </div>
+                    )}
+
                     {entregador && (
                       <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/40">
                         <span className="text-slate-400">Entregador:</span>
@@ -962,7 +1025,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </div>
                     )}
 
-                    {linkRastreio && (
+                    {ehCorreios ? (
+                      <button
+                        type="button"
+                        onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
+                        className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        <span>Rastrear Envio nos Correios</span>
+                      </button>
+                    ) : linkRastreio ? (
                       <a
                         href={linkRastreio}
                         target="_blank"
@@ -972,7 +1044,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         <ExternalLink className="w-3.5 h-3.5" />
                         <span>Acompanhar Rastreio</span>
                       </a>
-                    )}
+                    ) : null}
                   </div>
                 );
               })()}
@@ -1392,14 +1464,30 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       )}
 
                       {/* MEIO: Correios */}
-                      {opTipo === 'correios' && (
-                        <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
-                          <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide">
-                            📦 Correios (PAC / SEDEX)
-                          </span>
+                      {(opTipo === 'correios' || ehDespachoCorreios) && (
+                        <div className="space-y-2 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide flex items-center gap-1.5">
+                              <span>📦</span> Correios (PAC / SEDEX)
+                            </span>
+                            {codigoRastreioDespacho && (
+                              <span
+                                className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                                  validacaoCorreiosDespacho.valido
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                }`}
+                              >
+                                {validacaoCorreiosDespacho.valido ? 'Padrão Válido' : 'Padrão Inválido'}
+                              </span>
+                            )}
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-700 block">Serviço:</label>
+                              <label className="text-[11px] font-bold text-slate-700 block">
+                                Serviço: <span className="text-rose-500">*</span>
+                              </label>
                               <select
                                 value={servicoCorreiosDespacho}
                                 onChange={(e) => setServicoCorreiosDespacho(e.target.value as 'PAC' | 'SEDEX')}
@@ -1410,15 +1498,74 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                               </select>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-700 block">Rastreamento:</label>
-                              <input
-                                type="text"
-                                placeholder="Ex: QB123456789BR"
-                                value={codigoRastreioDespacho}
-                                onChange={(e) => setCodigoRastreioDespacho(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 uppercase font-mono font-bold placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
-                              />
+                              <label className="text-[11px] font-bold text-slate-700 block">
+                                Rastreamento: <span className="text-rose-500">*</span>
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  maxLength={13}
+                                  placeholder={servicoCorreiosDespacho === 'PAC' ? 'Ex: QB123456789BR' : 'Ex: SB123456789BR'}
+                                  value={codigoRastreioDespacho}
+                                  onChange={(e) => {
+                                    const val = e.target.value.toUpperCase().replace(/\s+/g, '').slice(0, 13);
+                                    setCodigoRastreioDespacho(val);
+                                  }}
+                                  className={`w-full bg-white border rounded-xl px-2.5 py-2 text-xs text-slate-900 uppercase font-mono font-bold placeholder:text-slate-400 focus:outline-none tracking-wider ${
+                                    codigoRastreioDespacho.length > 0
+                                      ? validacaoCorreiosDespacho.valido
+                                        ? 'border-emerald-500 text-emerald-800'
+                                        : 'border-rose-500 text-rose-800'
+                                      : 'border-slate-200 focus:border-emerald-500'
+                                  }`}
+                                />
+                                {codigoRastreioDespacho && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    {validacaoCorreiosDespacho.valido ? (
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    ) : (
+                                      <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
+                          </div>
+
+                          {/* Mensagens de crítica no mobile */}
+                          <div className="pt-0.5">
+                            {!codigoRastreioDespacho ? (
+                              <p className="text-[10px] text-amber-700 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3 shrink-0 text-amber-600" />
+                                <span>Obrigatório informar código dos Correios (13 dígitos: 2 letras + 9 números + BR).</span>
+                              </p>
+                            ) : !validacaoCorreiosDespacho.valido ? (
+                              <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 space-y-1 text-[10px]">
+                                <div className="flex items-start gap-1 font-bold">
+                                  <AlertCircle className="w-3 h-3 shrink-0 text-rose-600 mt-0.5" />
+                                  <span>{validacaoCorreiosDespacho.motivo}</span>
+                                </div>
+                                {validacaoCorreiosDespacho.servicoDetectado &&
+                                  validacaoCorreiosDespacho.servicoDetectado !== servicoCorreiosDespacho &&
+                                  validacaoCorreiosDespacho.servicoDetectado !== 'OUTRO' && (
+                                    <div className="pt-0.5 flex items-center gap-1.5">
+                                      <span>Prefixo {validacaoCorreiosDespacho.servicoDetectado} detectado:</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setServicoCorreiosDespacho(validacaoCorreiosDespacho.servicoDetectado as 'PAC' | 'SEDEX')}
+                                        className="px-1.5 py-0.5 rounded bg-rose-200 text-rose-800 font-bold underline cursor-pointer"
+                                      >
+                                        Mudar para {validacaoCorreiosDespacho.servicoDetectado}
+                                      </button>
+                                    </div>
+                                  )}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-600" />
+                                <span>Código de rastreamento {servicoCorreiosDespacho} validado com sucesso!</span>
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1465,15 +1612,25 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 >
                   Cancelar
                 </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmarDespacho}
-                  disabled={despachando}
-                  className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>{despachando ? 'Despachando...' : 'Confirmar e Concluir'}</span>
-                </button>
+                {(() => {
+                  const podeConfirmar = !despachando && (!ehDespachoCorreios || validacaoCorreiosDespacho.valido);
+                  return (
+                    <button
+                      type="button"
+                      onClick={handleConfirmarDespacho}
+                      disabled={!podeConfirmar}
+                      className={`flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition ${
+                        podeConfirmar
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer active:scale-95'
+                          : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed opacity-60'
+                      }`}
+                      title={!podeConfirmar && ehDespachoCorreios ? validacaoCorreiosDespacho.motivo || 'Informe o código de rastreamento válido dos Correios' : undefined}
+                    >
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>{despachando ? 'Despachando...' : 'Confirmar e Concluir'}</span>
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -2566,6 +2723,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           </div>
         );
       })()}
+
+      {/* MODAL DE RASTREAMENTO DE ENVIOS (CORREIOS / MELHOR ENVIO) */}
+      <ModalRastreioPedido
+        isOpen={Boolean(pedidoRastreioModal)}
+        onClose={() => setPedidoRastreioModal(null)}
+        pedido={pedidoRastreioModal}
+        entrega={entregaPedido}
+        loja={loja}
+        onAtualizarStatus={() => {
+          if (onRecarregar) onRecarregar();
+        }}
+      />
     </div>
   );
 };

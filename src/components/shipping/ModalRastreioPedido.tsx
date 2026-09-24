@@ -18,6 +18,7 @@ import {
 import { Pedido, Loja } from '../../types';
 import { PedidoEntrega } from '../../types/shipping';
 import { supabase } from '../../services/supabase';
+import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 
 interface ModalRastreioPedidoProps {
   isOpen: boolean;
@@ -154,10 +155,26 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const codigoRastreio = (codigoRastreioLocal || pe?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
   const linkRastreio = (linkRastreioLocal || pe?.link_rastreio || pedido.link_rastreio || '').trim();
   const linkEtiqueta = (pe?.link_etiqueta || (pedido as any).link_etiqueta || '').trim();
-  const transportadora =
-    pe?.transportadora_nome ||
-    pe?.nome_transportadora ||
-    (pe?.provedor === 'uber' ? 'Uber Direct' : 'Melhor Envio / Jadlog');
+
+  const servicoDetectado = detectarServicoPorCodigo(codigoRastreio);
+  const servicoCorreios =
+    (pedido as any)?.servico_correios ||
+    pe?.servico_correios ||
+    (servicoDetectado && servicoDetectado !== 'OUTRO' ? servicoDetectado : null);
+
+  const transpRaw = (pe?.transportadora_nome || pe?.nome_transportadora || (pedido as any)?.nome_transportadora || '').trim();
+
+  const ehCorreios =
+    pe?.tipo_operacao === 'correios' ||
+    (pedido as any)?.tipo_operacao === 'correios' ||
+    (pe?.provedor as any) === 'correios' ||
+    transpRaw.toLowerCase().includes('correios') ||
+    Boolean(servicoCorreios) ||
+    (servicoDetectado !== null && servicoDetectado !== 'OUTRO');
+
+  const transportadora = ehCorreios
+    ? (servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios')
+    : (transpRaw || (pe?.provedor === 'uber' ? 'Uber Direct' : 'Melhor Envio / Jadlog'));
 
   const statusEnvio = statusEnvioLocal || pe?.status_envio || (pe?.despachado_em || pedido.despachado_em ? 'despachado' : 'pendente');
   const despachadoEm = dataPostagemLocal || pe?.despachado_em || pedido.despachado_em || pedido.criado_em;
@@ -173,14 +190,21 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     const tel = (pedido.cliente?.whatsapp || pedido.cliente?.telefone || pedido.cliente_telefone_avulso || '').replace(/\D/g, '');
     const nomeCli = pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente';
     const numPed = pedido.numero_pedido || pedido.id.slice(0, 5);
+    const linkAcompanhamento = ehCorreios && codigoRastreio
+      ? `https://rastreamento.correios.com.br/app/index.php?objeto=${codigoRastreio}`
+      : codigoRastreio
+      ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`
+      : linkRastreio && !linkRastreio.includes('imprimir')
+      ? linkRastreio
+      : '';
 
     let texto = `Olá, *${nomeCli}*! 👋\n\n`;
     texto += `Seu pedido *#${numPed}* foi despachado via *${transportadora}*!\n\n`;
     if (codigoRastreio) {
       texto += `📦 *Código de Rastreio:* ${codigoRastreio}\n`;
-      texto += `🔗 *Acompanhe a entrega:* https://melhorrastreio.com.br/rastreio/${codigoRastreio}\n\n`;
-    } else if (linkRastreio && !linkRastreio.includes('imprimir')) {
-      texto += `🔗 *Acompanhe a entrega:* ${linkRastreio}\n\n`;
+    }
+    if (linkAcompanhamento) {
+      texto += `🔗 *Acompanhe a entrega:* ${linkAcompanhamento}\n\n`;
     }
     texto += `Agradecemos pela preferência! Qualquer dúvida, estamos à disposição. 😊`;
 
@@ -212,7 +236,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     {
       id: 'postado',
       titulo: 'Objeto Postado na Agência',
-      descricao: 'Pacote conferido e recebido pela transportadora',
+      descricao: ehCorreios
+        ? 'Pacote recebido e conferido pela agência dos Correios'
+        : 'Pacote conferido e recebido pela transportadora',
       data: dataPostagemLocal || (statusEnvio === 'em_transito' || statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue' ? despachadoEm : null),
       concluido: statusEnvio === 'em_transito' || statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue',
       ativo: statusEnvio === 'despachado'
@@ -220,7 +246,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     {
       id: 'transito',
       titulo: 'Em Trânsito',
-      descricao: 'Transferência entre centros operacionais e de distribuição',
+      descricao: ehCorreios
+        ? 'Transferência entre centros operacionais e de distribuição dos Correios'
+        : 'Transferência entre centros operacionais e de distribuição',
       data: null,
       concluido: statusEnvio === 'saiu_para_entrega' || statusEnvio === 'entregue',
       ativo: statusEnvio === 'em_transito'
@@ -228,7 +256,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     {
       id: 'saiu_entrega',
       titulo: 'Saiu para Entrega',
-      descricao: 'Motorista ou carteiro a caminho do endereço de entrega',
+      descricao: ehCorreios
+        ? 'Carteiro dos Correios a caminho do endereço de entrega'
+        : 'Motorista ou carteiro a caminho do endereço de entrega',
       data: null,
       concluido: statusEnvio === 'entregue',
       ativo: statusEnvio === 'saiu_para_entrega'
@@ -245,10 +275,15 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     }
   ];
 
-  const urlRastreioOficial =
-    codigoRastreio
-      ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`
-      : (linkRastreio && !linkRastreio.includes('imprimir') ? linkRastreio : null);
+  const linkCorreiosOficial = codigoRastreio
+    ? `https://rastreamento.correios.com.br/app/index.php?objeto=${codigoRastreio}`
+    : null;
+
+  const urlRastreioOficial = ehCorreios
+    ? linkCorreiosOficial
+    : (codigoRastreio
+        ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`
+        : (linkRastreio && !linkRastreio.includes('imprimir') ? linkRastreio : null));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -431,15 +466,30 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           )}
 
           {urlRastreioOficial ? (
-            <a
-              href={urlRastreioOficial}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Ver no Melhor Rastreio</span>
-            </a>
+            <div className="w-full sm:flex-1 flex flex-col sm:flex-row items-center gap-2">
+              <a
+                href={urlRastreioOficial}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{ehCorreios ? 'Ver no Portal dos Correios' : 'Ver no Melhor Rastreio'}</span>
+              </a>
+
+              {ehCorreios && codigoRastreio && (
+                <a
+                  href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Acompanhar também pelo Melhor Rastreio"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Melhor Rastreio</span>
+                </a>
+              )}
+            </div>
           ) : (
             <button
               type="button"

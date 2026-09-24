@@ -326,6 +326,30 @@ serve(async (req: Request) => {
       }
 
       if (!orderData) {
+        const codRastreioExistente = (entrega?.codigo_rastreio || pedido?.codigo_rastreio || "").trim();
+        const transpNome = (entrega?.transportadora_nome || pedido?.nome_transportadora || "Correios").trim();
+        const isCorreios =
+          transpNome.toLowerCase().includes("correios") ||
+          (entrega?.tipo_operacao === "correios") ||
+          Boolean(pedido?.servico_correios || (pedido?.metadados as any)?.servico_correios) ||
+          /^[a-zA-Z]{2}\d{9}[a-zA-Z]{2}$/.test(codRastreioExistente);
+
+        if (codRastreioExistente && isCorreios) {
+          const linkOficial = `https://rastreamento.correios.com.br/app/index.php?objeto=${codRastreioExistente}`;
+          return new Response(
+            JSON.stringify({
+              sucesso: true,
+              acao: "sincronizar_rastreio",
+              codigo_rastreio: codRastreioExistente,
+              link_rastreio: linkOficial,
+              status_envio: entrega?.status_envio || "despachado",
+              data_postagem: entrega?.despachado_em || pedido?.despachado_em || new Date().toISOString(),
+              transportadora: transpNome.toLowerCase().includes("correios") ? transpNome : "Correios",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         return new Response(
           JSON.stringify({
             sucesso: false,

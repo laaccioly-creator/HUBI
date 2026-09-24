@@ -31,6 +31,7 @@ import { FormaEntrega } from '../../types';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { isUuidValido } from '../../services/syncService';
 import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja, normalizarTexto } from '../../utils/geoUtils';
+import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
 import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
 
@@ -1640,35 +1641,85 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 )}
 
                                 {/* MEIO: Correios */}
-                                {forma.tipo === 'correios' && (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                    <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                        Serviço dos Correios:
-                                      </label>
-                                      <select
-                                        value={servicosCorreios[forma.id] || 'SEDEX'}
-                                        onChange={(e) => handleAlterarServicoCorreios(forma, e.target.value as 'PAC' | 'SEDEX')}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
-                                      >
-                                        <option value="SEDEX">SEDEX</option>
-                                        <option value="PAC">PAC</option>
-                                      </select>
+                                {forma.tipo === 'correios' && (() => {
+                                  const servicoAtual = servicosCorreios[forma.id] || 'SEDEX';
+                                  const codigoAtual = codigosRastreio[forma.id] || '';
+                                  const validacao = validarRastreioCorreios(codigoAtual, servicoAtual);
+
+                                  return (
+                                    <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                            Serviço dos Correios: <span className="text-rose-500">*</span>
+                                          </label>
+                                          <select
+                                            value={servicoAtual}
+                                            onChange={(e) => handleAlterarServicoCorreios(forma, e.target.value as 'PAC' | 'SEDEX')}
+                                            className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                          >
+                                            <option value="SEDEX">SEDEX</option>
+                                            <option value="PAC">PAC</option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                            Código de Rastreamento:
+                                          </label>
+                                          <input
+                                            type="text"
+                                            maxLength={13}
+                                            placeholder={servicoAtual === 'PAC' ? 'Ex: QB123456789BR' : 'Ex: SB123456789BR'}
+                                            value={codigoAtual}
+                                            onChange={(e) => {
+                                              const val = e.target.value.toUpperCase().replace(/\s+/g, '').slice(0, 13);
+                                              handleAlterarCodigoRastreio(forma, val);
+                                            }}
+                                            className={`w-full px-3 py-1.5 text-xs rounded-xl bg-white border focus:ring-1 outline-none transition uppercase text-slate-800 font-mono font-bold tracking-wider ${
+                                              codigoAtual.length > 0
+                                                ? validacao.valido
+                                                  ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500 text-emerald-800'
+                                                  : 'border-rose-400 focus:border-rose-500 focus:ring-rose-400 text-rose-800'
+                                                : 'border-slate-300 focus:border-emerald-500 focus:ring-emerald-500'
+                                            }`}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {codigoAtual && (
+                                        <div className="pt-0.5">
+                                          {!validacao.valido ? (
+                                            <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 space-y-1 text-[11px]">
+                                              <div className="flex items-start gap-1.5 font-bold">
+                                                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500 mt-0.5" />
+                                                <span>{validacao.motivo}</span>
+                                              </div>
+                                              {validacao.servicoDetectado &&
+                                                validacao.servicoDetectado !== servicoAtual &&
+                                                validacao.servicoDetectado !== 'OUTRO' && (
+                                                  <div className="pt-0.5 flex items-center gap-2">
+                                                    <span className="text-[10px] text-slate-600">Prefixo de {validacao.servicoDetectado}:</span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleAlterarServicoCorreios(forma, validacao.servicoDetectado as 'PAC' | 'SEDEX')}
+                                                      className="px-2 py-0.5 rounded-lg bg-rose-200 hover:bg-rose-300 text-rose-900 text-[10px] font-bold underline cursor-pointer"
+                                                    >
+                                                      Mudar para {validacao.servicoDetectado}
+                                                    </button>
+                                                  </div>
+                                                )}
+                                            </div>
+                                          ) : (
+                                            <p className="text-[11px] text-emerald-700 font-bold flex items-center gap-1.5">
+                                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                              <span>Código de rastreamento {servicoAtual} validado!</span>
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                    <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                        Código de Rastreamento:
-                                      </label>
-                                      <input
-                                        type="text"
-                                        placeholder="Ex: QB123456789BR"
-                                        value={codigosRastreio[forma.id] || ''}
-                                        onChange={(e) => handleAlterarCodigoRastreio(forma, e.target.value)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition uppercase text-slate-800 font-mono font-bold"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
+                                  );
+                                })()}
 
                                 {/* MEIO: Transportadora Geral */}
                                 {forma.tipo === 'transportadora' && (

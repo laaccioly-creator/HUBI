@@ -9,6 +9,7 @@
 
 import { Pedido, Loja, ItemPedido } from '../types';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { detectarServicoPorCodigo } from '../utils/correiosValidator';
 
 export const formatarDataRecibo = (dataIso?: string | null): string => {
   if (!dataIso) return '';
@@ -216,9 +217,27 @@ export const obterInfoEntregaRecibo = (
     };
   }
 
+  const servicoCorreios =
+    (pedido as any).servico_correios ||
+    pe?.servico_correios ||
+    (servico === '1' || servico.includes('sedex') || transp.toLowerCase().includes('sedex') ? 'SEDEX' : '') ||
+    (servico === '2' || servico.includes('pac') || transp.toLowerCase().includes('pac') ? 'PAC' : '') ||
+    detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio);
+
+  const ehCorreios =
+    provedor === 'correios' ||
+    pe?.tipo_operacao === 'correios' ||
+    transp.toLowerCase().includes('correios') ||
+    servico.includes('correios') ||
+    servico === '1' ||
+    servico === '2' ||
+    Boolean(servicoCorreios);
+
   let formaEntregaTexto = 'Frete Próprio';
 
-  if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
+  if (ehCorreios) {
+    formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
+  } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
     formaEntregaTexto = 'Uber Flash';
   } else if (provedor === 'frete_proprio' || provedor === 'proprio' || pe?.tipo_atendimento === 'proprio') {
     if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
@@ -234,7 +253,7 @@ export const obterInfoEntregaRecibo = (
     if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
       formaEntregaTexto = 'Melhor Envio (Jadlog)';
     } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-      formaEntregaTexto = 'Melhor Envio (Correios)';
+      formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Melhor Envio (Correios)';
     } else {
       formaEntregaTexto = transp ? `Melhor Envio (${transp})` : 'Melhor Envio';
     }

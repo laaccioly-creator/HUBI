@@ -3,6 +3,7 @@ import { X, Store, Printer, Share2, Copy } from 'lucide-react';
 import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo } from '../../services/printService';
 import { extrairObservacaoLimpa } from '../../utils/formatters';
+import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 
 export interface ReciboPedidoModalProps {
   isOpen: boolean;
@@ -38,9 +39,25 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     const provedor = (pe?.provedor || (pedido as any).metadados?.provedor_frete || '').toLowerCase();
     const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedido.forma_entrega?.nome || (pedido as any).nome_transportadora || '').trim();
     const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || '').toLowerCase();
+    const servicoCorreios =
+      (pedido as any).servico_correios ||
+      pe?.servico_correios ||
+      (servico === '1' || servico.includes('sedex') || transp.toLowerCase().includes('sedex') ? 'SEDEX' : '') ||
+      (servico === '2' || servico.includes('pac') || transp.toLowerCase().includes('pac') ? 'PAC' : '') ||
+      detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio);
 
-    if (provedor === 'correios' || transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-      formaEntregaTexto = 'CORREIOS';
+    const ehCorreios =
+      provedor === 'correios' ||
+      pe?.tipo_operacao === 'correios' ||
+      (pedido as any)?.tipo_operacao === 'correios' ||
+      transp.toLowerCase().includes('correios') ||
+      servico.includes('correios') ||
+      servico === '1' ||
+      servico === '2' ||
+      Boolean(servicoCorreios);
+
+    if (ehCorreios) {
+      formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';
     } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
       formaEntregaTexto = 'UBER FLASH';
     } else if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
