@@ -1017,6 +1017,13 @@ export const PedidosLista: React.FC = () => {
     setPedidoSelecionado(ped);
 
     const { prov, pe } = resolverProvedorEntrega(ped, ped.id === pedidoSelecionado?.id ? entregaPedido : null);
+    if (pe) {
+      setEntregaPedido(pe);
+    } else {
+      ShippingOrchestrator.buscarPedidoEntrega(ped.id).then(res => {
+        if (res) setEntregaPedido(res);
+      }).catch(() => {});
+    }
 
     // Se for Frete Próprio ou Entrega Manual/Transportadora da Loja, abre modal
     if (prov === 'frete_proprio' || pe?.provedor === 'frete_proprio') {

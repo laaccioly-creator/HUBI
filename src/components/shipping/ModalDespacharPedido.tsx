@@ -18,6 +18,85 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export type ModalidadeDespachoManual = 'correios' | 'app_entrega' | 'transportadora' | 'frota_propria';
 
+function encontrarIdTransportadora(
+  lista: Transportadora[],
+  idAlvo?: string | null,
+  nomeAlvo?: string | null
+): string {
+  if (lista.length === 0) return '';
+
+  if (idAlvo) {
+    const achouPorId = lista.find(t => t.id === idAlvo);
+    if (achouPorId) return achouPorId.id;
+  }
+
+  if (nomeAlvo && nomeAlvo.trim()) {
+    const n = nomeAlvo.trim().toLowerCase();
+
+    // 1. Match exato por nome
+    const exato = lista.find(t => t.nome.toLowerCase() === n);
+    if (exato) return exato.id;
+
+    // 2. Match específico por termos conhecidos (Jadlog, Braspress, etc.)
+    if (n.includes('jadlog')) {
+      const jad = lista.find(t => t.nome.toLowerCase().includes('jadlog'));
+      if (jad) return jad.id;
+    }
+    if (n.includes('braspress')) {
+      const bra = lista.find(t => t.nome.toLowerCase().includes('braspress'));
+      if (bra) return bra.id;
+    }
+    if (n.includes('total express') || n.includes('totalexpress')) {
+      const tot = lista.find(t => t.nome.toLowerCase().includes('total express') || t.nome.toLowerCase().includes('totalexpress'));
+      if (tot) return tot.id;
+    }
+
+    // 3. Substring bidirecional
+    const sub = lista.find(t => t.nome.toLowerCase().includes(n) || n.includes(t.nome.toLowerCase()));
+    if (sub) return sub.id;
+  }
+
+  return lista[0].id;
+}
+
+function encontrarIdApp(
+  lista: AppEntrega[],
+  idAlvo?: string | null,
+  nomeAlvo?: string | null
+): string {
+  if (lista.length === 0) return '';
+
+  if (idAlvo) {
+    const achouPorId = lista.find(a => a.id === idAlvo);
+    if (achouPorId) return achouPorId.id;
+  }
+
+  if (nomeAlvo && nomeAlvo.trim()) {
+    const n = nomeAlvo.trim().toLowerCase();
+
+    const exato = lista.find(a => a.nome.toLowerCase() === n);
+    if (exato) return exato.id;
+
+    if (n.includes('uber')) {
+      const ub = lista.find(a => a.nome.toLowerCase().includes('uber'));
+      if (ub) return ub.id;
+    }
+    if (n.includes('99')) {
+      const nov = lista.find(a => a.nome.toLowerCase().includes('99'));
+      if (nov) return nov.id;
+    }
+    if (n.includes('lalamove')) {
+      const lal = lista.find(a => a.nome.toLowerCase().includes('lalamove'));
+      if (lal) return lal.id;
+    }
+
+    const sub = lista.find(a => a.nome.toLowerCase().includes(n) || n.includes(a.nome.toLowerCase()));
+    if (sub) return sub.id;
+  }
+
+  return lista[0].id;
+}
+
 interface ModalDespacharPedidoProps {
   isOpen: boolean;
   onClose: () => void;
@@ -45,6 +124,9 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
   const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
   const [carregandoListas, setCarregandoListas] = useState<boolean>(false);
 
+  // Entrega interna para carregar do banco caso o pai não tenha hidratado
+  const [entregaInterna, setEntregaInterna] = useState<PedidoEntrega | null>(entrega);
+
   // Estados de formulário
   // 1. Correios
   const [servicoCorreios, setServicoCorreios] = useState<'PAC' | 'SEDEX'>('SEDEX');
@@ -68,6 +150,18 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
   const [despachando, setDespachando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
+  // Busca entrega atualizada no banco se necessário
+  useEffect(() => {
+    setEntregaInterna(entrega);
+    if (isOpen && pedido?.id && (!entrega || !entrega.codigo_rastreio)) {
+      ShippingOrchestrator.buscarPedidoEntrega(pedido.id)
+        .then(res => {
+          if (res) setEntregaInterna(res);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, pedido?.id, entrega]);
+
   // Carrega apps e transportadoras da loja
   useEffect(() => {
     if (!isOpen || !loja?.id) return;
@@ -87,11 +181,34 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           setApps(appsAtivos);
           setTransportadoras(transpsAtivas);
 
-          if (appsAtivos.length > 0 && !appSelecionadoId) {
-            setAppSelecionadoId(appsAtivos[0].id);
+          // Casamento inteligente com os dados atuais do pedido/entrega
+          const pe = entregaInterna || entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+          const transpNome = (
+            pe?.transportadora_nome ||
+            pe?.nome_transportadora ||
+            pedido?.nome_transportadora ||
+            (pedido as any)?.transportadora_nome ||
+            (pedido as any)?.metadados?.transportadora_nome ||
+            (pedido as any)?.forma_entrega_nome ||
+            pedido?.forma_entrega?.nome ||
+            ''
+          ).trim();
+          const transpId = pe?.transportadora_id || (pedido as any)?.transportadora_id || null;
+
+          const appNome = (
+            pe?.nome_app ||
+            pedido?.nome_app ||
+            (pedido as any)?.nome_app ||
+            (pedido as any)?.metadados?.nome_app ||
+            ''
+          ).trim();
+          const appId = pe?.app_entrega_id || (pedido as any)?.app_entrega_id || null;
+
+          if (transpsAtivas.length > 0) {
+            setTranspSelecionadaId(encontrarIdTransportadora(transpsAtivas, transpId, transpNome));
           }
-          if (transpsAtivas.length > 0 && !transpSelecionadaId) {
-            setTranspSelecionadaId(transpsAtivas[0].id);
+          if (appsAtivos.length > 0) {
+            setAppSelecionadoId(encontrarIdApp(appsAtivos, appId, appNome));
           }
         }
       } catch (err) {
@@ -106,36 +223,113 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
     return () => {
       ativo = false;
     };
-  }, [isOpen, loja?.id]);
+  }, [isOpen, loja?.id, pedido, entrega, entregaInterna]);
 
-  // Inicializa com dados do pedido/entrega
+  // Inicializa com dados consolidados do pedido/entrega
   useEffect(() => {
     if (!isOpen || !pedido) return;
     setErroMsg(null);
 
-    const pe = entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+    const pe = entregaInterna || entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
     const opTipo = pe?.tipo_operacao || (pedido as any)?.tipo_operacao || pe?.tipo_entrega;
 
-    if (opTipo === 'app_entrega') {
+    const transpNome = (
+      pe?.transportadora_nome ||
+      pe?.nome_transportadora ||
+      pedido?.nome_transportadora ||
+      (pedido as any)?.transportadora_nome ||
+      (pedido as any)?.metadados?.transportadora_nome ||
+      (pedido as any)?.forma_entrega_nome ||
+      pedido?.forma_entrega?.nome ||
+      ''
+    ).trim();
+
+    const appNome = (
+      pe?.nome_app ||
+      pedido?.nome_app ||
+      (pedido as any)?.nome_app ||
+      (pedido as any)?.metadados?.nome_app ||
+      ''
+    ).trim();
+
+    const transpId = pe?.transportadora_id || (pedido as any)?.transportadora_id || null;
+    const appId = pe?.app_entrega_id || (pedido as any)?.app_entrega_id || null;
+
+    // Código de rastreio consolidado de todas as fontes possíveis
+    const codRastreio = (
+      pe?.codigo_rastreio ||
+      pedido?.codigo_rastreio ||
+      (pedido as any)?.codigo_rastreio ||
+      (pedido as any)?.metadados?.codigo_rastreio ||
+      ''
+    ).trim();
+
+    // Valor do frete consolidado
+    const valFreteNum = Number(pe?.valor_frete ?? pedido?.valor_frete ?? 0);
+    const valFreteStr = valFreteNum > 0 ? (Number.isInteger(valFreteNum) ? String(valFreteNum) : valFreteNum.toFixed(2)) : '';
+
+    // Entregador
+    const entNome = (pe?.entregador_nome || pedido?.entregador_nome || (pedido as any)?.entregador_nome || '').trim();
+    const entContato = (pe?.contato_entregador || (pedido as any)?.contato_entregador || '').trim();
+
+    // Link e corrida
+    const linkRastreio = (pe?.link_rastreio || pedido?.link_rastreio || (pedido as any)?.link_rastreio || '').trim();
+    const codCorrida = (pe?.codigo_corrida || (pedido as any)?.codigo_corrida || '').trim();
+
+    // Identificação da modalidade
+    const ehTransp =
+      opTipo === 'transportadora' ||
+      Boolean(transpId) ||
+      (Boolean(transpNome) && !transpNome.toLowerCase().includes('correios') && (
+        transpNome.toLowerCase().includes('jadlog') ||
+        transpNome.toLowerCase().includes('transportadora') ||
+        transpNome.toLowerCase().includes('braspress') ||
+        transpNome.toLowerCase().includes('total express') ||
+        transpNome.toLowerCase().includes('azul') ||
+        transpNome.toLowerCase().includes('latam') ||
+        transpNome.toLowerCase().includes('rodonaves')
+      ));
+
+    const ehApp =
+      opTipo === 'app_entrega' ||
+      Boolean(appId) ||
+      (Boolean(appNome) && (
+        appNome.toLowerCase().includes('uber') ||
+        appNome.toLowerCase().includes('99') ||
+        appNome.toLowerCase().includes('lalamove')
+      ));
+
+    const ehFrota =
+      opTipo === 'frota_propria' ||
+      opTipo === 'motoboy' ||
+      opTipo === 'proprio' ||
+      Boolean(entNome);
+
+    if (ehApp) {
       setModalidade('app_entrega');
-      if (pe?.app_entrega_id) setAppSelecionadoId(pe.app_entrega_id);
-      setCodigoCorrida(pe?.codigo_corrida || '');
-      setLinkRastreioApp(pe?.link_rastreio || '');
-    } else if (opTipo === 'transportadora') {
+      setCodigoCorrida(codCorrida);
+      setLinkRastreioApp(linkRastreio);
+      if (apps.length > 0) {
+        setAppSelecionadoId(encontrarIdApp(apps, appId, appNome));
+      }
+    } else if (ehTransp) {
       setModalidade('transportadora');
-      if (pe?.transportadora_id) setTranspSelecionadaId(pe.transportadora_id);
-      setCodigoRastreioTransp(pe?.codigo_rastreio || '');
-      setValorFreteTransp(pe?.valor_frete ? String(pe.valor_frete) : '');
-    } else if (opTipo === 'frota_propria' || opTipo === 'motoboy' || opTipo === 'proprio') {
+      setCodigoRastreioTransp(codRastreio);
+      setValorFreteTransp(valFreteStr);
+      if (transportadoras.length > 0) {
+        setTranspSelecionadaId(encontrarIdTransportadora(transportadoras, transpId, transpNome));
+      }
+    } else if (ehFrota) {
       setModalidade('frota_propria');
-      setEntregadorNome(pe?.entregador_nome || pedido?.entregador_nome || '');
-      setContatoEntregador(pe?.contato_entregador || '');
+      setEntregadorNome(entNome);
+      setContatoEntregador(entContato);
     } else {
       setModalidade('correios');
-      setServicoCorreios(pe?.servico_correios === 'PAC' ? 'PAC' : 'SEDEX');
-      setCodigoRastreioCorreios(pe?.codigo_rastreio || pedido?.codigo_rastreio || '');
+      const srvCorreios = (pedido as any)?.servico_correios || pe?.servico_correios;
+      setServicoCorreios(srvCorreios === 'PAC' ? 'PAC' : 'SEDEX');
+      setCodigoRastreioCorreios(codRastreio);
     }
-  }, [isOpen, pedido, entrega]);
+  }, [isOpen, pedido, entrega, entregaInterna, transportadoras.length, apps.length]);
 
   // Crítica / Validação dos Correios
   const validacaoCorreios = useMemo(() => {
@@ -637,7 +831,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             ) : (
               <>
                 <Check className="w-4 h-4 stroke-[3]" />
-                <span>Confirmar e Concluir</span>
+                <span>Confirmar</span>
               </>
             )}
           </button>
