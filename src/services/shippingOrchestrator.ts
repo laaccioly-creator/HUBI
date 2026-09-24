@@ -1670,10 +1670,15 @@ export class ShippingOrchestrator {
     if (resultado.tipo_atendimento === 'retirada') {
       provedorFinal = 'retirada_loja';
     } else if (
+      pe.tipo_operacao === 'app_entrega' ||
+      pe.tipo_operacao === 'transportadora' ||
+      pe.provedor === 'frete_proprio'
+    ) {
+      provedorFinal = 'frete_proprio';
+    } else if (
       pe.provedor === 'uber' ||
       resultado.opcao_frete?.provedor === 'uber' ||
-      (pe.transportadora_nome || '').toLowerCase().includes('uber') ||
-      (pe.forma_entrega_nome || '').toLowerCase().includes('uber')
+      ((pe.transportadora_nome || '').toLowerCase().includes('uber direct') && pe.tipo_operacao !== 'app_entrega')
     ) {
       provedorFinal = 'uber';
     } else if (
@@ -1694,10 +1699,12 @@ export class ShippingOrchestrator {
       destinoCepLimpo ? `CEP ${destinoCepLimpo.replace(/^(\d{5})(\d{3})$/, '$1-$2')}` : null
     ].filter(Boolean).join(', ') || pedAtual?.endereco_entrega || null;
 
-    const nomeTransportadora = pe.transportadora_nome ||
-      pe.forma_entrega_nome ||
-      resultado.opcao_frete?.transportadora_nome ||
-      (provedorFinal === 'uber' ? 'Uber Direct' : null);
+    const nomeTransportadora = (pe.tipo_operacao === 'app_entrega' && pe.nome_app)
+      ? pe.nome_app
+      : (pe.transportadora_nome ||
+        pe.forma_entrega_nome ||
+        resultado.opcao_frete?.transportadora_nome ||
+        (provedorFinal === 'uber' ? 'Uber Direct' : null));
 
     const prazoTexto = pe.prazo_estimado_texto || resultado.opcao_frete?.prazo_estimado_texto || null;
 
@@ -1708,12 +1715,19 @@ export class ShippingOrchestrator {
       transportadora_nome: nomeTransportadora,
       nome_transportadora: nomeTransportadora,
       nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
+      app_entrega_id: pe.app_entrega_id || null,
+      transportadora_id: pe.transportadora_id || null,
+      codigo_corrida: pe.codigo_corrida || null,
+      codigo_rastreio: pe.codigo_rastreio || null,
+      link_rastreio: pe.link_rastreio || null,
       servico_codigo: pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null),
       valor_frete: Number(valorFrete || 0),
       prazo_estimado_texto: prazoTexto,
       tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
       servico_correios: pe.servico_correios || null,
       pin_entrega: pe.pin_entrega || null,
+      entregador_nome: pe.entregador_nome || null,
+      contato_entregador: pe.contato_entregador || (pe as any).entregador_telefone || null,
       destino_cep: destinoCepLimpo,
       destino_logradouro: destinoLogradouro,
       destino_numero: destinoNumero,
@@ -1738,11 +1752,16 @@ export class ShippingOrchestrator {
     const valorPagoPed = Number(pedAtual?.valor_pago || 0);
     const novoSaldoDevedor = Math.max(0, novoValorTotal - valorPagoPed);
 
-    const nomeRealFrete = nomeTransportadora ||
-      (provedorFinal === 'uber' ? 'Uber Flash' : 'Entrega');
+    const nomeRealFrete = (pe.tipo_operacao === 'app_entrega' && pe.nome_app)
+      ? pe.nome_app
+      : (nomeTransportadora || (provedorFinal === 'uber' ? 'Uber Flash' : 'Entrega'));
 
     const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
     metaAtual.transportadora_nome = nomeRealFrete;
+    metaAtual.nome_app = pe.nome_app || null;
+    metaAtual.codigo_corrida = pe.codigo_corrida || null;
+    metaAtual.codigo_rastreio = pe.codigo_rastreio || null;
+    metaAtual.link_rastreio = pe.link_rastreio || null;
     metaAtual.provedor_frete = provedorFinal;
     metaAtual.servico_frete_codigo = pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null);
     metaAtual.tipo_atendimento = resultado.tipo_atendimento || 'entrega';
@@ -1774,9 +1793,13 @@ export class ShippingOrchestrator {
         forma_entrega_id: pe.forma_entrega_id || null,
         tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
         nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
+        codigo_corrida: pe.codigo_corrida || null,
+        codigo_rastreio: pe.codigo_rastreio || null,
+        link_rastreio: pe.link_rastreio || null,
         servico_correios: pe.servico_correios || null,
         nome_transportadora: nomeRealFrete,
         entregador_nome: pe.entregador_nome || null,
+        contato_entregador: pe.contato_entregador || (pe as any).entregador_telefone || null,
         pin_entrega: pe.pin_entrega || null,
         metadados: metaAtual,
         atualizado_por: usuarioId || null,

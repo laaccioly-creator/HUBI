@@ -445,9 +445,19 @@ export const PedidosLista: React.FC = () => {
       diretoTransp.toLowerCase().includes('correios') ||
       Boolean(servicoCorreios));
 
+    const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
+    const ehAppEntrega =
+      pe?.tipo_operacao === 'app_entrega' ||
+      (pedido as any)?.tipo_operacao === 'app_entrega' ||
+      Boolean(pe?.app_entrega_id) ||
+      Boolean(nomeApp);
+
     if (isRetirada) {
       prov = 'retirada_loja';
       provNome = 'Retirada na Loja';
+    } else if (ehAppEntrega) {
+      prov = 'frete_proprio';
+      provNome = nomeApp || (peTransp && peTransp.toLowerCase() !== 'entrega' && !peTransp.toLowerCase().includes('corrida') ? peTransp : 'Uber Flash');
     } else if (ehTransportadoraPrivada) {
       prov = 'frete_proprio';
       provNome = formatarNomeTransportadora(peTransp || metaTransp || diretoTransp || 'Jadlog');
@@ -476,8 +486,7 @@ export const PedidosLista: React.FC = () => {
       prov = 'melhor_envio';
       provNome = peTransp || metaTransp || diretoTransp || 'Melhor Envio';
     } else if (
-      textoConsolidado.includes('uber direct') ||
-      textoConsolidado.includes('uber flash')
+      textoConsolidado.includes('uber direct')
     ) {
       prov = 'uber';
       provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
@@ -2144,21 +2153,40 @@ export const PedidosLista: React.FC = () => {
                   <DollarSign className="w-4 h-4" />
                   <span>Receber Fiado</span>
                 </button>
-              ) : resolverStatusPagamento(pedidoSelecionado) !== 'pago' && resolverStatusPagamento(pedidoSelecionado) !== 'fiado' ? (
-                <button
-                  type="button"
-                  onClick={() => setPedidoReceberModal(pedidoSelecionado)}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span>Receber Pagamento</span>
-                </button>
               ) : pedidoSelecionado.status === 'aguardando_envio' ? (
                 (() => {
                   const { prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                  const statusPag = resolverStatusPagamento(pedidoSelecionado);
+                  const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+                  const permiteDespachoSemPagamento = prov === 'frete_proprio' || prov === 'retirada_loja';
+
+                  if (!estaPagoOuFiado && !permiteDespachoSemPagamento) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setPedidoReceberModal(pedidoSelecionado)}
+                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        <span>Receber Pagamento</span>
+                      </button>
+                    );
+                  }
 
                   return (
                     <div className="flex items-center gap-2">
+                      {!estaPagoOuFiado && (
+                        <button
+                          type="button"
+                          onClick={() => setPedidoReceberModal(pedidoSelecionado)}
+                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          title="Receber pagamento antes ou na entrega"
+                        >
+                          <DollarSign className="w-4 h-4" />
+                          <span>Receber Pagamento</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={handleDespacharPedido}
@@ -2178,7 +2206,7 @@ export const PedidosLista: React.FC = () => {
                                 ? 'Chamar Uber Direct'
                                 : prov === 'melhor_envio'
                                 ? 'Gerar Etiqueta de Envio'
-                                : 'Despachar / Concluir Entrega'}
+                                : 'Confirmar Envio'}
                             </span>
                           </>
                         )}
@@ -2198,6 +2226,15 @@ export const PedidosLista: React.FC = () => {
                     </div>
                   );
                 })()
+              ) : resolverStatusPagamento(pedidoSelecionado) !== 'pago' && resolverStatusPagamento(pedidoSelecionado) !== 'fiado' ? (
+                <button
+                  type="button"
+                  onClick={() => setPedidoReceberModal(pedidoSelecionado)}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span>Receber Pagamento</span>
+                </button>
               ) : pedidoSelecionado.status !== 'concluido' ? (
                 <button
                   type="button"
@@ -2366,6 +2403,32 @@ export const PedidosLista: React.FC = () => {
                           <span className="font-semibold text-slate-200">{pedidoSelecionado.endereco_entrega}</span>
                         </div>
                       )}
+
+                      {(() => {
+                        const codCorrida = pe?.codigo_corrida || (pedidoSelecionado as any)?.codigo_corrida || (pedidoSelecionado as any)?.metadados?.codigo_corrida;
+                        if (!codCorrida) return null;
+                        return (
+                          <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                            <span className="text-slate-400">Código da Corrida:</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                                {codCorrida}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(codCorrida);
+                                  mostrarSucesso('Código da corrida copiado!');
+                                }}
+                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                title="Copiar código da corrida"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {(codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
@@ -3191,27 +3254,30 @@ export const PedidosLista: React.FC = () => {
                                     <span>Receber Fiado</span>
                                   </button>
                                 ) : pedido.status === 'aguardando_envio' ? (
-                                  /* ETAPA 2: Frete definido -> Se aguardando pagamento: permite apenas [Receber] (e [Alterar] acima). Se pago/fiado: libera [Chamar Uber] ou [Confirmar Envio] */
-                                  <div className="flex items-center gap-1">
-                                    {statusPag !== 'pago' && statusPag !== 'fiado' ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setPedidoReceberModal(pedido);
-                                        }}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
-                                        title="Receber pagamento com frete somado ao total"
-                                      >
-                                        <DollarSign className="w-3.5 h-3.5" />
-                                        <span>Receber</span>
-                                      </button>
-                                    ) : (
-                                      (() => {
-                                        const { prov } = resolverProvedorEntrega(pedido);
-                                        const isUber = prov === 'uber';
-                                        const isMelhorEnvio = prov === 'melhor_envio';
+                                  (() => {
+                                    const { prov } = resolverProvedorEntrega(pedido);
+                                    const isUber = prov === 'uber';
+                                    const isMelhorEnvio = prov === 'melhor_envio';
+                                    const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+                                    const permiteDespachoSemPagamento = prov === 'frete_proprio' || prov === 'retirada_loja';
 
-                                        return (
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        {!estaPagoOuFiado && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setPedidoReceberModal(pedido);
+                                            }}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer"
+                                            title="Receber pagamento"
+                                          >
+                                            <DollarSign className="w-3.5 h-3.5" />
+                                            <span>Receber</span>
+                                          </button>
+                                        )}
+
+                                        {(estaPagoOuFiado || permiteDespachoSemPagamento) && (
                                           <button
                                             type="button"
                                             onClick={() => handleDespacharPedido(pedido)}
@@ -3222,17 +3288,17 @@ export const PedidosLista: React.FC = () => {
                                                 ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
                                                 : 'bg-emerald-600 hover:bg-emerald-500'
                                             }`}
-                                            title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar despacho manual'}
+                                            title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar Envio'}
                                           >
                                             <Truck className="w-3.5 h-3.5" />
                                             <span>
                                               {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
                                             </span>
                                           </button>
-                                        );
-                                      })()
-                                    )}
-                                  </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()
                                 ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
                                   <button
                                     type="button"
@@ -3560,6 +3626,9 @@ export const PedidosLista: React.FC = () => {
         let formaEntregaTexto = 'RETIRADA NA LOJA';
         let badgeEstilo = 'bg-purple-100 text-purple-800';
 
+        const nomeApp = (pedidoReciboModal as any)?.nome_app || pe?.nome_app || (pedidoReciboModal as any)?.metadados?.nome_app;
+        const codigoCorrida = (pedidoReciboModal as any)?.codigo_corrida || pe?.codigo_corrida || (pedidoReciboModal as any)?.metadados?.codigo_corrida;
+
         if (!ehRetirada) {
           badgeEstilo = 'bg-emerald-100 text-emerald-800';
           const provedor = (pe?.provedor || (pedidoReciboModal as any).metadados?.provedor_frete || '').toLowerCase();
@@ -3591,11 +3660,25 @@ export const PedidosLista: React.FC = () => {
             servico === '2' ||
             Boolean(servicoCorreios));
 
+          const ehAppEntrega =
+            pe?.tipo_operacao === 'app_entrega' ||
+            (pedidoReciboModal as any)?.tipo_operacao === 'app_entrega' ||
+            Boolean(pe?.app_entrega_id) ||
+            Boolean(nomeApp) ||
+            Boolean(codigoCorrida) ||
+            (!ehTransportadoraPrivada && !ehCorreios && (
+              transp.toLowerCase().includes('uber') ||
+              transp.toLowerCase().includes('99') ||
+              transp.toLowerCase().includes('lalamove')
+            ));
+
           if (ehTransportadoraPrivada) {
             formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog').toUpperCase();
           } else if (ehCorreios) {
             formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';
-          } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+          } else if (ehAppEntrega) {
+            formaEntregaTexto = (nomeApp || (transp && transp.toLowerCase() !== 'entrega' && !transp.toLowerCase().includes('corrida') ? transp : 'Uber Flash')).toUpperCase();
+          } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
             formaEntregaTexto = 'UBER FLASH';
           } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
             formaEntregaTexto = transp.toUpperCase();
@@ -3694,6 +3777,11 @@ export const PedidosLista: React.FC = () => {
                       <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
                       <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
                     </div>
+                    {(pe?.codigo_corrida || (pedidoReciboModal as any)?.codigo_corrida) && (
+                      <div className="text-emerald-700 font-bold pt-0.5">
+                        Código da Corrida: {pe?.codigo_corrida || (pedidoReciboModal as any)?.codigo_corrida}
+                      </div>
+                    )}
                     {pe?.codigo_rastreio && (
                       <div className="text-emerald-700 font-bold pt-0.5">
                         Rastreio: {pe.codigo_rastreio}
@@ -4036,7 +4124,42 @@ export const PedidosLista: React.FC = () => {
         loja={loja}
         usuario={usuario}
         onClose={() => setPedidoEscolherEnvio(null)}
-        onSucesso={() => carregarPedidos()}
+        onSucesso={async () => {
+          await carregarPedidos();
+          if (pedidoEscolherEnvio) {
+            try {
+              const peAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoEscolherEnvio.id);
+              if (peAtualizada) {
+                setEntregaPedido(peAtualizada);
+              }
+              const { data: pedAtualizado } = await supabase
+                .from('pedidos')
+                .select(`
+                  *,
+                  cliente:clientes(*),
+                  vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+                  atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
+                  itens:itens_pedido(*),
+                  pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
+                  pagamentos_previstos:pedidos_pagamentos_previstos(*),
+                  historico:historico_pedidos(*, usuario:usuarios_loja(*)),
+                  pedido_entregas(*)
+                `)
+                .eq('id', pedidoEscolherEnvio.id)
+                .single();
+              if (pedAtualizado) {
+                if (pedidoSelecionado?.id === pedidoEscolherEnvio.id) {
+                  setPedidoSelecionado(pedAtualizado);
+                }
+                if (pedidoReciboModal?.id === pedidoEscolherEnvio.id) {
+                  setPedidoReciboModal(pedAtualizado);
+                }
+              }
+            } catch (eSync) {
+              console.warn('Aviso ao sincronizar pedido após definir envio:', eSync);
+            }
+          }
+        }}
         onFeedbackSucesso={(msg) => mostrarSucesso(msg)}
         onFeedbackErro={(msg) => mostrarErro(msg)}
       />

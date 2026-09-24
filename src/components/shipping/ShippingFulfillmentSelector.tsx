@@ -744,13 +744,17 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       ? dadosAdicionais.nomeTransportadora
       : (transpObj?.nome || nomesTransportadora[forma.id] || null);
 
+    const transpOuAppFinal = forma.tipo === 'app_entrega'
+      ? (nomeAppFinal || forma.nome)
+      : (nomeTransportadoraFinal || forma.nome);
+
     const opcaoManual: OpcaoFreteCotada = {
       id: `forma_${forma.id}`,
       forma_entrega_id: forma.id,
       provedor: provedorFinal,
-      transportadora_nome: nomeTransportadoraFinal || forma.nome,
+      transportadora_nome: transpOuAppFinal,
       servico_codigo: forma.tipo,
-      servico_nome: forma.nome,
+      servico_nome: forma.tipo === 'app_entrega' && nomeAppFinal ? nomeAppFinal : forma.nome,
       valor_frete: numVal,
       valor_original: numVal,
       valor_subsidio: 0,
@@ -774,7 +778,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       pedido_entrega: {
         pedido_id: '',
         forma_entrega_id: forma.id,
-        forma_entrega_nome: forma.nome,
+        forma_entrega_nome: forma.tipo === 'app_entrega' && nomeAppFinal ? nomeAppFinal : forma.nome,
         tipo_entrega: tipoEntregaCalculado,
         tipo_operacao: forma.tipo,
         tipo_atendimento: 'entrega',
@@ -789,7 +793,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         destino_latitude: endAlvo.latitude,
         destino_longitude: endAlvo.longitude,
         provedor: provedorFinal,
-        transportadora_nome: nomeTransportadoraFinal || forma.nome,
+        transportadora_nome: transpOuAppFinal,
         servico_codigo: forma.tipo,
         valor_frete: numVal,
         valor_original: numVal,
@@ -808,7 +812,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         servico_correios: servicoCorreiosFinal,
         transportadora_id: transportadoraIdFinal,
         transportadora: transpObj || null,
-        nome_transportadora: nomeTransportadoraFinal,
+        nome_transportadora: forma.tipo === 'app_entrega' ? (nomeAppFinal || forma.nome) : nomeTransportadoraFinal,
         status_envio: 'pendente'
       }
     });

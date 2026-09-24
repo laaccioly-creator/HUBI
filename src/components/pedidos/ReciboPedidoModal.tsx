@@ -36,6 +36,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     (!pe && !metaTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
 
   let formaEntregaTexto = 'RETIRADA NA LOJA';
+  const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
+  const codigoCorrida = (pedido as any)?.codigo_corrida || pe?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+  const codigoRastreio = pe?.codigo_rastreio || pedido.codigo_rastreio || (pedido as any)?.metadados?.codigo_rastreio;
+
   if (!ehRetirada) {
     const provedor = (pe?.provedor || (pedido as any).metadados?.provedor_frete || '').toLowerCase();
     const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedido.forma_entrega?.nome || (pedido as any).nome_transportadora || '').trim();
@@ -53,7 +57,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
       pe?.servico_correios ||
       (servico === '1' || servico.includes('sedex') || (transp.toLowerCase().includes('sedex') && !ehTransportadoraPrivada) ? 'SEDEX' : '') ||
       (servico === '2' || servico.includes('pac') || (transp.toLowerCase().includes('pac') && !ehTransportadoraPrivada) ? 'PAC' : '') ||
-      (!ehTransportadoraPrivada ? detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio) : null);
+      (!ehTransportadoraPrivada ? detectarServicoPorCodigo(codigoRastreio) : null);
 
     const ehCorreios =
       !ehTransportadoraPrivada &&
@@ -66,11 +70,25 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
       servico === '2' ||
       Boolean(servicoCorreios));
 
+    const ehAppEntrega =
+      pe?.tipo_operacao === 'app_entrega' ||
+      (pedido as any)?.tipo_operacao === 'app_entrega' ||
+      Boolean(pe?.app_entrega_id) ||
+      Boolean(nomeApp) ||
+      Boolean(codigoCorrida) ||
+      (!ehTransportadoraPrivada && !ehCorreios && (
+        transp.toLowerCase().includes('uber') ||
+        transp.toLowerCase().includes('99') ||
+        transp.toLowerCase().includes('lalamove')
+      ));
+
     if (ehTransportadoraPrivada) {
       formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog').toUpperCase();
     } else if (ehCorreios) {
       formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';
-    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber') || servico.includes('uber')) {
+    } else if (ehAppEntrega) {
+      formaEntregaTexto = (nomeApp || (transp && transp.toLowerCase() !== 'entrega' && !transp.toLowerCase().includes('corrida') ? transp : 'Uber Flash')).toUpperCase();
+    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
       formaEntregaTexto = 'UBER FLASH';
     } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
       formaEntregaTexto = transp.toUpperCase();
@@ -126,6 +144,18 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 <span className="text-slate-600">Forma de Atendimento:</span>
                 <span className="font-bold">{formaEntregaTexto}</span>
               </div>
+              {codigoCorrida && (
+                <div className="flex justify-between text-emerald-700 font-bold">
+                  <span>Código da Corrida:</span>
+                  <span>{codigoCorrida}</span>
+                </div>
+              )}
+              {codigoRastreio && (
+                <div className="flex justify-between text-emerald-700 font-bold">
+                  <span>Código de Rastreio:</span>
+                  <span>{codigoRastreio}</span>
+                </div>
+              )}
             </div>
 
             {/* Itens */}

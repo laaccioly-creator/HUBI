@@ -168,6 +168,8 @@ export interface InfoEntregaRecibo {
   labelEndereco: string;
   enderecoExibicao: string;
   codigoRastreio?: string | null;
+  codigoCorrida?: string | null;
+  nomeApp?: string | null;
 }
 
 export const obterInfoEntregaRecibo = (
@@ -185,11 +187,16 @@ export const obterInfoEntregaRecibo = (
   const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || (pedido as any).nome_transportadora || pedido.forma_entrega?.nome || '').trim();
   const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || pe?.nome_app || '').toLowerCase();
 
+  const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
+  const codigoCorrida = (pedido as any)?.codigo_corrida || pe?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+
   const temFreteCobrado = Number(pedido.valor_frete || 0) > 0 || Number(pe?.valor_frete || 0) > 0;
   const temProvedorEntrega = Boolean(
     (provedor && provedor !== 'retirada_loja') ||
     (transp && transp.toLowerCase() !== 'retirada na loja' && transp.toLowerCase() !== 'retirada no balcão') ||
-    (servico && servico !== 'retirada')
+    (servico && servico !== 'retirada') ||
+    Boolean(nomeApp) ||
+    Boolean(codigoCorrida)
   );
   const temEnderecoEntrega = Boolean(pe?.destino_logradouro || pedido.endereco_entrega);
 
@@ -214,7 +221,9 @@ export const obterInfoEntregaRecibo = (
       formaEntregaTexto: 'Retirada na Loja',
       labelEndereco: 'Local de Retirada (Loja):',
       enderecoExibicao: enderecoLoja,
-      codigoRastreio: null
+      codigoRastreio: null,
+      codigoCorrida: null,
+      nomeApp: null
     };
   }
 
@@ -247,6 +256,18 @@ export const obterInfoEntregaRecibo = (
     servico === '2' ||
     Boolean(servicoCorreios));
 
+  const ehAppEntrega =
+    pe?.tipo_operacao === 'app_entrega' ||
+    (pedido as any)?.tipo_operacao === 'app_entrega' ||
+    Boolean(pe?.app_entrega_id) ||
+    Boolean(nomeApp) ||
+    Boolean(codigoCorrida) ||
+    (!ehMelhorEnvio && !ehTransportadoraPrivada && !ehCorreios && (
+      transp.toLowerCase().includes('uber') ||
+      transp.toLowerCase().includes('99') ||
+      transp.toLowerCase().includes('lalamove')
+    ));
+
   let formaEntregaTexto = 'Frete Próprio';
 
   if (ehMelhorEnvio) {
@@ -261,6 +282,8 @@ export const obterInfoEntregaRecibo = (
     formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog');
   } else if (ehCorreios) {
     formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
+  } else if (ehAppEntrega) {
+    formaEntregaTexto = nomeApp || (transp && transp.toLowerCase() !== 'entrega' && !transp.toLowerCase().includes('corrida') ? transp : 'Uber Flash');
   } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
     formaEntregaTexto = 'Uber Flash';
   } else if (provedor === 'frete_proprio' || provedor === 'proprio' || pe?.tipo_atendimento === 'proprio') {
@@ -293,7 +316,9 @@ export const obterInfoEntregaRecibo = (
     formaEntregaTexto,
     labelEndereco: 'Endereço de Entrega:',
     enderecoExibicao: enderecoDestino,
-    codigoRastreio: pe?.codigo_rastreio || pedido.codigo_rastreio || null
+    codigoRastreio: pe?.codigo_rastreio || pedido.codigo_rastreio || null,
+    codigoCorrida: codigoCorrida || null,
+    nomeApp: nomeApp || null
   };
 };
 
@@ -340,7 +365,8 @@ export class PrintService {
         formaEntregaTexto,
         labelEndereco,
         enderecoExibicao,
-        codigoRastreio
+        codigoRastreio,
+        codigoCorrida
       } = obterInfoEntregaRecibo(pedido, loja);
 
       // Dados do cliente
@@ -449,6 +475,11 @@ export class PrintService {
             ${codigoRastreio ? `
               <div style="font-size: ${isA4 ? '11px' : '9px'}; color: #059669; margin-top: 3px; font-weight: 700;">
                 Código de Rastreio: ${codigoRastreio}
+              </div>
+            ` : ''}
+            ${codigoCorrida ? `
+              <div style="font-size: ${isA4 ? '11px' : '9px'}; color: #059669; margin-top: 3px; font-weight: 700;">
+                Código da Corrida: ${codigoCorrida}
               </div>
             ` : ''}
           </div>
@@ -965,10 +996,12 @@ export class PrintService {
       ehRetirada,
       formaEntregaTexto,
       labelEndereco,
-      enderecoExibicao
+      enderecoExibicao,
+      codigoRastreio,
+      codigoCorrida
     } = obterInfoEntregaRecibo(pedido, loja);
 
-    const blocoEntrega = `📦 *Forma de Entrega:* ${formaEntregaTexto}\n${enderecoExibicao ? `📍 *${labelEndereco}* ${enderecoExibicao}\n` : ''}`;
+    const blocoEntrega = `📦 *Forma de Entrega:* ${formaEntregaTexto}\n${enderecoExibicao ? `📍 *${labelEndereco}* ${enderecoExibicao}\n` : ''}${codigoRastreio ? `🚚 *Rastreio:* ${codigoRastreio}\n` : ''}${codigoCorrida ? `🏍️ *Código da Corrida:* ${codigoCorrida}\n` : ''}`;
 
     return `🧾 *RECIBO #${pedido.numero_pedido} - ${loja.nome_fantasia || 'HUBI'}*
 
