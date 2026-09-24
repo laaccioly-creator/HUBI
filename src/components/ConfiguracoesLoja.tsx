@@ -3263,41 +3263,6 @@ export const ConfiguracoesLoja: React.FC = () => {
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-
-            {/* Entregas */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Truck className="w-5 h-5 text-emerald-400" />
-                  <div>
-                    <span className="font-bold text-xs text-slate-100 block">Trabalho com Entregas</span>
-                    <span className="text-[11px] text-slate-400">Envio de pedidos para endereço do cliente</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={trabalhoComEntregas}
-                    onChange={(e) => setTrabalhoComEntregas(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-
-              {trabalhoComEntregas && (
-                <div className="pt-2 border-t border-slate-800">
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Orientações de Entrega</label>
-                  <textarea
-                    rows={2}
-                    value={descricaoEntregas}
-                    onChange={(e) => setDescricaoEntregas(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
-                    placeholder="Ex: Entregas feitas via Motoboy / Uber Envios"
-                  />
-                </div>
-              )}
-            </div>
           </div>
         )}
 

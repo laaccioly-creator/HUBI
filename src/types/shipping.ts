@@ -9,6 +9,28 @@ export type TipoOperacaoEnvio =
   | 'correios' 
   | 'transportadora';
 
+export interface AppEntrega {
+  id: string;
+  loja_id: string;
+  nome: string;
+  ativo: boolean;
+  criado_em?: string;
+}
+
+export interface Transportadora {
+  id: string;
+  loja_id: string;
+  nome: string;
+  site?: string | null;
+  url_rastreio?: string | null;
+  pessoa_contato?: string | null;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  observacoes?: string | null;
+  ativo: boolean;
+  criado_em?: string;
+}
+
 export interface DadosDespachoEnvio {
   tipo_operacao: TipoOperacaoEnvio;
   valor_frete: number;
@@ -17,12 +39,15 @@ export interface DadosDespachoEnvio {
   contato_entregador?: string;
   // Campos para app_entrega (Uber / 99 / etc.)
   nome_app?: 'Uber' | '99' | 'Lalamove' | 'Outro' | string;
+  app_entrega_id?: string;
+  codigo_corrida?: string;
   pin_entrega?: string; // Código numérico de 4 dígitos
   link_rastreio?: string;
   // Campos para correios
   servico_correios?: 'PAC' | 'SEDEX';
   codigo_rastreio?: string;
   // Campos para transportadora
+  transportadora_id?: string;
   nome_transportadora?: string;
 }
 
@@ -112,7 +137,12 @@ export interface PedidoEntrega {
   entregador_nome?: string | null;
   contato_entregador?: string | null;
   nome_app?: string | null;
+  app_entrega_id?: string | null;
+  app_entrega?: AppEntrega | null;
+  codigo_corrida?: string | null;
   servico_correios?: 'PAC' | 'SEDEX' | string | null;
+  transportadora_id?: string | null;
+  transportadora?: Transportadora | null;
   nome_transportadora?: string | null;
   tipo_operacao?: TipoOperacaoEnvio | string | null;
   despachado_em?: string | null;

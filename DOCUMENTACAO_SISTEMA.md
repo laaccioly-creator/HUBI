@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.1.0  
-> **Data de Atualização:** 16/09/2026  
+> **Versão do Documento:** 1.3.0  
+> **Data de Atualização:** 24/09/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -27,13 +27,17 @@
    - [4.2 Fluxo de Edição de Pedidos Pendentes](#42-fluxo-de-edição-de-pedidos-pendentes)
    - [4.3 Fluxo do Catálogo Online Integrado](#43-fluxo-do-catálogo-online-integrado)
    - [4.4 Sistema de Autenticação e Isolamento Multi-tenant](#44-sistema-de-autenticação-e-isolamento-multi-tenant)
+   - [4.5 Fluxo de Despacho Manual e Rastreamento dos Correios (PAC e SEDEX)](#45-fluxo-de-despacho-manual-e-rastreamento-dos-correios-pac-e-sedex)
+   - [4.6 Arquitetura de Despacho Manual e Rastreamento Multimodal](#46-arquitetura-de-despacho-manual-e-rastreamento-multimodal)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
-   - [5.2 Orquestrador e Serviços de Logística (Uber Direct e Melhor Envio)](#52-orquestrador-e-serviços-de-logística-uber-direct-e-melhor-envio)
+   - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
    - [5.3 Motor de Impressão Híbrido (ESC/POS Bluetooth, A4 PDF e Recibo Digital)](#53-motor-de-impressão-híbrido-escpos-bluetooth-a4-pdf-e-recibo-digital)
    - [5.4 Motor de Precificação Dinâmica (Pricing Engine)](#54-motor-de-precificação-dinâmica-pricing-engine)
    - [5.5 Gestão Transacional de Sessões de Caixa](#55-gestão-transacional-de-sessões-de-caixa)
    - [5.6 Componentes Globais e Formatação Centralizada](#56-componentes-globais-e-formatação-centralizada)
+   - [5.7 Ciclo de Vida PWA, Persistência Resiliente e Padrão Visual Mobile](#57-ciclo-de-vida-pwa-persistência-resiliente-e-padrão-visual-mobile)
+   - [5.8 Motor de Validação e Rastreamento Oficial dos Correios (`correiosValidator.ts` & `ModalRastreioPedido.tsx`)](#58-motor-de-validação-e-rastreamento-oficial-dos-correios-correiosvalidatorts--modalrastreiopedidotsx)
 
 ---
 
@@ -327,13 +331,18 @@ erDiagram
 | `destino_cidade` | VARCHAR(100) | NULL | Cidade |
 | `destino_uf` | VARCHAR(2) | NULL | Estado (UF) |
 | `destino_latitude` / `destino_longitude` | NUMERIC | NULL | Coordenadas para geolocalização e rotas |
-| `provedor` | VARCHAR(30) | CHECK in ('uber', 'melhor_envio', 'retirada_loja') | Provedor logístico responsável |
-| `transportadora_nome` | VARCHAR(100) | NULL | Ex: 'Uber Flash', 'Jadlog .Package', 'Correios Sedex' |
+| `provedor` | VARCHAR(30) | NULL | Provedor logístico responsável ('uber', 'melhor_envio', 'correios', 'frete_proprio', 'retirada_loja') |
+| `transportadora_nome` | VARCHAR(100) | NULL | Ex: 'Uber Direct', 'Correios', 'Jadlog' |
 | `servico_codigo` | VARCHAR(100) | NULL | Código da rota/serviço no provedor |
+| `servico_correios` | VARCHAR(20) | NULL | Subserviço dos Correios ('PAC' ou 'SEDEX') |
+| `tipo_operacao` | VARCHAR(30) | NULL | Modalidade operacional ('correios', 'uber', 'melhor_envio') |
 | `valor_frete` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Valor exato cobrado do cliente |
 | `prazo_estimado_texto` | VARCHAR(100) | NULL | Ex: '30 a 60 min', '1 a 3 dias úteis' |
-| `codigo_rastreio` | VARCHAR(100) | NULL | Código de rastreamento ou link de tracking |
-| `status_envio` | VARCHAR(50) | NOT NULL DEFAULT 'pendente' | Estado do frete (pendente, despachado, etc.) |
+| `codigo_rastreio` | VARCHAR(100) | NULL | Código oficial de rastreamento (SRO 13 caracteres) |
+| `link_rastreio` | TEXT | NULL | URL direta para acompanhamento no portal oficial |
+| `status_envio` | VARCHAR(50) | NOT NULL DEFAULT 'pendente' | Estado do frete ('pendente', 'despachado', 'em_transito', 'saiu_para_entrega', 'entregue', 'cancelado') |
+| `despachado_em` | TIMESTAMPTZ | NULL | Carimbo de data/hora do despacho ou postagem |
+| `despachado_por` | UUID | FK -> usuarios_loja(id) ON DELETE SET NULL | Operador que realizou o despacho |
 
 #### 7. Tabela `itens_pedido` (Linhas do Pedido com Snapshot Imutável)
 | Coluna | Tipo | Restrições | Descrição |
@@ -429,6 +438,81 @@ erDiagram
 | `longitude` | NUMERIC | NULL | Longitude obtida via geocodificação ou GPS |
 | `is_principal` | BOOLEAN | DEFAULT FALSE | Flag indicadora se é o endereço padrão de entrega |
 | `criado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbo de inclusão do endereço |
+
+#### 12. Tabela `pedido_entregas` (Despachos, Rastreamento e Snapshots Logísticos)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do despacho de entrega |
+| `pedido_id` | UUID | NOT NULL, FK -> pedidos(id) ON DELETE CASCADE | Pedido associado |
+| `forma_entrega_id` | UUID | NULL, FK -> formas_entrega(id) ON DELETE SET NULL | Modalidade relacional cadastrada |
+| `forma_entrega_nome` | VARCHAR(150) | NULL | Nome imutável congelado no momento do pedido |
+| `tipo_entrega` | VARCHAR(50) | DEFAULT 'proprio' | 'retirada', 'proprio', 'transportadora', 'manual' |
+| `tipo_operacao` | VARCHAR(50) | NULL | 'correios', 'app_entrega', 'transportadora', 'frota_propria' |
+| `tipo_atendimento` | VARCHAR(30) | NOT NULL DEFAULT 'entrega' | 'entrega' ou 'retirada' |
+| `cliente_endereco_id` | UUID | NULL, FK -> cliente_enderecos(id) ON DELETE SET NULL | Endereço do cliente |
+| `destino_cep` | VARCHAR(10) | NULL | CEP do destinatário |
+| `destino_logradouro` | VARCHAR(255) | NULL | Rua do destinatário |
+| `destino_numero` | VARCHAR(30) | NULL | Número |
+| `destino_complemento` | VARCHAR(100) | NULL | Complemento |
+| `destino_bairro` | VARCHAR(100) | NULL | Bairro |
+| `destino_cidade` | VARCHAR(100) | NULL | Cidade |
+| `destino_uf` | VARCHAR(2) | NULL | UF de destino |
+| `destino_latitude` | NUMERIC | NULL | Coordenadas para roteamento |
+| `destino_longitude` | NUMERIC | NULL | Coordenadas para roteamento |
+| `provedor` | VARCHAR(50) | DEFAULT 'frete_proprio' | 'uber', 'melhor_envio', 'frete_proprio', 'retirada_loja' |
+| `transportadora_nome` | VARCHAR(150) | NULL | Nome da transportadora/operador |
+| `servico_codigo` | VARCHAR(50) | NULL | Código técnico do serviço |
+| `valor_frete` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Valor final cobrado |
+| `valor_original` | NUMERIC(10,2) | NULL | Valor original antes de subsídio |
+| `valor_subsidio` | NUMERIC(10,2) | DEFAULT 0.00 | Desconto/subsídio concedido |
+| `is_frete_gratis` | BOOLEAN | DEFAULT FALSE | Flag de gratuidade |
+| `prazo_estimado_texto` | VARCHAR(100) | NULL | Texto amigável de prazo |
+| `codigo_rastreio` | VARCHAR(100) | NULL | Código de rastreio SRO/CTE |
+| `link_rastreio` | TEXT | NULL | Link público de acompanhamento |
+| `link_etiqueta` | TEXT | NULL | Link do PDF da etiqueta |
+| `pin_entrega` | VARCHAR(10) | NULL | PIN legado / código de entrega |
+| `entregador_nome` | VARCHAR(150) | NULL | Nome do motoboy/entregador próprio |
+| `contato_entregador` | VARCHAR(50) | NULL | Telefone/WhatsApp do entregador |
+| `nome_app` | VARCHAR(100) | NULL | Nome do app de entrega |
+| `app_entrega_id` | UUID | NULL, FK -> apps_entrega(id) ON DELETE SET NULL | App de corrida vinculado |
+| `codigo_corrida` | VARCHAR(100) | NULL | Identificador alfanumérico da corrida no app |
+| `servico_correios` | VARCHAR(20) | NULL | 'PAC' ou 'SEDEX' |
+| `transportadora_id` | UUID | NULL, FK -> transportadoras(id) ON DELETE SET NULL | Transportadora privada cadastrada |
+| `nome_transportadora` | VARCHAR(150) | NULL | Nome cadastral da transportadora |
+| `despachado_em` | TIMESTAMPTZ | NULL | Momento formal do despacho |
+| `despachado_por` | UUID | NULL, FK -> usuarios_loja(id) ON DELETE SET NULL | Operador que realizou o despacho |
+| `status_envio` | VARCHAR(50) | DEFAULT 'pendente' | 'pendente', 'despachado', 'em_transito', 'saiu_para_entrega', 'entregue' |
+| `peso_kg` | NUMERIC(8,3) | NULL | Peso total do pacote |
+| `largura_cm` | NUMERIC(8,2) | NULL | Largura do pacote |
+| `altura_cm` | NUMERIC(8,2) | NULL | Altura do pacote |
+| `comprimento_cm` | NUMERIC(8,2) | NULL | Comprimento do pacote |
+| `quantidade_volumes` | INTEGER | DEFAULT 1 | Total de volumes despachados |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos temporais de auditoria |
+
+#### 13. Tabela `apps_entrega` (Cadastro Multi-tenant de Aplicativos de Corrida)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do aplicativo de corrida |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant obrigatório |
+| `nome` | VARCHAR(100) | NOT NULL | Nome do aplicativo (ex: Uber Flash, 99 Entregas, Lalamove) |
+| `icone` | VARCHAR(50) | DEFAULT 'Navigation' | Identificador do ícone Lucide |
+| `padrao` | BOOLEAN | DEFAULT FALSE | Flag de opção padrão nos selects |
+| `ativo` | BOOLEAN | DEFAULT TRUE | Ativação do aplicativo na loja |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
+
+#### 14. Tabela `transportadoras` (Cadastro Multi-tenant de Transportadoras Privadas e Cargas)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID da transportadora |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant obrigatório |
+| `nome` | VARCHAR(150) | NOT NULL | Razão social ou nome fantasia (ex: Jadlog, Total Express, Braspress) |
+| `site` | VARCHAR(255) | NULL | URL do site institucional |
+| `url_rastreio` | VARCHAR(500) | NULL | URL de tracking com placeholder `{{codigo}}` para interpolação dinâmica |
+| `telefone` | VARCHAR(30) | NULL | Telefone da central de atendimento |
+| `whatsapp` | VARCHAR(30) | NULL | WhatsApp comercial/suporte da transportadora |
+| `padrao` | BOOLEAN | DEFAULT FALSE | Flag de opção padrão nos selects |
+| `ativo` | BOOLEAN | DEFAULT TRUE | Ativação da transportadora na loja |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
@@ -526,6 +610,46 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
 3. **Validação Mandatória:** Em 100% das chamadas e hooks do sistema, toda operação de busca (`select`), inserção (`insert`), atualização (`update`) ou exclusão (`delete`) inclui explicitamente a cláusula `.eq('loja_id', loja.id)`.
 4. **Proteção no Banco via Row Level Security (RLS):** Mesmo que um cliente web mal-intencionado altere o código no navegador, as políticas de segurança do PostgreSQL barram qualquer leitura ou mutação em registros cujo `loja_id` não corresponda às permissões validadas pela função `usuario_pertence_loja()`.
 
+### 4.5 Fluxo de Despacho Manual e Rastreamento dos Correios (PAC e SEDEX)
+Nos casos em que a postagem da encomenda é realizada diretamente no balcão de uma agência dos Correios (fora da emissão de etiquetas pelo Melhor Envio):
+1. **Modal de Despacho de Pedido (`ModalDespacharPedido.tsx`):**
+   - Ao selecionar a opção **Correios**, a interface exige a seleção explícita do serviço correspondente: **PAC** ou **SEDEX**.
+   - **Crítica e Validação Estrita de Código SRO:** O botão de confirmação (*"Confirmar e Concluir"*) permanece bloqueado/desabilitado até que o operador digite um código de rastreamento válido no formato padrão dos Correios (13 caracteres: 2 letras de serviço + 9 dígitos com dígito verificador ponderado módulo 11 + sufixo de país `BR`).
+   - O sistema valida a compatibilidade entre o serviço escolhido e os prefixos homologados dos Correios (ex: `PB`, `PM`, `AP`, `PE`, `PL` para PAC; `SB`, `SI`, `SP`, `SM`, `SX`, `SL`, `SZ` para SEDEX), exibindo dicas contextuais em tempo real e mensagens de erro específicas em `pt-BR`.
+2. **Nomenclatura Padronizada:**
+   - Toda referência ao frete na gestão de pedidos (`PedidosLista.tsx`, `PedidosListaMobile.tsx`), no modal de detalhes do pedido, no modal de recibo (`ReciboPedidoModal.tsx`) e na impressão térmica/digital (`printService.ts`) adota a nomenclatura oficial unificada: `Correios (PAC)` ou `Correios (SEDEX)`.
+3. **Isolamento de Botões de Ação por Modalidade:**
+   - No card de Logística e Despacho dos detalhes do pedido, botões exclusivos de entregas sob demanda (*"Acompanhar motorista no mapa ao vivo"* ou *"Copiar link de acompanhamento Uber"*) são suprimidos quando o envio for Correios.
+   - É exibido com destaque o botão dedicado **"Rastrear Envio nos Correios"**.
+4. **Modal de Rastreamento Avançado (`ModalRastreioPedido.tsx`):**
+   - Apresenta stepper progressivo com todas as etapas operacionais (Pedido Confirmado, Etiqueta Emitida, Objeto Postado, Em Trânsito, Saiu para Entrega e Objeto Entregue).
+   - Renderiza o **Histórico Detalhado de Movimentações**, listando cronologicamente os eventos reais dos Correios com carimbo de data/hora, cidades de origem/destino e unidades operacionais.
+   - Fornece botão de acesso direto ao Portal Oficial dos Correios e compartilhamento formatado para o WhatsApp do cliente.
+
+### 4.6 Arquitetura de Despacho Manual e Rastreamento Multimodal
+Para atender a cenários onde a operação logística é executada manualmente pelo lojista ou equipe de expedição, o sistema conta com suporte a 4 modalidades estritas de despacho manual:
+
+1. **Quatro Modalidades Estritas Homologadas:**
+   - **Correios (PAC e SEDEX):** Validação estrita do código de rastreamento oficial de 13 dígitos com crítica de prefixo cruzada e dígito verificador ponderado.
+   - **Aplicativo de Corrida (`app_entrega`):** Select dinâmico conectado à tabela relacional `apps_entrega` (ex: Uber Flash, 99 Entregas, Lalamove, Borzo). Entrada para o **Código da Corrida** e Link de Acompanhamento ao Vivo (sem exigência restritiva de PIN numérico).
+   - **Transportadora Privada (`transportadora`):** Select dinâmico conectado à tabela relacional `transportadoras` (ex: Jadlog, Total Express, Braspress, Loggi Cargas), campo para Código de Rastreio/CTE e Valor do Frete.
+   - **Frete Próprio (`frota_propria` / `motoboy`):** Informações do entregador responsável (nome completo) e canal de contato (telefone/WhatsApp).
+
+2. **Governança Estrita de Botões de Rastreio (`ModalRastreioPedido.tsx`):**
+   - **Exclusividade do Melhor Rastreio:** O botão `[ Melhor Rastreio ]` **só é exibido se `pedido_entregas.provedor === 'melhor_envio'`**.
+   - **Transportadoras Cadastradas:**
+     - Quando o pedido for despachado via transportadora manual (`transportadora_id`), o modal interpola dinamicamente o código de rastreio informado no placeholder `{{codigo}}` da coluna `url_rastreio` cadastrada, gerando o botão `[ Rastrear na {Nome da Transportadora} ]`.
+     - Caso não haja código ou URL de rastreio mas a transportadora possua site institucional (`site`), disponibiliza o botão `[ Site da Transportadora ]`.
+     - Se houver WhatsApp de suporte da transportadora (`whatsapp`), exibe atalho direto para atendimento.
+     - **Nunca exibe o botão do Melhor Rastreio** para transportadoras manuais.
+   - **Correios Manual (Balcão):** Exibe exclusivamente o botão `[ Ver no Portal dos Correios ]`.
+   - **Uber Direct e Apps de Corrida:** Exibe exclusivamente botões nativos para o link da corrida ao vivo (`[ Acompanhar Motorista Uber ]` ou `[ Acompanhar Corrida ]`).
+
+3. **Gerenciamento em Configurações de Frete (`ShippingSettingsScreen.tsx`):**
+   - **Seção 7 (Aplicativos de Corrida):** CRUD completo da tabela `apps_entrega` (listagem, inclusão, edição, exclusão e toggle de status ativo/inativo).
+   - **Seção 8 (Transportadoras Privadas & Cargas):** CRUD completo da tabela `transportadoras` (listagem, inclusão com suporte ao placeholder `{{codigo}}` na URL de rastreio, edição, exclusão e toggle de ativação).
+   - **Eliminação de Redundâncias:** A antiga opção duplicada *"Trabalho com entregas"* na tela `ConfiguracoesLoja.tsx` foi removida em favor da centralização unificada em `ShippingSettingsScreen.tsx`.
+
 ---
 
 ## 5. SERVIÇOS E UTILITÁRIOS GLOBAIS
@@ -535,9 +659,12 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
 - Exporta uma instância singleton do cliente Supabase configurada com persistência de sessão e taxa de eventos em tempo real (`eventsPerSecond: 10`).
 - Chamadas a APIs e tabelas são centralizadas em serviços especializados (`syncService.ts`, `caixaService.ts`, `shippingOrchestrator.ts`, etc.) para garantir reuso, tratamento unificado de erros e desacoplamento da interface com a camada de dados.
 
-### 5.2 Orquestrador e Serviços de Logística (Uber Direct e Melhor Envio)
+### 5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)
 - **`shippingOrchestrator.ts`:**
   - Ponto de entrada unificado para cotações, persistência de entrega e governança de endereços de clientes.
+  - **`listarAppsEntrega(lojaId)` / `criarAppEntrega(lojaId, dados)` / `atualizarAppEntrega(...)` / `excluirAppEntrega(...)`:** Gerenciamento multi-tenant completo da tabela `apps_entrega`.
+  - **`listarTransportadoras(lojaId)` / `buscarTransportadora(id, lojaId)` / `criarTransportadora(...)` / `atualizarTransportadora(...)` / `excluirTransportadora(...)`:** Gerenciamento multi-tenant completo da tabela `transportadoras`.
+  - **`despacharEntregaManual(pedidoId, lojaId, dados, usuarioId)`:** Persiste o snapshot do despacho manual preenchendo as colunas relacionais `app_entrega_id`, `codigo_corrida`, `transportadora_id`, `servico_correios` e `valor_frete` diretamente em `pedido_entregas`, sem uso de metadados genéricos JSONB.
   - **`cotarOpcoesFrete(req)`:** Recebe a lista de produtos (pesos e dimensões), CEPs e logradouro de origem/destino. Dispara consultas paralelas e assíncronas ao `uberDirectService.ts` e `melhorEnvioService.ts`, agrupando as cotações em `OpcaoFreteCotada[]`.
   - **`verificarMesmaRegiaoMetropolitana(origem, destino)`:** Algoritmo de proximidade geográfica que valida se o destino do cliente está contido no mesmo município ou raio de atendimento metropolitano da loja, filtrando rotas inviáveis da Uber Direct para outras cidades/estados.
   - **`aplicarSubsidioFreteGratis(opcoes, config, subtotal)`:** Analisa o subtotal de compras em relação a `frete_gratis_valor_minimo`. Identifica a opção cotada mais econômica, transforma seu valor em `R$ 0,00` (`is_frete_gratis: true`), grava o `valor_original` e aplica o subsídio proporcional nas opções de frete expresso/premium (`is_upgrade_subsidio: true`).
@@ -597,6 +724,40 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
   - Telas e modais do ciclo de checkout e logística (`ModalAtualizarEnderecoCliente`, `ModalEscolherOutroEndereco`, `ShippingFulfillmentSelector`, `modalFechamento` e wrapper de fulfillment em `PosCheckout`) utilizam o padrão visual mobile claro: fundo branco e cinza suave (`slate-50`/`slate-100`), textos de alto contraste (`slate-800`/`slate-900`) e elementos de ação e sucesso destacados em Verde Esmeralda (`#10B981`), eliminando tons residuais em azul/índigo.
 - **Ajuste Financeiro e Discriminação de Frete no Fechamento:**
   - O modal de fechamento discrimina formalmente Subtotal dos Produtos, Descontos aplicados, Valor do Frete (com identificação da transportadora ou retirada presencial) e Total Geral da Venda ($\text{Total} = \text{Subtotal} - \text{Descontos} + \text{Frete}$), garantindo que a conferência (100%) dos múltiplos meios de pagamento considere o valor consolidado incluindo o frete.
+
+### 5.8 Motor de Validação e Rastreamento Oficial dos Correios (`correiosValidator.ts` & `ModalRastreioPedido.tsx`)
+O subsistema de suporte e integração com os Correios atua em duas frentes fundamentais: validação sintática estrita no client-side e sincronização resiliente de rastreamento com agregação de eventos históricos.
+
+1. **Validador Estrutural de Códigos SRO (`src/utils/correiosValidator.ts`):**
+   - **Formato Canônico:** Valida o padrão oficial de 13 caracteres: `^[A-Z]{2}\d{9}[A-Z]{2}$` (duas letras iniciais, 8 dígitos de número de série, 1 dígito verificador e a terminação de país `BR`).
+   - **Algoritmo do Dígito Verificador (Módulo 11 Ponderado):**
+     Calcula o 9º dígito numérico através da multiplicação ponderada pelos pesos `[8, 6, 4, 2, 3, 5, 9, 7]`. Aplica as regras de exceção dos Correios:
+     $$\text{Soma} = \sum_{i=0}^{7} d_i \times w_i, \quad \text{Resto} = \text{Soma} \pmod{11}$$
+     Se $\text{Resto} = 0 \implies \text{DV} = 5$; se $\text{Resto} = 1 \implies \text{DV} = 0$; caso contrário $\text{DV} = 11 - \text{Resto}$.
+   - **Mapeamento de Prefixos Oficiais:**
+     - **PAC:** `PB`, `PC`, `PD`, `PI`, `PJ`, `PK`, `PL`, `PN`, `PM`, `PE`, `AP`.
+     - **SEDEX:** `SB`, `SC`, `SE`, `SF`, `SG`, `SI`, `SJ`, `SK`, `SL`, `SM`, `SN`, `SO`, `SP`, `SQ`, `SR`, `SS`, `ST`, `SU`, `SV`, `SW`, `SX`, `SY`, `SZ`, `DM`, `DJ`, `DN`, `DU`, `OA`, `OB`, `OC`.
+   - **Funções Exportadas:**
+     - `validarCodigoCorreios(codigo, servicoEsperado)`: Validação com retorno estruturado `{ valido: boolean; servicoDetectado?: 'PAC' | 'SEDEX' | 'OUTRO'; erro?: string }`.
+     - `detectarServicoPorCodigo(codigo)`: Identifica automaticamente se um código informado pertence à modalidade PAC ou SEDEX.
+     - `formatarCodigoCorreios(codigo)`: Higieniza e formata o código em caixa alta e remove espaços ou caracteres espúrios.
+
+2. **Edge Function Resiliente (`melhor-envio-despacho/index.ts`):**
+   - **Roteamento Inteligente de Rastreio:** Ao receber `acao = 'sincronizar_rastreio'`, verifica se o envio é Correios ou se o código é SRO (`isCorreios`).
+   - **Blindagem contra Contaminação de Ordens:** Evita consultar ordens antigas ou sandbox do Melhor Envio para encomendas despachadas fisicamente no balcão dos Correios.
+   - **Integração GraphQL com Melhor Rastreio:** Consulta `findByTrackingCode` para obter movimentações em tempo real.
+   - **Preservação de Integridade:** Se o pacote já se encontra com status `entregue` no banco ou no histórico de movimentações, o status é mantido como definitivo, impedindo regressão indevida para "despachado". Atualiza `pedidos.status = 'entregue'` quando o pedido se encontrava como `enviado`.
+
+3. **Interface do Modal de Rastreamento (`ModalRastreioPedido.tsx`):**
+   - **Stepper Integrado:** Exibe o progresso macro com marcos de tempo baseados nos eventos reais:
+     - *Pedido Realizado & Confirmado*
+     - *Etiqueta Emitida & Despachado*
+     - *Objeto Postado na Agência*
+     - *Em Trânsito*
+     - *Saiu para Entrega*
+     - *Objeto Entregue* (com destaque visual esmeralda e data/hora oficial).
+   - **Histórico Cronológico Detalhado:** Apresenta cada movimentação registrada (unidades de tratamento, agências, centros de distribuição, cidade/UF e descrições do carteiro).
+   - **Ações Rápidas:** Acesso direto ao Portal dos Correios, Melhor Rastreio e envio de mensagem formatada para o WhatsApp do cliente.
 
 ---
 

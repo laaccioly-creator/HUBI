@@ -6,7 +6,9 @@ import {
   OpcaoFreteCotada,
   RequisicaoCotacaoOrquestrador,
   NovoEnderecoFormInput,
-  ShippingSelectionResult
+  ShippingSelectionResult,
+  AppEntrega,
+  Transportadora
 } from '../types/shipping';
 import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
@@ -1311,6 +1313,183 @@ export class ShippingOrchestrator {
     if (error) throw error;
   }
 
+  // =========================================================================
+  // GESTÃO DE APPS DE CORRIDA (apps_entrega)
+  // =========================================================================
+  public static async listarAppsEntrega(lojaId: string): Promise<AppEntrega[]> {
+    if (!lojaId) return [];
+    try {
+      const { data, error } = await supabase
+        .from('apps_entrega')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .order('nome', { ascending: true });
+
+      if (error) {
+        console.warn('[ShippingOrchestrator] Erro ao listar apps_entrega:', error);
+        return [];
+      }
+      return (data || []) as AppEntrega[];
+    } catch (err) {
+      console.warn('[ShippingOrchestrator] Falha de conexão ao listar apps_entrega:', err);
+      return [];
+    }
+  }
+
+  public static async criarAppEntrega(lojaId: string, nome: string): Promise<AppEntrega> {
+    if (!lojaId) throw new Error('ID da loja é obrigatório.');
+    if (!nome.trim()) throw new Error('Nome do aplicativo é obrigatório.');
+
+    const { data, error } = await supabase
+      .from('apps_entrega')
+      .insert({
+        loja_id: lojaId,
+        nome: nome.trim(),
+        ativo: true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao criar app_entrega:', error);
+      throw new Error(error.message || 'Erro ao cadastrar aplicativo de entrega.');
+    }
+    return data as AppEntrega;
+  }
+
+  public static async atualizarAppEntrega(id: string, lojaId: string, dados: Partial<AppEntrega>): Promise<void> {
+    if (!id || !lojaId) return;
+    const { error } = await supabase
+      .from('apps_entrega')
+      .update(dados)
+      .eq('id', id)
+      .eq('loja_id', lojaId);
+
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao atualizar app_entrega:', error);
+      throw new Error(error.message || 'Erro ao atualizar aplicativo.');
+    }
+  }
+
+  public static async excluirAppEntrega(id: string, lojaId: string): Promise<void> {
+    if (!id || !lojaId) return;
+    const { error } = await supabase
+      .from('apps_entrega')
+      .delete()
+      .eq('id', id)
+      .eq('loja_id', lojaId);
+
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao excluir app_entrega:', error);
+      throw new Error(error.message || 'Erro ao excluir aplicativo.');
+    }
+  }
+
+  // =========================================================================
+  // GESTÃO DE TRANSPORTADORAS (transportadoras)
+  // =========================================================================
+  public static async listarTransportadoras(lojaId: string): Promise<Transportadora[]> {
+    if (!lojaId) return [];
+    try {
+      const { data, error } = await supabase
+        .from('transportadoras')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .order('nome', { ascending: true });
+
+      if (error) {
+        console.warn('[ShippingOrchestrator] Erro ao listar transportadoras:', error);
+        return [];
+      }
+      return (data || []) as Transportadora[];
+    } catch (err) {
+      console.warn('[ShippingOrchestrator] Falha de conexão ao listar transportadoras:', err);
+      return [];
+    }
+  }
+
+  public static async buscarTransportadora(id: string, lojaId: string): Promise<Transportadora | null> {
+    if (!id || !lojaId) return null;
+    try {
+      const { data, error } = await supabase
+        .from('transportadoras')
+        .select('*')
+        .eq('id', id)
+        .eq('loja_id', lojaId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[ShippingOrchestrator] Erro ao buscar transportadora:', error);
+        return null;
+      }
+      return data as Transportadora | null;
+    } catch {
+      return null;
+    }
+  }
+
+  public static async criarTransportadora(
+    lojaId: string,
+    dados: Omit<Transportadora, 'id' | 'loja_id' | 'criado_em'>
+  ): Promise<Transportadora> {
+    if (!lojaId) throw new Error('ID da loja é obrigatório.');
+    if (!dados.nome.trim()) throw new Error('Nome da transportadora é obrigatório.');
+
+    const { data, error } = await supabase
+      .from('transportadoras')
+      .insert({
+        loja_id: lojaId,
+        nome: dados.nome.trim(),
+        site: dados.site?.trim() || null,
+        url_rastreio: dados.url_rastreio?.trim() || null,
+        pessoa_contato: dados.pessoa_contato?.trim() || null,
+        telefone: dados.telefone?.trim() || null,
+        whatsapp: dados.whatsapp?.trim() || null,
+        observacoes: dados.observacoes?.trim() || null,
+        ativo: dados.ativo ?? true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao criar transportadora:', error);
+      throw new Error(error.message || 'Erro ao cadastrar transportadora.');
+    }
+    return data as Transportadora;
+  }
+
+  public static async atualizarTransportadora(
+    id: string,
+    lojaId: string,
+    dados: Partial<Transportadora>
+  ): Promise<void> {
+    if (!id || !lojaId) return;
+    const { error } = await supabase
+      .from('transportadoras')
+      .update(dados)
+      .eq('id', id)
+      .eq('loja_id', lojaId);
+
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao atualizar transportadora:', error);
+      throw new Error(error.message || 'Erro ao atualizar transportadora.');
+    }
+  }
+
+  public static async excluirTransportadora(id: string, lojaId: string): Promise<void> {
+    if (!id || !lojaId) return;
+    const { error } = await supabase
+      .from('transportadoras')
+      .delete()
+      .eq('id', id)
+      .eq('loja_id', lojaId);
+
+    if (error) {
+      console.error('[ShippingOrchestrator] Erro ao excluir transportadora:', error);
+      throw new Error(error.message || 'Erro ao excluir transportadora.');
+    }
+  }
+
   /**
    * Despacho manual simplificado: persiste entregador_nome, codigo_rastreio e link_rastreio
    * e transiciona para 'saiu_para_entrega' tanto em pedidos quanto em pedido_entregas
@@ -1323,11 +1502,15 @@ export class ShippingOrchestrator {
       linkRastreio?: string | null;
       pinEntrega?: string | null;
       nomeApp?: string | null;
+      appEntregaId?: string | null;
+      codigoCorrida?: string | null;
       servicoCorreios?: string | null;
+      transportadoraId?: string | null;
       nomeTransportadora?: string | null;
       tipoOperacao?: string | null;
       contatoEntregador?: string | null;
       usuarioId?: string | null;
+      valorFrete?: number | null;
     }
   ): Promise<void> {
     const { data: pedDb } = await supabase.from('pedidos').select('status').eq('id', pedidoId).maybeSingle();
@@ -1337,24 +1520,33 @@ export class ShippingOrchestrator {
 
     const despachadoEm = new Date().toISOString();
 
-    // 1. Atualizar pedido_entregas
+    // 1. Atualizar pedido_entregas com dados relacionais
+    const dadosEntrega: Record<string, any> = {
+      entregador_nome: dados.entregadorNome?.trim() || null,
+      codigo_rastreio: dados.codigoRastreio?.trim() || null,
+      link_rastreio: dados.linkRastreio?.trim() || null,
+      pin_entrega: dados.pinEntrega?.trim() || null,
+      nome_app: dados.nomeApp?.trim() || null,
+      app_entrega_id: dados.appEntregaId || null,
+      codigo_corrida: dados.codigoCorrida?.trim() || null,
+      transportadora_id: dados.transportadoraId || null,
+      servico_correios: dados.servicoCorreios?.trim() || null,
+      nome_transportadora: dados.nomeTransportadora?.trim() || null,
+      tipo_operacao: dados.tipoOperacao || null,
+      contato_entregador: dados.contatoEntregador?.trim() || null,
+      status_envio: 'despachado',
+      despachado_em: despachadoEm,
+      despachado_por: dados.usuarioId || null,
+      atualizado_em: despachadoEm
+    };
+
+    if (typeof dados.valorFrete === 'number') {
+      dadosEntrega.valor_frete = dados.valorFrete;
+    }
+
     await supabase
       .from('pedido_entregas')
-      .update({
-        entregador_nome: dados.entregadorNome?.trim() || null,
-        codigo_rastreio: dados.codigoRastreio?.trim() || null,
-        link_rastreio: dados.linkRastreio?.trim() || null,
-        pin_entrega: dados.pinEntrega?.trim() || null,
-        nome_app: dados.nomeApp?.trim() || null,
-        servico_correios: dados.servicoCorreios?.trim() || null,
-        nome_transportadora: dados.nomeTransportadora?.trim() || null,
-        tipo_operacao: dados.tipoOperacao || null,
-        contato_entregador: dados.contatoEntregador?.trim() || null,
-        status_envio: 'despachado',
-        despachado_em: despachadoEm,
-        despachado_por: dados.usuarioId || null,
-        atualizado_em: despachadoEm
-      })
+      .update(dadosEntrega)
       .eq('pedido_id', pedidoId);
 
     // 2. Atualizar snapshot relacional em pedidos (preservando status concluído ou cancelado)
