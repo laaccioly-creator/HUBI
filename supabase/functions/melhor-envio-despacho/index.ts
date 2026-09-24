@@ -258,6 +258,141 @@ serve(async (req: Request) => {
     const acao = body.acao || body.action || "despachar";
     if (acao === "sincronizar_rastreio" || acao === "consultar_rastreio") {
       console.log(`[MelhorEnvio-Edge] Executando sincronização de rastreio para o pedido ${pedidoId}...`);
+
+      const codRastreioExistente = (body.codigo_rastreio || entrega?.codigo_rastreio || pedido?.codigo_rastreio || "").trim();
+      const transpNome = (entrega?.transportadora_nome || pedido?.nome_transportadora || "").trim();
+      const servicoCorreios = entrega?.servico_correios || pedido?.servico_correios || (pedido?.metadados as any)?.servico_correios;
+      const isCorreios =
+        transpNome.toLowerCase().includes("correios") ||
+        (entrega?.tipo_operacao === "correios") ||
+        (entrega?.provedor === "correios") ||
+        (entrega?.provedor === "frete_proprio" && Boolean(servicoCorreios)) ||
+        Boolean(servicoCorreios) ||
+        /^[a-zA-Z]{2}\d{9}[a-zA-Z]{2}$/.test(codRastreioExistente);
+
+      // Tratamento Dedicado para Envios Correios (balcão ou contrato direto)
+      if (isCorreios && codRastreioExistente) {
+        console.log(`[MelhorEnvio-Edge] Sincronizando rastreio Correios para código ${codRastreioExistente}...`);
+        let statusEnvioMapeado = entrega?.status_envio || (pedido?.status === "entregue" ? "entregue" : "despachado");
+        let dataEntrega = (pedido?.metadados as any)?.data_entrega || null;
+        let dataPostagem = entrega?.despachado_em || pedido?.despachado_em || new Date().toISOString();
+        let eventosFinais: any[] = (pedido?.metadados as any)?.eventos_rastreio || (entrega as any)?.eventos_rastreio || [];
+
+        // Consulta de eventos ao Melhor Rastreio GraphQL
+        try {
+          const mrQuery = {
+            query: `query {
+              findByTrackingCode(tracker: { trackingCode: "${codRastreioExistente}" }) {
+                id
+                lastStatus
+                postedAt
+                deliveredAt
+                trackingEvents {
+                  createdAt
+                  status
+                  title
+                  description
+                  location {
+                    city
+                    state
+                  }
+                }
+              }
+            }`
+          };
+          const mrRes = await fetch("https://api.melhorrastreio.com.br/graphql", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "HUBI Sistema (suporte@hubi.app)"
+            },
+            body: JSON.stringify(mrQuery)
+          });
+          if (mrRes.ok) {
+            const mrData = await mrRes.json();
+            const parcel = mrData?.data?.findByTrackingCode;
+            if (parcel) {
+              if (parcel.deliveredAt || parcel.lastStatus === "DELIVERED") {
+                statusEnvioMapeado = "entregue";
+                dataEntrega = parcel.deliveredAt || dataEntrega || new Date().toISOString();
+              } else if (parcel.lastStatus === "OUT_FOR_DELIVERY") {
+                statusEnvioMapeado = "saiu_para_entrega";
+              } else if (parcel.lastStatus === "IN_TRANSIT") {
+                statusEnvioMapeado = "em_transito";
+              }
+
+              if (Array.isArray(parcel.trackingEvents) && parcel.trackingEvents.length > 0) {
+                eventosFinais = parcel.trackingEvents.map((ev: any) => ({
+                  data: ev.createdAt,
+                  data_formatada: new Date(ev.createdAt).toLocaleString("pt-BR"),
+                  titulo: ev.title || ev.status,
+                  descricao: ev.description,
+                  local: ev.location ? `${ev.location.city || ""} - ${ev.location.state || ""}`.trim() : "",
+                  tipo: ev.status
+                }));
+              }
+            }
+          }
+        } catch (eMr) {
+          console.warn("[MelhorEnvio-Edge] Falha na consulta GraphQL Melhor Rastreio:", eMr);
+        }
+
+        // Se o status já era 'entregue' no banco, nunca rebaixa
+        if (entrega?.status_envio === "entregue" || pedido?.status === "entregue") {
+          statusEnvioMapeado = "entregue";
+        }
+
+        const atualizadoEm = new Date().toISOString();
+        const linkOficial = `https://rastreamento.correios.com.br/app/index.php?objeto=${codRastreioExistente}`;
+
+        if (pedidoId) {
+          await supabaseAdmin
+            .from("pedido_entregas")
+            .update({
+              codigo_rastreio: codRastreioExistente,
+              link_rastreio: linkOficial,
+              status_envio: statusEnvioMapeado,
+              atualizado_em: atualizadoEm,
+            })
+            .eq("pedido_id", pedidoId);
+
+          const updatePed: Record<string, any> = {
+            codigo_rastreio: codRastreioExistente,
+            link_rastreio: linkOficial,
+            metadados: {
+              ...(pedido?.metadados || {}),
+              provedor_frete: "correios",
+              servico_correios: servicoCorreios || "PAC",
+              eventos_rastreio: eventosFinais,
+              data_entrega: dataEntrega
+            },
+            atualizado_em: atualizadoEm
+          };
+          if (statusEnvioMapeado === "entregue" && pedido?.status === "enviado") {
+            updatePed.status = "entregue";
+          }
+          await supabaseAdmin
+            .from("pedidos")
+            .update(updatePed)
+            .eq("id", pedidoId);
+        }
+
+        return new Response(
+          JSON.stringify({
+            sucesso: true,
+            acao: "sincronizar_rastreio",
+            codigo_rastreio: codRastreioExistente,
+            link_rastreio: linkOficial,
+            status_envio: statusEnvioMapeado,
+            data_postagem: dataPostagem,
+            data_entrega: dataEntrega,
+            eventos_rastreio: eventosFinais,
+            transportadora: servicoCorreios ? `Correios (${servicoCorreios})` : "Correios",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       let orderId =
         body.ordem_id ||
         body.ordemId ||
@@ -326,30 +461,6 @@ serve(async (req: Request) => {
       }
 
       if (!orderData) {
-        const codRastreioExistente = (entrega?.codigo_rastreio || pedido?.codigo_rastreio || "").trim();
-        const transpNome = (entrega?.transportadora_nome || pedido?.nome_transportadora || "Correios").trim();
-        const isCorreios =
-          transpNome.toLowerCase().includes("correios") ||
-          (entrega?.tipo_operacao === "correios") ||
-          Boolean(pedido?.servico_correios || (pedido?.metadados as any)?.servico_correios) ||
-          /^[a-zA-Z]{2}\d{9}[a-zA-Z]{2}$/.test(codRastreioExistente);
-
-        if (codRastreioExistente && isCorreios) {
-          const linkOficial = `https://rastreamento.correios.com.br/app/index.php?objeto=${codRastreioExistente}`;
-          return new Response(
-            JSON.stringify({
-              sucesso: true,
-              acao: "sincronizar_rastreio",
-              codigo_rastreio: codRastreioExistente,
-              link_rastreio: linkOficial,
-              status_envio: entrega?.status_envio || "despachado",
-              data_postagem: entrega?.despachado_em || pedido?.despachado_em || new Date().toISOString(),
-              transportadora: transpNome.toLowerCase().includes("correios") ? transpNome : "Correios",
-            }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
         return new Response(
           JSON.stringify({
             sucesso: false,
