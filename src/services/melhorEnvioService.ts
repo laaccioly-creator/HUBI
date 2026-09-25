@@ -504,15 +504,16 @@ export class MelhorEnvioService {
     const limparLogradouro = (rua?: string | null, num?: string | null) => {
       if (!rua) return '';
       let limpo = sanitizarTexto(rua).replace(/[\/\\:;"'´`~^]/g, ' ').replace(/,{2,}/g, ',').trim();
+      limpo = limpo.replace(/[,.\-\s]+$/, '').trim();
       const numTrim = (num || '').trim();
       if (numTrim && numTrim.toUpperCase() !== 'SN') {
-        const regexNum = new RegExp(`(?:,\\s*|\\s+)(?:n[º°]|n\\.|num|número)?\\s*${numTrim}$`, 'i');
-        limpo = limpo.replace(regexNum, '').trim();
+        const regexFinal = new RegExp(`(?:[-,\\s]+(?:n[º°]|n\\.|num|número)?[-,\\s]*)${numTrim}[-,\\s]*$`, 'i');
+        limpo = limpo.replace(regexFinal, '').trim();
         if (limpo.endsWith(numTrim)) {
-          limpo = limpo.slice(0, -numTrim.length).replace(/,\s*$/, '').trim();
+          limpo = limpo.slice(0, -numTrim.length).trim();
         }
       }
-      return limpo.replace(/[,-\s]+$/, '').trim();
+      return limpo.replace(/[,.\-\s]+$/, '').trim();
     };
 
     const docRemetenteRaw = (loja as any).numero_documento || (loja as any).cnpj || (loja as any).cpf || docLoja || '';

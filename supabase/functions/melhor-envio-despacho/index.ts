@@ -731,21 +731,25 @@ serve(async (req: Request) => {
     const limparLogradouro = (rua?: string | null, num?: string | null) => {
       if (!rua) return '';
       let limpo = sanitizarTexto(rua).replace(/[\/\\:;"'´`~^]/g, ' ').replace(/,{2,}/g, ',').trim();
+      limpo = limpo.replace(/[,.\-\s]+$/, '').trim();
       const numTrim = (num || '').trim();
       if (numTrim && numTrim.toUpperCase() !== 'SN') {
-        const regexNum = new RegExp(`(?:,\\s*|\\s+)(?:n[º°]|n\\.|num|número)?\\s*${numTrim}$`, 'i');
-        limpo = limpo.replace(regexNum, '').trim();
+        const regexFinal = new RegExp(`(?:[-,\\s]+(?:n[º°]|n\\.|num|número)?[-,\\s]*)${numTrim}[-,\\s]*$`, 'i');
+        limpo = limpo.replace(regexFinal, '').trim();
         if (limpo.endsWith(numTrim)) {
-          limpo = limpo.slice(0, -numTrim.length).replace(/,\s*$/, '').trim();
+          limpo = limpo.slice(0, -numTrim.length).trim();
         }
       }
-      return limpo.replace(/[,-\s]+$/, '').trim();
+      return limpo.replace(/[,.\-\s]+$/, '').trim();
     };
 
     // Adequação de Nome Remetente: se documento for CPF, Jadlog exige nome completo de PF
-    const meUserNome = meUser?.first_name
-      ? `${meUser.first_name} ${meUser.last_name || ''}`.trim()
-      : '';
+    const meUserFirst = String(meUser?.firstname || meUser?.first_name || '').trim();
+    const meUserLast = String(meUser?.lastname || meUser?.last_name || '').trim();
+    let meUserNome = (meUserFirst ? `${meUserFirst} ${meUserLast}`.trim() : '').replace(/\s+/g, ' ');
+    if (meUserNome) {
+      meUserNome = meUserNome.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
 
     const nomeResponsavelLoja = String(
       (loja as any)?.nome_responsavel ||
@@ -758,10 +762,10 @@ serve(async (req: Request) => {
 
     let nomeRemetenteFinal = (dadosLoja.nome_fantasia || dadosLoja.razao_social || 'HOTAMAZON').trim();
     if (docLoja.length === 11) {
-      if (nomeResponsavelLoja && nomeResponsavelLoja.split(/\s+/).filter(Boolean).length >= 2) {
-        nomeRemetenteFinal = nomeResponsavelLoja;
-      } else if (meUserNome && meUserNome.split(/\s+/).filter(Boolean).length >= 2) {
+      if (meUserNome && meUserNome.split(/\s+/).filter(Boolean).length >= 2) {
         nomeRemetenteFinal = meUserNome;
+      } else if (nomeResponsavelLoja && nomeResponsavelLoja.split(/\s+/).filter(Boolean).length >= 2) {
+        nomeRemetenteFinal = nomeResponsavelLoja;
       } else {
         let nomeLimpoPF = nomeRemetenteFinal.replace(/\b(Loja|Ltda|MEI|ME|EPP|S\/A|Comercio|Comércio|Store|Shop)\b/gi, '').trim();
         nomeLimpoPF = nomeLimpoPF.replace(/\s+/g, ' ').trim();
