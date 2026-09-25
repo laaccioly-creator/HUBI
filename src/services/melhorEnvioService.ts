@@ -501,6 +501,20 @@ export class MelhorEnvioService {
       return (!n || n.toUpperCase() === 'S/N' || n.toUpperCase() === 'SN') ? 'SN' : n.substring(0, 20);
     };
 
+    const limparLogradouro = (rua?: string | null, num?: string | null) => {
+      if (!rua) return '';
+      let limpo = sanitizarTexto(rua).replace(/[\/\\:;"'´`~^]/g, ' ').replace(/,{2,}/g, ',').trim();
+      const numTrim = (num || '').trim();
+      if (numTrim && numTrim.toUpperCase() !== 'SN') {
+        const regexNum = new RegExp(`(?:,\\s*|\\s+)(?:n[º°]|n\\.|num|número)?\\s*${numTrim}$`, 'i');
+        limpo = limpo.replace(regexNum, '').trim();
+        if (limpo.endsWith(numTrim)) {
+          limpo = limpo.slice(0, -numTrim.length).replace(/,\s*$/, '').trim();
+        }
+      }
+      return limpo.replace(/[,-\s]+$/, '').trim();
+    };
+
     const docRemetenteRaw = (loja as any).numero_documento || (loja as any).cnpj || (loja as any).cpf || docLoja || '';
     const docLimpo = String(docRemetenteRaw).replace(/\D/g, '');
     const isSandboxEnv = Boolean(config.melhor_envio_sandbox_mode);
@@ -531,18 +545,56 @@ export class MelhorEnvioService {
       ? (docClienteLimpo === documentoFinalRemetente && isSandboxEnv ? '11144477735' : docClienteLimpo)
       : (isSandboxEnv ? '11144477735' : docClienteLimpo);
 
+    const nomeResponsavelLoja = String(
+      (loja as any).nome_responsavel ||
+      (loja as any).responsavel_nome ||
+      (config as any).nome_responsavel ||
+      (loja as any).proprietario_nome ||
+      ''
+    ).trim();
+
+    let nomeRemetenteFinal = nomeRemetente;
+    if (documentoFinalRemetente.length === 11) {
+      if (nomeResponsavelLoja && nomeResponsavelLoja.split(/\s+/).filter(Boolean).length >= 2) {
+        nomeRemetenteFinal = nomeResponsavelLoja;
+      } else {
+        let nomeLimpoPF = nomeRemetenteFinal.replace(/\b(Loja|Ltda|MEI|ME|EPP|S\/A|Comercio|Comércio|Store|Shop)\b/gi, '').trim();
+        nomeLimpoPF = nomeLimpoPF.replace(/\s+/g, ' ').trim();
+        if (nomeLimpoPF.split(/\s+/).filter(Boolean).length < 2) {
+          nomeLimpoPF = `${nomeLimpoPF} Representante`.trim();
+        }
+        nomeRemetenteFinal = nomeLimpoPF;
+      }
+    }
+
+    let nomeClienteFinal = (cliente.nome || endEntrega.destinatario || pedido.cliente_nome_avulso || 'Cliente Destinatário').trim();
+    nomeClienteFinal = sanitizarTexto(nomeClienteFinal).replace(/[\/":;,]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (documentoFinalCliente.length === 11) {
+      nomeClienteFinal = nomeClienteFinal.replace(/\b(Ltda|MEI|ME|EPP|S\/A|Loja|Empresa)\b/gi, '').trim();
+      nomeClienteFinal = nomeClienteFinal.replace(/\s+/g, ' ').trim();
+    }
+    if (nomeClienteFinal.split(/\s+/).filter(Boolean).length < 2) {
+      nomeClienteFinal = `${nomeClienteFinal} Destinatário`.trim();
+    }
+
+    const numOrigem = sanitizarNum(dadosLoja.numero) || '945';
+    const logradouroOrigem = limparLogradouro(dadosLoja.logradouro || 'Rua Bélgica', numOrigem) || 'Rua Bélgica';
+
+    const numDestino = sanitizarNum(endEntrega.numero);
+    const logradouroDestino = limparLogradouro(endEntrega.logradouro || 'Rua Lindolfo Color', numDestino) || 'Rua Lindolfo Color';
+
     // Payload de inserção no carrinho do Melhor Envio
     const cartPayload = {
       service: Number(entrega.servico_codigo) || 1, // 1: Correios PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
       agency: null,
       from: {
-        name: nomeRemetente,
+        name: nomeRemetenteFinal,
         phone: (dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
         email: dadosLoja.email || 'contato@hubi.app',
         document: documentoFinalRemetente,
-        address: sanitizarTexto(dadosLoja.logradouro) || 'Rua Bélgica',
+        address: logradouroOrigem,
         complement: sanitizarTexto(dadosLoja.complemento).substring(0, 50),
-        number: sanitizarNum(dadosLoja.numero) || '945',
+        number: numOrigem,
         district: (sanitizarTexto(dadosLoja.bairro) || 'Maraponga').substring(0, 50),
         city: sanitizarTexto(dadosLoja.cidade) || 'Fortaleza',
         state_abbr: (dadosLoja.uf || 'CE').toUpperCase().slice(0, 2),
@@ -550,13 +602,13 @@ export class MelhorEnvioService {
         postal_code: (dadosLoja.cep || '60710790').replace(/\D/g, '')
       },
       to: {
-        name: nomeCliente,
+        name: nomeClienteFinal,
         phone: (cliente.telefone || cliente.whatsapp || pedido.cliente_telefone_avulso || dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
         email: cliente.email || pedido.cliente_email_avulso || 'cliente@hubi.app',
         document: documentoFinalCliente,
-        address: sanitizarTexto(endEntrega.logradouro) || 'Rua Lindolfo Color',
+        address: logradouroDestino,
         complement: sanitizarTexto(endEntrega.complemento).substring(0, 50),
-        number: sanitizarNum(endEntrega.numero),
+        number: numDestino,
         district: (sanitizarTexto(endEntrega.bairro) || 'Engenho do Meio').substring(0, 50),
         city: sanitizarTexto(endEntrega.cidade) || 'Recife',
         state_abbr: (endEntrega.uf || 'PE').toUpperCase().slice(0, 2),

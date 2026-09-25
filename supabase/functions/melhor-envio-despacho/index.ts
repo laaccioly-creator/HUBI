@@ -722,9 +722,58 @@ serve(async (req: Request) => {
       cep: (configShipping?.origem_cep || loja?.endereco_cep || (loja as any)?.cep || '60710790').replace(/\D/g, '')
     };
 
-    let nomeRemetente = (dadosLoja.nome_fantasia || dadosLoja.razao_social || 'HOTAMAZON').trim();
-    if (nomeRemetente.split(/\s+/).filter(Boolean).length < 2) {
-      nomeRemetente = `${nomeRemetente} Loja`.trim();
+    const sanitizarTexto = (txt?: string | null) => (txt || '').replace(/[\/":]/g, ' ').replace(/,{2,}/g, ',').replace(/\s+/g, ' ').trim();
+    const sanitizarNum = (num?: string | null) => {
+      const n = sanitizarTexto(num);
+      return (!n || n.toUpperCase() === 'S/N' || n.toUpperCase() === 'SN') ? 'SN' : n.substring(0, 20);
+    };
+
+    const limparLogradouro = (rua?: string | null, num?: string | null) => {
+      if (!rua) return '';
+      let limpo = sanitizarTexto(rua).replace(/[\/\\:;"'´`~^]/g, ' ').replace(/,{2,}/g, ',').trim();
+      const numTrim = (num || '').trim();
+      if (numTrim && numTrim.toUpperCase() !== 'SN') {
+        const regexNum = new RegExp(`(?:,\\s*|\\s+)(?:n[º°]|n\\.|num|número)?\\s*${numTrim}$`, 'i');
+        limpo = limpo.replace(regexNum, '').trim();
+        if (limpo.endsWith(numTrim)) {
+          limpo = limpo.slice(0, -numTrim.length).replace(/,\s*$/, '').trim();
+        }
+      }
+      return limpo.replace(/[,-\s]+$/, '').trim();
+    };
+
+    // Adequação de Nome Remetente: se documento for CPF, Jadlog exige nome completo de PF
+    const meUserNome = meUser?.first_name
+      ? `${meUser.first_name} ${meUser.last_name || ''}`.trim()
+      : '';
+
+    const nomeResponsavelLoja = String(
+      (loja as any)?.nome_responsavel ||
+      (loja as any)?.responsavel_nome ||
+      (configShipping as any)?.nome_responsavel ||
+      (loja as any)?.proprietario_nome ||
+      meUserNome ||
+      ''
+    ).trim();
+
+    let nomeRemetenteFinal = (dadosLoja.nome_fantasia || dadosLoja.razao_social || 'HOTAMAZON').trim();
+    if (docLoja.length === 11) {
+      if (nomeResponsavelLoja && nomeResponsavelLoja.split(/\s+/).filter(Boolean).length >= 2) {
+        nomeRemetenteFinal = nomeResponsavelLoja;
+      } else if (meUserNome && meUserNome.split(/\s+/).filter(Boolean).length >= 2) {
+        nomeRemetenteFinal = meUserNome;
+      } else {
+        let nomeLimpoPF = nomeRemetenteFinal.replace(/\b(Loja|Ltda|MEI|ME|EPP|S\/A|Comercio|Comércio|Store|Shop)\b/gi, '').trim();
+        nomeLimpoPF = nomeLimpoPF.replace(/\s+/g, ' ').trim();
+        if (nomeLimpoPF.split(/\s+/).filter(Boolean).length < 2) {
+          nomeLimpoPF = `${nomeLimpoPF} Representante`.trim();
+        }
+        nomeRemetenteFinal = nomeLimpoPF;
+      }
+    } else {
+      if (nomeRemetenteFinal.split(/\s+/).filter(Boolean).length < 2) {
+        nomeRemetenteFinal = `${nomeRemetenteFinal} Loja`.trim();
+      }
     }
 
     // Garantir que os dados do destinatário venham EXCLUSIVAMENTE do endereço de entrega do pedido
@@ -761,17 +810,22 @@ serve(async (req: Request) => {
       cep: (endEntregaRaw.cep || endEntregaRaw.postal_code || entrega?.destino_cep || cliente?.endereco_cep || cliente?.cep || '').replace(/\D/g, '')
     };
 
-    let nomeCliente = (cliente.nome || endEntrega.destinatario || pedido?.cliente_nome_avulso || 'Cliente').trim();
-    nomeCliente = nomeCliente.replace(/[\/":;,]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (nomeCliente.split(/\s+/).filter(Boolean).length < 2) {
-      nomeCliente = `${nomeCliente} Cliente`.trim();
+    // Adequação de Nome Destinatário: nome completo de PF evitando apelidos comerciais
+    let nomeClienteFinal = (cliente.nome || endEntrega.destinatario || pedido?.cliente_nome_avulso || 'Cliente Destinatário').trim();
+    nomeClienteFinal = sanitizarTexto(nomeClienteFinal).replace(/[\/":;,]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (docCliente.length === 11) {
+      nomeClienteFinal = nomeClienteFinal.replace(/\b(Ltda|MEI|ME|EPP|S\/A|Loja|Empresa)\b/gi, '').trim();
+      nomeClienteFinal = nomeClienteFinal.replace(/\s+/g, ' ').trim();
+    }
+    if (nomeClienteFinal.split(/\s+/).filter(Boolean).length < 2) {
+      nomeClienteFinal = `${nomeClienteFinal} Destinatário`.trim();
     }
 
-    const sanitizarTexto = (txt?: string | null) => (txt || '').replace(/[\/":]/g, ' ').replace(/,{2,}/g, ',').replace(/\s+/g, ' ').trim();
-    const sanitizarNum = (num?: string | null) => {
-      const n = sanitizarTexto(num);
-      return (!n || n.toUpperCase() === 'S/N' || n.toUpperCase() === 'SN') ? 'SN' : n.substring(0, 20);
-    };
+    const numOrigem = sanitizarNum(dadosLoja.numero) || '945';
+    const logradouroOrigem = limparLogradouro(dadosLoja.logradouro || 'Rua Bélgica', numOrigem) || 'Rua Bélgica';
+
+    const numDestino = sanitizarNum(endEntrega.numero);
+    const logradouroDestino = limparLogradouro(endEntrega.logradouro || 'Rua Lindolfo Color', numDestino) || 'Rua Lindolfo Color';
 
     const cepOrigem = (dadosLoja.cep || '60710790').replace(/\D/g, '');
     const cepDestino = (endEntrega.cep || '50730605').replace(/\D/g, '');
@@ -779,13 +833,13 @@ serve(async (req: Request) => {
     const servicoCodigo = Number(entrega?.servico_codigo || customPayload?.service) || 1; // 1: PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
 
     const fromPayload = {
-      name: nomeRemetente,
+      name: nomeRemetenteFinal,
       phone: (dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
       email: dadosLoja.email || 'contato@hubi.app',
       document: docLoja,
-      address: sanitizarTexto(dadosLoja.logradouro) || 'Rua Bélgica',
+      address: logradouroOrigem,
       complement: sanitizarTexto(dadosLoja.complemento).substring(0, 50),
-      number: sanitizarNum(dadosLoja.numero) || '945',
+      number: numOrigem,
       district: (sanitizarTexto(dadosLoja.bairro) || 'Maraponga').substring(0, 50),
       city: sanitizarTexto(dadosLoja.cidade) || 'Fortaleza',
       state_abbr: (dadosLoja.uf || 'CE').toUpperCase().slice(0, 2),
@@ -794,13 +848,13 @@ serve(async (req: Request) => {
     };
 
     const toPayload = {
-      name: nomeCliente,
+      name: nomeClienteFinal,
       phone: (cliente.telefone || cliente.whatsapp || pedido?.cliente_telefone_avulso || dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
       email: cliente.email || pedido?.cliente_email_avulso || 'cliente@hubi.app',
       document: docCliente,
-      address: sanitizarTexto(endEntrega.logradouro) || 'Rua Lindolfo Color',
+      address: logradouroDestino,
       complement: sanitizarTexto(endEntrega.complemento).substring(0, 50),
-      number: sanitizarNum(endEntrega.numero),
+      number: numDestino,
       district: (sanitizarTexto(endEntrega.bairro) || 'Engenho do Meio').substring(0, 50),
       city: sanitizarTexto(endEntrega.cidade) || 'Recife',
       state_abbr: (endEntrega.uf || 'PE').toUpperCase().slice(0, 2),
