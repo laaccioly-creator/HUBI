@@ -17,14 +17,20 @@ import {
   Navigation,
   ChevronRight,
   Layers,
-  PackageCheck
+  PackageCheck,
+  Plus,
+  Trash2,
+  Edit2,
+  Globe,
+  Phone,
+  ExternalLink
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
-import { LojaShippingConfig } from '../../types/shipping';
+import { LojaShippingConfig, AppEntrega, Transportadora } from '../../types/shipping';
 import { ModalTutorialUberDirect } from './ModalTutorialUberDirect';
 import { ModalTutorialMelhorEnvio } from './ModalTutorialMelhorEnvio';
 
@@ -41,6 +47,24 @@ export const ShippingSettingsScreen: React.FC = () => {
   // Modais de tutorial
   const [modalUberAberto, setModalUberAberto] = useState<boolean>(false);
   const [modalMelhorEnvioAberto, setModalMelhorEnvioAberto] = useState<boolean>(false);
+
+  // 6. Gestão de Apps de Corrida (apps_entrega)
+  const [appsEntrega, setAppsEntrega] = useState<AppEntrega[]>([]);
+  const [novoAppNome, setNovoAppNome] = useState<string>('');
+  const [salvandoApp, setSalvandoApp] = useState<boolean>(false);
+
+  // 7. Gestão de Transportadoras (transportadoras)
+  const [transportadoras, setTransportadoras] = useState<Transportadora[]>([]);
+  const [modalTranspAberto, setModalTranspAberto] = useState<boolean>(false);
+  const [transpEditando, setTranspEditando] = useState<Transportadora | null>(null);
+  const [transpNome, setTranspNome] = useState<string>('');
+  const [transpSite, setTranspSite] = useState<string>('');
+  const [transpUrlRastreio, setTranspUrlRastreio] = useState<string>('');
+  const [transpContato, setTranspContato] = useState<string>('');
+  const [transpTelefone, setTranspTelefone] = useState<string>('');
+  const [transpWhatsapp, setTranspWhatsapp] = useState<string>('');
+  const [transpObservacoes, setTranspObservacoes] = useState<string>('');
+  const [salvandoTransp, setSalvandoTransp] = useState<boolean>(false);
 
 
   // Estados dos Campos
@@ -90,7 +114,17 @@ export const ShippingSettingsScreen: React.FC = () => {
       setErroMsg(null);
 
       try {
-        const config = await ShippingOrchestrator.buscarConfigLoja(loja.id);
+        const [config, apps, transps] = await Promise.all([
+          ShippingOrchestrator.buscarConfigLoja(loja.id),
+          ShippingOrchestrator.listarAppsEntrega(loja.id),
+          ShippingOrchestrator.listarTransportadoras(loja.id)
+        ]);
+
+        if (ativo) {
+          setAppsEntrega(apps);
+          setTransportadoras(transps);
+        }
+
         if (ativo && config) {
           setOrigemCep(config.origem_cep || '');
           setOrigemLogradouro(config.origem_logradouro || '');
@@ -168,6 +202,132 @@ export const ShippingSettingsScreen: React.FC = () => {
       console.warn('Erro ao consultar ViaCEP:', err);
     } finally {
       setBuscandoCep(false);
+    }
+  };
+
+  // Funções CRUD de Apps de Corrida
+  const handleCriarApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loja?.id || !novoAppNome.trim()) return;
+    try {
+      setSalvandoApp(true);
+      await ShippingOrchestrator.criarAppEntrega(loja.id, novoAppNome.trim());
+      const lista = await ShippingOrchestrator.listarAppsEntrega(loja.id);
+      setAppsEntrega(lista);
+      setNovoAppNome('');
+      mostrarSucesso('Aplicativo de corrida cadastrado com sucesso!');
+    } catch (err) {
+      mostrarErro(err instanceof Error ? err.message : 'Erro ao cadastrar aplicativo.');
+    } finally {
+      setSalvandoApp(false);
+    }
+  };
+
+  const handleAlternarApp = async (app: AppEntrega) => {
+    if (!loja?.id) return;
+    try {
+      const novoAtivo = !app.ativo;
+      setAppsEntrega(prev => prev.map(a => a.id === app.id ? { ...a, ativo: novoAtivo } : a));
+      await ShippingOrchestrator.atualizarAppEntrega(app.id, loja.id, { ativo: novoAtivo });
+      mostrarSucesso(`Aplicativo ${novoAtivo ? 'ativado' : 'desativado'}.`);
+    } catch (err) {
+      mostrarErro(err instanceof Error ? err.message : 'Erro ao alterar status.');
+    }
+  };
+
+  const handleExcluirApp = async (app: AppEntrega) => {
+    if (!loja?.id) return;
+    if (!confirm(`Deseja realmente remover o aplicativo "${app.nome}"?`)) return;
+    try {
+      await ShippingOrchestrator.excluirAppEntrega(app.id, loja.id);
+      setAppsEntrega(prev => prev.filter(a => a.id !== app.id));
+      mostrarSucesso('Aplicativo excluído com sucesso!');
+    } catch (err) {
+      mostrarErro(err instanceof Error ? err.message : 'Erro ao excluir aplicativo.');
+    }
+  };
+
+  // Funções CRUD de Transportadoras
+  const handleAbrirNovaTransp = () => {
+    setTranspEditando(null);
+    setTranspNome('');
+    setTranspSite('');
+    setTranspUrlRastreio('');
+    setTranspContato('');
+    setTranspTelefone('');
+    setTranspWhatsapp('');
+    setTranspObservacoes('');
+    setModalTranspAberto(true);
+  };
+
+  const handleAbrirEditarTransp = (t: Transportadora) => {
+    setTranspEditando(t);
+    setTranspNome(t.nome || '');
+    setTranspSite(t.site || '');
+    setTranspUrlRastreio(t.url_rastreio || '');
+    setTranspContato(t.pessoa_contato || '');
+    setTranspTelefone(t.telefone || '');
+    setTranspWhatsapp(t.whatsapp || '');
+    setTranspObservacoes(t.observacoes || '');
+    setModalTranspAberto(true);
+  };
+
+  const handleSalvarTransp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loja?.id || !transpNome.trim()) return;
+    try {
+      setSalvandoTransp(true);
+      const dados = {
+        nome: transpNome.trim(),
+        site: transpSite.trim() || null,
+        url_rastreio: transpUrlRastreio.trim() || null,
+        pessoa_contato: transpContato.trim() || null,
+        telefone: transpTelefone.trim() || null,
+        whatsapp: transpWhatsapp.trim() || null,
+        observacoes: transpObservacoes.trim() || null,
+        ativo: transpEditando ? transpEditando.ativo : true
+      };
+
+      if (transpEditando) {
+        await ShippingOrchestrator.atualizarTransportadora(transpEditando.id, loja.id, dados);
+        mostrarSucesso('Transportadora atualizada com sucesso!');
+      } else {
+        await ShippingOrchestrator.criarTransportadora(loja.id, dados);
+        mostrarSucesso('Transportadora cadastrada com sucesso!');
+      }
+
+      const lista = await ShippingOrchestrator.listarTransportadoras(loja.id);
+      setTransportadoras(lista);
+      setModalTranspAberto(false);
+      setTranspEditando(null);
+    } catch (err) {
+      mostrarErro(err instanceof Error ? err.message : 'Erro ao salvar transportadora.');
+    } finally {
+      setSalvandoTransp(false);
+    }
+  };
+
+  const handleAlternarTransp = async (t: Transportadora) => {
+    if (!loja?.id) return;
+    try {
+      const novoAtivo = !t.ativo;
+      setTransportadoras(prev => prev.map(item => item.id === t.id ? { ...item, ativo: novoAtivo } : item));
+      await ShippingOrchestrator.atualizarTransportadora(t.id, loja.id, { ativo: novoAtivo });
+      mostrarSucesso(`Transportadora ${novoAtivo ? 'ativada' : 'desativada'}.`);
+    } catch (err) {
+      mostrarErro(err instanceof Error ? err.message : 'Erro ao alterar status.');
+    }
+  };
+
+  const handleExcluirTransp = async (t: Transportadora) => {
+    if (!loja?.id) return;
+    if (!confirm(`Deseja realmente remover a transportadora "${t.nome}"?`)) return;
+    try {
+      await ShippingOrchestrator.excluirTransportadora(t.id, loja.id);
+      setTransportadoras(prev => prev.filter(item => item.id !== t.id));
+      mostrarSucesso('Transportadora excluída com sucesso!');
+    } catch (err) {
+      mostrarErro(err instanceof Error ? err.message : 'Erro ao excluir transportadora.');
     }
   };
 
@@ -832,99 +992,218 @@ export const ShippingSettingsScreen: React.FC = () => {
           )}
         </div>
 
-        {/* 6. ATALHOS PARA CADASTROS & TABELAS DE LOGÍSTICA */}
+        {/* 6. APLICATIVOS DE CORRIDA & FLASH (CRUD SIMPLES) */}
         <div className="p-6 rounded-3xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black">
-                <Layers className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-black">
+                <Navigation className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  Tabelas e Cadastros de Entrega
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Centralizado
+                  Aplicativos de Corrida & Flash
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Despacho Manual
                   </span>
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Os cadastros de modalidades, aplicativos de corrida e transportadoras agora ficam reunidos em Cadastros & Tabelas
+                  Cadastre os apps que sua equipe utiliza para solicitar motoboys (Uber Flash, 99Entrega, Lalamove, etc.)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Adicionar Novo App */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              placeholder="Nome do app (ex: Uber Flash, 99Entrega, Lalamove)"
+              value={novoAppNome}
+              onChange={(e) => setNovoAppNome(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleCriarApp(e);
+                }
+              }}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleCriarApp}
+              disabled={salvandoApp || !novoAppNome.trim()}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+            >
+              {salvandoApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Adicionar Aplicativo
+            </button>
+          </div>
+
+          {/* Lista de Apps Cadastrados */}
+          {appsEntrega.length === 0 ? (
+            <p className="text-xs text-slate-500 italic py-2">
+              Nenhum aplicativo cadastrado no momento. Cadastre acima para facilitar a seleção no despacho.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+              {appsEntrega.map((app) => (
+                <div
+                  key={app.id}
+                  className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 ${
+                    app.ativo
+                      ? 'bg-slate-800/80 border-slate-700/80 text-white'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-500 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${app.ativo ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                    <span className="text-xs font-bold truncate">{app.nome}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleAlternarApp(app)}
+                      title={app.ativo ? 'Desativar aplicativo' : 'Ativar aplicativo'}
+                      className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition cursor-pointer ${
+                        app.ativo
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      {app.ativo ? 'Ativo' : 'Inativo'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExcluirApp(app)}
+                      title="Excluir aplicativo"
+                      className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 7. TRANSPORTADORAS PARCEIRAS & CARGAS (CRUD COMPLETO) */}
+        <div className="p-6 rounded-3xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-black">
+                <PackageCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  Transportadoras Parceiras & Cargas
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    Rastreamento
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Cadastre empresas parceiras com link direto de rastreio usando <code className="text-purple-300 font-mono text-[11px] bg-purple-950/60 px-1 py-0.5 rounded">{'{{codigo}}'}</code>
                 </p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => navigate('/cadastros?tab=formas_envio')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition cursor-pointer self-start sm:self-auto"
+              onClick={handleAbrirNovaTransp}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition cursor-pointer self-start sm:self-auto shadow-md shadow-purple-600/20"
             >
-              <span>Abrir Central de Cadastros</span>
-              <ChevronRight className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
+              <span>Nova Transportadora</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Atalho 1: Formas de Envio */}
-            <div
+          {/* Listagem de Transportadoras */}
+          {transportadoras.length === 0 ? (
+            <p className="text-xs text-slate-500 italic py-2">
+              Nenhuma transportadora parceira cadastrada. Adicione para vincular despachos e gerar links automáticos de rastreio.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {transportadoras.map((transp) => (
+                <div
+                  key={transp.id}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                    transp.ativo
+                      ? 'bg-slate-800/60 border-slate-700/80 hover:border-purple-500/40'
+                      : 'bg-slate-900/60 border-slate-800 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${transp.ativo ? 'bg-purple-400' : 'bg-slate-600'}`} />
+                        <h4 className="text-sm font-bold text-white truncate">{transp.nome}</h4>
+                      </div>
+                      {transp.pessoa_contato && (
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Contato: <span className="text-slate-300 font-medium">{transp.pessoa_contato}</span>
+                        </p>
+                      )}
+                      {(transp.telefone || transp.whatsapp) && (
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                          <Phone className="w-3 h-3 text-slate-500" />
+                          <span>{transp.whatsapp || transp.telefone}</span>
+                        </p>
+                      )}
+                      {transp.url_rastreio && (
+                        <p className="text-[11px] text-purple-300/80 truncate mt-1 font-mono">
+                          🔗 {transp.url_rastreio}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAlternarTransp(transp)}
+                        className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition cursor-pointer ${
+                          transp.ativo
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                        }`}
+                      >
+                        {transp.ativo ? 'Ativa' : 'Inativa'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAbrirEditarTransp(transp)}
+                        title="Editar transportadora"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirTransp(transp)}
+                        title="Excluir transportadora"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Atalho complementar para formas de envio próprias */}
+          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+            <span>Para cadastrar taxas fixas por bairro ou modalidades de balcão:</span>
+            <button
+              type="button"
               onClick={() => navigate('/cadastros?tab=formas_envio')}
-              className="p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-blue-500/50 transition cursor-pointer group flex flex-col justify-between space-y-3"
+              className="text-emerald-400 hover:text-emerald-300 font-bold inline-flex items-center gap-1 cursor-pointer"
             >
-              <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Truck className="w-4 h-4" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors">
-                  Formas de Envio da Loja
-                </h4>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
-                  Modalidades próprias, balcão, motoboy e regras de despacho.
-                </p>
-              </div>
-            </div>
-
-            {/* Atalho 2: Apps de Corrida */}
-            <div
-              onClick={() => navigate('/cadastros?tab=apps_corrida')}
-              className="p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-amber-500/50 transition cursor-pointer group flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Navigation className="w-4 h-4" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors">
-                  Apps de Corrida & Flash
-                </h4>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
-                  Uber Flash, 99 Entrega, Lalamove, Borzo e links rápidos.
-                </p>
-              </div>
-            </div>
-
-            {/* Atalho 3: Transportadoras */}
-            <div
-              onClick={() => navigate('/cadastros?tab=transportadoras')}
-              className="p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-purple-500/50 transition cursor-pointer group flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <PackageCheck className="w-4 h-4" />
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white group-hover:text-purple-400 transition-colors">
-                  Transportadoras & Cargas
-                </h4>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
-                  Braspress, Jadlog, Total Express, URLs de rastreio e SAC.
-                </p>
-              </div>
-            </div>
+              <span>Gerenciar Formas da Loja</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
@@ -951,6 +1230,148 @@ export const ShippingSettingsScreen: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* MODAL DE CADASTRO / EDIÇÃO DE TRANSPORTADORA */}
+      {modalTranspAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
+                  <PackageCheck className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  {transpEditando ? 'Editar Transportadora' : 'Nova Transportadora'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalTranspAberto(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarTransp} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Nome da Transportadora <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Jadlog, Braspress, Total Express, Azul Cargo"
+                  value={transpNome}
+                  onChange={(e) => setTranspNome(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  URL Direta de Rastreamento
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://exemplo.com.br/rastreio?codigo={{codigo}}"
+                  value={transpUrlRastreio}
+                  onChange={(e) => setTranspUrlRastreio(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none font-mono text-xs"
+                />
+                <p className="text-[11px] text-purple-300/80 mt-1">
+                  💡 Use <code className="bg-purple-950 px-1 py-0.5 rounded text-white">{'{{codigo}}'}</code> no lugar do código. O HUBI criará o link de rastreio com um clique.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Website Oficial
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={transpSite}
+                    onChange={(e) => setTranspSite(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Pessoa de Contato / SAC
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Carlos (Comercial)"
+                    value={transpContato}
+                    onChange={(e) => setTranspContato(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Telefone
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="(00) 0000-0000"
+                    value={transpTelefone}
+                    onChange={(e) => setTranspTelefone(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    WhatsApp Comercial
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="(00) 00000-0000"
+                    value={transpWhatsapp}
+                    onChange={(e) => setTranspWhatsapp(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Observações
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Horários de coleta, restrições ou dados da conta"
+                  value={transpObservacoes}
+                  onChange={(e) => setTranspObservacoes(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalTranspAberto(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoTransp || !transpNome.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-md shadow-purple-600/20"
+                >
+                  {salvandoTransp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {transpEditando ? 'Salvar Alterações' : 'Cadastrar Transportadora'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
 
 

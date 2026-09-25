@@ -611,144 +611,142 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           </div>
         )}
 
-        {/* Botões de Ação Final */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5 border-t border-slate-800">
+        {/* Barra de Ações do Rodapé Unificada */}
+        <div className="pt-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800">
           {linkEtiqueta && (
             <a
               href={linkEtiqueta}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer"
+              className="py-2.5 px-4 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <Tag className="w-3.5 h-3.5" />
-              <span>Imprimir Etiqueta (PDF)</span>
+              <span>Imprimir Etiqueta</span>
             </a>
           )}
 
-          <div className="w-full sm:flex-1 flex flex-wrap items-center justify-end gap-2">
-            {/* 1. MELHOR ENVIO: Botão exclusivo [ Melhor Rastreio ] */}
-            {ehMelhorEnvio && codigoRastreio && (
+          {/* 1. MELHOR ENVIO: Botão exclusivo [ Melhor Rastreio ] (Apenas quando provedor === 'melhor_envio') */}
+          {ehMelhorEnvio && codigoRastreio && (
+            <a
+              href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Melhor Rastreio</span>
+            </a>
+          )}
+
+          {/* Se for Correios integrado via Melhor Envio, também permite abrir o Portal Oficial dos Correios */}
+          {ehMelhorEnvio && ehCorreios && codigoRastreio && (
+            <a
+              href={linkCorreiosOficial || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+              <span>Portal dos Correios</span>
+            </a>
+          )}
+
+          {/* 2. CORREIOS MANUAL (Balcão): Apenas Portal dos Correios, NUNCA Melhor Rastreio */}
+          {!ehMelhorEnvio && ehCorreios && (
+            linkCorreiosOficial ? (
               <a
-                href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
+                href={linkCorreiosOficial}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Melhor Rastreio</span>
+                <span>Ver nos Correios</span>
               </a>
-            )}
+            ) : null
+          )}
 
-            {/* Se for Correios integrado via Melhor Envio, também permite abrir o Portal Oficial dos Correios */}
-            {ehMelhorEnvio && ehCorreios && codigoRastreio && (
-              <a
-                href={linkCorreiosOficial || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                <span>Portal dos Correios</span>
-              </a>
-            )}
-
-            {/* 2. CORREIOS MANUAL (Balcão): Apenas Portal dos Correios, NUNCA Melhor Rastreio */}
-            {!ehMelhorEnvio && ehCorreios && (
-              linkCorreiosOficial ? (
+          {/* 3. TRANSPORTADORA MANUAL: Rastrear na Transportadora / Site / WhatsApp, NUNCA Melhor Rastreio */}
+          {ehTransportadoraManual && (
+            <>
+              {urlRastreioTransportadora && (
                 <a
-                  href={linkCorreiosOficial}
+                  href={urlRastreioTransportadora}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Ver no Portal dos Correios</span>
+                  <span>
+                    {transportadoraObj?.url_rastreio && codigoRastreio
+                      ? `Rastrear na ${nomeTransportadoraExibicao}`
+                      : `Acessar ${nomeTransportadoraExibicao}`}
+                  </span>
                 </a>
-              ) : null
-            )}
+              )}
 
-            {/* 3. TRANSPORTADORA MANUAL: Rastrear na Transportadora / Site / WhatsApp, NUNCA Melhor Rastreio */}
-            {ehTransportadoraManual && (
-              <>
-                {urlRastreioTransportadora && (
-                  <a
-                    href={urlRastreioTransportadora}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>
-                      {transportadoraObj?.url_rastreio && codigoRastreio
-                        ? `Rastrear na ${nomeTransportadoraExibicao}`
-                        : `Acessar Site ${nomeTransportadoraExibicao}`}
-                    </span>
-                  </a>
-                )}
+              {/* Se já abriu a URL de rastreio mas também possui site institucional cadastrado */}
+              {transportadoraObj?.url_rastreio && codigoRastreio && transportadoraObj?.site && (
+                <a
+                  href={transportadoraObj.site}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
+                  title={`Acessar site institucional da ${nomeTransportadoraExibicao}`}
+                >
+                  <Globe className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Site</span>
+                </a>
+              )}
 
-                {/* Se já abriu a URL de rastreio mas também possui site institucional cadastrado */}
-                {transportadoraObj?.url_rastreio && codigoRastreio && transportadoraObj?.site && (
-                  <a
-                    href={transportadoraObj.site}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
-                    title={`Acessar site institucional da ${nomeTransportadoraExibicao}`}
-                  >
-                    <Globe className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Site</span>
-                  </a>
-                )}
+              {linkWhatsTransp && (
+                <a
+                  href={linkWhatsTransp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-500/30"
+                  title={`Contato via WhatsApp da ${nomeTransportadoraExibicao}`}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </a>
+              )}
+            </>
+          )}
 
-                {linkWhatsTransp && (
-                  <a
-                    href={linkWhatsTransp}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-2.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-500/30"
-                    title={`Contato via WhatsApp da ${nomeTransportadoraExibicao}`}
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>WhatsApp Transportadora</span>
-                  </a>
-                )}
-              </>
-            )}
-
-            {/* 4. UBER DIRECT: Link nativo da corrida ao vivo, NUNCA Melhor Rastreio */}
-            {ehUber && linkRastreio && (
-              <a
-                href={linkRastreio}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Acompanhar Motorista Uber</span>
-              </a>
-            )}
-
-            {/* 5. APP DE CORRIDA: Link da corrida se houver, NUNCA Melhor Rastreio */}
-            {ehAppCorrida && linkRastreio && (
-              <a
-                href={linkRastreio}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Acompanhar Corrida</span>
-              </a>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+          {/* 4. UBER DIRECT: Link nativo da corrida ao vivo, NUNCA Melhor Rastreio */}
+          {ehUber && linkRastreio && (
+            <a
+              href={linkRastreio}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
             >
-              Fechar
-            </button>
-          </div>
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Acompanhar Uber</span>
+            </a>
+          )}
+
+          {/* 5. APP DE CORRIDA: Link da corrida se houver, NUNCA Melhor Rastreio */}
+          {ehAppCorrida && linkRastreio && (
+            <a
+              href={linkRastreio}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Acompanhar Corrida</span>
+            </a>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="py-2.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+          >
+            Fechar
+          </button>
         </div>
       </div>
     </div>

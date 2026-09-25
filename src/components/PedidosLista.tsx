@@ -3231,7 +3231,13 @@ export const PedidosLista: React.FC = () => {
 
                             if (temEtiqueta) {
                               const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
-                              if (linkEtqOficial) {
+                              const ehEtiquetaReleased = linkEtqOficial && (
+                                linkEtqOficial.includes('/imprimir/') ||
+                                linkEtqOficial.includes('.pdf') ||
+                                linkEtqOficial.includes('blob:')
+                              ) && !linkEtqOficial.includes('/painel/envios');
+
+                              if (ehEtiquetaReleased) {
                                 return (
                                   <a
                                     href={linkEtqOficial}
@@ -3251,7 +3257,7 @@ export const PedidosLista: React.FC = () => {
                                   type="button"
                                   onClick={() => setPedidoEtiquetaModal(pedido)}
                                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition cursor-pointer"
-                                  title="Imprimir Etiqueta de Envio"
+                                  title="Imprimir Etiqueta Térmica HUBI"
                                 >
                                   <Tag className="w-3 h-3" />
                                   <span>Etiqueta</span>

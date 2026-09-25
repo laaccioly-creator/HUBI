@@ -719,27 +719,47 @@ serve(async (req: Request) => {
     const servicoCodigo = Number(entrega?.servico_codigo || customPayload?.service) || 1; // 1: PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
 
       const pacMeta = pedido?.metadados?.pacote_envio || customPayload?.pacote || {};
-      const defW = Number(pacMeta.largura_cm || customPayload?.volumes?.[0]?.width || configShipping.embalagem_padrao_largura_cm || 15);
-      const defH = Number(pacMeta.altura_cm || customPayload?.volumes?.[0]?.height || configShipping.embalagem_padrao_altura_cm || 10);
-      const defL = Number(pacMeta.comprimento_cm || customPayload?.volumes?.[0]?.length || configShipping.embalagem_padrao_comprimento_cm || 20);
+      const pesoBruto = pacMeta.peso_kg || customPayload?.volumes?.[0]?.weight || customPayload?.package?.weight || pesoTotal;
+      const compBruto = pacMeta.comprimento_cm || customPayload?.volumes?.[0]?.length || customPayload?.package?.length || configShipping.embalagem_padrao_comprimento_cm;
+      const largBruto = pacMeta.largura_cm || customPayload?.volumes?.[0]?.width || customPayload?.package?.width || configShipping.embalagem_padrao_largura_cm;
+      const altBruto = pacMeta.altura_cm || customPayload?.volumes?.[0]?.height || customPayload?.package?.height || configShipping.embalagem_padrao_altura_cm;
+
+      // Sanitização estrita com limites mínimos aceitos pelas transportadoras
+      const pesoSanitizado = Math.max(Number(pesoBruto || 0.5), 0.1);
+      const compSanitizado = Math.max(Number(compBruto || 20), 16);
+      const largSanitizada = Math.max(Number(largBruto || 15), 11);
+      const altSanitizada = Math.max(Number(altBruto || 10), 4);
       const qteVols = Math.max(1, Number(pacMeta.quantidade_volumes || customPayload?.volumes?.length || 1));
-      const pesoFinalRemessa = Math.max(0.1, Number(pacMeta.peso_kg || customPayload?.volumes?.[0]?.weight || pesoTotal.toFixed(2)));
-      const pesoPorVol = Number((pesoFinalRemessa / qteVols).toFixed(3));
+
+      // Se volumes > 1, consolidar em dimensões representativas aceitas pela rota de compra
+      const alturaConsolidada = qteVols > 1 ? Math.min(100, Math.max(4, Math.ceil(altSanitizada * Math.cbrt(qteVols)))) : altSanitizada;
+      const compConsolidado = qteVols > 1 ? Math.min(100, Math.max(16, Math.ceil(compSanitizado * Math.cbrt(qteVols)))) : compSanitizado;
+      const largConsolidada = qteVols > 1 ? Math.min(100, Math.max(11, Math.ceil(largSanitizada * Math.cbrt(qteVols)))) : largSanitizada;
+
+      const pesoPorVol = Number((pesoSanitizado / qteVols).toFixed(3));
+
+      const packageCanonical = {
+        price: Number(valorSeguro.toFixed(2)),
+        width: largConsolidada,
+        height: alturaConsolidada,
+        length: compConsolidado,
+        weight: Number(pesoSanitizado.toFixed(3)),
+      };
 
       let volumesCart = [
         {
-          height: Math.max(4, defH),
-          width: Math.max(10, defW),
-          length: Math.max(15, defL),
+          height: altSanitizada,
+          width: largSanitizada,
+          length: compSanitizado,
           weight: Math.max(0.1, pesoPorVol),
         },
       ];
 
       if (qteVols > 1) {
         volumesCart = Array.from({ length: qteVols }, () => ({
-          height: Math.max(4, defH),
-          width: Math.max(10, defW),
-          length: Math.max(15, defL),
+          height: altSanitizada,
+          width: largSanitizada,
+          length: compSanitizado,
           weight: Math.max(0.1, pesoPorVol),
         }));
       }
@@ -797,6 +817,7 @@ serve(async (req: Request) => {
           postal_code: cepDestino,
         },
         products: productsList,
+        package: packageCanonical,
         volumes: customPayload?.volumes && Array.isArray(customPayload.volumes) && customPayload.volumes.length > 0
           ? customPayload.volumes
           : volumesCart,
@@ -848,7 +869,7 @@ serve(async (req: Request) => {
     }
 
     const cartData = await cartRes.json();
-    const orderId = cartData.id;
+    const orderId = String(cartData.id);
     console.log(`[MelhorEnvio-Edge] Ordem criada no carrinho com ID: ${orderId}`);
 
     // -------------------------------------------------------------------------
@@ -880,6 +901,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // Delay defensivo (1.5s) após o checkout para compensar a assincronia no Sandbox da Jadlog antes da geração
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
     // -------------------------------------------------------------------------
     // PASSO 3: Solicitar Geração da Etiqueta (POST /api/v2/me/shipment/generate)
     // -------------------------------------------------------------------------
@@ -895,7 +919,7 @@ serve(async (req: Request) => {
     }
 
     // Aguarda o processamento assíncrono do Melhor Envio
-    await new Promise((resolve) => setTimeout(resolve, 1800));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // -------------------------------------------------------------------------
     // PASSO 4: Obter URL de Impressão da Etiqueta (POST /api/v2/me/shipment/print)

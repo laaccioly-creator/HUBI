@@ -1578,24 +1578,6 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
-            {/* Switch Trabalho com entregas */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="pr-3">
-                <span className="text-sm font-bold text-slate-800 block">Trabalho com entregas</span>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Um campo obrigatório de endereço será solicitado aos seus clientes.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={trabalhoComEntregas}
-                  onChange={(e) => setTrabalhoComEntregas(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
-              </label>
-            </div>
 
             {/* Descrição */}
             <div className="space-y-1">
