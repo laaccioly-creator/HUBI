@@ -494,6 +494,9 @@ export class MelhorEnvioService {
       if (edgeData) {
         console.warn('[MelhorEnvio-Debug] Retorno Generate:', edgeData.debug_generate);
         console.warn('[MelhorEnvio-Debug] Retorno Print:', edgeData.debug_print);
+        if (edgeData.motivo_real_api) {
+          console.error('>>> RESPOSTA COMPLETA DA API DO MELHOR ENVIO:', edgeData.motivo_real_api);
+        }
       }
 
       if (!edgeErr && edgeData && edgeData.sucesso) {
@@ -509,6 +512,18 @@ export class MelhorEnvioService {
         };
       }
 
+      if (edgeData && !edgeData.sucesso) {
+        console.error('>>> RESPOSTA COMPLETA DA API DO MELHOR ENVIO:', edgeData.motivo_real_api || edgeData);
+        let motivoStr = edgeData.erro || edgeData.error || 'Falha ao processar com a API do Melhor Envio.';
+        if (edgeData.motivo_real_api) {
+          motivoStr += `\n\nDetalhes da API do Melhor Envio:\n` + JSON.stringify(edgeData.motivo_real_api, null, 2);
+        }
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          window.alert(`[Melhor Envio] Falha no Despacho:\n\n${motivoStr}`);
+        }
+        throw new Error(motivoStr);
+      }
+
       if (edgeErr) {
         console.error('[MelhorEnvio-Front] Falha detalhada:', edgeErr);
         let detalheErro = edgeErr.message || 'Falha na comunicação com o servidor do Melhor Envio.';
@@ -516,6 +531,10 @@ export class MelhorEnvioService {
           if (edgeErr.context && typeof edgeErr.context.json === 'function') {
             const jsonErr = await edgeErr.context.json();
             detalheErro = jsonErr.error || jsonErr.erro || jsonErr.message || JSON.stringify(jsonErr);
+            if (jsonErr.motivo_real_api) {
+              console.error('>>> RESPOSTA COMPLETA DA API DO MELHOR ENVIO:', jsonErr.motivo_real_api);
+              detalheErro += `\n\nDetalhes da API:\n` + JSON.stringify(jsonErr.motivo_real_api, null, 2);
+            }
           }
         } catch {
           // Mantém mensagem padrão
@@ -531,12 +550,11 @@ export class MelhorEnvioService {
         ) {
           console.info('[MelhorEnvio] Edge Function indisponível. Tentando fallback para Supabase RPC despachar_melhor_envio_rpc...');
         } else {
+          if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+            window.alert(`[Melhor Envio] Erro na Edge Function:\n\n${detalheErro}`);
+          }
           throw new Error(detalheErro);
         }
-      } else if (edgeData && !edgeData.sucesso && (edgeData.error || edgeData.erro)) {
-        const msg = edgeData.erro || edgeData.error;
-        console.error('[MelhorEnvio-Front] Falha detalhada:', msg);
-        throw new Error(msg);
       }
     } catch (eEdge: any) {
       console.error('[MelhorEnvio-Front] Falha detalhada:', eEdge);

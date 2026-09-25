@@ -799,51 +799,56 @@ serve(async (req: Request) => {
     };
 
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // PASSO 1: Adicionar ao Carrinho (POST /api/v2/me/cart)
     // -------------------------------------------------------------------------
     console.log('[ME-Despacho][1-Cart] Enviando payload:', JSON.stringify(cartPayload, null, 2));
-    const cartRes = await fetch(`${baseUrl}/api/v2/me/cart`, {
+    const resCart = await fetch(`${baseUrl}/api/v2/me/cart`, {
       method: "POST",
       headers: headersComuns,
       body: JSON.stringify(cartPayload),
     });
 
-    const cartText = await cartRes.clone().text();
-    console.log('[ME-Despacho][1-Cart] Status:', cartRes.status, 'Resposta:', cartText);
-    let debugCart: any = cartText;
-    try { debugCart = JSON.parse(cartText); } catch {}
+    const cartResponseText = await resCart.text();
+    let cartData: any;
+    try { cartData = JSON.parse(cartResponseText); } catch { cartData = cartResponseText; }
+    console.log('[ME-Despacho][1-Cart] Status:', resCart.status, 'Resposta:', cartResponseText);
 
-    if (!cartRes.ok) {
-      let msgAmigavel = `Erro ao criar envio no Melhor Envio (Código ${cartRes.status})`;
+    if (!resCart.ok) {
+      let msgAmigavel = `Erro ao criar envio no Melhor Envio (Código ${resCart.status})`;
       try {
-        const parsed = typeof debugCart === 'object' ? debugCart : JSON.parse(cartText);
-        if (parsed.message) msgAmigavel = parsed.message;
-        if (parsed.error) msgAmigavel = parsed.error;
-        if (parsed.errors) {
-          const det = Object.entries(parsed.errors)
-            .map(([campo, errs]: [string, any]) => `${campo}: ${Array.isArray(errs) ? errs.join(", ") : errs}`)
-            .join("; ");
-          msgAmigavel += ` (${det})`;
+        if (cartData && typeof cartData === 'object') {
+          if (cartData.message) msgAmigavel = cartData.message;
+          if (cartData.error) msgAmigavel = cartData.error;
+          if (cartData.errors) {
+            const det = Object.entries(cartData.errors)
+              .map(([campo, errs]: [string, any]) => `${campo}: ${Array.isArray(errs) ? errs.join(", ") : errs}`)
+              .join("; ");
+            msgAmigavel += ` (${det})`;
+          }
         }
       } catch {
-        msgAmigavel += `: ${cartText}`;
+        msgAmigavel += `: ${cartResponseText}`;
       }
 
-      console.error("[MelhorEnvio-Edge] Erro no cart:", cartText);
+      console.error("[MelhorEnvio-Edge] Erro no cart:", cartResponseText);
       return new Response(
         JSON.stringify({
           sucesso: false,
           error: msgAmigavel,
           erro: `Falha na etapa 1-Cart: ${msgAmigavel}`,
           code: "MELHOR_ENVIO_CART_ERROR",
-          status: cartRes.status,
-          debug_cart: debugCart,
+          status: resCart.status,
+          debug_cart: cartData,
+          motivo_real_api: {
+            status_cart: resCart.status,
+            retorno_cart: cartData,
+          },
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const cartData = typeof debugCart === 'object' ? debugCart : await cartRes.json();
     const orderId = String(cartData.id);
     console.log(`[MelhorEnvio-Edge] Ordem criada no carrinho com ID: ${orderId}`);
 
@@ -851,22 +856,22 @@ serve(async (req: Request) => {
     // PASSO 2: Checkout / Compra do Frete (POST /api/v2/me/shipment/checkout)
     // -------------------------------------------------------------------------
     console.log('[ME-Despacho][2-Checkout] Enviando orders:', [orderId]);
-    const checkoutRes = await fetch(`${baseUrl}/api/v2/me/shipment/checkout`, {
+    const resCheckout = await fetch(`${baseUrl}/api/v2/me/shipment/checkout`, {
       method: "POST",
       headers: headersComuns,
       body: JSON.stringify({ orders: [orderId] }),
     });
 
-    const checkoutText = await checkoutRes.clone().text();
-    console.log('[ME-Despacho][2-Checkout] Status:', checkoutRes.status, 'Resposta:', checkoutText);
-    let debugCheckout: any = checkoutText;
-    try { debugCheckout = JSON.parse(checkoutText); } catch {}
+    const checkoutResponseText = await resCheckout.text();
+    let checkoutData: any;
+    try { checkoutData = JSON.parse(checkoutResponseText); } catch { checkoutData = checkoutResponseText; }
+    console.log('[ME-Despacho][2-Checkout] Status:', resCheckout.status, 'Resposta:', checkoutResponseText);
 
-    if (!checkoutRes.ok) {
-      console.warn("[MelhorEnvio-Edge] Resposta do checkout:", checkoutText);
+    if (!resCheckout.ok) {
+      console.warn("[MelhorEnvio-Edge] Resposta do checkout:", checkoutResponseText);
 
       let msgCheckout = "Erro ao comprar a etiqueta no Melhor Envio.";
-      if (checkoutText.toLowerCase().includes("saldo") || checkoutText.toLowerCase().includes("wallet")) {
+      if (checkoutResponseText.toLowerCase().includes("saldo") || checkoutResponseText.toLowerCase().includes("wallet")) {
         msgCheckout = "Saldo insuficiente na carteira do Melhor Envio para gerar a etiqueta. Adicione créditos no painel do Melhor Envio.";
       }
 
@@ -877,8 +882,14 @@ serve(async (req: Request) => {
           erro: `Falha na etapa 2-Checkout: ${msgCheckout}`,
           code: "MELHOR_ENVIO_CHECKOUT_FAILED",
           ordem_id: String(orderId),
-          debug_cart: debugCart,
-          debug_checkout: debugCheckout,
+          debug_cart: cartData,
+          debug_checkout: checkoutData,
+          motivo_real_api: {
+            status_cart: resCart.status,
+            retorno_cart: cartData,
+            status_checkout: resCheckout.status,
+            retorno_checkout: checkoutData,
+          },
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -893,56 +904,63 @@ serve(async (req: Request) => {
     console.log('[ME-Despacho][3-Generate] Enviando orders:', [orderId]);
     let generateLiberado = false;
     let generateMensagem = "";
-    let debugGenerate: any = null;
 
-    try {
-      const generateRes = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
-        method: "POST",
-        headers: headersComuns,
-        body: JSON.stringify({ orders: [orderId] }),
-      });
-      const generateText = await generateRes.clone().text();
-      console.log('[Generate Response]', generateText);
-      console.log('[ME-Despacho][3-Generate] Status:', generateRes.status, 'Resposta:', generateText);
-      try { debugGenerate = JSON.parse(generateText); } catch { debugGenerate = generateText; }
+    const resGenerate = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
+      method: "POST",
+      headers: headersComuns,
+      body: JSON.stringify({ orders: [orderId] }),
+    });
+    const generateResponseText = await resGenerate.text();
+    let generateData: any;
+    try { generateData = JSON.parse(generateResponseText); } catch { generateData = generateResponseText; }
+    console.log('[Generate Response]', generateResponseText);
+    console.log('[ME-Despacho][3-Generate] Status:', resGenerate.status, 'Resposta:', generateResponseText);
 
-      // Tratamento crítico na resposta da geração:
-      // O Melhor Envio responde com objeto indexado por orderId (ex: { "a2d3a20f-...": { "status": false, "message": "..." } })
-      if (debugGenerate && typeof debugGenerate === 'object') {
-        const orderResult = debugGenerate[orderId] || debugGenerate[Object.keys(debugGenerate)[0]];
-        if (orderResult && typeof orderResult === 'object') {
-          if (orderResult.status === true || orderResult.status === 'released' || orderResult.status === 'generated') {
-            generateLiberado = true;
-          } else if (orderResult.status === false) {
-            generateLiberado = false;
-            generateMensagem = orderResult.message || orderResult.error || "Geração não liberada pela transportadora";
-          }
-        } else if (debugGenerate.status === true) {
+    // Tratamento crítico na resposta da geração:
+    if (generateData && typeof generateData === 'object') {
+      const orderResult = generateData[orderId] || generateData[Object.keys(generateData)[0]];
+      if (orderResult && typeof orderResult === 'object') {
+        if (orderResult.status === true || orderResult.status === 'released' || orderResult.status === 'generated') {
           generateLiberado = true;
-        } else if (debugGenerate.message) {
-          generateMensagem = debugGenerate.message;
+        } else {
+          generateLiberado = false;
+          generateMensagem = orderResult.message || orderResult.error || "Geração não liberada pela transportadora";
         }
-      } else if (generateRes.ok) {
+      } else if (generateData.status === true) {
+        generateLiberado = true;
+      } else if (generateData.status === false) {
+        generateLiberado = false;
+        generateMensagem = generateData.message || generateData.error || "Geração recusada pelo Melhor Envio";
+      } else if (generateData.message) {
+        generateMensagem = generateData.message;
+        if (!resGenerate.ok) generateLiberado = false;
+      } else if (resGenerate.ok) {
         generateLiberado = true;
       }
-    } catch (eGen: any) {
-      console.warn("[ME-Despacho][3-Generate] Exceção na geração:", eGen);
-      debugGenerate = eGen?.message || String(eGen);
-      generateMensagem = eGen?.message || "Exceção ao chamar generate";
+    } else if (resGenerate.ok) {
+      generateLiberado = true;
     }
 
-    if (generateMensagem) {
-      const msgLower = generateMensagem.toLowerCase();
-      let pendenciaTratada = generateMensagem;
-      if (msgLower.includes('agência') || msgLower.includes('agencia')) {
-        pendenciaTratada = "Agência da transportadora obrigatória ou não selecionada para a modalidade.";
-      } else if (msgLower.includes('declaração') || msgLower.includes('declaracao') || msgLower.includes('conteúdo') || msgLower.includes('conteudo')) {
-        pendenciaTratada = "Declaração de conteúdo necessária ou itens com divergência.";
-      } else if (msgLower.includes('endereço') || msgLower.includes('endereco') || msgLower.includes('incompleto')) {
-        pendenciaTratada = "Dados de endereço incompletos para a transportadora.";
-      }
-      console.warn(`[ME-Despacho][3-Generate] Pendência identificada: ${pendenciaTratada}`);
-      generateMensagem = pendenciaTratada;
+    // Se a geração falhar ou retornar qualquer mensagem de recusa, retorne no corpo da Edge Function para o Frontend
+    if (!generateLiberado) {
+      console.error("[MelhorEnvio-Edge] Recusa na geração pela API:", generateData);
+      return new Response(
+        JSON.stringify({
+          sucesso: false,
+          ordem_id: String(orderId),
+          erro: `Recusa na geração da etiqueta: ${generateMensagem || (typeof generateData === 'string' ? generateData : JSON.stringify(generateData))}`,
+          error: `Recusa na geração da etiqueta: ${generateMensagem || (typeof generateData === 'string' ? generateData : JSON.stringify(generateData))}`,
+          motivo_real_api: {
+            status_cart: resCart.status,
+            retorno_cart: cartData,
+            status_checkout: resCheckout.status,
+            retorno_checkout: checkoutData,
+            status_generate: resGenerate.status,
+            retorno_generate: generateData
+          }
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
     }
 
     // -------------------------------------------------------------------------
@@ -1107,10 +1125,18 @@ serve(async (req: Request) => {
         ordem_id: String(orderId),
         orderId: String(orderId),
         codigo_rastreio: String(codigoRastreio || ""),
-        debug_cart: debugCart,
-        debug_checkout: debugCheckout,
-        debug_generate: debugGenerate,
+        debug_cart: cartData,
+        debug_checkout: checkoutData,
+        debug_generate: generateData,
         debug_print: debugPrint,
+        motivo_real_api: {
+          status_cart: resCart.status,
+          retorno_cart: cartData,
+          status_checkout: resCheckout.status,
+          retorno_checkout: checkoutData,
+          status_generate: resGenerate.status,
+          retorno_generate: generateData
+        },
         mensagem_geracao: generateMensagem || undefined,
         link_etiqueta: linkEtiqueta,
         link_rastreio: linkRastreioOficial,
