@@ -97,109 +97,43 @@ export class ReceiptPdfService {
   }
 
   /**
-   * Compartilha o comprovante de venda nativamente via Web Share API com o arquivo anexado.
-   * Prioriza PDF; caso a plataforma móvel restrinja compartilhamento a mídias, anexa a imagem PNG de alta definição.
-   * Se o ambiente não suportar Web Share com arquivos, executa upload em nuvem no Supabase Storage
-   * e envia o link direto pelo WhatsApp, sem realizar download desnecessário no aparelho do operador.
+   * Envia o comprovante de venda diretamente para o WhatsApp do cliente que realizou o pedido.
+   * Evita telas intermediárias de compartilhamento do sistema operacional (Windows/Mac)
+   * e abre imediatamente a conversa com o cliente no WhatsApp com a mensagem formatada e o link do recibo.
    */
   static async compartilharReciboWhatsApp(
-    elemento: HTMLElement,
+    _elemento: HTMLElement,
     pedido: Pedido,
     loja: Loja
   ): Promise<void> {
-    const { pdfFile, imageFile, numId } = await this.gerarArquivosRecibo(elemento, pedido, loja);
+    // 1. Identifica o telefone do cliente diretamente do pedido
+    const rawPe = (pedido as any).pedido_entrega || (pedido as any).pedido_entregas;
+    const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
 
-    const nomeLoja = loja.nome_fantasia || 'HUBI';
-    const tituloCompartilhamento = `Recibo Pedido #${numId} - ${nomeLoja}`;
-    const textoCompartilhamento = 'Olá! Segue o comprovante da sua compra.';
+    let telCliente =
+      pedido.cliente?.whatsapp ||
+      pedido.cliente?.telefone ||
+      pedido.cliente?.telefone2 ||
+      pe?.whatsapp ||
+      pe?.telefone ||
+      (pedido as any).telefone_contato ||
+      '';
 
-    // 1. Tenta compartilhamento nativo com arquivo via Web Share API Level 2
-    let arquivoParaCompartilhar: File | null = null;
-
-    if (
-      typeof navigator !== 'undefined' &&
-      typeof navigator.share === 'function' &&
-      typeof navigator.canShare === 'function'
-    ) {
-      if (navigator.canShare({ files: [pdfFile] })) {
-        arquivoParaCompartilhar = pdfFile;
-      } else if (imageFile && navigator.canShare({ files: [imageFile] })) {
-        arquivoParaCompartilhar = imageFile;
+    // 2. Se o cliente não possuir telefone cadastrado, solicita ao operador
+    if (!telCliente && typeof window !== 'undefined') {
+      const telDigitado = window.prompt(
+        'Este cliente não possui WhatsApp cadastrado na venda.\n' +
+        'Digite o número do WhatsApp com DDD (ex: 85999998888) para enviar diretamente, ou clique em Cancelar para selecionar o contato no WhatsApp:'
+      );
+      if (telDigitado && telDigitado.trim()) {
+        telCliente = telDigitado.trim();
       }
     }
 
-    if (arquivoParaCompartilhar) {
-      try {
-        await navigator.share({
-          files: [arquivoParaCompartilhar],
-          title: tituloCompartilhamento,
-          text: textoCompartilhamento
-        });
-        return; // Compartilhado com sucesso! O WhatsApp nativo abre com o arquivo anexado.
-      } catch (err: unknown) {
-        // Se o operador cancelou ou fechou a folha de compartilhamento nativa, encerra silenciosamente
-        if (
-          err instanceof Error &&
-          (err.name === 'AbortError' ||
-            err.message.toLowerCase().includes('abort') ||
-            err.message.toLowerCase().includes('cancel'))
-        ) {
-          return;
-        }
-        console.warn('[ReceiptPdfService] Falha na Web Share API, ativando fallback com upload em nuvem:', err);
-      }
-    }
+    // 3. Monta a mensagem completa e estruturada do recibo com link oficial
+    const mensagemWhatsApp = PrintService.generateWhatsAppMessage(pedido, loja);
 
-    // 2. FALLBACK ESTRUTURADO: Upload do PDF no Supabase Storage e envio do link direto no WhatsApp
-    // Elimina telas intermediárias e download local indesejado no aparelho do operador
-    let urlPublicaRecibo: string | null = null;
-    const pathStorage = `${loja.id || 'loja'}/${numId}_${Date.now()}_recibo.pdf`;
-
-    try {
-      let bucketUsado = 'comprovantes_pdv';
-      let uploadRes = await supabase.storage
-        .from(bucketUsado)
-        .upload(pathStorage, pdfFile, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
-
-      if (uploadRes.error) {
-        console.warn('[ReceiptPdfService] Bucket comprovantes_pdv indisponível, usando bucket produtos:', uploadRes.error.message);
-        bucketUsado = 'produtos';
-        uploadRes = await supabase.storage
-          .from(bucketUsado)
-          .upload(pathStorage, pdfFile, {
-            contentType: 'application/pdf',
-            upsert: true
-          });
-      }
-
-      if (!uploadRes.error) {
-        const { data: pubData } = supabase.storage
-          .from(bucketUsado)
-          .getPublicUrl(pathStorage);
-        urlPublicaRecibo = pubData?.publicUrl || null;
-      }
-    } catch (storageErr) {
-      console.warn('[ReceiptPdfService] Erro ao enviar comprovante para o Supabase Storage:', storageErr);
-    }
-
-    const itens = (pedido.itens || (pedido as unknown as { itens_pedido?: ItemPedido[] }).itens_pedido || []) as ItemPedido[];
-    const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
-    const totalFormatado = Number(pedido.valor_total || 0).toFixed(2);
-    const nomeCliente = pedido.cliente?.nome || 'Cliente';
-    const baseUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
-    const urlReciboOficial = `${baseUrl}/recibo/${numId}`;
-
-    const mensagemWhatsApp = `🧾 *RECIBO PEDIDO #${numId} - ${nomeLoja}*\n\n` +
-      `Olá, *${nomeCliente}*! Segue o comprovante da sua compra.\n\n` +
-      `💰 *Total: R$ ${totalFormatado}*\n` +
-      `📦 *Itens:* ${itens.length} produto(s) (${totalQtd} unid.)\n\n` +
-      `📄 *Acesse seu Recibo Oficial:*\n${urlReciboOficial}\n\n` +
-      `Agradecemos a sua preferência! ✨`;
-
-    const telCliente = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
+    // 4. Dispara a abertura direta do WhatsApp para o cliente (sem telas intermediárias do SO)
     PrintService.openWhatsApp(telCliente, mensagemWhatsApp);
   }
 

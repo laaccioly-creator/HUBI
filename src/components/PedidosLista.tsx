@@ -49,6 +49,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
+import { UberDirectService } from '../services/uberDirectService';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
@@ -650,7 +651,17 @@ export const PedidosLista: React.FC = () => {
       return true;
     });
 
-    return itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+    const ordenados = itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+
+    // Não permitir transições consecutivas repetidas para o mesmo status (ex: múltiplos 'entregue')
+    return ordenados.filter((item, idx, arr) => {
+      if (idx === 0) return true;
+      const anterior = arr[idx - 1];
+      if (item.tipo === 'status' && anterior.tipo === 'status' && item.status === anterior.status) {
+        return false;
+      }
+      return true;
+    });
   };
 
   const adicionarHistoricoMetadados = (pedido: Pedido | null | undefined, novoStatus: string, usuarioNome?: string): Record<string, any> => {
@@ -799,6 +810,13 @@ export const PedidosLista: React.FC = () => {
         )
         .on(
           'postgres_changes',
+          { event: '*', schema: 'public', table: 'pedido_entregas' },
+          () => {
+            carregarPedidos(false);
+          }
+        )
+        .on(
+          'postgres_changes',
           { event: '*', schema: 'public', table: 'pagamentos_pedido', filter: `loja_id=eq.${loja.id}` },
           () => {
             carregarPedidos(false);
@@ -806,8 +824,27 @@ export const PedidosLista: React.FC = () => {
         )
         .subscribe();
 
+      // Recarrega imediatamente quando o operador retorna à aba ou desbloqueia a tela
+      const handleVisibilidadeOuFoco = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          carregarPedidos(false);
+        }
+      };
+      window.addEventListener('focus', handleVisibilidadeOuFoco);
+      document.addEventListener('visibilitychange', handleVisibilidadeOuFoco);
+
+      // Polling de salvaguarda periódico (25s) para monitorar entregas em tempo real sem depender apenas de WebSockets
+      const intervalId = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          carregarPedidos(false);
+        }
+      }, 25000);
+
       return () => {
         supabase.removeChannel(channel);
+        window.removeEventListener('focus', handleVisibilidadeOuFoco);
+        document.removeEventListener('visibilitychange', handleVisibilidadeOuFoco);
+        clearInterval(intervalId);
       };
     }
   }, [loja?.id, usuario?.id, somAtivo, permissions.podeVerTransacoesOutros]);
@@ -1794,6 +1831,29 @@ export const PedidosLista: React.FC = () => {
     setTimeout(() => setCopiado(false), 2000);
   };
 
+  const [sincronizandoUberId, setSincronizandoUberId] = useState<string | null>(null);
+
+  const handleSincronizarUber = async (ped: Pedido) => {
+    if (!loja?.id || !ped?.id) return;
+    try {
+      setSincronizandoUberId(ped.id);
+      const deliveryId = ped.codigo_rastreio || ped.pedido_entrega?.codigo_rastreio;
+      const res = await UberDirectService.consultarStatusEntrega(ped.id, loja.id, deliveryId);
+      await carregarPedidos(false);
+      if (res.status === 'delivered' || res.status === 'completed') {
+        mostrarSucesso('Pedido atualizado para ENTREGUE com sucesso pela Uber Direct!');
+      } else {
+        mostrarSucesso(`Status atual na Uber: ${res.status.toUpperCase()}`);
+      }
+    } catch (err: unknown) {
+      console.warn('Erro ao sincronizar com Uber:', err);
+      const msg = err instanceof Error ? err.message : 'Falha ao consultar Uber Direct';
+      mostrarErro(msg, 'Sincronização Uber');
+    } finally {
+      setSincronizandoUberId(null);
+    }
+  };
+
   const handleEditarPedido = async (pedido: Pedido) => {
     if (!podeEditarPedido(pedido)) {
       mostrarAviso('A alteração de produtos só é permitida para pedidos Pendentes ou com Envio Pendente (aguardando pagamento).', 'Edição Restrita');
@@ -2670,6 +2730,16 @@ export const PedidosLista: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
+                                    disabled={sincronizandoUberId === pedidoSelecionado.id}
+                                    onClick={() => handleSincronizarUber(pedidoSelecionado)}
+                                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                    title="Consultar e sincronizar status atual na Uber Direct"
+                                  >
+                                    <RefreshCw className={`w-3.5 h-3.5 ${sincronizandoUberId === pedidoSelecionado.id ? 'animate-spin' : ''}`} />
+                                    <span>{sincronizandoUberId === pedidoSelecionado.id ? 'Sincronizando...' : 'Sincronizar'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => handleCopiarRastreioUber(pedidoSelecionado)}
                                     className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                                     title="Copiar link de rastreio da Uber"
@@ -3501,20 +3571,32 @@ export const PedidosLista: React.FC = () => {
                                         link.includes('uber.com') ||
                                         link.includes('ubr.to'));
 
-                                      if (ehUber && link) {
+                                      if (ehUber && (link || cod)) {
+                                        const isSincronizando = sincronizandoUberId === pedido.id;
                                         return (
                                           <>
-                                            <a
-                                              href={link}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
-                                              title="Abrir mapa de rastreio ao vivo da Uber Direct"
+                                            <button
+                                              type="button"
+                                              disabled={isSincronizando}
+                                              onClick={() => handleSincronizarUber(pedido)}
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition cursor-pointer disabled:opacity-50"
+                                              title="Consultar e atualizar status agora diretamente na Uber Direct"
                                             >
-                                              <span>🚗</span>
-                                              <span>Mapa Uber</span>
-                                              <ExternalLink className="w-3 h-3" />
-                                            </a>
+                                              <RefreshCw className={`w-3 h-3 ${isSincronizando ? 'animate-spin' : ''}`} />
+                                              <span>{isSincronizando ? 'Sincronizando...' : 'Sincronizar'}</span>
+                                            </button>
+                                            {link && (
+                                              <a
+                                                href={link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
+                                                title="Abrir mapa de rastreio ao vivo da Uber Direct"
+                                              >
+                                                <span>Mapa Uber</span>
+                                                <ExternalLink className="w-3 h-3" />
+                                              </a>
+                                            )}
                                             <button
                                               type="button"
                                               onClick={() => handleCompartilharRastreioUber(pedido)}

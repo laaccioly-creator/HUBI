@@ -103,6 +103,7 @@ interface MoneyInputProps {
   autoFocus?: boolean;
   className?: string;
   placeholder?: string;
+  style?: React.CSSProperties;
 }
 
 const MoneyInput: React.FC<MoneyInputProps> = ({
@@ -110,7 +111,8 @@ const MoneyInput: React.FC<MoneyInputProps> = ({
   onChange,
   autoFocus,
   className,
-  placeholder = "0,00"
+  placeholder = "0,00",
+  style
 }) => {
   const [texto, setTexto] = useState<string>(() =>
     valor > 0 ? formatarValorBRL(valor) : ''
@@ -165,7 +167,7 @@ const MoneyInput: React.FC<MoneyInputProps> = ({
       value={texto}
       onChange={handleChange}
       placeholder={placeholder}
-      style={{ color: '#0F172A', WebkitTextFillColor: '#0F172A' }}
+      style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', ...style }}
       className={className}
     />
   );
@@ -1586,15 +1588,11 @@ export const PosCheckout: React.FC = () => {
 
   const handleCompartilharWhatsAppPdf = async () => {
     if (!loja || !pedidoConcluido) return;
-    if (!reciboRef.current) {
-      mostrarAviso('Elemento visual do recibo não encontrado.');
-      return;
-    }
 
     try {
       setCompartilhandoWhatsAppPdf(true);
       await ReceiptPdfService.compartilharReciboWhatsApp(
-        reciboRef.current,
+        reciboRef.current || document.body,
         pedidoConcluido,
         loja
       );
@@ -1608,7 +1606,7 @@ export const PosCheckout: React.FC = () => {
         return;
       }
       console.error('Erro ao compartilhar comprovante via WhatsApp:', err);
-      const msg = err instanceof Error ? err.message : 'Falha ao processar PDF do recibo.';
+      const msg = err instanceof Error ? err.message : 'Falha ao abrir WhatsApp para envio do recibo.';
       mostrarErro(msg, 'Erro ao Compartilhar');
     } finally {
       setCompartilhandoWhatsAppPdf(false);
@@ -3108,7 +3106,7 @@ export const PosCheckout: React.FC = () => {
                     disabled={compartilhandoWhatsAppPdf || baixandoPdfRecibo}
                     onClick={handleCompartilharWhatsAppPdf}
                     className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer disabled:opacity-50"
-                    title="Gerar PDF do Recibo e Compartilhar via WhatsApp"
+                    title="Enviar Recibo Oficial via WhatsApp diretamente ao Cliente"
                   >
                     {compartilhandoWhatsAppPdf ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
@@ -3116,7 +3114,7 @@ export const PosCheckout: React.FC = () => {
                       <Share2 className="w-3.5 h-3.5" />
                     )}
                     <span className="truncate">
-                      {compartilhandoWhatsAppPdf ? 'Gerando...' : 'WhatsApp'}
+                      {compartilhandoWhatsAppPdf ? 'Abrindo...' : 'WhatsApp'}
                     </span>
                   </button>
 

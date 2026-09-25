@@ -48,8 +48,8 @@ export const ReciboPublico: React.FC = () => {
         setCarregando(true);
         setErroMsg(null);
 
-        // Busca o pedido com todas as relações estruturadas
-        const { data: pedData, error: pedErr } = await supabase
+        // Busca o pedido com todas as relações estruturadas (aceita UUID ou número do pedido)
+        let query = supabase
           .from('pedidos')
           .select(`
             *,
@@ -58,9 +58,16 @@ export const ReciboPublico: React.FC = () => {
             itens:itens_pedido(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
             pedido_entrega:pedido_entregas(*)
-          `)
-          .eq('id', id)
-          .single();
+          `);
+
+        const isNumero = /^\d+$/.test(id.trim());
+        if (isNumero) {
+          query = query.eq('numero_pedido', parseInt(id.trim(), 10));
+        } else {
+          query = query.eq('id', id.trim());
+        }
+
+        const { data: pedData, error: pedErr } = await query.single();
 
         if (pedErr || !pedData) {
           throw new Error('Pedido não encontrado no sistema.');

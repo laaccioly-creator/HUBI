@@ -331,6 +331,102 @@ serve(async (req: Request) => {
 
     const { access_token } = await tokenRes.json();
 
+    // 3.1. Ação Especial: Consulta e Sincronização em Tempo Real de Status com a Uber Direct
+    if (body.acao === "consultar_status" || body.acao === "sincronizar_status") {
+      const deliveryId = body.delivery_id || pedido?.codigo_rastreio || entrega?.codigo_rastreio;
+      if (!deliveryId) {
+        return new Response(
+          JSON.stringify({ error: "delivery_id ou código de rastreio não encontrado para este pedido.", code: "DELIVERY_ID_MISSING" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const getEndpoint = `https://api.uber.com/v1/customers/${encodeURIComponent(uberCustomerId)}/deliveries/${encodeURIComponent(deliveryId)}`;
+      const getRes = await fetch(getEndpoint, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${access_token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!getRes.ok) {
+        const errText = await getRes.text();
+        return new Response(
+          JSON.stringify({ error: "Falha ao consultar entrega na Uber Direct", details: errText }),
+          { status: getRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const uberData = await getRes.json();
+      const statusUber = (uberData.status || "").toLowerCase().trim();
+      const agoraIso = new Date().toISOString();
+
+      const courierName = uberData.courier?.name || null;
+      const courierPhone = uberData.courier?.phone_number || null;
+
+      if (statusUber === "delivered" || statusUber === "completed") {
+        if (pedidoId) {
+          const updateEnt: Record<string, any> = {
+            status_envio: "entregue",
+            atualizado_em: agoraIso,
+          };
+          if (courierName) updateEnt.entregador_nome = courierName;
+          if (courierPhone) updateEnt.contato_entregador = courierPhone;
+
+          await supabaseAdmin
+            .from("pedido_entregas")
+            .update(updateEnt)
+            .eq("pedido_id", pedidoId);
+
+          const { data: pDb } = await supabaseAdmin.from("pedidos").select("status").eq("id", pedidoId).maybeSingle();
+          if (pDb?.status !== "concluido" && pDb?.status !== "cancelado") {
+            const updatePed: Record<string, any> = {
+              status: "entregue",
+              atualizado_em: agoraIso,
+            };
+            if (courierName) updatePed.entregador_nome = courierName;
+
+            await supabaseAdmin
+              .from("pedidos")
+              .update(updatePed)
+              .eq("id", pedidoId);
+          }
+        }
+      } else if (statusUber === "canceled") {
+        if (pedidoId) {
+          await supabaseAdmin
+            .from("pedido_entregas")
+            .update({ status_envio: "cancelado", atualizado_em: agoraIso })
+            .eq("pedido_id", pedidoId);
+        }
+      } else if (statusUber === "pickup" || statusUber === "pickup_complete" || statusUber === "dropoff") {
+        if (pedidoId) {
+          const updateEnt: Record<string, any> = {
+            status_envio: "em_transito",
+            atualizado_em: agoraIso,
+          };
+          if (courierName) updateEnt.entregador_nome = courierName;
+          if (courierPhone) updateEnt.contato_entregador = courierPhone;
+
+          await supabaseAdmin
+            .from("pedido_entregas")
+            .update(updateEnt)
+            .eq("pedido_id", pedidoId);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: statusUber,
+          delivery: uberData,
+          courier: uberData.courier || null,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 4. Montar Payload de Criação da Entrega (POST /v1/customers/{customer_id}/deliveries)
     const pickupName =
       customPayload?.pickup_name ||

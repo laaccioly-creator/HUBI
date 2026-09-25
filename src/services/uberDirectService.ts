@@ -578,4 +578,33 @@ export class UberDirectService {
       status: edgeData.status || 'em_transito'
     };
   }
+
+  /**
+   * Consulta e sincroniza em tempo real o status atual de uma corrida na Uber Direct.
+   */
+  public static async consultarStatusEntrega(
+    pedidoId: string,
+    lojaId: string,
+    deliveryId?: string | null
+  ): Promise<{ status: string; success: boolean; courier?: any }> {
+    const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('uber-dispatch', {
+      body: {
+        acao: 'consultar_status',
+        pedidoId,
+        loja_id: lojaId,
+        delivery_id: deliveryId || undefined
+      }
+    });
+
+    if (edgeErr || !edgeData) {
+      console.warn('[UberDirectService] Falha ao consultar status na Uber:', edgeErr);
+      throw new Error(edgeErr?.message || 'Falha ao consultar status da entrega na Uber Direct.');
+    }
+
+    return {
+      status: edgeData.status || 'desconhecido',
+      success: Boolean(edgeData.success),
+      courier: edgeData.courier || null
+    };
+  }
 }

@@ -104,16 +104,21 @@ serve(async (req: Request) => {
 
     const agoraIso = new Date().toISOString();
 
+    // Capturar dados do entregador / courier se enviados no webhook
+    const courierObj = body.courier || body.data?.courier || {};
+    const courierName = (courierObj.name || body.courier_name || body.data?.courier_name || "").trim() || null;
+    const courierPhone = (courierObj.phone_number || body.courier_phone || body.data?.courier_phone || "").trim() || null;
+
     // 2. Regras de Atualização conforme o status notificado pela Uber
-    // Status de Entrega Concluída: delivered, completed, finished, dropoff ou complete === true
+    // Status de Entrega Concluída: delivered, completed, finished ou complete === true
     const ehEntregaFinalizada =
       rawStatus === "delivered" ||
       rawStatus === "completed" ||
       rawStatus === "finished" ||
-      rawStatus === "dropoff" ||
       body.complete === true ||
       body.data?.complete === true ||
-      eventType.includes("delivered");
+      eventType === "deliveries.delivery_completed" ||
+      eventType === "delivery.delivered";
 
     // Status de Entrega Cancelada
     const ehEntregaCancelada =
@@ -121,17 +126,29 @@ serve(async (req: Request) => {
       rawStatus === "cancelled" ||
       eventType.includes("canceled");
 
+    // Status de Em Trânsito / Em Andamento
+    const ehEmTransito =
+      rawStatus === "pickup" ||
+      rawStatus === "pickup_complete" ||
+      rawStatus === "dropoff" ||
+      rawStatus === "in_progress" ||
+      eventType.includes("pickup") ||
+      eventType.includes("dropoff");
+
     if (ehEntregaFinalizada) {
       console.log(`[UberWebhook] Marcando pedido #${pedido?.numero_pedido || pedidoId} como 'entregue' via Uber.`);
 
-      // Atualiza pedido_entregas
+      // Atualiza pedido_entregas (sem campo inexistente entregue_em)
+      const updateEntrega: Record<string, any> = {
+        status_envio: "entregue",
+        atualizado_em: agoraIso,
+      };
+      if (courierName) updateEntrega.entregador_nome = courierName;
+      if (courierPhone) updateEntrega.contato_entregador = courierPhone;
+
       const { error: errEntrega } = await supabaseAdmin
         .from("pedido_entregas")
-        .update({
-          status_envio: "entregue",
-          entregue_em: agoraIso,
-          atualizado_em: agoraIso,
-        })
+        .update(updateEntrega)
         .eq("pedido_id", pedidoId);
 
       if (errEntrega) {
@@ -141,12 +158,15 @@ serve(async (req: Request) => {
       // Atualiza pedidos para status 'entregue' (preservando pedidos concluídos ou cancelados)
       const { data: pedDbUber } = await supabaseAdmin.from("pedidos").select("status").eq("id", pedidoId).maybeSingle();
       if (pedDbUber?.status !== "concluido" && pedDbUber?.status !== "cancelado") {
+        const updatePedido: Record<string, any> = {
+          status: "entregue",
+          atualizado_em: agoraIso,
+        };
+        if (courierName) updatePedido.entregador_nome = courierName;
+
         const { error: errPedido } = await supabaseAdmin
           .from("pedidos")
-          .update({
-            status: "entregue",
-            atualizado_em: agoraIso,
-          })
+          .update(updatePedido)
           .eq("id", pedidoId);
 
         if (errPedido) {
@@ -154,18 +174,27 @@ serve(async (req: Request) => {
         }
       }
 
-      // Registra evento no historico_pedidos
-      if (pedido?.loja_id) {
+      // Registra evento no historico_pedidos de forma idempotente (apenas uma vez)
+      if (pedido?.loja_id && pedDbUber?.status !== "entregue") {
         try {
-          await supabaseAdmin.from("historico_pedidos").insert({
-            loja_id: pedido.loja_id,
-            pedido_id: pedidoId,
-            tipo_evento: "status_alterado",
-            status_anterior: pedido.status || "enviado",
-            status_novo: "entregue",
-            descricao: `Entrega concluída pelo motorista Uber Direct (Notificação automática do Webhook)`,
-            criado_em: agoraIso,
-          });
+          const { data: histJaExiste } = await supabaseAdmin
+            .from("historico_pedidos")
+            .select("id")
+            .eq("pedido_id", pedidoId)
+            .eq("status_novo", "entregue")
+            .limit(1);
+
+          if (!histJaExiste || histJaExiste.length === 0) {
+            await supabaseAdmin.from("historico_pedidos").insert({
+              loja_id: pedido.loja_id,
+              pedido_id: pedidoId,
+              tipo_evento: "status_alterado",
+              status_anterior: pedido.status || "enviado",
+              status_novo: "entregue",
+              descricao: `Entrega concluída pelo motorista Uber Direct (Notificação automática do Webhook)${courierName ? ` [Entregador: ${courierName}]` : ''}`,
+              criado_em: agoraIso,
+            });
+          }
         } catch (eHist) {
           console.warn("[UberWebhook] Aviso ao registrar histórico:", eHist);
         }
@@ -207,6 +236,31 @@ serve(async (req: Request) => {
           console.warn("[UberWebhook] Aviso ao registrar histórico de cancelamento:", eHist);
         }
       }
+    } else if (ehEmTransito) {
+      console.log(`[UberWebhook] Corrida em andamento na Uber (${rawStatus}) para pedido #${pedido?.numero_pedido || pedidoId}.`);
+
+      const updateEntrega: Record<string, any> = {
+        status_envio: "em_transito",
+        atualizado_em: agoraIso,
+      };
+      if (courierName) updateEntrega.entregador_nome = courierName;
+      if (courierPhone) updateEntrega.contato_entregador = courierPhone;
+
+      await supabaseAdmin
+        .from("pedido_entregas")
+        .update(updateEntrega)
+        .eq("pedido_id", pedidoId);
+
+      const updatePedido: Record<string, any> = {
+        status: "enviado",
+        atualizado_em: agoraIso,
+      };
+      if (courierName) updatePedido.entregador_nome = courierName;
+
+      await supabaseAdmin
+        .from("pedidos")
+        .update(updatePedido)
+        .eq("id", pedidoId);
     } else {
       console.log(`[UberWebhook] Evento recebido com status transitório: ${rawStatus} para pedido #${pedido?.numero_pedido || pedidoId}`);
     }

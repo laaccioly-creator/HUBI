@@ -1007,6 +1007,11 @@ export class PrintService {
 
     const blocoEntrega = `📦 *Forma de Entrega:* ${formaEntregaTexto}\n${enderecoExibicao ? `📍 *${labelEndereco}* ${enderecoExibicao}\n` : ''}${codigoRastreio ? `🚚 *Rastreio:* ${codigoRastreio}\n` : ''}${codigoCorrida ? `🏍️ *Código da Corrida:* ${codigoCorrida}\n` : ''}`;
 
+    const baseUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
+    const idRecibo = pedido.id || pedido.numero_pedido;
+    const urlReciboOficial = idRecibo ? `${baseUrl}/recibo/${idRecibo}` : '';
+    const blocoReciboDigital = urlReciboOficial ? `📄 *Acesse seu Recibo Oficial:*\n${urlReciboOficial}\n\n` : '';
+
     return `🧾 *RECIBO #${pedido.numero_pedido} - ${loja.nome_fantasia || 'HUBI'}*
 
 *${loja.nome_fantasia || 'HUBI'}*
@@ -1022,7 +1027,7 @@ ${itensTexto}
 ━━━━━━━━━━━━━━━━━━━━
 ${Number(pedido.valor_desconto) > 0 ? `🏷️ *Desconto:* - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : ''}${Number(pedido.valor_frete) > 0 ? `🛵 *Taxa de Entrega:* + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : ''}💵 *TOTAL:* R$ ${Number(pedido.valor_total).toFixed(2)}
 ${pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `📅 *Data de Vencimento:* ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
-${dataFormatada}
+${blocoReciboDigital}${dataFormatada}
 
 Agradecemos a sua preferência! ✨`;
   }
@@ -1672,7 +1677,9 @@ Agradecemos a sua preferência! ✨`;
    */
   static openWhatsApp(phone: string, message: string): void {
     const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
-    const formattedPhone = cleanPhone ? (cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`) : '';
+    const formattedPhone = cleanPhone
+      ? (cleanPhone.length <= 11 ? `55${cleanPhone}` : (cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`))
+      : '';
     const encodedMsg = encodeURIComponent(message);
 
     if (formattedPhone) {
