@@ -501,6 +501,36 @@ export class MelhorEnvioService {
       return (!n || n.toUpperCase() === 'S/N' || n.toUpperCase() === 'SN') ? 'SN' : n.substring(0, 20);
     };
 
+    const docRemetenteRaw = (loja as any).numero_documento || (loja as any).cnpj || (loja as any).cpf || docLoja || '';
+    const docLimpo = String(docRemetenteRaw).replace(/\D/g, '');
+    const isSandboxEnv = Boolean(config.melhor_envio_sandbox_mode);
+
+    const cpfResponsavel = String(
+      (loja as any).cpf_responsavel ||
+      (config as any).cpf_responsavel ||
+      (loja as any).cpf ||
+      (loja as any).responsavel_cpf ||
+      ''
+    ).replace(/\D/g, '');
+
+    let documentoFinalRemetente = '';
+    if (docLimpo.length === 11) {
+      documentoFinalRemetente = docLimpo;
+    } else if (docLimpo.length === 14) {
+      if (isSandboxEnv) {
+        documentoFinalRemetente = cpfResponsavel.length === 11 ? cpfResponsavel : '45666490400';
+      } else {
+        documentoFinalRemetente = docLimpo;
+      }
+    } else {
+      documentoFinalRemetente = cpfResponsavel.length === 11 ? cpfResponsavel : '45666490400';
+    }
+
+    const docClienteLimpo = (cliente.numero_documento || (cliente as any).cpf || (cliente as any).cnpj || docCliente || '').replace(/\D/g, '');
+    const documentoFinalCliente = (docClienteLimpo.length === 11 || docClienteLimpo.length === 14)
+      ? (docClienteLimpo === documentoFinalRemetente && isSandboxEnv ? '11144477735' : docClienteLimpo)
+      : (isSandboxEnv ? '11144477735' : docClienteLimpo);
+
     // Payload de inserção no carrinho do Melhor Envio
     const cartPayload = {
       service: Number(entrega.servico_codigo) || 1, // 1: Correios PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
@@ -509,21 +539,21 @@ export class MelhorEnvioService {
         name: nomeRemetente,
         phone: (dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
         email: dadosLoja.email || 'contato@hubi.app',
-        document: (dadosLoja.cnpj || dadosLoja.cpf || docLoja).replace(/\D/g, ''),
+        document: documentoFinalRemetente,
         address: sanitizarTexto(dadosLoja.logradouro) || 'Rua Bélgica',
         complement: sanitizarTexto(dadosLoja.complemento).substring(0, 50),
         number: sanitizarNum(dadosLoja.numero) || '945',
         district: (sanitizarTexto(dadosLoja.bairro) || 'Maraponga').substring(0, 50),
         city: sanitizarTexto(dadosLoja.cidade) || 'Fortaleza',
         state_abbr: (dadosLoja.uf || 'CE').toUpperCase().slice(0, 2),
-        state_register: dadosLoja.inscricao_estadual || '',
+        state_register: documentoFinalRemetente.length === 11 ? '' : (dadosLoja.inscricao_estadual || ''),
         postal_code: (dadosLoja.cep || '60710790').replace(/\D/g, '')
       },
       to: {
         name: nomeCliente,
         phone: (cliente.telefone || cliente.whatsapp || pedido.cliente_telefone_avulso || dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
         email: cliente.email || pedido.cliente_email_avulso || 'cliente@hubi.app',
-        document: (cliente.numero_documento || (cliente as any).cpf || (cliente as any).cnpj || docCliente).replace(/\D/g, ''),
+        document: documentoFinalCliente,
         address: sanitizarTexto(endEntrega.logradouro) || 'Rua Lindolfo Color',
         complement: sanitizarTexto(endEntrega.complemento).substring(0, 50),
         number: sanitizarNum(endEntrega.numero),

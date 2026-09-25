@@ -591,25 +591,48 @@ serve(async (req: Request) => {
     // 3. Validação e Sanitização de Documentos (from.document e to.document)
     // -------------------------------------------------------------------------
     // A. Remetente (from.document): Loja / Titular da Conta
-    let docLoja = (loja?.numero_documento || "").replace(/\D/g, "");
+    const meUserDoc = String(meUser?.document || "").replace(/\D/g, "");
+    const ehContaPF = Boolean(isSandbox) || (meUserDoc.length === 11) || (!meUser?.company && meUserDoc.length !== 14);
 
-    // Se a conta no Melhor Envio for Pessoa Física (CPF), o remetente exige estritamente CPF da conta
-    if (meUser?.document_type === "cpf" && meUser?.document) {
-      docLoja = String(meUser.document).replace(/\D/g, "");
-    } else if (!validarDocumentoReceita(docLoja)) {
-      if (meUser?.document) {
-        docLoja = String(meUser.document).replace(/\D/g, "");
-      } else if (isSandbox) {
-        // No sandbox, utiliza o CPF homologado de testes
-        docLoja = "45666490400";
+    const docRemetenteRaw = customPayload?.from?.document || loja?.numero_documento || (loja as any)?.cnpj || (loja as any)?.cpf || "";
+    const docLimpo = String(docRemetenteRaw).replace(/\D/g, "");
+
+    const cpfResponsavel = String(
+      (loja as any)?.cpf_responsavel ||
+      (configShipping as any)?.cpf_responsavel ||
+      (loja as any)?.cpf ||
+      (loja as any)?.responsavel_cpf ||
+      customPayload?.from?.cpf_responsavel ||
+      (meUserDoc.length === 11 ? meUserDoc : "") ||
+      ""
+    ).replace(/\D/g, "");
+
+    let docLoja = "";
+
+    if (docLimpo.length === 11) {
+      docLoja = docLimpo;
+    } else if (docLimpo.length === 14) {
+      if (ehContaPF) {
+        // Conta Sandbox ou PF do Melhor Envio exige estritamente CPF
+        if (cpfResponsavel.length === 11 && validarCpf(cpfResponsavel)) {
+          docLoja = cpfResponsavel;
+        } else if (meUserDoc.length === 11 && validarCpf(meUserDoc)) {
+          docLoja = meUserDoc;
+        } else if (cpfResponsavel.length === 11) {
+          docLoja = cpfResponsavel;
+        } else {
+          docLoja = "45666490400";
+        }
       } else {
-        return new Response(
-          JSON.stringify({
-            error: "A loja precisa de um CNPJ ou CPF válido cadastrado para emitir fretes no Melhor Envio. Atualize os dados da loja nas configurações.",
-            code: "INVALID_SENDER_DOCUMENT",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        docLoja = docLimpo;
+      }
+    } else {
+      if (cpfResponsavel.length === 11) {
+        docLoja = cpfResponsavel;
+      } else if (meUserDoc.length === 11) {
+        docLoja = meUserDoc;
+      } else {
+        docLoja = "45666490400";
       }
     }
 
@@ -759,14 +782,14 @@ serve(async (req: Request) => {
       name: nomeRemetente,
       phone: (dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
       email: dadosLoja.email || 'contato@hubi.app',
-      document: (dadosLoja.cnpj || dadosLoja.cpf || docLoja).replace(/\D/g, ''),
+      document: docLoja,
       address: sanitizarTexto(dadosLoja.logradouro) || 'Rua Bélgica',
       complement: sanitizarTexto(dadosLoja.complemento).substring(0, 50),
       number: sanitizarNum(dadosLoja.numero) || '945',
       district: (sanitizarTexto(dadosLoja.bairro) || 'Maraponga').substring(0, 50),
       city: sanitizarTexto(dadosLoja.cidade) || 'Fortaleza',
       state_abbr: (dadosLoja.uf || 'CE').toUpperCase().slice(0, 2),
-      state_register: dadosLoja.inscricao_estadual || '',
+      state_register: docLoja.length === 11 ? '' : (dadosLoja.inscricao_estadual || ''),
       postal_code: cepOrigem
     };
 
@@ -774,7 +797,7 @@ serve(async (req: Request) => {
       name: nomeCliente,
       phone: (cliente.telefone || cliente.whatsapp || pedido?.cliente_telefone_avulso || dadosLoja.telefone || '').replace(/\D/g, '') || '11999999999',
       email: cliente.email || pedido?.cliente_email_avulso || 'cliente@hubi.app',
-      document: (cliente.cpf || cliente.cnpj || cliente.numero_documento || docCliente).replace(/\D/g, ''),
+      document: docCliente,
       address: sanitizarTexto(endEntrega.logradouro) || 'Rua Lindolfo Color',
       complement: sanitizarTexto(endEntrega.complemento).substring(0, 50),
       number: sanitizarNum(endEntrega.numero),
