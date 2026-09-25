@@ -808,13 +808,15 @@ serve(async (req: Request) => {
       body: JSON.stringify(cartPayload),
     });
 
-    console.log('[ME-Despacho][1-Cart] Status:', cartRes.status, 'Resposta:', await cartRes.clone().text());
+    const cartText = await cartRes.clone().text();
+    console.log('[ME-Despacho][1-Cart] Status:', cartRes.status, 'Resposta:', cartText);
+    let debugCart: any = cartText;
+    try { debugCart = JSON.parse(cartText); } catch {}
 
     if (!cartRes.ok) {
-      const errBody = await cartRes.text();
       let msgAmigavel = `Erro ao criar envio no Melhor Envio (Código ${cartRes.status})`;
       try {
-        const parsed = JSON.parse(errBody);
+        const parsed = typeof debugCart === 'object' ? debugCart : JSON.parse(cartText);
         if (parsed.message) msgAmigavel = parsed.message;
         if (parsed.error) msgAmigavel = parsed.error;
         if (parsed.errors) {
@@ -824,10 +826,10 @@ serve(async (req: Request) => {
           msgAmigavel += ` (${det})`;
         }
       } catch {
-        msgAmigavel += `: ${errBody}`;
+        msgAmigavel += `: ${cartText}`;
       }
 
-      console.error("[MelhorEnvio-Edge] Erro no cart:", errBody);
+      console.error("[MelhorEnvio-Edge] Erro no cart:", cartText);
       return new Response(
         JSON.stringify({
           sucesso: false,
@@ -835,12 +837,13 @@ serve(async (req: Request) => {
           erro: `Falha na etapa 1-Cart: ${msgAmigavel}`,
           code: "MELHOR_ENVIO_CART_ERROR",
           status: cartRes.status,
+          debug_cart: debugCart,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const cartData = await cartRes.json();
+    const cartData = typeof debugCart === 'object' ? debugCart : await cartRes.json();
     const orderId = String(cartData.id);
     console.log(`[MelhorEnvio-Edge] Ordem criada no carrinho com ID: ${orderId}`);
 
@@ -854,14 +857,16 @@ serve(async (req: Request) => {
       body: JSON.stringify({ orders: [orderId] }),
     });
 
-    console.log('[ME-Despacho][2-Checkout] Status:', checkoutRes.status, 'Resposta:', await checkoutRes.clone().text());
+    const checkoutText = await checkoutRes.clone().text();
+    console.log('[ME-Despacho][2-Checkout] Status:', checkoutRes.status, 'Resposta:', checkoutText);
+    let debugCheckout: any = checkoutText;
+    try { debugCheckout = JSON.parse(checkoutText); } catch {}
 
     if (!checkoutRes.ok) {
-      const checkoutErr = await checkoutRes.text();
-      console.warn("[MelhorEnvio-Edge] Resposta do checkout:", checkoutErr);
+      console.warn("[MelhorEnvio-Edge] Resposta do checkout:", checkoutText);
 
       let msgCheckout = "Erro ao comprar a etiqueta no Melhor Envio.";
-      if (checkoutErr.toLowerCase().includes("saldo") || checkoutErr.toLowerCase().includes("wallet")) {
+      if (checkoutText.toLowerCase().includes("saldo") || checkoutText.toLowerCase().includes("wallet")) {
         msgCheckout = "Saldo insuficiente na carteira do Melhor Envio para gerar a etiqueta. Adicione créditos no painel do Melhor Envio.";
       }
 
@@ -872,6 +877,8 @@ serve(async (req: Request) => {
           erro: `Falha na etapa 2-Checkout: ${msgCheckout}`,
           code: "MELHOR_ENVIO_CHECKOUT_FAILED",
           ordem_id: String(orderId),
+          debug_cart: debugCart,
+          debug_checkout: debugCheckout,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -884,8 +891,10 @@ serve(async (req: Request) => {
     // PASSO 3: Solicitar Geração da Etiqueta (POST /api/v2/me/shipment/generate)
     // -------------------------------------------------------------------------
     console.log('[ME-Despacho][3-Generate] Enviando orders:', [orderId]);
-    let generateOk = false;
-    let generateErroMsg = "";
+    let generateLiberado = false;
+    let generateMensagem = "";
+    let debugGenerate: any = null;
+
     try {
       const generateRes = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
         method: "POST",
@@ -895,44 +904,84 @@ serve(async (req: Request) => {
       const generateText = await generateRes.clone().text();
       console.log('[Generate Response]', generateText);
       console.log('[ME-Despacho][3-Generate] Status:', generateRes.status, 'Resposta:', generateText);
-      generateOk = generateRes.ok;
-      if (!generateRes.ok) {
-        generateErroMsg = generateText;
+      try { debugGenerate = JSON.parse(generateText); } catch { debugGenerate = generateText; }
+
+      // Tratamento crítico na resposta da geração:
+      // O Melhor Envio responde com objeto indexado por orderId (ex: { "a2d3a20f-...": { "status": false, "message": "..." } })
+      if (debugGenerate && typeof debugGenerate === 'object') {
+        const orderResult = debugGenerate[orderId] || debugGenerate[Object.keys(debugGenerate)[0]];
+        if (orderResult && typeof orderResult === 'object') {
+          if (orderResult.status === true || orderResult.status === 'released' || orderResult.status === 'generated') {
+            generateLiberado = true;
+          } else if (orderResult.status === false) {
+            generateLiberado = false;
+            generateMensagem = orderResult.message || orderResult.error || "Geração não liberada pela transportadora";
+          }
+        } else if (debugGenerate.status === true) {
+          generateLiberado = true;
+        } else if (debugGenerate.message) {
+          generateMensagem = debugGenerate.message;
+        }
+      } else if (generateRes.ok) {
+        generateLiberado = true;
       }
     } catch (eGen: any) {
       console.warn("[ME-Despacho][3-Generate] Exceção na geração:", eGen);
-      generateErroMsg = eGen?.message || String(eGen);
+      debugGenerate = eGen?.message || String(eGen);
+      generateMensagem = eGen?.message || "Exceção ao chamar generate";
     }
 
-    // Aguarda o processamento assíncrono do Melhor Envio
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (generateMensagem) {
+      const msgLower = generateMensagem.toLowerCase();
+      let pendenciaTratada = generateMensagem;
+      if (msgLower.includes('agência') || msgLower.includes('agencia')) {
+        pendenciaTratada = "Agência da transportadora obrigatória ou não selecionada para a modalidade.";
+      } else if (msgLower.includes('declaração') || msgLower.includes('declaracao') || msgLower.includes('conteúdo') || msgLower.includes('conteudo')) {
+        pendenciaTratada = "Declaração de conteúdo necessária ou itens com divergência.";
+      } else if (msgLower.includes('endereço') || msgLower.includes('endereco') || msgLower.includes('incompleto')) {
+        pendenciaTratada = "Dados de endereço incompletos para a transportadora.";
+      }
+      console.warn(`[ME-Despacho][3-Generate] Pendência identificada: ${pendenciaTratada}`);
+      generateMensagem = pendenciaTratada;
+    }
 
     // -------------------------------------------------------------------------
     // PASSO 4: Obter URL de Impressão da Etiqueta (POST /api/v2/me/shipment/print)
+    // No Sandbox, só chama print se generate retornou sucesso na liberação.
     // -------------------------------------------------------------------------
-    console.log('[ME-Despacho][4-Print] Solicitando impressao para:', [orderId]);
     let linkEtiqueta: string | null = null;
-    try {
-      const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
-        method: "POST",
-        headers: headersComuns,
-        body: JSON.stringify({ mode: "public", orders: [orderId] }),
-      });
-      const printText = await printRes.clone().text();
-      console.log('[ME-Despacho][4-Print] Status:', printRes.status, 'Resposta:', printText);
+    let debugPrint: any = null;
 
-      if (printRes.ok) {
-        try {
-          const printData = JSON.parse(printText);
-          if (printData?.url && !printData.url.includes('/painel/envios')) {
-            linkEtiqueta = printData.url;
+    if (generateLiberado) {
+      // Aguarda o processamento assíncrono do Melhor Envio
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log('[ME-Despacho][4-Print] Solicitando impressao para:', [orderId]);
+      try {
+        const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
+          method: "POST",
+          headers: headersComuns,
+          body: JSON.stringify({ mode: "public", orders: [orderId] }),
+        });
+        const printText = await printRes.clone().text();
+        console.log('[ME-Despacho][4-Print] Status:', printRes.status, 'Resposta:', printText);
+        try { debugPrint = JSON.parse(printText); } catch { debugPrint = printText; }
+
+        if (printRes.ok && debugPrint && typeof debugPrint === 'object') {
+          if (debugPrint?.url && !debugPrint.url.includes('/painel/envios')) {
+            linkEtiqueta = debugPrint.url;
           }
-        } catch {
-          // ignore parse error
         }
+      } catch (ePrint: any) {
+        console.warn("[ME-Despacho][4-Print] Exceção ao imprimir:", ePrint);
+        debugPrint = ePrint?.message || String(ePrint);
       }
-    } catch (ePrint: any) {
-      console.warn("[ME-Despacho][4-Print] Exceção ao imprimir:", ePrint);
+    } else {
+      console.warn(`[ME-Despacho][4-Print] Geração não confirmada ou pendente: "${generateMensagem || 'não liberado'}". Chamada de print cancelada.`);
+      debugPrint = {
+        pulado: true,
+        motivo: generateMensagem || "Etiqueta ainda não liberada no Melhor Envio",
+      };
+      linkEtiqueta = null;
     }
 
     // -------------------------------------------------------------------------
@@ -1058,6 +1107,11 @@ serve(async (req: Request) => {
         ordem_id: String(orderId),
         orderId: String(orderId),
         codigo_rastreio: String(codigoRastreio || ""),
+        debug_cart: debugCart,
+        debug_checkout: debugCheckout,
+        debug_generate: debugGenerate,
+        debug_print: debugPrint,
+        mensagem_geracao: generateMensagem || undefined,
         link_etiqueta: linkEtiqueta,
         link_rastreio: linkRastreioOficial,
         status_melhor_envio: statusOrdemME || "criado",

@@ -491,6 +491,10 @@ export class MelhorEnvioService {
       });
 
       console.log('[MelhorEnvio-Front] Resposta da Edge Function:', edgeData);
+      if (edgeData) {
+        console.warn('[MelhorEnvio-Debug] Retorno Generate:', edgeData.debug_generate);
+        console.warn('[MelhorEnvio-Debug] Retorno Print:', edgeData.debug_print);
+      }
 
       if (!edgeErr && edgeData && edgeData.sucesso) {
         console.log('[MelhorEnvio] Despacho realizado com sucesso via Edge Function.');
