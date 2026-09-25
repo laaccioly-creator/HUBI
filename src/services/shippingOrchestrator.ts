@@ -849,51 +849,60 @@ export class ShippingOrchestrator {
       throw new Error('Não é permitido despachar pedidos cancelados.');
     }
 
-    const despachadoEm = new Date().toISOString();
-    const resultado = await MelhorEnvioService.solicitarEnvioMelhorEnvio({
-      loja,
-      config,
-      pedido,
-      entrega,
-      usuarioId
-    });
+    try {
+      const despachadoEm = new Date().toISOString();
+      const resultado = await MelhorEnvioService.solicitarEnvioMelhorEnvio({
+        loja,
+        config,
+        pedido,
+        entrega,
+        usuarioId
+      });
 
-    const urlRastreioOficial = resultado.codigo_rastreio
-      ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
-      : (resultado.link_rastreio || null);
+      console.log('[MelhorEnvio-Front] Resposta da Edge Function:', resultado);
 
-    // 1. Persistência canônica em pedido_entregas (com upsert seguro)
-    await this.salvarPedidoEntrega(pedido.id, {
-      ...entrega,
-      codigo_rastreio: resultado.codigo_rastreio,
-      link_rastreio: urlRastreioOficial,
-      link_etiqueta: resultado.link_etiqueta,
-      status_envio: 'despachado',
-      despachado_em: despachadoEm,
-      despachado_por: usuarioId || null
-    });
+      const urlRastreioOficial = resultado.codigo_rastreio
+        ? `https://melhorrastreio.com.br/rastreio/${resultado.codigo_rastreio}`
+        : (resultado.link_rastreio || null);
 
-    // 2. Snapshot e transição de status para enviado (preservando pedidos já concluídos ou cancelados)
-    const { data: pedDbME } = await supabase.from('pedidos').select('status').eq('id', pedido.id).maybeSingle();
-    const statusDestinoME = (pedDbME?.status === 'concluido' || pedido.status === 'concluido')
-      ? 'concluido'
-      : (pedDbME?.status === 'cancelado')
-        ? 'cancelado'
-        : 'enviado';
-
-    await supabase
-      .from('pedidos')
-      .update({
-        status: statusDestinoME,
-        codigo_rastreio: resultado.codigo_rastreio,
-        link_rastreio: urlRastreioOficial,
+      // 1. Persistência canônica em pedido_entregas (atualizando estritamente rastreio e status, preservando transportadora_nome)
+      await this.salvarPedidoEntrega(pedido.id, {
+        ...entrega,
+        transportadora_nome: entrega.transportadora_nome || entrega.nome_transportadora || (pedido as any).nome_transportadora || 'Melhor Envio',
+        nome_transportadora: entrega.nome_transportadora || entrega.transportadora_nome || (pedido as any).nome_transportadora || 'Melhor Envio',
+        codigo_rastreio: resultado.codigo_rastreio || entrega.codigo_rastreio || null,
+        link_rastreio: urlRastreioOficial || entrega.link_rastreio || null,
+        link_etiqueta: resultado.link_etiqueta || null,
+        status_envio: 'despachado',
         despachado_em: despachadoEm,
-        despachado_por: usuarioId || null,
-        atualizado_em: despachadoEm
-      })
-      .eq('id', pedido.id);
+        despachado_por: usuarioId || null
+      });
 
-    return resultado;
+      // 2. Snapshot e transição de status para enviado (preservando pedidos já concluídos ou cancelados e nome_transportadora)
+      const { data: pedDbME } = await supabase.from('pedidos').select('status').eq('id', pedido.id).maybeSingle();
+      const statusDestinoME = (pedDbME?.status === 'concluido' || pedido.status === 'concluido')
+        ? 'concluido'
+        : (pedDbME?.status === 'cancelado')
+          ? 'cancelado'
+          : 'enviado';
+
+      await supabase
+        .from('pedidos')
+        .update({
+          status: statusDestinoME,
+          codigo_rastreio: resultado.codigo_rastreio || pedido.codigo_rastreio || null,
+          link_rastreio: urlRastreioOficial || pedido.link_rastreio || null,
+          despachado_em: despachadoEm,
+          despachado_por: usuarioId || null,
+          atualizado_em: despachadoEm
+        })
+        .eq('id', pedido.id);
+
+      return resultado;
+    } catch (err: any) {
+      console.error('[MelhorEnvio-Front] Falha detalhada:', err);
+      throw err;
+    }
   }
 
   /**

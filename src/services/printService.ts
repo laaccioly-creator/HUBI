@@ -230,6 +230,7 @@ export const obterInfoEntregaRecibo = (
   const ehMelhorEnvio =
     provedor === 'melhor_envio' ||
     (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
+    Boolean((pedido as any).metadados?.melhor_envio_order_id) ||
     (pe?.provedor as any) === 'melhor_envio' ||
     transp.toLowerCase().includes('melhor envio') ||
     transp.toLowerCase().includes('melhorenvio');

@@ -2557,18 +2557,42 @@ export const PedidosLista: React.FC = () => {
                                 <span>Rastrear Envio na Transportadora</span>
                               </button>
 
-                              {(pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta) && (
-                                <a
-                                  href={pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
-                                  title="Imprimir Etiqueta Oficial da Transportadora (PDF)"
-                                >
-                                  <Tag className="w-3.5 h-3.5" />
-                                  <span>Imprimir Etiqueta</span>
-                                </a>
-                              )}
+                              {(() => {
+                                const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
+                                const ehPdfValido = Boolean(
+                                  linkEtq &&
+                                  (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
+                                  !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
+                                  !linkEtq.includes('/painel/envios')
+                                );
+
+                                if (ehPdfValido) {
+                                  return (
+                                    <a
+                                      href={linkEtq}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                      title="Imprimir Etiqueta Oficial (PDF)"
+                                    >
+                                      <Tag className="w-3.5 h-3.5" />
+                                      <span>Imprimir Etiqueta</span>
+                                    </a>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                    title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                  >
+                                    <Tag className="w-3.5 h-3.5" />
+                                    <span>Imprimir Etiqueta</span>
+                                  </button>
+                                );
+                              })()}
                             </div>
                           );
                         }
@@ -2585,18 +2609,42 @@ export const PedidosLista: React.FC = () => {
                                 <span>Rastrear Envio nos Correios</span>
                               </button>
 
-                              {(pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta) && (
-                                <a
-                                  href={pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
-                                  title="Imprimir Etiqueta Oficial dos Correios (PDF)"
-                                >
-                                  <Tag className="w-3.5 h-3.5" />
-                                  <span>Imprimir Etiqueta</span>
-                                </a>
-                              )}
+                              {(() => {
+                                const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
+                                const ehPdfValido = Boolean(
+                                  linkEtq &&
+                                  (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
+                                  !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
+                                  !linkEtq.includes('/painel/envios')
+                                );
+
+                                if (ehPdfValido) {
+                                  return (
+                                    <a
+                                      href={linkEtq}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                      title="Imprimir Etiqueta Oficial dos Correios (PDF)"
+                                    >
+                                      <Tag className="w-3.5 h-3.5" />
+                                      <span>Imprimir Etiqueta</span>
+                                    </a>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                    title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                  >
+                                    <Tag className="w-3.5 h-3.5" />
+                                    <span>Imprimir Etiqueta</span>
+                                  </button>
+                                );
+                              })()}
                             </div>
                           );
                         }
@@ -2651,18 +2699,42 @@ export const PedidosLista: React.FC = () => {
                                   <span>Acompanhar Rastreio em Tempo Real</span>
                                 </button>
 
-                                {(pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta) && (
-                                  <a
-                                    href={pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
-                                    title="Imprimir Etiqueta Oficial da Transportadora (PDF)"
-                                  >
-                                    <Tag className="w-3.5 h-3.5" />
-                                    <span>Imprimir Etiqueta</span>
-                                  </a>
-                                )}
+                                {(() => {
+                                  const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
+                                  const ehPdfValido = Boolean(
+                                    linkEtq &&
+                                    (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
+                                    !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
+                                    !linkEtq.includes('/painel/envios')
+                                  );
+
+                                  if (ehPdfValido) {
+                                    return (
+                                      <a
+                                        href={linkEtq}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                        title="Imprimir Etiqueta Oficial (PDF)"
+                                      >
+                                        <Tag className="w-3.5 h-3.5" />
+                                        <span>Imprimir Etiqueta</span>
+                                      </a>
+                                    );
+                                  }
+
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                      className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                      title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                    >
+                                      <Tag className="w-3.5 h-3.5" />
+                                      <span>Imprimir Etiqueta</span>
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
@@ -3231,20 +3303,21 @@ export const PedidosLista: React.FC = () => {
 
                             if (temEtiqueta) {
                               const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
-                              const ehEtiquetaReleased = linkEtqOficial && (
-                                linkEtqOficial.includes('/imprimir/') ||
-                                linkEtqOficial.includes('.pdf') ||
-                                linkEtqOficial.includes('blob:')
-                              ) && !linkEtqOficial.includes('/painel/envios');
+                              const ehPdfValido = Boolean(
+                                linkEtqOficial &&
+                                (linkEtqOficial.toLowerCase().endsWith('.pdf') || linkEtqOficial.toLowerCase().includes('.pdf?') || linkEtqOficial.startsWith('blob:')) &&
+                                !linkEtqOficial.includes('sandbox.melhorenvio.com.br/imprimir') &&
+                                !linkEtqOficial.includes('/painel/envios')
+                              );
 
-                              if (ehEtiquetaReleased) {
+                              if (ehPdfValido) {
                                 return (
                                   <a
                                     href={linkEtqOficial}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition cursor-pointer"
-                                    title="Abrir Etiqueta Oficial do Melhor Envio (PDF)"
+                                    title="Abrir Etiqueta Oficial em PDF"
                                   >
                                     <Tag className="w-3 h-3" />
                                     <span>Etiqueta</span>
@@ -3257,7 +3330,7 @@ export const PedidosLista: React.FC = () => {
                                   type="button"
                                   onClick={() => setPedidoEtiquetaModal(pedido)}
                                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition cursor-pointer"
-                                  title="Imprimir Etiqueta Térmica HUBI"
+                                  title="Imprimir Etiqueta Térmica Padrão HUBI"
                                 >
                                   <Tag className="w-3 h-3" />
                                   <span>Etiqueta</span>
@@ -3694,12 +3767,21 @@ export const PedidosLista: React.FC = () => {
           const transp = (pe?.transportadora_nome || pe?.forma_entrega_nome || metaTransp || pedidoReciboModal.forma_entrega?.nome || (pedidoReciboModal as any).nome_transportadora || '').trim();
           const servico = (pe?.servico_codigo || (pedidoReciboModal as any).metadados?.servico_frete_codigo || '').toLowerCase();
 
+          const ehMelhorEnvio =
+            provedor === 'melhor_envio' ||
+            (pedidoReciboModal as any).metadados?.provedor_frete === 'melhor_envio' ||
+            Boolean((pedidoReciboModal as any).metadados?.melhor_envio_order_id) ||
+            (pe?.provedor as any) === 'melhor_envio' ||
+            transp.toLowerCase().includes('melhor envio') ||
+            transp.toLowerCase().includes('melhorenvio');
+
           const ehTransportadoraPrivada =
-            pe?.tipo_operacao === 'transportadora' ||
+            !ehMelhorEnvio &&
+            (pe?.tipo_operacao === 'transportadora' ||
             (pedidoReciboModal as any)?.tipo_operacao === 'transportadora' ||
             Boolean(pe?.transportadora_id) ||
             transp.toLowerCase().includes('jadlog') ||
-            (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios'));
+            (transp.toLowerCase().includes('transportadora') && !transp.toLowerCase().includes('correios')));
 
           const servicoCorreios =
             (pedidoReciboModal as any)?.servico_correios ||
@@ -3725,13 +3807,21 @@ export const PedidosLista: React.FC = () => {
             Boolean(pe?.app_entrega_id) ||
             Boolean(nomeApp) ||
             Boolean(codigoCorrida) ||
-            (!ehTransportadoraPrivada && !ehCorreios && (
+            (!ehMelhorEnvio && !ehTransportadoraPrivada && !ehCorreios && (
               transp.toLowerCase().includes('uber') ||
               transp.toLowerCase().includes('99') ||
               transp.toLowerCase().includes('lalamove')
             ));
 
-          if (ehTransportadoraPrivada) {
+          if (ehMelhorEnvio) {
+            if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
+              formaEntregaTexto = 'MELHOR ENVIO (JADLOG)';
+            } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
+              formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'MELHOR ENVIO (CORREIOS)';
+            } else {
+              formaEntregaTexto = transp ? (transp.toUpperCase().includes('MELHOR ENVIO') ? transp.toUpperCase() : `MELHOR ENVIO (${transp.toUpperCase()})`) : 'MELHOR ENVIO';
+            }
+          } else if (ehTransportadoraPrivada) {
             formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog').toUpperCase();
           } else if (ehCorreios) {
             formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';

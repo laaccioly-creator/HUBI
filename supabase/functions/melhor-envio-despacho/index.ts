@@ -833,12 +833,14 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     // PASSO 1: Adicionar ao Carrinho (POST /api/v2/me/cart)
     // -------------------------------------------------------------------------
-    console.log(`[MelhorEnvio-Edge] Inserindo no carrinho (${baseUrl}/api/v2/me/cart)...`);
+    console.log('[ME-Despacho][1-Cart] Enviando payload:', JSON.stringify(cartPayload, null, 2));
     const cartRes = await fetch(`${baseUrl}/api/v2/me/cart`, {
       method: "POST",
       headers: headersComuns,
       body: JSON.stringify(cartPayload),
     });
+
+    console.log('[ME-Despacho][1-Cart] Status:', cartRes.status, 'Resposta:', await cartRes.clone().text());
 
     if (!cartRes.ok) {
       const errBody = await cartRes.text();
@@ -860,11 +862,13 @@ serve(async (req: Request) => {
       console.error("[MelhorEnvio-Edge] Erro no cart:", errBody);
       return new Response(
         JSON.stringify({
+          sucesso: false,
           error: msgAmigavel,
+          erro: `Falha na etapa 1-Cart: ${msgAmigavel}`,
           code: "MELHOR_ENVIO_CART_ERROR",
           status: cartRes.status,
         }),
-        { status: cartRes.status >= 500 ? 502 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -875,12 +879,14 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     // PASSO 2: Checkout / Compra do Frete (POST /api/v2/me/shipment/checkout)
     // -------------------------------------------------------------------------
-    console.log(`[MelhorEnvio-Edge] Executando checkout da ordem ${orderId}...`);
+    console.log('[ME-Despacho][2-Checkout] Enviando orders:', [orderId]);
     const checkoutRes = await fetch(`${baseUrl}/api/v2/me/shipment/checkout`, {
       method: "POST",
       headers: headersComuns,
       body: JSON.stringify({ orders: [orderId] }),
     });
+
+    console.log('[ME-Despacho][2-Checkout] Status:', checkoutRes.status, 'Resposta:', await checkoutRes.clone().text());
 
     if (!checkoutRes.ok) {
       const checkoutErr = await checkoutRes.text();
@@ -893,11 +899,13 @@ serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({
+          sucesso: false,
           error: msgCheckout,
+          erro: `Falha na etapa 2-Checkout: ${msgCheckout}`,
           code: "MELHOR_ENVIO_CHECKOUT_FAILED",
           ordem_id: String(orderId),
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -907,15 +915,24 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     // PASSO 3: Solicitar Geração da Etiqueta (POST /api/v2/me/shipment/generate)
     // -------------------------------------------------------------------------
-    console.log(`[MelhorEnvio-Edge] Solicitando geração da etiqueta para ${orderId}...`);
+    console.log('[ME-Despacho][3-Generate] Enviando orders:', [orderId]);
+    let generateOk = false;
+    let generateErroMsg = "";
     try {
-      await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
+      const generateRes = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
         method: "POST",
         headers: headersComuns,
         body: JSON.stringify({ orders: [orderId] }),
       });
-    } catch (e) {
-      console.warn("[MelhorEnvio-Edge] generate catch:", e);
+      const generateText = await generateRes.clone().text();
+      console.log('[ME-Despacho][3-Generate] Status:', generateRes.status, 'Resposta:', generateText);
+      generateOk = generateRes.ok;
+      if (!generateRes.ok) {
+        generateErroMsg = generateText;
+      }
+    } catch (eGen: any) {
+      console.warn("[ME-Despacho][3-Generate] Exceção na geração:", eGen);
+      generateErroMsg = eGen?.message || String(eGen);
     }
 
     // Aguarda o processamento assíncrono do Melhor Envio
@@ -924,19 +941,29 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     // PASSO 4: Obter URL de Impressão da Etiqueta (POST /api/v2/me/shipment/print)
     // -------------------------------------------------------------------------
-    let linkEtiqueta = `${baseUrl}/painel/envios`;
+    console.log('[ME-Despacho][4-Print] Solicitando impressao para:', [orderId]);
+    let linkEtiqueta: string | null = null;
     try {
       const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
         method: "POST",
         headers: headersComuns,
         body: JSON.stringify({ mode: "public", orders: [orderId] }),
       });
+      const printText = await printRes.clone().text();
+      console.log('[ME-Despacho][4-Print] Status:', printRes.status, 'Resposta:', printText);
+
       if (printRes.ok) {
-        const printData = await printRes.json();
-        if (printData.url) linkEtiqueta = printData.url;
+        try {
+          const printData = JSON.parse(printText);
+          if (printData?.url && !printData.url.includes('/painel/envios')) {
+            linkEtiqueta = printData.url;
+          }
+        } catch {
+          // ignore parse error
+        }
       }
-    } catch (ePrint) {
-      console.warn("[MelhorEnvio-Edge] Erro ao obter URL direta de impressão:", ePrint);
+    } catch (ePrint: any) {
+      console.warn("[ME-Despacho][4-Print] Exceção ao imprimir:", ePrint);
     }
 
     // -------------------------------------------------------------------------
@@ -944,8 +971,8 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     let codigoRastreio = "";
     let linkRastreioOficial = "";
-    let transportadoraNome = entrega?.transportadora_nome || "Melhor Envio";
     let statusEnvioTransportadora = "despachado";
+    let statusOrdemME = "";
 
     for (let tentativa = 1; tentativa <= 4; tentativa++) {
       try {
@@ -957,9 +984,7 @@ serve(async (req: Request) => {
 
         if (orderRes.ok) {
           const orderData = await orderRes.json();
-          if (orderData.service?.company?.name) {
-            transportadoraNome = orderData.service.company.name;
-          }
+          statusOrdemME = (orderData.status || "").toLowerCase();
 
           const selfTracking = (orderData.self_tracking || "").trim(); // ex: ME26006DUM4BR
           const tracking = (orderData.tracking || "").trim(); // ex: 830803761 ou QB123456789BR
@@ -1002,27 +1027,37 @@ serve(async (req: Request) => {
       linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
     }
 
+    // Se a etiqueta ainda não estiver pronta (status !== 'released'), marque link_etiqueta = null
+    // e não interrompa a persistência do código de rastreio já gerado.
+    if (statusOrdemME && statusOrdemME !== 'released') {
+      console.log(`[MelhorEnvio-Edge] Ordem com status '${statusOrdemME}'. link_etiqueta definido como null até ser released.`);
+      linkEtiqueta = null;
+    }
+
     const despachadoEm = new Date().toISOString();
 
     // -------------------------------------------------------------------------
     // PASSO 6: Atualizar Banco de Dados Supabase (pedido_entregas & pedidos)
+    // NUNCA sobrescrever transportadora_nome ou nome_transportadora se já existirem!
     // -------------------------------------------------------------------------
     if (pedidoId) {
-      // 1. Atualiza pedido_entregas
+      // 1. Atualiza pedido_entregas estritamente com os dados de envio
+      const updateEntregaPayload: Record<string, any> = {
+        codigo_rastreio: String(codigoRastreio || ""),
+        link_rastreio: linkRastreioOficial || null,
+        link_etiqueta: linkEtiqueta || null,
+        status_envio: statusEnvioTransportadora,
+        despachado_em: despachadoEm,
+        despachado_por: usuarioId || null,
+        atualizado_em: despachadoEm,
+      };
+
       await supabaseAdmin
         .from("pedido_entregas")
-        .update({
-          codigo_rastreio: String(codigoRastreio),
-          link_rastreio: linkRastreioOficial,
-          link_etiqueta: linkEtiqueta,
-          status_envio: statusEnvioTransportadora,
-          despachado_em: despachadoEm,
-          despachado_por: usuarioId || null,
-          atualizado_em: despachadoEm,
-        })
+        .update(updateEntregaPayload)
         .eq("pedido_id", pedidoId);
 
-      // 2. Atualiza pedidos (preservando rigorosamente status 'concluido' ou 'cancelado')
+      // 2. Atualiza pedidos (preservando rigorosamente status 'concluido' ou 'cancelado' e nome_transportadora)
       const { data: pedDbME } = await supabaseAdmin.from("pedidos").select("status").eq("id", pedidoId).maybeSingle();
       const statusFinal = (pedDbME?.status === "concluido" || pedido?.status === "concluido")
         ? "concluido"
@@ -1034,13 +1069,14 @@ serve(async (req: Request) => {
         .from("pedidos")
         .update({
           status: statusFinal,
-          codigo_rastreio: String(codigoRastreio),
-          link_rastreio: linkRastreioOficial,
+          codigo_rastreio: String(codigoRastreio || ""),
+          link_rastreio: linkRastreioOficial || null,
           despachado_em: despachadoEm,
           despachado_por: usuarioId || null,
           metadados: {
             ...(pedido.metadados || {}),
             melhor_envio_order_id: String(orderId),
+            melhor_envio_status: statusOrdemME || undefined,
           },
           atualizado_em: despachadoEm,
         })
@@ -1051,21 +1087,25 @@ serve(async (req: Request) => {
       JSON.stringify({
         sucesso: true,
         ordem_id: String(orderId),
-        codigo_rastreio: String(codigoRastreio),
+        orderId: String(orderId),
+        codigo_rastreio: String(codigoRastreio || ""),
         link_etiqueta: linkEtiqueta,
         link_rastreio: linkRastreioOficial,
+        status_melhor_envio: statusOrdemME || "criado",
         transportadora: entrega?.transportadora_nome || "Melhor Envio",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("[MelhorEnvio-Edge] Exceção não tratada:", err);
+    console.error("[MelhorEnvio-Edge] Exceção capturada:", err);
     return new Response(
       JSON.stringify({
+        sucesso: false,
         error: err.message || "Erro inesperado ao processar despacho no Melhor Envio.",
-        code: "INTERNAL_SERVER_ERROR",
+        erro: `Falha geral no despacho: ${err.message || "Erro inesperado"}`,
+        code: "INTERNAL_ERROR_HANDLED",
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

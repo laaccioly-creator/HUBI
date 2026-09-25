@@ -490,25 +490,28 @@ export class MelhorEnvioService {
         }
       });
 
+      console.log('[MelhorEnvio-Front] Resposta da Edge Function:', edgeData);
+
       if (!edgeErr && edgeData && edgeData.sucesso) {
         console.log('[MelhorEnvio] Despacho realizado com sucesso via Edge Function.');
         return {
-          ordem_id: String(edgeData.ordem_id),
-          codigo_rastreio: String(edgeData.codigo_rastreio),
-          link_etiqueta: edgeData.link_etiqueta || `${baseUrl}/painel/envios`,
+          ordem_id: String(edgeData.ordem_id || edgeData.orderId),
+          codigo_rastreio: String(edgeData.codigo_rastreio || ''),
+          link_etiqueta: edgeData.link_etiqueta || '',
           link_rastreio: edgeData.codigo_rastreio
             ? `https://melhorrastreio.com.br/rastreio/${edgeData.codigo_rastreio}`
             : (edgeData.link_rastreio || ''),
-          transportadora: edgeData.transportadora || entrega.transportadora_nome || 'Melhor Envio'
+          transportadora: entrega.transportadora_nome || edgeData.transportadora || 'Melhor Envio'
         };
       }
 
       if (edgeErr) {
+        console.error('[MelhorEnvio-Front] Falha detalhada:', edgeErr);
         let detalheErro = edgeErr.message || 'Falha na comunicação com o servidor do Melhor Envio.';
         try {
           if (edgeErr.context && typeof edgeErr.context.json === 'function') {
             const jsonErr = await edgeErr.context.json();
-            detalheErro = jsonErr.error || jsonErr.message || JSON.stringify(jsonErr);
+            detalheErro = jsonErr.error || jsonErr.erro || jsonErr.message || JSON.stringify(jsonErr);
           }
         } catch {
           // Mantém mensagem padrão
@@ -526,10 +529,13 @@ export class MelhorEnvioService {
         } else {
           throw new Error(detalheErro);
         }
-      } else if (edgeData && !edgeData.sucesso && edgeData.error) {
-        throw new Error(edgeData.error);
+      } else if (edgeData && !edgeData.sucesso && (edgeData.error || edgeData.erro)) {
+        const msg = edgeData.erro || edgeData.error;
+        console.error('[MelhorEnvio-Front] Falha detalhada:', msg);
+        throw new Error(msg);
       }
     } catch (eEdge: any) {
+      console.error('[MelhorEnvio-Front] Falha detalhada:', eEdge);
       const msgEdge = eEdge.message || String(eEdge);
       if (
         !msgEdge.toLowerCase().includes('function not found') &&
