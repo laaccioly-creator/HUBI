@@ -104,8 +104,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
 
+  const cart = useCart();
   const {
-    itens,
+    itens: rawItens,
     clienteSelecionado,
     desconto,
     descontoPercentual,
@@ -131,7 +132,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     setTipoDesconto,
     limparCarrinho,
     cancelarEdicaoPedido
-  } = useCart();
+  } = cart || {};
+
+  const itens = useMemo(() => (Array.isArray(rawItens) ? rawItens : []), [rawItens]);
 
   // Status de bloqueio de edição para pedidos confirmados ou em processamento
   const isEdicaoTravada = Boolean(pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao));
@@ -152,10 +155,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
   // Se o carrinho for limpo pós-venda/recibo, garantir retorno à tela de catálogo/vender
   useEffect(() => {
-    if (subTela === 'carrinho' && itens.length === 0 && !pedidoEmEdicao) {
+    if (subTela === 'carrinho' && (itens?.length || 0) === 0 && !pedidoEmEdicao) {
       setSubTela('vender');
     }
-  }, [subTela, itens.length, pedidoEmEdicao]);
+  }, [subTela, itens?.length, pedidoEmEdicao]);
   const [origemClientes, setOrigemClientes] = useState<'vender' | 'carrinho'>('vender');
 
   const abrirSelecaoCliente = (origem: 'vender' | 'carrinho' = 'vender') => {

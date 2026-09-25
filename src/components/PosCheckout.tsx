@@ -176,8 +176,9 @@ export const PosCheckout: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const { mostrarSucesso, mostrarAviso, mostrarErro, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
+  const cart = useCart();
   const {
-    itens,
+    itens: rawItens,
     clienteSelecionado,
     tabelaPrecoGlobal,
     tabelaPrecoCalculada,
@@ -207,7 +208,9 @@ export const PosCheckout: React.FC = () => {
     limparCarrinho,
     cancelarEdicaoPedido,
     atualizarStatusPedidoEmEdicao
-  } = useCart();
+  } = cart || {};
+
+  const itens = useMemo(() => (Array.isArray(rawItens) ? rawItens : []), [rawItens]);
 
   const isEdicaoTravada = Boolean(pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao));
 
@@ -234,14 +237,14 @@ export const PosCheckout: React.FC = () => {
 
   useEffect(() => {
     if (pedidoEmEdicao) {
-      setTemAlteracoesNaoSalvas(temAlteracoesPedido);
+      setTemAlteracoesNaoSalvas(Boolean(temAlteracoesPedido));
     } else {
-      setTemAlteracoesNaoSalvas(itens.length > 0);
+      setTemAlteracoesNaoSalvas((itens?.length || 0) > 0);
     }
     return () => {
       setTemAlteracoesNaoSalvas(false);
     };
-  }, [pedidoEmEdicao, temAlteracoesPedido, itens.length, setTemAlteracoesNaoSalvas]);
+  }, [pedidoEmEdicao, temAlteracoesPedido, itens?.length, setTemAlteracoesNaoSalvas]);
 
   const {
     isOnline,
@@ -335,7 +338,7 @@ export const PosCheckout: React.FC = () => {
 
   // Filtra as formas de pagamento disponíveis: Fiado só aparece se cliente permitir e tiver limite
   const formasPagamentoDisponiveis = useMemo(() => {
-    const listaFPs = (formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO;
+    const listaFPs = ((formasPagamento?.length || 0) > 0) ? formasPagamento : FORMAS_PADRAO;
     return listaFPs.filter(fp => {
       if (!fp.ativo) return false;
       // Regra: Meio de pagamento fiado só deve aparecer para os clientes com permitir venda fiado ligada e com saldo no limite de crédito
@@ -423,7 +426,7 @@ export const PosCheckout: React.FC = () => {
   };
 
   const handleRemoverLinhaPagamento = (linhaId: string) => {
-    if (linhasPagamento.length <= 1) return;
+    if ((linhasPagamento?.length || 0) <= 1) return;
     setLinhasPagamento(prev => prev.filter(l => l.id !== linhaId));
   };
 
@@ -434,8 +437,8 @@ export const PosCheckout: React.FC = () => {
         setCarregando(true);
         // Carregamento Híbrido: sincroniza do Supabase para o IndexedDB e traz os dados
         const dados = await SyncService.baixarDadosParaOffline(loja.id);
-        if (dados.produtos) setProdutos(dados.produtos);
-        if (dados.clientes) setClientes(dados.clientes);
+        if (dados?.produtos) setProdutos(dados.produtos);
+        if (dados?.clientes) setClientes(dados.clientes);
 
         // Buscar categorias da loja
         try {
@@ -456,7 +459,7 @@ export const PosCheckout: React.FC = () => {
           console.warn('Configurações de frete não puderam ser carregadas:', e);
         }
 
-        const fps = (dados.formasPagamento && dados.formasPagamento.length > 0) ? dados.formasPagamento : FORMAS_PADRAO;
+        const fps = (dados?.formasPagamento && (dados.formasPagamento?.length || 0) > 0) ? dados.formasPagamento : FORMAS_PADRAO;
         setFormasPagamento(fps);
         setFormaPagamentoEscolhida(prev => prev || fps[0]);
       } catch (err) {
@@ -490,7 +493,7 @@ export const PosCheckout: React.FC = () => {
   };
 
   const handleAbrirFechamento = () => {
-    if (itens.length === 0) return;
+    if ((itens?.length || 0) === 0) return;
 
     if (ehEnvio && !isFreteConfirmado) {
       mostrarAviso(
@@ -508,8 +511,8 @@ export const PosCheckout: React.FC = () => {
       return;
     }
 
-    const listaFPs = (formasPagamento && formasPagamento.length > 0) ? formasPagamento : FORMAS_PADRAO;
-    if (formasPagamento.length === 0) {
+    const listaFPs = ((formasPagamento?.length || 0) > 0) ? formasPagamento : FORMAS_PADRAO;
+    if ((formasPagamento?.length || 0) === 0) {
       setFormasPagamento(listaFPs);
     }
 
@@ -517,7 +520,7 @@ export const PosCheckout: React.FC = () => {
       let infoPrevisto: any = null;
 
       // 1. Tentar ler da relação relacional pagamentos_previstos
-      if (pedidoEmEdicao.pagamentos_previstos && pedidoEmEdicao.pagamentos_previstos.length > 0) {
+      if (pedidoEmEdicao?.pagamentos_previstos && (pedidoEmEdicao.pagamentos_previstos?.length || 0) > 0) {
         const p = pedidoEmEdicao.pagamentos_previstos[pedidoEmEdicao.pagamentos_previstos.length - 1];
         infoPrevisto = {
           forma_pagamento_id: p.forma_pagamento_id,
@@ -554,7 +557,7 @@ export const PosCheckout: React.FC = () => {
         }
       }
 
-      if (!infoPrevisto && pedidoEmEdicao.pagamentos && pedidoEmEdicao.pagamentos.length > 0) {
+      if (!infoPrevisto && pedidoEmEdicao?.pagamentos && (pedidoEmEdicao.pagamentos?.length || 0) > 0) {
         const p = pedidoEmEdicao.pagamentos[pedidoEmEdicao.pagamentos.length - 1];
         infoPrevisto = {
           forma_pagamento_id: p.forma_pagamento_id,
@@ -584,7 +587,7 @@ export const PosCheckout: React.FC = () => {
 
     const fpPadrao = formasPagamentoDisponiveis.find(f => f.tipo === 'dinheiro') || formasPagamentoDisponiveis[0] || listaFPs[0];
 
-    if (pedidoEmEdicao?.pagamentos && pedidoEmEdicao.pagamentos.length > 1) {
+    if (pedidoEmEdicao?.pagamentos && (pedidoEmEdicao.pagamentos?.length || 0) > 1) {
       const linhasMapeadas: LinhaPagamentoPDV[] = pedidoEmEdicao.pagamentos.map((p: any, idx: number) => ({
         id: `linha_${p.id || idx}_${Date.now()}`,
         forma_pagamento_id: p.forma_pagamento_id,
@@ -666,7 +669,7 @@ export const PosCheckout: React.FC = () => {
       mostrarErro('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
       return;
     }
-    if (itens.length === 0) {
+    if ((itens?.length || 0) === 0) {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar o pedido.');
       return;
     }
@@ -693,7 +696,7 @@ export const PosCheckout: React.FC = () => {
           .eq('loja_id', loja.id)
           .limit(1);
 
-        if (u && u.length > 0) {
+        if (u && (u?.length || 0) > 0) {
           vendedorId = u[0].id;
         } else {
           vendedorId = loja.id;
@@ -710,7 +713,7 @@ export const PosCheckout: React.FC = () => {
           .eq('id', vendedorIdSanitizado)
           .limit(1);
 
-        if (!usuarioExiste || usuarioExiste.length === 0) {
+        if (!usuarioExiste || (usuarioExiste?.length || 0) === 0) {
           vendedorIdSanitizado = null;
         }
       }
@@ -946,7 +949,7 @@ export const PosCheckout: React.FC = () => {
       mostrarErro('Estabelecimento não selecionado. Por favor, recarregue a página.');
       return;
     }
-    if (itens.length === 0) {
+    if ((itens?.length || 0) === 0) {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de salvar.');
       return;
     }
@@ -973,7 +976,7 @@ export const PosCheckout: React.FC = () => {
         delete metaExistente.desconto_percentual;
       }
 
-      const linhasParaSalvar = (linhasPagamento && linhasPagamento.length > 0) ? linhasPagamento : [
+      const linhasParaSalvar = (linhasPagamento && (linhasPagamento?.length || 0) > 0) ? linhasPagamento : [
         {
           id: 'linha_default',
           forma_pagamento_id: formaPagamentoEscolhida?.id || FORMAS_PADRAO[0].id,
@@ -1143,7 +1146,7 @@ export const PosCheckout: React.FC = () => {
       }
 
       // Registra pagamentos previstos na tabela pagamentos_pedido
-      if (pedidoIdFinal && linhasParaSalvar.length > 0) {
+      if (pedidoIdFinal && (linhasParaSalvar?.length || 0) > 0) {
         await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoIdFinal);
         const pagamentosParaInserir = await Promise.all(linhasParaSalvar.map(async (l) => {
           const fpRealId = await SyncService.resolverFormaPagamentoId(loja.id, l.forma_pagamento_id, l.forma_tipo);
@@ -1210,7 +1213,7 @@ export const PosCheckout: React.FC = () => {
       mostrarErro('Erro: Estabelecimento não selecionado. Por favor, recarregue a página.');
       return;
     }
-    if (itens.length === 0) {
+    if ((itens?.length || 0) === 0) {
       mostrarAviso('O carrinho está vazio. Adicione produtos antes de fechar a venda.');
       return;
     }
@@ -1219,7 +1222,7 @@ export const PosCheckout: React.FC = () => {
       return;
     }
 
-    const linhasAtivas = linhasPagamento.length > 0 ? linhasPagamento : [
+    const linhasAtivas = (linhasPagamento?.length || 0) > 0 ? linhasPagamento : [
       {
         id: `linha_1_${Date.now()}`,
         forma_pagamento_id: formaPagamentoEscolhida?.id || FORMAS_PADRAO[0].id,
@@ -1269,7 +1272,7 @@ export const PosCheckout: React.FC = () => {
           .eq('loja_id', loja.id)
           .limit(1);
 
-        if (u && u.length > 0) {
+        if (u && (u?.length || 0) > 0) {
           vendedorId = u[0].id;
         } else {
           vendedorId = loja.id;
@@ -1281,7 +1284,7 @@ export const PosCheckout: React.FC = () => {
       // Calcular prazo e data de vencimento do fiado caso utilizado
       let dataVencimentoFiado: string | null = null;
       if (valorFiadoTotal > 0) {
-        const formaFiado = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).find(f => f.tipo === 'fiado');
+        const formaFiado = ((formasPagamento && (formasPagamento?.length || 0) > 0 ? formasPagamento : FORMAS_PADRAO)).find(f => f.tipo === 'fiado');
         const prazoDias = (formaFiado && formaFiado.prazo_dias != null && formaFiado.prazo_dias > 0)
           ? formaFiado.prazo_dias
           : 30;
@@ -1360,7 +1363,7 @@ export const PosCheckout: React.FC = () => {
           .eq('id', vendedorIdSanitizado)
           .limit(1);
 
-        if (!usuarioExiste || usuarioExiste.length === 0) {
+        if (!usuarioExiste || (usuarioExiste?.length || 0) === 0) {
           vendedorIdSanitizado = null;
         }
       }
@@ -1769,10 +1772,10 @@ export const PosCheckout: React.FC = () => {
                 title="Filtrar produtos por categoria"
               >
                 <option value="todas" className="bg-slate-900 text-slate-200">
-                  Todas as Categorias ({produtos.length})
+                  Todas as Categorias ({(produtos || []).length})
                 </option>
                 {categoriasOrdenadas.map((cat) => {
-                  const totalCat = produtos.filter(p => p.categoria_id === cat.id).length;
+                  const totalCat = (produtos || []).filter(p => p.categoria_id === cat.id).length;
                   return (
                     <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-200">
                       {cat.nome} ({totalCat})
@@ -1832,7 +1835,7 @@ export const PosCheckout: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-3.5">
           {carregando ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">Carregando catálogo de produtos...</div>
-          ) : produtosFiltrados.length === 0 ? (
+          ) : (produtosFiltrados || []).length === 0 ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">Nenhum produto encontrado.</div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
@@ -1854,7 +1857,7 @@ export const PosCheckout: React.FC = () => {
                         mostrarAviso('Alteração de itens bloqueada para pedidos com status diferente de pendente.');
                         return;
                       }
-                      if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                      if (produto?.tem_variacoes && produto?.variacoes && (produto.variacoes?.length || 0) > 0) {
                         setProdutoModalVariacao(produto);
                       } else {
                         adicionarItem(produto);
@@ -1951,7 +1954,7 @@ export const PosCheckout: React.FC = () => {
                 {totalItens} un
               </span>
             </h2>
-            {itens.length > 0 && !isEdicaoTravada && (
+            {((itens?.length || 0) > 0) && !isEdicaoTravada && (
               <button
                 type="button"
                 onClick={() => {
@@ -2045,7 +2048,7 @@ export const PosCheckout: React.FC = () => {
                   {!clienteSelecionado && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
 
-                {clientesFiltrados.length === 0 ? (
+                {(clientesFiltrados || []).length === 0 ? (
                   <div className="p-3 text-center text-xs text-slate-500">Nenhum cliente encontrado.</div>
                 ) : (
                   clientesFiltrados.map((cli) => {
@@ -2166,7 +2169,7 @@ export const PosCheckout: React.FC = () => {
             </div>
 
             {/* TERMÔMETROS COMPACTOS (ATACADO & FRETE GRÁTIS) */}
-            {itens.length > 0 && (
+            {((itens?.length || 0) > 0) && (
               <div className="space-y-1.5 pt-0.5">
                 {/* Termômetro Atacado / Volume */}
                 {avaliacaoCarrinho.proximoNivel && (
@@ -2228,7 +2231,7 @@ export const PosCheckout: React.FC = () => {
 
         {/* Lista de Itens do Carrinho */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {itens.length === 0 ? (
+          {((itens?.length || 0) === 0) ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 space-y-2 py-12">
               <Layers className="w-10 h-10 opacity-30" />
               <p className="text-xs">O carrinho está vazio.<br />Adicione produtos ou bipe o código de barras.</p>
@@ -2403,7 +2406,7 @@ export const PosCheckout: React.FC = () => {
             {/* Botão Salvar */}
             <button
               type="button"
-              disabled={itens.length === 0 || salvandoPendente}
+              disabled={(itens?.length || 0) === 0 || salvandoPendente}
               onClick={handleSalvarPedidoPendente}
               className="flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center active:scale-95"
               title={pedidoEmEdicao ? 'Atualizar pedido' : 'Salvar pedido como orçamento/pendente'}
@@ -2420,7 +2423,7 @@ export const PosCheckout: React.FC = () => {
             {ehEnvio && (
               <button
                 type="button"
-                disabled={!temCliente || salvandoPendente || itens.length === 0}
+                disabled={!temCliente || salvandoPendente || (itens?.length || 0) === 0}
                 onClick={() => setModalDefinirEnvioAberto(true)}
                 className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${
                   isFreteConfirmado
@@ -2446,7 +2449,7 @@ export const PosCheckout: React.FC = () => {
             <button
               type="button"
               disabled={
-                itens.length === 0 ||
+                (itens?.length || 0) === 0 ||
                 salvandoPendente ||
                 (ehEnvio && !isFreteConfirmado)
               }
@@ -2535,7 +2538,7 @@ export const PosCheckout: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300">
-                  Meios de Pagamento ({linhasPagamento.length}):
+                  Meios de Pagamento ({(linhasPagamento || []).length}):
                 </span>
                 <span className="text-[11px] text-slate-400">
                   Permite dividir o total em vários meios
@@ -2555,7 +2558,7 @@ export const PosCheckout: React.FC = () => {
                         </span>
                         Pagamento #{idx + 1}
                       </span>
-                      {linhasPagamento.length > 1 && (
+                      {(linhasPagamento?.length || 0) > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoverLinhaPagamento(linha.id)}
@@ -2936,7 +2939,7 @@ export const PosCheckout: React.FC = () => {
 
                   {/* Resumo de itens */}
                   <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">
-                    {pedidoConcluido.itens?.length || 0} itens (Qtd.: {pedidoConcluido.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
+                    {pedidoConcluido?.itens?.length || 0} itens (Qtd.: {(pedidoConcluido?.itens || []).reduce((acc, i) => acc + Number(i.quantidade || 1), 0)})
                   </div>
 
                   {/* Tabela de Itens */}
@@ -3008,7 +3011,7 @@ export const PosCheckout: React.FC = () => {
                               {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                             </span>
                           </div>
-                          {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                          {pagInfo.foiPago && (pagInfo.pagamentosDetalhados?.length || 0) > 0 ? (
                             <div className="space-y-1.5 pt-1.5 text-slate-800">
                               {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                                 <div key={idx} className="flex justify-between items-start text-[11px]">
