@@ -706,107 +706,195 @@ serve(async (req: Request) => {
       );
     }
 
-    const clienteNome = pedido?.cliente_nome_avulso || cliente?.nome || customPayload?.to?.name || "Cliente";
+    // -------------------------------------------------------------------------
+    // Sanitização de Nomes e Endereços (Blindagem contra recusa da transportadora)
+    // -------------------------------------------------------------------------
+    let rawClienteNome = (pedido?.cliente_nome_avulso || cliente?.nome || customPayload?.to?.name || "Cliente").trim();
+    rawClienteNome = rawClienteNome.replace(/[\/":;,]/g, " ").replace(/\s+/g, " ").trim();
+    const partesNome = rawClienteNome.split(/\s+/).filter(Boolean);
+    const clienteNomeSanitizado = partesNome.length >= 2 ? rawClienteNome : `${rawClienteNome || "Cliente"} Cliente`;
+
+    let rawLojaNome = (loja?.nome_fantasia || loja?.nome_loja || customPayload?.from?.name || "Loja HUBI").trim();
+    rawLojaNome = rawLojaNome.replace(/[\/":;,]/g, " ").replace(/\s+/g, " ").trim();
+    const partesLoja = rawLojaNome.split(/\s+/).filter(Boolean);
+    const lojaNomeSanitizado = partesLoja.length >= 2 ? rawLojaNome : `${rawLojaNome || "Loja"} HUBI`;
+
     const clienteTel = limparTelefone(cliente?.whatsapp || cliente?.telefone || pedido?.cliente_telefone_avulso || customPayload?.to?.phone);
     const clienteEmail = cliente?.email || pedido?.cliente_email_avulso || customPayload?.to?.email || "cliente@hubi.app";
 
-    const lojaNome = loja?.nome_fantasia || loja?.nome_loja || customPayload?.from?.name || "HUBI PDV";
     const lojaTel = limparTelefone(loja?.whatsapp || loja?.telefone || customPayload?.from?.phone);
     const lojaEmail = loja?.email || customPayload?.from?.email || "contato@hubi.app";
 
     const servicoCodigo = Number(entrega?.servico_codigo || customPayload?.service) || 1; // 1: PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
 
-    const pacMeta = pedido?.metadados?.pacote_envio || customPayload?.pacote || {};
-    const pesoBruto = pacMeta.peso_kg || customPayload?.volumes?.[0]?.weight || customPayload?.package?.weight || 0.5;
-    const compBruto = pacMeta.comprimento_cm || customPayload?.volumes?.[0]?.length || customPayload?.package?.length || configShipping.embalagem_padrao_comprimento_cm;
-    const largBruto = pacMeta.largura_cm || customPayload?.volumes?.[0]?.width || customPayload?.package?.width || configShipping.embalagem_padrao_largura_cm;
-    const altBruto = pacMeta.altura_cm || customPayload?.volumes?.[0]?.height || customPayload?.package?.height || configShipping.embalagem_padrao_altura_cm;
-
-    // Sanitização estrita com limites mínimos aceitos pelas transportadoras
-    const pesoSanitizado = Math.max(Number(pesoBruto || 0.5), 0.1);
-    const compSanitizado = Math.max(Number(compBruto || 20), 16);
-    const largSanitizada = Math.max(Number(largBruto || 15), 11);
-    const altSanitizada = Math.max(Number(altBruto || 10), 4);
-
-    const packageCanonical = {
-      weight: Number(pesoSanitizado || 0.5),
-      width: Number(largSanitizada || 15),
-      height: Number(altSanitizada || 10),
-      length: Number(compSanitizado || 20),
+    const sanitizarTextoEndereco = (texto?: string | null): string => {
+      if (!texto) return "";
+      let limpo = String(texto).trim();
+      limpo = limpo.replace(/[\/":]/g, " ");
+      limpo = limpo.replace(/,{2,}/g, ",");
+      limpo = limpo.replace(/\s+/g, " ").trim();
+      return limpo;
     };
 
-    // Sanitização de logradouro para remover caracteres especiais, vírgulas no final e evitar duplicar o número
-    const limparLogradouro = (logr: string, num?: string) => {
-      let limpo = (logr || "").trim();
+    const sanitizarNumero = (num?: string | null): string => {
+      if (!num) return "SN";
+      let n = sanitizarTextoEndereco(num);
+      if (!n || n.toUpperCase() === "S/N" || n.toUpperCase() === "SN") {
+        return "SN";
+      }
+      return n.substring(0, 20);
+    };
+
+    const sanitizarRua = (logr?: string | null, num?: string | null): string => {
+      let limpo = sanitizarTextoEndereco(logr) || "Rua";
       limpo = limpo.replace(/,\s*$/, "");
-      if (num && num !== "S/N" && limpo.endsWith(num)) {
+      if (num && num !== "SN" && num !== "0" && limpo.endsWith(num)) {
         limpo = limpo.slice(0, -num.length).trim().replace(/,\s*$/, "");
       }
-      return limpo.replace(/[/;:"]/g, " ").trim() || "Rua";
+      return limpo.substring(0, 100).trim() || "Rua";
     };
 
-    const numOrigem = configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number || "S/N";
-    const ruaOrigem = limparLogradouro(
+    const sanitizarBairro = (bairro?: string | null): string => {
+      const b = sanitizarTextoEndereco(bairro) || "Centro";
+      return b.substring(0, 50).trim();
+    };
+
+    const sanitizarComplemento = (comp?: string | null): string => {
+      return sanitizarTextoEndereco(comp).substring(0, 50).trim();
+    };
+
+    const numOrigem = sanitizarNumero(configShipping.origem_numero || loja?.endereco_numero || customPayload?.from?.number);
+    const ruaOrigem = sanitizarRua(
       configShipping.origem_logradouro || loja?.endereco_logradouro || customPayload?.from?.address || "Rua",
       numOrigem
     );
+    const compOrigem = sanitizarComplemento(configShipping.origem_complemento || customPayload?.from?.complement);
+    const bairroOrigem = sanitizarBairro(configShipping.origem_bairro || loja?.endereco_bairro || customPayload?.from?.district);
+    const cidadeOrigem = sanitizarTextoEndereco(configShipping.origem_cidade || loja?.endereco_cidade || customPayload?.from?.city || "Cidade");
+    const ufOrigem = (configShipping.origem_uf || loja?.endereco_estado || customPayload?.from?.state_abbr || "SP").toUpperCase().slice(0, 2);
 
-    const numDestino = entrega?.destino_numero || customPayload?.to?.number || "S/N";
-    const ruaDestino = limparLogradouro(
+    const numDestino = sanitizarNumero(entrega?.destino_numero || customPayload?.to?.number);
+    const ruaDestino = sanitizarRua(
       entrega?.destino_logradouro || customPayload?.to?.address || "Rua",
       numDestino
     );
+    const compDestino = sanitizarComplemento(entrega?.destino_complemento || customPayload?.to?.complement);
+    const bairroDestino = sanitizarBairro(entrega?.destino_bairro || customPayload?.to?.district);
+    const cidadeDestino = sanitizarTextoEndereco(entrega?.destino_cidade || customPayload?.to?.city || "Cidade");
+    const ufDestino = (entrega?.destino_uf || customPayload?.to?.state_abbr || "SP").toUpperCase().slice(0, 2);
 
-    const cartPayload = {
+    // -------------------------------------------------------------------------
+    // Tratamento Condicional e Mutuamente Exclusivo de Volumes
+    // -------------------------------------------------------------------------
+    const pacMeta = pedido?.metadados?.pacote_envio || customPayload?.pacote || {};
+    const dadosEmbalagem = {
+      peso: Number(pacMeta.peso_kg || entrega?.peso_kg || customPayload?.package?.weight || customPayload?.volumes?.[0]?.weight || configShipping.embalagem_padrao_peso_kg || 0.5),
+      largura: Number(pacMeta.largura_cm || entrega?.largura_cm || customPayload?.package?.width || customPayload?.volumes?.[0]?.width || configShipping.embalagem_padrao_largura_cm || 15),
+      altura: Number(pacMeta.altura_cm || entrega?.altura_cm || customPayload?.package?.height || customPayload?.volumes?.[0]?.height || configShipping.embalagem_padrao_altura_cm || 10),
+      comprimento: Number(pacMeta.comprimento_cm || entrega?.comprimento_cm || customPayload?.package?.length || customPayload?.volumes?.[0]?.length || configShipping.embalagem_padrao_comprimento_cm || 20),
+      quantidade_volumes: Number(entrega?.quantidade_volumes || customPayload?.quantidade_volumes || (Array.isArray(customPayload?.volumes) && customPayload.volumes.length > 1 ? customPayload.volumes.length : 1)),
+      volumes: Array.isArray(customPayload?.volumes) && customPayload.volumes.length > 0 ? customPayload.volumes : null,
+    };
+
+    // caixas/volumes recebidos da tela de conferência de volumes
+    const listaVolumes = Array.isArray(dadosEmbalagem?.volumes) && dadosEmbalagem.volumes.length > 0
+      ? dadosEmbalagem.volumes
+      : (dadosEmbalagem?.quantidade_volumes > 1
+          ? Array.from({ length: dadosEmbalagem.quantidade_volumes }, () => ({ ...dadosEmbalagem }))
+          : null);
+
+    const payloadCart: Record<string, any> = {
       service: servicoCodigo,
       agency: null,
       from: {
-        name: lojaNome,
+        name: lojaNomeSanitizado,
         phone: lojaTel,
         email: lojaEmail,
         document: docLoja,
         state_register: (docLoja && docLoja.length > 11) ? undefined : "ISENTO",
         address: ruaOrigem,
-        complement: configShipping.origem_complemento || customPayload?.from?.complement || "",
+        complement: compOrigem,
         number: numOrigem,
-        district: configShipping.origem_bairro || loja?.endereco_bairro || customPayload?.from?.district || "Bairro",
-        city: configShipping.origem_cidade || loja?.endereco_cidade || customPayload?.from?.city || "Cidade",
-        state_abbr: (configShipping.origem_uf || loja?.endereco_estado || customPayload?.from?.state_abbr || "SP").toUpperCase(),
+        district: bairroOrigem,
+        city: cidadeOrigem,
+        state_abbr: ufOrigem,
         postal_code: cepOrigem,
       },
       to: {
-        name: clienteNome,
+        name: clienteNomeSanitizado,
         phone: clienteTel,
         email: clienteEmail,
         document: docCliente,
         address: ruaDestino,
-        complement: entrega?.destino_complemento || customPayload?.to?.complement || "",
+        complement: compDestino,
         number: numDestino,
-        district: entrega?.destino_bairro || customPayload?.to?.district || "Bairro",
-        city: entrega?.destino_cidade || customPayload?.to?.city || "Cidade",
-        state_abbr: (entrega?.destino_uf || customPayload?.to?.state_abbr || "SP").toUpperCase(),
+        district: bairroDestino,
+        city: cidadeDestino,
+        state_abbr: ufDestino,
         postal_code: cepDestino,
       },
       products: productsList,
-      package: packageCanonical,
       options: {
         insurance_value: Number(valorSeguro.toFixed(2) || 50.00),
         receipt: false,
         own_hand: false,
         reverse: false,
-        non_commercial: true, // OBRIGATÓRIO para liberar a geração de etiqueta sem NF-e
-      },
+        non_commercial: true
+      }
     };
 
-    // -------------------------------------------------------------------------
+    const ehCorreios = servicoCodigo === 1 || servicoCodigo === 2;
+
+    if (ehCorreios) {
+      // Caso a transportadora seja Correios (serviços 1 ou 2), não permita múltiplos volumes, consolidando tudo em um único "package"
+      let pesoConsolidado = dadosEmbalagem.peso;
+      let alturaConsolidada = dadosEmbalagem.altura;
+      let larguraConsolidada = dadosEmbalagem.largura;
+      let compConsolidado = dadosEmbalagem.comprimento;
+
+      if (listaVolumes && listaVolumes.length > 1) {
+        pesoConsolidado = listaVolumes.reduce((acc: number, c: any) => acc + Number(c.peso || c.weight || 0.5), 0);
+        alturaConsolidada = listaVolumes.reduce((acc: number, c: any) => acc + Number(c.altura || c.height || 10), 0);
+        larguraConsolidada = Math.max(...listaVolumes.map((c: any) => Number(c.largura || c.width || 15)));
+        compConsolidado = Math.max(...listaVolumes.map((c: any) => Number(c.comprimento || c.length || 20)));
+      }
+
+      payloadCart.package = {
+        weight: Number(Math.max(0.1, pesoConsolidado).toFixed(2)),
+        width: Math.max(11, Math.round(Number(larguraConsolidada || 15))),
+        height: Math.max(4, Math.round(Number(alturaConsolidada || 10))),
+        length: Math.max(16, Math.round(Number(compConsolidado || 20)))
+      };
+      delete payloadCart.volumes;
+    } else if (listaVolumes && listaVolumes.length > 1) {
+      // MÚLTIPLOS VOLUMES: usa exclusivamente 'volumes'
+      payloadCart.volumes = listaVolumes.map((c: any) => ({
+        weight: Number(Math.max(0.1, Number(c.peso || c.weight || 0.5)).toFixed(2)),
+        width: Math.max(11, Math.round(Number(c.largura || c.width || 15))),
+        height: Math.max(4, Math.round(Number(c.altura || c.height || 10))),
+        length: Math.max(16, Math.round(Number(c.comprimento || c.length || 20)))
+      }));
+      delete payloadCart.package;
+    } else {
+      // VOLUME ÚNICO: usa exclusivamente 'package'
+      const c = (listaVolumes && listaVolumes[0]) || dadosEmbalagem;
+      payloadCart.package = {
+        weight: Number(Math.max(0.1, Number(c?.peso || c?.weight || 0.5)).toFixed(2)),
+        width: Math.max(11, Math.round(Number(c?.largura || c?.width || 15))),
+        height: Math.max(4, Math.round(Number(c?.altura || c?.height || 10))),
+        length: Math.max(16, Math.round(Number(c?.comprimento || c?.length || 20)))
+      };
+      delete payloadCart.volumes;
+    }
+
     // -------------------------------------------------------------------------
     // PASSO 1: Adicionar ao Carrinho (POST /api/v2/me/cart)
     // -------------------------------------------------------------------------
-    console.log('[ME-Despacho][1-Cart] Enviando payload:', JSON.stringify(cartPayload, null, 2));
+    console.log('[ME-Despacho][1-Cart] Enviando payload:', JSON.stringify(payloadCart, null, 2));
     const resCart = await fetch(`${baseUrl}/api/v2/me/cart`, {
       method: "POST",
       headers: headersComuns,
-      body: JSON.stringify(cartPayload),
+      body: JSON.stringify(payloadCart),
     });
 
     const cartResponseText = await resCart.text();
@@ -917,7 +1005,15 @@ serve(async (req: Request) => {
     console.log('[ME-Despacho][3-Generate] Status:', resGenerate.status, 'Resposta:', generateResponseText);
 
     // Tratamento crítico na resposta da geração:
-    if (generateData && typeof generateData === 'object') {
+    const genLower = (generateResponseText || "").toLowerCase();
+    const ehMensagemSucessoAssincrono =
+      genLower.includes("encaminhado para gera") ||
+      genLower.includes("fila de processamento") ||
+      (genLower.includes("processo de geração") && genLower.includes("sucesso"));
+
+    if (ehMensagemSucessoAssincrono) {
+      generateLiberado = true;
+    } else if (generateData && typeof generateData === 'object') {
       const orderResult = generateData[orderId] || generateData[Object.keys(generateData)[0]];
       if (orderResult && typeof orderResult === 'object') {
         if (orderResult.status === true || orderResult.status === 'released' || orderResult.status === 'generated') {
@@ -932,8 +1028,12 @@ serve(async (req: Request) => {
         generateLiberado = false;
         generateMensagem = generateData.message || generateData.error || "Geração recusada pelo Melhor Envio";
       } else if (generateData.message) {
-        generateMensagem = generateData.message;
-        if (!resGenerate.ok) generateLiberado = false;
+        if (genLower.includes("erro") || genLower.includes("falha") || genLower.includes("rejeit") || genLower.includes("não possível")) {
+          generateLiberado = false;
+          generateMensagem = generateData.message;
+        } else {
+          generateLiberado = true;
+        }
       } else if (resGenerate.ok) {
         generateLiberado = true;
       }

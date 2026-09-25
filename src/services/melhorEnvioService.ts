@@ -427,45 +427,60 @@ export class MelhorEnvioService {
     const pesoTotal = productsCart.reduce((acc, p) => acc + (p.weight * p.quantity), 0);
     const valorSeguro = productsCart.reduce((acc, p) => acc + (p.unitary_value * p.quantity), 0);
 
+    // Sanitização de nomes e endereços para blindagem da transportadora
+    const sanitizarTexto = (txt?: string | null) => (txt || '').replace(/[\/":]/g, ' ').replace(/,{2,}/g, ',').replace(/\s+/g, ' ').trim();
+    const sanitizarNum = (num?: string | null) => {
+      const n = sanitizarTexto(num);
+      return (!n || n.toUpperCase() === 'S/N' || n.toUpperCase() === 'SN') ? 'SN' : n.substring(0, 20);
+    };
+
+    let rawNomeCli = (pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente').trim();
+    rawNomeCli = rawNomeCli.replace(/[\/":;,]/g, ' ').replace(/\s+/g, ' ').trim();
+    const partesCli = rawNomeCli.split(/\s+/).filter(Boolean);
+    const nomeDestinatarioSanitizado = partesCli.length >= 2 ? rawNomeCli : `${rawNomeCli || 'Cliente'} Cliente`;
+
+    let rawNomeLoja = (loja.nome_fantasia || (loja as any).nome_loja || 'HUBI PDV').trim();
+    rawNomeLoja = rawNomeLoja.replace(/[\/":;,]/g, ' ').replace(/\s+/g, ' ').trim();
+    const partesLoja = rawNomeLoja.split(/\s+/).filter(Boolean);
+    const nomeRemetenteSanitizado = partesLoja.length >= 2 ? rawNomeLoja : `${rawNomeLoja || 'Loja'} HUBI`;
+
     // Payload de inserção no carrinho do Melhor Envio
     const cartPayload = {
       service: Number(entrega.servico_codigo) || 1, // 1: Correios PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
       agency: null,
       from: {
-        name: loja.nome_fantasia || 'HUBI PDV',
+        name: nomeRemetenteSanitizado,
         phone: loja.whatsapp ? loja.whatsapp.replace(/\D/g, '') : '11999999999',
         email: loja.email || 'contato@loja.com.br',
         document: docLoja,
-        address: config.origem_logradouro || loja.endereco_logradouro || 'Rua Principal',
-        complement: config.origem_complemento || '',
-        number: config.origem_numero || loja.endereco_numero || '100',
-        district: config.origem_bairro || loja.endereco_bairro || 'Centro',
-        city: config.origem_cidade || loja.endereco_cidade || 'São Paulo',
-        state_abbr: config.origem_uf || loja.endereco_estado || 'SP',
+        address: sanitizarTexto(config.origem_logradouro || loja.endereco_logradouro) || 'Rua Principal',
+        complement: sanitizarTexto(config.origem_complemento).substring(0, 50),
+        number: sanitizarNum(config.origem_numero || loja.endereco_numero),
+        district: (sanitizarTexto(config.origem_bairro || loja.endereco_bairro) || 'Centro').substring(0, 50),
+        city: sanitizarTexto(config.origem_cidade || loja.endereco_cidade) || 'São Paulo',
+        state_abbr: (config.origem_uf || loja.endereco_estado || 'SP').toUpperCase().slice(0, 2),
         postal_code: cepOrigemLimpo
       },
       to: {
-        name: pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente',
+        name: nomeDestinatarioSanitizado,
         phone: pedido.cliente?.whatsapp ? pedido.cliente.whatsapp.replace(/\D/g, '') : '11999999999',
         email: pedido.cliente?.email || 'cliente@hubi.app',
         document: docCliente,
-        address: entrega.destino_logradouro || 'Rua',
-        complement: entrega.destino_complemento || '',
-        number: entrega.destino_numero || 'S/N',
-        district: entrega.destino_bairro || 'Bairro',
-        city: entrega.destino_cidade || 'Cidade',
-        state_abbr: entrega.destino_uf || 'SP',
+        address: sanitizarTexto(entrega.destino_logradouro) || 'Rua',
+        complement: sanitizarTexto(entrega.destino_complemento).substring(0, 50),
+        number: sanitizarNum(entrega.destino_numero),
+        district: (sanitizarTexto(entrega.destino_bairro) || 'Bairro').substring(0, 50),
+        city: sanitizarTexto(entrega.destino_cidade) || 'Cidade',
+        state_abbr: (entrega.destino_uf || 'SP').toUpperCase().slice(0, 2),
         postal_code: cepDestinoLimpo
       },
       products: productsCart,
-      volumes: [
-        {
-          height: config.embalagem_padrao_altura_cm || 10,
-          width: config.embalagem_padrao_largura_cm || 15,
-          length: config.embalagem_padrao_comprimento_cm || 20,
-          weight: Math.max(0.1, Number(pesoTotal.toFixed(2)))
-        }
-      ],
+      package: {
+        height: Math.max(4, Math.round(Number(config.embalagem_padrao_altura_cm || 10))),
+        width: Math.max(11, Math.round(Number(config.embalagem_padrao_largura_cm || 15))),
+        length: Math.max(16, Math.round(Number(config.embalagem_padrao_comprimento_cm || 20))),
+        weight: Math.max(0.1, Number(pesoTotal.toFixed(2)))
+      },
       options: {
         insurance_value: Number(valorSeguro.toFixed(2)),
         receipt: false,
