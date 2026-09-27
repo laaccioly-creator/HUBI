@@ -75,7 +75,6 @@ type SubTelaConfig =
   | 'menu'
   | 'geral'
   | 'dados-loja'
-  | 'identificacao'
   | 'produtos'
   | 'catalogo'
   | 'recibo'
@@ -1305,7 +1304,6 @@ export const ConfiguracoesLoja: React.FC = () => {
     { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard, badge: 'Mercado Pago' },
     { id: 'importar-exportar', label: 'Importar / Exportar', icon: FileSpreadsheet, badge: 'Excel / CSV' },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
-    { id: 'identificacao', label: 'Identificação Fiscal', icon: Lock },
     { id: 'catalogo', label: 'Catálogo Online', icon: Globe },
     { id: 'recibo', label: 'Meu Recibo', icon: Receipt },
     { id: 'pedidos-vendas', label: 'Pedidos e Vendas', icon: Percent },
@@ -1359,7 +1357,6 @@ export const ConfiguracoesLoja: React.FC = () => {
               {subTela === 'geral' && 'Geral'}
               {subTela === 'pagamentos' && 'Opções de Pagamento'}
               {subTela === 'dados-loja' && 'Dados da Loja'}
-              {subTela === 'identificacao' && 'Identificação Fiscal'}
               {subTela === 'recibo' && 'Meu Recibo'}
               {subTela === 'pedidos-vendas' && 'Pedidos e Vendas'}
               {subTela === 'entrega' && 'Opções de Entrega'}
@@ -1525,11 +1522,11 @@ export const ConfiguracoesLoja: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Razão Social</label>
+                <label className="text-xs font-bold text-slate-700">WhatsApp da Loja</label>
                 <input
                   type="text"
-                  value={razaoSocial}
-                  onChange={(e) => setRazaoSocial(e.target.value)}
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
                 />
               </div>
@@ -1545,14 +1542,18 @@ export const ConfiguracoesLoja: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">WhatsApp da Loja</label>
+                <label className="text-xs font-bold text-slate-700">Razão Social</label>
                 <input
                   type="text"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
+                  value={razaoSocial}
+                  onChange={(e) => setRazaoSocial(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
                 />
               </div>
+
+              <p className="text-[11px] text-slate-500 leading-tight bg-slate-100/70 p-2.5 rounded-xl border border-slate-200">
+                Estes dados não serão exibidos no catálogo público. O CPF ou CNPJ é utilizado para emissão fiscal e integrações de logística.
+              </p>
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">Endereço da Loja</label>
@@ -2200,6 +2201,36 @@ export const ConfiguracoesLoja: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">CPF ou CNPJ</label>
+                  <input
+                    type="text"
+                    value={documento}
+                    onChange={(e) => setDocumento(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono"
+                    placeholder="00.000.000/0001-00"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Razão Social</label>
+                  <input
+                    type="text"
+                    value={razaoSocial}
+                    onChange={(e) => setRazaoSocial(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 uppercase"
+                    placeholder="NOME DA EMPRESA LTDA"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Estes dados não serão exibidos no catálogo público. O CPF ou CNPJ é utilizado para emissão fiscal e integrações de logística.
+                </p>
+              </div>
+
               <div>
                 <label className="text-[11px] font-bold text-slate-400 block mb-1">Endereço (Rua, Número)</label>
                 <input
@@ -2382,49 +2413,6 @@ export const ConfiguracoesLoja: React.FC = () => {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* SUB-TELA: IDENTIFICAÇÃO FISCAL */}
-        {/* ========================================================================= */}
-        {subTela === 'identificacao' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
-            <div>
-              <h2 className="font-extrabold text-base text-slate-100">Identificação Fiscal</h2>
-              <p className="text-xs text-slate-400 mt-0.5">CPF, CNPJ e Razão Social da empresa</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">CPF ou CNPJ</label>
-                <input
-                  type="text"
-                  value={documento}
-                  onChange={(e) => setDocumento(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono"
-                  placeholder="00.000.000/0001-00"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Razão Social</label>
-                <input
-                  type="text"
-                  value={razaoSocial}
-                  onChange={(e) => setRazaoSocial(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 uppercase"
-                  placeholder="NOME DA EMPRESA LTDA"
-                />
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  <strong>Estes dados não serão exibidos no catálogo.</strong><br />
-                  Informar o CPF ou CNPJ é uma medida para validar a sua conta e preservar sua privacidade.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ========================================================================= */}
         {/* SUB-TELA: MEU RECIBO */}

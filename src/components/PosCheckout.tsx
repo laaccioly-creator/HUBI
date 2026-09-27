@@ -3323,7 +3323,7 @@ export const PosCheckout: React.FC = () => {
             setModalDefinirEnvioAberto(false);
             mostrarSucesso(`Frete definido: R$ ${valFrete.toFixed(2)}!`);
           }}
-          onFeedbackSucesso={(msg) => mostrarSucesso(msg)}
+          onFeedbackSucesso={() => {}}
           onFeedbackErro={(msg) => mostrarErro(msg)}
         />
       )}

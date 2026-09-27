@@ -93,26 +93,37 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
     if (ehMelhorEnvio) {
       if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-        formaEntregaTexto = 'MELHOR ENVIO (JADLOG)';
+        if (servico === '3' || transp.toLowerCase().includes('.package') || transp.toLowerCase().includes('package')) {
+          formaEntregaTexto = 'Jadlog (.Package)';
+        } else if (servico === '4' || transp.toLowerCase().includes('.com') || transp.toLowerCase().includes('jadlog.com')) {
+          formaEntregaTexto = 'Jadlog (.Com)';
+        } else {
+          formaEntregaTexto = 'Jadlog (.Package)';
+        }
       } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-        formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'MELHOR ENVIO (CORREIOS)';
+        const servicoReal = servicoCorreios || (servico === '1' ? 'SEDEX' : servico === '2' ? 'PAC' : '');
+        formaEntregaTexto = servicoReal ? `Correios (${servicoReal})` : 'Correios';
       } else {
-        formaEntregaTexto = transp ? (transp.toUpperCase().includes('MELHOR ENVIO') ? transp.toUpperCase() : `MELHOR ENVIO (${transp.toUpperCase()})`) : 'MELHOR ENVIO';
+        formaEntregaTexto = transp || 'Melhor Envio';
       }
     } else if (ehTransportadoraPrivada) {
-      formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog').toUpperCase();
+      if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog')) {
+        formaEntregaTexto = 'Jadlog (.Package)';
+      } else {
+        formaEntregaTexto = formatarNomeTransportadora(transp || 'Transportadora');
+      }
     } else if (ehCorreios) {
-      formaEntregaTexto = servicoCorreios ? `CORREIOS (${servicoCorreios})` : 'CORREIOS';
+      formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
     } else if (ehAppEntrega) {
-      formaEntregaTexto = (nomeApp || (transp && transp.toLowerCase() !== 'entrega' && !transp.toLowerCase().includes('corrida') ? transp : 'Uber Flash')).toUpperCase();
+      formaEntregaTexto = (nomeApp && nomeApp.toLowerCase().includes('uber')) ? 'Uber Direct' : (nomeApp || 'Uber Direct');
     } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
-      formaEntregaTexto = 'UBER FLASH';
+      formaEntregaTexto = 'Uber Direct';
     } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
-      formaEntregaTexto = transp.toUpperCase();
+      formaEntregaTexto = formatarNomeTransportadora(transp);
     } else if (pedido.status === 'envio_pendente' && Number(pedido.valor_frete || 0) === 0) {
-      formaEntregaTexto = 'ENVIO (A DEFINIR)';
+      formaEntregaTexto = 'Envio (A Definir)';
     } else {
-      formaEntregaTexto = 'ENTREGA';
+      formaEntregaTexto = 'Entrega';
     }
   }
 
@@ -158,8 +169,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 <span className="font-bold">{pedido.cliente?.nome || 'Consumidor Final'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">Forma de Atendimento:</span>
-                <span className="font-bold">{formaEntregaTexto}</span>
+                <span className="text-slate-600">Forma de Entrega:</span>
+                <span className="font-bold">{ehRetirada ? 'Retirada na Loja' : formaEntregaTexto}</span>
               </div>
               {codigoCorrida && (
                 <div className="flex justify-between text-emerald-700 font-bold">
@@ -199,20 +210,20 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               {valorDesconto > 0 && (
                 <div className="flex justify-between text-red-600 font-bold">
                   <span>Desconto:</span>
-                  <span>- R$ {valorDesconto.toFixed(2)}</span>
+                  <span>- R$ ${valorDesconto.toFixed(2)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-slate-800">
-                <span>Frete ({formaEntregaTexto}):</span>
-                <span className="font-semibold text-slate-900">
-                  {valorFrete > 0
-                    ? `+ R$ ${valorFrete.toFixed(2)}`
-                    : ehRetirada
-                      ? 'Grátis (Retirada)'
+              {!ehRetirada && (
+                <div className="flex justify-between text-slate-800">
+                  <span>Frete ({formaEntregaTexto}):</span>
+                  <span className="font-semibold text-slate-900">
+                    {valorFrete > 0
+                      ? `+ R$ ${valorFrete.toFixed(2)}`
                       : 'A Definir'}
-                </span>
-              </div>
+                  </span>
+                </div>
+              )}
 
               <div className="border-t border-dashed border-slate-300 pt-2 my-1"></div>
 

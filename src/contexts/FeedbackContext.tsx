@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { ModalAlertaFeedback, TipoFeedback } from '../components/ModalAlertaFeedback';
 
 interface AlertaOpcoes {
@@ -22,9 +23,16 @@ interface ConfirmarOpcoes {
   onCancelar?: () => void;
 }
 
+export interface ToastNotificacao {
+  id: string;
+  mensagem: string;
+  tipo?: 'sucesso' | 'info' | 'aviso' | 'erro';
+}
+
 interface FeedbackContextData {
   mostrarAlerta: (opcoes: AlertaOpcoes) => void;
   mostrarSucesso: (mensagem: string, titulo?: string, onConfirmar?: () => void) => void;
+  mostrarToast: (mensagem: string, tipo?: 'sucesso' | 'info' | 'aviso' | 'erro') => void;
   mostrarErro: (mensagem: string, titulo?: string) => void;
   mostrarAviso: (mensagem: string, titulo?: string) => void;
   confirmar: (opcoes: ConfirmarOpcoes) => void;
@@ -39,6 +47,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [modalConfig, setModalConfig] = useState<AlertaOpcoes | null>(null);
   const [aberto, setAberto] = useState<boolean>(false);
   const [temAlteracoesNaoSalvas, setTemAlteracoesNaoSalvas] = useState<boolean>(false);
+  const [toasts, setToasts] = useState<ToastNotificacao[]>([]);
 
   const fecharModal = useCallback(() => {
     setAberto(false);
@@ -47,23 +56,25 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, 200);
   }, []);
 
+  const mostrarToast = useCallback((mensagem: string, tipo: 'sucesso' | 'info' | 'aviso' | 'erro' = 'sucesso') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, mensagem, tipo }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 2500);
+  }, []);
+
   const mostrarAlerta = useCallback((opcoes: AlertaOpcoes) => {
     setModalConfig(opcoes);
     setAberto(true);
   }, []);
 
-  const mostrarSucesso = useCallback((mensagem: string, titulo?: string, onConfirmar?: () => void) => {
-    mostrarAlerta({
-      tipo: 'sucesso',
-      titulo: titulo || 'Sucesso!',
-      mensagem,
-      textoBotaoConfirmar: 'OK',
-      onConfirmar: () => {
-        fecharModal();
-        if (onConfirmar) onConfirmar();
-      }
-    });
-  }, [mostrarAlerta, fecharModal]);
+  const mostrarSucesso = useCallback((mensagem: string, _titulo?: string, onConfirmar?: () => void) => {
+    mostrarToast(mensagem, 'sucesso');
+    if (onConfirmar) {
+      onConfirmar();
+    }
+  }, [mostrarToast]);
 
   const mostrarErro = useCallback((mensagem: string, titulo?: string) => {
     mostrarAlerta({
@@ -192,6 +203,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         mostrarAlerta,
         mostrarSucesso,
+        mostrarToast,
         mostrarErro,
         mostrarAviso,
         confirmar,
@@ -201,6 +213,27 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }}
     >
       {children}
+
+      {/* Notificações discretas via Toast (auto-dismiss 2.5s) */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-5 right-5 z-[99999] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-md transition-all duration-300 animate-in slide-in-from-bottom-5 text-xs font-semibold ${
+                toast.tipo === 'erro'
+                  ? 'bg-rose-950/95 text-rose-200 border-rose-500/30'
+                  : toast.tipo === 'aviso'
+                  ? 'bg-amber-950/95 text-amber-200 border-amber-500/30'
+                  : 'bg-slate-900/95 text-emerald-300 border-emerald-500/30'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="flex-1 leading-snug">{toast.mensagem}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {modalConfig && (
         <ModalAlertaFeedback

@@ -73,12 +73,6 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
       setSalvando(true);
       if (onConfirmarEnvio) {
         onConfirmarEnvio(selecaoPendente);
-        const nomeForma = selecaoPendente.pedido_entrega?.transportadora_nome ||
-          selecaoPendente.pedido_entrega?.forma_entrega_nome ||
-          (selecaoPendente.opcao_frete?.transportadora_nome) ||
-          (selecaoPendente.tipo_atendimento === 'retirada' ? 'Retirada na Loja' : 'Envio');
-
-        onFeedbackSucesso?.(`Forma de envio definida com sucesso: ${nomeForma}!`);
         setSelecaoPendente(null);
         onSucesso();
         onClose();
@@ -91,12 +85,6 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
         usuario?.id || null
       );
 
-      const nomeForma = selecaoPendente.pedido_entrega?.transportadora_nome ||
-        selecaoPendente.pedido_entrega?.forma_entrega_nome ||
-        (selecaoPendente.opcao_frete?.transportadora_nome) ||
-        (selecaoPendente.tipo_atendimento === 'retirada' ? 'Retirada na Loja' : 'Envio');
-
-      onFeedbackSucesso?.(`Forma de envio definida com sucesso: ${nomeForma}!`);
       setSelecaoPendente(null);
       onSucesso();
       onClose();

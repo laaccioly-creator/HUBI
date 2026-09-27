@@ -42,7 +42,8 @@ import {
   Percent,
   Plus,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  Navigation
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -92,6 +93,15 @@ interface HistoricoItem {
   tipo?: 'status' | 'edicao' | 'criacao';
   detalhes?: string;
 }
+
+export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const u = url.trim();
+  if (!u || u === 'null' || u === 'undefined') return false;
+  if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
+  if (u.includes('404')) return false;
+  return true;
+};
 
 export const PedidosLista: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -183,6 +193,8 @@ export const PedidosLista: React.FC = () => {
   const [servicoCorreiosDespacho, setServicoCorreiosDespacho] = useState<'PAC' | 'SEDEX'>('SEDEX');
   const [nomeTransportadoraDespacho, setNomeTransportadoraDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
+  const [despachandoPedidoId, setDespachandoPedidoId] = useState<string | null>(null);
+  const [pedidoParaDespacho, setPedidoParaDespacho] = useState<Pedido | null>(null);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
   const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
@@ -1067,7 +1079,13 @@ export const PedidosLista: React.FC = () => {
   const handleDespacharPedido = async (pedidoAlvo?: Pedido | React.MouseEvent<any>) => {
     const ped = (pedidoAlvo && typeof pedidoAlvo === 'object' && 'numero_pedido' in pedidoAlvo) ? (pedidoAlvo as Pedido) : pedidoSelecionado;
     if (!ped || !loja?.id || ped.status === 'cancelado') return;
-    setPedidoSelecionado(ped);
+
+    // Guarda o pedido alvo para despacho manual sem sair da listagem caso chamado da tabela
+    setPedidoParaDespacho(ped);
+    const foiChamadoDaLista = Boolean(pedidoAlvo && typeof pedidoAlvo === 'object' && 'numero_pedido' in pedidoAlvo);
+    if (!foiChamadoDaLista) {
+      setPedidoSelecionado(ped);
+    }
 
     const { prov, pe } = resolverProvedorEntrega(ped, ped.id === pedidoSelecionado?.id ? entregaPedido : null);
     if (pe) {
@@ -1096,6 +1114,7 @@ export const PedidosLista: React.FC = () => {
     // Se for Uber Direct ou Melhor Envio, dispara chamada de API integrada
     try {
       setDespachando(true);
+      setDespachandoPedidoId(ped.id);
       const agora = new Date().toISOString();
       const config = await ShippingOrchestrator.buscarConfigLoja(loja.id);
       if (!config) {
@@ -1167,27 +1186,23 @@ export const PedidosLista: React.FC = () => {
           )
         );
 
-        setPedidoSelecionado((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: 'enviado',
-                link_rastreio: resultado.link_rastreio,
-                pin_entrega: resultado.pin_entrega || prev.pin_entrega,
-                despachado_em: agora,
-                despachado_por: usuario?.id || null
-              }
-            : null
-        );
+        if (pedidoSelecionado && pedidoSelecionado.id === ped.id) {
+          setPedidoSelecionado((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: 'enviado',
+                  link_rastreio: resultado.link_rastreio,
+                  pin_entrega: resultado.pin_entrega || prev.pin_entrega,
+                  despachado_em: agora,
+                  despachado_por: usuario?.id || null
+                }
+              : null
+          );
+        }
 
         const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
-
-        mostrarSucesso(
-          resultado.pin_entrega
-            ? `Corrida Uber Direct solicitada com sucesso! Código PIN: ${resultado.pin_entrega}`
-            : 'Corrida Uber Direct solicitada com sucesso!'
-        );
       } else if (prov === 'melhor_envio') {
         const docCliente = (pedCompleto.cliente?.numero_documento || pedCompleto.cliente_documento_avulso || '').replace(/\D/g, '');
         if (!docCliente) {
@@ -1195,6 +1210,7 @@ export const PedidosLista: React.FC = () => {
           setCpfClienteInput('');
           setModalCpfClienteAberto(true);
           setDespachando(false);
+          setDespachandoPedidoId(null);
           return;
         }
 
@@ -1237,38 +1253,36 @@ export const PedidosLista: React.FC = () => {
           )
         );
 
-        setPedidoSelecionado((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: 'enviado',
-                codigo_rastreio: codRastreioFinal,
-                link_rastreio: urlRastreio,
-                link_etiqueta: linkEtqFinal,
-                despachado_em: agora,
-                despachado_por: usuario?.id || null,
-                pedido_entrega: prev.pedido_entrega ? {
-                  ...prev.pedido_entrega,
-                  status_envio: 'despachado',
+        if (pedidoSelecionado && pedidoSelecionado.id === ped.id) {
+          setPedidoSelecionado((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: 'enviado',
                   codigo_rastreio: codRastreioFinal,
                   link_rastreio: urlRastreio,
                   link_etiqueta: linkEtqFinal,
-                  despachado_em: agora
-                } : prev.pedido_entrega
-              }
-            : null
-        );
+                  despachado_em: agora,
+                  despachado_por: usuario?.id || null,
+                  pedido_entrega: prev.pedido_entrega ? {
+                    ...prev.pedido_entrega,
+                    status_envio: 'despachado',
+                    codigo_rastreio: codRastreioFinal,
+                    link_rastreio: urlRastreio,
+                    link_etiqueta: linkEtqFinal,
+                    despachado_em: agora
+                  } : prev.pedido_entrega
+                }
+              : null
+          );
+        }
 
         const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
-        mostrarSucesso(
-          codRastreioFinal
-            ? `Etiqueta gerada com sucesso! Rastreio: ${codRastreioFinal}`
-            : 'Etiqueta gerada com sucesso no Melhor Envio!'
-        );
-
-        if (linkEtqFinal) {
+        // Bloqueio de Redirecionamento 404 Externo:
+        // Evite qualquer chamada do tipo window.open quando a URL da etiqueta for nula, vazia ou inválida
+        if (ehUrlEtiquetaValida(linkEtqFinal)) {
           window.open(linkEtqFinal, '_blank', 'noopener,noreferrer');
         }
       }
@@ -1288,6 +1302,7 @@ export const PedidosLista: React.FC = () => {
       mostrarErro(mensagem);
     } finally {
       setDespachando(false);
+      setDespachandoPedidoId(null);
     }
   };
 
@@ -1371,23 +1386,27 @@ export const PedidosLista: React.FC = () => {
         )
       );
 
-      setPedidoSelecionado((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: 'enviado',
-              codigo_rastreio: resultado.codigo_rastreio,
-              link_rastreio: urlRastreio,
-              despachado_em: agora,
-              despachado_por: usuario?.id || null
-            }
-          : null
-      );
+      if (pedidoSelecionado && pedidoSelecionado.id === ped.id) {
+        setPedidoSelecionado((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'enviado',
+                codigo_rastreio: resultado.codigo_rastreio,
+                link_rastreio: urlRastreio,
+                despachado_em: agora,
+                despachado_por: usuario?.id || null
+              }
+            : null
+        );
+      }
 
       const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
       if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
-      mostrarSucesso(`Etiqueta gerada com sucesso! Rastreio: ${resultado.codigo_rastreio}`);
+      if (ehUrlEtiquetaValida(resultado.link_etiqueta)) {
+        window.open(resultado.link_etiqueta, '_blank', 'noopener,noreferrer');
+      }
     } catch (err: any) {
       console.error('Erro ao salvar CPF e despachar:', err);
       let mensagem = err?.message || 'Falha na comunicação com o provedor de frete.';
@@ -1840,11 +1859,6 @@ export const PedidosLista: React.FC = () => {
       const deliveryId = ped.codigo_rastreio || ped.pedido_entrega?.codigo_rastreio;
       const res = await UberDirectService.consultarStatusEntrega(ped.id, loja.id, deliveryId);
       await carregarPedidos(false);
-      if (res.status === 'delivered' || res.status === 'completed') {
-        mostrarSucesso('Pedido atualizado para ENTREGUE com sucesso pela Uber Direct!');
-      } else {
-        mostrarSucesso(`Status atual na Uber: ${res.status.toUpperCase()}`);
-      }
     } catch (err: unknown) {
       console.warn('Erro ao sincronizar com Uber:', err);
       const msg = err instanceof Error ? err.message : 'Falha ao consultar Uber Direct';
@@ -3374,7 +3388,7 @@ export const PedidosLista: React.FC = () => {
                             if (temEtiqueta) {
                               const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
                               const ehPdfValido = Boolean(
-                                linkEtqOficial &&
+                                ehUrlEtiquetaValida(linkEtqOficial) &&
                                 (linkEtqOficial.toLowerCase().endsWith('.pdf') || linkEtqOficial.toLowerCase().includes('.pdf?') || linkEtqOficial.startsWith('blob:')) &&
                                 !linkEtqOficial.includes('sandbox.melhorenvio.com.br/imprimir') &&
                                 !linkEtqOficial.includes('/painel/envios')
@@ -3462,6 +3476,7 @@ export const PedidosLista: React.FC = () => {
                                     const isMelhorEnvio = prov === 'melhor_envio';
                                     const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
                                     const permiteDespachoSemPagamento = prov === 'frete_proprio' || prov === 'retirada_loja';
+                                    const isGerando = despachandoPedidoId === pedido.id;
 
                                     return (
                                       <div className="flex items-center gap-1">
@@ -3482,8 +3497,12 @@ export const PedidosLista: React.FC = () => {
                                         {(estaPagoOuFiado || permiteDespachoSemPagamento) && (
                                           <button
                                             type="button"
-                                            onClick={() => handleDespacharPedido(pedido)}
-                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 ${
+                                            disabled={isGerando}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDespacharPedido(pedido);
+                                            }}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white shadow-sm transition cursor-pointer active:scale-95 disabled:opacity-75 ${
                                               isUber
                                                 ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
                                                 : isMelhorEnvio
@@ -3492,10 +3511,19 @@ export const PedidosLista: React.FC = () => {
                                             }`}
                                             title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar Envio'}
                                           >
-                                            <Truck className="w-3.5 h-3.5" />
-                                            <span>
-                                              {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
-                                            </span>
+                                            {isGerando ? (
+                                              <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                <span>Gerando...</span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Truck className="w-3.5 h-3.5" />
+                                                <span>
+                                                  {isUber ? 'Chamar Uber' : isMelhorEnvio ? 'Gerar Envio' : 'Confirmar Envio'}
+                                                </span>
+                                              </>
+                                            )}
                                           </button>
                                         )}
                                       </div>
@@ -3519,6 +3547,8 @@ export const PedidosLista: React.FC = () => {
                                       const { prov, pe, provNome } = resolverProvedorEntrega(pedido);
                                       const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
                                       const cod = (pedido.codigo_rastreio || pe?.codigo_rastreio || '').trim();
+                                      const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
+                                      const ehEtiquetaValida = ehUrlEtiquetaValida(linkEtqOficial);
 
                                       const ehTranspManual =
                                         prov !== 'melhor_envio' &&
@@ -3535,6 +3565,22 @@ export const PedidosLista: React.FC = () => {
                                         (pedido as any)?.tipo_operacao === 'correios' ||
                                         Boolean(pedido.servico_correios || pe?.servico_correios) ||
                                         detectarServicoPorCodigo(cod) !== null);
+
+                                      // 1. Se possuir etiqueta oficial válida gerada (Melhor Envio / Transportadora)
+                                      if (ehEtiquetaValida) {
+                                        return (
+                                          <a
+                                            href={linkEtqOficial}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                            title="Abrir Etiqueta de Envio"
+                                          >
+                                            <Tag className="w-3.5 h-3.5" />
+                                            <span>Etiqueta</span>
+                                          </a>
+                                        );
+                                      }
 
                                       if (ehTranspManual && cod) {
                                         return (
@@ -3572,20 +3618,9 @@ export const PedidosLista: React.FC = () => {
                                         link.includes('ubr.to'));
 
                                       if (ehUber && (link || cod)) {
-                                        const isSincronizando = sincronizandoUberId === pedido.id;
                                         return (
                                           <>
-                                            <button
-                                              type="button"
-                                              disabled={isSincronizando}
-                                              onClick={() => handleSincronizarUber(pedido)}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition cursor-pointer disabled:opacity-50"
-                                              title="Consultar e atualizar status agora diretamente na Uber Direct"
-                                            >
-                                              <RefreshCw className={`w-3 h-3 ${isSincronizando ? 'animate-spin' : ''}`} />
-                                              <span>{isSincronizando ? 'Sincronizando...' : 'Sincronizar'}</span>
-                                            </button>
-                                            {link && (
+                                            {link && ehUrlEtiquetaValida(link) && (
                                               <a
                                                 href={link}
                                                 target="_blank"
@@ -3593,7 +3628,8 @@ export const PedidosLista: React.FC = () => {
                                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
                                                 title="Abrir mapa de rastreio ao vivo da Uber Direct"
                                               >
-                                                <span>Mapa Uber</span>
+                                                <Navigation className="w-3 h-3" />
+                                                <span>Rastrear</span>
                                                 <ExternalLink className="w-3 h-3" />
                                               </a>
                                             )}
@@ -4262,13 +4298,17 @@ export const PedidosLista: React.FC = () => {
 
       {/* MODAL DESPACHO REUTILIZÁVEL (DESKTOP) */}
       <ModalDespacharPedido
-        isOpen={modalDespachoAberto && Boolean(pedidoSelecionado)}
-        onClose={() => setModalDespachoAberto(false)}
-        pedido={pedidoSelecionado}
+        isOpen={modalDespachoAberto && Boolean(pedidoParaDespacho || pedidoSelecionado)}
+        onClose={() => {
+          setModalDespachoAberto(false);
+          setPedidoParaDespacho(null);
+        }}
+        pedido={pedidoParaDespacho || pedidoSelecionado}
         entrega={entregaPedido}
         loja={loja}
         onDespachado={() => {
           setModalDespachoAberto(false);
+          setPedidoParaDespacho(null);
           carregarPedidos();
         }}
       />

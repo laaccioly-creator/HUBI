@@ -276,20 +276,31 @@ export const obterInfoEntregaRecibo = (
 
   if (ehMelhorEnvio) {
     if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog') || servico === '3' || servico === '4') {
-      formaEntregaTexto = 'Melhor Envio (Jadlog)';
+      if (servico === '3' || transp.toLowerCase().includes('.package') || transp.toLowerCase().includes('package')) {
+        formaEntregaTexto = 'Jadlog (.Package)';
+      } else if (servico === '4' || transp.toLowerCase().includes('.com') || transp.toLowerCase().includes('jadlog.com')) {
+        formaEntregaTexto = 'Jadlog (.Com)';
+      } else {
+        formaEntregaTexto = 'Jadlog (.Package)';
+      }
     } else if (transp.toLowerCase().includes('correios') || servico.includes('correios') || servico === '1' || servico === '2') {
-      formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Melhor Envio (Correios)';
+      const servicoReal = servicoCorreios || (servico === '1' ? 'SEDEX' : servico === '2' ? 'PAC' : '');
+      formaEntregaTexto = servicoReal ? `Correios (${servicoReal})` : 'Correios';
     } else {
-      formaEntregaTexto = transp ? `Melhor Envio (${transp})` : 'Melhor Envio';
+      formaEntregaTexto = transp || 'Melhor Envio';
     }
   } else if (ehTransportadoraPrivada) {
-    formaEntregaTexto = formatarNomeTransportadora(transp || 'Jadlog');
+    if (transp.toLowerCase().includes('jadlog') || servico.includes('jadlog')) {
+      formaEntregaTexto = 'Jadlog (.Package)';
+    } else {
+      formaEntregaTexto = formatarNomeTransportadora(transp || 'Transportadora');
+    }
   } else if (ehCorreios) {
     formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
   } else if (ehAppEntrega) {
-    formaEntregaTexto = nomeApp || (transp && transp.toLowerCase() !== 'entrega' && !transp.toLowerCase().includes('corrida') ? transp : 'Uber Flash');
+    formaEntregaTexto = (nomeApp && nomeApp.toLowerCase().includes('uber')) ? 'Uber Direct' : (nomeApp || 'Uber Direct');
   } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
-    formaEntregaTexto = 'Uber Flash';
+    formaEntregaTexto = 'Uber Direct';
   } else if (provedor === 'frete_proprio' || provedor === 'proprio' || pe?.tipo_atendimento === 'proprio') {
     if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
       formaEntregaTexto = transp;
@@ -297,7 +308,7 @@ export const obterInfoEntregaRecibo = (
       formaEntregaTexto = 'Frete Próprio';
     }
   } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão') {
-    formaEntregaTexto = transp;
+    formaEntregaTexto = formatarNomeTransportadora(transp);
   } else {
     formaEntregaTexto = 'Frete Próprio';
   }
@@ -515,14 +526,16 @@ export class PrintService {
                 <span>- R$ ${Number(pedido.valor_desconto).toFixed(2)}</span>
               </div>
             ` : ''}
+            ${!ehRetirada ? `
             <div style="display: flex; justify-content: space-between; margin: 2px 0;">
               <span>Frete:</span>
               <span style="font-weight: 600;">
                 ${Number(pedido.valor_frete || 0) > 0 
                   ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)} (${formaEntregaTexto})` 
-                  : 'Grátis (Retirada)'}
+                  : 'A Definir'}
               </span>
             </div>
+            ` : ''}
           </div>
 
           <!-- Total -->
