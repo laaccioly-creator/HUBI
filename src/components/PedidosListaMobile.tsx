@@ -57,6 +57,7 @@ import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/corr
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalDespacharPedido } from './shipping/ModalDespacharPedido';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
   obterAbasStatusVisiveis,
@@ -203,6 +204,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const { loja, usuario } = useAuth();
   const { carregarPedidoParaEdicao } = useCart();
   const { ehAdmin, ehGerente } = usePermissions();
+  const { mostrarToast } = useFeedbackModal();
   const podeConcluirManual = ehAdmin || ehGerente;
 
   // Estados de Navegação de Telas
@@ -1119,14 +1121,35 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     )}
 
                     {ehCorreios ? (
-                      <button
-                        type="button"
-                        onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
-                        className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
-                      >
-                        <Package className="w-3.5 h-3.5" />
-                        <span>Rastrear Envio</span>
-                      </button>
+                      ehMelhorEnvio ? (
+                        <button
+                          type="button"
+                          onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
+                          className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                        >
+                          <Package className="w-3.5 h-3.5" />
+                          <span>Rastrear Envio</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cod = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
+                            if (cod) {
+                              try {
+                                navigator.clipboard.writeText(cod);
+                              } catch {}
+                            }
+                            mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
+                            window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
+                          }}
+                          className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                          title="Copiar código e abrir rastreamento oficial dos Correios"
+                        >
+                          <Package className="w-3.5 h-3.5" />
+                          <span>Rastrear</span>
+                        </button>
+                      )
                     ) : ehTransportadoraPrivada ? (
                       <button
                         type="button"

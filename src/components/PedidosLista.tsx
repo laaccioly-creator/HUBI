@@ -108,7 +108,7 @@ export const PedidosLista: React.FC = () => {
   const permissions = usePermissions();
   const { carregarPedidoParaEdicao } = useCart();
   const navigate = useNavigate();
-  const { mostrarSucesso, mostrarAviso, mostrarErro } = useFeedbackModal();
+  const { mostrarSucesso, mostrarAviso, mostrarErro, mostrarToast } = useFeedbackModal();
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -2735,16 +2735,43 @@ export const PedidosLista: React.FC = () => {
                         }
 
                         if (ehDespachoCorreios) {
+                          const ehMelhorEnvioIntegrado = prov === 'melhor_envio';
+
+                          const handleRastrearManualCorreios = () => {
+                            const cod = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
+                            if (cod) {
+                              try {
+                                navigator.clipboard.writeText(cod);
+                              } catch {
+                                // fallback silencioso
+                              }
+                            }
+                            mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
+                            window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
+                          };
+
                           return (
                             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
-                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
-                              >
-                                <Package className="w-4 h-4" />
-                                <span>Rastrear Envio</span>
-                              </button>
+                              {ehMelhorEnvioIntegrado ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
+                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                                >
+                                  <Package className="w-4 h-4" />
+                                  <span>Rastrear Envio</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleRastrearManualCorreios}
+                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                                  title="Copiar código e abrir rastreamento oficial dos Correios"
+                                >
+                                  <Package className="w-4 h-4" />
+                                  <span>Rastrear</span>
+                                </button>
+                              )}
 
                               {(() => {
                                 const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
@@ -3693,9 +3720,19 @@ export const PedidosLista: React.FC = () => {
                                           {ehCorreios && cod && (
                                             <button
                                               type="button"
-                                              onClick={() => setPedidoRastreioModal(pedido)}
+                                              onClick={() => {
+                                                if (prov === 'melhor_envio') {
+                                                  setPedidoRastreioModal(pedido);
+                                                } else {
+                                                  try {
+                                                    navigator.clipboard.writeText(cod);
+                                                  } catch {}
+                                                  mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
+                                                  window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
+                                                }
+                                              }}
                                               className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
-                                              title="Rastrear Envio"
+                                              title="Rastrear"
                                             >
                                               <Package className="w-3.5 h-3.5" />
                                               <span>Rastrear</span>
@@ -4216,9 +4253,9 @@ export const PedidosLista: React.FC = () => {
                         {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                           <div key={idx} className="flex justify-between items-start text-[11px]">
                             <div>
-                              <span className="font-semibold">{pag.forma}</span>
+                              <span className="font-bold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
                               {pag.origemGateway && (
-                                <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                                <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
                               )}
                             </div>
                             <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>

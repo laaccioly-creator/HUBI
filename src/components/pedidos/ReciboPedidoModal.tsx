@@ -222,7 +222,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               {valorDesconto > 0 && (
                 <div className="flex justify-between text-red-600 font-bold">
                   <span>Desconto:</span>
-                  <span>- R$ ${valorDesconto.toFixed(2)}</span>
+                  <span>- R$ {valorDesconto.toFixed(2)}</span>
                 </div>
               )}
 
@@ -243,6 +243,42 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 <span>VALOR TOTAL:</span>
                 <span className="text-base font-black">R$ {valorTotal.toFixed(2)}</span>
               </div>
+            </div>
+
+            {/* Status e Discriminação do Pagamento */}
+            {pagInfo.ehFiado && Number(pedido.saldo_devedor) > 0 && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
+                <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                <span className="text-sm font-black text-red-600">R$ {Number(pedido.saldo_devedor).toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+              <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
+                <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
+                <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                  {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                </span>
+              </div>
+              {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 && (
+                <div className="space-y-1.5 pt-1.5 text-slate-800">
+                  {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-[11px]">
+                      <div>
+                        <span className="font-bold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
+                        {pag.origemGateway && (
+                          <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
+                        )}
+                      </div>
+                      <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
+                    <span>Valor Pago:</span>
+                    <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {obsLimpa && (

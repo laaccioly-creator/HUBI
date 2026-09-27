@@ -955,15 +955,27 @@ export const VendasHistorico: React.FC = () => {
                     >
                       {/* Código da Venda / Pedido */}
                       <td className="py-3.5 px-4 font-mono font-medium">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/orders?id=${venda.id}&origem=sales`)}
-                          className="inline-flex items-center gap-1.5 text-slate-300 hover:text-emerald-400 transition cursor-pointer font-bold"
-                          title={`Clique para abrir o Pedido ${codigoFormatado}`}
-                        >
-                          <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400" />
-                          <span>{codigoFormatado}</span>
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVendaReciboModal(venda);
+                            }}
+                            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                            title={`Visualizar recibo de ${codigoFormatado}`}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/orders?id=${venda.id}&origem=sales`)}
+                            className="text-slate-300 hover:text-emerald-400 transition cursor-pointer font-bold hover:underline"
+                            title={`Abrir detalhes do pedido ${codigoFormatado}`}
+                          >
+                            {codigoFormatado}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Data da Venda */}
@@ -1514,9 +1526,9 @@ export const VendasHistorico: React.FC = () => {
                           {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                             <div key={idx} className="flex justify-between items-start text-[11px]">
                               <div>
-                                <span className="font-semibold text-slate-200">{pag.forma}</span>
+                                <span className="font-bold text-slate-100 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
                                 {pag.origemGateway && (
-                                  <span className="text-[10px] text-sky-400 block font-medium">Origem: {pag.origemGateway}</span>
+                                  <span className="text-[10px] text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
                                 )}
                               </div>
                               <span className="font-bold text-slate-100">R$ {pag.valor.toFixed(2)}</span>

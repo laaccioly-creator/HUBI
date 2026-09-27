@@ -1,27 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  Printer,
   Download,
-  Share2,
-  CheckCircle2,
   AlertCircle,
   Loader2,
-  Store,
-  MapPin,
-  Calendar,
-  CreditCard,
-  ShoppingBag,
-  ExternalLink
+  Store
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Pedido, Loja, ItemPedido } from '../types';
 import {
   formatarDataRecibo,
   obterDadosPagamentoRecibo,
-  formatarVendedorRecibo,
-  obterInfoEntregaRecibo,
-  PrintService
+  obterInfoEntregaRecibo
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
@@ -33,7 +23,6 @@ export const ReciboPublico: React.FC = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
   const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
-  const [compartilhando, setCompartilhando] = useState<boolean>(false);
   const reciboRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -160,18 +149,6 @@ export const ReciboPublico: React.FC = () => {
     }
   };
 
-  const handleCompartilharWhatsApp = async () => {
-    if (!reciboRef.current || !pedido || !loja) return;
-    try {
-      setCompartilhando(true);
-      await ReceiptPdfService.compartilharReciboWhatsApp(reciboRef.current, pedido, loja);
-    } catch (err) {
-      console.error('Erro ao compartilhar via WhatsApp:', err);
-    } finally {
-      setCompartilhando(false);
-    }
-  };
-
   if (carregando) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
@@ -228,51 +205,18 @@ export const ReciboPublico: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center p-3 sm:p-6 select-none print:p-0 print:bg-white">
-      {/* Barra Superior de Ações */}
-      <div className="w-full max-w-md mb-4 flex items-center justify-between gap-2 print:hidden">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-            <CheckCircle2 className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="text-xs font-black tracking-tight text-white block">Comprovante Oficial</span>
-            <span className="text-[10px] text-slate-400">Pedido #{pedido.numero_pedido}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition cursor-pointer border border-slate-700"
-            title="Imprimir"
-          >
-            <Printer className="w-4 h-4" />
-            <span className="hidden sm:inline">Imprimir</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={baixandoPdf}
-            onClick={handleBaixarPdf}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold flex items-center gap-1 transition cursor-pointer border border-slate-700 disabled:opacity-50"
-            title="Baixar PDF"
-          >
-            {baixandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={compartilhando}
-            onClick={handleCompartilharWhatsApp}
-            className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
-            title="Compartilhar no WhatsApp"
-          >
-            {compartilhando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
-            <span>WhatsApp</span>
-          </button>
-        </div>
+      {/* Ação Única do Cabeçalho: Baixar PDF */}
+      <div className="w-full max-w-md mb-4 flex items-center justify-end print:hidden">
+        <button
+          type="button"
+          disabled={baixandoPdf}
+          onClick={handleBaixarPdf}
+          className="py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold flex items-center gap-2 transition cursor-pointer border border-slate-700 shadow-sm disabled:opacity-50 active:scale-95"
+          title="Baixar PDF do Recibo"
+        >
+          {baixandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          <span>Baixar PDF</span>
+        </button>
       </div>
 
       {/* Recibo Impresso / Renderizado Fiel */}
@@ -430,9 +374,9 @@ export const ReciboPublico: React.FC = () => {
                 {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                   <div key={idx} className="flex justify-between items-start text-[11px]">
                     <div>
-                      <span className="font-semibold">{pag.forma}</span>
+                      <span className="font-bold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
                       {pag.origemGateway && (
-                        <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                        <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
                       )}
                     </div>
                     <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>

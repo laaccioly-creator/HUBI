@@ -71,6 +71,37 @@ export const ehPedidoFiado = (pedido: Pedido): boolean => {
   return false;
 };
 
+export const formatarTituloModalidadePagamento = (forma?: string, tipo?: string, ehFiado?: boolean): string => {
+  const fLower = (forma || '').toLowerCase();
+  const tLower = (tipo || '').toLowerCase();
+
+  if (ehFiado || tLower === 'fiado' || fLower.includes('fiado')) {
+    return 'Pagamento (Fiado)';
+  }
+  if (tLower === 'cartao_credito' || fLower.includes('crédito') || fLower.includes('credito')) {
+    return 'Pagamento (Cartão de Crédito)';
+  }
+  if (tLower === 'cartao_debito' || fLower.includes('débito') || fLower.includes('debito')) {
+    return 'Pagamento (Cartão de Débito)';
+  }
+  if (tLower === 'pix' || fLower.includes('pix')) {
+    return 'Pagamento (PIX)';
+  }
+  if (tLower === 'dinheiro' || fLower.includes('dinheiro') || fLower.includes('espécie') || fLower.includes('especie')) {
+    return 'Pagamento (Dinheiro)';
+  }
+
+  if (forma && forma.startsWith('Pagamento (')) {
+    return forma;
+  }
+
+  if (forma && forma !== 'Pagamento' && forma !== 'Pagamento no Caixa' && forma !== 'Mercado Pago Online') {
+    return `Pagamento (${forma})`;
+  }
+
+  return 'Pagamento';
+};
+
 export interface InfoPagamentoRecibo {
   foiPago: boolean;
   ehFiado: boolean;
@@ -119,11 +150,14 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
     }
 
     for (const p of pagamentosFiltrados) {
-      let nomeForma = p.forma_pagamento?.nome || 'Pagamento';
+      const nomeFormaBruto = p.forma_pagamento?.nome || '';
       const tipoForma = p.forma_pagamento?.tipo || '';
-      const ehMercadoPago = nomeForma.toLowerCase().includes('mercado pago') 
+      const ehFiadoPag = Boolean(p.eh_pagamento_fiado || tipoForma === 'fiado' || nomeFormaBruto.toLowerCase().includes('fiado'));
+      const tituloModalidade = formatarTituloModalidadePagamento(nomeFormaBruto, tipoForma, ehFiadoPag);
+
+      const ehMercadoPago = nomeFormaBruto.toLowerCase().includes('mercado pago') 
         || tipoForma.toLowerCase().includes('mercado_pago')
-        || (pedido.origem === 'catalogo_online' && (tipoForma === 'pix' || tipoForma === 'cartao_credito' || tipoForma === 'cartao_debito' || nomeForma.toLowerCase().includes('pix')));
+        || (pedido.origem === 'catalogo_online' && (tipoForma === 'pix' || tipoForma === 'cartao_credito' || tipoForma === 'cartao_debito' || nomeFormaBruto.toLowerCase().includes('pix')));
 
       let origemGateway: string | undefined = undefined;
       if (ehMercadoPago) {
@@ -135,19 +169,22 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
       }
 
       itensPag.push({
-        forma: nomeForma,
+        forma: tituloModalidade,
         origemGateway,
         valor: Number(p.valor || 0),
         parcelas: p.parcelas && p.parcelas > 1 ? p.parcelas : undefined,
         dataPagamento: p.data_pagamento
       });
     }
-  } else if (foiPago) {
+  } else if (foiPago || ehFiado) {
     // Fallback caso não haja registro na tabela filha pagamentos_pedido
     const ehCatalogo = pedido.origem === 'catalogo_online';
+    const formaPedido = String((pedido as any).forma_pagamento || (pedido as any).tipo_pagamento || '').trim();
+    const tituloModalidade = formatarTituloModalidadePagamento(formaPedido, undefined, ehFiado);
+
     itensPag.push({
-      forma: ehCatalogo ? 'Mercado Pago Online' : 'Pagamento no Caixa',
-      origemGateway: ehCatalogo ? 'Mercado Pago' : 'PDV / Balcão',
+      forma: tituloModalidade,
+      origemGateway: ehCatalogo ? 'Catálogo Online' : 'PDV / Balcão',
       valor: totalPago,
       dataPagamento: pedido.atualizado_em || pedido.data_venda
     });
@@ -589,8 +626,8 @@ export class PrintService {
                 ${pagamentoInfo.pagamentosDetalhados.map(pag => `
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin: 3px 0; color: #1e293b;">
                     <div>
-                      <span style="font-weight: 600;">Forma:</span> ${pag.forma}${pag.parcelas ? ` (${pag.parcelas}x)` : ''}
-                      ${pag.origemGateway ? `<div style="font-size: ${isA4 ? '11px' : '9px'}; color: #0284c7; font-weight: 600;">Origem: ${pag.origemGateway}</div>` : ''}
+                      <div style="font-weight: 700; color: #0f172a;">${pag.forma}${pag.parcelas ? ` (${pag.parcelas}x)` : ''}</div>
+                      ${pag.origemGateway ? `<div style="font-size: ${isA4 ? '11px' : '9px'}; color: #64748b; font-weight: 500;">Origem: ${pag.origemGateway}</div>` : ''}
                     </div>
                     <div style="text-align: right;">
                       <span style="font-weight: 700; color: #0f172a;">R$ ${pag.valor.toFixed(2)}</span>
