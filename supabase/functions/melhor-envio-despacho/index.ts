@@ -275,7 +275,7 @@ serve(async (req: Request) => {
         console.log(`[MelhorEnvio-Edge] Sincronizando rastreio Correios para código ${codRastreioExistente}...`);
         let statusEnvioMapeado = entrega?.status_envio || (pedido?.status === "entregue" ? "entregue" : "despachado");
         let dataEntrega = (pedido?.metadados as any)?.data_entrega || null;
-        let dataPostagem = entrega?.despachado_em || pedido?.despachado_em || new Date().toISOString();
+        let dataPostagem = entrega?.despachado_em || pedido?.despachado_em || null;
         let eventosFinais: any[] = (pedido?.metadados as any)?.eventos_rastreio || (entrega as any)?.eventos_rastreio || [];
 
         // Consulta de eventos ao Melhor Rastreio GraphQL
@@ -312,6 +312,9 @@ serve(async (req: Request) => {
             const mrData = await mrRes.json();
             const parcel = mrData?.data?.findByTrackingCode;
             if (parcel) {
+              if (parcel.postedAt) {
+                dataPostagem = parcel.postedAt;
+              }
               if (parcel.deliveredAt || parcel.lastStatus === "DELIVERED") {
                 statusEnvioMapeado = "entregue";
                 dataEntrega = parcel.deliveredAt || dataEntrega || new Date().toISOString();
@@ -319,6 +322,12 @@ serve(async (req: Request) => {
                 statusEnvioMapeado = "saiu_para_entrega";
               } else if (parcel.lastStatus === "IN_TRANSIT") {
                 statusEnvioMapeado = "em_transito";
+              } else if (parcel.postedAt || (Array.isArray(parcel.trackingEvents) && parcel.trackingEvents.length > 0)) {
+                statusEnvioMapeado = "postado";
+              } else {
+                statusEnvioMapeado = "aguardando_postagem";
+                dataPostagem = null;
+                eventosFinais = [];
               }
 
               if (Array.isArray(parcel.trackingEvents) && parcel.trackingEvents.length > 0) {
@@ -343,7 +352,7 @@ serve(async (req: Request) => {
         }
 
         const atualizadoEm = new Date().toISOString();
-        const linkOficial = `https://rastreamento.correios.com.br/app/index.php?objeto=${codRastreioExistente}`;
+        const linkOficial = `https://melhorrastreio.com.br/rastreio/${codRastreioExistente}`;
 
         if (pedidoId) {
           await supabaseAdmin

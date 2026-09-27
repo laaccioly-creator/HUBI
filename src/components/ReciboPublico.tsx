@@ -48,35 +48,81 @@ export const ReciboPublico: React.FC = () => {
         setCarregando(true);
         setErroMsg(null);
 
-        // Busca o pedido com todas as relações estruturadas (aceita UUID ou número do pedido)
+        // Busca o pedido com todas as relações estruturadas (aceita UUID ou número sequencial)
+        const cleanId = (id || '').trim();
+        const numApenas = cleanId.replace(/^PED-/i, '').trim();
+        const isNumero = /^\d+$/.test(numApenas);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+        const aplicarFiltroIdentificador = (builder: any) => {
+          if (isNumero) {
+            return builder.eq('numero_pedido', parseInt(numApenas, 10));
+          }
+          if (ehUuid) {
+            return builder.eq('id', cleanId);
+          }
+          const numParsed = parseInt(numApenas, 10);
+          if (!isNaN(numParsed) && numParsed > 0) {
+            return builder.eq('numero_pedido', numParsed);
+          }
+          return builder.eq('id', cleanId);
+        };
+
         let query = supabase
           .from('pedidos')
           .select(`
             *,
             cliente:clientes(*),
-            vendedor:usuarios(*),
+            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
             itens:itens_pedido(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
-            pedido_entrega:pedido_entregas(*)
+            pedido_entregas:pedido_entregas(*)
           `);
 
-        const cleanId = id.trim();
-        const numApenas = cleanId.replace(/^PED-/i, '').trim();
-        const isNumero = /^\d+$/.test(numApenas);
-        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+        query = aplicarFiltroIdentificador(query);
 
-        if (isNumero) {
-          query = query.eq('numero_pedido', parseInt(numApenas, 10));
-        } else if (ehUuid) {
-          query = query.eq('id', cleanId);
-        } else {
-          query = query.or(`id.eq.${cleanId},numero_pedido.eq.${parseInt(numApenas, 10) || 0}`);
+        let { data: pedData, error: pedErr } = await query.maybeSingle();
+
+        // Fallback resiliente: caso a query com todas as relações aninhadas falhe
+        // (por exemplo por restrição de cache de schema ou relação opcional),
+        // busca o pedido isoladamente e agrega as entidades filhas de forma segura.
+        if (pedErr || !pedData) {
+          console.warn('[ReciboPublico] Tentando busca direta resiliente do pedido...', pedErr);
+          let simpleQuery = supabase.from('pedidos').select('*');
+          simpleQuery = aplicarFiltroIdentificador(simpleQuery);
+          const { data: simplePed, error: simpleErr } = await simpleQuery.maybeSingle();
+
+          if (simplePed && !simpleErr) {
+            pedData = simplePed;
+            const [itensRes, clienteRes, pagRes, entregaRes] = await Promise.allSettled([
+              supabase.from('itens_pedido').select('*').eq('pedido_id', simplePed.id),
+              simplePed.cliente_id ? supabase.from('clientes').select('*').eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
+              supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
+              supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id)
+            ]);
+
+            if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
+              (pedData as any).itens = (itensRes.value as any).data;
+            }
+            if (clienteRes.status === 'fulfilled' && (clienteRes.value as any)?.data) {
+              (pedData as any).cliente = (clienteRes.value as any).data;
+            }
+            if (pagRes.status === 'fulfilled' && (pagRes.value as any)?.data) {
+              (pedData as any).pagamentos = (pagRes.value as any).data;
+            }
+            if (entregaRes.status === 'fulfilled' && (entregaRes.value as any)?.data) {
+              (pedData as any).pedido_entregas = (entregaRes.value as any).data;
+            }
+          } else {
+            throw new Error('Pedido não encontrado no sistema.');
+          }
         }
 
-        const { data: pedData, error: pedErr } = await query.maybeSingle();
-
-        if (pedErr || !pedData) {
-          throw new Error('Pedido não encontrado no sistema.');
+        // Normaliza pedido_entrega se veio em pedido_entregas
+        if (!(pedData as any).pedido_entrega && (pedData as any).pedido_entregas) {
+          (pedData as any).pedido_entrega = Array.isArray((pedData as any).pedido_entregas)
+            ? (pedData as any).pedido_entregas[0]
+            : (pedData as any).pedido_entregas;
         }
 
         setPedido(pedData as unknown as Pedido);
@@ -87,7 +133,7 @@ export const ReciboPublico: React.FC = () => {
             .from('lojas')
             .select('*')
             .eq('id', pedData.loja_id)
-            .single();
+            .maybeSingle();
 
           if (lojaData) setLoja(lojaData as Loja);
         }
@@ -176,6 +222,7 @@ export const ReciboPublico: React.FC = () => {
   const valorFrete = Number(pedido.valor_frete || 0);
   const valorTotal = Number(pedido.valor_total || 0);
   const pagInfo = obterDadosPagamentoRecibo(pedido);
+  const pe = (pedido as any)?.pedido_entrega || (pedido as any)?.pedido_entregas?.[0];
   const itens = (pedido.itens || (pedido as unknown as { itens_pedido?: ItemPedido[] }).itens_pedido || []) as ItemPedido[];
   const totalQtdItens = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
 
@@ -235,7 +282,7 @@ export const ReciboPublico: React.FC = () => {
           className="bg-white text-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 text-xs space-y-3 shadow-2xl font-mono print:shadow-none print:border-0 print:rounded-none"
         >
           {/* Logo da Loja */}
-          {loja?.url_logo && (
+          {loja?.url_logo ? (
             <div className="text-center pb-1">
               <img
                 src={loja.url_logo}
@@ -243,6 +290,10 @@ export const ReciboPublico: React.FC = () => {
                 crossOrigin="anonymous"
                 className="max-h-12 max-w-[160px] mx-auto object-contain"
               />
+            </div>
+          ) : (
+            <div className="text-center pb-1">
+              <Store className="w-8 h-8 text-slate-700 mx-auto mb-1" />
             </div>
           )}
 
@@ -294,6 +345,16 @@ export const ReciboPublico: React.FC = () => {
               <strong className="text-slate-800">{labelEndereco} </strong>
               <span>{enderecoExibicao}</span>
             </div>
+            {(pe?.codigo_corrida || (pedido as any)?.codigo_corrida) && (
+              <div className="text-emerald-700 font-bold pt-0.5">
+                Código da Corrida: {pe?.codigo_corrida || (pedido as any)?.codigo_corrida}
+              </div>
+            )}
+            {pe?.codigo_rastreio && (
+              <div className="text-emerald-700 font-bold pt-0.5">
+                Rastreio: {pe.codigo_rastreio}
+              </div>
+            )}
           </div>
 
           {/* Resumo de itens */}

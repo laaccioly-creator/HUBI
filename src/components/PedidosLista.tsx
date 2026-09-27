@@ -2743,7 +2743,7 @@ export const PedidosLista: React.FC = () => {
                                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
                               >
                                 <Package className="w-4 h-4" />
-                                <span>Rastrear Envio nos Correios</span>
+                                <span>Rastrear Envio</span>
                               </button>
 
                               {(() => {
@@ -3695,7 +3695,7 @@ export const PedidosLista: React.FC = () => {
                                               type="button"
                                               onClick={() => setPedidoRastreioModal(pedido)}
                                               className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
-                                              title="Rastrear envio nos Correios"
+                                              title="Rastrear Envio"
                                             >
                                               <Package className="w-3.5 h-3.5" />
                                               <span>Rastrear</span>

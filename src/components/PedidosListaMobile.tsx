@@ -1125,7 +1125,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                       >
                         <Package className="w-3.5 h-3.5" />
-                        <span>Rastrear Envio nos Correios</span>
+                        <span>Rastrear Envio</span>
                       </button>
                     ) : ehTransportadoraPrivada ? (
                       <button

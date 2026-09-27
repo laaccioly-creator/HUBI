@@ -22,6 +22,47 @@ import { PedidoEntrega, Transportadora } from '../../types/shipping';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { supabase } from '../../services/supabase';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
+import { useFeedbackModal } from '../../contexts/FeedbackContext';
+
+async function consultarMelhorRastreioGraphQL(codigoRastreio: string) {
+  try {
+    const mrQuery = {
+      query: `query {
+        findByTrackingCode(tracker: { trackingCode: "${codigoRastreio.trim()}" }) {
+          id
+          lastStatus
+          postedAt
+          deliveredAt
+          trackingEvents {
+            createdAt
+            status
+            title
+            description
+            location {
+              city
+              state
+            }
+          }
+        }
+      }`
+    };
+    const res = await fetch('https://api.melhorrastreio.com.br/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'HUBI Sistema (suporte@hubi.app)'
+      },
+      body: JSON.stringify(mrQuery)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data?.findByTrackingCode || null;
+    }
+  } catch (err) {
+    console.warn('[ModalRastreioPedido] Falha ao consultar Melhor Rastreio GraphQL:', err);
+  }
+  return null;
+}
 
 interface ModalRastreioPedidoProps {
   isOpen: boolean;
@@ -40,6 +81,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   loja,
   onAtualizarStatus
 }) => {
+  const { mostrarSucesso, mostrarToast } = useFeedbackModal();
   const [copiado, setCopiado] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
   const [mensagemFeedback, setMensagemFeedback] = useState<string | null>(null);
@@ -95,42 +137,96 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     try {
       if (!silencioso) setAtualizando(true);
 
+      const codAlvo = (codigoRastreioLocal || peResolvido?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
+
       // 1. Invoca Edge Function para sincronizar status atualizado com o provedor / Correios
-      const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
-        body: {
-          pedidoId: pedido.id,
-          loja_id: loja?.id || pedido.loja_id,
-          acao: 'sincronizar_rastreio'
+      let dadosSinc: any = null;
+      try {
+        const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
+          body: {
+            pedidoId: pedido.id,
+            loja_id: loja?.id || pedido.loja_id,
+            acao: 'sincronizar_rastreio',
+            codigo_rastreio: codAlvo || undefined
+          }
+        });
+        if (!error && data?.sucesso) {
+          dadosSinc = data;
         }
-      });
+      } catch (errEdge) {
+        console.warn('Erro ao chamar edge function de rastreio:', errEdge);
+      }
 
-      if (!error && data?.sucesso) {
-        if (data.codigo_rastreio) setCodigoRastreioLocal(data.codigo_rastreio);
-        if (data.link_rastreio) setLinkRastreioLocal(data.link_rastreio);
-        if (data.status_envio) setStatusEnvioLocal(data.status_envio);
-        if (data.data_postagem) setDataPostagemLocal(data.data_postagem);
-        if (data.data_entrega) setDataEntregaLocal(data.data_entrega);
-        if (Array.isArray(data.eventos_rastreio) && data.eventos_rastreio.length > 0) {
-          setEventosRastreioLocal(data.eventos_rastreio);
+      // 2. Fallback / Enriquecimento direto via Melhor Rastreio GraphQL caso não tenha retornado eventos da edge
+      if (codAlvo && (!dadosSinc?.eventos_rastreio || dadosSinc.eventos_rastreio.length === 0)) {
+        try {
+          const parcel = await consultarMelhorRastreioGraphQL(codAlvo);
+          if (parcel) {
+            const rawEvents = Array.isArray(parcel.trackingEvents) ? parcel.trackingEvents : [];
+            const evs = rawEvents.map((ev: any) => ({
+              data: ev.createdAt,
+              data_formatada: new Date(ev.createdAt).toLocaleString('pt-BR'),
+              titulo: ev.title || ev.status,
+              descricao: ev.description,
+              local: ev.location ? `${ev.location.city || ''} - ${ev.location.state || ''}`.trim() : '',
+              tipo: ev.status
+            }));
+
+            const stMapeado =
+              parcel.deliveredAt || parcel.lastStatus === 'DELIVERED'
+                ? 'entregue'
+                : parcel.lastStatus === 'OUT_FOR_DELIVERY'
+                ? 'saiu_para_entrega'
+                : parcel.lastStatus === 'IN_TRANSIT'
+                ? 'em_transito'
+                : parcel.postedAt || evs.length > 0
+                ? 'postado'
+                : 'aguardando_postagem';
+
+            dadosSinc = {
+              sucesso: true,
+              codigo_rastreio: codAlvo,
+              link_rastreio: `https://melhorrastreio.com.br/rastreio/${codAlvo}`,
+              status_envio: stMapeado,
+              data_postagem: parcel.postedAt || null,
+              data_entrega: parcel.deliveredAt || null,
+              eventos_rastreio: evs
+            };
+          }
+        } catch (errDirect) {
+          console.warn('Falha na consulta direta ao Melhor Rastreio:', errDirect);
         }
+      }
 
-        const statusLabel =
-          data.status_envio === 'em_transito'
-            ? 'Em Trânsito'
-            : data.status_envio === 'saiu_para_entrega'
-            ? 'Saiu para Entrega'
-            : data.status_envio === 'entregue'
-            ? 'Entregue'
-            : data.status_envio === 'despachado'
-            ? 'Despachado'
-            : 'Atualizado';
+      if (dadosSinc?.sucesso) {
+        if (dadosSinc.codigo_rastreio) setCodigoRastreioLocal(dadosSinc.codigo_rastreio);
+        if (dadosSinc.link_rastreio) setLinkRastreioLocal(dadosSinc.link_rastreio);
+        setStatusEnvioLocal(dadosSinc.status_envio || 'aguardando_postagem');
+        setDataPostagemLocal(dadosSinc.data_postagem || null);
+        setDataEntregaLocal(dadosSinc.data_entrega || null);
+        const evs = Array.isArray(dadosSinc.eventos_rastreio) ? dadosSinc.eventos_rastreio : [];
+        setEventosRastreioLocal(evs);
 
         if (!silencioso) {
-          setMensagemFeedback(`Status sincronizado: ${statusLabel}! Código: ${data.codigo_rastreio || 'OK'}`);
+          if (evs.length === 0) {
+            mostrarToast('Aguardando primeira postagem ou atualização na agência dos Correios.', 'info');
+          } else {
+            const statusLabel =
+              dadosSinc.status_envio === 'em_transito'
+                ? 'Em Trânsito'
+                : dadosSinc.status_envio === 'saiu_para_entrega'
+                ? 'Saiu para Entrega'
+                : dadosSinc.status_envio === 'entregue'
+                ? 'Entregue'
+                : dadosSinc.status_envio === 'postado'
+                ? 'Postado'
+                : 'Atualizado';
+            mostrarSucesso(`Status sincronizado: ${statusLabel}!`);
+          }
         }
         if (onAtualizarStatus) onAtualizarStatus();
       } else if (!silencioso) {
-        setMensagemFeedback('Rastreamento verificado. Nenhuma nova movimentação.');
+        mostrarToast('Aguardando postagem ou primeira atualização dos Correios.', 'info');
       }
     } catch {
       if (!silencioso) {
@@ -142,7 +238,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         setTimeout(() => setMensagemFeedback(null), 4000);
       }
     }
-  }, [pedido?.id, pedido?.loja_id, loja?.id, onAtualizarStatus]);
+  }, [pedido?.id, pedido?.loja_id, pedido?.codigo_rastreio, loja?.id, codigoRastreioLocal, peResolvido?.codigo_rastreio, onAtualizarStatus, mostrarSucesso, mostrarToast]);
 
   // Sincroniza estados reativos locais apenas quando os identificadores das props mudarem
   React.useEffect(() => {
@@ -264,6 +360,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     if (!codigoRastreio) return;
     navigator.clipboard.writeText(codigoRastreio);
     setCopiado(true);
+    mostrarSucesso('Código copiado para a área de transferência!');
     setTimeout(() => setCopiado(false), 2500);
   };
 
@@ -274,7 +371,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
     let linkAcompanhamento = '';
     if (ehCorreios && codigoRastreio) {
-      linkAcompanhamento = `https://rastreamento.correios.com.br/app/index.php?objeto=${codigoRastreio}`;
+      linkAcompanhamento = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
     } else if (ehMelhorEnvio && codigoRastreio) {
       linkAcompanhamento = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
     } else if (urlRastreioTransportadora) {
@@ -300,20 +397,74 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     window.open(url, '_blank');
   };
 
-  // Extração das datas dos eventos de rastreamento se existirem
-  const evEtiqueta = eventosRastreioLocal.find(e => e.tipo === 'etiqueta_emitida' || (e.titulo || '').toLowerCase().includes('etiqueta'));
-  const evPostado = eventosRastreioLocal.find(e => e.tipo === 'postado' || (e.titulo || '').toLowerCase().includes('postado'));
-  const evTransito = eventosRastreioLocal.find(e => e.tipo === 'em_transito' || (e.titulo || '').toLowerCase().includes('transferência') || (e.titulo || '').toLowerCase().includes('trânsito'));
-  const evSaiu = eventosRastreioLocal.find(e => e.tipo === 'saiu_para_entrega' || (e.titulo || '').toLowerCase().includes('saiu'));
-  const evEntregue = eventosRastreioLocal.find(e => e.tipo === 'entregue' || (e.titulo || '').toLowerCase().includes('entregue'));
+  const handleAbrirPortalCorreios = () => {
+    if (codigoRastreio) {
+      try {
+        navigator.clipboard.writeText(codigoRastreio);
+        mostrarToast('Código copiado! Cole no campo de rastreio dos Correios.', 'info');
+      } catch {
+        // Fallback silencioso
+      }
+    }
+    window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
+  };
 
-  const ehEntregue = statusEnvio === 'entregue';
-  const ehSaiu = statusEnvio === 'saiu_para_entrega' || ehEntregue;
-  const ehTransito = statusEnvio === 'em_transito' || ehSaiu;
-  const ehPostado = Boolean(dataPostagemLocal || evPostado) || ehTransito;
+  // Extração das datas dos eventos de rastreamento reais
+  const evEtiqueta = eventosRastreioLocal.find(e => e.tipo === 'etiqueta_emitida' || (e.titulo || '').toLowerCase().includes('etiqueta'));
+  const evPostado = eventosRastreioLocal.find(e => e.tipo === 'postado' || (e.titulo || '').toLowerCase().includes('postado') || (e.tipo || '').toLowerCase().includes('posted'));
+  const evTransito = eventosRastreioLocal.find(e => e.tipo === 'em_transito' || (e.titulo || '').toLowerCase().includes('transferência') || (e.titulo || '').toLowerCase().includes('trânsito') || (e.tipo || '').toLowerCase().includes('transit'));
+  const evSaiu = eventosRastreioLocal.find(e => e.tipo === 'saiu_para_entrega' || (e.titulo || '').toLowerCase().includes('saiu') || (e.tipo || '').toLowerCase().includes('out_for_delivery'));
+  const evEntregue = eventosRastreioLocal.find(e => e.tipo === 'entregue' || (e.titulo || '').toLowerCase().includes('entregue') || (e.tipo || '').toLowerCase().includes('delivered'));
+
+  const temEventosReais = eventosRastreioLocal.length > 0;
+  const ehEntregue = statusEnvio === 'entregue' || Boolean(evEntregue);
+  const ehSaiu = statusEnvio === 'saiu_para_entrega' || Boolean(evSaiu) || ehEntregue;
+  const ehTransito = statusEnvio === 'em_transito' || Boolean(evTransito) || ehSaiu;
+  const ehPostado = Boolean(evPostado) || (Boolean(dataPostagemLocal) && temEventosReais) || ehTransito;
 
   // Definição das etapas da linha do tempo
-  const etapas = [
+  const etapas = (ehCorreios && !temEventosReais) ? [
+    {
+      id: 'criado',
+      titulo: 'Pedido Realizado & Confirmado',
+      descricao: 'Venda aprovada e integrada na loja',
+      data: pedido.data_venda || pedido.criado_em,
+      concluido: true,
+      ativo: false
+    },
+    {
+      id: 'despacho_hubi',
+      titulo: 'Despacho Registrado no Sistema',
+      descricao: `Envio registrado no HUBI via ${transportadora}`,
+      data: despachadoEm,
+      concluido: true,
+      ativo: false
+    },
+    {
+      id: 'aguardando_correios',
+      titulo: 'Aguardando Postagem nos Correios',
+      descricao: 'Aguardando postagem ou primeira atualização dos Correios.',
+      data: null,
+      concluido: false,
+      ativo: true
+    },
+    {
+      id: 'transito',
+      titulo: 'Em Trânsito',
+      descricao: 'Transferência entre centros operacionais dos Correios',
+      data: null,
+      concluido: false,
+      ativo: false
+    },
+    {
+      id: 'entregue',
+      titulo: 'Objeto Entregue',
+      descricao: 'Entrega finalizada com sucesso ao destinatário',
+      data: null,
+      concluido: false,
+      ativo: false
+    }
+  ] : [
     {
       id: 'criado',
       titulo: 'Pedido Realizado & Confirmado',
@@ -334,17 +485,17 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       id: 'postado',
       titulo: 'Objeto Postado na Agência',
       descricao: ehCorreios
-        ? (evPostado?.local ? `Postado na agência dos Correios (${evPostado.local})` : 'Pacote recebido e conferido pela agência dos Correios')
+        ? (evPostado?.descricao || (evPostado?.local ? `Postado na agência (${evPostado.local})` : 'Objeto recebido e postado na agência'))
         : 'Pacote conferido e recebido pela transportadora',
-      data: evPostado?.data || dataPostagemLocal || (ehTransito ? despachadoEm : null),
+      data: evPostado?.data || (ehPostado ? dataPostagemLocal : null),
       concluido: ehPostado,
-      ativo: statusEnvio === 'despachado' && !ehTransito
+      ativo: statusEnvio === 'postado' || (statusEnvio === 'despachado' && !ehTransito)
     },
     {
       id: 'transito',
       titulo: 'Em Trânsito',
       descricao: ehCorreios
-        ? (evTransito?.descricao || 'Transferência entre centros operacionais e de distribuição dos Correios')
+        ? (evTransito?.descricao || 'Transferência entre centros operacionais dos Correios')
         : 'Transferência entre centros operacionais e de distribuição',
       data: evTransito?.data || null,
       concluido: ehTransito,
@@ -365,7 +516,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       titulo: 'Objeto Entregue',
       descricao: ehCorreios && evEntregue?.local
         ? `Objeto entregue ao destinatário em ${evEntregue.local}`
-        : 'Entrega finalizada com sucesso ao destinatário',
+        : (evEntregue?.descricao || 'Entrega finalizada com sucesso ao destinatário'),
       data: ehEntregue
         ? (evEntregue?.data || dataEntregaLocal || (pe as any)?.entregue_em || (pedido.metadados as any)?.data_entrega || pe?.atualizado_em || null)
         : null,
@@ -468,6 +619,19 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{mensagemFeedback}</span>
+          </div>
+        )}
+
+        {/* Alerta Realista para Correios sem movimentação registrada */}
+        {ehCorreios && !temEventosReais && (
+          <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-300 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold block text-amber-200">Aguardando Atualização dos Correios</span>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                Aguardando postagem ou primeira atualização dos Correios.
+              </p>
+            </div>
           </div>
         )}
 
@@ -625,8 +789,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             </a>
           )}
 
-          {/* 1. MELHOR ENVIO: Botão exclusivo [ Melhor Rastreio ] (Apenas quando provedor === 'melhor_envio') */}
-          {ehMelhorEnvio && codigoRastreio && (
+          {/* 1. MELHOR ENVIO (Outras transportadoras, ex: Jadlog, Azul): Botão [ Melhor Rastreio ] */}
+          {ehMelhorEnvio && !ehCorreios && codigoRastreio && (
             <a
               href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
               target="_blank"
@@ -638,32 +802,32 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             </a>
           )}
 
-          {/* Se for Correios integrado via Melhor Envio, também permite abrir o Portal Oficial dos Correios */}
-          {ehMelhorEnvio && ehCorreios && codigoRastreio && (
-            <a
-              href={linkCorreiosOficial || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              <span>Portal dos Correios</span>
-            </a>
-          )}
-
-          {/* 2. CORREIOS MANUAL (Balcão): Apenas Portal dos Correios, NUNCA Melhor Rastreio */}
-          {!ehMelhorEnvio && ehCorreios && (
-            linkCorreiosOficial ? (
+          {/* 2. CORREIOS (Manual ou Integrado): Botão Principal Melhor Rastreio (sem CAPTCHA) + Botão Secundário Portal dos Correios (com cópia automática) */}
+          {ehCorreios && codigoRastreio && (
+            <>
+              {/* Botão Principal: Rastrear no Melhor Rastreio */}
               <a
-                href={linkCorreiosOficial}
+                href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+                title="Rastrear envio nos Correios sem CAPTCHA via Melhor Rastreio"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Ver nos Correios</span>
+                <span>Rastrear no Melhor Rastreio</span>
               </a>
-            ) : null
+
+              {/* Botão Secundário: Portal dos Correios com cópia automática */}
+              <button
+                type="button"
+                onClick={handleAbrirPortalCorreios}
+                className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 active:scale-95"
+                title="Copiar código de rastreio e abrir Portal Oficial dos Correios"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                <span>Portal dos Correios</span>
+              </button>
+            </>
           )}
 
           {/* 3. TRANSPORTADORA MANUAL: Rastrear na Transportadora / Site / WhatsApp, NUNCA Melhor Rastreio */}
