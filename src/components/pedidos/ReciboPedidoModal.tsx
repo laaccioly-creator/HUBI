@@ -115,8 +115,20 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     } else if (ehCorreios) {
       formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
     } else if (ehAppEntrega) {
-      formaEntregaTexto = (nomeApp && nomeApp.toLowerCase().includes('uber')) ? 'Uber Direct' : (nomeApp || 'Uber Direct');
-    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || transp.toLowerCase().includes('uber flash')) {
+      if (nomeApp && !nomeApp.toLowerCase().includes('direct')) {
+        formaEntregaTexto = nomeApp;
+      } else if (transp.toLowerCase().includes('uber flash')) {
+        formaEntregaTexto = 'Uber Flash';
+      } else if (transp.toLowerCase().includes('99')) {
+        formaEntregaTexto = '99 Entrega';
+      } else if (transp.toLowerCase().includes('lalamove')) {
+        formaEntregaTexto = 'Lalamove';
+      } else {
+        formaEntregaTexto = (nomeApp && nomeApp.toLowerCase().includes('uber')) ? 'Uber Direct' : (nomeApp || 'App de Corrida');
+      }
+    } else if (transp.toLowerCase().includes('uber flash')) {
+      formaEntregaTexto = 'Uber Flash';
+    } else if (provedor === 'uber' || transp.toLowerCase().includes('uber direct')) {
       formaEntregaTexto = 'Uber Direct';
     } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
       formaEntregaTexto = formatarNomeTransportadora(transp);

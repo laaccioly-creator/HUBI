@@ -53,10 +53,17 @@ export const PedidoAndamentoPublico: React.FC = () => {
             pedido_entregas:pedido_entregas(*)
           `);
 
-        if (id.includes('-') && id.length > 20) {
-          query = query.eq('id', id);
+        const cleanId = (id || '').trim();
+        const numApenas = cleanId.replace(/^PED-/i, '').trim();
+        const ehNumero = /^\d+$/.test(numApenas);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+        if (ehNumero) {
+          query = query.eq('numero_pedido', parseInt(numApenas, 10));
+        } else if (ehUuid) {
+          query = query.eq('id', cleanId);
         } else {
-          query = query.eq('numero_pedido', Number(id) || 0);
+          query = query.or(`id.eq.${cleanId},numero_pedido.eq.${parseInt(numApenas, 10) || 0}`);
         }
 
         const { data: pedidosData, error } = await query;
@@ -64,6 +71,11 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
         const ped = pedidosData?.[0];
         if (ped && !cancelado) {
+          if (!(ped as any).pedido_entrega && (ped as any).pedido_entregas) {
+            (ped as any).pedido_entrega = Array.isArray((ped as any).pedido_entregas)
+              ? (ped as any).pedido_entregas[0]
+              : (ped as any).pedido_entregas;
+          }
           setPedido(ped as unknown as Pedido);
           if (ped.loja_id) {
             const { data: lojaData } = await supabase

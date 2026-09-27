@@ -2,6 +2,8 @@ import React, { useRef } from 'react';
 import { X, Printer, Package, Truck, MapPin, Building2, User, Barcode, Tag, ExternalLink } from 'lucide-react';
 import { Pedido, Loja } from '../../types';
 import { PedidoEntrega } from '../../types/shipping';
+import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { ehUrlEtiquetaValida } from '../PedidosLista';
 
 interface ModalImprimirEtiquetaProps {
   isOpen: boolean;
@@ -16,6 +18,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   pedido,
   loja
 }) => {
+  const { mostrarToast } = useFeedbackModal();
   const etiquetaRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen || !pedido) return null;
@@ -55,6 +58,30 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   const lojaEndereco = loja
     ? `${loja.endereco_logradouro || ''}, ${loja.endereco_numero || 'S/N'} ${loja.endereco_bairro ? `- ${loja.endereco_bairro}` : ''} - ${loja.endereco_cidade || ''}/${loja.endereco_estado || ''} - CEP: ${loja.endereco_cep || ''}`
     : 'Endereço da loja';
+
+  const ehAppOuManual =
+    pe?.tipo_operacao === 'app_entrega' ||
+    pe?.tipo_operacao === 'frota_propria' ||
+    pe?.tipo_operacao === 'motoboy' ||
+    (pedido as any).tipo_operacao === 'app_entrega' ||
+    Boolean((pedido as any).nome_app) ||
+    pe?.provedor === 'uber' ||
+    pe?.provedor === 'frete_proprio';
+
+  const ehMelhorEnvio = !ehAppOuManual && (
+    pe?.provedor === 'melhor_envio' ||
+    (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
+    Boolean((pedido as any).metadados?.melhor_envio_order_id) ||
+    Boolean(linkEtiquetaOficial && !linkEtiquetaOficial.includes('/404'))
+  );
+
+  const handleAbrirMelhorEnvio = () => {
+    if (ehUrlEtiquetaValida(linkEtiquetaOficial) && !linkEtiquetaOficial.includes('/404')) {
+      window.open(linkEtiquetaOficial, '_blank', 'noopener,noreferrer');
+    } else {
+      mostrarToast('A etiqueta do Melhor Envio ainda não foi gerada ou está em processamento.', 'info');
+    }
+  };
 
   const handleImprimir = () => {
     const conteudo = etiquetaRef.current;
@@ -228,21 +255,20 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         </div>
 
         {/* Banner Etiqueta Oficial da Transportadora (Melhor Envio) */}
-        {linkEtiquetaOficial && (
+        {!ehAppOuManual && ehMelhorEnvio && (
           <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sky-300 text-xs font-bold">
               <Tag className="w-4 h-4 shrink-0 text-sky-400" />
               <span>Etiqueta Oficial gerada pelo Melhor Envio disponível para impressão!</span>
             </div>
-            <a
-              href={linkEtiquetaOficial}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={handleAbrirMelhorEnvio}
               className="shrink-0 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-sky-600/25 transition cursor-pointer active:scale-95"
             >
-              <span>Abrir Etiqueta Oficial (PDF)</span>
+              <span>Etiqueta Melhor Envio</span>
               <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            </button>
           </div>
         )}
 
@@ -339,17 +365,16 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           >
             Fechar
           </button>
-          {linkEtiquetaOficial && (
-            <a
-              href={linkEtiquetaOficial}
-              target="_blank"
-              rel="noopener noreferrer"
+          {!ehAppOuManual && ehMelhorEnvio && (
+            <button
+              type="button"
+              onClick={handleAbrirMelhorEnvio}
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-sky-500/20 transition cursor-pointer active:scale-95"
-              title="Abrir Etiqueta Oficial do Melhor Envio (PDF)"
+              title="Abrir Etiqueta do Melhor Envio (PDF)"
             >
               <Tag className="w-4 h-4" />
-              <span>Etiqueta Oficial (PDF)</span>
-            </a>
+              <span>Etiqueta Melhor Envio</span>
+            </button>
           )}
           <button
             type="button"

@@ -60,14 +60,20 @@ export const ReciboPublico: React.FC = () => {
             pedido_entrega:pedido_entregas(*)
           `);
 
-        const isNumero = /^\d+$/.test(id.trim());
+        const cleanId = id.trim();
+        const numApenas = cleanId.replace(/^PED-/i, '').trim();
+        const isNumero = /^\d+$/.test(numApenas);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
         if (isNumero) {
-          query = query.eq('numero_pedido', parseInt(id.trim(), 10));
+          query = query.eq('numero_pedido', parseInt(numApenas, 10));
+        } else if (ehUuid) {
+          query = query.eq('id', cleanId);
         } else {
-          query = query.eq('id', id.trim());
+          query = query.or(`id.eq.${cleanId},numero_pedido.eq.${parseInt(numApenas, 10) || 0}`);
         }
 
-        const { data: pedData, error: pedErr } = await query.single();
+        const { data: pedData, error: pedErr } = await query.maybeSingle();
 
         if (pedErr || !pedData) {
           throw new Error('Pedido não encontrado no sistema.');

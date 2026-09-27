@@ -82,6 +82,15 @@ export interface ShippingFulfillmentSelectorProps {
   opcaoSelecionadaId?: string | null;
   tipoAtendimentoAtual?: TipoAtendimento;
   enderecoEntregaAtual?: Partial<ClienteEndereco> | null;
+  dadosEnvioIniciais?: {
+    codigoCorrida?: string | null;
+    linkRastreio?: string | null;
+    codigoRastreio?: string | null;
+    formaEntregaId?: string | null;
+    pinEntrega?: string | null;
+    nomeEntregador?: string | null;
+    telefoneEntregador?: string | null;
+  } | null;
   onSolicitarAtualizarEndereco?: () => void;
   onChange: (resultado: ShippingSelectionResult) => void;
   className?: string;
@@ -144,6 +153,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   opcaoSelecionadaId,
   tipoAtendimentoAtual,
   enderecoEntregaAtual,
+  dadosEnvioIniciais,
   onSolicitarAtualizarEndereco,
   onChange,
   className = '',
@@ -311,6 +321,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           // Detecta se a opção atual do pedido era manual
           const formaAtiva = ativas.find(f => 
             f.tipo !== 'retirada' && (
+              dadosEnvioIniciais?.formaEntregaId === f.id ||
               opcaoSelecionadaId === f.id ||
               opcaoSelecionadaId === `forma_${f.id}` ||
               opcaoSelecionadaId === f.tipo ||
@@ -322,6 +333,24 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           if (formaAtiva) {
             setFormaManualEscolhidaId(formaAtiva.id);
             setViaEntrega('manual');
+            if (dadosEnvioIniciais?.codigoCorrida) {
+              setCodigosCorrida(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.codigoCorrida || '' }));
+            }
+            if (dadosEnvioIniciais?.linkRastreio) {
+              setLinksRastreio(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.linkRastreio || '' }));
+            }
+            if (dadosEnvioIniciais?.codigoRastreio) {
+              setCodigosRastreio(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.codigoRastreio || '' }));
+            }
+            if (dadosEnvioIniciais?.pinEntrega) {
+              setPinsEntrega(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.pinEntrega || '' }));
+            }
+            if (dadosEnvioIniciais?.nomeEntregador) {
+              setEntregadores(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.nomeEntregador || '' }));
+            }
+            if (dadosEnvioIniciais?.telefoneEntregador) {
+              setContatosEntregadores(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.telefoneEntregador || '' }));
+            }
           }
         }
       } catch (err) {
@@ -332,7 +361,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     return () => {
       ativo = false;
     };
-  }, [lojaId, opcaoSelecionadaId, valorFreteAtual]);
+  }, [lojaId, opcaoSelecionadaId, valorFreteAtual, dadosEnvioIniciais]);
 
   // Refs de proteção contra re-renderizações e loops infinitos
   const onChangeRef = useRef(onChange);

@@ -205,6 +205,9 @@ export const PedidosLista: React.FC = () => {
   const [salvandoCpfEDespachando, setSalvandoCpfEDespachando] = useState<boolean>(false);
   const [pedidoPendenteDespacho, setPedidoPendenteDespacho] = useState<{ ped: Pedido; entrega: PedidoEntrega } | null>(null);
   const [transportadorasLista, setTransportadorasLista] = useState<Transportadora[]>([]);
+  const [linkRastreioEditando, setLinkRastreioEditando] = useState<boolean>(false);
+  const [linkRastreioInput, setLinkRastreioInput] = useState<string>('');
+  const [salvandoLinkRastreio, setSalvandoLinkRastreio] = useState<boolean>(false);
 
   useEffect(() => {
     if (loja?.id) {
@@ -1813,6 +1816,66 @@ export const PedidosLista: React.FC = () => {
     window.open(url, '_blank');
   };
 
+  const handleCompartilharReciboWhatsApp = (pedido: Pedido) => {
+    const origin = window.location.origin;
+    const link = `${origin}/recibo-publico/${pedido.numero_pedido || pedido.id}`;
+    const valorTotalFormatado = Number(pedido.valor_total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const texto = `🧾 Olá! Segue o recibo/comprovante da sua compra (Pedido #${pedido.numero_pedido}) na ${loja?.nome_fantasia || 'nossa loja'}:\n\n` +
+      `*Valor Total:* ${valorTotalFormatado}\n` +
+      `*Acesse o comprovante digital:* ${link}\n\n` +
+      `Agradecemos a sua preferência!`;
+    const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
+    const cleanTel = tel.replace(/\D/g, '');
+    const url = cleanTel
+      ? `https://wa.me/55${cleanTel}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleSalvarLinkRastreio = async (pedidoId: string) => {
+    if (!linkRastreioInput.trim()) {
+      mostrarAviso('Por favor, informe uma URL válida.');
+      return;
+    }
+    setSalvandoLinkRastreio(true);
+    try {
+      const urlFinal = linkRastreioInput.trim();
+      const meta = (pedidoSelecionado?.metadados && typeof pedidoSelecionado.metadados === 'object')
+        ? { ...pedidoSelecionado.metadados, link_rastreio: urlFinal }
+        : { link_rastreio: urlFinal };
+
+      await Promise.all([
+        supabase
+          .from('pedidos')
+          .update({
+            link_rastreio: urlFinal,
+            metadados: meta
+          })
+          .eq('id', pedidoId),
+        supabase
+          .from('pedido_entregas')
+          .update({
+            link_rastreio: urlFinal,
+            atualizado_em: new Date().toISOString()
+          })
+          .eq('pedido_id', pedidoId)
+      ]);
+
+      mostrarSucesso('Link de acompanhamento salvo com sucesso!');
+      setLinkRastreioEditando(false);
+      setLinkRastreioInput('');
+      await carregarPedidos();
+      if (pedidoSelecionado) {
+        setPedidoSelecionado((prev: any) => prev ? { ...prev, link_rastreio: urlFinal, metadados: meta } : prev);
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar link de rastreio:', err);
+      mostrarErro('Erro ao salvar link de rastreio.');
+    } finally {
+      setSalvandoLinkRastreio(false);
+    }
+  };
+
   const handleCompartilharRastreioUber = (ped: Pedido) => {
     const pe = (ped as any).pedido_entrega || (ped as any).pedido_entregas?.[0];
     const link = ped.link_rastreio || pe?.link_rastreio;
@@ -2541,7 +2604,7 @@ export const PedidosLista: React.FC = () => {
                         );
                       })()}
 
-                      {(codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
+                      {Boolean(codigoRastreio || (prov === 'melhor_envio' && (despachadoEm || pedidoSelecionado.status === 'enviado'))) && (
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
                           <span className="text-slate-400">Código de Rastreio:</span>
                           {codigoRastreio ? (
@@ -2723,40 +2786,77 @@ export const PedidosLista: React.FC = () => {
                           );
                         }
 
-                        const ehUber =
+                        const ehAppEntrega =
                           prov === 'uber' ||
-                          (pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber')) ||
-                          (linkRastreio && (linkRastreio.includes('uber.com') || linkRastreio.includes('ubr.to')));
+                          pe?.tipo_operacao === 'app_entrega' ||
+                          Boolean(pe?.nome_app) ||
+                          Boolean((pedidoSelecionado as any)?.nome_app) ||
+                          Boolean(pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber')) ||
+                          Boolean(linkRastreio && (linkRastreio.includes('uber.com') || linkRastreio.includes('ubr.to')));
 
-                        return (
-                          <div className="pt-2">
-                            {ehUber && linkRastreio ? (
-                              <div className="space-y-2">
-                                <a
-                                  href={linkRastreio}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="w-full py-2.5 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+                        const ehAppOuManual =
+                          ehAppEntrega ||
+                          prov === 'frete_proprio' ||
+                          pe?.tipo_operacao === 'frota_propria' ||
+                          (!ehDespachoCorreios && !ehDespachoTransportadora && prov !== 'melhor_envio');
+
+                        if (ehAppOuManual) {
+                          const linkAtual = (linkRastreio || (pedidoSelecionado as any)?.metadados?.link_rastreio || pe?.link_rastreio || '').trim();
+
+                          const handleClicarRastrear = () => {
+                            if (linkAtual) {
+                              window.open(linkAtual, '_blank', 'noopener,noreferrer');
+                            } else {
+                              mostrarAviso('Link de acompanhamento não informado.');
+                              setLinkRastreioInput('');
+                              setLinkRastreioEditando(true);
+                            }
+                          };
+
+                          return (
+                            <div className="pt-2 space-y-2">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleClicarRastrear}
+                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
                                 >
-                                  <span>🚗 Acompanhar Motorista no Mapa ao Vivo</span>
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={sincronizandoUberId === pedidoSelecionado.id}
-                                    onClick={() => handleSincronizarUber(pedidoSelecionado)}
-                                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                                    title="Consultar e sincronizar status atual na Uber Direct"
-                                  >
-                                    <RefreshCw className={`w-3.5 h-3.5 ${sincronizandoUberId === pedidoSelecionado.id ? 'animate-spin' : ''}`} />
-                                    <span>{sincronizandoUberId === pedidoSelecionado.id ? 'Sincronizando...' : 'Sincronizar'}</span>
-                                  </button>
+                                  <Navigation className="w-4 h-4" />
+                                  <span>Rastrear</span>
+                                  {linkAtual && <ExternalLink className="w-3.5 h-3.5" />}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                  title="Imprimir Etiqueta Padrão HUBI"
+                                >
+                                  <Tag className="w-3.5 h-3.5" />
+                                  <span>Imprimir Etiqueta</span>
+                                </button>
+                              </div>
+
+                              {/* Ações adicionais se for Uber e possuir link */}
+                              {ehAppEntrega && linkAtual && (
+                                <div className="flex items-center gap-2 pt-1">
+                                  {prov === 'uber' && (
+                                    <button
+                                      type="button"
+                                      disabled={sincronizandoUberId === pedidoSelecionado.id}
+                                      onClick={() => handleSincronizarUber(pedidoSelecionado)}
+                                      className="flex-1 py-1.5 px-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                      title="Consultar e sincronizar status atual na Uber Direct"
+                                    >
+                                      <RefreshCw className={`w-3.5 h-3.5 ${sincronizandoUberId === pedidoSelecionado.id ? 'animate-spin' : ''}`} />
+                                      <span>{sincronizandoUberId === pedidoSelecionado.id ? 'Sincronizando...' : 'Sincronizar'}</span>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleCopiarRastreioUber(pedidoSelecionado)}
                                     className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                    title="Copiar link de rastreio da Uber"
+                                    title="Copiar link de rastreio"
                                   >
                                     <Copy className="w-3.5 h-3.5 text-slate-400" />
                                     <span>Copiar Link</span>
@@ -2771,56 +2871,94 @@ export const PedidosLista: React.FC = () => {
                                     <span>WhatsApp</span>
                                   </button>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
-                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition cursor-pointer"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                  <span>Acompanhar Rastreio em Tempo Real</span>
-                                </button>
+                              )}
 
-                                {(() => {
-                                  const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
-                                  const ehPdfValido = Boolean(
-                                    linkEtq &&
-                                    (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
-                                    !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
-                                    !linkEtq.includes('/painel/envios')
-                                  );
-
-                                  if (ehPdfValido) {
-                                    return (
-                                      <a
-                                        href={linkEtq}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
-                                        title="Imprimir Etiqueta Oficial (PDF)"
-                                      >
-                                        <Tag className="w-3.5 h-3.5" />
-                                        <span>Imprimir Etiqueta</span>
-                                      </a>
-                                    );
-                                  }
-
-                                  return (
+                              {/* Edição / Inserção inline de link de acompanhamento */}
+                              {linkRastreioEditando && (
+                                <div className="mt-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-slate-300">Inserir Link de Acompanhamento:</span>
                                     <button
                                       type="button"
-                                      onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                      onClick={() => setLinkRastreioEditando(false)}
+                                      className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="url"
+                                      value={linkRastreioInput}
+                                      onChange={e => setLinkRastreioInput(e.target.value)}
+                                      placeholder="https://..."
+                                      className="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={salvandoLinkRastreio || !linkRastreioInput.trim()}
+                                      onClick={() => handleSalvarLinkRastreio(pedidoSelecionado.id)}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+                                    >
+                                      {salvandoLinkRastreio ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                      <span>Salvar</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="pt-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition cursor-pointer"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Acompanhar Rastreio em Tempo Real</span>
+                              </button>
+
+                              {(() => {
+                                const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
+                                const ehPdfValido = Boolean(
+                                  linkEtq &&
+                                  (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
+                                  !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
+                                  !linkEtq.includes('/painel/envios')
+                                );
+
+                                if (ehPdfValido) {
+                                  return (
+                                    <a
+                                      href={linkEtq}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
-                                      title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                      title="Imprimir Etiqueta Oficial (PDF)"
                                     >
                                       <Tag className="w-3.5 h-3.5" />
                                       <span>Imprimir Etiqueta</span>
-                                    </button>
+                                    </a>
                                   );
-                                })()}
-                              </div>
-                            )}
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition cursor-pointer"
+                                    title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                  >
+                                    <Tag className="w-3.5 h-3.5" />
+                                    <span>Imprimir Etiqueta</span>
+                                  </button>
+                                );
+                              })()}
+                            </div>
                           </div>
                         );
                       })()}
@@ -3046,7 +3184,7 @@ export const PedidosLista: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => handleCompartilharWhatsApp(pedidoSelecionado)}
+                    onClick={() => handleCompartilharReciboWhatsApp(pedidoSelecionado)}
                     className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
                     title="Enviar recibo pelo WhatsApp"
                   >
@@ -3240,7 +3378,6 @@ export const PedidosLista: React.FC = () => {
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[120px]">Status Pedido</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Status Pagamento</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[115px]">Data Vencimento</th>
-                    <th className="py-2.5 px-2 font-semibold text-center min-w-[120px]">Etiqueta Envio</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Ações</th>
                   </tr>
                 </thead>
@@ -3368,64 +3505,6 @@ export const PedidosLista: React.FC = () => {
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
-                          {(() => {
-                            const { prov, pe, isRetirada } = resolverProvedorEntrega(pedido);
-                            const temEtiqueta =
-                              pedido.status !== 'cancelado' &&
-                              !isRetirada &&
-                              (prov === 'melhor_envio' ||
-                               prov === 'uber' ||
-                               pe?.provedor === 'uber' ||
-                               pe?.tipo_operacao === 'correios' ||
-                               pe?.tipo_operacao === 'transportadora' ||
-                               pe?.servico_correios ||
-                               pe?.nome_transportadora ||
-                               pedido.servico_correios ||
-                               pedido.nome_transportadora ||
-                               Boolean(pedido.endereco_entrega) ||
-                               (pedido as any).tipo_entrega === 'envio');
-
-                            if (temEtiqueta) {
-                              const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
-                              const ehPdfValido = Boolean(
-                                ehUrlEtiquetaValida(linkEtqOficial) &&
-                                (linkEtqOficial.toLowerCase().endsWith('.pdf') || linkEtqOficial.toLowerCase().includes('.pdf?') || linkEtqOficial.startsWith('blob:')) &&
-                                !linkEtqOficial.includes('sandbox.melhorenvio.com.br/imprimir') &&
-                                !linkEtqOficial.includes('/painel/envios')
-                              );
-
-                              if (ehPdfValido) {
-                                return (
-                                  <a
-                                    href={linkEtqOficial}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition cursor-pointer"
-                                    title="Abrir Etiqueta Oficial em PDF"
-                                  >
-                                    <Tag className="w-3 h-3" />
-                                    <span>Etiqueta</span>
-                                  </a>
-                                );
-                              }
-
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => setPedidoEtiquetaModal(pedido)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 transition cursor-pointer"
-                                  title="Imprimir Etiqueta Térmica Padrão HUBI"
-                                >
-                                  <Tag className="w-3 h-3" />
-                                  <span>Etiqueta</span>
-                                </button>
-                              );
-                            }
-                            return <span className="text-slate-600 font-mono text-xs">-</span>;
-                          })()}
-                        </td>
-
-                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             {pedido.status === 'cancelado' ? (
                               <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30">
@@ -3544,11 +3623,23 @@ export const PedidosLista: React.FC = () => {
                                   /* ETAPA 3: Concluir Pedido com ações de rastreio ao vivo para Uber */
                                   <div className="flex items-center gap-1">
                                     {(() => {
-                                      const { prov, pe, provNome } = resolverProvedorEntrega(pedido);
+                                      const { prov, pe, provNome, isRetirada } = resolverProvedorEntrega(pedido);
                                       const link = (pedido.link_rastreio || pe?.link_rastreio || '').trim();
                                       const cod = (pedido.codigo_rastreio || pe?.codigo_rastreio || '').trim();
-                                      const linkEtqOficial = pe?.link_etiqueta || (pedido as any)?.link_etiqueta || (pedido as any)?.metadados?.link_etiqueta;
-                                      const ehEtiquetaValida = ehUrlEtiquetaValida(linkEtqOficial);
+
+                                      const temEtiqueta =
+                                        !isRetirada &&
+                                        (prov === 'melhor_envio' ||
+                                         prov === 'uber' ||
+                                         pe?.provedor === 'uber' ||
+                                         pe?.tipo_operacao === 'correios' ||
+                                         pe?.tipo_operacao === 'transportadora' ||
+                                         pe?.servico_correios ||
+                                         pe?.nome_transportadora ||
+                                         pedido.servico_correios ||
+                                         pedido.nome_transportadora ||
+                                         Boolean(pedido.endereco_entrega) ||
+                                         (pedido as any).tipo_entrega === 'envio');
 
                                       const ehTranspManual =
                                         prov !== 'melhor_envio' &&
@@ -3566,50 +3657,6 @@ export const PedidosLista: React.FC = () => {
                                         Boolean(pedido.servico_correios || pe?.servico_correios) ||
                                         detectarServicoPorCodigo(cod) !== null);
 
-                                      // 1. Se possuir etiqueta oficial válida gerada (Melhor Envio / Transportadora)
-                                      if (ehEtiquetaValida) {
-                                        return (
-                                          <a
-                                            href={linkEtqOficial}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition cursor-pointer active:scale-95"
-                                            title="Abrir Etiqueta de Envio"
-                                          >
-                                            <Tag className="w-3.5 h-3.5" />
-                                            <span>Etiqueta</span>
-                                          </a>
-                                        );
-                                      }
-
-                                      if (ehTranspManual && cod) {
-                                        return (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleRastrearTransportadora(pedido)}
-                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
-                                            title="Rastrear envio na Transportadora"
-                                          >
-                                            <ExternalLink className="w-3.5 h-3.5" />
-                                            <span>Rastrear</span>
-                                          </button>
-                                        );
-                                      }
-
-                                      if (ehCorreios && cod) {
-                                        return (
-                                          <button
-                                            type="button"
-                                            onClick={() => setPedidoRastreioModal(pedido)}
-                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
-                                            title="Rastrear envio nos Correios"
-                                          >
-                                            <Package className="w-3.5 h-3.5" />
-                                            <span>Rastrear</span>
-                                          </button>
-                                        );
-                                      }
-
                                       const ehUber =
                                         !ehCorreios &&
                                         (prov === 'uber' ||
@@ -3617,34 +3664,71 @@ export const PedidosLista: React.FC = () => {
                                         link.includes('uber.com') ||
                                         link.includes('ubr.to'));
 
-                                      if (ehUber && (link || cod)) {
-                                        return (
-                                          <>
-                                            {link && ehUrlEtiquetaValida(link) && (
-                                              <a
-                                                href={link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
-                                                title="Abrir mapa de rastreio ao vivo da Uber Direct"
-                                              >
-                                                <Navigation className="w-3 h-3" />
-                                                <span>Rastrear</span>
-                                                <ExternalLink className="w-3 h-3" />
-                                              </a>
-                                            )}
+                                      return (
+                                        <>
+                                          {temEtiqueta && (
                                             <button
                                               type="button"
-                                              onClick={() => handleCompartilharRastreioUber(pedido)}
-                                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
-                                              title="Enviar link de rastreio da Uber no WhatsApp"
+                                              onClick={() => setPedidoEtiquetaModal(pedido)}
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                              title="Imprimir Etiqueta de Envio"
                                             >
-                                              <MessageCircle className="w-3.5 h-3.5" />
+                                              <Tag className="w-3.5 h-3.5" />
+                                              <span>Etiqueta</span>
                                             </button>
-                                          </>
-                                        );
-                                      }
-                                      return null;
+                                          )}
+
+                                          {ehTranspManual && cod && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleRastrearTransportadora(pedido)}
+                                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
+                                              title="Rastrear envio na Transportadora"
+                                            >
+                                              <ExternalLink className="w-3.5 h-3.5" />
+                                              <span>Rastrear</span>
+                                            </button>
+                                          )}
+
+                                          {ehCorreios && cod && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setPedidoRastreioModal(pedido)}
+                                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
+                                              title="Rastrear envio nos Correios"
+                                            >
+                                              <Package className="w-3.5 h-3.5" />
+                                              <span>Rastrear</span>
+                                            </button>
+                                          )}
+
+                                          {ehUber && (link || cod) && (
+                                            <>
+                                              {link && ehUrlEtiquetaValida(link) && (
+                                                <a
+                                                  href={link}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition cursor-pointer active:scale-95 border border-emerald-400"
+                                                  title="Abrir mapa de rastreio ao vivo da Uber Direct"
+                                                >
+                                                  <Navigation className="w-3 h-3" />
+                                                  <span>Rastrear</span>
+                                                  <ExternalLink className="w-3 h-3" />
+                                                </a>
+                                              )}
+                                              <button
+                                                type="button"
+                                                onClick={() => handleCompartilharRastreioUber(pedido)}
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
+                                                title="Enviar link de rastreio da Uber no WhatsApp"
+                                              >
+                                                <MessageCircle className="w-3.5 h-3.5" />
+                                              </button>
+                                            </>
+                                          )}
+                                        </>
+                                      );
                                     })()}
                                     <button
                                       type="button"

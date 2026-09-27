@@ -53,6 +53,7 @@ const AppRotasInternas: React.FC = () => {
 
       {/* Rota Pública do Recibo Digital Oficial */}
       <Route path="/recibo/:id" element={<ReciboPublico />} />
+      <Route path="/recibo-publico/:id" element={<ReciboPublico />} />
 
       {/* Rotas Internas do HUBI */}
       <Route path="/" element={<AppLayout />}>

@@ -273,8 +273,22 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
     const entContato = (pe?.contato_entregador || (pedido as any)?.contato_entregador || '').trim();
 
     // Link e corrida
-    const linkRastreio = (pe?.link_rastreio || pedido?.link_rastreio || (pedido as any)?.link_rastreio || '').trim();
-    const codCorrida = (pe?.codigo_corrida || (pedido as any)?.codigo_corrida || '').trim();
+    const linkRastreio = (
+      pe?.link_rastreio ||
+      pedido?.link_rastreio ||
+      (pedido as any)?.link_rastreio ||
+      (pedido as any)?.metadados?.link_rastreio ||
+      ''
+    ).trim();
+    const codCorrida = (
+      pe?.codigo_corrida ||
+      (pedido as any)?.codigo_corrida ||
+      (pedido as any)?.metadados?.codigo_corrida ||
+      ''
+    ).trim();
+
+    setCodigoCorrida(codCorrida);
+    setLinkRastreioApp(linkRastreio);
 
     // Identificação da modalidade
     const ehTransp =

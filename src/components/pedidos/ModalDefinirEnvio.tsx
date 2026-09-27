@@ -167,6 +167,19 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             onSolicitarAtualizarEndereco={() => {
               setModalEnderecoAberto(true);
             }}
+            dadosEnvioIniciais={(() => {
+              const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
+              const meta = (pedido as any).metadados || {};
+              return {
+                formaEntregaId: pe?.forma_entrega_id || (pedido as any).forma_entrega_id || null,
+                codigoCorrida: pe?.codigo_corrida || (pedido as any).codigo_corrida || meta.codigo_corrida || null,
+                linkRastreio: pe?.link_rastreio || (pedido as any).link_rastreio || meta.link_rastreio || null,
+                codigoRastreio: pe?.codigo_rastreio || (pedido as any).codigo_rastreio || meta.codigo_rastreio || null,
+                pinEntrega: pe?.pin_entrega || (pedido as any).pin_entrega || meta.pin_entrega || null,
+                nomeEntregador: pe?.entregador_nome || pe?.nome_entregador || (pedido as any).nome_entregador || null,
+                telefoneEntregador: pe?.contato_entregador || pe?.telefone_entregador || (pedido as any).telefone_entregador || null
+              };
+            })()}
             onChange={(resultado: ShippingSelectionResult) => {
               // Apenas armazena a seleção no estado local do modal; JAMAIS fecha ou salva automaticamente!
               setSelecaoPendente(resultado);
