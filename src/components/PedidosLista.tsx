@@ -4099,47 +4099,47 @@ export const PedidosLista: React.FC = () => {
         const valorTotal = Number(pedidoReciboModal.valor_total || 0);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-            <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80 shrink-0">
-                <h3 className="text-sm font-bold text-slate-100">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+            <div className="w-full max-w-lg bg-[#0f172a] border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl shadow-black/80 flex flex-col max-h-[90vh]">
+              <div className="p-4 border-b border-slate-700/80 flex items-center justify-between bg-slate-900/90 shrink-0">
+                <h3 className="text-sm font-bold text-white">
                   Recibo #{pedidoReciboModal.numero_pedido}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setPedidoReciboModal(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-950/90 flex justify-center items-start custom-scrollbar">
-                <div className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 pb-8 sm:p-6 sm:pb-8 shadow-2xl border border-slate-300 font-mono text-xs space-y-3 min-h-fit mb-6">
+                <div className="w-full max-w-sm bg-[#1e293b]/70 text-slate-200 rounded-xl p-4 sm:p-5 shadow-xl border border-slate-700/60 font-mono text-xs space-y-3.5 min-h-fit mb-6">
                   {/* Logo e Cabeçalho do Recibo */}
-                  <div className="text-center space-y-1 border-b border-slate-300 border-dashed pb-3">
+                  <div className="text-center space-y-1 border-b border-slate-700/60 border-dashed pb-3">
                     {logoLojaUrl ? (
                       <img src={logoLojaUrl} alt="Logo" className="h-10 max-w-[160px] object-contain mx-auto mb-2" />
                     ) : (
-                      <Store className="w-8 h-8 text-slate-700 mx-auto mb-1" />
+                      <Store className="w-8 h-8 text-slate-400 mx-auto mb-1" />
                     )}
-                    <h4 className="font-black text-sm text-slate-950 uppercase">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
-                    <p className="text-[11px] text-slate-600">{enderecoLojaFormatado}</p>
-                    <p className="text-[11px] text-slate-600">{loja?.whatsapp || loja?.telefone}</p>
+                    <h4 className="font-bold text-sm text-white uppercase tracking-wider">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
+                    <p className="text-[11px] text-slate-400">{enderecoLojaFormatado}</p>
+                    <p className="text-[11px] text-slate-400">{loja?.whatsapp || loja?.telefone}</p>
                   </div>
 
                   {/* Número e Data */}
-                  <div className="flex justify-between items-center text-[11px] text-slate-600 border-b border-slate-200 border-dashed pb-2">
-                    <span className="font-bold text-slate-900">RECIBO #{pedidoReciboModal.numero_pedido}</span>
+                  <div className="flex justify-between items-center text-[11px] text-slate-400 border-b border-slate-700/60 border-dashed pb-2">
+                    <span className="font-bold text-white">RECIBO #{pedidoReciboModal.numero_pedido}</span>
                     <span>{formatarData(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em || '')}</span>
                   </div>
 
                   {/* Vendedor / Canal (Antes do Cliente) */}
-                  <div className="space-y-0.5 border-b border-slate-300 border-dashed pb-2 text-[11px]">
-                    <span className="text-slate-500 font-semibold">
+                  <div className="space-y-0.5 border-b border-slate-700/60 border-dashed pb-2 text-[11px]">
+                    <span className="text-slate-400 font-semibold">
                       {pedidoReciboModal.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
                     </span>
-                    <p className="font-bold text-slate-900">
+                    <p className="font-bold text-white">
                       {pedidoReciboModal.origem === 'catalogo_online'
                         ? 'Catálogo Online (Pedido Online)'
                         : pedidoReciboModal.vendedor?.nome_completo || 'Caixa / Balcão'}
@@ -4147,48 +4147,48 @@ export const PedidosLista: React.FC = () => {
                   </div>
 
                   {/* Cliente */}
-                  <div className="space-y-0.5 border-b border-slate-300 border-dashed pb-2 text-[11px]">
-                    <span className="text-slate-500 font-semibold">Cliente:</span>
-                    <p className="font-bold text-slate-900">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
-                    {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-600">{pedidoReciboModal.cliente.whatsapp}</p>}
+                  <div className="space-y-0.5 border-b border-slate-700/60 border-dashed pb-2 text-[11px]">
+                    <span className="text-slate-400 font-semibold">Cliente:</span>
+                    <p className="font-bold text-white">{pedidoReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
+                    {pedidoReciboModal.cliente?.whatsapp && <p className="text-slate-300">{pedidoReciboModal.cliente.whatsapp}</p>}
                   </div>
 
                   {/* Forma de Entrega & Endereço */}
-                  <div className="p-2.5 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
+                  <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 text-[11px] space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-700 uppercase">Forma de Entrega:</span>
+                      <span className="font-bold text-slate-300 uppercase text-[10px] tracking-wider">Forma de Entrega:</span>
                       <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
                         {formaEntregaTexto}
                       </span>
                     </div>
-                    <div className="text-slate-600 pt-0.5">
-                      <strong className="text-slate-800">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
-                      <span>{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+                    <div className="text-slate-300 pt-0.5">
+                      <strong className="text-white">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
+                      <span className="text-slate-200">{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
                     </div>
                     {(pe?.codigo_corrida || (pedidoReciboModal as any)?.codigo_corrida) && (
-                      <div className="text-emerald-700 font-bold pt-0.5">
+                      <div className="text-emerald-400 font-bold pt-0.5">
                         Código da Corrida: {pe?.codigo_corrida || (pedidoReciboModal as any)?.codigo_corrida}
                       </div>
                     )}
                     {pe?.codigo_rastreio && (
-                      <div className="text-emerald-700 font-bold pt-0.5">
+                      <div className="text-emerald-400 font-bold pt-0.5">
                         Rastreio: {pe.codigo_rastreio}
                       </div>
                     )}
                   </div>
 
                   {/* Itens */}
-                  <div className="space-y-2 border-b border-slate-300 border-dashed pb-2">
-                    <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px] block">
+                  <div className="space-y-2 border-b border-slate-700/60 border-dashed pb-2">
+                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block">
                       Itens ({calcularTotalItens(pedidoReciboModal)} un)
                     </span>
                     {pedidoReciboModal.itens?.map((item, idx) => (
-                      <div key={idx} className="flex justify-between py-0.5 text-slate-800">
+                      <div key={idx} className="flex justify-between py-0.5 text-slate-200">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900">{item.quantidade}x</span>
-                          <span className="text-slate-800">{item.nome_produto}</span>
+                          <span className="font-bold text-white">{item.quantidade}x</span>
+                          <span className="text-slate-200">{item.nome_produto}</span>
                         </div>
-                        <span className="font-bold text-slate-900 whitespace-nowrap pl-2">
+                        <span className="font-bold text-white whitespace-nowrap pl-2">
                           R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
                         </span>
                       </div>
@@ -4196,24 +4196,24 @@ export const PedidosLista: React.FC = () => {
                   </div>
 
                   {/* Fechamento Financeiro */}
-                  <div className="space-y-1.5 text-xs text-slate-700">
-                    <div className="flex justify-between text-slate-800">
+                  <div className="space-y-1.5 text-xs text-slate-300">
+                    <div className="flex justify-between text-slate-300">
                       <span>Subtotal dos Produtos:</span>
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-semibold text-white">
                         R$ {subtotalProdutos.toFixed(2)}
                       </span>
                     </div>
 
                     {valorDesconto > 0 && (
-                      <div className="flex justify-between text-red-600 font-bold">
+                      <div className="flex justify-between text-rose-400 font-bold">
                         <span>Desconto Aplicado:</span>
                         <span>- R$ {valorDesconto.toFixed(2)}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between text-slate-800">
+                    <div className="flex justify-between text-slate-300">
                       <span>Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
-                      <span className="font-semibold text-slate-900">
+                      <span className="font-semibold text-white">
                         {valorFrete > 0 
                           ? `+ R$ ${valorFrete.toFixed(2)}` 
                           : ehRetirada 
@@ -4222,48 +4222,48 @@ export const PedidosLista: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="border-t border-dashed border-slate-300 pt-2 my-1"></div>
+                    <div className="border-t border-dashed border-slate-700/60 pt-2 my-1"></div>
 
-                    <div className="flex justify-between items-center text-sm font-black text-slate-950 pt-0.5">
+                    <div className="flex justify-between items-center text-sm font-bold text-white pt-0.5">
                       <span>VALOR TOTAL:</span>
-                      <span className="text-base font-black">R$ {valorTotal.toFixed(2)}</span>
+                      <span className="text-lg font-black text-white">R$ {valorTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
                   {/* Dados do Pagamento (Após o Valor Total) */}
                   {pagInfo.ehFiado && Number(pedidoReciboModal.saldo_devedor || 0) > 0 && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center space-y-0.5">
-                      <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                      <span className="text-sm font-black text-red-600 block">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
-                      <span className="text-[11px] font-bold text-red-700 block pt-0.5">
+                    <div className="mt-2.5 p-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-center space-y-0.5">
+                      <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                      <span className="text-sm font-black text-rose-400 block">R$ {Number(pedidoReciboModal.saldo_devedor).toFixed(2)}</span>
+                      <span className="text-[11px] font-bold text-rose-300 block pt-0.5">
                         Data de Vencimento: {obterInfoVencimentoFiado(pedidoReciboModal).formatada}
                       </span>
                     </div>
                   )}
 
-                  <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                    <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-300">
-                      <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
-                      <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                  <div className="mt-3 p-3 rounded-xl border border-slate-700/50 bg-slate-800/80 space-y-2 text-xs">
+                    <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-700/60">
+                      <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Status Pagamento:</span>
+                      <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pagInfo.foiPago ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
                         {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                       </span>
                     </div>
                     {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
-                      <div className="space-y-1.5 pt-1.5 text-slate-800">
+                      <div className="space-y-1.5 pt-1 text-slate-300">
                         {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                           <div key={idx} className="flex justify-between items-start text-[11px]">
                             <div>
-                              <span className="font-bold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
+                              <span className="font-semibold text-white block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
                               {pag.origemGateway && (
-                                <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
+                                <span className="text-[10px] text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
                               )}
                             </div>
-                            <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                            <span className="font-bold text-white">R$ {pag.valor.toFixed(2)}</span>
                           </div>
                         ))}
-                        <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
-                          <span>Valor Pago:</span>
-                          <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-700/60 text-xs">
+                          <span className="text-slate-300 font-medium">Valor Pago:</span>
+                          <span className="text-emerald-400 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
                         </div>
                       </div>
                     ) : null}
@@ -4276,7 +4276,7 @@ export const PedidosLista: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalConfigurarReciboAberto(true)}
-                  className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                  className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold inline-flex items-center gap-1.5 cursor-pointer transition"
                 >
                   <Edit className="w-3.5 h-3.5" />
                   <span>Editar meu recibo</span>
@@ -4286,7 +4286,7 @@ export const PedidosLista: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, '80mm')}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition border border-slate-700 shadow cursor-pointer"
                   >
                     Térmica 58/80mm
                   </button>
@@ -4294,7 +4294,7 @@ export const PedidosLista: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, 'a4')}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition shadow cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition shadow cursor-pointer"
                   >
                     Imprimir A4
                   </button>

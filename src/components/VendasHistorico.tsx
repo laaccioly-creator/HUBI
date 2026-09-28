@@ -1358,7 +1358,7 @@ export const VendasHistorico: React.FC = () => {
       {/* MODAL DE RECIBO DA VENDA (TELA006) */}
       {vendaReciboModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="bg-[#0f172a] border border-slate-700/80 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl shadow-black/80 animate-in zoom-in-95 duration-150">
             {/* Topo do Recibo */}
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
               <div className="flex items-center gap-2">
@@ -1382,7 +1382,7 @@ export const VendasHistorico: React.FC = () => {
 
             {/* Cupom/Recibo Formatado */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-8 space-y-4 custom-scrollbar">
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-slate-200 text-xs space-y-3 shadow-inner">
+              <div className="bg-[#1e293b]/70 p-4 sm:p-5 rounded-xl border border-slate-700/60 text-slate-200 text-xs space-y-3 shadow-xl">
                 {loja?.url_logo && (
                   <div className="text-center pb-1">
                     <img
@@ -1493,53 +1493,56 @@ export const VendasHistorico: React.FC = () => {
                   </div>
                 )}
 
-                <div className="text-right text-sm font-bold text-slate-100">
-                  Total: R$ {Number(vendaReciboModal.valor_total).toFixed(2)}
+                <div className="border-t border-dashed border-slate-700/60 pt-2 my-1"></div>
+
+                <div className="flex justify-between items-center text-sm font-bold text-white pt-0.5">
+                  <span>VALOR TOTAL:</span>
+                  <span className="text-lg font-black text-white">R$ {Number(vendaReciboModal.valor_total).toFixed(2)}</span>
                 </div>
 
                 {/* Dados do Pagamento (Após o Valor Total) */}
                 {(() => {
-                  const pagInfo = obterDadosPagamentoRecibo(vendaReciboModal);
+                  const pagInfo =  obterDadosPagamentoRecibo(vendaReciboModal);
                   return (
                     <>
                       {pagInfo.ehFiado && Number(vendaReciboModal.saldo_devedor) > 0 && (
-                        <div className="mt-2 p-2 bg-amber-950/40 border border-amber-500/30 rounded-lg text-center space-y-0.5">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                          <span className="text-sm font-black text-amber-300">R$ {Number(vendaReciboModal.saldo_devedor).toFixed(2)}</span>
+                        <div className="mt-2.5 p-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-center space-y-0.5">
+                          <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                          <span className="text-sm font-black text-rose-400 block">R$ {Number(vendaReciboModal.saldo_devedor).toFixed(2)}</span>
                           {obterInfoVencimentoFiado(vendaReciboModal).temVencimento && (
-                            <span className="text-[11px] font-bold text-amber-400 block pt-0.5">
+                            <span className="text-[11px] font-bold text-rose-300 block pt-0.5">
                               Data de Vencimento: {obterInfoVencimentoFiado(vendaReciboModal).formatada}
                             </span>
                           )}
                         </div>
                       )}
 
-                      <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-amber-950/30 border-amber-500/30'}`}>
-                        <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-700">
-                        <span className="font-bold text-[10px] text-slate-400 uppercase">Status Pagamento:</span>
-                        <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                          {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
-                        </span>
-                      </div>
-                      {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
-                        <div className="space-y-1.5 pt-1.5 text-slate-300">
-                          {pagInfo.pagamentosDetalhados.map((pag, idx) => (
-                            <div key={idx} className="flex justify-between items-start text-[11px]">
-                              <div>
-                                <span className="font-bold text-slate-100 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
-                                {pag.origemGateway && (
-                                  <span className="text-[10px] text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
-                                )}
-                              </div>
-                              <span className="font-bold text-slate-100">R$ {pag.valor.toFixed(2)}</span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between font-extrabold text-emerald-400 pt-1.5 border-t border-emerald-500/20 text-xs">
-                            <span>Valor Pago:</span>
-                            <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
-                          </div>
+                      <div className="mt-3 p-3 rounded-xl border border-slate-700/50 bg-slate-800/80 space-y-2 text-xs">
+                        <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-700/60">
+                          <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Status Pagamento:</span>
+                          <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pagInfo.foiPago ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+                            {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                          </span>
                         </div>
-                      ) : null}
+                        {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+                          <div className="space-y-1.5 pt-1 text-slate-300">
+                            {pagInfo.pagamentosDetalhados.map((pag, idx) => (
+                              <div key={idx} className="flex justify-between items-start text-[11px]">
+                                <div>
+                                  <span className="font-semibold text-white block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
+                                  {pag.origemGateway && (
+                                    <span className="text-[10px] text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
+                                  )}
+                                </div>
+                                <span className="font-bold text-white">R$ {pag.valor.toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between items-center pt-2 border-t border-slate-700/60 text-xs">
+                              <span className="text-slate-300 font-medium">Valor Pago:</span>
+                              <span className="text-emerald-400 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </>
                   );
