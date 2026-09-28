@@ -4100,8 +4100,8 @@ export const PedidosLista: React.FC = () => {
 
         return (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-            <div className="w-full max-w-lg bg-[#0f172a] border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl shadow-black/80 flex flex-col max-h-[90vh]">
-              <div className="p-4 border-b border-slate-700/80 flex items-center justify-between bg-slate-900/90 shrink-0">
+            <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-4 border-b border-slate-700/80 flex items-center justify-between bg-slate-900 shrink-0">
                 <h3 className="text-sm font-bold text-white">
                   Recibo #{pedidoReciboModal.numero_pedido}
                 </h3>
@@ -4114,8 +4114,8 @@ export const PedidosLista: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-950/90 flex justify-center items-start custom-scrollbar">
-                <div className="w-full max-w-sm bg-[#1e293b]/70 text-slate-200 rounded-xl p-4 sm:p-5 shadow-xl border border-slate-700/60 font-mono text-xs space-y-3.5 min-h-fit mb-6">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-900 flex justify-center items-start custom-scrollbar">
+                <div className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/70 font-mono text-xs space-y-3.5 min-h-fit mb-6">
                   {/* Logo e Cabeçalho do Recibo */}
                   <div className="text-center space-y-1 border-b border-slate-700/60 border-dashed pb-3">
                     {logoLojaUrl ? (
@@ -4272,7 +4272,7 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Footer do Modal de Recibo com Ações e Link "Editar meu recibo" (TELA007 / TELA010) */}
-              <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setModalConfigurarReciboAberto(true)}
@@ -4286,17 +4286,19 @@ export const PedidosLista: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, '80mm')}
-                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition border border-slate-700 shadow cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
                   >
-                    Térmica 58/80mm
+                    <Printer className="w-3.5 h-3.5 text-white" />
+                    <span>Térmica 58/80mm</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, 'a4')}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition shadow cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
                   >
-                    Imprimir A4
+                    <Printer className="w-3.5 h-3.5 text-white" />
+                    <span>Imprimir A4</span>
                   </button>
                 </div>
               </div>

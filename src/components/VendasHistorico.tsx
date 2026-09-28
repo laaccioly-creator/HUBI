@@ -1358,9 +1358,9 @@ export const VendasHistorico: React.FC = () => {
       {/* MODAL DE RECIBO DA VENDA (TELA006) */}
       {vendaReciboModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-[#0f172a] border border-slate-700/80 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl shadow-black/80 animate-in zoom-in-95 duration-150">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
             {/* Topo do Recibo */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <Receipt className="w-4 h-4" />
@@ -1381,8 +1381,8 @@ export const VendasHistorico: React.FC = () => {
             </div>
 
             {/* Cupom/Recibo Formatado */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-8 space-y-4 custom-scrollbar">
-              <div className="bg-[#1e293b]/70 p-4 sm:p-5 rounded-xl border border-slate-700/60 text-slate-200 text-xs space-y-3 shadow-xl">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-8 space-y-4 bg-slate-900 custom-scrollbar">
+              <div className="bg-black p-5 rounded-xl border border-slate-700/70 text-slate-200 text-xs space-y-3 shadow-2xl">
                 {loja?.url_logo && (
                   <div className="text-center pb-1">
                     <img
@@ -1562,18 +1562,18 @@ export const VendasHistorico: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => PrintService.printReceipt(vendaReciboModal, loja, '80mm')}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  className="py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
                 >
-                  <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                  <Printer className="w-3.5 h-3.5 text-white" />
                   <span className="truncate">Térmica 58/80mm</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => PrintService.printReceipt(vendaReciboModal, loja, 'a4')}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                  className="py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
                 >
-                  <Printer className="w-3.5 h-3.5 text-indigo-400" />
+                  <Printer className="w-3.5 h-3.5 text-white" />
                   <span className="truncate">Imprimir A4</span>
                 </button>
 

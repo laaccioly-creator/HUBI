@@ -150,8 +150,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="w-full max-w-lg bg-[#0f172a] border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl shadow-black/80 flex flex-col max-h-[90vh]">
-        <div className="p-4 border-b border-slate-700/80 flex items-center justify-between bg-slate-900/90 shrink-0">
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-4 border-b border-slate-700/80 flex items-center justify-between bg-slate-900 shrink-0">
           <h3 className="text-sm font-bold text-white">
             Recibo #{pedido.numero_pedido}
           </h3>
@@ -164,26 +164,26 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-950/90 flex justify-center items-start custom-scrollbar">
-          <div className="w-full max-w-sm bg-[#1e293b]/70 text-slate-200 rounded-xl p-4 sm:p-5 shadow-xl border border-slate-700/60 font-mono text-xs space-y-3.5 min-h-fit mb-6">
-            <div className="text-center space-y-1 border-b border-slate-700/60 border-dashed pb-3">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-900 flex justify-center items-start custom-scrollbar">
+          <div className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/70 font-mono text-xs space-y-3.5 min-h-fit mb-6">
+            <div className="text-center space-y-1 border-b border-slate-700/70 border-dashed pb-3">
               <Store className="w-8 h-8 text-slate-400 mx-auto mb-1" />
               <h4 className="font-bold text-sm text-white uppercase tracking-wider">{loja?.nome_fantasia || loja?.nome || 'HUBI PDV'}</h4>
-              <p className="text-[11px] text-slate-400">Comprovante de Pedido / Venda</p>
-              <p className="text-[10px] text-slate-500">{formatarDataRecibo(pedido.criado_em)}</p>
+              <p className="text-[11px] text-slate-300">Comprovante de Pedido / Venda</p>
+              <p className="text-[10px] text-slate-400">{formatarDataRecibo(pedido.criado_em)}</p>
             </div>
 
-            <div className="space-y-1 text-xs border-b border-slate-700/60 border-dashed pb-2">
+            <div className="space-y-1 text-xs border-b border-slate-700/70 border-dashed pb-2">
               <div className="flex justify-between">
-                <span className="text-slate-400">Pedido:</span>
+                <span className="text-slate-300">Pedido:</span>
                 <span className="font-bold text-white">#{pedido.numero_pedido}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Cliente:</span>
+                <span className="text-slate-300">Cliente:</span>
                 <span className="font-bold text-white">{pedido.cliente?.nome || 'Consumidor Final'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Forma de Entrega:</span>
+                <span className="text-slate-300">Forma de Entrega:</span>
                 <span className="font-bold text-white">{ehRetirada ? 'Retirada na Loja' : formaEntregaTexto}</span>
               </div>
               {codigoCorrida && (
@@ -201,13 +201,13 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             </div>
 
             {/* Itens */}
-            <div className="space-y-1.5 border-b border-slate-700/60 border-dashed pb-3">
+            <div className="space-y-1.5 border-b border-slate-700/70 border-dashed pb-3">
               {(pedido.itens || []).map((item: any, idx: number) => (
                 <div key={idx} className="flex justify-between text-xs">
-                  <span className="truncate pr-2 text-slate-300">
-                    {item.quantidade}x {item.nome_produto || item.produto?.nome || 'Produto'}
+                  <span className="truncate pr-2 text-slate-200">
+                    <strong className="text-white font-bold">{item.quantidade}x</strong> {item.nome_produto || item.produto?.nome || 'Produto'}
                   </span>
-                  <span className="font-semibold text-white shrink-0">
+                  <span className="font-bold text-white shrink-0">
                     R$ {(Number(item.quantidade || 1) * Number(item.preco_venda_unitario || item.preco_unitario || 0)).toFixed(2)}
                   </span>
                 </div>
@@ -217,7 +217,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             {/* Totais */}
             <div className="space-y-1.5 text-xs text-slate-300">
               <div className="flex justify-between">
-                <span className="text-slate-400">Subtotal dos Produtos:</span>
+                <span className="text-slate-300">Subtotal dos Produtos:</span>
                 <span className="font-semibold text-white">R$ {subtotalProdutos.toFixed(2)}</span>
               </div>
 
@@ -230,7 +230,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
               {!ehRetirada && (
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Frete ({formaEntregaTexto}):</span>
+                  <span className="text-slate-300">Frete ({formaEntregaTexto}):</span>
                   <span className="font-semibold text-white">
                     {valorFrete > 0
                       ? `+ R$ ${valorFrete.toFixed(2)}`
@@ -239,7 +239,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </div>
               )}
 
-              <div className="border-t border-dashed border-slate-700/60 pt-2 my-1"></div>
+              <div className="border-t border-dashed border-slate-700/70 pt-2 my-1"></div>
 
               {/* CORREÇÃO CRÍTICA DO VALOR TOTAL */}
               <div className="flex justify-between items-center text-sm font-bold text-white pt-0.5">
@@ -251,15 +251,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             {/* Status e Discriminação do Pagamento */}
             {pagInfo.ehFiado && Number(pedido.saldo_devedor) > 0 && (
               <div className="p-2.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-center space-y-0.5">
-                <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                <span className="text-sm font-black text-rose-300">R$ {Number(pedido.saldo_devedor).toFixed(2)}</span>
+                <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                <span className="text-sm font-black text-rose-400">R$ {Number(pedido.saldo_devedor).toFixed(2)}</span>
               </div>
             )}
 
-            {/* CARD INFERIOR DE PAGAMENTO: FIM DO VERDE SOBRE VERDE */}
-            <div className="mt-3 p-3 rounded-xl border border-slate-700/50 bg-slate-800/80 space-y-2 text-xs">
-              <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-700/60">
-                <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Status Pagamento:</span>
+            {/* CARD INFERIOR DE PAGAMENTO */}
+            <div className="mt-3 p-3 rounded-xl border border-slate-800 bg-[#0d131f] space-y-2 text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-800">
+                <span className="font-bold text-[10px] text-slate-300 uppercase tracking-wider">Status Pagamento:</span>
                 <span className={`font-semibold text-[10px] px-2 py-0.5 rounded border ${
                   pagInfo.foiPago
                     ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
@@ -281,7 +281,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                       <span className="font-bold text-white">R$ {pag.valor.toFixed(2)}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-slate-700/60">
+                  <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-slate-800">
                     <span className="text-slate-300">Valor Pago:</span>
                     <span className="text-emerald-400 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
                   </div>
@@ -290,7 +290,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             </div>
 
             {obsLimpa && (
-              <div className="border-t border-slate-700/60 border-dashed pt-2 text-[10px] text-slate-400">
+              <div className="border-t border-slate-700/70 border-dashed pt-2 text-[10px] text-slate-400">
                 <strong className="text-slate-300">Obs:</strong> {obsLimpa}
               </div>
             )}
@@ -298,7 +298,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
         </div>
 
         {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL */}
-        <div className="p-4 border-t border-slate-700/80 bg-slate-900/90 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+        <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
           <div>
             {onEditarRecibo && (
               <button
@@ -316,17 +316,17 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             <button
               type="button"
               onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white border border-slate-700 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
               title="Imprimir Cupom Térmico 58mm ou 80mm"
             >
-              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <Printer className="w-3.5 h-3.5 text-white" />
               <span>Térmica 58/80mm</span>
             </button>
 
             <button
               type="button"
               onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
               title="Imprimir Folha A4"
             >
               <Printer className="w-3.5 h-3.5 text-white" />
@@ -337,7 +337,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               <button
                 type="button"
                 onClick={() => onCompartilharWhatsApp(pedido)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-400 border border-slate-700 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-400 border border-slate-700 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer"
                 title="Compartilhar no WhatsApp"
               >
                 <Share2 className="w-3.5 h-3.5" />
@@ -349,7 +349,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               <button
                 type="button"
                 onClick={() => onCopiarTexto(pedido)}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
                 title="Copiar texto do recibo"
               >
                 <Copy className="w-3.5 h-3.5 text-slate-400" />
