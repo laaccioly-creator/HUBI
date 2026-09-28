@@ -3,6 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme-preference') || localStorage.getItem('hubi_theme_preference');
+          var isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          var theme = (saved === 'dark' || saved === 'light') ? saved : (isMobile ? 'light' : 'dark');
+          var root = document.documentElement;
+          if (theme === 'light') {
+            root.classList.remove('dark');
+            root.classList.add('light');
+            root.style.colorScheme = 'light';
+          } else {
+            root.classList.remove('light');
+            root.classList.add('dark');
+            root.style.colorScheme = 'dark';
+          }
+        } catch(e) {}
+      })();
+    </script>
     <title>HUBI - Gestão e Vendas Multiplataforma</title>
     <meta name="description" content="Sistema completo de gestão e vendas para pequenos lojistas: PDV móvel, controle de estoque com variações, catálogo online e fluxo de caixa." />
 

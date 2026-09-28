@@ -18,9 +18,12 @@ import {
   ExternalLink,
   LogOut,
   X,
-  Calendar
+  Calendar,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useDataOperacao } from '../../contexts/DataOperacaoContext';
@@ -41,6 +44,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
   const location = useLocation();
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
+  const { tema, setTema } = useTheme();
   const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal } = useDataOperacao();
   const [internalCount, setInternalCount] = useState<number>(0);
 
@@ -300,6 +304,39 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             </div>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+
+          {/* Seletor de Tema do Sistema (Mobile) */}
+          <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5 px-0.5">
+              Tema do Sistema
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setTema('dark')}
+                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                  tema === 'dark'
+                    ? 'bg-slate-900 text-amber-300 border border-slate-700 shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent'
+                }`}
+              >
+                <Moon className="w-4 h-4 text-amber-400" />
+                <span>Escuro</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTema('light')}
+                className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                  tema === 'light'
+                    ? 'bg-amber-500/20 text-amber-700 border border-amber-300 shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent'
+                }`}
+              >
+                <Sun className="w-4 h-4 text-amber-500" />
+                <span>Claro</span>
+              </button>
+            </div>
+          </div>
 
           <button
             type="button"

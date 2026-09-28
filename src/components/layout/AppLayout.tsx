@@ -571,11 +571,11 @@ export const AppLayout: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setTema('light')}
-                        className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                          tema === 'light' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'
+                        className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          tema === 'light' ? 'bg-amber-500/20 text-amber-700 border border-amber-400/50 shadow-xs' : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        <Sun className="w-3.5 h-3.5" />
+                        <Sun className="w-3.5 h-3.5 text-amber-500" />
                         <span>Claro</span>
                       </button>
                     </div>

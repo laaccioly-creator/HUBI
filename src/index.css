@@ -46,57 +46,99 @@
 }
 
 /* ==========================================================================
-   LIGHT MODE ENGINE (Modo Claro / Diurno conforme Captura de Tela (1290).png)
+   LIGHT MODE ENGINE (Desktop e Mobile Unificados no Tema Claro)
+   Superfícies limpas (#ffffff e #f8fafc), bordas sutis (#e2e8f0) e tipografia escura
    ========================================================================== */
 html.light body {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-/* No Modo Claro, o Header Superior mantém o padrão Slate/Navy escuro (#1e293b) do layout de referência */
+/* Header Superior Desktop no Modo Claro: Alinhado com o Mobile (Branco Puro e Bordas Sutis) */
 html.light header {
-  background-color: #1e293b !important;
-  border-bottom-color: #334155 !important;
-  color: #f8fafc !important;
+  background-color: #ffffff !important;
+  border-bottom-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
+html.light header h1,
 html.light header .text-slate-100 {
-  color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
 html.light header .text-slate-200 {
-  color: #e2e8f0 !important;
+  color: #1e293b !important;
 }
 
 html.light header .text-slate-300 {
-  color: #cbd5e1 !important;
+  color: #334155 !important;
 }
 
 html.light header .text-slate-400 {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
 html.light header .text-slate-500 {
   color: #94a3b8 !important;
 }
 
-html.light header .bg-slate-800,
-html.light header .bg-slate-800\/80,
-html.light header .bg-slate-800\/60 {
-  background-color: #334155 !important;
-  color: #f8fafc !important;
+/* Botões inativos da navegação superior no modo claro */
+html.light header .bg-emerald-500\/15 {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
 }
 
-html.light header .bg-slate-950\/40,
-html.light header .bg-slate-950\/50 {
-  background-color: rgba(15, 23, 42, 0.6) !important;
+html.light header .bg-emerald-500\/15:hover {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #10b981 !important;
+}
+
+/* Botões da direita no header (Data Operacional e Perfil) */
+html.light header .bg-slate-800 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light header .bg-slate-800:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
 }
 
 html.light header .border-slate-800,
-html.light header .border-slate-700,
-html.light header .border-slate-700\/80,
-html.light header .border-slate-700\/60 {
-  border-color: #475569 !important;
+html.light header .border-slate-700 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Menu Dropdown do Perfil no Canto Superior Direito (Desktop) */
+html.light header .absolute.bg-slate-900,
+html.light header div.bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  color: #0f172a !important;
+}
+
+html.light header .bg-slate-950\/50 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light header .hover\:bg-slate-800:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light header a.text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light header a.text-slate-300:hover {
+  background-color: #f1f5f9 !important;
+  color: #059669 !important;
 }
 
 /* ÁREA DE CONTEÚDO NO MODO CLARO (Branco Puro & Slate Suave de Alto Contraste) */
@@ -107,21 +149,21 @@ html.light div.bg-slate-950 {
   color: #0f172a !important;
 }
 
-html.light .bg-slate-900:not(header *),
-html.light .bg-slate-900\/95:not(header *),
-html.light .bg-slate-900\/90:not(header *),
-html.light .bg-slate-900\/80:not(header *),
-html.light .bg-slate-900\/60:not(header *) {
+html.light .bg-slate-900,
+html.light .bg-slate-900\/95,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/60 {
   background-color: #ffffff !important;
   color: #0f172a !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
-html.light .bg-slate-800:not(header *),
-html.light .bg-slate-800\/80:not(header *),
-html.light .bg-slate-800\/60:not(header *),
-html.light .bg-slate-800\/40:not(header *),
-html.light .bg-slate-800\/30:not(header *) {
+html.light .bg-slate-800,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/40,
+html.light .bg-slate-800\/30 {
   background-color: #f1f5f9 !important;
   color: #0f172a !important;
 }
@@ -137,6 +179,23 @@ html.light .border-slate-900,
 html.light .divide-slate-800\/60,
 html.light .divide-slate-800 {
   border-color: #e2e8f0 !important;
+}
+
+/* Modais e Diálogos no Modo Claro */
+html.light .fixed.inset-0.bg-black\/80,
+html.light .fixed.inset-0.bg-black\/75,
+html.light .fixed.inset-0.bg-black\/70,
+html.light .fixed.inset-0.bg-black\/60 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+html.light .fixed.inset-0 [role="dialog"],
+html.light .fixed.inset-0 > div > div.bg-slate-900,
+html.light .fixed.inset-0 > div.bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Tipografia de Alto Contraste para Leitura Confortável */
@@ -328,6 +387,155 @@ html.light .bg-gradient-to-r.from-emerald-950 span.text-white {
 
 html.light .bg-gradient-to-r.from-emerald-950 span.text-slate-300 {
   color: #047857 !important;
+}
+
+/* ==========================================================================
+   MOBILE & LIGHT SURFACES DARK MODE ENGINE
+   Quando html.dark está ativo, transforma superfícies claras em dark slate/navy
+   (backgrounds profundos, cartões navy/azul-petróleo, textos em alto contraste e realces em verde)
+   ========================================================================== */
+
+/* Containers principais, telas cheias e modais */
+html.dark .bg-white:not(#hubi-print-container *):not(.cupom-termico):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *):not(.manter-branco) {
+  background-color: #0f172a !important; /* Navy/Slate 900 do Desktop */
+  color: #f8fafc !important;
+}
+
+/* Superfícies secundárias de cartões no mobile */
+html.dark .bg-slate-50:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *) {
+  background-color: #1e293b !important; /* Slate 800 do Desktop */
+  color: #f1f5f9 !important;
+}
+
+html.dark .bg-slate-100:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *) {
+  background-color: #334155 !important; /* Slate 700 */
+  color: #f8fafc !important;
+}
+
+html.dark .bg-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *) {
+  background-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+/* Bordas mobile no modo escuro */
+html.dark .border-slate-100:not(#hubi-print-container *):not(.cupom-termico *),
+html.dark .border-slate-200:not(#hubi-print-container *):not(.cupom-termico *),
+html.dark .border-slate-300:not(#hubi-print-container *):not(.cupom-termico *) {
+  border-color: #334155 !important;
+}
+
+/* Tipografia de alto contraste no mobile escuro */
+html.dark .text-slate-900:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *),
+html.dark .text-slate-800:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-slate-600:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-500:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+  color: #94a3b8 !important;
+}
+
+/* Estados Hover nos itens de lista e botões mobile */
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+html.dark .hover\:bg-slate-200:hover {
+  background-color: #334155 !important;
+}
+
+/* Inputs, Textareas e Seletores no modo escuro */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not(.bg-transparent):not(#hubi-print-container *):not(.cupom-termico *),
+html.dark select:not(#hubi-print-container *):not(.cupom-termico *),
+html.dark textarea:not(.bg-transparent):not(#hubi-print-container *):not(.cupom-termico *) {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Badges e Pílulas coloridas adaptadas ao modo escuro */
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark .text-emerald-700,
+html.dark .text-emerald-800 {
+  color: #34d399 !important;
+}
+
+html.dark .bg-amber-50,
+html.dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+html.dark .text-amber-700,
+html.dark .text-amber-800,
+html.dark .text-amber-900 {
+  color: #fbbf24 !important;
+}
+
+html.dark .bg-rose-50,
+html.dark .bg-rose-100 {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  color: #fb7185 !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+html.dark .text-rose-700,
+html.dark .text-rose-800 {
+  color: #fb7185 !important;
+}
+
+html.dark .bg-blue-50,
+html.dark .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+html.dark .text-blue-700 {
+  color: #60a5fa !important;
+}
+
+html.dark .bg-indigo-50,
+html.dark .bg-indigo-100 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #818cf8 !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+html.dark .text-indigo-700 {
+  color: #818cf8 !important;
+}
+
+html.dark .bg-purple-50,
+html.dark .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  color: #c084fc !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+html.dark .text-purple-700 {
+  color: #c084fc !important;
 }
 
 /* ==========================================================================
