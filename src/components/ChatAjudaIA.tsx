@@ -147,14 +147,30 @@ export const ChatAjudaIA: React.FC = () => {
   }, [location.pathname]);
 
   // Se o usuário abrir o chat, atualiza as mensagens com o que foi conversado em tela cheia
+  // Sincroniza histórico e garante rolagem automática ao abrir o chat ou alterar mensagens
   useEffect(() => {
     if (aberto) {
       setMensagens(rubiChatService.obterHistorico());
-      setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 50);
+      const scrollSuave = () => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      };
+      scrollSuave();
+      const tId = setTimeout(scrollSuave, 80);
+      return () => clearTimeout(tId);
     }
   }, [aberto]);
+
+  // Rolagem automática imediata e suave ao enviar nova mensagem ou receber resposta da IA
+  useEffect(() => {
+    if (aberto) {
+      const scrollSuave = () => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      };
+      scrollSuave();
+      const tId = setTimeout(scrollSuave, 60);
+      return () => clearTimeout(tId);
+    }
+  }, [mensagens, enviando, aberto]);
 
   // Inteligência Unificada idêntica ao Assistente Rubi do Desktop
   const handleEnviarMensagem = async (textoDireto?: string) => {

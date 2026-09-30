@@ -10,6 +10,7 @@ import {
   SerpApiAuthError,
   FotoResultadoSerpApi
 } from './serpApiService';
+import { catalogJevService } from './catalogJevService';
 
 export { SerpApiQuotaError, SerpApiAuthError };
 export type { FotoResultadoSerpApi };
@@ -600,7 +601,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "categoria_sugerida": "Nome da categoria mais adequada no varejo",
   "preco_venda_estimado": 0.00,
   "preco_custo_estimado": 0.00,
-  "descricao": "Descrição comercial rica, persuasiva e completa para catálogo online e WhatsApp destacando os benefícios reais, materiais/especificações e diferenciais.",
+  "descricao": "Descrição comercial concisa de 1 a 2 frases com os principais benefícios e especificações.",
   "tipo_unidade": "un",
   "codigo_barras": "Código de barras numérico se visível na foto ou embalagem, senão vazio",
   "diferencial": "Breve resumo do diferencial (ex: Versão Tradicional)",
@@ -614,7 +615,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
       "categoria_sugerida": "Categoria",
       "preco_venda_estimado": 0.00,
       "preco_custo_estimado": 0.00,
-      "descricao": "Descrição comercial rica da opção 1",
+      "descricao": "Descrição concisa de 1 frase",
       "tipo_unidade": "un",
       "codigo_barras": "",
       "diferencial": "Ex: Versão Zero Açúcar",
@@ -645,7 +646,7 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
       ],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 750,
         response_mime_type: 'application/json'
       }
     };
@@ -685,10 +686,24 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
         const temDuvida = Boolean(parsed.duvida && opcoesFormatadas && opcoesFormatadas.length > 1);
 
         const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || ''} ${parsed.descricao || ''}`);
-        const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
-        const alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
-        const larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
-        const compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
+        let pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
+        let alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
+        let larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
+        let compFinal = Number(parsed.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : extraidos.comprimento_cm;
+
+        if (!pesoKgFinal || !alturaFinal || !larguraFinal || !compFinal) {
+          try {
+            const dimsJev = await catalogJevService.estimarDimensoesComJev(
+              parsed.nome || '',
+              parsed.categoria_sugerida,
+              parsed.descricao
+            );
+            pesoKgFinal = pesoKgFinal || dimsJev.peso_kg;
+            alturaFinal = alturaFinal || dimsJev.altura_cm;
+            larguraFinal = larguraFinal || dimsJev.largura_cm;
+            compFinal = compFinal || dimsJev.comprimento_cm;
+          } catch {}
+        }
 
         return {
           duvida: temDuvida,
@@ -978,8 +993,21 @@ export const pesquisarFotosProdutoNaInternet = async (
   // Limpa o termo removendo códigos de SKU, variações de tamanho (- Tamanho G) e hifens excludentes
   const termoLimpo = limparTermoParaBuscaGoogle(termo) || termo.trim();
 
+  // Otimização Jev (System One): Extração de termo canônico comercial de alta precisão (< 1.000ms)
+  let termoCanonico = termoLimpo;
+  if (termoLimpo) {
+    try {
+      termoCanonico = await catalogJevService.extrairTermoCanonicoBusca(termo);
+    } catch {
+      termoCanonico = termoLimpo;
+    }
+  }
+
   // Lista de termos a serem pesquisados no e-commerce
   const termosParaPesquisar: string[] = [];
+  if (termoCanonico) {
+    termosParaPesquisar.push(termoCanonico);
+  }
 
   // PASSO 1: IA Multimodal de Visão (Gemini Flash)
   // Só executa se NÃO houver nome de texto (apenas foto enviada) para não adicionar 5s desnecessários de latência
@@ -1015,8 +1043,8 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o nome limpo do produto
-  const termoPrincipal = termoLimpo || termosParaPesquisar[0];
+  // O termo prioritário para SerpApi é o termo canônico extraído pelo Jev
+  const termoPrincipal = termoCanonico || termoLimpo || termosParaPesquisar[0];
 
   console.log(
     '%c[HUBI IMAGENS]%c Buscando fotos no Google Images...',
@@ -1204,7 +1232,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "categoria_sugerida": "Nome da categoria mais adequada",
   "preco_venda_estimado": 0.00,
   "preco_custo_estimado": 0.00,
-  "descricao": "Descrição comercial completa, estruturada e detalhada",
+  "descricao": "Descrição comercial concisa de 1 a 2 frases destacando os principais benefícios do produto",
   "tipo_unidade": "un",
   "codigo_barras": "${dados.codigoBarras || ''}",
   "peso_kg": 0.35,
@@ -1241,18 +1269,18 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
             ]
           }
         ],
-        generationConfig: { temperature: 0.25, maxOutputTokens: 1200, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 600, response_mime_type: 'application/json' }
       };
     } catch {
       requestBody = {
         contents: [{ parts: [{ text: promptAtualizacao }] }],
-        generationConfig: { temperature: 0.25, maxOutputTokens: 1200, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 600, response_mime_type: 'application/json' }
       };
     }
   } else {
     requestBody = {
       contents: [{ parts: [{ text: promptAtualizacao }] }],
-      generationConfig: { temperature: 0.25, maxOutputTokens: 1200, response_mime_type: 'application/json' }
+      generationConfig: { temperature: 0.2, maxOutputTokens: 600, response_mime_type: 'application/json' }
     };
   }
 
@@ -1313,6 +1341,16 @@ export const estimarDimensoesEPesoProduto = async (
     extraidos.comprimento_cm && extraidos.comprimento_cm > 0
   ) {
     return extraidos;
+  }
+
+  // 1. Tentar estimativa ultrarrápida via Jev (System One) em ~250ms por faixa logística
+  try {
+    const dimJev = await catalogJevService.estimarDimensoesComJev(nomeProduto, categoriaNome, descricao);
+    if (dimJev && dimJev.peso_kg && dimJev.altura_cm) {
+      return dimJev;
+    }
+  } catch (err) {
+    console.warn('[GeminiService] Estimativa rápida com Jev indisponível, recorrendo ao pipeline secundário:', err);
   }
 
   // Tentar estimativa profunda com Google Gemini

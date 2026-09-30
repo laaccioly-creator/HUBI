@@ -146,9 +146,14 @@ export const AssistenteRubi: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-    endMobileRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [mensagens]);
+    const scrollSuave = () => {
+      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      endMobileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    };
+    scrollSuave();
+    const tId = setTimeout(scrollSuave, 60);
+    return () => clearTimeout(tId);
+  }, [mensagens, pensando]);
 
   const handleEnviarMensagem = async (textoPergunta?: string) => {
     if (escutandoVoz && recognitionRef.current) {

@@ -63,6 +63,7 @@ import {
   executarRequisicaoGemini
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
+import { catalogJevService } from '../services/catalogJevService';
 
 export interface PrecoConcorrente {
   loja: string;
@@ -996,7 +997,7 @@ export const ProdutoCadastro: React.FC = () => {
   };
 
   // Aplicar dados retornados pela IA nos estados do produto
-  const aplicarDadosSugeridosIA = (dadosSugeridos: ProdutoSugeridoIA) => {
+  const aplicarDadosSugeridosIA = async (dadosSugeridos: ProdutoSugeridoIA) => {
     if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
     if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
     
@@ -1039,15 +1040,37 @@ export const ProdutoCadastro: React.FC = () => {
       setDadosMercado(dadosSugeridos.dados_mercado);
     }
 
-    // Vincular e sugerir categoria e código interno
-    if (dadosSugeridos.categoria_sugerida && categorias.length > 0) {
-      const catMatch = categorias.find(c =>
-        c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
-        dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
-      );
-      if (catMatch) {
-        setCategoriaId(catMatch.id);
-        gerarCodigoInternoSugerido(catMatch.id);
+    // Vincular categoria real da loja via Jev (System One) ou fallback local
+    if (categorias.length > 0) {
+      try {
+        const catClassificada = await catalogJevService.classificarCategoriaLoja(
+          { nome: dadosSugeridos.nome, descricao: dadosSugeridos.descricao },
+          categorias
+        );
+        if (catClassificada) {
+          setCategoriaId(catClassificada.id);
+          gerarCodigoInternoSugerido(catClassificada.id);
+        } else if (dadosSugeridos.categoria_sugerida) {
+          const catMatch = categorias.find(c =>
+            c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
+            dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
+          );
+          if (catMatch) {
+            setCategoriaId(catMatch.id);
+            gerarCodigoInternoSugerido(catMatch.id);
+          }
+        }
+      } catch {
+        if (dadosSugeridos.categoria_sugerida) {
+          const catMatch = categorias.find(c =>
+            c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
+            dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
+          );
+          if (catMatch) {
+            setCategoriaId(catMatch.id);
+            gerarCodigoInternoSugerido(catMatch.id);
+          }
+        }
       }
     }
   };
@@ -1072,7 +1095,7 @@ export const ProdutoCadastro: React.FC = () => {
           setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
           setModalDuvidaAberto(true);
         } else {
-          aplicarDadosSugeridosIA(dadosSugeridos);
+          await aplicarDadosSugeridosIA(dadosSugeridos);
           setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
         }
       }
@@ -1097,7 +1120,7 @@ export const ProdutoCadastro: React.FC = () => {
       setSucessoIAMsg(null);
       const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto, segmentoLoja, loja);
       if (dadosSugeridos) {
-        aplicarDadosSugeridosIA(dadosSugeridos);
+        await aplicarDadosSugeridosIA(dadosSugeridos);
         setSucessoIAMsg('✨ Informações e ficha técnica preenchidas com sucesso a partir da descrição!');
       }
     } catch (err: any) {
@@ -1121,7 +1144,7 @@ export const ProdutoCadastro: React.FC = () => {
       setSucessoIAMsg(null);
       const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean, segmentoLoja, loja);
       if (dadosSugeridos) {
-        aplicarDadosSugeridosIA(dadosSugeridos);
+        await aplicarDadosSugeridosIA(dadosSugeridos);
         setSucessoIAMsg('✨ Informações do produto identificadas com sucesso pelo código de barras!');
       }
     } catch (err: any) {
@@ -1157,7 +1180,7 @@ export const ProdutoCadastro: React.FC = () => {
       });
 
       if (dadosAtualizados) {
-        aplicarDadosSugeridosIA(dadosAtualizados);
+        await aplicarDadosSugeridosIA(dadosAtualizados);
         setSucessoIAMsg('✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!');
       }
     } catch (err: any) {

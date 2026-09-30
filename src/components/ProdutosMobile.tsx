@@ -73,6 +73,7 @@ import {
   obterNomeSegmentoLoja
 } from '../services/geminiService';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
+import { catalogJevService } from '../services/catalogJevService';
 import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
@@ -1418,14 +1419,31 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   // =========================================================================
-  const aplicarSugestaoMobile = (sugestao: ProdutoSugeridoIA, fotoUrl?: string) => {
-    // Localizar ou criar categoria compatível
+  const aplicarSugestaoMobile = async (sugestao: ProdutoSugeridoIA, fotoUrl?: string) => {
+    // Localizar ou classificar categoria compatível da loja com Jev (System One)
     let categoriaMatchId = formData.categoriaId;
-    if (sugestao.categoria_sugerida) {
-      const achouCat = categorias.find(c =>
-        c.nome.toLowerCase().includes(sugestao.categoria_sugerida!.toLowerCase())
-      );
-      if (achouCat) categoriaMatchId = achouCat.id;
+    if (categorias.length > 0) {
+      try {
+        const catClassificada = await catalogJevService.classificarCategoriaLoja(
+          { nome: sugestao.nome, descricao: sugestao.descricao },
+          categorias
+        );
+        if (catClassificada) {
+          categoriaMatchId = catClassificada.id;
+        } else if (sugestao.categoria_sugerida) {
+          const achouCat = categorias.find(c =>
+            c.nome.toLowerCase().includes(sugestao.categoria_sugerida!.toLowerCase())
+          );
+          if (achouCat) categoriaMatchId = achouCat.id;
+        }
+      } catch {
+        if (sugestao.categoria_sugerida) {
+          const achouCat = categorias.find(c =>
+            c.nome.toLowerCase().includes(sugestao.categoria_sugerida!.toLowerCase())
+          );
+          if (achouCat) categoriaMatchId = achouCat.id;
+        }
+      }
     }
 
     let atacadoSugerido: string | undefined = undefined;
@@ -1494,7 +1512,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           return;
         }
 
-        aplicarSugestaoMobile(sugestao, tipo === 'foto' && valor ? valor : undefined);
+        await aplicarSugestaoMobile(sugestao, tipo === 'foto' && valor ? valor : undefined);
         setModalCriarComIAAberto(false);
         setMensagemFeedback({ texto: 'Dados e descrição preenchidos com sucesso pela IA!', tipo: 'sucesso' });
       }
