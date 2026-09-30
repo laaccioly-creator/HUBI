@@ -49,6 +49,7 @@ import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { obterDataOperacao } from '../utils/dataOperacao';
 
 // Helper para limpar prefixos repetidos de endereço (ex: "Entrega: Entrega - " -> limpo)
 const limparEnderecoRecibo = (end?: string | null) => {
@@ -258,7 +259,7 @@ export const VendasHistorico: React.FC = () => {
 
   // Cálculos das Métricas de Resumo (Hoje, Ontem, Esta semana, Este mês)
   const metricas = useMemo(() => {
-    const agora = new Date();
+    const agora = obterDataOperacao();
     const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0);
 
     const inicioOntem = new Date(inicioHoje);

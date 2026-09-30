@@ -391,6 +391,11 @@ export const TUTORIAIS_HUBI: ArtigoTutorial[] = [
 export interface DadosLojaRubi {
   faturamento: number;
   totalPedidos: number;
+  faturamentoHoje?: number;
+  totalPedidosHoje?: number;
+  faturamentoMes?: number;
+  totalPedidosMes?: number;
+  dataReferenciaFormatada?: string;
   produtosAlerta: any[];
   totalFiado: number;
   produtosTotal: number;

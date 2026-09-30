@@ -70,9 +70,33 @@ export const rubiRouterService = {
       if (probabilidade >= 0.70 || confianca >= 0.70) {
         // ROTA A: Vendas & Faturamento
         if (categoria === 'VENDAS_PERIODO' && dadosLoja) {
-          const { faturamento, totalPedidos } = dadosLoja;
-          const ticketMedio = totalPedidos > 0 ? faturamento / totalPedidos : 0;
-          return `📊 **Resumo de Vendas & Faturamento:**\n\n• **Faturamento Total:** R$ ${faturamento.toFixed(2)}\n• **Volume de Vendas:** ${totalPedidos} pedidos confirmados\n• **Ticket Médio:** R$ ${ticketMedio.toFixed(2)}\n\n✨ *Dados apurados em tempo real no seu HUBI.*`;
+          const {
+            faturamento,
+            totalPedidos,
+            faturamentoHoje,
+            totalPedidosHoje,
+            faturamentoMes,
+            totalPedidosMes,
+            dataReferenciaFormatada
+          } = dadosLoja;
+
+          const fatHoje = faturamentoHoje !== undefined ? faturamentoHoje : faturamento;
+          const qtdHoje = totalPedidosHoje !== undefined ? totalPedidosHoje : totalPedidos;
+          const ticketMedioHoje = qtdHoje > 0 ? fatHoje / qtdHoje : 0;
+          const dataLabel = dataReferenciaFormatada ? ` (${dataReferenciaFormatada})` : ' (Hoje)';
+
+          let corpoVendas = '';
+          if (qtdHoje > 0) {
+            corpoVendas = `• **Faturamento:** R$ ${fatHoje.toFixed(2)}\n• **Vendas Concluídas:** ${qtdHoje} pedido(s)\n• **Ticket Médio:** R$ ${ticketMedioHoje.toFixed(2)}`;
+          } else {
+            corpoVendas = `• **Vendas Concluídas:** Nenhuma venda registrada até o momento nesta data (R$ 0,00).`;
+          }
+
+          if (faturamentoMes !== undefined && faturamentoMes > 0 && (qtdHoje === 0 || faturamentoMes !== fatHoje)) {
+            corpoVendas += `\n• **Acumulado do Mês:** R$ ${faturamentoMes.toFixed(2)} (${totalPedidosMes || 0} vendas)`;
+          }
+
+          return `📊 **Resumo de Vendas${dataLabel}:**\n\n${corpoVendas}\n\n✨ *Dados apurados em tempo real no seu HUBI.*`;
         }
 
         // ROTA B: Estoque & Reposição
