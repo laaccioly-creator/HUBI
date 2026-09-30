@@ -173,82 +173,9 @@ export const AssistenteRubi: React.FC = () => {
     setPensando(true);
 
     try {
-      const { data: pedidos } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('loja_id', loja.id)
-        .in('status', ['concluido', 'confirmado', 'entregue']);
+      if (!loja?.id) throw new Error('Loja não identificada');
 
-      const { data: produtos } = await supabase
-        .from('produtos')
-        .select('*, variacoes:variacoes_produto(*)')
-        .eq('loja_id', loja.id)
-        .eq('ativo', true);
-
-      const { data: clientes } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('loja_id', loja.id);
-
-      const getEstoqueReal = (p: any) => {
-        if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
-          return p.variacoes.reduce((acc: number, v: any) => acc + Number(v.quantidade_estoque || 0), 0);
-        }
-        return Number(p.quantidade_estoque || 0);
-      };
-
-      // Respeita a data de operação ativa (incluindo modo simulação retroativo)
-      const dataOp = obterDataOperacao();
-      const anoOp = dataOp.getFullYear();
-      const mesOp = dataOp.getMonth();
-      const diaOp = dataOp.getDate();
-
-      const inicioHoje = new Date(anoOp, mesOp, diaOp, 0, 0, 0);
-      const fimHoje = new Date(anoOp, mesOp, diaOp, 23, 59, 59, 999);
-      const inicioMes = new Date(anoOp, mesOp, 1, 0, 0, 0);
-
-      const pedidosValidos = pedidos || [];
-      const pedidosHoje = pedidosValidos.filter((p) => {
-        const d = new Date(p.data_venda || p.criado_em || '');
-        return d >= inicioHoje && d <= fimHoje;
-      });
-
-      const pedidosMes = pedidosValidos.filter((p) => {
-        const d = new Date(p.data_venda || p.criado_em || '');
-        return d >= inicioMes;
-      });
-
-      const faturamentoHoje = pedidosHoje.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-      const totalPedidosHoje = pedidosHoje.length;
-
-      const faturamentoMes = pedidosMes.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-      const totalPedidosMes = pedidosMes.length;
-
-      const faturamento = pedidosValidos.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
-      const totalPedidos = pedidosValidos.length;
-
-      const diaStr = String(diaOp).padStart(2, '0');
-      const mesStr = String(mesOp + 1).padStart(2, '0');
-      const dataReferenciaFormatada = `${diaStr}/${mesStr}/${anoOp}`;
-
-      const produtosAlerta = produtos?.filter((p) => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta)) || [];
-      const totalFiado = clientes?.reduce((acc, c) => acc + Number(c.saldo_devedor_fiado || 0), 0) || 0;
-
-      const dadosLoja: DadosLojaRubi = {
-        faturamento,
-        totalPedidos,
-        faturamentoHoje,
-        totalPedidosHoje,
-        faturamentoMes,
-        totalPedidosMes,
-        dataReferenciaFormatada,
-        produtosAlerta,
-        totalFiado,
-        produtosTotal: produtos?.length || 0,
-        clientesTotal: clientes?.length || 0
-      };
-
-      const resposta = await rubiRouterService.processarPergunta(pergunta, usuario, loja, dadosLoja);
+      const resposta = await rubiRouterService.processarPergunta(pergunta, usuario, loja);
 
       setMensagens((prev) => [
         ...prev,
