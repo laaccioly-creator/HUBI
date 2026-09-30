@@ -122,8 +122,8 @@ export const formatarResultadosSerpApi = (
     const largura = typeof item.original_width === 'number' ? item.original_width : undefined;
     const altura = typeof item.original_height === 'number' ? item.original_height : undefined;
 
-    // Filtra apenas ícones minúsculos e favicons (< 100px)
-    if (largura && largura < 100 && altura && altura < 100) {
+    // Filtra apenas imagens em alta/média resolução para e-commerce (descarta ícones e miniaturas < 250px)
+    if (largura && largura < 250 && altura && altura < 250) {
       continue;
     }
 
@@ -535,35 +535,68 @@ export const buscarFotosGoogleImagesSerpApi = async (
   }
 
   // =========================================================================
-  // MÉTODO 1: Supabase RPC (PostgreSQL extensions.http) - 100% robusto sem CORS
+  // =========================================================================
+  // MÉTODO 1: Supabase Edge Function (buscar-fotos-serpapi) - Alta velocidade (~1s) sem CORS
   // =========================================================================
   try {
-    logSerp('📡 [Método 1/4] Supabase RPC (buscar_fotos_serpapi_rpc)...');
-    let rpcResponse = await supabase.rpc('buscar_fotos_serpapi_rpc', {
+    logSerp('📡 [Método 1/4] Supabase Edge Function (buscar-fotos-serpapi)...');
+    const edgePromise = supabase.functions.invoke('buscar-fotos-serpapi', {
+      body: {
+        q: queryFinal,
+        api_key: chaveLimpa,
+        loja_id: opcoes?.lojaId,
+        num
+      }
+    });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout de 4.000ms na Edge Function')), 4000)
+    );
+
+    const { data: edgeData, error: edgeError } = await Promise.race([edgePromise, timeoutPromise]);
+
+    if (!edgeError && edgeData) {
+      if (edgeData.error_type === 'quota') {
+        logSerpErro('Cota mensal da SerpApi excedida (via Edge Function).');
+        throw new SerpApiQuotaError(edgeData.error);
+      }
+      if (edgeData.error_type === 'auth') {
+        logSerpErro('Chave inválida na SerpApi (via Edge Function).');
+        throw new SerpApiAuthError(edgeData.error);
+      }
+      if (Array.isArray(edgeData.results) && edgeData.results.length > 0) {
+        logSerpSucesso(`Encontradas ${edgeData.results.length} fotos via Edge Function!`, edgeData.results);
+        salvarCacheSerp(queryFinal, edgeData.results);
+        return edgeData.results;
+      }
+    }
+    if (edgeError) {
+      logSerpAviso('Edge Function retornou erro:', edgeError.message);
+    }
+  } catch (e: any) {
+    if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
+      throw e;
+    }
+    logSerpAviso('Exceção na Edge Function:', e.message);
+  }
+
+  // =========================================================================
+  // MÉTODO 2: Supabase RPC (PostgreSQL) com timeout estrito de 3s (fallback)
+  // =========================================================================
+  try {
+    logSerp('📡 [Método 2/4] Supabase RPC (buscar_fotos_serpapi_rpc com timeout)...');
+    const rpcPromise = supabase.rpc('buscar_fotos_serpapi_rpc', {
       p_termo: queryFinal,
       p_loja_id: lojaId || null,
       p_api_key: chaveLimpa || null,
       p_num: num
     });
 
-    // Se a primeira chamada falhar por timeout de conexão inicial (quando a SerpApi está raspando o termo pela 1ª vez),
-    // aguarda 400ms e faz uma retentativa automática (pois a SerpApi já concluiu o scrape no servidor e retorna em 0.2s)
-    if (rpcResponse.error && (
-      rpcResponse.error.code === '57014' ||
-      rpcResponse.error.message?.toLowerCase().includes('timeout') ||
-      rpcResponse.error.message?.toLowerCase().includes('canceling')
-    )) {
-      logSerpAviso('Timeout na primeira raspagem da SerpApi. Retentando rapidamente em 400ms com cache quente...');
-      await new Promise(res => setTimeout(res, 400));
-      rpcResponse = await supabase.rpc('buscar_fotos_serpapi_rpc', {
-        p_termo: queryFinal,
-        p_loja_id: lojaId || null,
-        p_api_key: chaveLimpa || null,
-        p_num: num
-      });
-    }
+    const rpcTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout de 3.000ms no RPC Postgres')), 3000)
+    );
 
-    const { data: rpcData, error: rpcError } = rpcResponse;
+    const { data: rpcData, error: rpcError } = await Promise.race([rpcPromise, rpcTimeout]);
 
     if (!rpcError && rpcData) {
       logSerp('📥 Resposta bruta do Supabase RPC:', rpcData);
@@ -583,60 +616,14 @@ export const buscarFotosGoogleImagesSerpApi = async (
           logSerpSucesso(`Encontradas ${fotos.length} fotos via Supabase RPC!`, fotos);
           salvarCacheSerp(queryFinal, fotos);
           return fotos;
-        } else {
-          logSerpAviso(`Busca concluída na SerpApi, mas nenhum resultado encontrado para "${queryFinal}".`);
-          return [];
         }
       }
-    }
-
-    if (rpcError) {
-      logSerpAviso('Função RPC não disponível ou retornou erro no Supabase:', rpcError.message);
     }
   } catch (err: any) {
     if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
       throw err;
     }
-    logSerpAviso('Exceção ao executar busca via Supabase RPC:', err.message);
-  }
-
-  // =========================================================================
-  // MÉTODO 2: Supabase Edge Function (se implantada)
-  // =========================================================================
-  try {
-    logSerp('📡 [Método 2/4] Supabase Edge Function (buscar-fotos-serpapi)...');
-    const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
-      body: {
-        q: queryFinal,
-        api_key: chaveLimpa,
-        loja_id: opcoes?.lojaId,
-        num
-      }
-    });
-
-    if (!edgeError && edgeData) {
-      if (edgeData.error_type === 'quota') {
-        logSerpErro('Cota mensal da SerpApi excedida (via Edge Function).');
-        throw new SerpApiQuotaError(edgeData.error);
-      }
-      if (edgeData.error_type === 'auth') {
-        logSerpErro('Chave inválida na SerpApi (via Edge Function).');
-        throw new SerpApiAuthError(edgeData.error);
-      }
-      if (Array.isArray(edgeData.results) && edgeData.results.length > 0) {
-        logSerpSucesso(`Encontradas ${edgeData.results.length} fotos via Edge Function!`, edgeData.results);
-        salvarCacheSerp(queryFinal, edgeData.results);
-        return edgeData.results;
-      }
-    }
-    if (edgeError) {
-      logSerpAviso('Edge Function indisponível:', edgeError.message);
-    }
-  } catch (e: any) {
-    if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
-      throw e;
-    }
-    logSerpAviso('Exceção na Edge Function:', e.message);
+    logSerpAviso('Supabase RPC falhou ou atingiu timeout:', err.message);
   }
 
   const params = new URLSearchParams({

@@ -1010,10 +1010,14 @@ export const pesquisarFotosProdutoNaInternet = async (
   }
 
   // PASSO 1: IA Multimodal de Visão (Gemini Flash)
-  // Só executa se NÃO houver nome de texto (apenas foto enviada) para não adicionar 5s desnecessários de latência
-  if (!termoLimpo && fotoReferencia) {
+  // Executa se NÃO houver nome de texto OU se o termo for excessivamente genérico (<= 2 palavras) e houver foto de referência
+  const termoEhGenerico = !termoLimpo || termoLimpo.split(' ').filter(Boolean).length <= 2;
+  if (termoEhGenerico && fotoReferencia) {
     try {
       const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo, segmentoLoja);
+      if (termosVisuais.length > 0 && termosVisuais[0]) {
+        termosParaPesquisar.unshift(termosVisuais[0]);
+      }
       for (const tv of termosVisuais) {
         if (tv && !termosParaPesquisar.includes(tv)) {
           termosParaPesquisar.push(tv);
@@ -1043,8 +1047,8 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o termo canônico extraído pelo Jev
-  const termoPrincipal = termoCanonico || termoLimpo || termosParaPesquisar[0];
+  // O termo prioritário para SerpApi é o termo visual específico (se analisou foto de produto genérico) ou canônico Jev
+  const termoPrincipal = termosParaPesquisar[0] || termoCanonico || termoLimpo;
 
   console.log(
     '%c[HUBI IMAGENS]%c Buscando fotos no Google Images...',

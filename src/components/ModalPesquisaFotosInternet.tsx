@@ -403,8 +403,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                   {fotosValidas.map((foto, idx) => {
                     const urlAlvo = foto.urlOriginal || foto.url;
                     const falhouOriginal = falhasOriginal.has(urlAlvo);
-                    // Prioriza o thumbnail do Google para carregamento instantâneo (CDN do Google). Se falhar, tenta a URL original
-                    const urlExibicao = (!falhouOriginal && foto.thumbnail) ? foto.thumbnail : (foto.urlOriginal || foto.url);
+                    // Prioriza sempre a foto original em alta resolução. Caso a foto original falhe (CORS/hotlink), recorre ao thumbnail
+                    const urlExibicao = falhouOriginal ? (foto.thumbnail || foto.url) : (foto.urlOriginal || foto.url);
                     const estaSelecionada = selecionadas.has(urlAlvo);
                     const estaCarregada = imagensCarregadas.has(urlExibicao);
 
@@ -439,8 +439,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                               setImagensCarregadas(prev => new Set(prev).add(urlExibicao));
                             }}
                             onError={() => {
-                              if (!falhouOriginal && foto.urlOriginal && foto.urlOriginal !== urlExibicao) {
-                                // Se o thumbnail do Google falhar, tenta a URL original
+                              if (!falhouOriginal && foto.thumbnail && foto.thumbnail !== urlExibicao) {
+                                // Se a URL original falhar por bloqueio de hotlink do site de origem, recorre ao thumbnail do Google
                                 setFalhasOriginal(prev => new Set(prev).add(urlAlvo));
                               } else {
                                 setImagensComErro(prev => new Set(prev).add(urlAlvo));

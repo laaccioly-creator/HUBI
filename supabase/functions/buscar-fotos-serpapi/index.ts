@@ -141,13 +141,23 @@ serve(async (req: Request) => {
       ? serpData.images_results
       : [];
 
-    const results = imagesResults.slice(0, num).map((item: any, index: number) => ({
-      urlOriginal: item.original || item.link || item.thumbnail || "",
-      urlThumbnail: item.thumbnail || item.original || item.link || "",
-      titulo: item.title || q,
-      fonte: item.source || item.domain || "Google Imagens",
-      posicao: item.position || index + 1,
-    }));
+    const results = imagesResults
+      .filter((item: any) => {
+        const w = typeof item.original_width === 'number' ? item.original_width : undefined;
+        const h = typeof item.original_height === 'number' ? item.original_height : undefined;
+        if (w && w < 250 && h && h < 250) return false;
+        return true;
+      })
+      .slice(0, num)
+      .map((item: any, index: number) => ({
+        urlOriginal: item.original || item.link || item.thumbnail || "",
+        urlThumbnail: item.thumbnail || item.original || item.link || "",
+        titulo: item.title || q,
+        fonte: item.source || item.domain || "Google Imagens",
+        posicao: item.position || index + 1,
+        largura: item.original_width,
+        altura: item.original_height,
+      }));
 
     return new Response(
       JSON.stringify({ results }),
