@@ -992,34 +992,25 @@ export const pesquisarFotosProdutoNaInternet = async (
 
   // Limpa o termo removendo códigos de SKU, variações de tamanho (- Tamanho G) e hifens excludentes
   const termoLimpo = limparTermoParaBuscaGoogle(termo) || termo.trim();
-
-  // Otimização Jev (System One): Extração de termo canônico comercial de alta precisão (< 1.000ms)
-  let termoCanonico = termoLimpo;
-  if (termoLimpo) {
-    try {
-      termoCanonico = await catalogJevService.extrairTermoCanonicoBusca(termo, segmentoLoja);
-    } catch {
-      termoCanonico = termoLimpo;
-    }
-  }
-
-  // Lista de termos a serem pesquisados no e-commerce
-  const termosParaPesquisar: string[] = [];
-  if (termoCanonico) {
-    termosParaPesquisar.push(termoCanonico);
-  }
-
-  // PASSO 1: IA Multimodal de Visão (Gemini Flash)
-  // Executa se NÃO houver nome de texto OU se o termo for excessivamente genérico (<= 2 palavras) e houver foto de referência
   const palavrasTermo = termoLimpo ? termoLimpo.split(' ').filter(Boolean) : [];
-  const termoEhGenerico = palavrasTermo.length <= 2;
 
-  if (termoEhGenerico && fotoReferencia) {
+  // Quando o usuário informa o nome do produto, usamos o nome limpo e contextualizado
+  // diretamente para a busca no Google Images, sem chamar IA de visão nem LLMs intermediários.
+  // Isso reduz a latência drasticamente de ~10-15s para ~800ms!
+  const termosParaPesquisar: string[] = [];
+
+  if (termoLimpo) {
+    if (segmentoLoja && palavrasTermo.length <= 2) {
+      const segmentoCurto = segmentoLoja.split('/')[0].trim();
+      termosParaPesquisar.push(`${termoLimpo} ${segmentoCurto}`);
+      termosParaPesquisar.push(termoLimpo);
+    } else {
+      termosParaPesquisar.push(termoLimpo);
+    }
+  } else if (fotoReferencia) {
+    // Apenas se NÃO houver nome digitado e houver uma foto, aciona a IA Multimodal (Gemini Vision)
     try {
-      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo, segmentoLoja);
-      if (termosVisuais.length > 0 && termosVisuais[0]) {
-        termosParaPesquisar.unshift(termosVisuais[0]);
-      }
+      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, '', segmentoLoja);
       for (const tv of termosVisuais) {
         if (tv && !termosParaPesquisar.includes(tv)) {
           termosParaPesquisar.push(tv);
@@ -1030,30 +1021,14 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  // Se a loja tiver segmento configurado e o termo for curto (<= 2 palavras), adiciona busca contextualizada
-  // Se não houver foto de referência para guiar visualmente, o termo contextualizado ganha prioridade máxima
-  if (segmentoLoja && termoLimpo && palavrasTermo.length <= 2) {
-    const segmentoCurto = segmentoLoja.split('/')[0].trim();
-    const termoComSegmento = `${termoLimpo} ${segmentoCurto}`;
-    if (!fotoReferencia) {
-      termosParaPesquisar.unshift(termoComSegmento);
-    } else if (!termosParaPesquisar.includes(termoComSegmento)) {
-      termosParaPesquisar.push(termoComSegmento);
-    }
-  }
-
-  if (termoLimpo && !termosParaPesquisar.includes(termoLimpo)) {
-    termosParaPesquisar.push(termoLimpo);
-  }
-
   // PASSO 2 (A): SerpApi (Google Images Engine) no modelo BYOK
   let serpApiKey = obterSerpApiKey(loja);
   if (!serpApiKey && loja?.id) {
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o termo visual específico (se analisou foto de produto genérico) ou canônico Jev
-  const termoPrincipal = termosParaPesquisar[0] || termoCanonico || termoLimpo;
+  // O termo prioritário para SerpApi é o primeiro da lista otimizada ou o termo limpo
+  const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
 
   console.log(
     '%c[HUBI IMAGENS]%c Buscando fotos no Google Images...',
