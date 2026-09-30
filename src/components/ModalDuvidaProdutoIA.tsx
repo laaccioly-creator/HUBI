@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, HelpCircle, Check, X, ArrowRight, Tag, DollarSign, Loader2, Package } from 'lucide-react';
 import { ProdutoSugeridoIA } from '../services/geminiService';
-import { buscarMiniaturaProduto } from '../services/serpApiService';
+import { buscarMiniaturaProduto, limparTermoParaBuscaGoogle } from '../services/serpApiService';
 
 interface ModalDuvidaProdutoIAProps {
   isOpen: boolean;
@@ -23,12 +23,21 @@ export const ModalDuvidaProdutoIA: React.FC<ModalDuvidaProdutoIAProps> = ({
   const [fotosOpcoes, setFotosOpcoes] = useState<Record<number, string>>({});
   const [carregandoFotos, setCarregandoFotos] = useState<Record<number, boolean>>({});
 
+  // Função auxiliar para garantir que as miniaturas no modal sejam ultraleves (< 5KB)
+  const formatarMiniaturaLeve = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+    if (url.includes('encrypted-tbn0.gstatic.com')) return url;
+    const limpa = url.replace(/^https?:\/\//, '');
+    return `https://images.weserv.nl/?url=${encodeURIComponent(limpa)}&w=140&h=140&fit=contain&output=webp`;
+  };
+
   useEffect(() => {
     if (!isOpen || !opcoes || opcoes.length === 0) return;
 
     let cancelado = false;
 
-    // Dispara a busca em paralelo de fotos para cada opção sugerida
+    // Dispara a busca em paralelo de miniaturas oficiais distintas para cada opção/variação
     opcoes.forEach(async (opcao, idx) => {
       if (opcao.foto_url) {
         setFotosOpcoes(prev => ({ ...prev, [idx]: opcao.foto_url! }));
@@ -37,12 +46,24 @@ export const ModalDuvidaProdutoIA: React.FC<ModalDuvidaProdutoIAProps> = ({
 
       setCarregandoFotos(prev => ({ ...prev, [idx]: true }));
       try {
-        const fotoEncontrada = await buscarMiniaturaProduto(opcao.nome, loja);
+        // Constrói termo de busca específico com o diferencial da opção para trazer a foto exata da variação
+        const palavrasNome = limparTermoParaBuscaGoogle(opcao.nome).split(' ').filter(Boolean);
+        const baseNome = palavrasNome.slice(0, 2).join(' ');
+        let termoBusca = opcao.diferencial
+          ? `${baseNome} ${opcao.diferencial}`
+          : baseNome || opcao.nome;
+
+        if (loja?.segmento) {
+          const segCurto = loja.segmento.split('/')[0].trim();
+          termoBusca = `${termoBusca} ${segCurto}`;
+        }
+
+        const fotoEncontrada = await buscarMiniaturaProduto(termoBusca, loja, 8000);
         if (!cancelado && fotoEncontrada) {
           setFotosOpcoes(prev => ({ ...prev, [idx]: fotoEncontrada }));
         }
       } catch (err) {
-        console.warn(`Erro ao carregar miniatura para a opção ${idx}:`, err);
+        console.warn(`Aviso: Miniatura não obtida para opção ${idx}:`, err);
       } finally {
         if (!cancelado) {
           setCarregandoFotos(prev => ({ ...prev, [idx]: false }));
@@ -116,8 +137,9 @@ export const ModalDuvidaProdutoIA: React.FC<ModalDuvidaProdutoIAProps> = ({
                       </div>
                     ) : fotosOpcoes[idx] ? (
                       <img
-                        src={fotosOpcoes[idx]}
+                        src={formatarMiniaturaLeve(fotosOpcoes[idx])}
                         alt={opcao.nome}
+                        loading="lazy"
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-contain group-hover:scale-105 transition duration-300"
                         onError={() => {

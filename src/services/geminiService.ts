@@ -512,11 +512,11 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
       break;
     }
 
-    // Timeout equilibrado: 9.5s para fotos e 6.5s para texto puro estruturado
+    // Timeout equilibrado: 22s para análise multimodal de fotos e 8s para texto puro estruturado
     const temImagem = payloadCompleto.contents?.some((c: any) =>
       c.parts?.some((p: any) => p.inline_data || p.inlineData)
     );
-    const timeoutMs = temImagem ? 9500 : 6500;
+    const timeoutMs = temImagem ? 22000 : 8000;
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
@@ -554,10 +554,13 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
         console.warn(`Tentativa com modelo ${modelo} retornou erro (${response.status}):`, msg);
       }
     } catch (e: any) {
+      const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
+      if (isAbort) {
+        primeiroErro = 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente ou cadastre pelo nome/código de barras.';
+        break;
+      }
       if (!primeiroErro) primeiroErro = e?.message || String(e);
-      if (e?.name === 'AbortError') {
-        console.warn(`Tempo limite excedido (${timeoutMs}ms) ao consultar modelo ${modelo}.`);
-      } else if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
+      if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
         throw e;
       } else {
         console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
@@ -586,48 +589,27 @@ export const identificarProdutoPorFoto = async (
     const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(imageBase64OrUrl);
 
     const promptInstrucao = `
-Você é um especialista em catálogo de produtos e inteligência de mercado de varejo e e-commerce no Brasil (abrangendo todas as categorias comerciais legais de lojas, como alimentos, bebidas, moda, beleza, ferramentas, petshop, bem-estar e produtos de saúde/sex shop). Todos os itens analisados são produtos de varejo comercial.
-${segmentoLoja ? `CONTEXTO CRÍTICO - SEGMENTO DE ATUAÇÃO DA LOJA: "${segmentoLoja}". O item analisado pertence a este segmento comercial específico. Utilize terminologias, categorias e referências deste nicho de mercado.` : ''}
-Analise detalhadamente a foto do produto enviada. Identifique a marca, modelo, tipo de produto, volume/peso e suas características principais.
-
-IMPORTANTE SOBRE DÚVIDA OU MÚLTIPLAS POSSIBILIDADES:
-- Se a foto for perfeitamente nítida e você tiver certeza absoluta de qual é o produto único, defina "duvida": false.
-- Se você tiver QUALQUER DÚVIDA sobre qual é exatamente o produto (exemplo: a foto pode ser a versão Original ou Zero Açúcar, ou múltiplos sabores/aromas possíveis como Morango vs Frutas Vermelhas, ou tamanhos/modelos muito similares da mesma marca, ou foto em ângulo que não mostra o rótulo frontal completo), você DEVE definir "duvida": true e listar no array "opcoes_sugeridas" de 2 a 4 opções de produtos prováveis que o usuário poderia estar querendo cadastrar, preenchendo o "diferencial" explicativo para cada um (ex: "Versão Tradicional 350ml", "Versão Sem Açúcar / Zero 350ml", etc.).
-
-Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional) com a seguinte estrutura:
+Você é um especialista em catálogo de e-commerce e varejo no Brasil${segmentoLoja ? ` (segmento da loja: "${segmentoLoja}")` : ''}.
+Analise a foto do produto enviada. Identifique o item e retorne EXCLUSIVAMENTE um objeto JSON válido:
 {
   "duvida": false,
-  "nome": "Nome comercial preciso, atraente, completo e oficial do produto em português",
-  "categoria_sugerida": "Nome da categoria mais adequada no varejo",
+  "nome": "Nome comercial preciso e oficial do produto em português",
+  "categoria_sugerida": "Categoria no varejo",
   "preco_venda_estimado": 0.00,
   "preco_custo_estimado": 0.00,
-  "descricao": "Descrição comercial concisa de 1 a 2 frases com os principais benefícios e especificações.",
+  "descricao": "Descrição concisa de 1 frase com benefícios principais.",
   "tipo_unidade": "un",
-  "codigo_barras": "Código de barras numérico se visível na foto ou embalagem, senão vazio",
-  "diferencial": "Breve resumo do diferencial (ex: Versão Tradicional)",
-  "peso_kg": 0.35,
+  "codigo_barras": "Código numérico se legível na foto, senão vazio",
+  "diferencial": "Ex: Versão Original",
+  "peso_kg": 0.3,
   "altura_cm": 10,
   "largura_cm": 15,
   "comprimento_cm": 20,
   "opcoes_sugeridas": [
-    {
-      "nome": "Nome comercial da opção alternativa 1",
-      "categoria_sugerida": "Categoria",
-      "preco_venda_estimado": 0.00,
-      "preco_custo_estimado": 0.00,
-      "descricao": "Descrição concisa de 1 frase",
-      "tipo_unidade": "un",
-      "codigo_barras": "",
-      "diferencial": "Ex: Versão Zero Açúcar",
-      "peso_kg": 0.35,
-      "altura_cm": 10,
-      "largura_cm": 15,
-      "comprimento_cm": 20
-    }
+    { "nome": "Opção Alternativa 1", "diferencial": "Ex: Versão Sem Açúcar", "preco_venda_estimado": 0.00, "categoria_sugerida": "Categoria" }
   ]
 }
-IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
-Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.200 para 1.2kg) e as dimensões mínimas da embalagem de envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') considerando o tipo, material e volume do produto para cálculo de frete nos Correios e Jadlog.
+Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida": true e liste as alternativas concisas em "opcoes_sugeridas". Se tiver certeza, defina "duvida": false e "opcoes_sugeridas": [].
 `;
 
     const requestBody: any = {
@@ -646,7 +628,7 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
       ],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 750,
+        maxOutputTokens: 380,
         response_mime_type: 'application/json'
       }
     };

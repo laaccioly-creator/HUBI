@@ -444,9 +444,25 @@ export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) =>
 };
 
 /**
- * Busca rápida de uma única miniatura para exibição nas opções do Modal de Dúvida da IA
+ * Simplifica títulos longos de opções de IA em termos concisos (3-4 palavras)
+ * para busca instantânea de miniaturas no Google Imagens (< 500ms)
  */
-export const buscarMiniaturaProduto = async (termo: string, loja?: any): Promise<string | null> => {
+export const simplificarTermoParaMiniatura = (termo: string): string => {
+  const limpo = limparTermoParaBuscaGoogle(termo);
+  if (!limpo) return '';
+  const stopwords = new Set(['com', 'de', 'do', 'da', 'dos', 'das', 'para', 'em', 'um', 'uma', 'e', 'o', 'a', 'os', 'as', 'tipo', 'versao', 'versão']);
+  const palavras = limpo.split(' ').filter(p => !stopwords.has(p.toLowerCase()));
+  return palavras.slice(0, 4).join(' ');
+};
+
+/**
+ * Busca rápida de uma única miniatura leve para exibição nas opções do Modal de Dúvida da IA
+ */
+export const buscarMiniaturaProduto = async (
+  termo: string,
+  loja?: any,
+  timeoutMs: number = 8000
+): Promise<string | null> => {
   if (!termo || !termo.trim()) return null;
 
   const queryFinal = limparTermoParaBuscaGoogle(termo);
@@ -455,7 +471,7 @@ export const buscarMiniaturaProduto = async (termo: string, loja?: any): Promise
   // 1. Tenta obter do cache instantâneo (0ms)
   const emCache = obterCacheSerp(queryFinal);
   if (emCache && emCache.length > 0) {
-    return emCache[0].urlThumbnail || emCache[0].urlOriginal || null;
+    return emCache[0].urlThumbnail || null;
   }
 
   // 2. Chave SerpApi
@@ -468,15 +484,22 @@ export const buscarMiniaturaProduto = async (termo: string, loja?: any): Promise
 
   if (serpApiKey || loja?.id) {
     try {
-      const fotos = await buscarFotosGoogleImagesSerpApi(queryFinal, serpApiKey, {
+      const buscaPromise = buscarFotosGoogleImagesSerpApi(queryFinal, serpApiKey, {
         lojaId: loja?.id,
         numResultados: 2
       });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout miniatura')), timeoutMs)
+      );
+
+      const fotos = await Promise.race([buscaPromise, timeoutPromise]);
       if (fotos && fotos.length > 0) {
-        return fotos[0].urlThumbnail || fotos[0].urlOriginal || null;
+        // Retorna estritamente a miniatura comprimida do Google CDN (15-20KB), nunca imagem original pesada
+        return fotos[0].urlThumbnail || null;
       }
-    } catch (err) {
-      console.warn('Aviso: Não foi possível obter miniatura para opção:', termo, err);
+    } catch {
+      // Timeout gracioso para não travar o modal
     }
   }
 
