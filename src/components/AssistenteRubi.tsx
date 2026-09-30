@@ -20,6 +20,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
 import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
+import { rubiRouterService } from '../services/rubiRouterService';
 
 export const AssistenteRubi: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -209,7 +210,7 @@ export const AssistenteRubi: React.FC = () => {
         clientesTotal: clientes?.length || 0
       };
 
-      const resposta = await processarPerguntaRubiIA(pergunta, usuario, loja, dadosLoja);
+      const resposta = await rubiRouterService.processarPergunta(pergunta, usuario, loja, dadosLoja);
 
       setMensagens((prev) => [
         ...prev,

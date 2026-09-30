@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.3.0  
-> **Data de Atualização:** 24/09/2026  
+> **Versão do Documento:** 1.4.0  
+> **Data de Atualização:** 30/09/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -38,6 +38,7 @@
    - [5.6 Componentes Globais e Formatação Centralizada](#56-componentes-globais-e-formatação-centralizada)
    - [5.7 Ciclo de Vida PWA, Persistência Resiliente e Padrão Visual Mobile](#57-ciclo-de-vida-pwa-persistência-resiliente-e-padrão-visual-mobile)
    - [5.8 Motor de Validação e Rastreamento Oficial dos Correios (`correiosValidator.ts` & `ModalRastreioPedido.tsx`)](#58-motor-de-validação-e-rastreamento-oficial-dos-correios-correiosvalidatorts--modalrastreiopedidotsx)
+   - [5.9 Motor de Inteligência Calibrada System One (TypeSafe AI / Jev)](#59-motor-de-inteligência-calibrada-system-one-typesafe-ai--jev)
 
 ---
 
@@ -93,11 +94,16 @@ O **HUBI** é uma solução completa de Enterprise Resource Planning (ERP), Pont
 - **Banco de Dados Relacional:** PostgreSQL 15 com extensões `uuid-ossp` e `pgcrypto`.
 - **Segurança de Acesso:** Row Level Security (RLS) mandatória em todas as tabelas públicas com isolamento por `loja_id` e verificação de `auth.uid()`.
 - **Sincronização em Tempo Real:** Supabase Realtime (WebSockets) nos canais de `pedidos`, `itens_pedido`, `pedido_entregas` e `caixas`.
-- **Serverless Edge Functions:** Deno runtime no Supabase Functions para integrações protegidas que requerem chaves de API restritas (ex: busca de fotos SerpApi).
+- **Serverless Edge Functions:** Deno runtime no Supabase Functions para integrações protegidas que requerem chaves de API restritas e execução server-side:
+  - `buscar-fotos-serpapi`: Busca automatizada de imagens de produtos.
+  - `uber-dispatch` & `uber-webhook`: Despacho e rastreio de entregas expressas ponto a ponto.
+  - `melhor-envio-despacho`: Cotação e emissão de etiquetas multi-transportadoras / Correios.
+  - `typesafe-eval`: Proxy blindado para avaliações e julgamentos com o modelo **Jev (TypeSafe AI / System One)**.
 - **APIs e Gateways Externos:**
   - *Uber Direct REST API v1*: Cotação de entrega expressa ponto a ponto e despacho de entregadores.
   - *Melhor Envio API v2*: Cotação de fretes multisedex (Correios, Jadlog, Loggi, Latam Cargo) e emissão de etiquetas.
   - *SerpApi Google Images Engine*: Enriquecimento de catálogo com busca automática de fotos de produtos via código de barras ou nome.
+  - *TypeSafe AI System One (Jev)*: Avaliação preditiva, classificação calibrada de intenções, confirmações de atendimento e pontuações comportamentais sem alucinação de texto.
 
 ---
 
@@ -759,8 +765,37 @@ O subsistema de suporte e integração com os Correios atua em duas frentes fund
    - **Histórico Cronológico Detalhado:** Apresenta cada movimentação registrada (unidades de tratamento, agências, centros de distribuição, cidade/UF e descrições do carteiro).
    - **Ações Rápidas:** Acesso direto ao Portal dos Correios, Melhor Rastreio e envio de mensagem formatada para o WhatsApp do cliente.
 
+### 5.9 Motor de Inteligência Calibrada System One (TypeSafe AI / Jev)
+O HUBI integra a tecnologia **TypeSafe AI (modelo Jev)** para tomada de decisões semânticas rápidas, estruturadas e calibradas por probabilidades, sem o custo, lentidão ou risco de alucinação de texto de LLMs gerativos tradicionais.
+
+1. **Blindagem e Governança de Segredos (`supabase-rls-guard` & `pii-leak-detector`):**
+   - A chave de autenticação do TypeSafe (`TYPESAFE_API_KEY`) é mantida estritamente no cofre de segredos do servidor (*Supabase Secrets / Vault*), nunca exposta no bundle do front-end (`VITE_*`).
+   - Todas as requisições do navegador são mediadas pela Edge Function oficial.
+
+2. **Supabase Edge Function (`supabase/functions/typesafe-eval/index.ts`):**
+   - **Endpoint:** `POST https://<project-ref>.supabase.co/functions/v1/typesafe-eval`
+   - **Deploy:** `npx supabase functions deploy typesafe-eval --no-verify-jwt`
+   - **Mapeamento de Entrada:**
+     - `state`: String ou objeto JSON estruturado contendo o contexto a ser julgado (ex: mensagem do cliente, itens da sacola, histórico recente).
+     - `questions`: Dicionário contendo perguntas com suas respectivas primitivas, instruções e critérios.
+     - `model`: Modelo alvo (padrão: `jev-latest`).
+   - **Comunicação:** Dispara requisições autenticadas diretamente para `https://api.typesafe.ai/v1/systemone`.
+   - **Sanitização de Exceções:** Converte códigos de erro da API TypeSafe (401, 429, 422) em retornos padronizados em `pt-BR`, sem expor chaves ou rastros internos.
+
+3. **Camada de Consumo Front-end (`src/services/typesafeService.ts`):**
+   - Provê interface estrita e utilitários tipados em TypeScript para o ecossistema React:
+     - `typesafeService.avaliar(estado, perguntas, modelo?)`: Despacha a avaliação via `supabase.functions.invoke('typesafe-eval')`.
+     - `typesafeService.criarChoice(instrucoes, criterios)`: Primitiva para seleção exclusiva entre opções concorrentes com distribuição de probabilidade e nível de confiança.
+     - `typesafeService.criarNoul(instrucoes, criterios?)`: Primitiva para avaliação booleana (sim/não) retornando a probabilidade de verdade (0.0 a 1.0).
+     - `typesafeService.criarScore(instrucoes, niveis)`: Primitiva para avaliação ordinal com níveis descritivos ordenados.
+   - **Padrões de Uso no HUBI:**
+     - Triagem de intenção e urgência em mensagens recebidas via WhatsApp.
+     - Classificação automática de dúvidas comerciais vs. operacionais no atendimento do Catálogo Online.
+     - Detecção inteligente de comandos de sacola e pedidos de atacado por volume.
+
 ---
 
 > **Diretriz Final para Desenvolvedores e Agentes de IA:**
 > Este documento reflete com exatidão a implementação presente na base de código. Ao criar novos módulos, telas ou funcionalidades, **é obrigatório** seguir a modelagem relacional pura (sem colunas JSON genéricas para dados de negócio), manter o padrão de nomenclatura em `pt-BR`, preservar a segurança multitenant com validação de `loja_id` e respeitar a governança da suíte Google Mantis.
+
 

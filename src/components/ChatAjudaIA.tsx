@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
 import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
+import { rubiRouterService } from '../services/rubiRouterService';
 
 export const ChatAjudaIA: React.FC = () => {
   const navigate = useNavigate();
@@ -218,7 +219,7 @@ export const ChatAjudaIA: React.FC = () => {
         clientesTotal: clientes?.length || 0
       };
 
-      const resposta = await processarPerguntaRubiIA(texto, usuario, loja, dadosLoja);
+      const resposta = await rubiRouterService.processarPergunta(texto, usuario, loja, dadosLoja);
 
       setMensagens((prev) => [
         ...prev,
