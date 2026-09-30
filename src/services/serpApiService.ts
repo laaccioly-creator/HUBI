@@ -82,7 +82,7 @@ export const limparTermoParaBuscaGoogle = (termo: string): string => {
     .replace(/\s*[-–—(]\s*(p|m|g|gg|xg|xgg)\b\s*\)?/gi, '')
     .replace(/\s*[-–—(]\s*(grande|pequeno|medio|médio)\b\s*\)?/gi, '')
     .replace(/\s*[-–—]\s*/g, ' ')
-    .replace(/-/g, ' ')
+    .replace(/[/\\|_-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -550,7 +550,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     });
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout de 4.000ms na Edge Function')), 4000)
+      setTimeout(() => reject(new Error('Timeout de 20.000ms na Edge Function')), 20000)
     );
 
     const { data: edgeData, error: edgeError } = await Promise.race([edgePromise, timeoutPromise]);

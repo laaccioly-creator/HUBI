@@ -997,7 +997,7 @@ export const pesquisarFotosProdutoNaInternet = async (
   let termoCanonico = termoLimpo;
   if (termoLimpo) {
     try {
-      termoCanonico = await catalogJevService.extrairTermoCanonicoBusca(termo);
+      termoCanonico = await catalogJevService.extrairTermoCanonicoBusca(termo, segmentoLoja);
     } catch {
       termoCanonico = termoLimpo;
     }
@@ -1011,7 +1011,9 @@ export const pesquisarFotosProdutoNaInternet = async (
 
   // PASSO 1: IA Multimodal de Visão (Gemini Flash)
   // Executa se NÃO houver nome de texto OU se o termo for excessivamente genérico (<= 2 palavras) e houver foto de referência
-  const termoEhGenerico = !termoLimpo || termoLimpo.split(' ').filter(Boolean).length <= 2;
+  const palavrasTermo = termoLimpo ? termoLimpo.split(' ').filter(Boolean) : [];
+  const termoEhGenerico = palavrasTermo.length <= 2;
+
   if (termoEhGenerico && fotoReferencia) {
     try {
       const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, termoLimpo, segmentoLoja);
@@ -1028,17 +1030,20 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  if (termoLimpo && !termosParaPesquisar.includes(termoLimpo)) {
-    termosParaPesquisar.push(termoLimpo);
-  }
-
-  // Se a loja tiver segmento configurado e o termo for muito curto (<= 2 palavras), adiciona busca contextualizada
-  if (segmentoLoja && termoLimpo && termoLimpo.split(' ').length <= 2) {
+  // Se a loja tiver segmento configurado e o termo for curto (<= 2 palavras), adiciona busca contextualizada
+  // Se não houver foto de referência para guiar visualmente, o termo contextualizado ganha prioridade máxima
+  if (segmentoLoja && termoLimpo && palavrasTermo.length <= 2) {
     const segmentoCurto = segmentoLoja.split('/')[0].trim();
     const termoComSegmento = `${termoLimpo} ${segmentoCurto}`;
-    if (!termosParaPesquisar.includes(termoComSegmento)) {
+    if (!fotoReferencia) {
+      termosParaPesquisar.unshift(termoComSegmento);
+    } else if (!termosParaPesquisar.includes(termoComSegmento)) {
       termosParaPesquisar.push(termoComSegmento);
     }
+  }
+
+  if (termoLimpo && !termosParaPesquisar.includes(termoLimpo)) {
+    termosParaPesquisar.push(termoLimpo);
   }
 
   // PASSO 2 (A): SerpApi (Google Images Engine) no modelo BYOK
@@ -1157,8 +1162,9 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  // PASSO 2 (C): Consulta Open Food / Beauty / Products Facts (em paralelo ultrarrápido com timeout de 2s)
-  if (fotos.length === 0 && (codigoBarras?.trim() || termoLimpo)) {
+  // PASSO 2 (C): Consulta Open Food / Beauty / Products Facts (apenas se houver código de barras ou se a loja não tiver SerpApi)
+  const deveConsultarOpenFacts = fotos.length === 0 && (Boolean(codigoBarras?.trim()) || (!serpApiKey && !loja?.id));
+  if (deveConsultarOpenFacts) {
     try {
       const termoOFF = codigoBarras?.trim() || termoLimpo;
       const apis = [

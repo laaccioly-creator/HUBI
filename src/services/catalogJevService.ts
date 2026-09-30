@@ -28,10 +28,10 @@ function gerarCandidatosTermoBusca(termo: string): {
     .replace(/\s*[-/]\s*(?:p|m|g|gg|xg|xgg|\d{2})\b/gi, '')
     // Remove parênteses com conteúdo de embalagem/lote (ex: "(cx c/ 12)", "(fardo)")
     .replace(/\([^)]*(?:cx|fardo|lote|emb|unid)[^)]*\)/gi, '')
-    // Remove hífens e barras duplicadas
+    // Remove hífens e barras duplicadas ou isoladas
     .replace(/[-/]{2,}/g, ' ')
-    // Remove pontuação solta
     .replace(/\s+[-–—/]\s+/g, ' ')
+    .replace(/[/\\|]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -56,7 +56,7 @@ export const catalogJevService = {
    * Extrai o termo canônico de busca para imagens do Google Images via Jev (System One).
    * Orçamento estrito de 1.000ms com degradação graciosa para heurística local.
    */
-  async extrairTermoCanonicoBusca(termo: string): Promise<string> {
+  async extrairTermoCanonicoBusca(termo: string, segmentoLoja?: string): Promise<string> {
     if (!termo || !termo.trim()) return '';
 
     const candidatos = gerarCandidatosTermoBusca(termo);
