@@ -1036,7 +1036,7 @@ export const CatalogoPublico: React.FC = () => {
     ? valorFrete 
     : (elegivelFreteGratisLoja ? 0 : valorFrete);
 
-  const valorFreteEfetivo = (freteGratisCupom || (elegivelFreteGratisLoja && (!pedidoEntrega || pedidoEntrega.valor_frete === 0))) 
+  const valorFreteEfetivo = (freteGratisCupom || (elegivelFreteGratisLoja && (!pedidoEntrega || pedidoEntrega.is_frete_gratis || pedidoEntrega.valor_frete === 0))) 
     ? 0 
     : valorFreteBase;
 
@@ -1379,6 +1379,7 @@ export const CatalogoPublico: React.FC = () => {
 
       // Persistir isolamento relacional em pedido_entregas
       try {
+        const ehEntregaFallback = formaEntregaEscolhida?.tipo === 'entrega' || Boolean(enderecoEntrega && !enderecoEntrega.toLowerCase().includes('retirada'));
         const entregaPayload = pedidoEntrega ? {
           ...pedidoEntrega,
           pedido_id: pedidoCriado.id,
@@ -1386,10 +1387,10 @@ export const CatalogoPublico: React.FC = () => {
           forma_entrega_id: formaEntregaIdSanitizada
         } : {
           pedido_id: pedidoCriado.id,
-          tipo_atendimento: (valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
+          tipo_atendimento: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
           valor_frete: valorFreteEfetivo,
-          provedor: (valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
-          transportadora_nome: valorFreteEfetivo > 0 ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
+          provedor: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
+          transportadora_nome: (ehEntregaFallback || valorFreteEfetivo > 0) ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
           status_envio: 'pendente',
           forma_entrega_id: formaEntregaIdSanitizada
         };

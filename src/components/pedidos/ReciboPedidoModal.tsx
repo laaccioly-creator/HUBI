@@ -234,7 +234,9 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                   <span className="font-semibold text-white">
                     {valorFrete > 0
                       ? `+ R$ ${valorFrete.toFixed(2)}`
-                      : 'A Definir'}
+                      : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
+                        ? 'Grátis (R$ 0,00)'
+                        : 'A Definir'}
                   </span>
                 </div>
               )}

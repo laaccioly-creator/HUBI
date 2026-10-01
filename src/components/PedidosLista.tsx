@@ -857,6 +857,31 @@ export const PedidosLista: React.FC = () => {
           };
         });
 
+        // Sincronizar pedidos de entrega pagos/fiado que ficaram como 'confirmado' para 'aguardando_envio'
+        const pedidosEntregaParaAguardando = (pedidosNormalizados as any[]).filter((p: any) => {
+          if (p.status !== 'confirmado') return false;
+          const statusPag = resolverStatusPagamento(p);
+          const estaPago = statusPag === 'pago' || statusPag === 'fiado';
+          if (!estaPago) return false;
+          const { isRetirada } = resolverProvedorEntrega(p);
+          return !isRetirada;
+        });
+
+        if (pedidosEntregaParaAguardando.length > 0) {
+          const idsEntrega = pedidosEntregaParaAguardando.map(p => p.id);
+          supabase
+            .from('pedidos')
+            .update({ status: 'aguardando_envio', atualizado_em: new Date().toISOString() })
+            .in('id', idsEntrega)
+            .then(() => {});
+
+          pedidosNormalizados.forEach((p: any) => {
+            if (idsEntrega.includes(p.id)) {
+              p.status = 'aguardando_envio';
+            }
+          });
+        }
+
         setPedidos(pedidosNormalizados as unknown as Pedido[]);
         setPedidoSelecionado((prev) => {
           if (!prev) return null;
@@ -2395,7 +2420,7 @@ export const PedidosLista: React.FC = () => {
                   <DollarSign className="w-4 h-4" />
                   <span>Receber Fiado</span>
                 </button>
-              ) : pedidoSelecionado.status === 'aguardando_envio' ? (
+              ) : (pedidoSelecionado.status === 'aguardando_envio' || (pedidoSelecionado.status === 'confirmado' && !resolverProvedorEntrega(pedidoSelecionado, entregaPedido).isRetirada)) ? (
                 (() => {
                   const { prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
                   const statusPag = resolverStatusPagamento(pedidoSelecionado);
@@ -3651,7 +3676,7 @@ export const PedidosLista: React.FC = () => {
                                     <DollarSign className="w-3.5 h-3.5" />
                                     <span>Receber Fiado</span>
                                   </button>
-                                ) : pedido.status === 'aguardando_envio' ? (
+                                ) : (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   (() => {
                                     const { prov } = resolverProvedorEntrega(pedido);
                                     const isUber = prov === 'uber';
@@ -4294,7 +4319,9 @@ export const PedidosLista: React.FC = () => {
                           ? `+ R$ ${valorFrete.toFixed(2)}` 
                           : ehRetirada 
                             ? 'Grátis (Retirada)'
-                            : 'A Definir'}
+                            : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
+                              ? 'Grátis (R$ 0,00)'
+                              : 'A Definir'}
                       </span>
                     </div>
 

@@ -300,7 +300,9 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                       ? `+ R$ ${valorFrete.toFixed(2)}` 
                       : ehRetirada 
                         ? 'Grátis (Retirada)'
-                        : 'A Definir'}
+                        : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
+                          ? 'Grátis (R$ 0,00)'
+                          : 'A Definir'}
                   </span>
                 </div>
 

@@ -577,11 +577,13 @@ export class PrintService {
             ` : ''}
             ${!ehRetirada ? `
             <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-              <span>Frete:</span>
+              <span>Frete${formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
               <span style="font-weight: 600;">
                 ${Number(pedido.valor_frete || 0) > 0 
-                  ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)} (${formaEntregaTexto})` 
-                  : 'A Definir'}
+                  ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)}` 
+                  : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
+                    ? 'Grátis (R$ 0,00)'
+                    : 'A Definir'}
               </span>
             </div>
             ` : ''}
@@ -941,7 +943,11 @@ export class PrintService {
 
     text += `Subtotal:              R$ ${Number(pedido.subtotal).toFixed(2)}\n`;
     if (Number(pedido.valor_desconto) > 0) text += `Desconto:            - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n`;
-    if (Number(pedido.valor_frete) > 0) text += `Taxa de Entrega:     + R$ ${Number(pedido.valor_frete).toFixed(2)}\n`;
+    if (Number(pedido.valor_frete) > 0) {
+      text += `Taxa de Entrega:     + R$ ${Number(pedido.valor_frete).toFixed(2)}\n`;
+    } else if (!ehRetirada && formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir')) {
+      text += `Taxa de Entrega:     Grátis (R$ 0,00)\n`;
+    }
     text += '\x1B\x45\x01'; // Bold ON
     text += `TOTAL:                 R$ ${Number(pedido.valor_total).toFixed(2)}\n`;
     text += '\x1B\x45\x00'; // Bold OFF
