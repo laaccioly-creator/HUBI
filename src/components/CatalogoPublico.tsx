@@ -46,6 +46,7 @@ import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
+import { isUuidValido } from '../services/syncService';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -1318,9 +1319,17 @@ export const CatalogoPublico: React.FC = () => {
 
       const dataOperacaoIso = obterDataOperacaoISOParaLoja(loja);
 
+      const formaEntregaIdSanitizada = (
+        (pedidoEntrega?.forma_entrega_id && isUuidValido(pedidoEntrega.forma_entrega_id))
+          ? pedidoEntrega.forma_entrega_id
+          : (formaEntregaEscolhida?.id && isUuidValido(formaEntregaEscolhida.id))
+            ? formaEntregaEscolhida.id
+            : null
+      );
+
       const payloadPedido = {
         loja_id: loja.id,
-        cliente_id: clienteFinalId,
+        cliente_id: (clienteFinalId && isUuidValido(clienteFinalId)) ? clienteFinalId : null,
         origem: 'catalogo_online',
         status: 'pendente',
         status_pagamento: 'aguardando_pagamento',
@@ -1333,14 +1342,14 @@ export const CatalogoPublico: React.FC = () => {
         valor_total: total,
         saldo_devedor: total,
         troco_para: null,
-        cupom_id: cupomAplicado?.id || null,
+        cupom_id: (cupomAplicado?.id && isUuidValido(cupomAplicado.id)) ? cupomAplicado.id : null,
         cupom_codigo: cupomAplicado?.codigo || null,
         valor_desconto_cupom: Number(descontoCupom || 0),
         endereco_entrega: pedidoEntrega?.destino_logradouro 
           ? `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${pedidoEntrega.destino_complemento ? ` - ${pedidoEntrega.destino_complemento}` : ''}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}`
           : `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
         observacoes: observacoes?.trim() || null,
-        forma_entrega_id: formaEntregaEscolhida?.id || null,
+        forma_entrega_id: formaEntregaIdSanitizada,
         cliente_nome_avulso: nomeCliente || null,
         cliente_telefone_avulso: whatsappCliente || null,
         cliente_documento_avulso: dadosContato.cpfCnpj || null,
@@ -1373,14 +1382,16 @@ export const CatalogoPublico: React.FC = () => {
         const entregaPayload = pedidoEntrega ? {
           ...pedidoEntrega,
           pedido_id: pedidoCriado.id,
-          valor_frete: valorFreteEfetivo
+          valor_frete: valorFreteEfetivo,
+          forma_entrega_id: formaEntregaIdSanitizada
         } : {
           pedido_id: pedidoCriado.id,
           tipo_atendimento: (valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
           valor_frete: valorFreteEfetivo,
           provedor: (valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
           transportadora_nome: valorFreteEfetivo > 0 ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
-          status_envio: 'pendente'
+          status_envio: 'pendente',
+          forma_entrega_id: formaEntregaIdSanitizada
         };
         await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
       } catch (eEntregaCat) {
@@ -1561,7 +1572,14 @@ Fico no aguardo da confirmação! ✨`;
       });
     } catch (err: any) {
       console.error('Erro ao enviar pedido:', err);
-      alert(`Erro ao finalizar pedido: ${err.message || 'Tente novamente.'}`);
+      const msgErro = err?.message || '';
+      let mensagemAmigavel = 'Não foi possível concluir seu pedido no momento. Por favor, tente novamente.';
+      if (msgErro.includes('uuid') || msgErro.includes('22P02')) {
+        mensagemAmigavel = 'Houve uma inconsistência na opção de entrega selecionada. Por favor, selecione novamente a entrega antes de finalizar.';
+      } else if (msgErro && !msgErro.includes('relation') && !msgErro.includes('syntax') && !msgErro.includes('violates') && !msgErro.includes('duplicate') && !msgErro.includes('SQLSTATE')) {
+        mensagemAmigavel = msgErro;
+      }
+      alert(`Erro ao finalizar pedido: ${mensagemAmigavel}`);
     } finally {
       setEnviandoPedido(false);
     }
@@ -3264,8 +3282,12 @@ Fico no aguardo da confirmação! ✨`;
                       setDadosEndereco(novosDadosEnd);
                       cartContext?.setDadosEndereco(novosDadosEnd);
                     }
+                    const formaIdRelacional = (resultado.pedido_entrega?.forma_entrega_id && isUuidValido(resultado.pedido_entrega.forma_entrega_id))
+                      ? resultado.pedido_entrega.forma_entrega_id
+                      : (resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'entrega_shipping');
+
                     setFormaEntregaEscolhida({
-                      id: resultado.tipo_atendimento === 'retirada' ? 'retirada' : 'entrega_shipping',
+                      id: formaIdRelacional,
                       loja_id: loja.id,
                       nome: resultado.tipo_atendimento === 'retirada' 
                         ? 'Retirar na Loja' 

@@ -642,6 +642,10 @@ export class ShippingOrchestrator {
       ? entrega.id
       : undefined;
 
+    const formaEntregaIdSanitizado = (entrega.forma_entrega_id && isUuidValido(entrega.forma_entrega_id))
+      ? entrega.forma_entrega_id
+      : null;
+
     // Assegura conformidade com o CHECK (provedor IN ('uber', 'melhor_envio', 'retirada_loja', 'frete_proprio'))
     let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'melhor_envio';
     if (entrega.tipo_atendimento === 'retirada' || entrega.provedor === 'retirada_loja') {
@@ -662,6 +666,7 @@ export class ShippingOrchestrator {
       ...entrega,
       pedido_id: pedidoId,
       cliente_endereco_id: clienteEnderecoIdSanitizado,
+      forma_entrega_id: formaEntregaIdSanitizado,
       provedor: provedorFinal,
       atualizado_em: new Date().toISOString()
     };
@@ -1752,7 +1757,7 @@ export class ShippingOrchestrator {
       destino_uf: destinoUf,
       destino_latitude: pe.destino_latitude || enderecoFinal?.latitude || null,
       destino_longitude: pe.destino_longitude || enderecoFinal?.longitude || null,
-      forma_entrega_id: pe.forma_entrega_id || null,
+      forma_entrega_id: (pe.forma_entrega_id && isUuidValido(pe.forma_entrega_id)) ? pe.forma_entrega_id : null,
       status_envio: 'pendente',
       atualizado_em: agora
     };
@@ -1805,7 +1810,7 @@ export class ShippingOrchestrator {
         valor_frete: Number(valorFrete || 0),
         valor_total: novoValorTotal,
         saldo_devedor: novoSaldoDevedor,
-        forma_entrega_id: pe.forma_entrega_id || null,
+        forma_entrega_id: (pe.forma_entrega_id && isUuidValido(pe.forma_entrega_id)) ? pe.forma_entrega_id : null,
         tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
         nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
         codigo_corrida: pe.codigo_corrida || null,
