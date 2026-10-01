@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck } from 'lucide-react';
-import { Pedido } from '../types';
+import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt } from 'lucide-react';
+import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
+import { ModalReciboPedido } from './ModalReciboPedido';
 
 interface ModalPedidosClienteProps {
   isOpen: boolean;
   onClose: () => void;
   lojaId: string;
+  loja?: Loja | null;
   clienteId: string;
   corTema?: string;
   onExplorarCatalogo?: () => void;
@@ -16,11 +18,13 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   isOpen,
   onClose,
   lojaId,
+  loja,
   clienteId,
   corTema = '#10B981',
   onExplorarCatalogo
 }) => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -204,21 +208,42 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     </strong>
                   </div>
 
-                  <a
-                    href={`/order-tracking/${ped.numero_pedido}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
-                  >
-                    <span>Rastrear Pedido</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPedidoReciboModal(ped)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 transition cursor-pointer active:scale-95 shadow-sm"
+                      title="Visualizar Recibo do Pedido"
+                    >
+                      <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Recibo</span>
+                    </button>
+
+                    <a
+                      href={`/order-tracking/${ped.numero_pedido}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+                    >
+                      <span>Rastrear Pedido</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Modal de Recibo do Pedido */}
+      <ModalReciboPedido
+        isOpen={!!pedidoReciboModal}
+        onClose={() => setPedidoReciboModal(null)}
+        pedido={pedidoReciboModal}
+        loja={loja}
+        lojaId={lojaId}
+      />
     </div>
   );
 };

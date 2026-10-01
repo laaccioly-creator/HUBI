@@ -3079,6 +3079,7 @@ Fico no aguardo da confirmação! ✨`;
         isOpen={modalPedidosAberto}
         onClose={() => setModalPedidosAberto(false)}
         lojaId={loja?.id || ''}
+        loja={loja}
         clienteId={clienteSelecionado?.id || ''}
         corTema={corTema}
         onExplorarCatalogo={() => {
