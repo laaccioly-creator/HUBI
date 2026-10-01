@@ -567,22 +567,21 @@ export const buscarFotosGoogleImagesSerpApi = async (
 
   // =========================================================================
   // MÉTODO 1: Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)
-  // Máxima velocidade (< 800ms) durante desenvolvimento local Vite
+  // Utilizado apenas em ambiente DEV quando a chave local está presente
   // =========================================================================
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && chaveLimpa) {
     try {
-      logSerp('📡 [Método 1/4] Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
+      logSerp('📡 [Método 1/2] Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
       const urlLocal = `/api/buscar-fotos-serpapi?${params.toString()}`;
       const ctrl = new AbortController();
-      // Timeout realista de 7s para suportar raspagem inicial de novas pesquisas no Google Images
-      const timeoutId = setTimeout(() => ctrl.abort(), 7000);
+      const timeoutId = setTimeout(() => ctrl.abort(), 12000);
       const response = await fetch(urlLocal, { signal: ctrl.signal });
       clearTimeout(timeoutId);
 
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const rawJson = await response.json();
-        logSerp('📥 Resposta bruta do proxy local:', rawJson);
+        logSerp('📥 Resposta do proxy local:', rawJson);
 
         if (
           response.status === 429 ||
@@ -590,7 +589,6 @@ export const buscarFotosGoogleImagesSerpApi = async (
           rawJson.error?.toLowerCase?.().includes('run out of searches') ||
           rawJson.error?.toLowerCase?.().includes('quota')
         ) {
-          logSerpErro('Cota mensal da SerpApi atingida.');
           throw new SerpApiQuotaError();
         }
 
@@ -600,165 +598,140 @@ export const buscarFotosGoogleImagesSerpApi = async (
           rawJson.error?.toLowerCase?.().includes('invalid api key') ||
           rawJson.error?.toLowerCase?.().includes('unauthorized')
         ) {
-          if (!lojaId) {
-            logSerpErro('Chave SerpApi inválida no proxy local.');
-            throw new SerpApiAuthError();
-          }
-          logSerpAviso('Proxy local sem chave configurada, continuando para Supabase RPC que lê pelo lojaId...');
+          if (!lojaId) throw new SerpApiAuthError();
+          logSerpAviso('Proxy local sem chave válida, recorrendo ao Supabase...');
         } else if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
           const itens = rawJson.images_results || rawJson.results;
           const fotos = formatarResultadosSerpApi(itens, queryFinal, num);
-          logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
-          salvarCacheSerp(queryFinal, fotos);
-          return fotos;
+          if (fotos.length > 0) {
+            logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
+            salvarCacheSerp(queryFinal, fotos);
+            return fotos;
+          }
         }
       }
     } catch (e: any) {
       if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
         throw e;
       }
-      logSerpAviso('Proxy local indisponível, tentando próximo método:', e.message);
+      logSerpAviso('Proxy local indisponível, recorrendo aos canais Supabase:', e.message);
     }
   }
 
   // =========================================================================
-  // MÉTODO 2: Supabase RPC (PostgreSQL direto com extensions.http)
-  // Altíssima velocidade (~1s em cache, ~3.5s em busca inédita)
+  // MÉTODO 2: Conexão Concorrente Segura (Supabase RPC + Supabase Edge Function)
+  // Ambas são disparadas simultaneamente; a primeira a entregar fotos válidas vence.
+  // Garante velocidade máxima (~5s a 7s em buscas inéditas, ~800ms em cache)
+  // Timeout unificado de 14s (tempo seguro para qualquer raspagem de novos termos)
   // =========================================================================
   try {
-    logSerp('📡 [Método 2/4] Supabase RPC (buscar_fotos_serpapi_rpc)...');
-    const rpcPromise = supabase.rpc('buscar_fotos_serpapi_rpc', {
-      p_termo: queryFinal,
-      p_loja_id: lojaId || null,
-      p_api_key: chaveLimpa || null,
-      p_num: num
+    logSerp('📡 [Canais de Alta Performance] Disparando Supabase RPC e Edge Function em paralelo...');
+
+    // Canal A: Supabase RPC (PostgreSQL direto com extensions.http)
+    const promessaRpc = (async (): Promise<FotoResultadoSerpApi[]> => {
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_fotos_serpapi_rpc', {
+          p_termo: queryFinal,
+          p_loja_id: lojaId || null,
+          p_api_key: chaveLimpa || null,
+          p_num: num
+        });
+
+        if (!rpcError && rpcData) {
+          if (rpcData.error_type === 'quota' || rpcData.status === 429) {
+            throw new SerpApiQuotaError(rpcData.mensagem);
+          }
+          if (rpcData.error_type === 'auth' || rpcData.status === 401 || rpcData.status === 403) {
+            throw new SerpApiAuthError(rpcData.mensagem);
+          }
+          if (rpcData.sucesso && Array.isArray(rpcData.results) && rpcData.results.length > 0) {
+            return formatarResultadosSerpApi(rpcData.results, queryFinal, num);
+          }
+        }
+      } catch (err: any) {
+        if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) throw err;
+      }
+      return [];
+    })();
+
+    // Canal B: Supabase Edge Function (buscar-fotos-serpapi no Deno Runtime)
+    const promessaEdge = (async (): Promise<FotoResultadoSerpApi[]> => {
+      try {
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+          body: {
+            q: queryFinal,
+            api_key: chaveLimpa || undefined,
+            loja_id: lojaId || undefined,
+            num
+          }
+        });
+
+        if (!edgeError && edgeData) {
+          if (edgeData.error_type === 'quota') throw new SerpApiQuotaError(edgeData.error);
+          if (edgeData.error_type === 'auth') throw new SerpApiAuthError(edgeData.error);
+          if (Array.isArray(edgeData.results) && edgeData.results.length > 0) {
+            return formatarResultadosSerpApi(edgeData.results, queryFinal, num);
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) throw e;
+      }
+      return [];
+    })();
+
+    // Resolver com a primeira fonte que devolver fotos > 0
+    const corridaResultados = new Promise<FotoResultadoSerpApi[]>((resolve, reject) => {
+      let pendentes = 2;
+      let erroFinal: any = null;
+
+      const verificarResultado = (fotos: FotoResultadoSerpApi[]) => {
+        if (fotos && fotos.length > 0) {
+          resolve(fotos);
+        } else {
+          pendentes--;
+          if (pendentes <= 0) {
+            if (erroFinal) reject(erroFinal);
+            else resolve([]);
+          }
+        }
+      };
+
+      promessaRpc.then(verificarResultado).catch((err) => {
+        if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) erroFinal = err;
+        pendentes--;
+        if (pendentes <= 0) {
+          if (erroFinal) reject(erroFinal);
+          else resolve([]);
+        }
+      });
+
+      promessaEdge.then(verificarResultado).catch((err) => {
+        if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) erroFinal = err;
+        pendentes--;
+        if (pendentes <= 0) {
+          if (erroFinal) reject(erroFinal);
+          else resolve([]);
+        }
+      });
     });
 
-    const rpcTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout de 7.500ms no RPC Postgres')), 7500)
+    const timeoutGlobal = new Promise<FotoResultadoSerpApi[]>((_, reject) =>
+      setTimeout(() => reject(new Error('Tempo limite de busca na web esgotado (14s)')), 14000)
     );
 
-    const { data: rpcData, error: rpcError } = await Promise.race([rpcPromise, rpcTimeout]);
-
-    if (!rpcError && rpcData) {
-      logSerp('📥 Resposta bruta do Supabase RPC:', rpcData);
-
-      if (rpcData.error_type === 'quota' || rpcData.status === 429) {
-        logSerpErro('Cota mensal de 250 buscas da SerpApi atingida!');
-        throw new SerpApiQuotaError(rpcData.mensagem);
-      }
-      if (rpcData.error_type === 'auth' || rpcData.status === 401 || rpcData.status === 403) {
-        logSerpErro('Chave SerpApi inválida ou sem permissão:', rpcData.mensagem);
-        throw new SerpApiAuthError(rpcData.mensagem);
-      }
-
-      if (rpcData.sucesso && Array.isArray(rpcData.results)) {
-        if (rpcData.results.length > 0) {
-          const fotos = formatarResultadosSerpApi(rpcData.results, queryFinal, num);
-          logSerpSucesso(`Encontradas ${fotos.length} fotos via Supabase RPC!`, fotos);
-          salvarCacheSerp(queryFinal, fotos);
-          return fotos;
-        }
-      }
+    const fotos = await Promise.race([corridaResultados, timeoutGlobal]);
+    if (fotos && fotos.length > 0) {
+      logSerpSucesso(`⚡ Encontradas ${fotos.length} fotos via canal de alta performance!`, fotos);
+      salvarCacheSerp(queryFinal, fotos);
+      return fotos;
     }
   } catch (err: any) {
     if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
       throw err;
     }
-    logSerpAviso('Supabase RPC falhou ou atingiu timeout:', err.message);
+    logSerpAviso('Busca concorrente Supabase finalizada sem resultados:', err.message);
   }
 
-  // =========================================================================
-  // MÉTODO 3: Supabase Edge Function (buscar-fotos-serpapi)
-  // Fallback secundário com timeout de 7.5s
-  // =========================================================================
-  try {
-    logSerp('📡 [Método 3/4] Supabase Edge Function (buscar-fotos-serpapi)...');
-    const edgePromise = supabase.functions.invoke('buscar-fotos-serpapi', {
-      body: {
-        q: queryFinal,
-        api_key: chaveLimpa,
-        loja_id: opcoes?.lojaId,
-        num
-      }
-    });
-
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout de 7.500ms na Edge Function')), 7500)
-    );
-
-    const { data: edgeData, error: edgeError } = await Promise.race([edgePromise, timeoutPromise]);
-
-    if (!edgeError && edgeData) {
-      if (edgeData.error_type === 'quota') {
-        logSerpErro('Cota mensal da SerpApi excedida (via Edge Function).');
-        throw new SerpApiQuotaError(edgeData.error);
-      }
-      if (edgeData.error_type === 'auth') {
-        logSerpErro('Chave inválida na SerpApi (via Edge Function).');
-        throw new SerpApiAuthError(edgeData.error);
-      }
-      if (Array.isArray(edgeData.results) && edgeData.results.length > 0) {
-        logSerpSucesso(`Encontradas ${edgeData.results.length} fotos via Edge Function!`, edgeData.results);
-        salvarCacheSerp(queryFinal, edgeData.results);
-        return edgeData.results;
-      }
-    }
-    if (edgeError) {
-      logSerpAviso('Edge Function retornou erro:', edgeError.message);
-    }
-  } catch (e: any) {
-    if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
-      throw e;
-    }
-    logSerpAviso('Exceção na Edge Function:', e.message);
-  }
-
-  // =========================================================================
-  // MÉTODO 4: Chamada direta à SerpApi (fallback em navegadores com suporte)
-  // =========================================================================
-  try {
-    logSerp('📡 [Método 4/4] Chamada direta à SerpApi (search.json)...');
-    const urlDireta = `https://serpapi.com/search.json?${params.toString()}`;
-    const ctrl = new AbortController();
-    const timeoutId = setTimeout(() => ctrl.abort(), 6000);
-    const response = await fetch(urlDireta, { signal: ctrl.signal });
-    clearTimeout(timeoutId);
-
-    const rawJson = await response.json();
-    logSerp('📥 Resposta da SerpApi direta:', rawJson);
-
-    if (
-      response.status === 429 ||
-      rawJson.error?.toLowerCase?.().includes('searches limit') ||
-      rawJson.error?.toLowerCase?.().includes('run out of searches') ||
-      rawJson.error?.toLowerCase?.().includes('quota')
-    ) {
-      throw new SerpApiQuotaError();
-    }
-
-    if (
-      response.status === 401 ||
-      response.status === 403 ||
-      rawJson.error?.toLowerCase?.().includes('invalid api key') ||
-      rawJson.error?.toLowerCase?.().includes('unauthorized')
-    ) {
-      throw new SerpApiAuthError();
-    }
-
-    if (response.ok && Array.isArray(rawJson.images_results)) {
-      const fotos = formatarResultadosSerpApi(rawJson.images_results, queryFinal, num);
-      logSerpSucesso(`Encontradas ${fotos.length} fotos via chamada direta!`, fotos);
-      salvarCacheSerp(queryFinal, fotos);
-      return fotos;
-    }
-  } catch (e: any) {
-    if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
-      throw e;
-    }
-    logSerpAviso('Chamada direta bloqueada:', e.message);
-  }
-
-  logSerpErro('Nenhum método conseguiu conectar com a SerpApi.');
+  logSerpErro('Nenhum método conseguiu localizar fotos para o termo.');
   return [];
 };

@@ -982,13 +982,7 @@ export const pesquisarFotosProdutoNaInternet = async (
   const termosParaPesquisar: string[] = [];
 
   if (termoLimpo) {
-    if (segmentoLoja && palavrasTermo.length <= 2) {
-      const segmentoCurto = segmentoLoja.split('/')[0].trim();
-      termosParaPesquisar.push(`${termoLimpo} ${segmentoCurto}`);
-      termosParaPesquisar.push(termoLimpo);
-    } else {
-      termosParaPesquisar.push(termoLimpo);
-    }
+    termosParaPesquisar.push(termoLimpo);
   } else if (fotoReferencia) {
     // Apenas se NÃO houver nome digitado e houver uma foto, aciona a IA Multimodal (Gemini Vision)
     try {
@@ -1009,7 +1003,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o primeiro da lista otimizada ou o termo limpo
+  // O termo prioritário para SerpApi é o termo limpo direto
   const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
 
   console.log(
@@ -1024,7 +1018,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   );
 
-  // Se temos a chave OU temos o lojaId (pois a RPC do Supabase lê direto de public.lojas pelo loja_id)
+  // Se temos a chave OU temos o lojaId (pois os canais Supabase leem direto de public.lojas pelo loja_id)
   if (serpApiKey || loja?.id) {
     try {
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
@@ -1047,36 +1041,6 @@ export const pesquisarFotosProdutoNaInternet = async (
           item.largura,
           item.altura
         );
-      }
-
-      // Apenas se NENHUMA foto foi encontrada na primeira busca, faz tentativa complementar simplificada
-      if (fotos.length === 0 && termoLimpo) {
-        const palavras = termoLimpo
-          .split(' ')
-          .filter(p => !['com', 'de', 'do', 'da', 'dos', 'das', 'para', 'em', 'um', 'uma', 'e', 'o', 'a', 'os', 'as'].includes(p.toLowerCase()));
-        if (palavras.length >= 2) {
-          const termoEssencial = palavras.slice(0, 4).join(' ');
-          if (termoEssencial && termoEssencial !== termoPrincipal) {
-            try {
-              const fotosComplementares = await buscarFotosGoogleImagesSerpApi(
-                termoEssencial,
-                serpApiKey,
-                { lojaId: loja?.id, numResultados: 16 }
-              );
-              for (const item of fotosComplementares) {
-                registrarFoto(
-                  item.urlOriginal,
-                  item.titulo,
-                  item.fonte || 'Google Imagens',
-                  item.urlThumbnail,
-                  item.urlOriginal,
-                  item.largura,
-                  item.altura
-                );
-              }
-            } catch {}
-          }
-        }
       }
     } catch (err) {
       if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
