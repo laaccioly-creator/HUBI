@@ -28,6 +28,9 @@ export const extrairNumeroPedido = (
 ): number | null => {
   if (!mensagem) return null;
 
+  // Se o cliente quer rastrear OUTRO pedido, nunca usar o histórico anterior
+  const querOutro = /\b(outro|outra|novo|nova|diferente|trocar|mais um|outra compra)\b/i.test(mensagem);
+
   // 1. Tentar na mensagem atual
   // Casos: "#1", "#1042", "pedido 1", "pedido #1", "pedido nº 1", "pedido numero 1", "código 1"
   const matchAtual =
@@ -39,7 +42,7 @@ export const extrairNumeroPedido = (
     return parseInt(matchAtual[1], 10);
   }
 
-  // Se a mensagem for simplesmente um número puro digitado isoladamente (ex: "1" ou "#1")
+  // Se a mensagem for simplesmente um número puro digitado isoladamente (ex: "1" ou "#1" ou "2")
   const numeroIsolado = mensagem.trim().match(/^#?(\d{1,8})$/);
   if (numeroIsolado && numeroIsolado[1]) {
     const val = parseInt(numeroIsolado[1], 10);
@@ -47,7 +50,19 @@ export const extrairNumeroPedido = (
     if (val > 0) return val;
   }
 
-  // 2. Tentar no histórico de mensagens recentes (se o cliente estiver continuando a conversa)
+  // Se o usuário pediu OUTRO pedido e não digitou o número na mensagem atual, JAMAIS pegar do histórico
+  if (querOutro) {
+    return null;
+  }
+
+  // Se a mensagem for um comando novo de consulta de rastreio genérico (ex: "rastrear pedido", "onde está o pedido"),
+  // não reaproveitar pedido antigo do histórico
+  const ehNovoComandoRastreio = /\b(rastrear|rastreio|onde est[aá]|onde t[aá]|cad[eê]|consultar)\b/i.test(mensagem);
+  if (ehNovoComandoRastreio) {
+    return null;
+  }
+
+  // 2. Tentar no histórico de mensagens recentes (apenas se for pergunta complementar, ex: "quem é o entregador?", "tem código?")
   if (historico && historico.length > 0) {
     for (let i = historico.length - 1; i >= 0; i--) {
       const h = historico[i];
@@ -150,28 +165,16 @@ export const rubiCatalogoJevService = {
       return { intencao: 'dados_contato', confianca: 1.0 };
     }
 
-    // 2. COMPROVANTE PIX (Rigorosamente validado)
+    // 2. RECLAMAÇÃO URGENTE EVIDENTE (MÁXIMA PRIORIDADE)
+    // Casos: embalagem rasgada, produto quebrado, danificado, estragado, pedido errado, etc.
+    const ehReclamacaoUrgente = /\b(quebrad[oa]s?|rasgad[oa]s?|danificad[oa]s?|avariad[oa]s?|furad[oa]s?|violad[oa]s?|abert[oa]s?|amassad[oa]s?|vazand[oa]s?|estragad[oa]s?|vencid[oa]s?|defeit[oa]s?|faltand[oa]s?|faltou|veio errado|trocad[oa]s?|cancelar pedido|golpe|reclamar|reclama[cç][aã]o|estorno|devolu[cç][aã]o|devolver|reembolso|n[aã]o chegou|atraso absurdo)\b/i.test(tLower);
+    if (ehReclamacaoUrgente) {
+      return { intencao: 'reclamacao_urgente', confianca: 0.99 };
+    }
+
+    // 3. COMPROVANTE PIX (Rigorosamente validado)
     if (ehComprovantePixLegitimo(textoLimpo)) {
       return { intencao: 'comprovante_pix', confianca: 0.98 };
-    }
-
-    // 3. RASTREIO EVIDENTE
-    // Casos: "onde está o meu pedido #1?", "onde ta meu pedido?", "status do pedido 10", "rastrear pedido", "#1", "pedido 1"
-    const temNumeroPedido = Boolean(extrairNumeroPedido(textoLimpo));
-    const termosRastreio = [
-      'rastreio', 'rastrear', 'status', 'onde esta', 'onde está', 'onde ta',
-      'cade meu pedido', 'cadê meu pedido', 'cade o pedido', 'cadê o pedido',
-      'meu pedido', 'enviaram meu pedido', 'já enviou', 'ja enviou', 'codigo de rastreio', 'código de rastreio'
-    ];
-    const temTermoRastreio = termosRastreio.some(tr => tLower.includes(tr));
-
-    if (temTermoRastreio || (temNumeroPedido && (tLower.includes('pedido') || textoLimpo.startsWith('#')))) {
-      return { intencao: 'rastreio_pedido', confianca: 0.98 };
-    }
-
-    // Se o cliente enviou apenas um número isolado e estava em contexto de rastreio
-    if (/^\d{1,8}$/.test(textoLimpo) && estavaEmContextoRastreio) {
-      return { intencao: 'rastreio_pedido', confianca: 0.98 };
     }
 
     // 4. ATACADO EVIDENTE
@@ -181,11 +184,26 @@ export const rubiCatalogoJevService = {
       return { intencao: 'orcamento_atacado', confianca: 0.95 };
     }
 
-    // 5. RECLAMAÇÃO URGENTE EVIDENTE
-    if (
-      /\b(veio quebrado|veio errado|faltou|defeito|estragado|quero devolver|cancelar pedido|reprova[cç][aã]o|golpe|atraso absurdo|n[aã]o chegou)\b/i.test(tLower)
-    ) {
-      return { intencao: 'reclamacao_urgente', confianca: 0.95 };
+    // 5. RASTREIO EVIDENTE
+    // ATENÇÃO: Expressões com real intenção de rastreio (NUNCA 'meu pedido' isolado)
+    const temNumeroPedido = Boolean(extrairNumeroPedido(textoLimpo));
+    const termosRastreio = [
+      'onde est[aá] meu pedido', 'onde est[aá] o meu pedido', 'onde t[aá] meu pedido',
+      'cad[eê] meu pedido', 'cad[eê] o meu pedido', 'cad[eê] o pedido',
+      'rastrear pedido', 'rastrear meu pedido', 'rastreio do pedido', 'rastreio',
+      'status do pedido', 'status da entrega', 'status do envio', 'enviaram meu pedido',
+      'j[aá] enviou meu pedido', 'j[aá] foi despachado', 'c[oó]digo de rastreio',
+      'link de rastreio', 'rastrear outro pedido', 'rastrear outro'
+    ];
+    const temTermoRastreio = termosRastreio.some(tr => new RegExp(tr, 'i').test(tLower));
+
+    if (temTermoRastreio || (temNumeroPedido && (tLower.includes('pedido') || textoLimpo.startsWith('#')))) {
+      return { intencao: 'rastreio_pedido', confianca: 0.98 };
+    }
+
+    // Se o cliente enviou apenas um número isolado e estava em contexto de rastreio
+    if (/^\d{1,8}$/.test(textoLimpo) && estavaEmContextoRastreio) {
+      return { intencao: 'rastreio_pedido', confianca: 0.98 };
     }
 
     // 6. CONSULTA AO JEV PARA CASOS SUTIS COM ORÇAMENTO DE 800MS
@@ -257,7 +275,15 @@ export const rubiCatalogoJevService = {
     const historico = contexto.historicoMensagens || [];
 
     // 1. Extrair número de pedido (na mensagem atual ou no histórico recente)
-    const numeroPedidoExtraido = extrairNumeroPedido(mensagem, historico);
+    const querOutro = /\b(outro|outra|novo|nova|diferente|trocar|mais um|outra compra)\b/i.test(mensagem);
+    const numeroPedidoExtraido = extrairNumeroPedido(mensagem, querOutro ? [] : historico);
+
+    // Se o cliente quer explicitamente rastrear outro pedido e ainda não informou o número
+    if (querOutro && !numeroPedidoExtraido) {
+      return {
+        texto: `Com certeza! Me informe por favor o **número do outro pedido** (ex: #2) ou o seu **WhatsApp cadastrado** para eu consultar agora mesmo! 📦✨`
+      };
+    }
 
     // 2. Extrair telefone ou WhatsApp (na mensagem atual, no contexto ou no histórico)
     let telefoneBusca: string | null = ehApenasTelefone(mensagem);
@@ -290,19 +316,19 @@ export const rubiCatalogoJevService = {
         .order('criado_em', { ascending: false })
         .limit(1);
 
-      // Prioridade 1: Buscar diretamente pelo número do pedido (ex: #1)
+      // Prioridade 1: Buscar diretamente pelo número do pedido (ex: #1, #2)
       if (numeroPedidoExtraido) {
         query = query.eq('numero_pedido', numeroPedidoExtraido);
       } else if (telefoneBusca && telefoneBusca.length >= 8) {
         // Prioridade 2: Buscar pelos últimos 8 dígitos do telefone
         const ultimos8 = telefoneBusca.slice(-8);
         query = query.ilike('cliente_telefone_avulso', `%${ultimos8}%`);
-      } else if (contexto.clienteAtual?.id) {
+      } else if (contexto.clienteAtual?.id && !querOutro) {
         query = query.eq('cliente_id', contexto.clienteAtual.id);
       } else {
         // Não há nem número de pedido nem telefone identificado ainda
         return {
-          texto: `Consigo consultar o status da sua entrega agora mesmo! 📦✨\n\nPor favor, **digite o número do seu pedido** (ex: #1) ou o seu **WhatsApp cadastrado** na compra para eu localizar o seu pacote imediatamente!`
+          texto: `Consigo consultar o status da sua entrega agora mesmo! 📦✨\n\nPor favor, **digite o número do seu pedido** (ex: #1, #2) ou o seu **WhatsApp cadastrado** na compra para eu localizar o seu pacote imediatamente!`
         };
       }
 

@@ -1,6 +1,8 @@
 import { getGeminiApiKey, executarRequisicaoGemini } from './geminiService';
 import { rubiCatalogoJevService } from './rubiCatalogoJevService';
 import { Loja, Produto, Categoria, FormaEntrega, RegrasPrecificacaoLoja, Cliente } from '../types';
+import { LojaShippingConfig } from '../types/shipping';
+import { ShippingOrchestrator } from './shippingOrchestrator';
 import { sanitizarCaixaTexto } from '../components/DescricaoFormatadaProduto';
 
 export interface ContextoLojaCatalogo {
@@ -15,6 +17,7 @@ export interface ContextoLojaCatalogo {
   produtoConsultado?: Produto | null;
   historicoMensagens?: Array<{ autor: 'rubi' | 'cliente'; texto: string }>;
   produtosJaSugeridosIds?: string[];
+  configShippingLoja?: LojaShippingConfig | null;
 }
 
 export interface RespostaRubiCatalogo {
@@ -389,6 +392,112 @@ export const extrairProdutosDaResposta = (
 };
 
 /**
+ * Gera a resposta inteligente sobre entrega e retirada analisando a configuração real da loja.
+ * Reconhece integrações ativas (Uber Direct, Melhor Envio), frete próprio com valor fixo ou cotação manual na hora.
+ */
+export const formatarRespostaEntregaInteligente = async (
+  contexto: ContextoLojaCatalogo
+): Promise<RespostaRubiCatalogo> => {
+  const { loja, formasEntrega = [] } = contexto;
+  const nomeLoja = loja.nome_fantasia || 'nossa loja';
+
+  // 1. Obter a configuração especializada de envio (da prop ou do banco via ShippingOrchestrator)
+  let shippingConfig = contexto.configShippingLoja;
+  if (!shippingConfig) {
+    try {
+      shippingConfig = await ShippingOrchestrator.buscarConfigLoja(loja.id);
+    } catch (e) {
+      console.warn('[rubiCatalogoService] Falha ao carregar shippingConfig:', e);
+    }
+  }
+
+  // 2. Diagnóstico das capacidades ativas de envio
+  const temUber = Boolean(shippingConfig?.uber_ativo && shippingConfig?.uber_client_id);
+  const temMelhorEnvio = Boolean(shippingConfig?.melhor_envio_ativo && shippingConfig?.melhor_envio_token);
+  const temIntegracaoAutomatica = temUber || temMelhorEnvio;
+
+  const permiteRetirada = Boolean(
+    shippingConfig?.permite_retirada_loja ||
+    shippingConfig?.retirada_balcao_ativa ||
+    formasEntrega.some(f => f.tipo === 'retirada' && f.ativo !== false)
+  );
+
+  const freteProprioConfig = Boolean(shippingConfig?.frete_proprio_ativo);
+  const temFormaFreteProprio = formasEntrega.some(
+    f => (f.tipo === 'frota_propria' || f.tipo === 'motoboy') && f.ativo !== false
+  );
+  const freteProprioAtivo = freteProprioConfig || temFormaFreteProprio;
+  const tipoCobrancaProprio = shippingConfig?.frete_proprio_tipo_cobranca || 'manual';
+  const valorFixoProprio = Number(shippingConfig?.frete_proprio_valor_padrao || 0);
+
+  const freteGratisAtivo = Boolean(
+    shippingConfig?.frete_gratis_ativo || loja.frete_gratis_ativo
+  );
+  const freteGratisValorMinimo = Number(
+    shippingConfig?.frete_gratis_valor_minimo || loja.frete_gratis_valor_minimo || 0
+  );
+
+  let endTexto = '';
+  if (loja.endereco_logradouro) {
+    endTexto = ` (${loja.endereco_logradouro}, ${loja.endereco_numero || 'S/N'}${loja.endereco_bairro ? ` - ${loja.endereco_bairro}` : ''})`;
+  }
+
+  // 3. Montagem estruturada da resposta
+  let resposta = `🚚 **Como funciona a Entrega & Retirada na ${nomeLoja}:**\n\n`;
+
+  // Item 1: Retirada no Balcão
+  if (permiteRetirada) {
+    resposta += `• **Retirada no Balcão:** Você pode escolher seus produtos pelo catálogo e retirar diretamente na nossa loja física com **frete grátis**!${endTexto ? `\n  📍 *Local:* ${endTexto.replace(/^\s*\(/, '').replace(/\)$/, '')}` : ''}\n\n`;
+  }
+
+  // Item 2: Entrega no Endereço
+  resposta += `• **Entrega no seu Endereço:**\n`;
+
+  if (temIntegracaoAutomatica) {
+    resposta += `  Ao colocar os itens na sacola e informar seu endereço ou CEP ao finalizar, nosso sistema calcula na hora as opções disponíveis com prazos e valores para a sua região:\n`;
+    if (temUber) {
+      resposta += `  🛵 **Aplicativo de Corrida / Motoboy:** Entrega expressa no mesmo dia via Uber Flash ou motoboy parceiro;\n`;
+    }
+    if (temMelhorEnvio) {
+      resposta += `  📦 **Correios:** PAC e Sedex com código de rastreamento;\n`;
+      resposta += `  🚛 **Transportadoras Parceiras:** Opções de envio seguro com cotação imediata;\n`;
+    }
+    if (freteProprioAtivo) {
+      if (tipoCobrancaProprio === 'fixo' && valorFixoProprio > 0) {
+        resposta += `  🚗 **Frete Próprio da Loja:** Taxa fixa de R$ ${valorFixoProprio.toFixed(2)} para entrega na nossa região;\n`;
+      } else if (tipoCobrancaProprio === 'gratis') {
+        resposta += `  🚗 **Frete Próprio da Loja:** Entrega gratuita para a nossa área de atendimento;\n`;
+      } else {
+        resposta += `  🚗 **Frete Próprio da Loja:** Entrega local personalizada;\n`;
+      }
+    }
+  } else {
+    // Loja SEM integrações ativas de Uber Direct ou Melhor Envio
+    if (freteProprioAtivo && tipoCobrancaProprio === 'fixo' && valorFixoProprio > 0) {
+      resposta += `  Trabalhamos com **Frete Próprio da Loja** com taxa fixa de **R$ ${valorFixoProprio.toFixed(2)}** para entregas na nossa cidade/região!\n`;
+      resposta += `  🛵 Seu pedido sai para entrega assim que for separado e conferido pela nossa equipe.\n`;
+    } else {
+      resposta += `  Fazemos **cotação de frete personalizada na hora**! Ao concluir o seu pedido aqui pelo catálogo, **nossa equipe entrará em contato direto pelo seu WhatsApp** para combinar o melhor meio de envio (motoboy, entrega própria ou transportadora) e te informar o valor exato do frete antes do despacho.\n`;
+    }
+  }
+
+  // Item 3: Frete Grátis Promocional
+  if (freteGratisAtivo && freteGratisValorMinimo > 0) {
+    resposta += `\n🎉 **Super Vantagem:** Frete Grátis nas compras a partir de **R$ ${freteGratisValorMinimo.toFixed(2)}**!`;
+  }
+
+  // Item 4: Sigilo e Discrição (Especialmente relevante para sexshop, lingerie ou cosméticos)
+  const segmento = loja.configuracoes_extras?.perfil_negocio?.segmento || 'geral';
+  if (segmento === 'sexshop' || segmento === 'lingerie') {
+    resposta += `\n\n🤫 *Garantia de Sigilo:* Todos os pedidos são enviados em **embalagens 100% discretas, neutras e sem identificação externa**, preservando total privacidade!`;
+  }
+
+  resposta += `\n\nVocê escolhe onde e como prefere receber ao fechar o pedido na sacola! 😊`;
+
+  return { texto: resposta };
+};
+
+/**
  * Motor Principal da Rubi IA: Consultora de Vendas Especializada no Catálogo
  */
 export const responderPerguntaClienteCatalogo = async (
@@ -506,6 +615,10 @@ export const responderPerguntaClienteCatalogo = async (
     return rubiCatalogoJevService.processarDuvidaAtacado(contexto);
   }
 
+  if (triagemJev.intencao === 'duvida_frete') {
+    return await formatarRespostaEntregaInteligente(contexto);
+  }
+
   if (triagemJev.intencao === 'dados_contato') {
     const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
     const telFormatado = dadosCadastro.telefone ? ` (${dadosCadastro.telefone})` : '';
@@ -596,39 +709,27 @@ export const responderPerguntaClienteCatalogo = async (
   if (termosPagamento.some(t => pNorm.includes(t))) {
     const mpAtivo = Boolean(loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo);
     let formas = [];
-    if (mpAtivo) formas.push('**Pix Automático** com QR Code');
-    formas.push('**Cartão de Crédito e Débito**');
-    formas.push('**Dinheiro na entrega ou retirada**');
-    formas.push('**Chave Pix direta da loja**');
+    if (mpAtivo) formas.push('Pix com confirmação imediata');
+    formas.push('Cartão de crédito e débito');
+    formas.push('Dinheiro na entrega ou retirada');
+    formas.push('Chave Pix direta da loja');
 
     return {
-      texto: `💳 **Formas de Pagamento na ${nomeLoja}:**\n\n${formas.map(f => `• ${f}`).join('\n')}\n\nVocê escolhe na hora de fechar a compra na sacola!`
+      texto: `Aqui na **${nomeLoja}** a gente facilita tudo pra você! ✨\n\nAceitamos ${formas.slice(0, -1).join(', ')} e também ${formas[formas.length - 1]}. Na hora de fechar a sua sacola de compras, você escolhe a opção que achar mais prática! Posso te sugerir os produtos mais procurados da loja? 😊`
     };
   }
 
   // C. Entrega e Frete
   const termosEntrega = ['entrega', 'frete', 'entregar', 'taxa de entrega', 'retirada', 'retirar', 'buscar', 'onde fica', 'endereco'];
   if (termosEntrega.some(t => pNorm.includes(t))) {
-    let formasTexto = '';
-    if (formasEntrega && formasEntrega.length > 0) {
-      formasTexto = formasEntrega.map(fe => `• **${fe.nome}**: R$ ${Number(fe.valor_taxa).toFixed(2)}${fe.tempo_estimado ? ` (${fe.tempo_estimado})` : ''}`).join('\n');
-    } else {
-      formasTexto = '• **Entrega Padrão ou Retirada no Balcão**';
-    }
-    let endTexto = '';
-    if (loja.endereco_logradouro) {
-      endTexto = `\n📍 **Endereço:** ${loja.endereco_logradouro}, ${loja.endereco_numero || 'S/N'}${loja.endereco_bairro ? ` - ${loja.endereco_bairro}` : ''}`;
-    }
-    return {
-      texto: `🚚 **Opções de Entrega & Retirada:**\n\n${formasTexto}${endTexto}\n\nVocê escolhe onde prefere receber ao fechar o pedido!`
-    };
+    return await formatarRespostaEntregaInteligente(contexto);
   }
 
   // D. Dúvidas sobre Embalagem Discreta e Sigilo (Especialmente relevante para Sex Shop)
   const termosDiscrecao = ['embalagem', 'discreta', 'discreto', 'sigilo', 'privacidade', 'aparece no pacote', 'da para ver', 'segredo'];
   if (termosDiscrecao.some(t => pNorm.includes(t))) {
     return {
-      texto: `🤫 **Privacidade & Discrição Absoluta!**\n\nFique 100% tranquilo(a)! Nossas entregas são feitas em **embalagens totalmente discretas, neutras e sem nenhuma menção à loja ou ao conteúdo** por fora.\n\nNinguém sabe o que você comprou. Total discrição garantida! ✨`
+      texto: `🤫 **Pode ficar com o coração 100% tranquilo(a)!**\n\nNossas entregas são feitas em **embalagens totalmente discretas, neutras e sem nenhuma identificação da loja por fora**. Ninguém sabe o que tem dentro, garantimos sigilo absoluto pra você fazer suas compras com total liberdade e privacidade! ✨`
     };
   }
 
@@ -718,20 +819,25 @@ CATÁLOGO RESUMIDO DA LOJA (Produtos disponíveis):
 ${JSON.stringify(catalogoResumo)}
 
 DIRETRIZES CRÍTICAS DE RESPOSTA:
-1. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
-2. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-3. SEJA SUCINTA E DIRETA: O cliente pode estar ouvindo sua voz no fone de ouvido! Responda em 2 a 3 parágrafos curtos, fluidos e bem pontuados.
-4. NUNCA DEIXE FRASES INACABADAS: Conclua todas as frases com ponto final ou exclamação. Jamais termine com conjunções como 'e', 'ou', 'com'.
-5. CADASTRO E PEDIDO:
-   - Se o cliente perguntar como se cadastrar, explique que ele pode ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola.
-   - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega para organizar o envio e cadastro.
-6. PRODUTOS RECOMENDADOS:
+1. HUMANIZAÇÃO TOTAL (CONVERSA NATURAL ENTRE DOIS HUMANOS):
+   - Converse com entusiasmo acolhedor, empatia e espontaneidade — como uma excelente consultora ou vendedora atenciosa conversando cara a cara no balcão da loja física ou em um áudio descontraído de WhatsApp.
+   - É TERMINANTEMENTE PROIBIDO soar como um robô frio, burocrático ou de formulário! NUNCA estruture a resposta com tópicos mecânicos ou bullets (• ou -). Fale em parágrafos contínuos, calorosos e vivos.
+   - Use expressões naturais e afetuosas do dia a dia brasileiro: "Olha só", "Com certeza!", "Ah, excelente escolha!", "Pode deixar comigo", "Temos sim!", "Fica super à vontade", "Você vai adorar!".
+   - Ao falar de valores, fale de forma natural e convidativa (ex: "está saindo por 49 e 90", "com um preço maravilhoso de 35 reais"), conectando o valor ao benefício e carinho do produto.
+2. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
+3. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
+4. SEJA CONCISA E FLUIDA: O cliente pode estar ouvindo sua voz no fone de ouvido ou viva-voz! Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ouvir.
+5. NUNCA DEIXE FRASES INACABADAS: Conclua todas as frases com ponto final ou exclamação. Jamais termine com conjunções como 'e', 'ou', 'com'.
+6. CADASTRO E PEDIDO:
+   - Se o cliente perguntar como se cadastrar, explique de maneira leve que ele pode me ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola ao fechar.
+   - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega com carinho para organizar o envio e cadastro.
+7. PRODUTOS RECOMENDADOS:
    - Apresente no máximo 2 a 3 produtos APENAS quando o cliente pedir indicações, novidades ou itens específicos.
-   - Para cada produto, fale apenas 1 frase curta explicando o benefício principal e mencione o valor.
+   - Para cada produto, fale de forma natural destacando a sensação ou benefício principal e cite o valor de forma fluida.
    - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos.
    - OBRIGATÓRIO PARA SINCRONIA: Na última linha isolada da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
-7. Termine de forma rápida e simpática convidando a adicionar à sacola quando houver produtos recomendados.
-8. Responda em português brasileiro fluido, sem rodeios.
+8. Finalize sempre com uma pergunta acolhedora ou convidando a adicionar à sacola quando houver produtos recomendados.
+9. Responda sempre em português brasileiro autêntico, empático e caloroso.
 
 PERGUNTA ATUAL DO CLIENTE:
 "${pergunta}"
@@ -739,7 +845,7 @@ PERGUNTA ATUAL DO CLIENTE:
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1000 }
+        generationConfig: { temperature: 0.65, maxOutputTokens: 1000 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -811,9 +917,8 @@ PERGUNTA ATUAL DO CLIENTE:
   const querApimentar = segmento === 'sexshop' && termosCasalApimentar.some(t => pNorm.includes(t));
   if (querApimentar) {
     const prodsCasal = buscarProdutosPorIntencao('massagem oleo estimulador lubrificante', produtos, 3, produtosJaSugeridosIds, segmento);
-    const listaNomes = prodsCasal.map(p => `• **${p.nome}** (R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)})`).join('\n');
     return {
-      texto: `Adoro essa ideia${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 🔥 Para curtir a dois e sair da rotina, separei esta combinação perfeita de massagem e sensações:\n\n${listaNomes}\n\nQual desses mais te agrada? Se quiser, já coloco na sua sacola!`,
+      texto: `Adoro essa ideia${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 🔥 Separei opções perfeitas para vocês curtirem a dois e saírem da rotina. Dá uma olhadinha nas opções logo abaixo! Qual delas você gostaria de conhecer melhor ou já colocar na sua sacola?`,
       produtosSugeridos: prodsCasal
     };
   }
@@ -824,9 +929,8 @@ PERGUNTA ATUAL DO CLIENTE:
   if (pedeOutrasOpcoes) {
     const prodsNovos = buscarProdutosPorIntencao('destaque novidade', produtos, 3, produtosJaSugeridosIds, segmento);
     if (prodsNovos.length > 0) {
-      const listaNomes = prodsNovos.map(p => `• **${p.nome}** (R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)})`).join('\n');
       return {
-        texto: `Temos muito mais opções sim${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Dá uma olhada nestas outras alternativas do catálogo:\n\n${listaNomes}\n\nSe quiser levar algum, é só tocar no botão Adicionar!`,
+        texto: `Temos muito mais opções sim${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Separei outras novidades maravilhosas do nosso catálogo para você. Dá uma olhada nas opções logo abaixo! Se gostar de alguma, me avisa que já coloco na sua sacola!`,
         produtosSugeridos: prodsNovos
       };
     }
@@ -834,9 +938,8 @@ PERGUNTA ATUAL DO CLIENTE:
 
   // D. Produtos gerais encontrados por relevância
   if (produtosSugeridosPre.length > 0) {
-    const listaNomes = produtosSugeridosPre.map(p => `• **${p.nome}** (R$ ${Number(p.preco_promocional || p.preco_venda_varejo).toFixed(2)})`).join('\n');
     return {
-      texto: `Separei estas opções para você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! ✨\n\n${listaNomes}\n\nVocê pode tocar em **"+ Adicionar"** no card abaixo ou me pedir para colocar na sacola!`,
+      texto: `Separei estas recomendações especiais para você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! ✨ Dê uma olhadinha nos produtos logo abaixo. Você pode me pedir para colocar algum na sua sacola ou tocar no botão de adicionar!`,
       produtosSugeridos: produtosSugeridosPre,
       dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
     };

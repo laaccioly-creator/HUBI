@@ -746,9 +746,10 @@ export const CatalogoPublico: React.FC = () => {
       formasEntrega,
       regrasAtivas,
       clienteAtual: clienteSelecionado,
-      nomeClienteAtual: nomeCliente
+      nomeClienteAtual: nomeCliente,
+      configShippingLoja
     };
-  }, [loja, categorias, produtos, formasEntrega, regrasAtivas, clienteSelecionado, nomeCliente]);
+  }, [loja, categorias, produtos, formasEntrega, regrasAtivas, clienteSelecionado, nomeCliente, configShippingLoja]);
 
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;

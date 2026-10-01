@@ -19,8 +19,10 @@ import {
   Info,
   Eye,
   Package,
-  ExternalLink
+  ExternalLink,
+  Radio
 } from 'lucide-react';
+import { audioService } from '../services/audioService';
 import {
   responderPerguntaClienteCatalogo,
   ContextoLojaCatalogo,
@@ -138,6 +140,24 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   const [suporteVozSTT, setSuporteVozSTT] = useState<boolean>(false);
   const recognitionRef = useRef<any>(null);
 
+  // Modo Sempre Atenta (Hands-free como a Alexa: chamada por voz "Rubi...")
+  const [modoWakeWord, setModoWakeWord] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hubi_rubi_wake_word') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const modoWakeWordRef = useRef<boolean>(modoWakeWord);
+  const rubiFalandoRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    modoWakeWordRef.current = modoWakeWord;
+    try {
+      localStorage.setItem('hubi_rubi_wake_word', modoWakeWord ? 'true' : 'false');
+    } catch {}
+  }, [modoWakeWord]);
+
   // Refs para controle resiliente de fala (evita corte abrupto e aguarda término da frase)
   const deveContinuarOuvindoRef = useRef<boolean>(false);
   const silencioTimerRef = useRef<any>(null);
@@ -150,7 +170,12 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
   // Controle de Áudio (Text-to-Speech - Rubi falando)
   const [audioAtivo, setAudioAtivo] = useState<boolean>(true);
+  const audioAtivoRef = useRef<boolean>(true);
   const [rubiFalando, setRubiFalando] = useState<boolean>(false);
+
+  useEffect(() => {
+    audioAtivoRef.current = audioAtivo;
+  }, [audioAtivo]);
 
   // Notificação / Toast visual dentro do chat
   const [toastNotificacao, setToastNotificacao] = useState<string | null>(null);
@@ -241,31 +266,68 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           }
 
           const textoCompleto = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+          if (!textoCompleto) return;
 
-          if (textoCompleto) {
-            textoCapturadoRef.current = textoCompleto;
-            setInputTexto(textoCompleto);
+          // 1. RECONHECIMENTO DE WAKE WORD ("RUBI...") COMO A ALEXA
+          if (modoWakeWordRef.current) {
+            // Ignora se a própria Rubi estiver falando no momento para não capturar a própria voz
+            if (rubiFalandoRef.current) return;
 
-            // Reiniciar timer de silêncio: concede 3 segundos inteiros de silêncio para terminar a frase com calma
-            if (silencioTimerRef.current) {
-              clearTimeout(silencioTimerRef.current);
-            }
-            silencioTimerRef.current = setTimeout(() => {
-              if (deveContinuarOuvindoRef.current && textoCapturadoRef.current.trim()) {
-                pararGravacaoVoz(true);
+            const matchWake = textoCompleto.match(/\b(?:ei\s+|ol[aá]\s+|oi\s+)?(rubi|ruby|rubie|rubee)\b/i);
+            if (matchWake) {
+              audioService.playRubiWakeWordSound();
+              setAberto(true);
+
+              const fimWake = (matchWake.index || 0) + matchWake[0].length;
+              const comando = textoCompleto.slice(fimWake).replace(/^[,:\s]+/, '').trim();
+
+              if (comando.length >= 3) {
+                // Usuário já emendou o comando: ex: "Rubi, quais os produtos em promoção?"
+                textoCapturadoRef.current = '';
+                setInputTexto('');
+                enviarMensagem(comando);
+              } else {
+                // Usuário apenas chamou por "Rubi"
+                const respostaAcordada = 'Oi! Tô aqui, pode falar! 😊';
+                setMensagens(prev => [
+                  ...prev,
+                  {
+                    id: (Date.now() + 1).toString(),
+                    remetente: 'rubi',
+                    texto: respostaAcordada,
+                    data: new Date()
+                  }
+                ]);
+                falarTexto(respostaAcordada);
+                mostrarToastFeedback('Rubi acordou! Pode falar...');
               }
-            }, 3000); // 3 segundos de tolerância de silêncio
+              return;
+            }
           }
+
+          // 2. MODO MANUAL DE FALA COM MICROFONE
+          textoCapturadoRef.current = textoCompleto;
+          setInputTexto(textoCompleto);
+
+          // Reiniciar timer de silêncio: concede 3 segundos inteiros de silêncio para terminar a frase com calma
+          if (silencioTimerRef.current) {
+            clearTimeout(silencioTimerRef.current);
+          }
+          silencioTimerRef.current = setTimeout(() => {
+            if (deveContinuarOuvindoRef.current && textoCapturadoRef.current.trim()) {
+              pararGravacaoVoz(true);
+            }
+          }, 3000);
         };
 
         recognition.onerror = (event: any) => {
           console.warn('Aviso no microfone Rubi IA:', event.error);
           if (event.error === 'no-speech') {
-            // Silêncio comum enquanto o usuário pensa; não cancela se deveContinuarOuvindoRef for true
             return;
           }
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             deveContinuarOuvindoRef.current = false;
+            setModoWakeWord(false);
             setEscutandoVoz(false);
             mostrarToastFeedback('Permissão de microfone negada. Ative o microfone nas permissões do navegador.');
             return;
@@ -273,24 +335,63 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         };
 
         recognition.onend = () => {
-          // Se o navegador desligar temporariamente a conexão mas o usuário ainda está no modo de fala
           if (deveContinuarOuvindoRef.current) {
             try {
               recognition.start();
-            } catch {
-              // Conexão em reinício
-            }
+            } catch {}
+          } else if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+            // No modo sempre atenta, reinicia a escuta de fundo em loop contínuo
+            setTimeout(() => {
+              if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+                try {
+                  recognition.start();
+                } catch {}
+              }
+            }, 300);
           } else {
             setEscutandoVoz(false);
           }
         };
 
         recognitionRef.current = recognition;
+
+        // Se o modo wake word já estiver salvo como ativo, inicia a escuta
+        if (modoWakeWordRef.current) {
+          try {
+            recognition.start();
+          } catch {}
+        }
       } catch (err) {
         console.warn('Falha ao instanciar SpeechRecognition:', err);
       }
     }
   }, []);
+
+  const alternarModoWakeWord = () => {
+    if (!recognitionRef.current) {
+      mostrarToastFeedback('Seu navegador não suporta reconhecimento de voz contínuo.');
+      return;
+    }
+
+    if (modoWakeWord) {
+      setModoWakeWord(false);
+      modoWakeWordRef.current = false;
+      deveContinuarOuvindoRef.current = false;
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      mostrarToastFeedback('Modo Viva-Voz ("Rubi...") desativado.');
+    } else {
+      setModoWakeWord(true);
+      modoWakeWordRef.current = true;
+      audioService.playRubiWakeWordSound();
+      mostrarToastFeedback('Modo Sempre Atenta ativado! Basta dizer "Rubi..." a qualquer momento.');
+      falarTexto('Modo Sempre Atenta ativado! Agora basta me chamar dizendo Rubi!');
+      try {
+        recognitionRef.current.start();
+      } catch {}
+    }
+  };
 
   const alternarGravacaoVoz = () => {
     if (!recognitionRef.current) {
@@ -299,7 +400,6 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     }
 
     if (escutandoVoz) {
-      // Se já estava gravando e o usuário tocou no microfone, conclui e envia se tiver texto
       pararGravacaoVoz(true);
     } else {
       pararFalaRubi();
@@ -395,22 +495,33 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     return vozesPt[0];
   };
 
-  // Síntese de Voz (Rubi falando verbalmente com proteção contra corte e sleep no Chromium)
+  // Síntese de Voz Humanizada (Pronúncia natural de valores e termos do dia a dia)
   const limparTextoParaAudio = (texto: string): string => {
     return texto
       .replace(/\[PRODUTOS(?:_RECOMENDADOS)?:\s*[^\]]+\]/gi, '') // Remove tags de produtos
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [Texto do link](url) -> Texto do link
       .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove negrito
       .replace(/\*([^*]+)\*/g, '$1') // Remove itálico
-      .replace(/###/g, '')
-      .replace(/•/g, '')
-      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '') // Remove emojis
+      .replace(/#{1,6}\s*/g, '') // Remove títulos markdown
+      .replace(/•|\*|-/g, '') // Remove bullets
+      .replace(/R\$\s*(\d+)[.,](\d{2})/g, (_m, reais, centavos) => {
+        // Humanização de preços falados
+        const cent = parseInt(centavos, 10);
+        if (cent === 0) return `${reais} reais`;
+        return `${reais} e ${centavos}`;
+      })
+      .replace(/R\$\s*(\d+)/g, '$1 reais')
+      .replace(/\bWhatsApp\b/gi, 'WhatsApp')
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '') // Remove emojis para a voz não falar os nomes
       .replace(/\n\s*\n/g, '. ')
       .replace(/\n/g, ', ')
+      .replace(/\s{2,}/g, ' ')
       .trim();
   };
 
-  const falarTexto = (texto: string) => {
+  const falarTexto = (texto: string, forcar: boolean = false) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (!audioAtivoRef.current && !forcar) return;
 
     try {
       window.speechSynthesis.cancel();
@@ -422,8 +533,8 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       const utterance = new SpeechSynthesisUtterance(textoLimpo);
       currentUtteranceRef.current = utterance; // Evita Garbage Collection no Chromium
       utterance.lang = 'pt-BR';
-      utterance.rate = 1.0; // Velocidade natural, calma e compreensível
-      utterance.pitch = 1.1; // Tom feminino, acolhedor e suave
+      utterance.rate = 1.02; // Ritmo ágil, conversacional e humano
+      utterance.pitch = 1.08; // Timbre acolhedor, simpático e natural
 
       const voices = vozesDisponiveis.length > 0 ? vozesDisponiveis : window.speechSynthesis.getVoices();
       const ptVoice = selecionarMelhorVozFeminina(voices);
@@ -431,14 +542,46 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         utterance.voice = ptVoice;
       }
 
-      utterance.onstart = () => setRubiFalando(true);
+      utterance.onstart = () => {
+        setRubiFalando(true);
+        rubiFalandoRef.current = true;
+        // Pausa temporariamente o microfone para a Rubi não escutar sua própria voz
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.stop();
+          } catch {}
+        }
+      };
+
       utterance.onend = () => {
         setRubiFalando(false);
+        rubiFalandoRef.current = false;
         currentUtteranceRef.current = null;
+        // Retoma a escuta atenta do Wake Word "Rubi..." assim que terminar de responder
+        if (modoWakeWordRef.current && recognitionRef.current) {
+          setTimeout(() => {
+            if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch {}
+            }
+          }, 350);
+        }
       };
+
       utterance.onerror = () => {
         setRubiFalando(false);
+        rubiFalandoRef.current = false;
         currentUtteranceRef.current = null;
+        if (modoWakeWordRef.current && recognitionRef.current) {
+          setTimeout(() => {
+            if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch {}
+            }
+          }, 350);
+        }
       };
 
       // Pequeno timeout de 50ms para desengasgar o cancel() prévio em navegadores Chromium
@@ -453,6 +596,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     } catch (err) {
       console.warn('Falha na síntese de voz da Rubi:', err);
       setRubiFalando(false);
+      rubiFalandoRef.current = false;
     }
   };
 
@@ -659,6 +803,27 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           </span>
         </button>
 
+        {/* Botão de Modo Sempre Atenta (Alexa / Viva-Voz) no Flutuante */}
+        <button
+          type="button"
+          onClick={alternarModoWakeWord}
+          className={`px-3 py-2.5 rounded-full shadow-xl border transition-all duration-300 transform hover:scale-105 cursor-pointer flex items-center gap-1.5 ${
+            modoWakeWord
+              ? 'bg-emerald-500 text-white border-emerald-300 ring-2 ring-emerald-400/50 animate-pulse'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-700'
+          }`}
+          title={
+            modoWakeWord
+              ? "Modo Sempre Atenta ATIVO: Fale 'Rubi...' a qualquer momento!"
+              : "Ativar Modo Sempre Atenta (Alexa): Fale 'Rubi...' sem precisar tocar na tela"
+          }
+        >
+          <Radio className={`w-4 h-4 ${modoWakeWord ? 'text-white' : 'text-emerald-400'}`} />
+          <span className="text-[11px] font-bold">
+            {modoWakeWord ? 'Rubi ouvindo...' : 'Chamar "Rubi"'}
+          </span>
+        </button>
+
         {/* Botão de Microfone Direto no Flutuante */}
         <button
           type="button"
@@ -712,8 +877,29 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 </div>
               </div>
 
-              {/* Botões de Ação no Header (Áudio, Tela Cheia, Fechar) */}
+              {/* Botões de Ação no Header (Viva-Voz, Áudio, Tela Cheia, Fechar) */}
               <div className="flex items-center gap-1">
+                {/* Botão de Modo Sempre Atenta (Wake Word Rubi) */}
+                <button
+                  type="button"
+                  onClick={alternarModoWakeWord}
+                  className={`px-2 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
+                    modoWakeWord
+                      ? 'text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                  title={
+                    modoWakeWord
+                      ? "Modo Sempre Atenta ATIVO (Diga 'Rubi...' para falar). Clique para desativar."
+                      : "Ativar Modo Sempre Atenta (Alexa): Fale 'Rubi...' sem precisar tocar na tela"
+                  }
+                >
+                  <Radio className={`w-3.5 h-3.5 ${modoWakeWord ? 'text-emerald-400 animate-pulse' : ''}`} />
+                  <span className="hidden sm:inline text-[11px]">
+                    {modoWakeWord ? 'Sempre Atenta' : 'Viva-Voz'}
+                  </span>
+                </button>
+
                 {/* Botão de Ativar/Desativar Voz (TTS) */}
                 <button
                   type="button"
@@ -763,6 +949,27 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               </div>
             </div>
 
+            {/* Banner Dinâmico do Modo Sempre Atenta (Alexa) */}
+            {modoWakeWord && (
+              <div className="bg-emerald-950/70 border-b border-emerald-500/30 px-3.5 py-1.5 flex items-center justify-between text-[11px] text-emerald-300 animate-in fade-in">
+                <div className="flex items-center gap-1.5">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>Modo Sempre Atenta ativo: Diga <strong>"Rubi, ..."</strong> para falar!</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={alternarModoWakeWord}
+                  className="text-[10px] text-slate-400 hover:text-rose-300 underline cursor-pointer"
+                  title="Desativar escuta contínua de fundo"
+                >
+                  Desativar
+                </button>
+              </div>
+            )}
+
             {/* Toast de Notificação interno */}
             {toastNotificacao && (
               <div className="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 flex items-center justify-center gap-1.5 shadow-md animate-in slide-in-from-top-2">
@@ -800,7 +1007,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                           type="button"
                           onClick={() => {
                             if (!audioAtivo) setAudioAtivo(true);
-                            falarTexto(msg.texto);
+                            falarTexto(msg.texto, true);
                           }}
                           className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 bg-slate-950/70 hover:bg-slate-950 px-2.5 py-1 rounded-full border border-emerald-500/30 transition cursor-pointer select-none"
                           title="Tocar áudio desta resposta no seu fone"
