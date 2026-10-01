@@ -910,7 +910,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setBuscandoMercado(true);
       setErroMercado(null);
       const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
-      const resultado = await pesquisarPrecosMercadoIA(formData.nome, catNome, formData.codigoBarras);
+      const resultado = await pesquisarPrecosMercadoIA(formData.nome, catNome, formData.codigoBarras, loja, segmentoLoja);
       setDadosMercado(resultado);
     } catch (err: any) {
       setErroMercado(err.message || 'Erro ao pesquisar preços de mercado.');
@@ -953,10 +953,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const dadosAtualizados = await atualizarProdutoExistenteComIA({
         nome: formData.nome || 'Produto',
         descricao: formData.descricao,
-        fotoUrl: formData.fotos[0],
+        fotoUrl: !formData.nome?.trim() ? formData.fotos[0] : undefined,
         categoriaNome: catNome,
         codigoBarras: formData.codigoBarras,
-        precoVendaAtual: Number(formData.precoVenda?.replace(',', '.')) || undefined
+        precoVendaAtual: Number(formData.precoVenda?.replace(',', '.')) || undefined,
+        segmentoLoja,
+        loja
       });
 
       if (dadosAtualizados) {
@@ -4107,7 +4109,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           codigoBarrasInicial={formData.codigoBarras}
           fotosAtuaisCount={formData.fotos.length}
           maxFotos={6}
-          fotoReferencia={formData.fotos[0]}
+          fotoReferencia={!formData.nome?.trim() ? formData.fotos[0] : undefined}
           segmentoLoja={segmentoLoja}
           loja={loja}
           onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}

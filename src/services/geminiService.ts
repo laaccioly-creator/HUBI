@@ -1049,8 +1049,8 @@ export const pesquisarFotosProdutoNaInternet = async (
         );
       }
 
-      // Se retornou menos de 6 fotos, faz busca complementar com palavras-chave essenciais
-      if (fotos.length < 6 && termoLimpo) {
+      // Apenas se NENHUMA foto foi encontrada na primeira busca, faz tentativa complementar simplificada
+      if (fotos.length === 0 && termoLimpo) {
         const palavras = termoLimpo
           .split(' ')
           .filter(p => !['com', 'de', 'do', 'da', 'dos', 'das', 'para', 'em', 'um', 'uma', 'e', 'o', 'a', 'os', 'as'].includes(p.toLowerCase()));
@@ -1161,7 +1161,7 @@ export const pesquisarFotosProdutoNaInternet = async (
 };
 
 /**
- * Atualiza um produto existente utilizando os dados e fotos atuais através da IA Gemini
+ * Atualiza um produto existente utilizando prioritariamente seu nome comercial através da IA Gemini
  */
 export const atualizarProdutoExistenteComIA = async (dados: {
   nome: string;
@@ -1180,26 +1180,27 @@ export const atualizarProdutoExistenteComIA = async (dados: {
 
   const termoReferencia = (dados.nome && dados.nome.trim() !== 'Produto') ? dados.nome.trim() : (dados.descricao?.trim() || 'Produto');
   const promptAtualizacao = `
-Você é um especialista em catálogo de produtos, copywriting comercial e precificação de varejo e e-commerce no Brasil${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
-Com base no nome e dados do produto: "${termoReferencia}", pesquise e gere a ficha cadastral enriquecida, profissional e completa deste item.
-${dados.categoriaNome ? `- Categoria Atual informada: "${dados.categoriaNome}"` : ''}
+Você é um especialista em catálogo comercial e precificação no varejo brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
+Com base no NOME DO PRODUTO: "${termoReferencia}", pesquise e gere a ficha cadastral enriquecida e concisa deste item.
+${dados.categoriaNome ? `- Categoria Atual: "${dados.categoriaNome}"` : ''}
 ${dados.descricao ? `- Descrição Existente: "${dados.descricao}"` : ''}
 ${dados.codigoBarras ? `- Código de Barras / EAN: "${dados.codigoBarras}"` : ''}
 ${dados.precoVendaAtual ? `- Preço de Venda Atual: R$ ${dados.precoVendaAtual}` : ''}
 
 SUA TAREFA:
-1. Padronize e gere o Nome Comercial completo, atraente e oficial do produto em português.
+1. Padronize o Nome Comercial oficial do produto em português.
 2. Indique a Categoria comercial mais adequada no varejo.
-3. Elabore uma Descrição Comercial rica, persuasiva, completa e detalhada para catálogo online e WhatsApp (com benefícios reais, especificações de material e modo de uso).
-4. Estime o preço de venda de mercado praticado no Brasil e concorrentes.
+3. Elabore uma Descrição Comercial persuasiva e concisa (2 a 3 frases) para catálogo online e WhatsApp.
+4. Estime o preço de venda de mercado praticado no Brasil (Shopee/Mercado Livre/lojas especializadas).
+5. Estime o peso bruto em kg ('peso_kg') e dimensões em cm ('altura_cm', 'largura_cm', 'comprimento_cm') para frete.
 
 Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
 {
-  "nome": "Nome comercial melhorado e completo",
-  "categoria_sugerida": "Nome da categoria mais adequada",
+  "nome": "Nome comercial padronizado e atraente",
+  "categoria_sugerida": "Nome da Categoria",
   "preco_venda_estimado": 0.00,
   "preco_custo_estimado": 0.00,
-  "descricao": "Descrição comercial concisa de 1 a 2 frases destacando os principais benefícios do produto",
+  "descricao": "Descrição comercial de 2 frases destacando principais benefícios e materiais.",
   "tipo_unidade": "un",
   "codigo_barras": "${dados.codigoBarras || ''}",
   "peso_kg": 0.35,
@@ -1207,17 +1208,15 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   "largura_cm": 15,
   "comprimento_cm": 20
 }
-IMPORTANTE SOBRE PESO E DIMENSÕES PARA FRETE:
-Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 0.35 para 350g, 1.2 para 1.2kg) e as dimensões da embalagem para envio em centímetros ('altura_cm', 'largura_cm', 'comprimento_cm') para cálculo de frete nos Correios e Jadlog.
 `;
 
   let requestBody: any;
 
-  // Prioridade de velocidade máxima: se a descrição ou o nome estiverem preenchidos,
-  // consulta exclusivamente via texto puro e ignora a foto (eliminando transferências pesadas de imagem e timeouts)
-  const temDescricao = Boolean(dados.descricao && dados.descricao.trim().length > 2);
+  // Prioridade de velocidade máxima: quando o nome está preenchido (cenário padrão em alteração de produto),
+  // a consulta é feita estritamente via texto puro sem processar fotos pesadas
   const temNome = Boolean(dados.nome && dados.nome.trim().length > 2 && dados.nome.trim().toLowerCase() !== 'produto');
-  const usarFoto = dados.fotoUrl && !temDescricao && !temNome;
+  const temDescricao = Boolean(dados.descricao && dados.descricao.trim().length > 2);
+  const usarFoto = dados.fotoUrl && !temNome && !temDescricao;
 
   if (usarFoto) {
     try {
@@ -1236,18 +1235,18 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
             ]
           }
         ],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 600, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 350, response_mime_type: 'application/json' }
       };
     } catch {
       requestBody = {
         contents: [{ parts: [{ text: promptAtualizacao }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 600, response_mime_type: 'application/json' }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 350, response_mime_type: 'application/json' }
       };
     }
   } else {
     requestBody = {
       contents: [{ parts: [{ text: promptAtualizacao }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 600, response_mime_type: 'application/json' }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 350, response_mime_type: 'application/json' }
     };
   }
 

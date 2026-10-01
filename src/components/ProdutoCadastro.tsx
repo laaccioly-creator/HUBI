@@ -236,32 +236,46 @@ export const pesquisarPrecosMercadoIA = async (
   nomeProduto: string,
   categoriaNome?: string,
   barcode?: string,
-  loja?: any
+  loja?: any,
+  segmentoLoja?: string
 ): Promise<DadosMercadoIA> => {
   const apiKey = getGeminiApiKey(loja);
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no topo da página.');
   }
 
+  const segmento = segmentoLoja || (loja ? obterNomeSegmentoLoja(loja) : '') || '';
+
   const promptTexto = `
-Você é um especialista em inteligência de mercado e monitoramento de preços de produtos no varejo e e-commerce brasileiro.
-Pesquise e levante os preços reais de varejo praticados no Brasil para o seguinte item:
+Você é um especialista em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
+Pesquise e levante com rigor técnico os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
 
-Produto: "${nomeProduto}"
-${categoriaNome ? `Categoria: "${categoriaNome}"` : ''}
-${barcode ? `Código de Barras/EAN: "${barcode}"` : ''}
+PRODUTO: "${nomeProduto}"
+${categoriaNome ? `CATEGORIA: "${categoriaNome}"` : ''}
+${barcode ? `CÓDIGO DE BARRAS / EAN: "${barcode}"` : ''}
+${segmento ? `SEGMENTO DE MERCADO: "${segmento}"` : ''}
 
-Identifique entre 10 a 14 estabelecimentos, lojas online, marketplaces e grandes redes que comercializam este produto ou itens similares da mesma categoria no Brasil (ex: Mercado Livre, Amazon Brasil, Magalu, Shopee, Droga Raia, Drogasil, Carrefour, Pão de Açúcar, Americanas, Farmácias Pague Menos, Petz, Cobasi, Kalunga, Casas Bahia, lojas especializadas de atacado/distribuição, etc.).
+DIRETRIZES DE CALIBRAÇÃO REALISTA DE PREÇOS NO BRASIL:
+1. IDENTIFICAÇÃO DE FAIXA DE VALOR:
+   - Se for um item de entrada/popular (ex: mini vibrador bullet básico a pilha, cabos, bijuterias, acessórios simples importados), os marketplaces populares (Shopee, AliExpress Brasil) praticam preços extremamente agressivos, comumente entre R$ 11,00 e R$ 19,90.
+   - Nos marketplaces líderes (Mercado Livre e Amazon Brasil), itens de entrada giram entre R$ 18,90 e R$ 29,90.
+   - Em lojas online especializadas de nicho e marcas próprias, o valor fica entre R$ 24,90 e R$ 38,00.
+   - Itens intermediários ou de marcas consagradas/recarregáveis têm tickets proporcionalmente mais altos.
+2. CONCORRÊNCIA COERENTE COM O NICHO:
+   - Identifique entre 10 e 14 concorrentes REAIS no Brasil adequados ao segmento "${segmento || 'Varejo'}".
+   - Sempre inclua Shopee com preços agressivos reais de marketplace popular.
+   - Inclua Mercado Livre e Amazon Brasil.
+   - Inclua lojas e e-commerces especializados que de fato comercializam esta categoria${segmento ? ` (ex: para ${segmento}, inclua marcas e e-commerces reais do setor como Miess, Sex Shop Virtual, Hot Flowers, Sapeka, Sexy Fantasy, Intt, etc.)` : ''}.
+   - NUNCA invente lojas não correlatas (ex: não cite Casas Bahia, Americanas, Kalunga ou Pão de Açúcar para produtos de sex shop ou itens fora do sortimento deles).
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional) no seguinte formato:
+Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
 {
   "preco_medio": 0.00,
   "concorrentes": [
-    { "loja": "Shopee", "preco": 32.90, "tipo": "Marketplace" },
-    { "loja": "Mercado Livre", "preco": 35.90, "tipo": "Marketplace" },
-    { "loja": "Amazon Brasil", "preco": 38.90, "tipo": "E-commerce" },
-    { "loja": "Magalu", "preco": 39.90, "tipo": "Varejista" },
-    { "loja": "Supermercado / Farmácia", "preco": 44.90, "tipo": "Varejo Físico" }
+    { "loja": "Shopee", "preco": 12.90, "tipo": "Marketplace" },
+    { "loja": "Mercado Livre", "preco": 19.90, "tipo": "Marketplace" },
+    { "loja": "Amazon Brasil", "preco": 22.90, "tipo": "Marketplace" },
+    { "loja": "Loja Especializada", "preco": 28.00, "tipo": "E-commerce Especializado" }
   ]
 }
 `;
@@ -273,7 +287,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
       }
     ],
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0.15,
       response_mime_type: 'application/json'
     }
   };
@@ -1167,7 +1181,8 @@ export const ProdutoCadastro: React.FC = () => {
       setSucessoIAMsg(null);
       const catNome = categorias.find(c => c.id === categoriaId)?.nome;
       const fotoAlvo = fotoPrincipal || fotosUrls[0];
-      const fotoParaIA = fotoAlvo ? (fotoBase64Cache.get(fotoAlvo) || fotoAlvo) : undefined;
+      // Se já possui nome preenchido, não envia foto pesada para IA, atualizando em ~1s puramente pelo nome comercial
+      const fotoParaIA = !nome.trim() && fotoAlvo ? (fotoBase64Cache.get(fotoAlvo) || fotoAlvo) : undefined;
       const dadosAtualizados = await atualizarProdutoExistenteComIA({
         nome: nome.trim() || 'Produto',
         descricao: descricao.trim(),
@@ -1217,7 +1232,7 @@ export const ProdutoCadastro: React.FC = () => {
       setBuscandoMercado(true);
       setErroMercado(null);
       const catNome = categorias.find(c => c.id === categoriaId)?.nome;
-      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras, loja);
+      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras, loja, segmentoLoja);
       setDadosMercado(resultado);
     } catch (err: any) {
       setErroMercado(err.message || 'Erro ao pesquisar preços de mercado.');
@@ -3050,7 +3065,7 @@ export const ProdutoCadastro: React.FC = () => {
         codigoBarrasInicial={codigoBarras}
         fotosAtuaisCount={fotosUrls.length}
         maxFotos={7}
-        fotoReferencia={fotoPrincipal || fotosUrls[0]}
+        fotoReferencia={!nome.trim() ? (fotoPrincipal || fotosUrls[0]) : undefined}
         segmentoLoja={segmentoLoja}
         loja={loja}
         onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}
