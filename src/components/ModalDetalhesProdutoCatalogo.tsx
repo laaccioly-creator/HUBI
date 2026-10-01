@@ -10,7 +10,8 @@ import {
   Layers,
   Check,
   Tag,
-  FileText
+  FileText,
+  Star
 } from 'lucide-react';
 import { DescricaoFormatadaProduto } from './DescricaoFormatadaProduto';
 import { Produto, VariacaoProduto } from '../types';
@@ -28,6 +29,8 @@ interface ModalDetalhesProdutoCatalogoProps {
   totalItensCarrinho: number;
   valorTotalCarrinho: number;
   isEsgotado: boolean;
+  isFavorito?: boolean;
+  onToggleFavorito?: (produtoId: string) => void;
 }
 
 export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogoProps> = ({
@@ -42,7 +45,9 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
   onVerCarrinho,
   totalItensCarrinho,
   valorTotalCarrinho,
-  isEsgotado
+  isEsgotado,
+  isFavorito = false,
+  onToggleFavorito
 }) => {
   const [fotoIdx, setFotoIdx] = useState<number>(0);
   const [quantidade, setQuantidade] = useState<number>(1);
@@ -119,14 +124,26 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-            title="Fechar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onToggleFavorito && (
+              <button
+                type="button"
+                onClick={() => onToggleFavorito(produto.id)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition cursor-pointer"
+                title={isFavorito ? 'Remover dos favoritos' : 'Favoritar produto'}
+              >
+                <Star className={`w-5 h-5 ${isFavorito ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              title="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* CORPO DO MODAL ROLÁVEL */}

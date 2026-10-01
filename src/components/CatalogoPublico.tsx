@@ -28,7 +28,7 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
@@ -37,6 +37,11 @@ import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
 import { ModalDetalhesProdutoCatalogo } from './ModalDetalhesProdutoCatalogo';
+import { ModalOnboardingCliente } from './ModalOnboardingCliente';
+import { ModalPedidosCliente } from './ModalPedidosCliente';
+import { ModalFavoritosCliente } from './ModalFavoritosCliente';
+import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
+import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
@@ -232,6 +237,16 @@ export const CatalogoPublico: React.FC = () => {
   const [modalBuscaClienteAberto, setModalBuscaClienteAberto] = useState<boolean>(false);
   const [modalContatoAberto, setModalContatoAberto] = useState<boolean>(false);
   const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
+
+  // Estados da Área do Cliente & Onboarding
+  const [favoritosIds, setFavoritosIds] = useState<Set<string>>(new Set());
+  const [contagemNotificacoesNaoLidas, setContagemNotificacoesNaoLidas] = useState<number>(0);
+  const [modalOnboardingAberto, setModalOnboardingAberto] = useState<boolean>(false);
+  const [modalOnboardingMotivo, setModalOnboardingMotivo] = useState<'carrinho' | 'pedidos' | 'favoritos' | 'geral'>('geral');
+  const [modalPedidosAberto, setModalPedidosAberto] = useState<boolean>(false);
+  const [modalFavoritosAberto, setModalFavoritosAberto] = useState<boolean>(false);
+  const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
+  const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const [dadosContato, setDadosContato] = useState<DadosContatoCliente>(() => {
     if (typeof window === 'undefined') return { nome: '', telefone: '', telefoneIsWhatsapp: true };
     try {
@@ -327,6 +342,85 @@ export const CatalogoPublico: React.FC = () => {
       // Ignore
     }
   };
+
+  const handleLogoutCliente = () => {
+    setClienteSelecionado(null);
+    setNomeCliente('');
+    setWhatsappCliente('');
+    setFavoritosIds(new Set());
+    setContagemNotificacoesNaoLidas(0);
+    try {
+      sessionStorage.removeItem(`hubi_cliente_catalogo_${slugKey}`);
+      sessionStorage.removeItem(`hubi_contato_catalogo_${slugKey}`);
+      sessionStorage.removeItem(`hubi_nome_cliente_catalogo_${slugKey}`);
+      sessionStorage.removeItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`);
+      sessionStorage.removeItem(`hubi_endereco_catalogo_${slugKey}`);
+      sessionStorage.removeItem(`hubi_endereco_formatado_catalogo_${slugKey}`);
+      cartContext?.setClienteSelecionado(null);
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleToggleFavorito = async (produtoId: string) => {
+    if (!clienteSelecionado?.id) {
+      setModalOnboardingMotivo('favoritos');
+      setModalOnboardingAberto(true);
+      return;
+    }
+    if (!loja?.id) return;
+
+    const eraFavorito = favoritosIds.has(produtoId);
+    setFavoritosIds((prev) => {
+      const next = new Set(prev);
+      if (eraFavorito) next.delete(produtoId);
+      else next.add(produtoId);
+      return next;
+    });
+
+    try {
+      await ClienteCatalogoService.alternarFavorito(loja.id, clienteSelecionado.id, produtoId);
+    } catch (err) {
+      console.warn('Erro ao alternar favorito:', err);
+      // Reverte estado em caso de falha
+      setFavoritosIds((prev) => {
+        const next = new Set(prev);
+        if (eraFavorito) next.add(produtoId);
+        else next.delete(produtoId);
+        return next;
+      });
+    }
+  };
+
+  // Carregar favoritos e notificações do cliente autenticado
+  useEffect(() => {
+    let ativo = true;
+    async function carregarDadosCliente() {
+      if (!loja?.id || !clienteSelecionado?.id) {
+        if (ativo) {
+          setFavoritosIds(new Set());
+          setContagemNotificacoesNaoLidas(0);
+        }
+        return;
+      }
+      try {
+        const [favs, notifs] = await Promise.all([
+          ClienteCatalogoService.listarFavoritosIds(loja.id, clienteSelecionado.id),
+          ClienteCatalogoService.listarNotificacoes(loja.id, clienteSelecionado.id)
+        ]);
+        if (ativo) {
+          setFavoritosIds(favs);
+          setContagemNotificacoesNaoLidas(notifs.filter((n) => !n.lida).length);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar dados da Área do Cliente:', err);
+      }
+    }
+    carregarDadosCliente();
+    return () => {
+      ativo = false;
+    };
+  }, [loja?.id, clienteSelecionado?.id]);
 
   const handleSalvarContato = (novosDados: DadosContatoCliente) => {
     setDadosContato(novosDados);
@@ -930,6 +1024,13 @@ export const CatalogoPublico: React.FC = () => {
       return;
     }
 
+    // Interceptor de Autenticação Obrigatória para Clientes
+    if (!clienteSelecionado?.id) {
+      setModalOnboardingMotivo('carrinho');
+      setModalOnboardingAberto(true);
+      return;
+    }
+
     const nomeLimpo = nomeCliente.trim();
     const telNumeros = whatsappCliente.replace(/\D/g, '');
 
@@ -1387,8 +1488,8 @@ Fico no aguardo da confirmação! ✨`;
         ref={headerRef}
         className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4"
       >
-        {/* Identidade da Loja (Esquerda) */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0">
+        {/* Identidade da Loja e Mensagem Institucional (Esquerda) */}
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 max-w-[48%] md:max-w-[50%] lg:max-w-[45%]">
           {loja?.url_logo ? (
             <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain bg-slate-900 border border-slate-800 shrink-0" />
           ) : (
@@ -1399,38 +1500,197 @@ Fico no aguardo da confirmação! ✨`;
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
           )}
-          <div className="min-w-0 hidden sm:block">
-            <h1 className="font-extrabold text-xs sm:text-sm text-slate-100 leading-tight truncate">
-              {loja?.nome_fantasia || 'Catálogo Online'}
-            </h1>
-            <span className="text-[10px] sm:text-[11px] font-medium flex items-center gap-1 truncate" style={{ color: aceitaPedidos ? corTema : '#94A3B8' }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: aceitaPedidos ? corTema : '#64748B' }}></span>
-              {aceitaPedidos ? 'Aberto para pedidos' : 'Modo Mostruário'}
-            </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h1 className="font-extrabold text-xs sm:text-sm text-slate-100 leading-tight truncate">
+                {loja?.nome_fantasia || 'Catálogo Online'}
+              </h1>
+              <span className="text-[10px] sm:text-[11px] font-medium flex items-center gap-1 truncate" style={{ color: aceitaPedidos ? corTema : '#94A3B8' }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: aceitaPedidos ? corTema : '#64748B' }}></span>
+                {aceitaPedidos ? 'Aberto' : 'Mostruário'}
+              </span>
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 font-normal leading-tight truncate hidden md:block mt-0.5">
+              Bem-vindo ao catálogo da <strong className="font-semibold text-slate-200">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
+            </p>
           </div>
         </div>
 
-        {/* Mensagem solicitada na mesma linha do cabeçalho */}
-        <div className="flex-1 px-1.5 sm:px-4 text-center min-w-0">
-          <p className="text-[11px] sm:text-xs md:text-sm text-slate-200 font-medium leading-snug">
-            Bem-vindo ao catálogo da <strong className="font-bold text-white">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
-          </p>
-        </div>
+        {/* Cluster de Ações da Área do Cliente (Canto Superior Direito) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* 1. Compras / Vitrine */}
+          <button
+            type="button"
+            onClick={() => {
+              setCategoriaSelecionada('todas');
+              setBusca('');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            title="Início do catálogo de produtos"
+          >
+            <Store className="w-4 h-4 text-emerald-400" />
+            <span className="hidden xl:inline">Vitrine</span>
+          </button>
 
-        {/* Botão do Carrinho (Direita) */}
-        <button
-          onClick={() => setDrawerCarrinhoAberto(true)}
-          className="relative px-3 sm:px-3.5 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-lg transition hover:brightness-110 cursor-pointer shrink-0"
-          style={{ backgroundColor: corTema }}
-        >
-          <ShoppingBag className="w-4 h-4" />
-          <span className="hidden sm:inline">Carrinho</span>
-          {totalItens > 0 && (
-            <span className="bg-white text-slate-950 text-[11px] font-black px-1.5 py-0.2 rounded-full">
-              {totalItens}
-            </span>
+          {/* 2. Pedidos */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!clienteSelecionado?.id) {
+                setModalOnboardingMotivo('pedidos');
+                setModalOnboardingAberto(true);
+              } else {
+                setModalPedidosAberto(true);
+              }
+            }}
+            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            title="Meus Pedidos & Rastreamento"
+          >
+            <Package className="w-4 h-4 text-sky-400" />
+            <span className="hidden lg:inline">Pedidos</span>
+          </button>
+
+          {/* 3. Favoritos */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!clienteSelecionado?.id) {
+                setModalOnboardingMotivo('favoritos');
+                setModalOnboardingAberto(true);
+              } else {
+                setModalFavoritosAberto(true);
+              }
+            }}
+            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-amber-500/50 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            title="Produtos Favoritos"
+          >
+            <Star className={`w-4 h-4 ${favoritosIds.size > 0 ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
+            <span className="hidden lg:inline">Favoritos</span>
+            {favoritosIds.size > 0 && (
+              <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full leading-none">
+                {favoritosIds.size}
+              </span>
+            )}
+          </button>
+
+          {/* 4. Notificações */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!clienteSelecionado?.id) {
+                setModalOnboardingMotivo('geral');
+                setModalOnboardingAberto(true);
+              } else {
+                setModalNotificacoesAberto(true);
+              }
+            }}
+            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            title="Notificações e Avisos"
+          >
+            <Bell className="w-4 h-4 text-slate-300" />
+            {contagemNotificacoesNaoLidas > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-slate-900"></span>
+            )}
+          </button>
+
+          {/* 5. Carrinho com Badge e Valor Consolidado */}
+          <button
+            type="button"
+            onClick={() => setDrawerCarrinhoAberto(true)}
+            className="relative px-2.5 sm:px-3.5 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-lg transition hover:brightness-110 active:scale-95 cursor-pointer shrink-0"
+            style={{ backgroundColor: corTema }}
+            title="Ver Carrinho de Compras"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            {totalItens > 0 ? (
+              <>
+                <span className="bg-white text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                  {totalItens}
+                </span>
+                <span className="hidden sm:inline font-extrabold">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
+                </span>
+              </>
+            ) : (
+              <span className="hidden sm:inline">Carrinho</span>
+            )}
+          </button>
+
+          {/* 6. Identificação / Conta */}
+          {clienteSelecionado ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
+                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-750 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                title="Minha Conta"
+              >
+                <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px] font-black">
+                  {clienteSelecionado.nome.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline max-w-[80px] md:max-w-[110px] truncate">
+                  {clienteSelecionado.nome.split(' ')[0]}
+                </span>
+              </button>
+
+              {menuUsuarioAberto && (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
+                  <div className="px-3.5 py-2 border-b border-slate-800">
+                    <p className="text-xs font-bold text-slate-200 truncate">{clienteSelecionado.nome}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
+                      setModalPedidosAberto(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Package className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Meus Pedidos</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
+                      setModalFavoritosAberto(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Star className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Favoritos</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
+                      handleLogoutCliente();
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer border-t border-slate-800 mt-1"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sair da Conta</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setModalOnboardingMotivo('geral');
+                setModalOnboardingAberto(true);
+              }}
+              className="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-100 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer hover:border-emerald-500/50"
+              title="Entrar ou Cadastrar"
+            >
+              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Entrar</span>
+            </button>
           )}
-        </button>
+        </div>
       </header>
 
       {/* BANNER DA LOJA SE HABILITADO */}
@@ -1602,6 +1862,22 @@ Fico no aguardo da confirmação! ✨`;
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleFavorito(produto.id);
+                      }}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition cursor-pointer text-slate-400 hover:text-amber-400"
+                      title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
+                    >
+                      <Star
+                        className={`w-4 h-4 ${
+                          favoritosIds.has(produto.id) ? 'text-amber-400 fill-amber-400' : 'text-slate-400'
+                        }`}
+                      />
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setProdutoDetalhesModal(produto)}
                       className="px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer border border-slate-700"
                       title="Ver Detalhes do Produto"
@@ -1660,6 +1936,23 @@ Fico no aguardo da confirmação! ✨`;
                     title="Clique para ver fotos e detalhes"
                   >
                     <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleFavorito(produto.id);
+                      }}
+                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-2xl bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-700/80 shadow-lg transition hover:scale-110 active:scale-95 cursor-pointer"
+                      title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
+                    >
+                      <Star
+                        className={`w-4 h-4 transition-colors ${
+                          favoritosIds.has(produto.id)
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-slate-400 hover:text-amber-400'
+                        }`}
+                      />
+                    </button>
                     {esgotado && (
                       <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
                         <span className="bg-rose-600 text-white font-black text-xs px-4 py-1 rounded-full shadow-lg">
@@ -1763,6 +2056,23 @@ Fico no aguardo da confirmação! ✨`;
                         alt={produto.nome}
                         className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
                       />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleFavorito(produto.id);
+                        }}
+                        className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
+                        title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 transition-colors ${
+                            favoritosIds.has(produto.id)
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-slate-400 hover:text-amber-400'
+                          }`}
+                        />
+                      </button>
                       {esgotado ? (
                         <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                           <span className="bg-rose-600 text-white font-black text-[9px] px-2 py-0.5 rounded shadow">
@@ -2114,75 +2424,61 @@ Fico no aguardo da confirmação! ✨`;
                   <div className="space-y-3">
                     <span className="text-xs font-bold text-slate-200 block">Identificação & Entrega</span>
 
-                    {/* GRADE COM OS 3 BOTÕES */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setModalBuscaClienteAberto(true)}
-                        className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-emerald-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-slate-950 flex items-center justify-center transition">
-                          <UserCheck className="w-4 h-4" />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-emerald-400 leading-tight">
-                          Já tenho o cadastro
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setModalContatoAberto(true)}
-                        className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
-                          nomeCliente && whatsappCliente ? 'border-emerald-500/50' : 'border-slate-700'
-                        } hover:border-sky-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
-                      >
-                        {nomeCliente && whatsappCliente && (
-                          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
-                        )}
-                        <div className={`w-8 h-8 rounded-xl ${
-                          nomeCliente && whatsappCliente ? 'bg-emerald-500/15 text-emerald-400' : 'bg-sky-500/15 text-sky-400'
-                        } group-hover:bg-sky-500 group-hover:text-slate-950 flex items-center justify-center transition`}>
-                          <Phone className="w-4 h-4" />
-                        </div>
-                        <span className={`text-[11px] font-bold ${
-                          nomeCliente && whatsappCliente ? 'text-emerald-400' : 'text-slate-200'
-                        } group-hover:text-sky-400 leading-tight`}>
-                          Contato
-                        </span>
-                      </button>
-
-                      {(() => {
-                        const temEnderecoPreenchido = Boolean(
-                          enderecoEntrega ||
-                          dadosEndereco.rua?.trim() ||
-                          dadosEndereco.cep?.trim() ||
-                          clienteSelecionado?.endereco_logradouro
-                        );
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => setModalEnderecoAberto(true)}
-                            className={`p-3 rounded-2xl bg-slate-800 hover:bg-slate-750 border ${
-                              temEnderecoPreenchido ? 'border-emerald-500/50' : 'border-slate-700'
-                            } hover:border-emerald-500/60 flex flex-col items-center justify-center text-center gap-1.5 transition cursor-pointer group shadow-sm relative`}
-                          >
-                            {temEnderecoPreenchido && (
-                              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400"></span>
-                            )}
-                            <div className={`w-8 h-8 rounded-xl ${
-                              temEnderecoPreenchido ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/40 text-slate-300'
-                            } group-hover:bg-emerald-500 group-hover:text-slate-950 flex items-center justify-center transition`}>
-                              <MapPin className="w-4 h-4" />
+                    {/* IDENTIFICAÇÃO DO CLIENTE & ENDEREÇO */}
+                    {clienteSelecionado ? (
+                      <div className="bg-slate-800/80 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                              {clienteSelecionado.nome.charAt(0).toUpperCase()}
                             </div>
-                            <span className={`text-[11px] font-bold ${
-                              temEnderecoPreenchido ? 'text-emerald-400' : 'text-slate-200'
-                            } group-hover:text-emerald-400 leading-tight`}>
-                              Endereço
-                            </span>
-                          </button>
-                        );
-                      })()}
-                    </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-100 truncate">{clienteSelecionado.nome}</p>
+                              <p className="text-[10px] text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setModalEnderecoAberto(true)}
+                              className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 px-2 py-1 rounded-lg hover:bg-slate-750 transition cursor-pointer"
+                              title="Alterar endereço"
+                            >
+                              Editar Endereço
+                            </button>
+                          </div>
+                        </div>
+                        {enderecoEntrega && (
+                          <div className="pt-2 border-t border-slate-700/60 text-[11px] text-slate-300 flex items-start gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{enderecoEntrega}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => {
+                          setModalOnboardingMotivo('carrinho');
+                          setModalOnboardingAberto(true);
+                        }}
+                        className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-800 to-slate-800 border-2 border-emerald-500/40 hover:border-emerald-500 flex items-center justify-between gap-3 transition cursor-pointer shadow-md group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                            <Smartphone className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-100 group-hover:text-emerald-300 transition">
+                              Identifique-se para fechar o pedido
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              Entre ou crie sua conta com celular em 30 segundos
+                            </p>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition" />
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -2563,6 +2859,75 @@ Fico no aguardo da confirmação! ✨`;
         cliente={clienteSelecionado}
       />
 
+      {/* NOVO MODAL DE ONBOARDING E AUTENTICAÇÃO DO CLIENTE */}
+      <ModalOnboardingCliente
+        isOpen={modalOnboardingAberto}
+        onClose={() => setModalOnboardingAberto(false)}
+        lojaId={loja?.id || ''}
+        nomeLoja={loja?.nome_fantasia || 'HUBI'}
+        corTema={corTema}
+        motivoAbertura={modalOnboardingMotivo}
+        onSucesso={(cliente) => {
+          handleSelecionarCliente(cliente);
+        }}
+      />
+
+      {/* MODAL DE HISTÓRICO DE PEDIDOS */}
+      <ModalPedidosCliente
+        isOpen={modalPedidosAberto}
+        onClose={() => setModalPedidosAberto(false)}
+        lojaId={loja?.id || ''}
+        clienteId={clienteSelecionado?.id || ''}
+        corTema={corTema}
+        onExplorarCatalogo={() => {
+          setCategoriaSelecionada('todas');
+          setBusca('');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+
+      {/* MODAL DE PRODUTOS FAVORITOS */}
+      <ModalFavoritosCliente
+        isOpen={modalFavoritosAberto}
+        onClose={() => setModalFavoritosAberto(false)}
+        lojaId={loja?.id || ''}
+        clienteId={clienteSelecionado?.id || ''}
+        corTema={corTema}
+        onAdicionarAoCarrinho={(prod) => {
+          adicionarAoCarrinho(prod);
+          setModalFavoritosAberto(false);
+          setDrawerCarrinhoAberto(true);
+        }}
+        onRemoverFavorito={(prodId) => {
+          setFavoritosIds((prev) => {
+            const next = new Set(prev);
+            next.delete(prodId);
+            return next;
+          });
+        }}
+        onExplorarCatalogo={() => {
+          setCategoriaSelecionada('todas');
+          setBusca('');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+
+      {/* MODAL DE NOTIFICAÇÕES */}
+      <ModalNotificacoesCliente
+        isOpen={modalNotificacoesAberto}
+        onClose={() => setModalNotificacoesAberto(false)}
+        lojaId={loja?.id || ''}
+        clienteId={clienteSelecionado?.id || ''}
+        corTema={corTema}
+        onAtualizarContador={() => {
+          if (loja?.id && clienteSelecionado?.id) {
+            ClienteCatalogoService.listarNotificacoes(loja.id, clienteSelecionado.id).then((notifs) =>
+              setContagemNotificacoesNaoLidas(notifs.filter((n) => !n.lida).length)
+            );
+          }
+        }}
+      />
+
       {/* MODAL DETALHES DO PRODUTO NO CATÁLOGO */}
       {produtoDetalhesModal && (
         <ModalDetalhesProdutoCatalogo
@@ -2589,6 +2954,8 @@ Fico no aguardo da confirmação! ✨`;
           totalItensCarrinho={totalItens}
           valorTotalCarrinho={total}
           isEsgotado={isProdutoEsgotado(produtoDetalhesModal)}
+          isFavorito={Boolean(produtoDetalhesModal && favoritosIds.has(produtoDetalhesModal.id))}
+          onToggleFavorito={handleToggleFavorito}
         />
       )}
 

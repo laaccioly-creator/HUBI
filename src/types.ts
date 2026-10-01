@@ -465,6 +465,28 @@ export interface Cliente {
   permite_fiado: boolean;
   data_aniversario?: string | null;
   observacoes?: string | null;
+  senha_hash?: string | null;
+  auth_uid?: string | null;
+  criado_em?: string;
+}
+
+export interface ClienteFavorito {
+  id: string;
+  cliente_id: string;
+  produto_id: string;
+  loja_id: string;
+  criado_em?: string;
+  produto?: Produto;
+}
+
+export interface ClienteNotificacao {
+  id: string;
+  cliente_id: string;
+  loja_id: string;
+  titulo: string;
+  mensagem: string;
+  lida: boolean;
+  link_acao?: string | null;
   criado_em?: string;
 }
 

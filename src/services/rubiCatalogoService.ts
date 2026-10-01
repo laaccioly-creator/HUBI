@@ -44,6 +44,22 @@ export const normalizarTexto = (str: string): string => {
 };
 
 /**
+ * Corrige transcrições fonéticas imperfeitas do SpeechRecognition (STT) para os termos reais do catálogo
+ */
+export const corrigirTranscricaoVoz = (str: string): string => {
+  if (!str) return '';
+  let corrigido = str;
+  // Bullet vibratório frequentemente transcrito como "boletim", "bolo aí te", "bolo ai te", "bulete", "bulet", "bolo vibratório"
+  corrigido = corrigido.replace(/\b(?:bolo\s+a[ií]\s+te|bolo\s+a[ií]|boletim|bulete|bulet|bule)\s*vibrat[oó]rio\b/gi, 'bullet vibratório');
+  corrigido = corrigido.replace(/\b(?:boletim|bulete|bulet)\b/gi, 'bullet');
+  corrigido = corrigido.replace(/\bbolo\s+vibrat[oó]rio\b/gi, 'bullet vibratório');
+  corrigido = corrigido.replace(/\bbolo\s+a[ií]\s+te\b/gi, 'bullet');
+  // Chibata transcrita como chumbada
+  corrigido = corrigido.replace(/\bchumbada\b/gi, 'chibata');
+  return corrigido;
+};
+
+/**
  * Mapeamento de Personas e Diretrizes por Segmento de Negócio
  */
 export const PERSONAS_SEGMENTO: Record<string, { papel: string; diretriz: string; saudacaoExemplo: string }> = {
@@ -118,12 +134,17 @@ export const MAPA_SINONIMOS_SEGMENTO: Record<string, Record<string, string[]>> =
     esquentar: ['oleo', 'gel', 'termico', 'massagem', 'esquenta', 'beijavel', 'calor'],
     casal: ['oleo', 'massagem', 'jogos', 'dados', 'fantasia', 'lubrificante', 'gel', 'estimulador', 'algema', 'venda'],
     rotina: ['oleo', 'massagem', 'vela', 'gel', 'vibrador', 'fantasia', 'surpresa'],
-    brinquedo: ['vibrador', 'estimulador', 'bullet', 'egg', 'sugador', 'dildo', 'anel'],
-    vibrador: ['vibrador', 'bullet', 'estimulador', 'sugador', 'personal'],
+    brinquedo: ['vibrador', 'estimulador', 'bullet', 'egg', 'sugador', 'dildo', 'anel', 'capsula'],
+    vibrador: ['vibrador', 'vibradores', 'bullet', 'capsula', 'dedeira', 'batom', 'estimulador', 'sugador', 'personal'],
+    vibradores: ['vibrador', 'vibradores', 'bullet', 'capsula', 'dedeira', 'batom', 'estimulador', 'sugador'],
+    bullet: ['bullet', 'capsula', 'vibratoria', 'vibrador'],
+    capsula: ['capsula', 'bullet', 'vibratoria', 'vibrador'],
+    compacto: ['bullet', 'capsula', 'dedeira', 'batom', 'mini', 'pequeno', 'bolsa'],
+    discreto: ['bullet', 'capsula', 'batom', 'dedeira', 'mini'],
     massagem: ['oleo', 'vela', 'gel', 'creme', 'beijavel'],
     lubrificante: ['lubrificante', 'gel', 'silicone', 'agua'],
-    iniciante: ['bullet', 'oleo', 'gel', 'beijavel', 'lubrificante', 'vela'],
-    indica: ['mais vendido', 'destaque', 'oleo', 'vibrador', 'gel', 'massagem']
+    iniciante: ['bullet', 'capsula', 'oleo', 'gel', 'beijavel', 'lubrificante', 'vela'],
+    indica: ['mais vendido', 'destaque', 'oleo', 'vibrador', 'bullet', 'gel', 'massagem']
   },
   restaurante: {
     almoco: ['prato', 'executivo', 'refeicao', 'carne', 'frango', 'massa'],
@@ -367,11 +388,22 @@ export const extrairProdutosDaResposta = (
     for (const prod of produtosCatalogo) {
       if (prod.ativo === false) continue;
       const nomeNorm = normalizarTexto(prod.nome || '');
+      // Match exato por nome completo
       if (nomeNorm.length >= 4 && textoNorm.includes(nomeNorm)) {
         if (!idsAdicionados.has(prod.id)) {
           produtosEncontrados.push(prod);
           idsAdicionados.add(prod.id);
           if (produtosEncontrados.length >= 3) break;
+        }
+      } else {
+        // Match por palavras-chave principais (ex: "bullet" e "capsula")
+        const palavrasNome = nomeNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 4);
+        if (palavrasNome.length > 0 && palavrasNome.some(pal => textoNorm.includes(pal))) {
+          if (!idsAdicionados.has(prod.id)) {
+            produtosEncontrados.push(prod);
+            idsAdicionados.add(prod.id);
+            if (produtosEncontrados.length >= 3) break;
+          }
         }
       }
     }
@@ -517,7 +549,8 @@ export const responderPerguntaClienteCatalogo = async (
     historicoMensagens = [],
     produtosJaSugeridosIds = []
   } = contexto;
-  const pNorm = normalizarTexto(pergunta);
+  const perguntaCorrigida = corrigirTranscricaoVoz(pergunta);
+  const pNorm = normalizarTexto(perguntaCorrigida);
   const nomeLoja = loja.nome_fantasia || 'nossa loja';
 
   // Configuração do Perfil do Negócio e Persona
@@ -528,12 +561,22 @@ export const responderPerguntaClienteCatalogo = async (
 
   const nomeClienteEfetivo = nomeClienteAtual || clienteAtual?.nome || '';
 
-  // IDENTIFICAÇÃO DE PRODUTO ALVO EM CONSULTA / DÚVIDA
+  // IDENTIFICAÇÃO DE PRODUTO ALVO EM CONSULTA / DÚVIDA / FOTO
   let produtoAlvo: Produto | null = produtoConsultado || null;
 
-  // Se não foi passado explicitamente no contexto, verificar se o nome do produto foi citado entre aspas
+  // 1. Checar se a pergunta é uma referência anafórica ao produto anterior ("dele", "desse", "esse produto", "foto dele", "ver ele")
+  const termosReferenciaAoUltimo = [
+    'foto dele', 'manda foto dele', 'manda uma foto dele', 'ver foto dele',
+    'quero ver ele', 'mostra ele', 'foto desse', 'desse produto', 'esse produto',
+    'sobre ele', 'tem foto dele', 'cade a foto dele', 'manda foto desse', 'ver esse'
+  ];
+  if (!produtoAlvo && ultimoProdutoSugerido && termosReferenciaAoUltimo.some(t => pNorm.includes(t))) {
+    produtoAlvo = ultimoProdutoSugerido;
+  }
+
+  // 2. Se o nome veio entre aspas
   if (!produtoAlvo) {
-    const matchAspas = pergunta.match(/"([^"]+)"/) || pergunta.match(/“([^”]+)”/);
+    const matchAspas = perguntaCorrigida.match(/"([^"]+)"/) || perguntaCorrigida.match(/“([^”]+)”/);
     if (matchAspas && matchAspas[1]) {
       const nomeEntreAspasNorm = normalizarTexto(matchAspas[1]);
       produtoAlvo = produtos.find(p => normalizarTexto(p.nome) === nomeEntreAspasNorm)
@@ -542,33 +585,77 @@ export const responderPerguntaClienteCatalogo = async (
     }
   }
 
-  // Se ainda não achou, checar se a pergunta menciona termos de produto e cita o nome de algum produto do catálogo
-  const termosDuvidaProduto = [
-    'duvida sobre o produto', 'duvida sobre', 'mais informacoes sobre',
-    'fale sobre o produto', 'falar sobre o produto', 'para que serve',
-    'como usa', 'como funciona', 'quanto custa o produto', 'tem o produto'
-  ];
-  const ehDuvidaDeProduto = Boolean(
-    produtoAlvo ||
-    termosDuvidaProduto.some(t => pNorm.includes(t)) ||
-    (pNorm.includes('duvida') && pNorm.includes('produto'))
-  );
+  // 3. Busca por match inteligente de palavras-chave do produto na frase
+  if (!produtoAlvo) {
+    const palavrasPergunta = pNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 3);
+    const stopWords = new Set([
+      'mais', 'para', 'como', 'onde', 'qual', 'quais', 'esse', 'essa', 'este', 'esta',
+      'sobre', 'quero', 'queria', 'voce', 'tem', 'passa', 'detalhes', 'manda', 'mandar',
+      'foto', 'aqui', 'mim', 'poder', 'ver', 'fazer', 'localizar', 'sistema', 'catalogo',
+      'bom', 'boa', 'olha', 'olhada', 'acho', 'achar', 'gostaria', 'dar', 'uma', 'uns'
+    ]);
+    const palavrasChaveBusca = palavrasPergunta.filter(w => !stopWords.has(w));
 
-  if (!produtoAlvo && ehDuvidaDeProduto) {
-    for (const prod of produtos) {
-      if (prod.ativo === false) continue;
-      const nomeNorm = normalizarTexto(prod.nome);
-      if (nomeNorm.length >= 4 && pNorm.includes(nomeNorm)) {
-        produtoAlvo = prod;
-        break;
+    if (palavrasChaveBusca.length > 0) {
+      let melhorScore = 0;
+      let melhorProd: Produto | null = null;
+
+      for (const prod of produtos) {
+        if (prod.ativo === false) continue;
+        const nomeProdNorm = normalizarTexto(prod.nome || '');
+        const palavrasNome = nomeProdNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 3);
+
+        let score = 0;
+        // Match exato do nome inteiro
+        if (pNorm.includes(nomeProdNorm)) score += 100;
+
+        // Match das palavras-chave
+        for (const chave of palavrasChaveBusca) {
+          if (palavrasNome.includes(chave)) {
+            score += 35; // palavra exata presente no nome
+          } else if (nomeProdNorm.includes(chave)) {
+            score += 15;
+          }
+        }
+
+        // Bônus se termo muito característico der match direto (ex: bullet)
+        if (palavrasChaveBusca.includes('bullet') && nomeProdNorm.includes('bullet')) {
+          score += 40;
+        }
+
+        if (score > melhorScore && score >= 30) {
+          melhorScore = score;
+          melhorProd = prod;
+        }
+      }
+
+      if (melhorProd) {
+        produtoAlvo = melhorProd;
       }
     }
-    if (!produtoAlvo) {
-      const pontuados = buscarProdutosPorIntencao(pergunta, produtos, 1, [], segmento);
-      if (pontuados.length > 0) {
-        produtoAlvo = pontuados[0];
-      }
-    }
+  }
+
+  // 4. CHECAGEM DIRETA DE PEDIDO DE FOTO OU VISUALIZAÇÃO DO PRODUTO NO CATÁLOGO
+  const termosPedidoFoto = [
+    'manda foto', 'mandar foto', 'mande foto', 'mande uma foto', 'manda uma foto',
+    'ver foto', 'quero ver foto', 'mostra foto', 'mostrar foto', 'tem foto',
+    'quero ver', 'como ver', 'como faco para ver', 'como faco pra ver',
+    'como localizar', 'como achar', 'onde fica', 'onde acho', 'como faco para localizar',
+    'como faco pra localizar', 'cade a foto', 'me mostra ele', 'me mostra esse',
+    'quero ver esse', 'foto dele'
+  ];
+  const ehPedidoDeFoto = termosPedidoFoto.some(t => pNorm.includes(t));
+  const produtoParaFoto = produtoAlvo || ultimoProdutoSugerido;
+
+  if (ehPedidoDeFoto && produtoParaFoto) {
+    const precoEfetivo = Number(produtoParaFoto.preco_promocional || produtoParaFoto.preco_venda_varejo || 0);
+    const temPromocao = Boolean(produtoParaFoto.promocao_ativa && produtoParaFoto.preco_promocional && Number(produtoParaFoto.preco_promocional) > 0);
+    const precoStr = `R$ ${precoEfetivo.toFixed(2)}${temPromocao ? ' (oferta especial!)' : ''}`;
+
+    return {
+      texto: `Com certeza! Já separei e estou exibindo o card com a foto, o preço e os detalhes do **${produtoParaFoto.nome}** por apenas **${precoStr}** logo aqui embaixo para você ver! ✨\n\nVocê pode tocar na foto ou no botão com o ícone de olho para abrir e ver em tamanho maior, ou tocar no botão **+** para colocar direto na sua sacola de compras! O que achou? 😊`,
+      produtosSugeridos: [produtoParaFoto]
+    };
   }
 
   // 1. CHECAGEM DE PROBLEMA DE ÁUDIO / FONE DE OUVIDO
@@ -630,6 +717,7 @@ export const responderPerguntaClienteCatalogo = async (
 
   // 4. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
   const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
+  const ehDuvidaDeProduto = Boolean(produtoAlvo);
 
   // Se o cliente acabou de falar o nome pela primeira vez
   if (dadosCadastro.nome && !nomeClienteEfetivo && !produtoAlvo && !ehDuvidaDeProduto) {
@@ -763,18 +851,43 @@ export const responderPerguntaClienteCatalogo = async (
   }
 
   // 6. BUSCA PRELIMINAR DE PRODUTOS RECOMENDADOS (Fallback local)
-  const produtosSugeridosPre = buscarProdutosPorIntencao(pergunta, produtos, 3, produtosJaSugeridosIds, segmento);
+  const produtosSugeridosPre = buscarProdutosPorIntencao(perguntaCorrigida, produtos, 3, produtosJaSugeridosIds, segmento);
 
   // 7. CONSULTA À IA GENERATIVA GEMINI (SE HOUVER CHAVE CONFIGURADA)
   const apiKey = getGeminiApiKey(loja);
   if (apiKey) {
     try {
+      // SELEÇÃO INTELIGENTE DE PRODUTOS RELEVANTES PARA O GEMINI
+      const prodsRelevantes = buscarProdutosPorIntencao(perguntaCorrigida, produtos, 30, [], segmento);
+      const catalogoMap = new Map<string, Produto>();
+
+      if (produtoAlvo) {
+        catalogoMap.set(produtoAlvo.id, produtoAlvo);
+      }
+      if (ultimoProdutoSugerido && !catalogoMap.has(ultimoProdutoSugerido.id)) {
+        catalogoMap.set(ultimoProdutoSugerido.id, ultimoProdutoSugerido);
+      }
+      for (const p of prodsRelevantes) {
+        if (!catalogoMap.has(p.id)) {
+          catalogoMap.set(p.id, p);
+        }
+      }
+
+      // Completar até 50 produtos com itens ativos do catálogo
       const produtosAtivos = produtos.filter(p => p.ativo !== false);
-      const catalogoResumo = produtosAtivos.slice(0, 40).map(p => ({
+      for (const p of produtosAtivos) {
+        if (catalogoMap.size >= 50) break;
+        if (!catalogoMap.has(p.id)) {
+          catalogoMap.set(p.id, p);
+        }
+      }
+
+      const catalogoResumo = Array.from(catalogoMap.values()).map(p => ({
         id: p.id,
         nome: p.nome,
         categoria: p.categoria?.nome || '',
-        preco: Number(p.preco_promocional || p.preco_venda_varejo || 0).toFixed(2)
+        preco: Number(p.preco_promocional || p.preco_venda_varejo || 0).toFixed(2),
+        descricao: p.descricao ? p.descricao.slice(0, 100) : ''
       }));
 
       const historicoTexto = historicoMensagens.length > 0
@@ -797,7 +910,7 @@ ${produtoAlvo.tem_variacoes && produtoAlvo.variacoes?.length ? `- Variações/Op
 INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO:
 O cliente está com dúvida sobre este produto específico!
 1. Responda IMEDIATAMENTE explicando para que serve, sensações, modo de uso ou diferenciais com base na descrição acima.
-2. Destaque o valor atual do produto de forma convidativa e natural.
+2. Destaque o valor atual do produto de forma convidativa e natural (R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)}).
 3. NUNCA dê apenas uma saudação genérica de boas-vindas pedindo o nome do cliente! Responda a dúvida primeiro. Ao final, de forma simpática, você pode perguntar como chamá-lo ou convidá-lo a colocar na sacola.
 4. IMPORTANTE: Escreva todas as frases completas com pontuação final (. ou !). NUNCA pare no meio de uma frase.
 5. OBRIGATÓRIO: Conclua todo o texto e somente na última linha, isolada, adicione a tag: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
@@ -815,37 +928,38 @@ ${historicoTexto || '(Início)'}
 
 ${infoProdutoAlvo}
 
-CATÁLOGO RESUMIDO DA LOJA (Produtos disponíveis):
+CATÁLOGO REAL DA LOJA (Produtos efetivamente disponíveis no estoque):
 ${JSON.stringify(catalogoResumo)}
 
-DIRETRIZES CRÍTICAS DE RESPOSTA:
-1. HUMANIZAÇÃO TOTAL (CONVERSA NATURAL ENTRE DOIS HUMANOS):
+🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ZERO ALUCINAÇÃO:
+1. PROIBIDO INVENTAR PRODUTOS OU PREÇOS: Você SÓ PODE recomendar, descrever ou citar produtos que constam LITERALMENTE na lista "CATÁLOGO REAL DA LOJA" acima! NUNCA invente nomes de modelos fictícios (como "Discreet", "Velvet Touch", etc.) e NUNCA invente preços. Use rigorosamente o valor que está no campo "preco" de cada produto listado. Se o produto custa 6.50, fale "6 e 50". Jamais fale 69 e 90 ou outros valores não existentes!
+2. VISUALIZAÇÃO E FOTOS DE PRODUTOS:
+   - NUNCA diga que "não pode mandar fotos por aqui" ou que "por ser chat de texto não consegue mostrar fotos"! O sistema do catálogo exibe automaticamente o card com a foto do produto, valor e botão de sacola logo abaixo da sua mensagem!
+   - Quando o cliente pedir foto ou quiser ver o produto, confirme com entusiasmo que já está mostrando o card com a foto e os detalhes dele logo abaixo para ele ver e tocar.
+   - OBRIGATÓRIO: Adicione na última linha isolada a tag [PRODUTOS_RECOMENDADOS: id] para que a foto do produto apareça na tela!
+3. HUMANIZAÇÃO TOTAL (CONVERSA NATURAL ENTRE DOIS HUMANOS):
    - Converse com entusiasmo acolhedor, empatia e espontaneidade — como uma excelente consultora ou vendedora atenciosa conversando cara a cara no balcão da loja física ou em um áudio descontraído de WhatsApp.
-   - É TERMINANTEMENTE PROIBIDO soar como um robô frio, burocrático ou de formulário! NUNCA estruture a resposta com tópicos mecânicos ou bullets (• ou -). Fale em parágrafos contínuos, calorosos e vivos.
+   - Fale em parágrafos contínuos, calorosos e vivos (evite listas mecânicas de bullets).
    - Use expressões naturais e afetuosas do dia a dia brasileiro: "Olha só", "Com certeza!", "Ah, excelente escolha!", "Pode deixar comigo", "Temos sim!", "Fica super à vontade", "Você vai adorar!".
-   - Ao falar de valores, fale de forma natural e convidativa (ex: "está saindo por 49 e 90", "com um preço maravilhoso de 35 reais"), conectando o valor ao benefício e carinho do produto.
-2. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
-3. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-4. SEJA CONCISA E FLUIDA: O cliente pode estar ouvindo sua voz no fone de ouvido ou viva-voz! Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ouvir.
-5. NUNCA DEIXE FRASES INACABADAS: Conclua todas as frases com ponto final ou exclamação. Jamais termine com conjunções como 'e', 'ou', 'com'.
-6. CADASTRO E PEDIDO:
+4. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
+5. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
+6. SEJA CONCISA E FLUIDA: O cliente pode estar ouvindo sua voz no fone de ouvido ou viva-voz! Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ouvir.
+7. CADASTRO E PEDIDO:
    - Se o cliente perguntar como se cadastrar, explique de maneira leve que ele pode me ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola ao fechar.
    - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega com carinho para organizar o envio e cadastro.
-7. PRODUTOS RECOMENDADOS:
+8. PRODUTOS RECOMENDADOS:
    - Apresente no máximo 2 a 3 produtos APENAS quando o cliente pedir indicações, novidades ou itens específicos.
-   - Para cada produto, fale de forma natural destacando a sensação ou benefício principal e cite o valor de forma fluida.
-   - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos.
+   - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos e preços exatos.
    - OBRIGATÓRIO PARA SINCRONIA: Na última linha isolada da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
-8. Finalize sempre com uma pergunta acolhedora ou convidando a adicionar à sacola quando houver produtos recomendados.
-9. Responda sempre em português brasileiro autêntico, empático e caloroso.
+9. Se o cliente perguntar por algo que não temos no catálogo, seja transparente e gentil: informe que no momento não temos esse modelo específico e ofereça as melhores opções que realmente temos no catálogo.
 
 PERGUNTA ATUAL DO CLIENTE:
-"${pergunta}"
+"${perguntaCorrigida}"
 `;
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.65, maxOutputTokens: 1000 }
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1000 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
