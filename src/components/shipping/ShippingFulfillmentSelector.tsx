@@ -1213,31 +1213,39 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         </div>
       ) : (enderecoSelecionado && (enderecoSelecionado.cep || '').replace(/\D/g, '') && (enderecoSelecionado.logradouro || '').trim()) ? (
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <div className={`flex items-center gap-2 text-xs font-bold ${ehCatalogo ? 'text-slate-300' : 'text-slate-700'}`}>
+            <ShieldCheck className={`w-4 h-4 ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`} />
             <span>Calculamos os custos e prazos para este endereço:</span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative overflow-hidden text-slate-800 shadow-sm">
+          <div className={`p-3.5 rounded-2xl border space-y-2 relative overflow-hidden shadow-sm ${
+            ehCatalogo
+              ? 'bg-slate-800/40 border-slate-700/60 text-slate-200'
+              : 'bg-slate-50 border-slate-200 text-slate-800'
+          }`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`} />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">
+                    <span className={`text-xs font-bold ${ehCatalogo ? 'text-slate-100' : 'text-slate-900'}`}>
                       {enderecoSelecionado.identificador || 'Endereço Principal'}
                     </span>
                     {enderecoSelecionado.is_principal && (
-                      <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                      <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                        ehCatalogo
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                      }`}>
                         Principal
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-700 mt-1">
+                  <p className={`text-xs mt-1 ${ehCatalogo ? 'text-slate-300' : 'text-slate-700'}`}>
                     {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
                     {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className={`text-[11px] mt-0.5 ${ehCatalogo ? 'text-slate-400' : 'text-slate-500'}`}>
                     {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                   </p>
                 </div>
@@ -1247,7 +1255,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 <button
                   type="button"
                   onClick={() => onSolicitarAtualizarEndereco()}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline shrink-0"
+                  className={`text-xs font-bold flex items-center gap-1 cursor-pointer transition hover:underline shrink-0 ${
+                    ehCatalogo ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
+                  }`}
                   title="Editar endereço principal"
                 >
                   <PenLine className="w-3.5 h-3.5" />
@@ -1257,11 +1267,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
 
             {/* Botão Escolher Outro Endereço */}
-            <div className="pt-2 border-t border-slate-200 flex justify-end">
+            <div className={`pt-2 border-t flex justify-end ${ehCatalogo ? 'border-slate-700/60' : 'border-slate-200'}`}>
               <button
                 type="button"
                 onClick={() => setModalEscolherOutroAberto(true)}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline"
+                className={`text-xs font-bold flex items-center gap-1 cursor-pointer transition hover:underline ${
+                  ehCatalogo ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
+                }`}
               >
                 <span>Escolher outro endereço</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1280,23 +1292,26 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           ehCatalogo ? (
             <div
               onClick={handleSelecionarRetirada}
-              className={`p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+              className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 modalidade === 'retirada'
-                  ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                  : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                  ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                  : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
                   modalidade === 'retirada'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'border-2 border-slate-400'
+                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                    : 'border-2 border-slate-500'
                 }`}>
                   {modalidade === 'retirada' && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                 </div>
-                <Store className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span className="text-xs font-bold text-slate-900 truncate">
+                <Store className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="text-xs font-bold text-slate-100 truncate">
                   Retirar na Loja
+                </span>
+                <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                  Grátis
                 </span>
               </div>
 
@@ -1307,10 +1322,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     e.stopPropagation();
                     setModalMapaLojaAberto(true);
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
                   title="Ver endereço e rota no mapa"
                 >
-                  <Navigation className="w-3 h-3 text-emerald-600" />
+                  <Navigation className="w-3 h-3 text-emerald-400" />
                   <span>Ver no Mapa</span>
                 </button>
 
@@ -1320,7 +1335,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-sm cursor-pointer"
+                    className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-sm cursor-pointer"
                     title="Falar com a loja no WhatsApp"
                   >
                     <MessageCircle className="w-3 h-3" />
@@ -1432,9 +1447,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         {/* ========================================================================= */}
         {/* BLOCO 2: OPÇÕES DE ENTREGA                                                */}
         {/* ========================================================================= */}
-        <div className="space-y-3 pt-2 border-t border-slate-200">
+        <div className={`space-y-3 pt-2 border-t ${ehCatalogo ? 'border-slate-700/60' : 'border-slate-200'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 block">
+            <span className={`text-xs font-bold block ${ehCatalogo ? 'text-slate-200' : 'text-slate-700'}`}>
               {ehCatalogo ? 'Opções de Entrega' : 'Entrega no Endereço do Cliente'}
             </span>
           </div>
@@ -1729,34 +1744,34 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     ehCatalogo ? (
                       <div
                         onClick={handleSelecionarFreteACombinar}
-                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                            : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                            ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                            : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
                         }`}
                       >
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
-                            <Truck className="w-5 h-5 text-emerald-600" />
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
+                            <Truck className="w-5 h-5 text-emerald-400" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                              <span className="text-xs font-bold text-slate-100">Frete a combinar</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
                                 A Combinar
                               </span>
                             </div>
-                            <p className="text-xs text-slate-600 leading-relaxed">
-                              Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
+                          <span className="font-extrabold text-xs text-emerald-400">R$ 0,00</span>
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                             modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'border-2 border-slate-300'
+                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                              : 'border-2 border-slate-500'
                           }`}>
                             {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
                               <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -1775,34 +1790,34 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       /* Card Amigável: Frete a Combinar no Catálogo (sem cotações retornadas) */
                       <div
                         onClick={handleSelecionarFreteACombinar}
-                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                            : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                            ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                            : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
                         }`}
                       >
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
-                            <Truck className="w-5 h-5 text-emerald-600" />
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
+                            <Truck className="w-5 h-5 text-emerald-400" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                              <span className="text-xs font-bold text-slate-100">Frete a combinar</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
                                 A Combinar
                               </span>
                             </div>
-                            <p className="text-xs text-slate-600 leading-relaxed">
-                              Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
+                          <span className="font-extrabold text-xs text-emerald-400">R$ 0,00</span>
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                             modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'border-2 border-slate-300'
+                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                              : 'border-2 border-slate-500'
                           }`}>
                             {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
                               <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -1826,17 +1841,23 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           <div
                             key={opcao.id}
                             onClick={() => handleEscolherCotacao(opcao)}
-                            className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                               selecionada
-                                ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                                : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                                ? ehCatalogo
+                                  ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                                  : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                                : ehCatalogo
+                                  ? 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                                  : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                                 opcao.provedor === 'uber'
                                   ? 'bg-black text-white font-black text-[11px] border-black'
-                                  : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
+                                  : ehCatalogo
+                                    ? 'bg-slate-800 text-emerald-400 font-bold text-xs border-slate-700'
+                                    : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
                               }`}>
                                 {opcao.provedor === 'uber' ? (
                                   'UBER'
@@ -1847,24 +1868,28 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                  <span className={`text-xs font-bold truncate ${ehCatalogo ? 'text-slate-100' : 'text-slate-900'}`}>
                                     {opcao.transportadora_nome}
                                   </span>
                                   {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
-                                    <span className="text-[11px] text-slate-600 font-semibold truncate">
+                                    <span className={`text-[11px] font-semibold truncate ${ehCatalogo ? 'text-slate-400' : 'text-slate-600'}`}>
                                       ({opcao.servico_nome})
                                     </span>
                                   )}
                                   {opcao.is_frete_gratis && (
-                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                                      ehCatalogo
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                    }`}>
                                       Frete Grátis
                                     </span>
                                   )}
                                 </div>
                                 {opcao.prazo_estimado_texto && (
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                                    <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                    <span className="text-slate-600">{opcao.prazo_estimado_texto}</span>
+                                  <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
+                                    <Clock className={`w-3.5 h-3.5 shrink-0 ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                                    <span className={ehCatalogo ? 'text-slate-400' : 'text-slate-600'}>{opcao.prazo_estimado_texto}</span>
                                   </div>
                                 )}
                               </div>
@@ -1879,18 +1904,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                         R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </span>
                                     )}
-                                    <span className="font-extrabold text-sm text-emerald-600">
+                                    <span className={`font-extrabold text-sm ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`}>
                                       Grátis
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className="font-extrabold text-sm text-emerald-600">
+                                  <span className={`font-extrabold text-sm ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`}>
                                     R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 )}
                               </div>
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                                selecionada ? 'bg-emerald-600 text-white shadow-sm' : 'border-2 border-slate-300'
+                                selecionada
+                                  ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                  : ehCatalogo
+                                    ? 'border-2 border-slate-500'
+                                    : 'border-2 border-slate-300'
                               }`}>
                                 {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                               </div>

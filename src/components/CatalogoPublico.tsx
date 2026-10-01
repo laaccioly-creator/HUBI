@@ -110,6 +110,17 @@ export const CatalogoPublico: React.FC = () => {
     }
   }, [carrinho, slug]);
 
+  // Scroll locking: Impede rolagem do catálogo ao fundo quando o Drawer do Carrinho estiver aberto
+  useEffect(() => {
+    if (drawerCarrinhoAberto) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [drawerCarrinhoAberto]);
+
   // Referência para medir altura dinâmica do cabeçalho
   const headerRef = React.useRef<HTMLElement>(null);
   const [headerHeight, setHeaderHeight] = useState<number>(64);
@@ -344,6 +355,7 @@ export const CatalogoPublico: React.FC = () => {
   };
 
   const handleLogoutCliente = () => {
+    carrinhoRemotoCarregadoRef.current = false;
     setClienteSelecionado(null);
     setNomeCliente('');
     setWhatsappCliente('');
@@ -421,6 +433,89 @@ export const CatalogoPublico: React.FC = () => {
       ativo = false;
     };
   }, [loja?.id, clienteSelecionado?.id]);
+
+  // Flag de controle para evitar sobrescrita antes do primeiro carregamento remoto
+  const carrinhoRemotoCarregadoRef = React.useRef<boolean>(false);
+
+  // Sincronizar carrinho relacional do cliente autenticado com o Supabase
+  useEffect(() => {
+    let ativo = true;
+    async function carregarCarrinhoRemoto() {
+      if (!loja?.id || !clienteSelecionado?.id || produtos.length === 0) return;
+      if (carrinhoRemotoCarregadoRef.current) return;
+
+      try {
+        const itensSalvos = await ClienteCatalogoService.listarCarrinho(loja.id, clienteSelecionado.id);
+        if (!ativo) return;
+
+        carrinhoRemotoCarregadoRef.current = true;
+
+        if (itensSalvos && itensSalvos.length > 0) {
+          const itensReconstruidos: ItemCarrinhoPublico[] = [];
+          for (const itemDb of itensSalvos) {
+            const prod = produtos.find((p) => p.id === itemDb.produto_id);
+            if (prod) {
+              const variacao = itemDb.variacao_id ? prod.variacoes?.find((v) => v.id === itemDb.variacao_id) || null : null;
+              itensReconstruidos.push({
+                id: itemDb.variacao_id ? `${prod.id}-${itemDb.variacao_id}` : prod.id,
+                produto: prod,
+                variacao,
+                quantidade: Number(itemDb.quantidade) || 1
+              });
+            }
+          }
+
+          if (itensReconstruidos.length > 0) {
+            setCarrinho((prev) => {
+              if (prev.length === 0) return itensReconstruidos;
+              // Mesclar itens locais existentes na sessão com os itens do banco
+              const mapItens = new Map<string, ItemCarrinhoPublico>();
+              for (const it of itensReconstruidos) {
+                mapItens.set(it.id, it);
+              }
+              for (const it of prev) {
+                mapItens.set(it.id, it);
+              }
+              return Array.from(mapItens.values());
+            });
+          }
+        } else if (carrinho.length > 0) {
+          // Cliente tinha itens locais antes de carregar remoto: salva no banco
+          const itensFormatados = carrinho.map((item) => ({
+            produto_id: item.produto.id,
+            variacao_id: item.variacao?.id || null,
+            quantidade: item.quantidade
+          }));
+          await ClienteCatalogoService.salvarCarrinho(loja.id, clienteSelecionado.id, itensFormatados);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar carrinho relacional:', err);
+      }
+    }
+
+    carregarCarrinhoRemoto();
+
+    return () => {
+      ativo = false;
+    };
+  }, [loja?.id, clienteSelecionado?.id, produtos]);
+
+  // Sincronizar alterações do carrinho no banco relacional do Supabase (debounce 500ms)
+  useEffect(() => {
+    if (!loja?.id || !clienteSelecionado?.id) return;
+    if (!carrinhoRemotoCarregadoRef.current) return;
+
+    const timer = setTimeout(() => {
+      const itensFormatados = carrinho.map((item) => ({
+        produto_id: item.produto.id,
+        variacao_id: item.variacao?.id || null,
+        quantidade: item.quantidade
+      }));
+      ClienteCatalogoService.salvarCarrinho(loja.id, clienteSelecionado.id, itensFormatados);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [carrinho, loja?.id, clienteSelecionado?.id]);
 
   // Efeito para verificar sessão existente do Supabase Auth ou retorno de OAuth (Google / Apple)
   useEffect(() => {
@@ -1029,9 +1124,15 @@ export const CatalogoPublico: React.FC = () => {
     });
   };
 
+  const removerItemCarrinho = (index: number) => {
+    setCarrinho(prev => prev.filter((_, i) => i !== index));
+    audioService.playRemoveSound();
+  };
+
   const atualizarQtdCarrinho = (index: number, novaQtd: number) => {
     if (novaQtd <= 0) {
       setCarrinho(prev => prev.filter((_, i) => i !== index));
+      audioService.playRemoveSound();
       return;
     }
     setCarrinho(prev => {
@@ -1058,6 +1159,9 @@ export const CatalogoPublico: React.FC = () => {
       const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
       sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
     } catch (e) {}
+    if (loja?.id && clienteSelecionado?.id) {
+      ClienteCatalogoService.limparCarrinho(loja.id, clienteSelecionado.id);
+    }
     audioService.playRemoveSound();
   };
 
@@ -1443,6 +1547,9 @@ Fico no aguardo da confirmação! ✨`;
         const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
         sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
       } catch (e) {}
+      if (loja?.id && clienteSelecionado?.id) {
+        ClienteCatalogoService.limparCarrinho(loja.id, clienteSelecionado.id);
+      }
 
       setPedidoConcluidoModal({
         numeroPedido: pedidoCriado.numero_pedido,
@@ -2324,12 +2431,12 @@ Fico no aguardo da confirmação! ✨`;
       )}
 
       {drawerCarrinhoAberto && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in overscroll-contain">
           <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-emerald-400" />
-                <span>Seu Pedido ({totalItens} itens)</span>
+                <span>Seu Pedido</span>
               </h3>
               <div className="flex items-center gap-2">
                 {carrinho.length > 0 && (
@@ -2468,7 +2575,7 @@ Fico no aguardo da confirmação! ✨`;
               );
             })()}
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3">
               {carrinho.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 text-sm">Seu carrinho está vazio.</div>
               ) : (
@@ -2509,14 +2616,25 @@ Fico no aguardo da confirmação! ✨`;
                           </div>
                         </div>
 
-                        <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden shrink-0">
-                          <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white">
-                            <Minus className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => removerItemCarrinho(idx)}
+                            className="p-1.5 rounded-lg text-rose-400/80 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Remover produto do carrinho"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                          <span className="px-2 text-xs font-bold text-slate-100 min-w-[20px] text-center">{item.quantidade}</span>
-                          <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white">
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
+
+                          <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
+                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="px-2 text-xs font-bold text-slate-100 min-w-[20px] text-center">{item.quantidade}</span>
+                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -2961,8 +3079,6 @@ Fico no aguardo da confirmação! ✨`;
         corTema={corTema}
         onAdicionarAoCarrinho={(prod) => {
           adicionarAoCarrinho(prod);
-          setModalFavoritosAberto(false);
-          setDrawerCarrinhoAberto(true);
         }}
         onRemoverFavorito={(prodId) => {
           setFavoritosIds((prev) => {

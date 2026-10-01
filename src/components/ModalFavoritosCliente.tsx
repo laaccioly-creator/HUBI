@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Star, ShoppingBag, Loader2, AlertCircle, Trash2 } from 'lucide-react';
+import { X, Star, ShoppingBag, Loader2, AlertCircle, Trash2, Check } from 'lucide-react';
 import { Produto, ClienteFavorito } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 
@@ -27,6 +27,15 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
   const [favoritos, setFavoritos] = useState<ClienteFavorito[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [produtosAdicionados, setProdutosAdicionados] = useState<Record<string, boolean>>({});
+
+  const handleAdicionarItem = (prod: Produto) => {
+    onAdicionarAoCarrinho(prod);
+    setProdutosAdicionados((prev) => ({ ...prev, [prod.id]: true }));
+    setTimeout(() => {
+      setProdutosAdicionados((prev) => ({ ...prev, [prod.id]: false }));
+    }, 2500);
+  };
 
   const carregarFavoritos = async () => {
     if (!lojaId || !clienteId) return;
@@ -176,14 +185,26 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => {
-                        onAdicionarAoCarrinho(prod);
-                      }}
-                      className="px-3 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 shadow transition hover:brightness-110 active:scale-95 cursor-pointer"
-                      style={{ backgroundColor: corTema }}
+                      onClick={() => handleAdicionarItem(prod)}
+                      className={`px-3 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 shadow transition-all active:scale-95 cursor-pointer ${
+                        produtosAdicionados[prod.id]
+                          ? 'bg-emerald-600 hover:bg-emerald-500 ring-2 ring-emerald-400/50'
+                          : 'hover:brightness-110'
+                      }`}
+                      style={{ backgroundColor: produtosAdicionados[prod.id] ? undefined : corTema }}
+                      title={produtosAdicionados[prod.id] ? 'Produto adicionado ao seu carrinho!' : 'Adicionar ao carrinho'}
                     >
-                      <ShoppingBag className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Adicionar</span>
+                      {produtosAdicionados[prod.id] ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Adicionado ✓</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Adicionar</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

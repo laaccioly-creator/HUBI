@@ -490,6 +490,17 @@ export interface ClienteNotificacao {
   criado_em?: string;
 }
 
+export interface ClienteCarrinhoItem {
+  id: string;
+  cliente_id: string;
+  loja_id: string;
+  produto_id: string;
+  variacao_id?: string | null;
+  quantidade: number;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
 export interface MovimentacaoSaldoCliente {
   id: string;
   loja_id: string;

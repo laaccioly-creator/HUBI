@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Cliente, ClienteFavorito, ClienteNotificacao, Pedido } from '../types';
+import { Cliente, ClienteFavorito, ClienteNotificacao, ClienteCarrinhoItem, Pedido } from '../types';
 
 /**
  * Utilitário seguro para gerar hash de senha usando Web Crypto API nativa do navegador
@@ -381,6 +381,84 @@ export const ClienteCatalogoService = {
     } catch (err) {
       console.warn('Erro ao carregar pedidos do cliente:', err);
       return [];
+    }
+  },
+
+  /**
+   * Carrinho Relacional: Lista os itens salvos do cliente para a loja
+   */
+  async listarCarrinho(lojaId: string, clienteId: string): Promise<ClienteCarrinhoItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('cliente_carrinho_itens')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .eq('cliente_id', clienteId)
+        .order('criado_em', { ascending: true });
+
+      if (error) throw error;
+      return (data as ClienteCarrinhoItem[]) || [];
+    } catch (err) {
+      console.warn('Erro ao carregar carrinho relacional do cliente:', err);
+      return [];
+    }
+  },
+
+  /**
+   * Carrinho Relacional: Sincroniza/salva os itens do carrinho do cliente no Supabase
+   */
+  async salvarCarrinho(
+    lojaId: string,
+    clienteId: string,
+    itens: { produto_id: string; variacao_id?: string | null; quantidade: number }[]
+  ): Promise<void> {
+    try {
+      if (!lojaId || !clienteId) return;
+
+      // 1. Remove os itens existentes do cliente nesta loja
+      await supabase
+        .from('cliente_carrinho_itens')
+        .delete()
+        .eq('loja_id', lojaId)
+        .eq('cliente_id', clienteId);
+
+      // 2. Se houver itens a salvar, insere os novos
+      if (itens && itens.length > 0) {
+        const registros = itens.map((item) => ({
+          loja_id: lojaId,
+          cliente_id: clienteId,
+          produto_id: item.produto_id,
+          variacao_id: item.variacao_id || null,
+          quantidade: item.quantidade,
+          atualizado_em: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await supabase
+          .from('cliente_carrinho_itens')
+          .insert(registros);
+
+        if (insertError) {
+          console.warn('Erro ao inserir itens no carrinho relacional:', insertError);
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao salvar carrinho relacional no Supabase:', err);
+    }
+  },
+
+  /**
+   * Carrinho Relacional: Esvazia o carrinho do cliente (botão Limpar ou pedido concluído)
+   */
+  async limparCarrinho(lojaId: string, clienteId: string): Promise<void> {
+    try {
+      if (!lojaId || !clienteId) return;
+      await supabase
+        .from('cliente_carrinho_itens')
+        .delete()
+        .eq('loja_id', lojaId)
+        .eq('cliente_id', clienteId);
+    } catch (err) {
+      console.warn('Erro ao limpar carrinho relacional no Supabase:', err);
     }
   }
 };
