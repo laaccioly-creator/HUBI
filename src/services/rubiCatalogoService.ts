@@ -506,6 +506,15 @@ export const responderPerguntaClienteCatalogo = async (
     return rubiCatalogoJevService.processarDuvidaAtacado(contexto);
   }
 
+  if (triagemJev.intencao === 'dados_contato') {
+    const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
+    const telFormatado = dadosCadastro.telefone ? ` (${dadosCadastro.telefone})` : '';
+    return {
+      texto: `Perfeito! Já anotei o seu contato de WhatsApp${telFormatado}! ✨\n\nComo posso te ajudar agora? Posso te sugerir os produtos mais procurados ou tirar dúvidas sobre qualquer item do catálogo! 😊`,
+      dadosCadastroDetectados: dadosCadastro
+    };
+  }
+
   // 4. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
   const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
 

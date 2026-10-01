@@ -11,6 +11,7 @@ export type IntencaoClienteCatalogo =
   | 'duvida_produto'
   | 'duvida_frete'
   | 'duvida_pagamento'
+  | 'dados_contato'
   | 'conversa_geral';
 
 export interface ResultadoTriagemCatalogo {
@@ -18,9 +19,97 @@ export interface ResultadoTriagemCatalogo {
   confianca: number;
 }
 
+/**
+ * Extrai o número do pedido na mensagem atual ou recorre ao histórico recente
+ */
+export const extrairNumeroPedido = (
+  mensagem: string,
+  historico: Array<{ autor: string; texto: string }> = []
+): number | null => {
+  if (!mensagem) return null;
+
+  // 1. Tentar na mensagem atual
+  // Casos: "#1", "#1042", "pedido 1", "pedido #1", "pedido nº 1", "pedido numero 1", "código 1"
+  const matchAtual =
+    mensagem.match(/#(\d+)/) ||
+    mensagem.match(/\bpedido\s*(?:n[uú]?m?e?r?o?|n[oº])?\s*#?\s*(\d+)\b/i) ||
+    mensagem.match(/\b(?:c[oó]d(?:igo)?|n[uú]mero|n[oº])\s*#?\s*(\d+)\b/i);
+
+  if (matchAtual && matchAtual[1]) {
+    return parseInt(matchAtual[1], 10);
+  }
+
+  // Se a mensagem for simplesmente um número puro digitado isoladamente (ex: "1" ou "#1")
+  const numeroIsolado = mensagem.trim().match(/^#?(\d{1,8})$/);
+  if (numeroIsolado && numeroIsolado[1]) {
+    const val = parseInt(numeroIsolado[1], 10);
+    // Evitar falsos positivos com anos ou DDDs soltos se tiver mais de 8 dígitos
+    if (val > 0) return val;
+  }
+
+  // 2. Tentar no histórico de mensagens recentes (se o cliente estiver continuando a conversa)
+  if (historico && historico.length > 0) {
+    for (let i = historico.length - 1; i >= 0; i--) {
+      const h = historico[i];
+      if (h.texto) {
+        const matchHist =
+          h.texto.match(/#(\d+)/) ||
+          h.texto.match(/\bpedido\s*(?:n[uú]?m?e?r?o?|n[oº])?\s*#?\s*(\d+)\b/i) ||
+          h.texto.match(/\b(?:c[oó]d(?:igo)?|n[uú]mero|n[oº])\s*#?\s*(\d+)\b/i);
+        if (matchHist && matchHist[1]) {
+          return parseInt(matchHist[1], 10);
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Detecta se a mensagem é puramente um número de telefone / WhatsApp
+ */
+export const ehApenasTelefone = (texto: string): string | null => {
+  if (!texto) return null;
+  const digitos = texto.replace(/\D/g, '');
+  if (digitos.length >= 8 && digitos.length <= 13) {
+    // Se a mensagem contiver praticamente apenas os números e pontuações de telefone
+    const semNumeros = texto.replace(/[\d\s()+-]/g, '').trim();
+    if (semNumeros.length <= 10) {
+      return digitos;
+    }
+  }
+  const matchTel = texto.match(/(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s]?\d{4}/);
+  if (matchTel) {
+    return matchTel[0].replace(/\D/g, '');
+  }
+  return null;
+};
+
+/**
+ * Valida de forma estrita se a mensagem é um comprovante bancário legítimo
+ */
+export const ehComprovantePixLegitimo = (texto: string): boolean => {
+  const t = (texto || '').toLowerCase();
+  // DEVE conter termos explícitos de comprovante bancário
+  const termosBancarios = [
+    'comprovante', 'autenticacao', 'autenticação', 'transacao pix', 'transação pix',
+    'transferencia pix', 'transferência pix', 'pix realizado', 'pagamento realizado com sucesso',
+    'chave pix', 'id da transacao', 'id da transação', 'comprovante de envio', 'comprovante de pagamento',
+    'comprovante de transferência', 'comprovante de transferencia'
+  ];
+
+  const temTermoBancario = termosBancarios.some(tb => t.includes(tb));
+  if (!temTermoBancario) return false;
+
+  // E deve ter indicativo financeiro ou de instituição
+  const temIndicativoFinanceiro = /\b(r\$|\d+[,.]\d{2}|banco|institui[cç][aã]o|inter|nubank|bradesco|itau|itaú|caixa|santander|sicredi|sicoob|mercado\s*pago)\b/i.test(t);
+  return temIndicativoFinanceiro;
+};
+
 export const rubiCatalogoJevService = {
   /**
-   * Classifica a intenção operacional do cliente no catálogo via Jev (System One).
+   * Classifica a intenção operacional do cliente no catálogo via Jev (System One) com consciência de contexto.
    * Orçamento estrito de 800ms com degradação graciosa para heurística local.
    */
   async classificarIntencao(
@@ -33,42 +122,76 @@ export const rubiCatalogoJevService = {
     }
 
     const tLower = textoLimpo.toLowerCase();
+    const historico = contexto.historicoMensagens || [];
 
-    // 1. Verificações preliminares instantâneas locais (0ms)
-    // Rastreio evidente
-    if (
-      /\b(rastre(?:io|ar)|onde est[aá]|status d[oe]|cad[eê] (?:meu|o) pedido|c[oó]digo de rastreio|pedido n[uú]?m?e?r?o?|#\d+)\b/i.test(tLower)
-    ) {
-      return { intencao: 'rastreio_pedido', confianca: 0.95 };
+    // Checar se a conversa recente estava em contexto de rastreio de pedido
+    const ultimasMsgs = historico.slice(-3);
+    const estavaEmContextoRastreio = ultimasMsgs.some(m => {
+      const t = (m.texto || '').toLowerCase();
+      return (
+        t.includes('pedido') ||
+        t.includes('rastre') ||
+        t.includes('entrega') ||
+        t.includes('whatsapp cadastrado') ||
+        t.includes('número do seu pedido') ||
+        t.includes('numero do seu pedido')
+      );
+    });
+
+    // 1. CHECAGEM CRÍTICA DE TELEFONE PURO
+    // Se o cliente digitou apenas o telefone (ex: "85997374372" ou "(85) 99737-4372"):
+    const telefoneDetectado = ehApenasTelefone(textoLimpo);
+    if (telefoneDetectado) {
+      // Se estava em contexto de rastreio, é 100% continuação de rastreio de pedido!
+      if (estavaEmContextoRastreio) {
+        return { intencao: 'rastreio_pedido', confianca: 1.0 };
+      }
+      // Se não estava em rastreio, é fornecimento de dados de contato/cadastro (NUNCA comprovante pix!)
+      return { intencao: 'dados_contato', confianca: 1.0 };
     }
 
-    // Comprovante Pix evidente
-    if (
-      /\b(comprovante|autentica[cç][aã]o|transa[cç][aã]o pix|transfer[eê]ncia pix|pagamento realizado|chave pix|id da transa[cç][aã]o)\b/i.test(tLower) &&
-      /\b(r\$|\d+[,.]\d{2}|banco|institui[cç][aã]o|data e hora)\b/i.test(tLower)
-    ) {
-      return { intencao: 'comprovante_pix', confianca: 0.95 };
+    // 2. COMPROVANTE PIX (Rigorosamente validado)
+    if (ehComprovantePixLegitimo(textoLimpo)) {
+      return { intencao: 'comprovante_pix', confianca: 0.98 };
     }
 
-    // Atacado evidente
+    // 3. RASTREIO EVIDENTE
+    // Casos: "onde está o meu pedido #1?", "onde ta meu pedido?", "status do pedido 10", "rastrear pedido", "#1", "pedido 1"
+    const temNumeroPedido = Boolean(extrairNumeroPedido(textoLimpo));
+    const termosRastreio = [
+      'rastreio', 'rastrear', 'status', 'onde esta', 'onde está', 'onde ta',
+      'cade meu pedido', 'cadê meu pedido', 'cade o pedido', 'cadê o pedido',
+      'meu pedido', 'enviaram meu pedido', 'já enviou', 'ja enviou', 'codigo de rastreio', 'código de rastreio'
+    ];
+    const temTermoRastreio = termosRastreio.some(tr => tLower.includes(tr));
+
+    if (temTermoRastreio || (temNumeroPedido && (tLower.includes('pedido') || textoLimpo.startsWith('#')))) {
+      return { intencao: 'rastreio_pedido', confianca: 0.98 };
+    }
+
+    // Se o cliente enviou apenas um número isolado e estava em contexto de rastreio
+    if (/^\d{1,8}$/.test(textoLimpo) && estavaEmContextoRastreio) {
+      return { intencao: 'rastreio_pedido', confianca: 0.98 };
+    }
+
+    // 4. ATACADO EVIDENTE
     if (
       /\b(atacado|autoatacado|revenda|distribuidor|comprar em quantidade|pre[cç]o de atacado|tabela de atacado|lote)\b/i.test(tLower)
     ) {
       return { intencao: 'orcamento_atacado', confianca: 0.95 };
     }
 
-    // Reclamação urgente evidente
+    // 5. RECLAMAÇÃO URGENTE EVIDENTE
     if (
       /\b(veio quebrado|veio errado|faltou|defeito|estragado|quero devolver|cancelar pedido|reprova[cç][aã]o|golpe|atraso absurdo|n[aã]o chegou)\b/i.test(tLower)
     ) {
       return { intencao: 'reclamacao_urgente', confianca: 0.95 };
     }
 
-    // 2. Consulta ao Jev para intenções sutis com orçamento de 800ms
+    // 6. CONSULTA AO JEV PARA CASOS SUTIS COM ORÇAMENTO DE 800MS
     try {
       const criteria: Record<string, string> = {
         rastreio_pedido: 'O cliente pergunta sobre o andamento, entrega, envio, prazo ou código de rastreio de um pedido já feito.',
-        comprovante_pix: 'O cliente colou ou enviou dados de um comprovante bancário de pagamento/Pix.',
         orcamento_atacado: 'O cliente quer saber sobre compras no atacado, revenda, preços diferenciados ou grandes quantidades.',
         reclamacao_urgente: 'O cliente relata um problema grave com um pedido recebido (defeito, item errado, pacote danificado ou cancelamento).',
         duvida_produto: 'O cliente tem dúvida técnica ou comercial sobre algum item (como usar, tamanho, composição, para que serve).',
@@ -91,7 +214,7 @@ export const rubiCatalogoJevService = {
         },
         perguntas,
         'jev-latest',
-        800 // Orçamento estrito de 800ms
+        800
       );
 
       const ans = resultado.answers.intencao_cliente;
@@ -110,7 +233,7 @@ export const rubiCatalogoJevService = {
       console.warn('[rubiCatalogoJevService] Fallback gracioso na triagem de intenção:', (err as Error).message);
     }
 
-    // 3. Fallback inteligente local
+    // 7. Fallback inteligente local
     if (/\b(frete|entrega|retirar|buscar|motoboy|taxa)\b/i.test(tLower)) {
       return { intencao: 'duvida_frete', confianca: 0.8 };
     }
@@ -123,7 +246,7 @@ export const rubiCatalogoJevService = {
 
   /**
    * Rastreia instantaneamente pedidos do cliente no banco Supabase com isolamento de tenant.
-   * Responde em < 300ms com link e status em tempo real.
+   * Conecta por número do pedido (ex: #1) ou por telefone/WhatsApp em < 300ms.
    */
   async rastrearPedidoCliente(
     mensagem: string,
@@ -131,23 +254,23 @@ export const rubiCatalogoJevService = {
   ): Promise<RespostaRubiCatalogo> {
     const lojaId = contexto.loja.id;
     const nomeLoja = contexto.loja.nome_fantasia || 'nossa loja';
-    const tLower = mensagem.toLowerCase();
+    const historico = contexto.historicoMensagens || [];
 
-    // 1. Tentar extrair número de pedido na mensagem (ex: "#1042", "pedido 1042", "1042")
-    const matchNumero = mensagem.match(/(?:#|pedido\s*n?º?\s*|n[uú]mero\s*|c[oó]d(?:igo)?\s*)(\d{3,8})/i) ||
-                        mensagem.match(/\b(\d{4,8})\b/);
-    const numeroPedidoExtraido = matchNumero ? parseInt(matchNumero[1], 10) : null;
+    // 1. Extrair número de pedido (na mensagem atual ou no histórico recente)
+    const numeroPedidoExtraido = extrairNumeroPedido(mensagem, historico);
 
-    // 2. Extrair telefone ou WhatsApp se mencionado na mensagem ou disponível no contexto
-    const telMatch = mensagem.match(/(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s]?\d{4}/);
-    let telefoneBusca: string | null = null;
-    if (telMatch) {
-      telefoneBusca = telMatch[0].replace(/\D/g, '');
-    } else if (contexto.clienteAtual?.telefone) {
-      telefoneBusca = contexto.clienteAtual.telefone.replace(/\D/g, '');
+    // 2. Extrair telefone ou WhatsApp (na mensagem atual, no contexto ou no histórico)
+    let telefoneBusca: string | null = ehApenasTelefone(mensagem);
+    if (!telefoneBusca) {
+      const matchTel = mensagem.match(/(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s]?\d{4}/);
+      if (matchTel) {
+        telefoneBusca = matchTel[0].replace(/\D/g, '');
+      } else if (contexto.clienteAtual?.telefone) {
+        telefoneBusca = contexto.clienteAtual.telefone.replace(/\D/g, '');
+      }
     }
 
-    // 3. Consultar no Supabase com blindagem RLS e tenant isolado (.eq('loja_id', lojaId))
+    // 3. Consultar no Supabase com blindagem RLS (.eq('loja_id', lojaId))
     try {
       let query = supabase
         .from('pedidos')
@@ -168,10 +291,11 @@ export const rubiCatalogoJevService = {
         .order('criado_em', { ascending: false })
         .limit(1);
 
+      // Prioridade 1: Buscar diretamente pelo número do pedido (ex: #1)
       if (numeroPedidoExtraido) {
         query = query.eq('numero_pedido', numeroPedidoExtraido);
       } else if (telefoneBusca && telefoneBusca.length >= 8) {
-        // Busca pelos últimos 8 dígitos do telefone para evitar inconsistência de DDD ou nono dígito
+        // Prioridade 2: Buscar pelos últimos 8 dígitos do telefone
         const ultimos8 = telefoneBusca.slice(-8);
         query = query.ilike('cliente_telefone_avulso', `%${ultimos8}%`);
       } else if (contexto.clienteAtual?.id) {
@@ -179,7 +303,7 @@ export const rubiCatalogoJevService = {
       } else {
         // Não há nem número de pedido nem telefone identificado ainda
         return {
-          texto: `Consigo consultar o status da sua entrega agora mesmo! 📦✨\n\nPor favor, **digite o número do seu pedido** (ex: #1042) ou o seu **WhatsApp cadastrado** na compra para eu localizar o seu pacote imediatamente!`
+          texto: `Consigo consultar o status da sua entrega agora mesmo! 📦✨\n\nPor favor, **digite o número do seu pedido** (ex: #1) ou o seu **WhatsApp cadastrado** na compra para eu localizar o seu pacote imediatamente!`
         };
       }
 
@@ -190,91 +314,128 @@ export const rubiCatalogoJevService = {
         throw error;
       }
 
+      // Se buscou pelo telefone e não achou, mas tínhamos um número de pedido histórico, tenta por ele
+      if ((!pedidosEncontrados || pedidosEncontrados.length === 0) && numeroPedidoExtraido) {
+        const { data: retryPorNumero } = await supabase
+          .from('pedidos')
+          .select(`
+            id,
+            numero_pedido,
+            status,
+            status_pagamento,
+            valor_total,
+            criado_em,
+            codigo_rastreio,
+            link_rastreio,
+            nome_entregador,
+            contato_entregador,
+            forma_entrega:formas_entrega(nome)
+          `)
+          .eq('loja_id', lojaId)
+          .eq('numero_pedido', numeroPedidoExtraido)
+          .limit(1);
+
+        if (retryPorNumero && retryPorNumero.length > 0) {
+          return this.formatarRespostaPedido(retryPorNumero[0], nomeLoja);
+        }
+      }
+
       if (!pedidosEncontrados || pedidosEncontrados.length === 0) {
         const termoBuscado = numeroPedidoExtraido ? `número #${numeroPedidoExtraido}` : (telefoneBusca ? `WhatsApp informado` : `seus dados`);
         return {
-          texto: `Não localizei nenhum pedido recente com o ${termoBuscado} na **${nomeLoja}**.\n\nPoderia conferir o número do pedido ou me passar o seu nome completo e WhatsApp? Se preferir, você também pode falar com a nossa equipe no botão do WhatsApp! 😊`
+          texto: `Não localizei nenhum pedido com o ${termoBuscado} na **${nomeLoja}**.\n\nPoderia conferir o número do pedido? Se preferir, você também pode falar com a nossa equipe no botão do WhatsApp! 😊`
         };
       }
 
-      const pedido = pedidosEncontrados[0];
-      const formaEntregaNome = (pedido.forma_entrega as any)?.nome || 'Entrega';
-
-      // Mapeamento amigável de status
-      const statusMap: Record<string, { rotulo: string; emoji: string; explicacao: string }> = {
-        pendente: {
-          rotulo: 'Aguardando Confirmação',
-          emoji: '⏳',
-          explicacao: 'Seu pedido foi recebido e está aguardando confirmação de pagamento ou separação.'
-        },
-        aprovado: {
-          rotulo: 'Confirmado',
-          emoji: '✅',
-          explicacao: 'Pagamento e pedido confirmados com sucesso! Já está em nossa fila de expedição.'
-        },
-        em_preparo: {
-          rotulo: 'Em Separação & Embalagem',
-          emoji: '📦',
-          explicacao: 'Nossa equipe está preparando e embalando seus produtos com todo cuidado e discrição.'
-        },
-        pronto_para_entrega: {
-          rotulo: 'Pronto para Despacho',
-          emoji: '🏷️',
-          explicacao: 'Pacote finalizado e pronto para ser retirado pelo entregador ou transportadora.'
-        },
-        em_rota: {
-          rotulo: 'Em Rota de Entrega',
-          emoji: '🛵',
-          explicacao: 'Seu pacote já saiu para entrega e está a caminho do seu endereço!'
-        },
-        entregue: {
-          rotulo: 'Entregue com Sucesso',
-          emoji: '🎉',
-          explicacao: 'O pedido consta como entregue no endereço cadastrado.'
-        },
-        cancelado: {
-          rotulo: 'Cancelado',
-          emoji: '❌',
-          explicacao: 'Este pedido foi cancelado.'
-        }
-      };
-
-      const infoStatus = statusMap[pedido.status] || {
-        rotulo: pedido.status || 'Processando',
-        emoji: '🚚',
-        explicacao: 'Seu pedido está em andamento.'
-      };
-
-      const linkRastreioPublico = `/order-tracking/${pedido.id}`;
-      let detalhesEnvio = '';
-
-      if (pedido.codigo_rastreio) {
-        detalhesEnvio += `\n📮 **Código de Rastreio:** \`${pedido.codigo_rastreio}\``;
-      }
-      if (pedido.link_rastreio) {
-        detalhesEnvio += `\n📍 [Clique aqui para rastrear a rota da entrega no mapa](${pedido.link_rastreio})`;
-      }
-      if (pedido.nome_entregador) {
-        detalhesEnvio += `\n🛵 **Entregador:** ${pedido.nome_entregador}`;
-      }
-
-      const respostaTexto = `Localizei o seu pedido **#${pedido.numero_pedido}**! ${infoStatus.emoji}\n\n` +
-        `• **Status:** **${infoStatus.rotulo}**\n` +
-        `• **Total:** R$ ${Number(pedido.valor_total || 0).toFixed(2)}\n` +
-        `• **Forma de Envio:** ${formaEntregaNome}\n\n` +
-        `${infoStatus.explicacao}${detalhesEnvio}\n\n` +
-        `📲 Você pode acompanhar todos os detalhes e atualizações em tempo real pelo link:\n` +
-        `👉 [Acompanhar Pedido #${pedido.numero_pedido}](${linkRastreioPublico})`;
-
-      return {
-        texto: respostaTexto
-      };
+      return this.formatarRespostaPedido(pedidosEncontrados[0], nomeLoja);
     } catch (err) {
       console.warn('[rubiCatalogoJevService] Falha ao processar rastreio determinístico:', err);
       return {
         texto: `Estou consultando seu pedido na **${nomeLoja}**! Para agilizar com segurança, você pode me informar o número do pedido ou entrar em contato direto pelo nosso WhatsApp. 😊`
       };
     }
+  },
+
+  /**
+   * Formata a resposta com status em tempo real e link de rastreio interativo
+   */
+  formatarRespostaPedido(pedido: any, nomeLoja: string): RespostaRubiCatalogo {
+    const formaEntregaNome = (pedido.forma_entrega as any)?.nome || 'Entrega';
+
+    // Mapeamento amigável de status cobrindo todos os status do HUBI (incluindo 'concluido')
+    const statusMap: Record<string, { rotulo: string; emoji: string; explicacao: string }> = {
+      pendente: {
+        rotulo: 'Aguardando Confirmação',
+        emoji: '⏳',
+        explicacao: 'Seu pedido foi recebido e está aguardando confirmação de pagamento ou separação.'
+      },
+      aprovado: {
+        rotulo: 'Confirmado',
+        emoji: '✅',
+        explicacao: 'Pagamento e pedido confirmados com sucesso! Já está em nossa fila de expedição.'
+      },
+      em_preparo: {
+        rotulo: 'Em Separação & Embalagem',
+        emoji: '📦',
+        explicacao: 'Nossa equipe está preparando e embalando seus produtos com todo cuidado e discrição.'
+      },
+      pronto_para_entrega: {
+        rotulo: 'Pronto para Despacho',
+        emoji: '🏷️',
+        explicacao: 'Pacote finalizado e pronto para ser retirado pelo entregador ou transportadora.'
+      },
+      em_rota: {
+        rotulo: 'Em Rota de Entrega',
+        emoji: '🛵',
+        explicacao: 'Seu pacote já saiu para entrega e está a caminho do seu endereço!'
+      },
+      entregue: {
+        rotulo: 'Entregue com Sucesso',
+        emoji: '🎉',
+        explicacao: 'O seu pedido foi concluído e entregue no endereço cadastrado!'
+      },
+      concluido: {
+        rotulo: 'Entregue com Sucesso',
+        emoji: '🎉',
+        explicacao: 'O seu pedido foi finalizado e entregue com sucesso!'
+      },
+      cancelado: {
+        rotulo: 'Cancelado',
+        emoji: '❌',
+        explicacao: 'Este pedido foi cancelado.'
+      }
+    };
+
+    const infoStatus = statusMap[pedido.status] || {
+      rotulo: pedido.status || 'Processando',
+      emoji: '🚚',
+      explicacao: 'Seu pedido está em andamento.'
+    };
+
+    const linkRastreioPublico = `/order-tracking/${pedido.id}`;
+    let detalhesEnvio = '';
+
+    if (pedido.codigo_rastreio) {
+      detalhesEnvio += `\n📮 **Código de Rastreio:** \`${pedido.codigo_rastreio}\``;
+    }
+    if (pedido.link_rastreio) {
+      detalhesEnvio += `\n📍 [Clique aqui para rastrear a rota da entrega no mapa](${pedido.link_rastreio})`;
+    }
+    if (pedido.nome_entregador) {
+      detalhesEnvio += `\n🛵 **Entregador:** ${pedido.nome_entregador}`;
+    }
+
+    const respostaTexto = `Localizei o seu pedido **#${pedido.numero_pedido}**! ${infoStatus.emoji}\n\n` +
+      `• **Status:** **${infoStatus.rotulo}**\n` +
+      `• **Total:** R$ ${Number(pedido.valor_total || 0).toFixed(2)}\n` +
+      `• **Forma de Envio:** ${formaEntregaNome}\n\n` +
+      `${infoStatus.explicacao}${detalhesEnvio}\n\n` +
+      `📲 Você pode acompanhar todos os detalhes e atualizações em tempo real pelo link:\n` +
+      `👉 [Acompanhar Pedido #${pedido.numero_pedido}](${linkRastreioPublico})`;
+
+    return {
+      texto: respostaTexto
+    };
   },
 
   /**
