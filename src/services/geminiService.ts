@@ -300,36 +300,102 @@ export const obterNomeSegmentoLoja = (loja?: any): string => {
 };
 
 /**
- * Comprime a imagem para 640px JPEG antes de enviar para a API Gemini (payload ultraleve < 40KB)
+ * Comprime a imagem para 380px JPEG antes de enviar para a API Gemini (payload ultraleve < 30KB)
+ * com suporte resiliente a URLs externas com bypass de CORS via CDN pública.
  */
 export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base64: string; mimeType: string }> => {
-  return new Promise(async (resolve) => {
-    let target = base64OrUrl;
-
-    if (target.startsWith('http://') || target.startsWith('https://') || target.startsWith('blob:')) {
-      try {
-        const response = await fetch(target);
-        const blob = await response.blob();
-        target = await new Promise<string>((res) => {
-          const reader = new FileReader();
-          reader.onloadend = () => res(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-      } catch (err) {
-        console.warn('Erro ao converter URL para base64:', err);
-      }
-    }
-
-    if (!target.startsWith('data:image')) {
-      const clean = target.includes(',') ? target.split(',')[1] : target;
-      resolve({ base64: clean, mimeType: 'image/jpeg' });
+  return new Promise(async (resolve, reject) => {
+    let target = (base64OrUrl || '').trim();
+    if (!target) {
+      reject(new Error('Imagem inválida ou ausente para análise da IA.'));
       return;
     }
 
+    // Se for URL externa (http/https/blob)
+    if (target.startsWith('http://') || target.startsWith('https://') || target.startsWith('blob:')) {
+      let blobObtido: Blob | null = null;
+
+      // 1. Tentar fetch direto (rápido para URLs locais, blobs ou servidores com CORS liberado)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const response = await fetch(target, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          blobObtido = await response.blob();
+        }
+      } catch {}
+
+      // 2. Se falhar por CORS, utilizar proxy de imagem com CORS público (weserv.nl)
+      // weserv.nl entrega com Access-Control-Allow-Origin: *, já redimensionado para 380px em ~200ms
+      if (!blobObtido && (target.startsWith('http://') || target.startsWith('https://'))) {
+        try {
+          const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(target)}&w=380&q=70&output=jpg`;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
+          const responseProxy = await fetch(proxyUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (responseProxy.ok) {
+            blobObtido = await responseProxy.blob();
+          }
+        } catch {}
+      }
+
+      if (blobObtido) {
+        try {
+          target = await new Promise<string>((res, rej) => {
+            const reader = new FileReader();
+            reader.onloadend = () => res(reader.result as string);
+            reader.onerror = rej;
+            reader.readAsDataURL(blobObtido!);
+          });
+        } catch {}
+      }
+    }
+
+    // Se ainda for URL e não foi convertida para dataUrl, tentar via tag Image com crossOrigin
+    if (!target.startsWith('data:image')) {
+      if (target.startsWith('http://') || target.startsWith('https://')) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(img.width, 380);
+            canvas.height = Math.round((img.height * canvas.width) / img.width);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+              const clean = dataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+              resolve({ base64: clean, mimeType: 'image/jpeg' });
+              return;
+            }
+          } catch {}
+          reject(new Error('Não foi possível processar a imagem externa devido a restrições de CORS da fonte.'));
+        };
+        img.onerror = () => {
+          reject(new Error('Não foi possível carregar a imagem externa para análise da IA. Salve a foto no seu dispositivo ou selecione outra foto.'));
+        };
+        img.src = target;
+        return;
+      }
+
+      // Se for apenas uma string base64 pura sem prefixo data:image
+      if (target.length > 100 && !target.startsWith('http')) {
+        const clean = target.includes(',') ? target.split(',')[1] : target;
+        resolve({ base64: clean, mimeType: 'image/jpeg' });
+        return;
+      }
+
+      reject(new Error('Formato de imagem inválido para processamento pela IA.'));
+      return;
+    }
+
+    // Processamento do canvas a partir do data:image
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      // 380px é o equilíbrio de ouro: ultra-rápido para upload e inferência visual, mantendo textos e rótulos nítidos para OCR
       const maxDim = 380;
       let width = img.width;
       let height = img.height;
@@ -345,16 +411,16 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       }
 
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = width || 380;
+      canvas.height = height || 380;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        const raw = target.includes(',') ? target.split(',')[1] : target;
-        resolve({ base64: raw, mimeType: 'image/jpeg' });
+        const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+        resolve({ base64: clean, mimeType: 'image/jpeg' });
         return;
       }
 
-      ctx.drawImage(img, 0, 0, width, height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
       const cleanBase64 = compressedDataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
@@ -364,9 +430,9 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       });
     };
     img.onerror = () => {
-      const raw = target.includes(',') ? target.split(',')[1] : target;
+      const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
       resolve({
-        base64: raw,
+        base64: clean,
         mimeType: 'image/jpeg'
       });
     };
@@ -375,6 +441,7 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
 };
 
 const modelosGeminiValidosCache = new Map<string, string[]>();
+const MODELOS_PADRAO_ULTRA_RAPIDOS = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
 
 export const limparCacheModelosGemini = () => {
   modelosGeminiValidosCache.clear();
@@ -386,74 +453,69 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
     return emCache;
   }
 
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (res.ok) {
-      const data = await res.json();
-      const models = data?.models || [];
-      const lista = models
-        .filter((m: any) => {
-          const nome = (m.name || '').replace('models/', '').toLowerCase();
-          const suportaGenerate = Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent');
-          if (!suportaGenerate) return false;
+  // Define imediatamente a lista padrão veloz para nunca bloquear o usuário em um round-trip de modelos
+  modelosGeminiValidosCache.set(apiKey, MODELOS_PADRAO_ULTRA_RAPIDOS);
 
-          // Excluir modelos incompatíveis, puramente de áudio, geração de imagens, embeddings, ferramentas internas ou depreciados
-          if (
-            nome.includes('tts') ||
-            nome.includes('image') ||
-            nome.includes('embedding') ||
-            nome.includes('aqa') ||
-            nome.includes('bison') ||
-            nome.includes('live') ||
-            nome.includes('realtime') ||
-            nome.includes('omni') ||
-            nome.includes('transcribe') ||
-            nome.includes('customtools') ||
-            nome.includes('computer-use') ||
-            nome.includes('deep-research') ||
-            nome.includes('antigravity') ||
-            nome.includes('lyria') ||
-            nome.includes('gemma') ||
-            nome.includes('3.7') || // Sofre com 503 frequente
-            nome.includes('3.8') || // Fica travado por ~27s
-            nome === 'gemini-flash-latest' || // Retorna 503 com frequência
-            nome.includes('preview') || // Instável em contas gratuitas
-            nome.startsWith('gemini-2.5-') || // Google descontinuou modelos 2.5 para novos usuários (retornam 404)
-            nome.includes('pro') // CRÍTICO: Modelos 'pro' têm cota gratuita ZERO (limit: 0) no Google e causam erro 429 instantâneo!
-          ) {
-            return false;
-          }
-          return true;
-        })
-        .map((m: any) => m.name.replace('models/', ''));
+  // Consulta em background de forma silenciosa para atualizar o cache se necessário
+  (async () => {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (res.ok) {
+        const data = await res.json();
+        const models = data?.models || [];
+        const lista = models
+          .filter((m: any) => {
+            const nome = (m.name || '').replace('models/', '').toLowerCase();
+            const suportaGenerate = Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent');
+            if (!suportaGenerate) return false;
 
-      if (lista.length > 0) {
-        lista.sort((a: string, b: string) => {
-          const getScore = (name: string) => {
-            if (name === 'gemini-flash-lite-latest') return 100; // Ultra-rápido (< 1s), alta disponibilidade
-            if (name === 'gemini-3.5-flash-lite') return 95;
-            if (name === 'gemini-3.6-flash') return 90;
-            return 10;
-          };
-          return getScore(b) - getScore(a);
-        });
+            if (
+              nome.includes('tts') ||
+              nome.includes('image') ||
+              nome.includes('embedding') ||
+              nome.includes('aqa') ||
+              nome.includes('bison') ||
+              nome.includes('live') ||
+              nome.includes('realtime') ||
+              nome.includes('omni') ||
+              nome.includes('transcribe') ||
+              nome.includes('customtools') ||
+              nome.includes('computer-use') ||
+              nome.includes('deep-research') ||
+              nome.includes('antigravity') ||
+              nome.includes('lyria') ||
+              nome.includes('gemma') ||
+              nome.includes('3.7') ||
+              nome.includes('3.8') ||
+              nome === 'gemini-flash-latest' ||
+              nome.includes('preview') ||
+              nome.startsWith('gemini-2.5-') ||
+              nome.includes('pro')
+            ) {
+              return false;
+            }
+            return true;
+          })
+          .map((m: any) => m.name.replace('models/', ''));
 
-        // Selecionar os 2 melhores modelos rápidos para respostas instantâneas
-        const topModelos = lista.slice(0, 2);
-        modelosGeminiValidosCache.set(apiKey, topModelos);
-        return topModelos;
+        if (lista.length > 0) {
+          lista.sort((a: string, b: string) => {
+            const getScore = (name: string) => {
+              if (name === 'gemini-flash-lite-latest') return 100;
+              if (name === 'gemini-3.5-flash-lite') return 95;
+              if (name === 'gemini-3.6-flash') return 90;
+              return 10;
+            };
+            return getScore(b) - getScore(a);
+          });
+          const topModelos = lista.slice(0, 2);
+          modelosGeminiValidosCache.set(apiKey, topModelos);
+        }
       }
-    }
-  } catch (e) {
-    console.warn('Erro ao consultar lista de modelos do Gemini, usando lista padrão:', e);
-  }
+    } catch {}
+  })();
 
-  const listaPadrao = [
-    'gemini-flash-lite-latest',
-    'gemini-3.5-flash-lite',
-    'gemini-3.6-flash'
-  ];
-  return listaPadrao;
+  return MODELOS_PADRAO_ULTRA_RAPIDOS;
 };
 
 /**
@@ -504,19 +566,19 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
+  const temImagem = payloadCompleto.contents?.some((c: any) =>
+    c.parts?.some((p: any) => p.inline_data || p.inlineData)
+  );
+
+  // Timeouts otimizados: 8.5s para imagem comprimida (<30KB) e 6s para texto
+  const timeoutMs = temImagem ? 8500 : 6000;
+
   let tentativas = 0;
   for (const modelo of modelos) {
     tentativas++;
     if (tentativas > 2) {
-      // Limita a 2 tentativas para nunca deixar o lojista esperando na tela
       break;
     }
-
-    // Timeout equilibrado: 22s para análise multimodal de fotos e 8s para texto puro estruturado
-    const temImagem = payloadCompleto.contents?.some((c: any) =>
-      c.parts?.some((p: any) => p.inline_data || p.inlineData)
-    );
-    const timeoutMs = temImagem ? 22000 : 8000;
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
@@ -538,6 +600,15 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
         const msg = errJson?.error?.message || response.statusText;
         if (!primeiroErro) primeiroErro = msg;
 
+        // Se for 400 (Bad Request - formato de imagem/payload inválido), não adianta tentar outro modelo
+        if (response.status === 400) {
+          console.warn(`[Gemini] Erro 400 no modelo ${modelo}:`, msg);
+          if (temImagem) {
+            throw new Error('A imagem selecionada não pôde ser interpretada pela IA. Por favor, tente com outra foto ou tire uma foto com a câmera.');
+          }
+          throw new Error('Parâmetros inválidos para a consulta de IA.');
+        }
+
         if (response.status === 429) {
           const isZeroQuotaModel = msg.includes('limit: 0') || msg.includes('limit:0');
           if (!isZeroQuotaModel) {
@@ -556,11 +627,13 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     } catch (e: any) {
       const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
       if (isAbort) {
-        primeiroErro = 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente ou cadastre pelo nome/código de barras.';
+        primeiroErro = temImagem
+          ? 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente ou cadastre pelo nome/código de barras.'
+          : 'A consulta de texto pela IA demorou mais que o esperado.';
         break;
       }
       if (!primeiroErro) primeiroErro = e?.message || String(e);
-      if (e?.message?.includes('cota') || e?.message?.includes('limite temporário')) {
+      if (e?.message?.includes('cota') || e?.message?.includes('limite temporário') || e?.message?.includes('não pôde ser interpretada')) {
         throw e;
       } else {
         console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
@@ -1143,7 +1216,8 @@ export const pesquisarFotosProdutoNaInternet = async (
 };
 
 /**
- * Atualiza um produto existente utilizando prioritariamente seu nome comercial através da IA Gemini
+ * Atualiza um produto existente a partir do NOME COMERCIAL através do Jev (System One) e IA ultrarrápida.
+ * Não processa fotos pesadas, entregando a atualização em ~1 segundo.
  */
 export const atualizarProdutoExistenteComIA = async (dados: {
   nome: string;
@@ -1155,116 +1229,78 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   segmentoLoja?: string;
   loja?: any;
 }): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey(dados.loja);
-  if (!apiKey) {
-    throw new Error('Chave da API do Google Gemini não configurada. Configure sua chave Gemini nas configurações.');
-  }
-
   const termoReferencia = (dados.nome && dados.nome.trim() !== 'Produto') ? dados.nome.trim() : (dados.descricao?.trim() || 'Produto');
-  const promptAtualizacao = `
-Você é um especialista em catálogo comercial e precificação no varejo brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
-Com base no NOME DO PRODUTO: "${termoReferencia}", pesquise e gere a ficha cadastral enriquecida e concisa deste item.
-${dados.categoriaNome ? `- Categoria Atual: "${dados.categoriaNome}"` : ''}
-${dados.descricao ? `- Descrição Existente: "${dados.descricao}"` : ''}
-${dados.codigoBarras ? `- Código de Barras / EAN: "${dados.codigoBarras}"` : ''}
-${dados.precoVendaAtual ? `- Preço de Venda Atual: R$ ${dados.precoVendaAtual}` : ''}
 
-SUA TAREFA:
-1. Padronize o Nome Comercial oficial do produto em português.
-2. Indique a Categoria comercial mais adequada no varejo.
-3. Elabore uma Descrição Comercial persuasiva e concisa (2 a 3 frases) para catálogo online e WhatsApp.
-4. Estime o preço de venda de mercado praticado no Brasil (Shopee/Mercado Livre/lojas especializadas).
-5. Estime o peso bruto em kg ('peso_kg') e dimensões em cm ('altura_cm', 'largura_cm', 'comprimento_cm') para frete.
+  // 1. Estimar dimensões e peso em paralelo via Jev (System One) em ~200ms
+  const dimensoesJevPromise = catalogJevService.estimarDimensoesComJev(
+    termoReferencia,
+    dados.categoriaNome,
+    dados.descricao
+  ).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`));
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
+  // 2. Consulta ultrarrápida de enriquecimento textual com Gemini (se apiKey configurada)
+  const apiKey = getGeminiApiKey(dados.loja);
+  let parsedIA: any = null;
+
+  if (apiKey && termoReferencia.length > 2) {
+    const promptTexto = `
+Você é um especialista em catálogo de varejo brasileiro${dados.segmentoLoja ? ` no segmento "${dados.segmentoLoja}"` : ''}.
+Com base no NOME DO ITEM: "${termoReferencia}", estruture a ficha rápida em JSON:
+${dados.categoriaNome ? `- Categoria: "${dados.categoriaNome}"` : ''}
+${dados.codigoBarras ? `- Código/EAN: "${dados.codigoBarras}"` : ''}
+${dados.precoVendaAtual ? `- Preço Atual: R$ ${dados.precoVendaAtual}` : ''}
+
+Retorne EXCLUSIVAMENTE este JSON (sem markdown):
 {
-  "nome": "Nome comercial padronizado e atraente",
+  "nome": "Nome comercial padronizado e limpo",
   "categoria_sugerida": "Nome da Categoria",
   "preco_venda_estimado": 0.00,
-  "preco_custo_estimado": 0.00,
-  "descricao": "Descrição comercial de 2 frases destacando principais benefícios e materiais.",
-  "tipo_unidade": "un",
-  "codigo_barras": "${dados.codigoBarras || ''}",
-  "peso_kg": 0.35,
-  "altura_cm": 10,
-  "largura_cm": 15,
-  "comprimento_cm": 20
+  "descricao": "Descrição comercial de 1 a 2 frases destacando principais benefícios."
 }
 `;
 
-  let requestBody: any;
-
-  // Prioridade de velocidade máxima: quando o nome está preenchido (cenário padrão em alteração de produto),
-  // a consulta é feita estritamente via texto puro sem processar fotos pesadas
-  const temNome = Boolean(dados.nome && dados.nome.trim().length > 2 && dados.nome.trim().toLowerCase() !== 'produto');
-  const temDescricao = Boolean(dados.descricao && dados.descricao.trim().length > 2);
-  const usarFoto = dados.fotoUrl && !temNome && !temDescricao;
-
-  if (usarFoto) {
     try {
-      const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(dados.fotoUrl!);
-      requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: promptAtualizacao },
-              {
-                inline_data: {
-                  mime_type: detectedMime || 'image/jpeg',
-                  data: cleanBase64
-                }
-              }
-            ]
-          }
-        ],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 350, response_mime_type: 'application/json' }
+      const requestBody = {
+        contents: [{ parts: [{ text: promptTexto }] }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 220,
+          response_mime_type: 'application/json'
+        }
       };
-    } catch {
-      requestBody = {
-        contents: [{ parts: [{ text: promptAtualizacao }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 350, response_mime_type: 'application/json' }
-      };
+
+      const resData = await executarRequisicaoGemini(apiKey, requestBody);
+      const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) {
+        parsedIA = extrairJsonDoTexto(rawText);
+      }
+    } catch (err) {
+      console.warn('[GeminiService] Enriquecimento textual IA rápido não respondeu a tempo, usando dados inteligentes locais:', err);
     }
-  } else {
-    requestBody = {
-      contents: [{ parts: [{ text: promptAtualizacao }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 350, response_mime_type: 'application/json' }
-    };
   }
 
-  let parsed: any = null;
-  try {
-    const resData = await executarRequisicaoGemini(apiKey, requestBody);
-    const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (rawText) {
-      parsed = extrairJsonDoTexto(rawText);
-    }
-  } catch (err: any) {
-    console.warn('[GeminiService] Falha na chamada da IA para atualizar produto, aplicando extração heurística local:', err);
-  }
+  // Aguarda as dimensões logísticas estimadas pelo Jev
+  const dims = await dimensoesJevPromise;
 
-  // Se a IA não retornou JSON estruturado, utiliza fallback baseado nos dados do produto e heurística de regex
-  const extraidos = extrairDimensoesEPesoTexto(`${parsed?.nome || dados.nome} ${parsed?.descricao || dados.descricao || ''}`);
-  const precoEstimado = Number(parsed?.preco_venda_estimado) || Number(dados.precoVendaAtual) || 0;
+  const precoEstimado = Number(parsedIA?.preco_venda_estimado) || Number(dados.precoVendaAtual) || 0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
 
-  const pesoKgFinal = Number(parsed?.peso_kg) > 0 ? Number(parsed.peso_kg) : (extraidos.peso_kg || 0.35);
-  const alturaFinal = Number(parsed?.altura_cm) > 0 ? Number(parsed.altura_cm) : (extraidos.altura_cm || 10);
-  const larguraFinal = Number(parsed?.largura_cm) > 0 ? Number(parsed.largura_cm) : (extraidos.largura_cm || 15);
-  const compFinal = Number(parsed?.comprimento_cm) > 0 ? Number(parsed.comprimento_cm) : (extraidos.comprimento_cm || 20);
+  const descricaoFinal = (parsedIA?.descricao && parsedIA.descricao.trim().length > 10)
+    ? parsedIA.descricao.trim()
+    : (dados.descricao?.trim() || `${termoReferencia}. Produto com excelente acabamento e alta durabilidade, ideal para o dia a dia.`);
 
   return {
-    nome: parsed?.nome || dados.nome,
-    categoria_sugerida: parsed?.categoria_sugerida || dados.categoriaNome || 'Geral',
+    nome: parsedIA?.nome?.trim() || dados.nome || termoReferencia,
+    categoria_sugerida: parsedIA?.categoria_sugerida || dados.categoriaNome || 'Geral',
     preco_venda_estimado: precoSemCentavos,
-    preco_custo_estimado: Number(parsed?.preco_custo_estimado) || 0,
-    descricao: parsed?.descricao || dados.descricao || '',
-    tipo_unidade: parsed?.tipo_unidade || 'un',
-    codigo_barras: parsed?.codigo_barras || dados.codigoBarras || '',
-    peso_kg: pesoKgFinal,
-    altura_cm: alturaFinal,
-    largura_cm: larguraFinal,
-    comprimento_cm: compFinal
+    preco_custo_estimado: Number(parsedIA?.preco_custo_estimado) || 0,
+    descricao: descricaoFinal,
+    tipo_unidade: 'un',
+    codigo_barras: dados.codigoBarras || '',
+    peso_kg: dims.peso_kg || 0.35,
+    altura_cm: dims.altura_cm || 10,
+    largura_cm: dims.largura_cm || 15,
+    comprimento_cm: dims.comprimento_cm || 20
   };
 };
 

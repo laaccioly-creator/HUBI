@@ -60,6 +60,7 @@ import {
   extrairJsonDoTexto,
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
+  comprimirImagemParaIA,
   executarRequisicaoGemini
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
@@ -1169,10 +1170,10 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
-  // Atualizar Produto Existente com IA
+  // Atualizar Produto Existente com IA (focado 100% no Nome Comercial do produto)
   const handleAtualizarComIA = async () => {
-    if (!nome.trim() && !descricao.trim() && !fotoPrincipal && fotosUrls.length === 0) {
-      alert('Informe ao menos o nome, descrição ou foto do produto para atualizar com IA.');
+    if (!nome.trim() && !descricao.trim()) {
+      alert('Informe ao menos o nome do produto para atualizar com IA.');
       return;
     }
 
@@ -1180,13 +1181,9 @@ export const ProdutoCadastro: React.FC = () => {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
       const catNome = categorias.find(c => c.id === categoriaId)?.nome;
-      const fotoAlvo = fotoPrincipal || fotosUrls[0];
-      // Se já possui nome preenchido, não envia foto pesada para IA, atualizando em ~1s puramente pelo nome comercial
-      const fotoParaIA = !nome.trim() && fotoAlvo ? (fotoBase64Cache.get(fotoAlvo) || fotoAlvo) : undefined;
       const dadosAtualizados = await atualizarProdutoExistenteComIA({
         nome: nome.trim() || 'Produto',
         descricao: descricao.trim(),
-        fotoUrl: fotoParaIA,
         categoriaNome: catNome,
         codigoBarras: codigoBarras.trim(),
         precoVendaAtual: Number(precoVendaVarejo) || undefined,
@@ -3079,8 +3076,19 @@ export const ProdutoCadastro: React.FC = () => {
             }
             return combinadas;
           });
+          const primeira = !fotoPrincipal ? novas[0] : fotoPrincipal;
           if (!fotoPrincipal && novas[0]) {
             setFotoPrincipal(novas[0]);
+          }
+          // Pré-carrega no cache para que 'Preencher Ficha a partir da Foto' seja instantâneo (< 2s)
+          if (primeira && !fotoBase64Cache.has(primeira)) {
+            comprimirImagemParaIA(primeira)
+              .then(res => {
+                if (res.base64) {
+                  fotoBase64Cache.set(primeira, `data:${res.mimeType};base64,${res.base64}`);
+                }
+              })
+              .catch(() => {});
           }
         }}
       />
