@@ -17,7 +17,9 @@ import {
   Check,
   CheckCircle2,
   Info,
-  Eye
+  Eye,
+  Package,
+  ExternalLink
 } from 'lucide-react';
 import {
   responderPerguntaClienteCatalogo,
@@ -46,6 +48,68 @@ interface ChatRubiCatalogoProps {
   abertoExterno?: boolean;
   onFecharExterno?: () => void;
 }
+
+const formatarNegrito = (texto: string) => {
+  const partes = texto.split(/(\*\*[^*]+\*\*)/g);
+  return partes.map((parte, i) => {
+    if (parte.startsWith('**') && parte.endsWith('**')) {
+      return (
+        <strong key={i} className="font-extrabold text-slate-100">
+          {parte.slice(2, -2)}
+        </strong>
+      );
+    }
+    return parte;
+  });
+};
+
+const renderizarConteudoMensagem = (texto: string) => {
+  const linhas = texto.split('\n');
+
+  return (
+    <div className="space-y-1.5 leading-relaxed">
+      {linhas.map((linha, idx) => {
+        if (!linha.trim()) {
+          return <div key={idx} className="h-1" />;
+        }
+
+        // Detectar links markdown [Texto](URL)
+        const matchLink = linha.match(/\[([^\]]+)\]\(([^)]+)\)/);
+        if (matchLink) {
+          const textoAntes = linha.slice(0, matchLink.index);
+          const linkTexto = matchLink[1];
+          const linkUrl = matchLink[2];
+          const textoDepois = linha.slice((matchLink.index || 0) + matchLink[0].length);
+
+          const ehRastreio = linkUrl.includes('/order-tracking/');
+          const ehWhatsApp = linkUrl.includes('wa.me');
+
+          return (
+            <div key={idx} className="space-y-2 my-1">
+              {textoAntes && <p>{formatarNegrito(textoAntes)}</p>}
+              <a
+                href={linkUrl}
+                target={ehRastreio ? '_self' : '_blank'}
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
+                  ehRastreio
+                    ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
+              >
+                {ehRastreio ? <Package className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                <span>{linkTexto}</span>
+              </a>
+              {textoDepois && <p>{formatarNegrito(textoDepois)}</p>}
+            </div>
+          );
+        }
+
+        return <p key={idx}>{formatarNegrito(linha)}</p>;
+      })}
+    </div>
+  );
+};
 
 export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   contexto,
@@ -726,7 +790,9 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                             : 'bg-slate-800 text-slate-200 rounded-bl-xs border border-slate-700/80 shadow-xs'
                         }`}
                       >
-                        {msg.texto}
+                        {msg.remetente === 'rubi'
+                          ? renderizarConteudoMensagem(msg.texto)
+                          : msg.texto}
                       </div>
 
                       {msg.remetente === 'rubi' && (

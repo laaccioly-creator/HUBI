@@ -1,4 +1,5 @@
 import { getGeminiApiKey, executarRequisicaoGemini } from './geminiService';
+import { rubiCatalogoJevService } from './rubiCatalogoJevService';
 import { Loja, Produto, Categoria, FormaEntrega, RegrasPrecificacaoLoja, Cliente } from '../types';
 import { sanitizarCaixaTexto } from '../components/DescricaoFormatadaProduto';
 
@@ -485,7 +486,27 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 3. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
+  // 3. TRIAGEM OPERACIONAL INSTANTÂNEA VIA JEV (SYSTEM ONE - FASE 3)
+  // Rastreio de pedidos, validação de comprovantes Pix, atacado e reclamações urgentes em < 300ms
+  const triagemJev = await rubiCatalogoJevService.classificarIntencao(pergunta, contexto);
+
+  if (triagemJev.intencao === 'rastreio_pedido') {
+    return await rubiCatalogoJevService.rastrearPedidoCliente(pergunta, contexto);
+  }
+
+  if (triagemJev.intencao === 'comprovante_pix') {
+    return await rubiCatalogoJevService.processarComprovantePix(pergunta, contexto);
+  }
+
+  if (triagemJev.intencao === 'reclamacao_urgente') {
+    return rubiCatalogoJevService.processarReclamacaoUrgente(pergunta, contexto);
+  }
+
+  if (triagemJev.intencao === 'orcamento_atacado') {
+    return rubiCatalogoJevService.processarDuvidaAtacado(contexto);
+  }
+
+  // 4. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
   const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
 
   // Se o cliente acabou de falar o nome pela primeira vez
