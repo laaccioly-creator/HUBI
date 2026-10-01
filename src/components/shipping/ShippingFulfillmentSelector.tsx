@@ -95,6 +95,7 @@ export interface ShippingFulfillmentSelectorProps {
   onChange: (resultado: ShippingSelectionResult) => void;
   className?: string;
   modoCompacto?: boolean;
+  modoCatalogo?: boolean;
 }
 
 const resolverEnderecoInicial = (
@@ -157,8 +158,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   onSolicitarAtualizarEndereco,
   onChange,
   className = '',
-  modoCompacto = false
+  modoCompacto = false,
+  modoCatalogo = false
 }) => {
+  const ehCatalogo = modoCatalogo || modoCompacto;
   const [configLoja, setConfigLoja] = useState<LojaShippingConfig | null>(null);
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
 
@@ -1097,6 +1100,87 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     emitirSelecao(opcao, enderecoSelecionado);
   };
 
+  // Seleção de Frete a Combinar (Catálogo ou lojas sem integração ativa)
+  const handleSelecionarFreteACombinar = useCallback(() => {
+    if (!enderecoSelecionado) {
+      onSolicitarAtualizarEndereco?.();
+      return;
+    }
+    const opcaoCombinar: OpcaoFreteCotada = {
+      id: 'frete_a_combinar',
+      provedor: 'frete_proprio',
+      transportadora_nome: 'Frete a Combinar',
+      servico_codigo: 'frete_a_combinar',
+      servico_nome: 'Frete a Combinar',
+      valor_frete: 0,
+      valor_original: 0,
+      valor_subsidio: 0,
+      is_frete_gratis: false,
+      prazo_estimado_texto: 'A combinar após confirmação',
+      icone_tipo: 'loja'
+    };
+
+    setModalidade('entrega');
+    setViaEntrega('cotar');
+    setCotacaoEscolhida(opcaoCombinar);
+
+    const pacoteAtual = obterPacoteAtual();
+    const chaveEmissao = `frete_a_combinar_0_${enderecoSelecionado.cep}_${enderecoSelecionado.numero}`;
+    if (ultimoResultadoEmitidoRef.current !== chaveEmissao) {
+      ultimoResultadoEmitidoRef.current = chaveEmissao;
+      onChangeRef.current({
+        tipo_atendimento: 'entrega',
+        valor_frete: 0,
+        opcao_frete: opcaoCombinar,
+        opcao_selecionada: opcaoCombinar,
+        endereco_selecionado: enderecoSelecionado,
+        pacote: pacoteAtual,
+        pedido_entrega: {
+          pedido_id: '',
+          forma_entrega_id: null,
+          forma_entrega_nome: 'Frete a Combinar',
+          tipo_entrega: 'manual',
+          tipo_atendimento: 'entrega',
+          cliente_endereco_id: enderecoSelecionado.id && isUuidValido(enderecoSelecionado.id) ? enderecoSelecionado.id : null,
+          destino_cep: enderecoSelecionado.cep,
+          destino_logradouro: enderecoSelecionado.logradouro,
+          destino_numero: enderecoSelecionado.numero,
+          destino_complemento: enderecoSelecionado.complemento,
+          destino_bairro: enderecoSelecionado.bairro,
+          destino_cidade: enderecoSelecionado.cidade,
+          destino_uf: enderecoSelecionado.uf,
+          destino_latitude: enderecoSelecionado.latitude,
+          destino_longitude: enderecoSelecionado.longitude,
+          provedor: 'frete_proprio',
+          transportadora_nome: 'Frete a Combinar',
+          servico_codigo: 'frete_a_combinar',
+          valor_frete: 0,
+          valor_original: 0,
+          valor_subsidio: 0,
+          is_frete_gratis: false,
+          prazo_estimado_texto: 'A combinar com a loja',
+          peso_kg: pacoteAtual.peso_kg,
+          largura_cm: pacoteAtual.largura_cm,
+          altura_cm: pacoteAtual.altura_cm,
+          comprimento_cm: pacoteAtual.comprimento_cm,
+          quantidade_volumes: pacoteAtual.quantidade_volumes,
+          status_envio: 'pendente'
+        }
+      });
+    }
+  }, [enderecoSelecionado, onSolicitarAtualizarEndereco, obterPacoteAtual]);
+
+  // No modo catálogo: se não houver integrações ativas ou cotações, pré-seleciona "Frete a Combinar"
+  useEffect(() => {
+    if (ehCatalogo && modalidade === 'entrega' && enderecoSelecionado && !cotacaoEscolhida && !cotando) {
+      if (!temUber && !temMelhorEnvio) {
+        handleSelecionarFreteACombinar();
+      } else if (cotacoes.length === 0 && !carregandoConfig) {
+        handleSelecionarFreteACombinar();
+      }
+    }
+  }, [ehCatalogo, modalidade, enderecoSelecionado, cotacaoEscolhida, cotando, temUber, temMelhorEnvio, cotacoes.length, carregandoConfig, handleSelecionarFreteACombinar]);
+
   // Dados da Loja para Retirada
   const dadosLojaFormatados = {
     nome: loja?.nome || loja?.nome_loja || 'Loja Física',
@@ -1158,6 +1242,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   </p>
                 </div>
               </div>
+
+              {onSolicitarAtualizarEndereco && (
+                <button
+                  type="button"
+                  onClick={() => onSolicitarAtualizarEndereco()}
+                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer transition hover:underline shrink-0"
+                  title="Editar endereço principal"
+                >
+                  <PenLine className="w-3.5 h-3.5" />
+                  <span>Editar Endereço</span>
+                </button>
+              )}
             </div>
 
             {/* Botão Escolher Outro Endereço */}
@@ -1181,111 +1277,165 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         {/* BLOCO 1: RETIRADA NA LOJA (BALCÃO FÍSICO) - CUSTO R$ 0,00 (GRÁTIS)        */}
         {/* ========================================================================= */}
         {permiteRetirada && (
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-700 block">Balcão da Loja Física</span>
+          ehCatalogo ? (
             <div
               onClick={handleSelecionarRetirada}
-              className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+              className={`p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                 modalidade === 'retirada'
                   ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
               }`}
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                  modalidade === 'retirada'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-purple-50 text-purple-700 border-purple-200'
-                }`}>
-                  <Store className="w-4 h-4" />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-slate-900 truncate">
-                      Retirar na Loja
-                    </span>
-                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
-                      Balcão Físico
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                    <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="text-slate-600">Disponibilidade Imediata</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="text-right">
-                  <span className="font-extrabold text-sm text-emerald-600">
-                    Grátis (R$ 0,00)
-                  </span>
-                </div>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
                   modalidade === 'retirada'
                     ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'border-2 border-slate-300'
+                    : 'border-2 border-slate-400'
                 }`}>
-                  {modalidade === 'retirada' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  {modalidade === 'retirada' && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                 </div>
+                <Store className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-900 truncate">
+                  Retirar na Loja
+                </span>
               </div>
-            </div>
 
-            {/* Informações detalhadas da retirada física quando selecionada */}
-            {modalidade === 'retirada' && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-2.5 animate-in fade-in duration-200 text-xs shadow-sm">
-                <div className="text-slate-600 leading-relaxed">
-                  <strong className="text-slate-800">Endereço da Loja:</strong>{' '}
-                  {[
-                    dadosLojaFormatados.endereco_logradouro,
-                    dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
-                    dadosLojaFormatados.endereco_bairro,
-                    dadosLojaFormatados.endereco_cidade && dadosLojaFormatados.endereco_estado
-                      ? `${dadosLojaFormatados.endereco_cidade}-${dadosLojaFormatados.endereco_estado}`
-                      : dadosLojaFormatados.endereco_cidade,
-                    dadosLojaFormatados.endereco_cep ? `(CEP: ${dadosLojaFormatados.endereco_cep})` : ''
-                  ]
-                    .filter(Boolean)
-                    .join(', ') || 'Consulte o balcão da loja'}
-                </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalMapaLojaAberto(true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  title="Ver endereço e rota no mapa"
+                >
+                  <Navigation className="w-3 h-3 text-emerald-600" />
+                  <span>Ver no Mapa</span>
+                </button>
 
-                <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModalMapaLojaAberto(true);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Ver no Mapa</span>
-                  </button>
-
+                {linkWhatsAppRetirada && (
                   <a
                     href={linkWhatsAppRetirada}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-sm cursor-pointer"
+                    title="Falar com a loja no WhatsApp"
                   >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>Enviar para o WhatsApp</span>
+                    <MessageCircle className="w-3 h-3" />
+                    <span>WhatsApp</span>
                   </a>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-700 block">Balcão da Loja Física</span>
+              <div
+                onClick={handleSelecionarRetirada}
+                className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                  modalidade === 'retirada'
+                    ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                    : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                    modalidade === 'retirada'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-purple-50 text-purple-700 border-purple-200'
+                  }`}>
+                    <Store className="w-4 h-4" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-slate-900 truncate">
+                        Retirar na Loja
+                      </span>
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                        Balcão Físico
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-slate-600">Disponibilidade Imediata</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <span className="font-extrabold text-sm text-emerald-600">
+                      Grátis (R$ 0,00)
+                    </span>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                    modalidade === 'retirada'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'border-2 border-slate-300'
+                  }`}>
+                    {modalidade === 'retirada' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Informações detalhadas da retirada física quando selecionada */}
+              {modalidade === 'retirada' && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-2.5 animate-in fade-in duration-200 text-xs shadow-sm">
+                  <div className="text-slate-600 leading-relaxed">
+                    <strong className="text-slate-800">Endereço da Loja:</strong>{' '}
+                    {[
+                      dadosLojaFormatados.endereco_logradouro,
+                      dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
+                      dadosLojaFormatados.endereco_bairro,
+                      dadosLojaFormatados.endereco_cidade && dadosLojaFormatados.endereco_estado
+                        ? `${dadosLojaFormatados.endereco_cidade}-${dadosLojaFormatados.endereco_estado}`
+                        : dadosLojaFormatados.endereco_cidade,
+                      dadosLojaFormatados.endereco_cep ? `(CEP: ${dadosLojaFormatados.endereco_cep})` : ''
+                    ]
+                      .filter(Boolean)
+                      .join(', ') || 'Consulte o balcão da loja'}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModalMapaLojaAberto(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Ver no Mapa</span>
+                    </button>
+
+                    <a
+                      href={linkWhatsAppRetirada}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Enviar para o WhatsApp</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
         )}
 
         {/* ========================================================================= */}
-        {/* BLOCO 2: ENTREGA NO ENDEREÇO DO CLIENTE (DUAS VIAS CLARAS)                */}
+        {/* BLOCO 2: OPÇÕES DE ENTREGA                                                */}
         {/* ========================================================================= */}
         <div className="space-y-3 pt-2 border-t border-slate-200">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-700 block">
-              Entrega no Endereço do Cliente
+              {ehCatalogo ? 'Opções de Entrega' : 'Entrega no Endereço do Cliente'}
             </span>
           </div>
 
@@ -1315,46 +1465,48 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Seletor de Duas Vias de Entrega */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalidade('entrega');
-                    setViaEntrega('cotar');
-                  }}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-                    modalidade === 'entrega' && viaEntrega === 'cotar'
-                      ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="truncate">Cotar Frete (Automático)</span>
-                </button>
+              {/* Seletor de Duas Vias de Entrega (Apenas no painel do lojista) */}
+              {!ehCatalogo && (
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalidade('entrega');
+                      setViaEntrega('cotar');
+                    }}
+                    className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+                      modalidade === 'entrega' && viaEntrega === 'cotar'
+                        ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span className="truncate">Cotar Frete (Automático)</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalidade('entrega');
-                    setViaEntrega('manual');
-                  }}
-                  className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
-                    modalidade === 'entrega' && viaEntrega === 'manual'
-                      ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <PenLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span className="truncate">Informar Frete (Manual)</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalidade('entrega');
+                      setViaEntrega('manual');
+                    }}
+                    className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+                      modalidade === 'entrega' && viaEntrega === 'manual'
+                        ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <PenLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">Informar Frete (Manual)</span>
+                  </button>
+                </div>
+              )}
 
               {/* VIA A: COTAÇÃO AUTOMÁTICA EM TEMPO REAL (UBER DIRECT / MELHOR ENVIO) */}
-              {viaEntrega === 'cotar' && (
+              {(viaEntrega === 'cotar' || ehCatalogo) && (
                 <div className="space-y-3">
-                  {/* Painel de Conferência de Volumes e Dimensões do Pacote */}
-                  {(temMelhorEnvio || temUber) && (
+                  {/* Painel de Conferência de Volumes e Dimensões do Pacote (Apenas lojista) */}
+                  {(temMelhorEnvio || temUber) && !ehCatalogo && (
                     <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1492,56 +1644,178 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     </div>
                   )}
                   {!carregandoConfig && !temUber && !temMelhorEnvio ? (
-                    /* Alerta Amigável de Ausência de Integração Ativa */
-                    <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 space-y-3">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <span className="font-bold text-xs block text-amber-950">
-                            Cotação Automática de Entrega Não Configurada
-                          </span>
-                          <p className="text-xs text-amber-800 leading-relaxed">
-                            Sua loja ainda não possui integração com Uber Direct ou Melhor Envio / Transportadoras. Acesse <strong>Configurações &gt; Frete</strong> para conectar sua conta ou utilize a opção <strong>"Informar Frete Manualmente"</strong>.
-                          </p>
+                    ehCatalogo ? (
+                      /* Card Amigável: Frete a Combinar no Catálogo (Loja sem integração ativa) */
+                      <div
+                        onClick={handleSelecionarFreteACombinar}
+                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                          modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                            ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                            : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
+                            <Truck className="w-5 h-5 text-emerald-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                                A Combinar
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                            modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : 'border-2 border-slate-300'
+                          }`}>
+                            {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            )}
+                          </div>
                         </div>
                       </div>
+                    ) : (
+                      /* Alerta Amigável de Ausência de Integração Ativa */
+                      <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <span className="font-bold text-xs block text-amber-950">
+                              Cotação Automática de Entrega Não Configurada
+                            </span>
+                            <p className="text-xs text-amber-800 leading-relaxed">
+                              Sua loja ainda não possui integração com Uber Direct ou Melhor Envio / Transportadoras. Acesse <strong>Configurações &gt; Frete</strong> para conectar sua conta ou utilize a opção <strong>"Informar Frete Manualmente"</strong>.
+                            </p>
+                          </div>
+                        </div>
 
-                      <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalidade('entrega');
-                            setViaEntrega('manual');
-                            const formasManuais = formasEntrega.filter(f => f.tipo !== 'retirada');
-                            if (formasManuais.length > 0 && !formaManualEscolhidaId) {
-                              const primeira = formasManuais[0];
-                              setFormaManualEscolhidaId(primeira.id);
-                              const val = valoresManuais[primeira.id] ?? (primeira.valor_taxa > 0 ? primeira.valor_taxa.toString() : '');
-                              emitirSelecaoManual(primeira, val, enderecoSelecionado);
-                            }
-                          }}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer active:scale-95"
-                        >
-                          <PenLine className="w-3.5 h-3.5" />
-                          <span>Informar Frete Manualmente</span>
-                        </button>
+                        <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalidade('entrega');
+                              setViaEntrega('manual');
+                              const formasManuais = formasEntrega.filter(f => f.tipo !== 'retirada');
+                              if (formasManuais.length > 0 && !formaManualEscolhidaId) {
+                                const primeira = formasManuais[0];
+                                setFormaManualEscolhidaId(primeira.id);
+                                const val = valoresManuais[primeira.id] ?? (primeira.valor_taxa > 0 ? primeira.valor_taxa.toString() : '');
+                                emitirSelecaoManual(primeira, val, enderecoSelecionado);
+                              }
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer active:scale-95"
+                          >
+                            <PenLine className="w-3.5 h-3.5" />
+                            <span>Informar Frete Manualmente</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : cotando ? (
                     <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
                       <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
                       <span>Calculando opções de frete via API em tempo real...</span>
                     </div>
                   ) : erroCotacaoMsg ? (
-                    <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{erroCotacaoMsg}</span>
-                    </div>
+                    ehCatalogo ? (
+                      <div
+                        onClick={handleSelecionarFreteACombinar}
+                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                          modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                            ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                            : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
+                            <Truck className="w-5 h-5 text-emerald-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                                A Combinar
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                            modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : 'border-2 border-slate-300'
+                          }`}>
+                            {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{erroCotacaoMsg}</span>
+                      </div>
+                    )
                   ) : cotacoes.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 space-y-1">
-                      <p className="font-semibold text-slate-700">Nenhuma cotação automática disponível para este endereço.</p>
-                      <p>Utilize a aba "Informar Frete (Manual)" para definir o frete manualmente.</p>
-                    </div>
+                    ehCatalogo ? (
+                      /* Card Amigável: Frete a Combinar no Catálogo (sem cotações retornadas) */
+                      <div
+                        onClick={handleSelecionarFreteACombinar}
+                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                          modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                            ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                            : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
+                            <Truck className="w-5 h-5 text-emerald-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                                A Combinar
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                            modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : 'border-2 border-slate-300'
+                          }`}>
+                            {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 space-y-1">
+                        <p className="font-semibold text-slate-700">Nenhuma cotação automática disponível para este endereço.</p>
+                        <p>Utilize a aba "Informar Frete (Manual)" para definir o frete manualmente.</p>
+                      </div>
+                    )
                   ) : (
                     /* Lista de Cotações Automáticas */
                     <div className="space-y-2">

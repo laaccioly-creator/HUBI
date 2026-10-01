@@ -1408,6 +1408,12 @@ export const CatalogoPublico: React.FC = () => {
         ? 'A combinar / Mercado Pago'
         : 'A combinar com a loja';
 
+      const entregaTextoMsg = pedidoEntrega?.tipo_atendimento === 'retirada'
+        ? 'Retirada na Loja'
+        : pedidoEntrega?.servico_codigo === 'frete_a_combinar' || formaEntregaEscolhida?.nome === 'Frete a Combinar'
+        ? 'Frete a Combinar (a definir com a loja)'
+        : `${formaEntregaEscolhida?.nome || 'Entrega'} ${valorFreteEfetivo === 0 ? '(Frete Grátis 🎉)' : `(+ R$ ${valorFreteEfetivo.toFixed(2)})`}`;
+
       const msgWhatsApp = `🛍️ *NOVO PEDIDO ONLINE #${pedidoCriado.numero_pedido}*
 
 Olá, ${loja.nome_fantasia}! Gostaria de confirmar meu pedido feito pelo catálogo online:
@@ -1417,7 +1423,7 @@ ${itensMsg}
 ━━━━━━━━━━━━━━━━━━━━
 🏷️ *Tabela Aplicada:* ${tabelaTexto}
 ${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoCarrinho.economiaTotal.toFixed(2)}\n` : ''}💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
-🛵 *Entrega:* ${formaEntregaEscolhida?.nome || (pedidoEntrega?.tipo_atendimento === 'retirada' ? 'Retirada na Loja' : 'Entrega')} ${valorFreteEfetivo === 0 ? '(Frete Grátis 🎉)' : `(+ R$ ${valorFreteEfetivo.toFixed(2)})`}
+🛵 *Entrega:* ${entregaTextoMsg}
 💳 *Pagamento:* ${textoFormaPagamento}
 💵 *TOTAL A PAGAR:* R$ ${total.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━
@@ -2539,66 +2545,6 @@ Fico no aguardo da confirmação! ✨`;
 
               {carrinho.length > 0 && (
                 <form id="formCheckout" onSubmit={handleFinalizarPedido} className="pt-4 border-t border-slate-800 space-y-3">
-                  <div className="space-y-3">
-                    <span className="text-xs font-bold text-slate-200 block">Identificação & Entrega</span>
-
-                    {/* IDENTIFICAÇÃO DO CLIENTE & ENDEREÇO */}
-                    {clienteSelecionado ? (
-                      <div className="bg-slate-800/80 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
-                              {clienteSelecionado.nome.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-slate-100 truncate">{clienteSelecionado.nome}</p>
-                              <p className="text-[10px] text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setModalEnderecoAberto(true)}
-                              className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 px-2 py-1 rounded-lg hover:bg-slate-750 transition cursor-pointer"
-                              title="Alterar endereço"
-                            >
-                              Editar Endereço
-                            </button>
-                          </div>
-                        </div>
-                        {enderecoEntrega && (
-                          <div className="pt-2 border-t border-slate-700/60 text-[11px] text-slate-300 flex items-start gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                            <span className="line-clamp-2">{enderecoEntrega}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => {
-                          setModalOnboardingMotivo('carrinho');
-                          setModalOnboardingAberto(true);
-                        }}
-                        className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-800 to-slate-800 border-2 border-emerald-500/40 hover:border-emerald-500 flex items-center justify-between gap-3 transition cursor-pointer shadow-md group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                            <Smartphone className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-100 group-hover:text-emerald-300 transition">
-                              Identifique-se para fechar o pedido
-                            </p>
-                            <p className="text-[10px] text-slate-400">
-                              Entre ou crie sua conta com celular em 30 segundos
-                            </p>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition" />
-                      </div>
-                    )}
-                  </div>
-
                   <div>
                     <input
                       type="text"
@@ -2735,6 +2681,8 @@ Fico no aguardo da confirmação! ✨`;
                           )
                         ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
                           <span className="text-slate-200 font-bold text-xs">Retirar na Loja</span>
+                        ) : (pedidoEntrega.servico_codigo === 'frete_a_combinar' || pedidoEntrega.forma_entrega_nome === 'Frete a Combinar') ? (
+                          <span className="text-emerald-400 font-bold text-xs">A Combinar</span>
                         ) : (pedidoEntrega.is_frete_gratis || valorFreteEfetivo === 0 || freteGratisCupom) ? (
                           <div className="flex flex-col items-end leading-tight">
                             {pedidoEntrega.valor_original != null && pedidoEntrega.valor_original > 0 && (
@@ -3167,6 +3115,8 @@ Fico no aguardo da confirmação! ✨`;
               valorFreteAtual={valorFreteEfetivo}
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
+              modoCatalogo={true}
+              onSolicitarAtualizarEndereco={() => setModalEnderecoAberto(true)}
               onChange={(resultado) => {
                 setDraftResultadoShipping(resultado);
               }}

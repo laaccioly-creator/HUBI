@@ -185,6 +185,9 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
+          queryParams: {
+            prompt: 'select_account'
+          },
           redirectTo: redirectToUrl
         }
       });
