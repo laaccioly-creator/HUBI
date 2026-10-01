@@ -283,9 +283,8 @@ export const rubiCatalogoJevService = {
           criado_em,
           codigo_rastreio,
           link_rastreio,
-          nome_entregador,
-          contato_entregador,
-          forma_entrega:formas_entrega(nome)
+          entregador_nome,
+          nome_transportadora
         `)
         .eq('loja_id', lojaId)
         .order('criado_em', { ascending: false })
@@ -327,9 +326,8 @@ export const rubiCatalogoJevService = {
             criado_em,
             codigo_rastreio,
             link_rastreio,
-            nome_entregador,
-            contato_entregador,
-            forma_entrega:formas_entrega(nome)
+            entregador_nome,
+            nome_transportadora
           `)
           .eq('loja_id', lojaId)
           .eq('numero_pedido', numeroPedidoExtraido)
@@ -360,7 +358,7 @@ export const rubiCatalogoJevService = {
    * Formata a resposta com status em tempo real e link de rastreio interativo
    */
   formatarRespostaPedido(pedido: any, nomeLoja: string): RespostaRubiCatalogo {
-    const formaEntregaNome = (pedido.forma_entrega as any)?.nome || 'Entrega';
+    const formaEntregaNome = pedido.nome_transportadora || (pedido.forma_entrega as any)?.nome || 'Entrega Local';
 
     // Mapeamento amigável de status cobrindo todos os status do HUBI (incluindo 'concluido')
     const statusMap: Record<string, { rotulo: string; emoji: string; explicacao: string }> = {
@@ -421,8 +419,8 @@ export const rubiCatalogoJevService = {
     if (pedido.link_rastreio) {
       detalhesEnvio += `\n📍 [Clique aqui para rastrear a rota da entrega no mapa](${pedido.link_rastreio})`;
     }
-    if (pedido.nome_entregador) {
-      detalhesEnvio += `\n🛵 **Entregador:** ${pedido.nome_entregador}`;
+    if (pedido.entregador_nome) {
+      detalhesEnvio += `\n🛵 **Entregador:** ${pedido.entregador_nome}`;
     }
 
     const respostaTexto = `Localizei o seu pedido **#${pedido.numero_pedido}**! ${infoStatus.emoji}\n\n` +
