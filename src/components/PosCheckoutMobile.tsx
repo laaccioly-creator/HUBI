@@ -738,7 +738,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <span className="font-bold text-slate-700">{it.quantidade} x</span>
                   <span className="font-bold text-slate-900 uppercase truncate max-w-[200px]">{it.produto.nome}</span>
                 </div>
-                <span className="font-black text-slate-900">R$ {it.subtotal.toFixed(2)}</span>
+                <span className="font-black text-slate-900">R$ {Number(it.subtotal || 0).toFixed(2)}</span>
               </div>
             ))
           )}
@@ -753,7 +753,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 Dar desconto
               </button>
               <div className="text-sm font-black text-slate-900">
-                TOTAL: R$ {total.toFixed(2)}
+                TOTAL: R$ {Number(total || 0).toFixed(2)}
               </div>
             </div>
           )}
@@ -1018,9 +1018,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <span className="truncate">{mensagemMeta}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {avaliacaoCarrinho.economiaTotal > 0 && (
+                  {Number(avaliacaoCarrinho.economiaTotal || 0) > 0 && (
                     <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full font-black">
-                      - R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                      - R$ {Number(avaliacaoCarrinho.economiaTotal || 0).toFixed(2)}
                     </span>
                   )}
                   <span className={`font-black text-[11px] shrink-0 ${
@@ -1061,11 +1061,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   {it.variacao && (
                     <span className="text-[10px] text-slate-500 block">Var: {it.variacao.valor_variacao_1}</span>
                   )}
-                  <span className="text-[10px] text-slate-400 block">Unit: R$ {it.precoUnitario.toFixed(2)}</span>
+                  <span className="text-[10px] text-slate-400 block">Unit: R$ {Number(it.precoUnitario || 0).toFixed(2)}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="font-black text-sm text-slate-900">R$ {it.subtotal.toFixed(2)}</span>
+                  <span className="font-black text-sm text-slate-900">R$ {Number(it.subtotal || 0).toFixed(2)}</span>
 
                   {/* Controles de Quantidade */}
                   {isEdicaoTravada ? (
@@ -1179,13 +1179,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
             <div className="flex justify-between text-xs text-slate-500">
               <span>Subtotal:</span>
-              <span>R$ {subtotal.toFixed(2)}</span>
+              <span>R$ {Number(subtotal || 0).toFixed(2)}</span>
             </div>
 
-            {desconto > 0 && (
+            {Number(desconto || 0) > 0 && (
               <div className="flex justify-between text-xs text-rose-500 font-bold">
                 <span>Desconto aplicado:</span>
-                <span>- R$ {desconto.toFixed(2)}</span>
+                <span>- R$ {Number(desconto || 0).toFixed(2)}</span>
               </div>
             )}
 
@@ -1286,7 +1286,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             className="flex-[1.2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs flex items-center justify-between px-3 shadow-md transition cursor-pointer disabled:opacity-50 active:scale-95"
             title="Avançar para pagamento e concluir venda"
           >
-            <span className="truncate">{totalItens} {totalItens === 1 ? 'item' : 'itens'} • R$ {total.toFixed(2)}</span>
+            <span className="truncate">{totalItens} {totalItens === 1 ? 'item' : 'itens'} • R$ {Number(total || 0).toFixed(2)}</span>
             <ChevronRight className="w-4 h-4 shrink-0" />
           </button>
         </div>

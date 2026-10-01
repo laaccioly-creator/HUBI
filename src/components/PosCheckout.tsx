@@ -2295,7 +2295,7 @@ export const PosCheckout: React.FC = () => {
                             {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 || ''}
                           </span>
                         )}
-                        <span>R$ {item.precoUnitario.toFixed(2)} / un</span>
+                        <span>R$ {Number(item.precoUnitario || 0).toFixed(2)} / un</span>
                       </div>
                     </div>
 
@@ -2319,7 +2319,7 @@ export const PosCheckout: React.FC = () => {
                       </div>
 
                       <span className="font-bold text-xs text-emerald-400 w-16 text-right">
-                        R$ {item.subtotal.toFixed(2)}
+                        R$ {Number(item.subtotal || 0).toFixed(2)}
                       </span>
 
                       {!isEdicaoTravada && (
@@ -2355,7 +2355,7 @@ export const PosCheckout: React.FC = () => {
           <div className="space-y-1.5 text-xs text-slate-400">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span className="text-slate-200 font-medium">R$ {subtotal.toFixed(2)}</span>
+              <span className="text-slate-200 font-medium">R$ {Number(subtotal || 0).toFixed(2)}</span>
             </div>
 
             {/* Desconto R$ ou % (se autorizado) */}
@@ -2418,14 +2418,14 @@ export const PosCheckout: React.FC = () => {
               desconto > 0 ? (
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>Desconto de Tabela:</span>
-                  <span className="text-rose-400 font-bold">-R$ {desconto.toFixed(2)}</span>
+                  <span className="text-rose-400 font-bold">-R$ {Number(desconto || 0).toFixed(2)}</span>
                 </div>
               ) : null
             )}
 
             {desconto > 0 && permissions.podeDarDesconto && (
               <div className="text-[10px] text-rose-400 text-right font-medium">
-                -R$ {desconto.toFixed(2)} ({descontoPercentual.toFixed(1)}%)
+                -R$ {Number(desconto || 0).toFixed(2)} ({Number(descontoPercentual || 0).toFixed(1)}%)
               </div>
             )}
 
