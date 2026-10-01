@@ -422,6 +422,86 @@ export const CatalogoPublico: React.FC = () => {
     };
   }, [loja?.id, clienteSelecionado?.id]);
 
+  // Efeito para verificar sessão existente do Supabase Auth ou retorno de OAuth (Google / Apple)
+  useEffect(() => {
+    let ativo = true;
+
+    async function sincronizarUsuarioOAuth(authUser: any) {
+      if (!loja?.id || !authUser || clienteSelecionado?.id) return;
+
+      const authUid = authUser.id;
+      const email = authUser.email;
+      const nomeSocial =
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        (email ? email.split('@')[0] : 'Cliente');
+
+      // Busca cliente existente por auth_uid ou email nesta loja
+      let query = supabase.from('clientes').select('*').eq('loja_id', loja.id);
+      if (email) {
+        query = query.or(`auth_uid.eq.${authUid},email.eq.${email}`);
+      } else {
+        query = query.eq('auth_uid', authUid);
+      }
+
+      const { data: clientesEncontrados } = await query.limit(1);
+
+      if (clientesEncontrados && clientesEncontrados.length > 0) {
+        const cli = clientesEncontrados[0] as Cliente;
+        if (ativo) {
+          handleSelecionarCliente(cli);
+        }
+      } else {
+        // Cria registro inicial para o cliente autenticado via OAuth
+        const { data: novoCli, error: errCli } = await supabase
+          .from('clientes')
+          .insert([
+            {
+              loja_id: loja.id,
+              nome: nomeSocial,
+              email: email || null,
+              auth_uid: authUid,
+              tabela_preco_padrao: 'varejo',
+              permite_fiado: false,
+              limite_credito: 0,
+              saldo_devedor_fiado: 0
+            }
+          ])
+          .select()
+          .single();
+
+        if (!errCli && novoCli && ativo) {
+          handleSelecionarCliente(novoCli as Cliente);
+        }
+      }
+    }
+
+    async function verificarSessaoOAuth() {
+      if (!loja?.id || clienteSelecionado?.id) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && ativo) {
+          await sincronizarUsuarioOAuth(session.user);
+        }
+      } catch (err) {
+        console.warn('Aviso ao sincronizar sessão OAuth no catálogo:', err);
+      }
+    }
+
+    verificarSessaoOAuth();
+
+    const { data: authSub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user && ativo && !clienteSelecionado?.id) {
+        await sincronizarUsuarioOAuth(session.user);
+      }
+    });
+
+    return () => {
+      ativo = false;
+      authSub.subscription.unsubscribe();
+    };
+  }, [loja?.id, clienteSelecionado?.id]);
+
   const handleSalvarContato = (novosDados: DadosContatoCliente) => {
     setDadosContato(novosDados);
     setNomeCliente(novosDados.nome);
@@ -1480,6 +1560,44 @@ Fico no aguardo da confirmação! ✨`;
       return a.nome.localeCompare(b.nome, 'pt-BR');
     });
   }, [produtos, busca, categoriaSelecionada, semEstoqueModo, exibirSemFoto, mapaCategorias]);
+
+  if (carregando) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-xs font-medium text-slate-400">Carregando catálogo...</p>
+      </div>
+    );
+  }
+
+  if (!loja) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 text-center">
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md">
+          <p className="text-base font-semibold text-slate-200">Catálogo não encontrado</p>
+          <p className="text-xs text-slate-400 mt-2">Esta loja não foi encontrada ou o link informado está incorreto.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 1. BLOQUEIO OBRIGATÓRIO DE ACESSO AO CATÁLOGO
+  // O cliente NÃO pode visualizar os produtos nem navegar pelo catálogo sem antes ter uma conta cadastrada/logada.
+  if (!clienteSelecionado) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
+        <ModalOnboardingCliente
+          isOpen={true}
+          bloqueioObrigatorio={true}
+          lojaId={loja.id}
+          nomeLoja={loja.nome_fantasia || 'HUBI'}
+          corTema={corTema}
+          motivoAbertura="geral"
+          onSucesso={handleSelecionarCliente}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">

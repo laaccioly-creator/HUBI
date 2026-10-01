@@ -22,12 +22,13 @@ import { ClienteCatalogoService, DadosCadastroIdentificacao, DadosCadastroEndere
 
 interface ModalOnboardingClienteProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   lojaId: string;
   nomeLoja?: string;
   corTema?: string;
   onSucesso: (cliente: Cliente) => void;
   motivoAbertura?: 'carrinho' | 'pedidos' | 'favoritos' | 'geral';
+  bloqueioObrigatorio?: boolean;
 }
 
 type ModoOnboarding = 'boas_vindas' | 'passo1_identificacao' | 'passo2_endereco' | 'login';
@@ -39,7 +40,8 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
   nomeLoja = 'HUBI',
   corTema = '#10B981',
   onSucesso,
-  motivoAbertura = 'geral'
+  motivoAbertura = 'geral',
+  bloqueioObrigatorio = false
 }) => {
   const [modo, setModo] = useState<ModoOnboarding>('boas_vindas');
 
@@ -179,10 +181,11 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
     try {
       setCarregando(true);
       setErro(null);
+      const redirectToUrl = `${window.location.origin}${window.location.pathname}`;
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.href
+          redirectTo: redirectToUrl
         }
       });
       if (authErr) throw authErr;
@@ -197,10 +200,11 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
     try {
       setCarregando(true);
       setErro(null);
+      const redirectToUrl = `${window.location.origin}${window.location.pathname}`;
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: window.location.href
+          redirectTo: redirectToUrl
         }
       });
       if (authErr) throw authErr;
@@ -275,7 +279,7 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
       }
 
       onSucesso(res.cliente);
-      onClose();
+      onClose?.();
     } catch (err: any) {
       setErro(err.message || 'Erro inesperado ao registrar cadastro.');
     } finally {
@@ -308,7 +312,7 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
       }
 
       onSucesso(res.cliente);
-      onClose();
+      onClose?.();
     } catch (err: any) {
       setErro(err.message || 'Erro ao realizar login.');
     } finally {
@@ -317,7 +321,9 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in ${
+      bloqueioObrigatorio ? 'bg-slate-950' : 'bg-black/80 backdrop-blur-sm'
+    }`}>
       <div className="bg-slate-900 border-2 border-slate-700/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95">
         {/* Cabeçalho do Modal */}
         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
@@ -349,14 +355,16 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
-            title="Fechar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!bloqueioObrigatorio && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              title="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Mensagem de contextualização para o usuário */}
