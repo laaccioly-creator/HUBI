@@ -982,7 +982,12 @@ export const pesquisarFotosProdutoNaInternet = async (
   const termosParaPesquisar: string[] = [];
 
   if (termoLimpo) {
-    termosParaPesquisar.push(termoLimpo);
+    const segCurto = (segmentoLoja || loja?.segmento || '').split('/')[0].trim();
+    if (segCurto && !termoLimpo.toLowerCase().includes(segCurto.toLowerCase())) {
+      termosParaPesquisar.push(`${termoLimpo} ${segCurto}`);
+    } else {
+      termosParaPesquisar.push(termoLimpo);
+    }
   } else if (fotoReferencia) {
     // Apenas se NÃO houver nome digitado e houver uma foto, aciona a IA Multimodal (Gemini Vision)
     try {
@@ -1003,7 +1008,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o termo limpo direto
+  // O termo prioritário para SerpApi é o termo contextualizado com o segmento
   const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
 
   console.log(
@@ -1031,7 +1036,20 @@ export const pesquisarFotosProdutoNaInternet = async (
         'background: #16a34a; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
         'color: #16a34a; font-weight: bold;'
       );
-      for (const item of resultadosSerpApi) {
+
+      // Validação semântica e filtro de pertinência comercial com Jev (System One)
+      let fotosParaRegistrar = resultadosSerpApi;
+      try {
+        fotosParaRegistrar = await catalogJevService.filtrarFotosCompativeisComJev(
+          termoLimpo,
+          segmentoLoja || loja?.segmento,
+          resultadosSerpApi
+        );
+      } catch (errJev) {
+        console.warn('[HUBI JEV] Degradação graciosa ao filtrar fotos:', errJev);
+      }
+
+      for (const item of fotosParaRegistrar) {
         registrarFoto(
           item.urlOriginal,
           item.titulo,

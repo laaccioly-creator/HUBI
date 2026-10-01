@@ -127,6 +127,23 @@ export const formatarResultadosSerpApi = (
       continue;
     }
 
+    // Filtra fontes não comerciais (redes sociais de vídeo/memes que não são lojas ou e-commerce)
+    const fonteLower = (item.source || item.domain || '').toLowerCase();
+    const linkLower = (item.link || item.original || '').toLowerCase();
+    const tituloLower = (item.title || '').toLowerCase();
+
+    const fontesInvalidas = [
+      'tiktok', 'instagram', 'youtube', 'youtu.be', 'facebook', 'pinterest',
+      'reddit', 'twitter', 'x.com', 'giphy', 'tenor'
+    ];
+    if (fontesInvalidas.some(f => fonteLower.includes(f) || linkLower.includes(f))) {
+      continue;
+    }
+
+    if (tituloLower.includes('meme') || tituloLower.includes('viral') || tituloLower.includes('animal mais feio')) {
+      continue;
+    }
+
     urlsVistas.add(originalUrl);
 
     fotosFormatadas.push({

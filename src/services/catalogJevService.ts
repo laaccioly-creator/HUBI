@@ -1,5 +1,6 @@
 import { typesafeService, PerguntaTypeSafe } from './typesafeService';
 import { extrairDimensoesEPesoTexto, DimensoesEPesoExtraidos } from './geminiService';
+import type { FotoResultadoSerpApi } from './serpApiService';
 
 /**
  * Interface simples para categorias da loja
@@ -307,5 +308,74 @@ export const catalogJevService = {
       largura_cm: extraidos.largura_cm || 15,
       comprimento_cm: extraidos.comprimento_cm || 20
     };
+  },
+
+  /**
+   * Avalia a compatibilidade das fotos encontradas na web utilizando o modelo Jev (System One).
+   * Elimina itens fora de contexto (ex: chumbadas de pesca ou memes para sex shop) e prioriza os mais compatíveis.
+   * Orçamento estrito de 1.200ms com degradação graciosa para manter a fluidez da UI.
+   */
+  async filtrarFotosCompativeisComJev(
+    termo: string,
+    segmentoLoja: string | undefined,
+    fotos: FotoResultadoSerpApi[]
+  ): Promise<FotoResultadoSerpApi[]> {
+    if (!fotos || fotos.length <= 1) return fotos;
+
+    // Avalia os primeiros 8 candidatos para respeitar o orçamento de tempo do Jev (< 900ms)
+    const candidatas = fotos.slice(0, 8);
+    const questions: Record<string, PerguntaTypeSafe> = {};
+
+    candidatas.forEach((foto, idx) => {
+      questions[`f_${idx}`] = {
+        type: 'noul',
+        instructions: `Foto: "${foto.titulo}". É compatível e representa o produto comercial "${termo}"${segmentoLoja ? ` no nicho de "${segmentoLoja}"` : ''}?`
+      };
+    });
+
+    try {
+      const resultado = await typesafeService.avaliar(
+        {
+          produto: termo,
+          nicho: segmentoLoja || 'Varejo',
+          total_candidatos: candidatas.length
+        },
+        questions,
+        'jev-latest',
+        1200
+      );
+
+      if (resultado?.answers) {
+        const fotosAvaliadas: Array<{ foto: FotoResultadoSerpApi; score: number }> = [];
+
+        candidatas.forEach((foto, idx) => {
+          const resp = resultado.answers[`f_${idx}`];
+          const score = (resp?.type === 'noul' && typeof resp.noul === 'number') ? resp.noul : 0.5;
+          // Descarta fotos com probabilidade de compatibilidade muito baixa (< 0.40)
+          if (score >= 0.40) {
+            fotosAvaliadas.push({ foto, score });
+          } else {
+            console.log(
+              `%c[HUBI JEV ⚡]%c Foto descartada por incompatibilidade com "${termo}": "${foto.titulo}" (noul: ${score})`,
+              'color: #ef4444; font-weight: bold;'
+            );
+          }
+        });
+
+        // Ordena da maior para a menor pertinência
+        fotosAvaliadas.sort((a, b) => b.score - a.score);
+        const fotosValidadas = fotosAvaliadas.map(f => f.foto);
+
+        // Se houver fotos válidas, completa com as restantes originais não avaliadas (caso a lista original tenha mais de 8)
+        if (fotosValidadas.length > 0) {
+          const restantes = fotos.slice(8).filter(f => !fotosValidadas.some(fv => fv.urlOriginal === f.urlOriginal));
+          return [...fotosValidadas, ...restantes];
+        }
+      }
+    } catch (err) {
+      console.warn('[catalogJevService] Fallback gracioso na validação Jev de fotos:', (err as Error).message);
+    }
+
+    return fotos;
   }
 };
