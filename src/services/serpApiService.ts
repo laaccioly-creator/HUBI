@@ -574,7 +574,8 @@ export const buscarFotosGoogleImagesSerpApi = async (
       logSerp('📡 [Método 1/4] Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
       const urlLocal = `/api/buscar-fotos-serpapi?${params.toString()}`;
       const ctrl = new AbortController();
-      const timeoutId = setTimeout(() => ctrl.abort(), 2500);
+      // Timeout realista de 7s para suportar raspagem inicial de novas pesquisas no Google Images
+      const timeoutId = setTimeout(() => ctrl.abort(), 7000);
       const response = await fetch(urlLocal, { signal: ctrl.signal });
       clearTimeout(timeoutId);
 
@@ -599,11 +600,12 @@ export const buscarFotosGoogleImagesSerpApi = async (
           rawJson.error?.toLowerCase?.().includes('invalid api key') ||
           rawJson.error?.toLowerCase?.().includes('unauthorized')
         ) {
-          logSerpErro('Chave SerpApi inválida no proxy local.');
-          throw new SerpApiAuthError();
-        }
-
-        if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
+          if (!lojaId) {
+            logSerpErro('Chave SerpApi inválida no proxy local.');
+            throw new SerpApiAuthError();
+          }
+          logSerpAviso('Proxy local sem chave configurada, continuando para Supabase RPC que lê pelo lojaId...');
+        } else if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
           const itens = rawJson.images_results || rawJson.results;
           const fotos = formatarResultadosSerpApi(itens, queryFinal, num);
           logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
@@ -621,7 +623,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
 
   // =========================================================================
   // MÉTODO 2: Supabase RPC (PostgreSQL direto com extensions.http)
-  // Altíssima velocidade (~1s) e livre de problemas de cold-start de containers
+  // Altíssima velocidade (~1s em cache, ~3.5s em busca inédita)
   // =========================================================================
   try {
     logSerp('📡 [Método 2/4] Supabase RPC (buscar_fotos_serpapi_rpc)...');
@@ -633,7 +635,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     });
 
     const rpcTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout de 3.500ms no RPC Postgres')), 3500)
+      setTimeout(() => reject(new Error('Timeout de 7.500ms no RPC Postgres')), 7500)
     );
 
     const { data: rpcData, error: rpcError } = await Promise.race([rpcPromise, rpcTimeout]);
@@ -653,7 +655,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
       if (rpcData.sucesso && Array.isArray(rpcData.results)) {
         if (rpcData.results.length > 0) {
           const fotos = formatarResultadosSerpApi(rpcData.results, queryFinal, num);
-          logSerpSucesso(`Encontradas ${fotos.length} fotos via Supabase RPC em ~1s!`, fotos);
+          logSerpSucesso(`Encontradas ${fotos.length} fotos via Supabase RPC!`, fotos);
           salvarCacheSerp(queryFinal, fotos);
           return fotos;
         }
@@ -668,7 +670,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
 
   // =========================================================================
   // MÉTODO 3: Supabase Edge Function (buscar-fotos-serpapi)
-  // Fallback secundário com timeout estrito de 3.5s para não travar na tela
+  // Fallback secundário com timeout de 7.5s
   // =========================================================================
   try {
     logSerp('📡 [Método 3/4] Supabase Edge Function (buscar-fotos-serpapi)...');
@@ -682,7 +684,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     });
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout de 3.500ms na Edge Function')), 3500)
+      setTimeout(() => reject(new Error('Timeout de 7.500ms na Edge Function')), 7500)
     );
 
     const { data: edgeData, error: edgeError } = await Promise.race([edgePromise, timeoutPromise]);
