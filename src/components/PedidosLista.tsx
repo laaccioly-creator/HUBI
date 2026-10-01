@@ -83,6 +83,8 @@ import {
   podeEditarPedido
 } from '../utils/statusPedidoUtils';
 
+import { orderGuardJevService, RestricaoOperacionalPedido } from '../services/orderGuardJevService';
+
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
 type OrdenacaoDirecao = 'asc' | 'desc';
 
@@ -101,6 +103,72 @@ export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
   if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
   if (u.includes('404')) return false;
   return true;
+};
+
+// Componente de Badge de Restrição Operacional Crítica (TypeSafe Jev)
+export const BadgeRestricaoPedido: React.FC<{ observacao: string | null | undefined; compacto?: boolean }> = ({ observacao, compacto }) => {
+  const [restricao, setRestricao] = useState<RestricaoOperacionalPedido | null>(null);
+
+  useEffect(() => {
+    if (!observacao) {
+      setRestricao(null);
+      return;
+    }
+    let ativo = true;
+    orderGuardJevService.analisarObservacao(observacao).then((res) => {
+      if (ativo) setRestricao(res);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [observacao]);
+
+  if (!restricao || !restricao.temRestricao) return null;
+
+  if (compacto) {
+    return (
+      <span
+        title={restricao.detalhe}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border animate-pulse ${
+          restricao.cor === 'rose'
+            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+            : restricao.cor === 'amber'
+            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+            : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+        }`}
+      >
+        <AlertTriangle className="w-2.5 h-2.5" />
+        <span>{restricao.rotulo}</span>
+      </span>
+    );
+  }
+
+  return (
+    <div
+      className={`p-2.5 rounded-2xl border text-xs flex items-start gap-2.5 transition animate-in fade-in ${
+        restricao.cor === 'rose'
+          ? 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+          : restricao.cor === 'amber'
+          ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+          : 'bg-sky-950/30 border-sky-500/40 text-sky-200'
+      }`}
+    >
+      <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${
+        restricao.cor === 'rose' ? 'text-rose-400' : restricao.cor === 'amber' ? 'text-amber-400' : 'text-sky-400'
+      }`} />
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="font-black text-[11px] uppercase tracking-wide">{restricao.rotulo}</span>
+          <span className="text-[9px] px-1 py-0.2 rounded bg-black/40 text-slate-300 font-bold">
+            Jev Guard
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-300 leading-tight">
+          &ldquo;{restricao.detalhe}&rdquo;
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export const PedidosLista: React.FC = () => {
@@ -2540,6 +2608,9 @@ export const PedidosLista: React.FC = () => {
                     />
                     <span>Exibir no recibo</span>
                   </label>
+
+                  {/* Alerta de Restrição Operacional Jev TypeSafe */}
+                  <BadgeRestricaoPedido observacao={observacaoTexto} />
                 </div>
               </div>
 
@@ -3456,9 +3527,14 @@ export const PedidosLista: React.FC = () => {
                         </td>
 
                         <td className="py-2.5 px-2.5 whitespace-nowrap">
-                          <span className="font-semibold text-slate-200">
-                            {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-slate-200">
+                              {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
+                            </span>
+                            {pedido.observacoes && (
+                              <BadgeRestricaoPedido observacao={pedido.observacoes} compacto={true} />
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-slate-400">

@@ -33,8 +33,13 @@ import {
   Download,
   Copy,
   Truck,
-  Store
+  Store,
+  ShieldCheck,
+  AlertTriangle,
+  AlertOctagon,
+  Sparkles
 } from 'lucide-react';
+import { creditRiskJevService, AvaliacaoRiscoCredito } from '../services/creditRiskJevService';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -355,6 +360,44 @@ export const PosCheckout: React.FC = () => {
   const totalLinhasPagamento = useMemo(() => {
     return linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   }, [linhasPagamento]);
+
+  // Fase 4: Avaliação Preditiva de Risco de Crédito no Fiado (TypeSafe Jev)
+  const [avaliacaoRiscoFiado, setAvaliacaoRiscoFiado] = useState<AvaliacaoRiscoCredito | null>(null);
+  const [avaliandoRiscoFiado, setAvaliandoRiscoFiado] = useState<boolean>(false);
+
+  const valorLinhaFiado = useMemo(() => {
+    const lFiado = linhasPagamento.find(l => l.forma_tipo === 'fiado');
+    return lFiado ? Number(lFiado.valor || 0) : 0;
+  }, [linhasPagamento]);
+
+  useEffect(() => {
+    if (!clienteSelecionado || !loja?.id || valorLinhaFiado <= 0) {
+      setAvaliacaoRiscoFiado(null);
+      return;
+    }
+
+    let ativo = true;
+    const timer = setTimeout(async () => {
+      setAvaliandoRiscoFiado(true);
+      try {
+        const res = await creditRiskJevService.avaliarRiscoFiado({
+          cliente: clienteSelecionado,
+          lojaId: loja.id,
+          valorVendaAtual: valorLinhaFiado,
+        });
+        if (ativo) setAvaliacaoRiscoFiado(res);
+      } catch (err) {
+        console.warn('Erro ao avaliar risco de crédito fiado:', err);
+      } finally {
+        if (ativo) setAvaliandoRiscoFiado(false);
+      }
+    }, 300);
+
+    return () => {
+      ativo = false;
+      clearTimeout(timer);
+    };
+  }, [clienteSelecionado, loja?.id, valorLinhaFiado]);
 
   const diferencaPagamento = useMemo(() => {
     return Number((total - totalLinhasPagamento).toFixed(2));
@@ -2656,7 +2699,7 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Fiado: Informações do Cliente e Limite */}
                     {linha.forma_tipo === 'fiado' && (
-                      <div className="p-2.5 bg-amber-950/30 border border-amber-500/30 rounded-xl space-y-1 text-xs text-amber-200">
+                      <div className="p-2.5 bg-amber-950/30 border border-amber-500/30 rounded-xl space-y-2 text-xs text-amber-200">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-amber-400">Cliente Fiado:</span>
                           <span className="text-slate-200 font-semibold truncate max-w-[200px]">
@@ -2676,6 +2719,42 @@ export const PosCheckout: React.FC = () => {
                             ⚠️ Valor informado excede o limite disponível de {formatarMoeda(Number(clienteSelecionado?.limite_credito || 0))}.
                           </p>
                         )}
+
+                        {/* Fase 4: Análise Preditiva de Risco de Crédito (TypeSafe Jev) */}
+                        {avaliandoRiscoFiado ? (
+                          <div className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-900/60 text-slate-400 text-[11px] animate-pulse">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                            <span>Analisando comportamento financeiro com IA...</span>
+                          </div>
+                        ) : avaliacaoRiscoFiado ? (
+                          <div className={`p-2 rounded-xl border space-y-1 transition text-xs ${
+                            avaliacaoRiscoFiado.badgeCor === 'emerald'
+                              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
+                              : avaliacaoRiscoFiado.badgeCor === 'amber'
+                              ? 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+                              : 'bg-rose-950/40 border-rose-500/40 text-rose-200'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 font-bold">
+                                {avaliacaoRiscoFiado.badgeCor === 'emerald' && <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />}
+                                {avaliacaoRiscoFiado.badgeCor === 'amber' && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
+                                {avaliacaoRiscoFiado.badgeCor === 'rose' && <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />}
+                                <span className="text-[11px] uppercase tracking-wide font-black">{avaliacaoRiscoFiado.titulo}</span>
+                              </div>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/40 text-slate-300 flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Jev AI
+                              </span>
+                            </div>
+                            <p className="text-[11px] leading-tight text-slate-300">
+                              {avaliacaoRiscoFiado.recomendacao}
+                            </p>
+                            {avaliacaoRiscoFiado.totalFiadosQuitados > 0 && (
+                              <span className="text-[10px] text-slate-400 block">
+                                • {avaliacaoRiscoFiado.totalFiadosQuitados} compras fiado quitadas anteriormente
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>

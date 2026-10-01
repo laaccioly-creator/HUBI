@@ -3164,7 +3164,9 @@ Fico no aguardo da confirmação! ✨`;
               setModalShippingAberto(false);
             }
           }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in"
+          className={`fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in transition-opacity duration-200 ${
+            modalEnderecoAberto ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
         >
           <div className="bg-slate-900 border-2 border-slate-600/80 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto text-white">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">

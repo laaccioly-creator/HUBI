@@ -179,7 +179,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   useEffect(() => {
     if (enderecoInicialDetectado) {
       setEnderecoSelecionado(prev => {
-        if (!prev || (prev.cep !== enderecoInicialDetectado.cep || prev.logradouro !== enderecoInicialDetectado.logradouro)) {
+        if (
+          !prev ||
+          prev.cep !== enderecoInicialDetectado.cep ||
+          prev.logradouro !== enderecoInicialDetectado.logradouro ||
+          prev.numero !== enderecoInicialDetectado.numero ||
+          prev.complemento !== enderecoInicialDetectado.complemento ||
+          prev.bairro !== enderecoInicialDetectado.bairro ||
+          prev.cidade !== enderecoInicialDetectado.cidade ||
+          prev.uf !== enderecoInicialDetectado.uf
+        ) {
           return enderecoInicialDetectado;
         }
         return prev;
@@ -555,7 +564,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
 
     const pacoteAtual = obterPacoteAtual();
-    const chaveCotacao = `${endAlvo.cep}_${endAlvo.numero}_${subtotal}_${itensSig}_${configLoja?.id || 'loja'}_${pacoteAtual.quantidade_volumes}_${pacoteAtual.peso_kg}_${pacoteAtual.comprimento_cm}_${pacoteAtual.largura_cm}_${pacoteAtual.altura_cm}`;
+    const chaveCotacao = `${endAlvo.cep}_${endAlvo.logradouro}_${endAlvo.numero}_${endAlvo.bairro}_${subtotal}_${itensSig}_${configLoja?.id || 'loja'}_${pacoteAtual.quantidade_volumes}_${pacoteAtual.peso_kg}_${pacoteAtual.comprimento_cm}_${pacoteAtual.largura_cm}_${pacoteAtual.altura_cm}`;
     if (!forcar && ultimaCotacaoParamRef.current === chaveCotacao) {
       return;
     }

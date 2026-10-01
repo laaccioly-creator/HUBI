@@ -35,11 +35,16 @@ import {
   ShoppingCart,
   FileSpreadsheet,
   Pencil,
-  Trash2
+  Trash2,
+  ShieldCheck,
+  AlertOctagon,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { cashAuditJevService, AuditoriaCaixaJev } from '../services/cashAuditJevService';
+
 import {
   TransacaoFinanceira,
   Caixa,
@@ -57,6 +62,78 @@ import { financeExportService } from '../services/financeExportService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
+
+// Componente de Auditoria de Fechamento de Caixa com Jev TypeSafe
+const CardAuditoriaFechamentoCaixa: React.FC<{
+  diferencaDinheiro: number;
+  totalEntradas: number;
+  observacaoFechamento?: string | null;
+  usuarioNome?: string;
+}> = ({ diferencaDinheiro, totalEntradas, observacaoFechamento, usuarioNome }) => {
+  const [auditoria, setAuditoria] = useState<AuditoriaCaixaJev | null>(null);
+  const [carregando, setCarregando] = useState<boolean>(true);
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregando(true);
+    cashAuditJevService
+      .auditarFechamento({ diferencaDinheiro, totalEntradas, observacaoFechamento, usuarioNome })
+      .then((res) => {
+        if (ativo) setAuditoria(res);
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [diferencaDinheiro, totalEntradas, observacaoFechamento, usuarioNome]);
+
+  if (carregando) {
+    return (
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2 text-xs text-slate-500 animate-pulse">
+        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+        <span>Auditoria de fechamento via IA TypeSafe...</span>
+      </div>
+    );
+  }
+
+  if (!auditoria) return null;
+
+  return (
+    <div
+      className={`p-3.5 rounded-2xl border text-xs flex items-start gap-3 transition ${
+        auditoria.badgeCor === 'emerald'
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          : auditoria.badgeCor === 'amber'
+          ? 'bg-amber-50 border-amber-200 text-amber-900'
+          : 'bg-rose-50 border-rose-200 text-rose-900'
+      }`}
+    >
+      {auditoria.badgeCor === 'emerald' && <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />}
+      {auditoria.badgeCor === 'amber' && <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />}
+      {auditoria.badgeCor === 'rose' && <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />}
+
+      <div className="space-y-1 flex-1">
+        <div className="flex items-center justify-between">
+          <span className="font-extrabold text-xs uppercase tracking-wide">
+            {auditoria.nivel === 'conciliado'
+              ? 'Conferência de Caixa Conciliada'
+              : auditoria.nivel === 'atencao'
+              ? 'Divergência Tolerável • Atenção'
+              : 'Requer Auditoria da Gerência'}
+          </span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/5 text-slate-700 flex items-center gap-1">
+            <Sparkles className="w-2.5 h-2.5 text-amber-500" /> Jev Audit
+          </span>
+        </div>
+        <p className="text-xs text-slate-700 leading-relaxed font-medium">
+          {auditoria.parecer}
+        </p>
+      </div>
+    </div>
+  );
+};
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -3572,6 +3649,16 @@ export const FinancasCaixa: React.FC = () => {
                       </span>
                     </div>
                   </div>
+
+                  {/* PARECER DE AUDITORIA INTELIGENTE DE FECHAMENTO (Jev TypeSafe) */}
+                  {sessaoDrillDown.fechado_em && (
+                    <CardAuditoriaFechamentoCaixa
+                      diferencaDinheiro={Number(sessaoDrillDown.diferenca_dinheiro || 0)}
+                      totalEntradas={resumoDrillDown.faturamentoTotalVendas}
+                      observacaoFechamento={sessaoDrillDown.observacoes_fechamento}
+                      usuarioNome={sessaoDrillDown.usuario_fechamento?.nome_completo}
+                    />
+                  )}
 
                   {/* TABELA DE MOVIMENTAÇÕES AUDITADAS */}
                   <div className="space-y-2">
