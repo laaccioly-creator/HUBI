@@ -177,6 +177,15 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     audioAtivoRef.current = audioAtivo;
   }, [audioAtivo]);
 
+  // Controle de diálogo ativo vs. repouso e prevenção de eco
+  const pensandoRef = useRef<boolean>(false);
+  const ultimoMomentoInteracaoRef = useRef<number>(0);
+  const ultimoChimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    pensandoRef.current = pensando;
+  }, [pensando]);
+
   // Notificação / Toast visual dentro do chat
   const [toastNotificacao, setToastNotificacao] = useState<string | null>(null);
 
@@ -231,7 +240,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     setEscutandoVoz(false);
 
     if (enviarSeTiverTexto && textoCapturadoRef.current.trim()) {
-      enviarMensagem(textoCapturadoRef.current.trim());
+      const aEnviar = textoCapturadoRef.current.trim();
+      textoCapturadoRef.current = '';
+      setInputTexto('');
+      enviarMensagem(aEnviar);
     }
   };
 
@@ -268,56 +280,101 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           const textoCompleto = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
           if (!textoCompleto) return;
 
+          // Se a própria Rubi estiver falando ou processando, ignora captação para evitar eco
+          if (rubiFalandoRef.current || pensandoRef.current) return;
+
           // 1. RECONHECIMENTO DE WAKE WORD ("RUBI...") COMO A ALEXA
-          if (modoWakeWordRef.current) {
-            // Ignora se a própria Rubi estiver falando no momento para não capturar a própria voz
-            if (rubiFalandoRef.current) return;
+          const matchWake = textoCompleto.match(/\b(?:ei\s+|ol[aá]\s+|oi\s+)?(rubi|ruby|rubie|rubee)\b/i);
 
-            const matchWake = textoCompleto.match(/\b(?:ei\s+|ol[aá]\s+|oi\s+)?(rubi|ruby|rubie|rubee)\b/i);
-            if (matchWake) {
+          if (matchWake) {
+            // Toca chime suave de despertar (com throttle de 3s para não tocar repetido nos chunks)
+            const agora = Date.now();
+            if (agora - ultimoChimeRef.current > 3000) {
               audioService.playRubiWakeWordSound();
-              setAberto(true);
-
-              const fimWake = (matchWake.index || 0) + matchWake[0].length;
-              const comando = textoCompleto.slice(fimWake).replace(/^[,:\s]+/, '').trim();
-
-              if (comando.length >= 3) {
-                // Usuário já emendou o comando: ex: "Rubi, quais os produtos em promoção?"
-                textoCapturadoRef.current = '';
-                setInputTexto('');
-                enviarMensagem(comando);
-              } else {
-                // Usuário apenas chamou por "Rubi"
-                const respostaAcordada = 'Oi! Tô aqui, pode falar! 😊';
-                setMensagens(prev => [
-                  ...prev,
-                  {
-                    id: (Date.now() + 1).toString(),
-                    remetente: 'rubi',
-                    texto: respostaAcordada,
-                    data: new Date()
-                  }
-                ]);
-                falarTexto(respostaAcordada);
-                mostrarToastFeedback('Rubi acordou! Pode falar...');
-              }
-              return;
+              ultimoChimeRef.current = agora;
             }
+            setAberto(true);
+
+            const fimWake = (matchWake.index || 0) + matchWake[0].length;
+            const comando = textoCompleto.slice(fimWake).replace(/^[,:\s]+/, '').trim();
+
+            if (comando.length >= 3) {
+              // Usuário emendou o comando logo após dizer Rubi (ex: "Rubi, quais os produtos em promoção?")
+              textoCapturadoRef.current = comando;
+              setInputTexto(comando);
+
+              // Reiniciar timer de silêncio: 2 segundos de pausa após terminar a fala enviam a mensagem
+              if (silencioTimerRef.current) {
+                clearTimeout(silencioTimerRef.current);
+              }
+              silencioTimerRef.current = setTimeout(() => {
+                const aEnviar = textoCapturadoRef.current.trim();
+                if (aEnviar.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
+                  textoCapturadoRef.current = '';
+                  setInputTexto('');
+                  try {
+                    recognitionRef.current?.stop();
+                  } catch {}
+                  enviarMensagem(aEnviar);
+                }
+              }, 2000);
+            } else {
+              // O usuário disse apenas "Rubi" (ou ainda está no início da frase)
+              // Concede 1.4s para verificar se ele vai complementar a frase ou se chamou só por "Rubi"
+              if (silencioTimerRef.current) {
+                clearTimeout(silencioTimerRef.current);
+              }
+              silencioTimerRef.current = setTimeout(() => {
+                const comandoPendente = textoCapturadoRef.current.trim();
+                if (!comandoPendente || comandoPendente.length < 3) {
+                  const tempoDecorrido = Date.now() - ultimoMomentoInteracaoRef.current;
+                  const estavaDormindo = tempoDecorrido > 18000; // Mais de 18s em repouso
+
+                  if (estavaDormindo) {
+                    const respostaAcordada = 'Oi! 😊';
+                    setMensagens(prev => [
+                      ...prev,
+                      {
+                        id: (Date.now() + 1).toString(),
+                        remetente: 'rubi',
+                        texto: respostaAcordada,
+                        data: new Date()
+                      }
+                    ]);
+                    falarTexto('Oi!');
+                    mostrarToastFeedback('Rubi pronta! Pode falar...');
+                  }
+                  ultimoMomentoInteracaoRef.current = Date.now();
+                  textoCapturadoRef.current = '';
+                  setInputTexto('');
+                  try {
+                    recognitionRef.current?.stop();
+                  } catch {}
+                }
+              }, 1400);
+            }
+            return;
           }
 
-          // 2. MODO MANUAL DE FALA COM MICROFONE
+          // 2. FALA CONTÍNUA / COMANDO DO CLIENTE (SEM CITAR "RUBI" NOVAMENTE)
           textoCapturadoRef.current = textoCompleto;
           setInputTexto(textoCompleto);
 
-          // Reiniciar timer de silêncio: concede 3 segundos inteiros de silêncio para terminar a frase com calma
+          // Reiniciar timer de silêncio: concede 2 segundos de pausa após terminar a fala para enviar automaticamente
           if (silencioTimerRef.current) {
             clearTimeout(silencioTimerRef.current);
           }
           silencioTimerRef.current = setTimeout(() => {
-            if (deveContinuarOuvindoRef.current && textoCapturadoRef.current.trim()) {
-              pararGravacaoVoz(true);
+            const aEnviar = textoCapturadoRef.current.trim();
+            if (aEnviar.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
+              textoCapturadoRef.current = '';
+              setInputTexto('');
+              try {
+                recognitionRef.current?.stop();
+              } catch {}
+              enviarMensagem(aEnviar);
             }
-          }, 3000);
+          }, 2000);
         };
 
         recognition.onerror = (event: any) => {
@@ -335,21 +392,34 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         };
 
         recognition.onend = () => {
+          setEscutandoVoz(false);
+          const textoPendente = textoCapturadoRef.current.trim();
+
+          // Se o recognition encerrou e tínhamos comando falado pendente:
+          if (textoPendente.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
+            if (silencioTimerRef.current) {
+              clearTimeout(silencioTimerRef.current);
+              silencioTimerRef.current = null;
+            }
+            textoCapturadoRef.current = '';
+            setInputTexto('');
+            enviarMensagem(textoPendente);
+            return;
+          }
+
           if (deveContinuarOuvindoRef.current) {
             try {
               recognition.start();
             } catch {}
-          } else if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+          } else if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
             // No modo sempre atenta, reinicia a escuta de fundo em loop contínuo
             setTimeout(() => {
-              if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+              if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
                 try {
                   recognition.start();
                 } catch {}
               }
             }, 300);
-          } else {
-            setEscutandoVoz(false);
           }
         };
 
@@ -386,7 +456,6 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       modoWakeWordRef.current = true;
       audioService.playRubiWakeWordSound();
       mostrarToastFeedback('Modo Sempre Atenta ativado! Basta dizer "Rubi..." a qualquer momento.');
-      falarTexto('Modo Sempre Atenta ativado! Agora basta me chamar dizendo Rubi!');
       try {
         recognitionRef.current.start();
       } catch {}
@@ -557,10 +626,11 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         setRubiFalando(false);
         rubiFalandoRef.current = false;
         currentUtteranceRef.current = null;
+        ultimoMomentoInteracaoRef.current = Date.now();
         // Retoma a escuta atenta do Wake Word "Rubi..." assim que terminar de responder
         if (modoWakeWordRef.current && recognitionRef.current) {
           setTimeout(() => {
-            if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+            if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
               try {
                 recognitionRef.current.start();
               } catch {}
@@ -573,9 +643,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         setRubiFalando(false);
         rubiFalandoRef.current = false;
         currentUtteranceRef.current = null;
+        ultimoMomentoInteracaoRef.current = Date.now();
         if (modoWakeWordRef.current && recognitionRef.current) {
           setTimeout(() => {
-            if (modoWakeWordRef.current && !rubiFalandoRef.current) {
+            if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
               try {
                 recognitionRef.current.start();
               } catch {}
@@ -634,8 +705,9 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   // Envio de mensagem (por clique ou voz)
   const enviarMensagem = async (textoPersonalizado?: string, produtoAlvo?: Produto | null) => {
     const texto = (textoPersonalizado || inputTexto).trim();
-    if (!texto || pensando) return;
+    if (!texto || pensandoRef.current) return;
 
+    pensandoRef.current = true;
     pararFalaRubi();
     pararGravacaoVoz(false);
 
@@ -653,6 +725,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     setMensagens(prev => [...prev, msgUsuario]);
     setInputTexto('');
     setPensando(true);
+    ultimoMomentoInteracaoRef.current = Date.now();
 
     try {
       const contextoAtualizado: ContextoLojaCatalogo = {
@@ -727,6 +800,8 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       falarTexto(erroTexto);
     } finally {
       setPensando(false);
+      pensandoRef.current = false;
+      ultimoMomentoInteracaoRef.current = Date.now();
     }
   };
 
@@ -1154,7 +1229,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                   </span>
                   <span className="truncate font-medium text-[11px]">
                     {inputTexto.trim()
-                      ? 'Ouvindo... Pode falar no seu ritmo (pausa de 3s envia)'
+                      ? 'Ouvindo... Pode falar no seu ritmo (pausa de 2s envia automaticamente)'
                       : 'Gravando... Fale a sua frase com calma, estou te ouvindo!'}
                   </span>
                 </div>
