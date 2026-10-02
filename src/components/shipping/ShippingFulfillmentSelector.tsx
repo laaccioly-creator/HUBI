@@ -212,6 +212,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // Sub-via de entrega: 'cotar' (integrações automáticas) ou 'manual' (formas cadastradas)
   const [viaEntrega, setViaEntrega] = useState<'cotar' | 'manual'>('cotar');
+  const inicializouAbaViaEntregaRef = useRef<boolean>(false);
 
   // Estados isolados por ID da modalidade manual (chave: forma.id)
   const [valoresManuais, setValoresManuais] = useState<Record<string, string>>({});
@@ -347,7 +348,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           );
           if (formaAtiva) {
             setFormaManualEscolhidaId(formaAtiva.id);
-            setViaEntrega('manual');
             if (dadosEnvioIniciais?.codigoCorrida) {
               setCodigosCorrida(prev => ({ ...prev, [formaAtiva.id]: dadosEnvioIniciais.codigoCorrida || '' }));
             }
@@ -376,7 +376,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     return () => {
       ativo = false;
     };
-  }, [lojaId, opcaoSelecionadaId, valorFreteAtual, dadosEnvioIniciais]);
+  }, [lojaId, opcaoSelecionadaId, valorFreteAtual, dadosEnvioIniciais?.formaEntregaId]);
 
   // Refs de proteção contra re-renderizações e loops infinitos
   const onChangeRef = useRef(onChange);
@@ -560,9 +560,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
   }, [configLoja, permiteRetirada, modalidade]);
 
-  // Se nenhuma integração logística automática estiver ativa, força o modo manual
+  // Se houver integração automática ativa (Melhor Envio ou Uber Direct), abre e prioriza 'cotar'.
+  // Se nenhuma integração estiver configurada, abre e permanece exclusivamente em 'manual'.
   useEffect(() => {
-    if (configLoja && !temIntegracaoAutomatica) {
+    if (!configLoja) return;
+    if (!inicializouAbaViaEntregaRef.current) {
+      inicializouAbaViaEntregaRef.current = true;
+      if (temIntegracaoAutomatica) {
+        setViaEntrega('cotar');
+      } else {
+        setViaEntrega('manual');
+      }
+    } else if (!temIntegracaoAutomatica) {
       setViaEntrega('manual');
     }
   }, [configLoja, temIntegracaoAutomatica]);

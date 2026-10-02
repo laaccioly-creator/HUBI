@@ -333,7 +333,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 enderecoEscolhido?.id === enderecoGps?.id && enderecoGps
                   ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
-                  : 'bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300'
+                  : 'bg-black hover:bg-slate-950 border border-slate-800 text-white font-bold'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -408,7 +408,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         estaSelecionado
                           ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
-                          : 'bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300'
+                          : 'bg-black hover:bg-slate-950 border border-slate-800 text-white font-bold'
                       }`}
                     >
                       <div className="flex items-start gap-2.5 min-w-0">
@@ -620,7 +620,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
             type="button"
             onClick={onFechar}
             disabled={salvandoNovo}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="px-4 py-2.5 rounded-xl border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40 font-semibold text-xs transition cursor-pointer"
           >
             Cancelar
           </button>
@@ -635,12 +635,12 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               {salvandoNovo ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Salvando Endereço...</span>
+                  <span>Salvando...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmar Endereço</span>
+                  <span>Confirmar</span>
                 </>
               )}
             </button>
@@ -652,7 +652,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Confirmar Endereço</span>
+              <span>Confirmar</span>
             </button>
           )}
         </div>

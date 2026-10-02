@@ -221,7 +221,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
                 setSelecaoPendente(null);
                 onClose();
               }}
-              className="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40 font-semibold text-xs transition cursor-pointer"
             >
               Cancelar
             </button>
@@ -230,17 +230,17 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               type="button"
               disabled={!selecaoPendente || salvando}
               onClick={handleConfirmar}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-950/40 transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-950/40 transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {salvando ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Gravando Envio...</span>
+                  <span>Confirmando...</span>
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4 stroke-[2.5]" />
-                  <span>CONFIRMAR FORMA DE ENVIO</span>
+                  <span>Confirmar</span>
                 </>
               )}
             </button>
