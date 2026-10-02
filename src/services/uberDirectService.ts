@@ -48,7 +48,7 @@ export class UberDirectService {
    */
   private static formatarOpcaoUber(
     responseData: UberDeliveryQuoteResponse,
-    isSandbox: boolean = false
+    _isSandbox: boolean = false
   ): OpcaoFreteCotada | null {
     const msg = (responseData.message || responseData.code || '').toLowerCase();
     const metadataDetails = ((responseData as any).metadata?.details || '').toLowerCase();
@@ -56,19 +56,6 @@ export class UberDirectService {
 
     if (msg.includes('tax_form_required') || msg.includes('customer_blocked')) {
       console.warn('[UberDirect] Conta com pendência cadastral/fiscal no painel da Uber:', responseData.message);
-      if (isSandbox) {
-        // Fallback simulado para ambiente de teste/sandbox (zero risco e sem cobrança real)
-        return {
-          id: `uber-direct-${Date.now()}`,
-          provedor: 'uber',
-          transportadora_nome: 'Uber Direct',
-          servico_codigo: 'uber_flash',
-          servico_nome: 'Uber Flash / Moto (Teste)',
-          valor_frete: 14.50,
-          prazo_estimado_texto: 'Aprox. 25 a 35 min (Entrega Imediata)',
-          icone_tipo: 'uber'
-        };
-      }
       return {
         id: 'uber-blocked',
         provedor: 'uber',
@@ -78,6 +65,8 @@ export class UberDirectService {
         valor_frete: 0,
         prazo_estimado_texto: 'Regularize em direct.uber.com',
         icone_tipo: 'uber',
+        desabilitada: true,
+        motivo_desabilitada: 'Conta com pendência fiscal no painel da Uber',
         erro: 'Conta com pendência de formulário fiscal no painel da Uber Direct.'
       };
     }
@@ -89,9 +78,13 @@ export class UberDirectService {
       fullMsg.includes('unsupported') ||
       fullMsg.includes('address_undeliverable') ||
       fullMsg.includes('outside the delivery radius') ||
-      fullMsg.includes('outside_delivery_radius')
+      fullMsg.includes('outside_delivery_radius') ||
+      fullMsg.includes('out_of_delivery_zone') ||
+      fullMsg.includes('no_couriers_available') ||
+      fullMsg.includes('not_supported') ||
+      fullMsg.includes('route_not_found')
     ) {
-      console.warn('[UberDirect] Entrega indisponível para esta localidade (raio excedido > 5 km ou fora de cobertura).');
+      console.warn('[UberDirect] Entrega indisponível para esta localidade conforme API da Uber Direct.');
       return {
         id: `uber-direct-disabled-${Date.now()}`,
         provedor: 'uber',
@@ -99,17 +92,32 @@ export class UberDirectService {
         servico_codigo: 'uber_flash',
         servico_nome: 'Uber Flash / Moto',
         valor_frete: 0,
-        prazo_estimado_texto: 'Fora do raio de atendimento (máx. 5 km)',
+        prazo_estimado_texto: 'Fora do raio de cobertura da Uber Direct',
         icone_tipo: 'uber',
         desabilitada: true,
-        motivo_desabilitada: 'Fora do raio de atendimento'
+        motivo_desabilitada: 'Endereço não atendido pela Uber Direct no momento'
+      };
+    }
+
+    // Se não há taxa definida na resposta ou se há indicação de erro/falha
+    if (typeof responseData.fee !== 'number' || responseData.fee <= 0) {
+      console.warn('[UberDirect] Cotação sem taxa válida da Uber Direct:', responseData);
+      return {
+        id: `uber-direct-disabled-${Date.now()}`,
+        provedor: 'uber',
+        transportadora_nome: 'Uber Direct',
+        servico_codigo: 'uber_flash',
+        servico_nome: 'Uber Flash / Moto',
+        valor_frete: 0,
+        prazo_estimado_texto: 'Indisponível no momento',
+        icone_tipo: 'uber',
+        desabilitada: true,
+        motivo_desabilitada: responseData.message || 'Endereço não atendido pela Uber Direct no momento'
       };
     }
 
     // Uber retorna taxa em centavos na maioria dos endpoints de entrega direta
-    const taxaEmReais = typeof responseData.fee === 'number'
-      ? (responseData.fee > 100 ? responseData.fee / 100 : responseData.fee)
-      : 15.00;
+    const taxaEmReais = responseData.fee > 100 ? responseData.fee / 100 : responseData.fee;
 
     const duracaoMinutos = responseData.duration || 45;
     const prazoTexto = duracaoMinutos <= 60 
@@ -201,7 +209,7 @@ export class UberDirectService {
   public static async cotarEntrega(
     config: LojaShippingConfig,
     destinoEnderecoCompleto: string,
-    itens: CotacaoItemProduto[]
+    _itens: CotacaoItemProduto[]
   ): Promise<OpcaoFreteCotada | null> {
     if (!config.uber_ativo) {
       return null;
@@ -221,11 +229,60 @@ export class UberDirectService {
     ].filter(Boolean).join(', ');
 
     // -------------------------------------------------------------------------
-    // MÉTODO 1: Supabase RPC (PostgreSQL extensions.http) - Sem Bloqueio de CORS
+    // MÉTODO 1: Edge Function Supabase (uber-dispatch - acao: 'cotar')
+    // Chamada oficial server-side com token OAuth2 e sem problemas de CORS
+    // -------------------------------------------------------------------------
+    try {
+      console.log('[UberDirect] Solicitando cotação oficial via Edge Function uber-dispatch...');
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke('uber-dispatch', {
+        body: {
+          acao: 'cotar',
+          loja_id: config.loja_id,
+          pickup_address: enderecoOrigem,
+          dropoff_address: destinoEnderecoCompleto,
+          uber_customer_id: config.uber_customer_id,
+          uber_client_id: config.uber_client_id,
+          uber_client_secret: config.uber_client_secret,
+          uber_sandbox_mode: config.uber_sandbox_mode
+        }
+      });
+
+      if (!edgeErr && edgeRes) {
+        if (edgeRes.cobertura_atendida === false || !edgeRes.sucesso) {
+          console.warn('[UberDirect] Rota rejeitada pela API da Uber Direct:', edgeRes.error || edgeRes.mensagem);
+          return {
+            id: `uber-direct-disabled-${Date.now()}`,
+            provedor: 'uber',
+            transportadora_nome: 'Uber Direct',
+            servico_codigo: 'uber_flash',
+            servico_nome: 'Uber Flash / Moto',
+            valor_frete: 0,
+            prazo_estimado_texto: 'Fora do raio de cobertura da Uber Direct',
+            icone_tipo: 'uber',
+            desabilitada: true,
+            motivo_desabilitada: edgeRes.error || 'Endereço não atendido pela Uber Direct no momento'
+          };
+        }
+
+        if (edgeRes.sucesso && edgeRes.quote) {
+          console.log('[UberDirect] Cotação oficial confirmada pela API Uber Direct:', edgeRes.quote);
+          return this.formatarOpcaoUber(edgeRes.quote, config.uber_sandbox_mode);
+        }
+      }
+
+      if (edgeErr) {
+        console.warn('[UberDirect] Retorno com erro na Edge Function uber-dispatch:', edgeErr.message);
+      }
+    } catch (e: any) {
+      console.warn('[UberDirect] Exceção ao chamar Edge Function uber-dispatch:', e?.message || e);
+    }
+
+    // -------------------------------------------------------------------------
+    // MÉTODO 2: Supabase RPC (PostgreSQL extensions.http) - Fallback server-side
     // -------------------------------------------------------------------------
     try {
       if (config.loja_id) {
-        console.log('[UberDirect] Tentando cotação via Supabase RPC (sem CORS)...');
+        console.log('[UberDirect] Tentando cotação via Supabase RPC...');
         const { data: rpcRes, error: rpcErr } = await supabase.rpc('cotar_frete_uber_rpc', {
           p_loja_id: config.loja_id,
           p_pickup_address: enderecoOrigem,
@@ -240,17 +297,13 @@ export class UberDirectService {
             return this.formatarOpcaoUber(rpcRes.dados, config.uber_sandbox_mode);
           }
         }
-
-        if (rpcErr) {
-          console.info('[UberDirect] Supabase RPC não instalada ou indisponível:', rpcErr.message);
-        }
       }
     } catch (e: any) {
-      console.info('[UberDirect] Exceção ao tentar RPC Supabase:', e.message);
+      console.info('[UberDirect] Exceção ao tentar RPC Supabase:', e?.message);
     }
 
     // -------------------------------------------------------------------------
-    // MÉTODO 2: Proxy Local / Vite (/api/shipping/uber-quote)
+    // MÉTODO 3: Proxy Local / Vite (/api/shipping/uber-quote)
     // -------------------------------------------------------------------------
     try {
       const token = await this.obterTokenAutenticacao(config);
@@ -276,43 +329,24 @@ export class UberDirectService {
         return this.formatarOpcaoUber(quoteData, config.uber_sandbox_mode);
       }
     } catch {
-      // Proxy local indisponível, segue para chamada direta
+      // Proxy local indisponível
     }
 
-    // -------------------------------------------------------------------------
-    // MÉTODO 3: Chamada Direta via Browser (pode sofrer CORS em SPAs hospedadas)
-    // -------------------------------------------------------------------------
-    try {
-      const token = await this.obterTokenAutenticacao(config);
-      const baseUrl = this.getBaseUrl(config.uber_sandbox_mode);
-      const endpoint = `${baseUrl}/v1/customers/${encodeURIComponent(config.uber_customer_id.trim())}/delivery_quotes`;
-
-      const payload: UberDeliveryQuoteRequest = {
-        pickup_address: enderecoOrigem,
-        dropoff_address: destinoEnderecoCompleto
-      };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const responseData = await response.json() as UberDeliveryQuoteResponse;
-
-      if (!response.ok) {
-        return this.formatarOpcaoUber(responseData, config.uber_sandbox_mode);
-      }
-
-      return this.formatarOpcaoUber(responseData, config.uber_sandbox_mode);
-    } catch (err: unknown) {
-      const erroMsg = err instanceof Error ? err.message : String(err);
-      console.warn('[UberDirect] Falha graciosa na cotação direta (possível bloqueio CORS do navegador):', erroMsg);
-      return null;
-    }
+    // Se nenhum método conseguiu cotar ou se a rota não pôde ser verificada,
+    // NUNCA aplicar valor simulado/mock padrão.
+    console.warn('[UberDirect] Não foi possível obter cotação oficial da Uber Direct.');
+    return {
+      id: `uber-direct-disabled-${Date.now()}`,
+      provedor: 'uber',
+      transportadora_nome: 'Uber Direct',
+      servico_codigo: 'uber_flash',
+      servico_nome: 'Uber Flash / Moto',
+      valor_frete: 0,
+      prazo_estimado_texto: 'Indisponível no momento',
+      icone_tipo: 'uber',
+      desabilitada: true,
+      motivo_desabilitada: 'Endereço não atendido pela Uber Direct no momento'
+    };
   }
 
   /**

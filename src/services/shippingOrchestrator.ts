@@ -14,7 +14,7 @@ import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
-import { normalizarTexto, calcularDistanciaEntreEnderecosKm } from '../utils/geoUtils';
+import { normalizarTexto } from '../utils/geoUtils';
 
 export class ShippingOrchestrator {
   /**
@@ -429,31 +429,9 @@ export class ShippingOrchestrator {
       destino_cep
     ].filter(Boolean).join(', ');
 
-    // Validação preventiva do raio da Uber Direct (<= 5 km)
-    let distanciaUberKm: number | null = null;
-    if (config?.uber_ativo === true) {
-      try {
-        const enderecoOrigem = [
-          config.origem_logradouro,
-          config.origem_numero,
-          config.origem_bairro,
-          config.origem_cidade,
-          config.origem_uf,
-          config.origem_cep
-        ].filter(Boolean).join(', ');
-
-        distanciaUberKm = await calcularDistanciaEntreEnderecosKm(
-          { cep: config.origem_cep, endereco: enderecoOrigem },
-          { cep: destino_cep, endereco: enderecoDestinoLinha }
-        );
-      } catch (eDist) {
-        console.warn('[ShippingOrchestrator] Falha ao calcular distância:', eDist);
-      }
-    }
-
     const promessas: Promise<{ provedor: 'uber' | 'melhor_envio'; valor: any }>[] = [];
 
-    // 1. Uber Direct - APENAS se ativado explicitamente na loja
+    // 1. Uber Direct - Cotação oficial via API / Edge Function da Uber
     if (config?.uber_ativo === true) {
       promessas.push(
         UberDirectService.cotarEntrega(config, enderecoDestinoLinha, itens)
@@ -484,17 +462,7 @@ export class ShippingOrchestrator {
           if (res.value.provedor === 'uber' && res.value.valor) {
             const opcaoUber: OpcaoFreteCotada = { ...res.value.valor };
 
-            // Se calculamos a distância ou a Uber já marcou desabilitada
-            if (distanciaUberKm != null) {
-              opcaoUber.distancia_km = distanciaUberKm;
-              if (distanciaUberKm > 5) {
-                opcaoUber.desabilitada = true;
-                opcaoUber.motivo_desabilitada = `Fora do raio de atendimento (~${distanciaUberKm.toFixed(1)} km / máx: 5 km)`;
-                opcaoUber.prazo_estimado_texto = `Fora do raio (~${distanciaUberKm.toFixed(1)} km)`;
-              }
-            }
-
-            // Se houver erro cadastral da Uber, descarta; se for fora de raio, mantém com flag desabilitada
+            // Se for bloqueio fiscal/cadastral permanente, descarta; se for retorno de cobertura (ativo ou desabilitado), inclui
             if (opcaoUber.id !== 'uber-blocked' && (!opcaoUber.erro || opcaoUber.desabilitada)) {
               opcoesTotais.push(opcaoUber);
             }

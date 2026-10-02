@@ -331,6 +331,102 @@ serve(async (req: Request) => {
 
     const { access_token } = await tokenRes.json();
 
+    // 3.0. Ação: Cotação Oficial de Entrega em Tempo Real (POST /v1/customers/{customer_id}/delivery_quotes)
+    if (body.acao === "cotar" || body.acao === "quote" || body.acao === "cotacao") {
+      const baseUrl = isSandbox ? "https://sandbox-api.uber.com" : "https://api.uber.com";
+      const quoteEndpoint = `${baseUrl}/v1/customers/${encodeURIComponent(uberCustomerId)}/delivery_quotes`;
+
+      const rawPickup = body.pickup_address || body.origem_endereco;
+      const rawDropoff = body.dropoff_address || body.destino_endereco;
+
+      const pickupAddressStr = formatarEnderecoUber(
+        body.origem_logradouro || loja?.endereco_logradouro,
+        body.origem_numero || loja?.endereco_numero,
+        body.origem_complemento || loja?.endereco_complemento,
+        body.origem_bairro || loja?.endereco_bairro,
+        body.origem_cidade || loja?.endereco_cidade,
+        body.origem_uf || loja?.endereco_estado,
+        body.origem_cep || loja?.endereco_cep,
+        rawPickup
+      );
+
+      const dropoffAddressStr = formatarEnderecoUber(
+        body.destino_logradouro,
+        body.destino_numero,
+        body.destino_complemento,
+        body.destino_bairro,
+        body.destino_cidade,
+        body.destino_uf,
+        body.destino_cep,
+        rawDropoff
+      );
+
+      const quotePayload = {
+        pickup_address: pickupAddressStr,
+        dropoff_address: dropoffAddressStr,
+      };
+
+      console.log(`[uber-dispatch] Solicitando cotação oficial Uber Direct (${isSandbox ? "Sandbox" : "Produção"}):`, quotePayload);
+
+      const quoteRes = await fetch(quoteEndpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(quotePayload),
+      });
+
+      const quoteText = await quoteRes.text();
+      let quoteData: any = {};
+      try {
+        quoteData = JSON.parse(quoteText);
+      } catch {
+        quoteData = { message: quoteText };
+      }
+
+      if (!quoteRes.ok) {
+        console.warn(`[uber-dispatch] Cotação rejeitada pela Uber (${quoteRes.status}):`, quoteData);
+        let msgAmigavel = "Endereço não atendido pela Uber Direct no momento.";
+        const rawMsg = (quoteData.message || quoteData.code || "").toLowerCase();
+        if (
+          rawMsg.includes("distance") ||
+          rawMsg.includes("radius") ||
+          rawMsg.includes("coverage") ||
+          rawMsg.includes("unsupported") ||
+          rawMsg.includes("out_of_delivery_zone") ||
+          rawMsg.includes("outside") ||
+          rawMsg.includes("undeliverable")
+        ) {
+          msgAmigavel = "Endereço fora do raio de cobertura da Uber Direct.";
+        } else if (rawMsg.includes("no_couriers") || rawMsg.includes("unavailable")) {
+          msgAmigavel = "Sem entregadores Uber Direct disponíveis nesta rota no momento.";
+        }
+
+        return new Response(
+          JSON.stringify({
+            sucesso: false,
+            cobertura_atendida: false,
+            status: quoteRes.status,
+            error: msgAmigavel,
+            code: quoteData.code || "OUT_OF_COVERAGE",
+            detalhes: quoteData,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("[uber-dispatch] Cotação Uber Direct aprovada:", quoteData.id, "Fee:", quoteData.fee);
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          cobertura_atendida: true,
+          quote: quoteData,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 3.1. Ação Especial: Consulta e Sincronização em Tempo Real de Status com a Uber Direct
     if (body.acao === "consultar_status" || body.acao === "sincronizar_status") {
       const deliveryId = body.delivery_id || pedido?.codigo_rastreio || entrega?.codigo_rastreio;
