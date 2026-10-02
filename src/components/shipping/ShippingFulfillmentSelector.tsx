@@ -92,6 +92,7 @@ export interface ShippingFulfillmentSelectorProps {
     telefoneEntregador?: string | null;
   } | null;
   onSolicitarAtualizarEndereco?: () => void;
+  onEnderecoAlterado?: (endereco: ClienteEndereco) => void;
   onChange: (resultado: ShippingSelectionResult) => void;
   className?: string;
   modoCompacto?: boolean;
@@ -157,6 +158,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   enderecoEntregaAtual,
   dadosEnvioIniciais,
   onSolicitarAtualizarEndereco,
+  onEnderecoAlterado,
   onChange,
   className = '',
   modoCompacto = false,
@@ -2521,6 +2523,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           onConfirmarEndereco={(novoEnd) => {
             enderecoEscolhidoManualmenteRef.current = novoEnd;
             setEnderecoSelecionado(novoEnd);
+            onEnderecoAlterado?.(novoEnd);
             executarCotacao(novoEnd, true);
           }}
         />

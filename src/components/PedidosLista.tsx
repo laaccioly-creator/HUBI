@@ -2315,59 +2315,26 @@ export const PedidosLista: React.FC = () => {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl md:text-2xl font-black text-slate-100 flex items-center gap-2">
-                  <span>Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}</span>
-                  <span className="text-emerald-400 font-bold text-lg">Total R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}</span>
+                <h1 className="text-xl md:text-2xl font-black text-slate-100 whitespace-nowrap">
+                  Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}
                 </h1>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-0.5">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{formatarData(pedidoSelecionado.data_venda || pedidoSelecionado.criado_em || '')}</span>
-                  </span>
-                  {pedidoSelecionado.origem === 'catalogo_online' ? (
-                    <>
-                      <span>•</span>
-                      <span className="text-sky-400 font-semibold">Origem: Catálogo Online</span>
-                    </>
-                  ) : pedidoSelecionado.vendedor?.nome_completo ? (
-                    <>
-                      <span>•</span>
-                      <span>Vendedor: {pedidoSelecionado.vendedor.nome_completo}</span>
-                    </>
-                  ) : null}
-                  {(() => {
-                    const editorNome = pedidoSelecionado.atualizado_por_usuario?.nome_completo ||
-                      usuarios.find(u => u.id === pedidoSelecionado.atualizado_por)?.nome_completo ||
-                      (pedidoSelecionado.metadados as any)?.ultimo_editor?.usuario_nome ||
-                      (pedidoSelecionado.metadados as any)?.ultimo_editor?.nome;
-                    if (!editorNome) return null;
-                    return (
-                      <>
-                        <span>•</span>
-                        <span className="text-amber-400/90 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
-                          Última edição por {editorNome}
-                        </span>
-                      </>
-                    );
-                  })()}
-                </div>
               </div>
             </div>
 
-            {/* Ações Rápidas do Topo: Link de Andamento, Cancelar, Concluir Venda (TELA002) */}
-            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-              {/* Seletor de Status Interativo ou Badge Fixo para Cancelado */}
+            {/* Barra de Ações do Cabeçalho: Linha única horizontal com os 5 botões oficiais */}
+            <div className="flex items-center gap-2 flex-nowrap overflow-x-auto py-1 w-full md:w-auto">
+              {/* 1. Seletor de Status */}
               {pedidoSelecionado.status === 'cancelado' ? (
-                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold">
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold whitespace-nowrap">
                   <XCircle className="w-3.5 h-3.5" />
                   <span>Cancelado</span>
                 </div>
               ) : (
-                <div className="relative inline-block">
+                <div className="relative inline-block shrink-0">
                   <select
                     value={pedidoSelecionado.status}
                     onChange={(e) => atualizarStatus(pedidoSelecionado.id, e.target.value as StatusPedido)}
-                    className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
+                    className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8 whitespace-nowrap"
                   >
                     {opcoesStatusSelecionado.filter((op) => op.id !== 'concluido').map((op) => (
                       <option key={op.id} value={op.id}>
@@ -2379,62 +2346,37 @@ export const PedidosLista: React.FC = () => {
                 </div>
               )}
 
-              {/* Botão Copiar Link e Compartilhar no WhatsApp (TELA002) */}
+              {/* 2. Botão Copiar link */}
               <button
                 type="button"
                 onClick={() => handleCopiarLinkAndamento(pedidoSelecionado)}
-                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 title="Copiar link da página de andamento do pedido"
               >
                 <Copy className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{copiado ? 'Copiado!' : 'Copiar link'}</span>
               </button>
 
+              {/* 3. Botão WhatsApp */}
               <button
                 type="button"
                 onClick={() => handleCompartilharWhatsApp(pedidoSelecionado)}
-                className="px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold text-emerald-400 transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-bold text-emerald-400 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 title="Compartilhar link de andamento no WhatsApp"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>WhatsApp</span>
               </button>
 
-              {/* Botão Editar Pedido */}
-              {podeEditarPedido(pedidoSelecionado) && (
-                <button
-                  type="button"
-                  onClick={() => handleEditarPedido(pedidoSelecionado)}
-                  className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-xs font-bold text-amber-300 transition flex items-center gap-1.5 cursor-pointer"
-                  title="Editar itens e informações do pedido no PDV"
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                  <span>Editar Pedido</span>
-                </button>
-              )}
-
-              {/* Botão Imprimir Etiqueta no Modal */}
+              {/* 4. Botão Etiqueta */}
               {(() => {
-                const { prov, pe, isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
-                const temEtiquetaModal = pedidoSelecionado.status !== 'cancelado' && !isRetirada && (
-                  prov === 'melhor_envio' ||
-                  prov === 'uber' ||
-                  pe?.provedor === 'uber' ||
-                  pe?.tipo_operacao === 'correios' ||
-                  pe?.tipo_operacao === 'transportadora' ||
-                  pe?.servico_correios ||
-                  pe?.nome_transportadora ||
-                  pedidoSelecionado.servico_correios ||
-                  pedidoSelecionado.nome_transportadora ||
-                  Boolean(pedidoSelecionado.endereco_entrega) ||
-                  (pedidoSelecionado as any).tipo_entrega === 'envio'
-                );
-                if (temEtiquetaModal) {
+                const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                if (pedidoSelecionado.status !== 'cancelado' && !isRetirada) {
                   return (
                     <button
                       type="button"
                       onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                      className="px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-xs font-bold text-sky-300 transition flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-xs font-bold text-sky-300 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                       title="Imprimir Etiqueta de Envio"
                     >
                       <Tag className="w-3.5 h-3.5" />
@@ -2445,143 +2387,17 @@ export const PedidosLista: React.FC = () => {
                 return null;
               })()}
 
-              {/* Botão Cancelar Pedido (TELA004) */}
+              {/* 5. Botão Cancelar Pedido (com texto explícito) */}
               {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
                 <button
                   type="button"
                   onClick={() => setModalCancelarPedidoAberto(true)}
-                  className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 transition cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                   title="Cancelar pedido"
                 >
-                  <Ban className="w-4 h-4" />
+                  <Ban className="w-3.5 h-3.5" />
+                  <span>Cancelar Pedido</span>
                 </button>
-              )}
-
-              {/* Botão Principal Concluir Venda / Receber Fiado (TELA005) */}
-              {pedidoSelecionado.status === 'cancelado' ? (
-                <div className="px-3.5 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1.5">
-                  <XCircle className="w-4 h-4" />
-                  <span>Pedido Cancelado</span>
-                </div>
-              ) : resolverStatusPagamento(pedidoSelecionado) === 'fiado' && pedidoSelecionado.status === 'confirmado' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPedidoReceberFiadoModal(pedidoSelecionado);
-                  }}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-purple-500/20 cursor-pointer active:scale-95"
-                  title="Receber pagamento do fiado"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span>Receber Fiado</span>
-                </button>
-              ) : (pedidoSelecionado.status === 'aguardando_envio' || (pedidoSelecionado.status === 'confirmado' && !resolverProvedorEntrega(pedidoSelecionado, entregaPedido).isRetirada)) ? (
-                (() => {
-                  const { prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
-                  const statusPag = resolverStatusPagamento(pedidoSelecionado);
-                  const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
-                  const permiteDespachoSemPagamento = prov === 'frete_proprio' || prov === 'retirada_loja';
-
-                  if (!estaPagoOuFiado && !permiteDespachoSemPagamento) {
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => setPedidoReceberModal(pedidoSelecionado)}
-                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                      >
-                        <DollarSign className="w-4 h-4" />
-                        <span>Receber Pagamento</span>
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <div className="flex items-center gap-2">
-                      {!estaPagoOuFiado && (
-                        <button
-                          type="button"
-                          onClick={() => setPedidoReceberModal(pedidoSelecionado)}
-                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                          title="Receber pagamento antes ou na entrega"
-                        >
-                          <DollarSign className="w-4 h-4" />
-                          <span>Receber Pagamento</span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleDespacharPedido}
-                        disabled={despachando}
-                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
-                      >
-                        {despachando ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Despachando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Truck className="w-4 h-4" />
-                            <span>
-                              {prov === 'uber'
-                                ? 'Chamar Uber Direct'
-                                : prov === 'melhor_envio'
-                                ? 'Gerar Etiqueta de Envio'
-                                : 'Confirmar Envio'}
-                            </span>
-                          </>
-                        )}
-                      </button>
-
-                      {/* Botão de contingência: Alterar ou trocar forma de envio caso a rota da Uber ou provedor falhe */}
-                      <button
-                        type="button"
-                        onClick={() => setPedidoEscolherEnvio(pedidoSelecionado)}
-                        className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold border border-slate-700 flex items-center gap-1.5 cursor-pointer transition"
-                        title="Trocar modalidade de envio (ex: para Frete Próprio ou Melhor Envio)"
-                      >
-                        <Edit className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Trocar Frete</span>
-                      </button>
-
-                      {(prov === 'uber' || prov === 'melhor_envio') && (permissions.ehAdmin || permissions.ehGerente) && (
-                        <button
-                          type="button"
-                          onClick={() => setModalContingenciaAberto(true)}
-                          className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 cursor-pointer transition"
-                          title="Válvula de contingência RBAC: Forçar despacho manual caso a API externa falhe"
-                        >
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          <span>Forçar Despacho Manual</span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()
-              ) : resolverStatusPagamento(pedidoSelecionado) !== 'pago' && resolverStatusPagamento(pedidoSelecionado) !== 'fiado' ? (
-                <button
-                  type="button"
-                  onClick={() => setPedidoReceberModal(pedidoSelecionado)}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span>Receber Pagamento</span>
-                </button>
-              ) : pedidoSelecionado.status !== 'concluido' ? (
-                <button
-                  type="button"
-                  onClick={() => atualizarStatus(pedidoSelecionado.id, 'concluido')}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Concluir Pedido</span>
-                </button>
-              ) : (
-                <div className="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Pago e Concluído</span>
-                </div>
               )}
             </div>
           </div>
@@ -2729,19 +2545,33 @@ export const PedidosLista: React.FC = () => {
                         <Truck className="w-4 h-4 text-emerald-400" />
                         <span>Logística & Despacho</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-                          {provNome}
-                        </span>
-                        {pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                            {provNome}
+                          </span>
+                          {pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
+                            <button
+                              type="button"
+                              onClick={() => setPedidoEscolherEnvio(pedidoSelecionado)}
+                              className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                              title="Alterar ou redefinir a modalidade de envio deste pedido"
+                            >
+                              <Edit className="w-3 h-3 text-emerald-400" />
+                              <span>Alterar Frete</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (prov === 'uber' || prov === 'melhor_envio') && (permissions.ehAdmin || permissions.ehGerente) && (
                           <button
                             type="button"
-                            onClick={() => setPedidoEscolherEnvio(pedidoSelecionado)}
-                            className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
-                            title="Alterar ou redefinir a modalidade de envio deste pedido"
+                            onClick={() => setModalContingenciaAberto(true)}
+                            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 text-[11px] font-bold border border-amber-500/30 flex items-center gap-1 transition cursor-pointer"
+                            title="Válvula de contingência RBAC: Forçar despacho manual caso a API externa falhe"
                           >
-                            <Edit className="w-3 h-3 text-emerald-400" />
-                            <span>Alterar Frete</span>
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Forçar Despacho Manual</span>
                           </button>
                         )}
                       </div>
@@ -3198,6 +3028,36 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         );
                       })()}
+
+                      {/* Ação Primária de Despacho (se ainda não despachado) */}
+                      {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && !(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={handleDespacharPedido}
+                            disabled={despachando}
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95 disabled:opacity-50"
+                          >
+                            {despachando ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Despachando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Truck className="w-4 h-4" />
+                                <span>
+                                  {prov === 'uber'
+                                    ? 'Chamar Uber Direct'
+                                    : prov === 'melhor_envio'
+                                    ? 'Gerar Etiqueta de Envio'
+                                    : 'Confirmar Envio'}
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -3352,6 +3212,23 @@ export const PedidosLista: React.FC = () => {
                     </div>
                   );
                 })()}
+
+                {resolverStatusPagamento(pedidoSelecionado) !== 'pago' && pedidoSelecionado.status !== 'cancelado' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (resolverStatusPagamento(pedidoSelecionado) === 'fiado') {
+                        setPedidoReceberFiadoModal(pedidoSelecionado);
+                      } else {
+                        setPedidoReceberModal(pedidoSelecionado);
+                      }
+                    }}
+                    className="w-full mt-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>{resolverStatusPagamento(pedidoSelecionado) === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
+                  </button>
+                )}
               </div>
 
               {/* Card Recibo Preview (TELA002A) */}
@@ -3910,12 +3787,12 @@ export const PedidosLista: React.FC = () => {
                                             <>
                                               <button
                                                 type="button"
-                                                onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedido)}
+                                                onClick={() => setPedidoEtiquetaModal(pedido)}
                                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
-                                                title="Imprimir Etiqueta Oficial em PDF (Melhor Envio / Jadlog / Correios)"
+                                                title="Imprimir Etiqueta de Envio"
                                               >
-                                                <Printer className="w-3.5 h-3.5" />
-                                                <span>Etiqueta Oficial</span>
+                                                <Tag className="w-3.5 h-3.5" />
+                                                <span>Etiqueta</span>
                                               </button>
 
                                               <button

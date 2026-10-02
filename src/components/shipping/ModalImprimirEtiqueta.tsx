@@ -277,7 +277,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <div className="mx-4 sm:mx-6 mt-4 p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sky-300 text-xs font-bold">
               <Tag className="w-4 h-4 shrink-0 text-sky-400" />
-              <span>Etiqueta Oficial gerada pelo Melhor Envio (Jadlog / Correios)</span>
+              <span>Etiqueta Melhor Envio</span>
             </div>
             <button
               type="button"
@@ -293,7 +293,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
               ) : (
                 <>
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Etiqueta Oficial (PDF)</span>
+                  <span>Etiqueta Melhor Envio</span>
                   <ExternalLink className="w-3 h-3 ml-0.5" />
                 </>
               )}
@@ -385,7 +385,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         </div>
 
         {/* Footer do Modal Harmonizado */}
-        <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+        <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex items-center justify-end gap-2.5 shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -394,35 +394,13 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             Fechar
           </button>
 
-          {!ehAppOuManual && ehMelhorEnvio && (
-            <button
-              type="button"
-              disabled={obtendoEtiquetaOficial}
-              onClick={handleAbrirMelhorEnvio}
-              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-sky-600/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
-              title="Abrir Etiqueta Oficial do Melhor Envio (PDF)"
-            >
-              {obtendoEtiquetaOficial ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Obtendo...</span>
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4" />
-                  <span>Etiqueta Oficial (PDF)</span>
-                </>
-              )}
-            </button>
-          )}
-
           <button
             type="button"
             onClick={handleImprimir}
             className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" />
-            <span>Imprimir Etiqueta Térmica</span>
+            <span>Imprimir</span>
           </button>
         </div>
       </div>

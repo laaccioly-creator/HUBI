@@ -1,5 +1,5 @@
 // HUBI - Modal de Definição e Cotação de Envio do Pedido v1.1
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Truck, X, Check, Loader2 } from 'lucide-react';
 import { Pedido, Cliente } from '../../types';
 import { ShippingSelectionResult, ClienteEndereco } from '../../types/shipping';
@@ -37,11 +37,15 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
   const [clienteAtivo, setClienteAtivo] = useState<Cliente | null>(null);
   const [versaoFulfillment, setVersaoFulfillment] = useState<number>(0);
   const [enderecoAtualizadoLocal, setEnderecoAtualizadoLocal] = useState<Partial<ClienteEndereco> | null>(null);
+  const ultimoPedidoIdAbertoRef = useRef<string | null>(null);
 
   useEffect(() => {
     let ativo = true;
     if (isOpen && pedido) {
-      setEnderecoAtualizadoLocal(null);
+      if (ultimoPedidoIdAbertoRef.current !== pedido.id) {
+        ultimoPedidoIdAbertoRef.current = pedido.id;
+        setEnderecoAtualizadoLocal(null);
+      }
       if (pedido.cliente) {
         setClienteAtivo(pedido.cliente);
       } else if (pedido.cliente_id) {
@@ -58,11 +62,13 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
       } else {
         setClienteAtivo(null);
       }
+    } else if (!isOpen) {
+      ultimoPedidoIdAbertoRef.current = null;
     }
     return () => {
       ativo = false;
     };
-  }, [isOpen, pedido]);
+  }, [isOpen, pedido?.id]);
 
   if (!isOpen || !pedido || !loja) return null;
 
@@ -189,6 +195,9 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               setModalEnderecoAberto(true);
             }}
             dadosEnvioIniciais={dadosEnvioIniciais}
+            onEnderecoAlterado={(novoEnd) => {
+              setEnderecoAtualizadoLocal(novoEnd);
+            }}
             onChange={(resultado: ShippingSelectionResult) => {
               // Apenas armazena a seleção no estado local do modal; JAMAIS fecha ou salva automaticamente!
               setSelecaoPendente(resultado);
