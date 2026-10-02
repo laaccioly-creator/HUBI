@@ -51,6 +51,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { UberDirectService } from '../services/uberDirectService';
+import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
@@ -1398,6 +1399,59 @@ export const PedidosLista: React.FC = () => {
     } finally {
       setDespachando(false);
       setDespachandoPedidoId(null);
+    }
+  };
+
+  const handleImprimirEtiquetaOficialMelhorEnvio = async (ped: Pedido) => {
+    const rawPe = (ped as any).pedido_entregas || ped.pedido_entrega;
+    const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+    const linkEtq = (pe?.link_etiqueta || (ped as any).link_etiqueta || (ped as any).metadados?.link_etiqueta || '').trim();
+
+    if (ehUrlEtiquetaValida(linkEtq)) {
+      window.open(linkEtq, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      mostrarSucesso('Obtendo etiqueta oficial com o Melhor Envio...', 'Aguarde um instante');
+      const lojaId = loja?.id || ped.loja_id;
+      const ordemId = (ped.metadados as any)?.melhor_envio_order_id || (pe?.codigo_rastreio?.startsWith('ORD-') ? pe?.codigo_rastreio : undefined);
+      const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, lojaId, ordemId);
+      if (urlPdf) {
+        window.open(urlPdf, '_blank', 'noopener,noreferrer');
+        setPedidos((prev) =>
+          prev.map((p) =>
+            p.id === ped.id
+              ? {
+                  ...p,
+                  link_etiqueta: urlPdf,
+                  pedido_entrega: p.pedido_entrega ? { ...p.pedido_entrega, link_etiqueta: urlPdf } : p.pedido_entrega
+                }
+              : p
+          )
+        );
+        if (pedidoSelecionado?.id === ped.id) {
+          setPedidoSelecionado((prev) => prev ? { ...prev, link_etiqueta: urlPdf } : null);
+        }
+      }
+    } catch (err: any) {
+      mostrarErro(err.message || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
+    }
+  };
+
+  const handleImprimirDeclaracaoConteudoMelhorEnvio = async (ped: Pedido) => {
+    try {
+      mostrarSucesso('Obtendo declaração de conteúdo oficial...', 'Aguarde um instante');
+      const lojaId = loja?.id || ped.loja_id;
+      const rawPe = (ped as any).pedido_entregas || ped.pedido_entrega;
+      const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+      const ordemId = (ped.metadados as any)?.melhor_envio_order_id || (pe?.codigo_rastreio?.startsWith('ORD-') ? pe?.codigo_rastreio : undefined);
+      const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, lojaId, ordemId);
+      if (urlPdf) {
+        window.open(urlPdf, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err: any) {
+      mostrarErro(err.message || 'Declaração de conteúdo ainda não disponível.');
     }
   };
 
@@ -2775,6 +2829,51 @@ export const PedidosLista: React.FC = () => {
                       )}
 
                       {(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (() => {
+                        if (prov === 'melhor_envio') {
+                          return (
+                            <div className="pt-2 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                              >
+                                <Package className="w-4 h-4" />
+                                <span>Rastrear Envio</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-sky-600/20 cursor-pointer active:scale-95"
+                                title="Imprimir Etiqueta Oficial da Transportadora (PDF)"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                                <span>Etiqueta Oficial (PDF)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleImprimirDeclaracaoConteudoMelhorEnvio(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                                title="Imprimir Declaração de Conteúdo Oficial"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Declaração</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-slate-300 font-bold text-xs transition cursor-pointer"
+                                title="Imprimir Etiqueta Térmica Padrão HUBI"
+                              >
+                                <Tag className="w-3.5 h-3.5" />
+                                <span>Etiqueta HUBI</span>
+                              </button>
+                            </div>
+                          );
+                        }
+
                         if (ehDespachoTransportadora) {
                           return (
                             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -2828,8 +2927,6 @@ export const PedidosLista: React.FC = () => {
                         }
 
                         if (ehDespachoCorreios) {
-                          const ehMelhorEnvioIntegrado = prov === 'melhor_envio';
-
                           const handleRastrearManualCorreios = () => {
                             const cod = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
                             if (cod) {
@@ -2845,26 +2942,15 @@ export const PedidosLista: React.FC = () => {
 
                           return (
                             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                              {ehMelhorEnvioIntegrado ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
-                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
-                                >
-                                  <Package className="w-4 h-4" />
-                                  <span>Rastrear Envio</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={handleRastrearManualCorreios}
-                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
-                                  title="Copiar código e abrir rastreamento oficial dos Correios"
-                                >
-                                  <Package className="w-4 h-4" />
-                                  <span>Rastrear</span>
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={handleRastrearManualCorreios}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                                title="Copiar código e abrir rastreamento oficial dos Correios"
+                              >
+                                <Package className="w-4 h-4" />
+                                <span>Rastrear</span>
+                              </button>
 
                               {(() => {
                                 const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
@@ -2918,7 +3004,7 @@ export const PedidosLista: React.FC = () => {
                           ehAppEntrega ||
                           prov === 'frete_proprio' ||
                           pe?.tipo_operacao === 'frota_propria' ||
-                          (!ehDespachoCorreios && !ehDespachoTransportadora && prov !== 'melhor_envio');
+                          (!ehDespachoCorreios && !ehDespachoTransportadora);
 
                         if (ehAppOuManual) {
                           const linkAtual = (linkRastreio || (pedidoSelecionado as any)?.metadados?.link_rastreio || pe?.link_rastreio || '').trim();
@@ -3766,8 +3852,13 @@ export const PedidosLista: React.FC = () => {
                                          Boolean(pedido.endereco_entrega) ||
                                          (pedido as any).tipo_entrega === 'envio');
 
+                                      const ehMelhorEnvio =
+                                        prov === 'melhor_envio' ||
+                                        pe?.provedor === 'melhor_envio' ||
+                                        (pedido as any)?.tipo_operacao === 'melhor_envio';
+
                                       const ehTranspManual =
-                                        prov !== 'melhor_envio' &&
+                                        !ehMelhorEnvio &&
                                         (provNome.toLowerCase().includes('transportadora') ||
                                         provNome.toLowerCase().includes('jadlog') ||
                                         pe?.tipo_operacao === 'transportadora' ||
@@ -3775,6 +3866,7 @@ export const PedidosLista: React.FC = () => {
                                         Boolean(pe?.transportadora_id));
 
                                       const ehCorreios =
+                                        !ehMelhorEnvio &&
                                         !ehTranspManual &&
                                         (provNome.toLowerCase().includes('correios') ||
                                         pe?.tipo_operacao === 'correios' ||
@@ -3784,6 +3876,7 @@ export const PedidosLista: React.FC = () => {
 
                                       const ehUber =
                                         !ehCorreios &&
+                                        !ehMelhorEnvio &&
                                         (prov === 'uber' ||
                                         (pedido.nome_app && pedido.nome_app.toLowerCase().includes('uber')) ||
                                         link.includes('uber.com') ||
@@ -3791,7 +3884,29 @@ export const PedidosLista: React.FC = () => {
 
                                       return (
                                         <>
-                                          {temEtiqueta && (
+                                          {ehMelhorEnvio ? (
+                                            <>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedido)}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer active:scale-95"
+                                                title="Imprimir Etiqueta Oficial em PDF (Melhor Envio / Jadlog / Correios)"
+                                              >
+                                                <Printer className="w-3.5 h-3.5" />
+                                                <span>Etiqueta Oficial</span>
+                                              </button>
+
+                                              <button
+                                                type="button"
+                                                onClick={() => setPedidoRastreioModal(pedido)}
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition cursor-pointer"
+                                                title="Acompanhar Rastreamento em Tempo Real"
+                                              >
+                                                <Package className="w-3.5 h-3.5" />
+                                                <span>Rastrear</span>
+                                              </button>
+                                            </>
+                                          ) : temEtiqueta ? (
                                             <button
                                               type="button"
                                               onClick={() => setPedidoEtiquetaModal(pedido)}
@@ -3801,7 +3916,7 @@ export const PedidosLista: React.FC = () => {
                                               <Tag className="w-3.5 h-3.5" />
                                               <span>Etiqueta</span>
                                             </button>
-                                          )}
+                                          ) : null}
 
                                           {ehTranspManual && cod && (
                                             <button
@@ -3819,15 +3934,11 @@ export const PedidosLista: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => {
-                                                if (prov === 'melhor_envio') {
-                                                  setPedidoRastreioModal(pedido);
-                                                } else {
-                                                  try {
-                                                    navigator.clipboard.writeText(cod);
-                                                  } catch {}
-                                                  mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
-                                                  window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
-                                                }
+                                                try {
+                                                  navigator.clipboard.writeText(cod);
+                                                } catch {}
+                                                mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
+                                                window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
                                               }}
                                               className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
                                               title="Rastrear"

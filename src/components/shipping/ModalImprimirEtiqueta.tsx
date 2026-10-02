@@ -1,29 +1,33 @@
-import React, { useRef } from 'react';
-import { X, Printer, Package, Truck, MapPin, Building2, User, Barcode, Tag, ExternalLink } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { X, Printer, Package, Truck, MapPin, Building2, User, Tag, ExternalLink, Loader2, FileText } from 'lucide-react';
 import { Pedido, Loja } from '../../types';
 import { PedidoEntrega } from '../../types/shipping';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { ehUrlEtiquetaValida } from '../PedidosLista';
+import { MelhorEnvioService } from '../../services/melhorEnvioService';
 
 interface ModalImprimirEtiquetaProps {
   isOpen: boolean;
   onClose: () => void;
   pedido: Pedido | null;
   loja: Loja | null;
+  entrega?: PedidoEntrega | null;
 }
 
 export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   isOpen,
   onClose,
   pedido,
-  loja
+  loja,
+  entrega
 }) => {
-  const { mostrarToast } = useFeedbackModal();
+  const { mostrarToast, mostrarSucesso, mostrarErro } = useFeedbackModal();
   const etiquetaRef = useRef<HTMLDivElement>(null);
+  const [obtendoEtiquetaOficial, setObtendoEtiquetaOficial] = useState(false);
 
   if (!isOpen || !pedido) return null;
 
-  const rawPe = (pedido as any).pedido_entregas || pedido.pedido_entrega;
+  const rawPe = entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
   const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
   const linkEtiquetaOficial = (pe?.link_etiqueta || (pedido as any).link_etiqueta || (pedido as any).metadados?.link_etiqueta || '').trim();
 
@@ -42,7 +46,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     `PED-${pedido.numero_pedido || pedido.id.slice(0, 6)}`;
 
   const pinEntrega = pe?.pin_entrega || pedido.pin_entrega || null;
-  const itens = pedido.itens || (pedido as any).itens_pedido || [];
 
   const clienteNome = pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente';
   const clienteTelefone = pedido.cliente?.whatsapp || pedido.cliente?.telefone || pedido.cliente_telefone_avulso || '';
@@ -76,11 +79,26 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     Boolean((pedido as any).metadados?.melhor_envio_order_id)
   );
 
-  const handleAbrirMelhorEnvio = () => {
+  const handleAbrirMelhorEnvio = async () => {
     if (temEtiquetaOficialValida) {
       window.open(linkEtiquetaOficial, '_blank', 'noopener,noreferrer');
-    } else {
-      mostrarToast('A etiqueta oficial em PDF do Melhor Envio ainda não está disponível. Utilize a impressão da Etiqueta Térmica pelo botão verde abaixo.', 'info');
+      return;
+    }
+
+    try {
+      setObtendoEtiquetaOficial(true);
+      mostrarToast('Obtendo etiqueta oficial em PDF com a transportadora...', 'info');
+      const lojaId = loja?.id || pedido.loja_id;
+      const ordemId = (pedido.metadados as any)?.melhor_envio_order_id || pe?.codigo_rastreio;
+      const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(pedido.id, lojaId, ordemId);
+      if (urlPdf) {
+        mostrarSucesso('Etiqueta oficial pronta para impressão!');
+        window.open(urlPdf, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err: any) {
+      mostrarErro(err.message || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
+    } finally {
+      setObtendoEtiquetaOficial(false);
     }
   };
 
@@ -203,7 +221,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
               <div style="margin-top: 4px;">${enderecoEntrega}</div>
             </div>
 
-
             <div class="section">
               <div class="section-title">REMETENTE</div>
               <div class="destaque">${lojaNome}</div>
@@ -230,15 +247,15 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header do Modal */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className="p-4 border-b border-slate-700/80 flex items-center justify-between bg-slate-900 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-black text-sm text-slate-100">
+              <h3 className="font-bold text-sm text-white">
                 Etiqueta de Envio • Pedido #{pedido.numero_pedido}
               </h3>
               <p className="text-[11px] text-slate-400">
@@ -249,138 +266,160 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Banner Etiqueta Oficial da Transportadora (Melhor Envio) */}
-        {!ehAppOuManual && ehMelhorEnvio && temEtiquetaOficialValida && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+        {!ehAppOuManual && ehMelhorEnvio && (
+          <div className="mx-4 sm:mx-6 mt-4 p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sky-300 text-xs font-bold">
               <Tag className="w-4 h-4 shrink-0 text-sky-400" />
-              <span>Etiqueta Oficial gerada pelo Melhor Envio disponível para impressão!</span>
+              <span>Etiqueta Oficial gerada pelo Melhor Envio (Jadlog / Correios)</span>
             </div>
             <button
               type="button"
+              disabled={obtendoEtiquetaOficial}
               onClick={handleAbrirMelhorEnvio}
-              className="shrink-0 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-sky-600/25 transition cursor-pointer active:scale-95"
+              className="shrink-0 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-sky-600/25 transition cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              <span>Etiqueta Melhor Envio</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              {obtendoEtiquetaOficial ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Obtendo...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Etiqueta Oficial (PDF)</span>
+                  <ExternalLink className="w-3 h-3 ml-0.5" />
+                </>
+              )}
             </button>
           </div>
         )}
 
-        {/* Prévia da Etiqueta */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-950 flex justify-center">
+        {/* Área Interna da Etiqueta Harmonizada */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-900 flex justify-center items-start custom-scrollbar">
           <div
             ref={etiquetaRef}
-            className="w-full max-w-sm bg-white text-slate-950 rounded-2xl p-4 sm:p-5 shadow-lg border-2 border-slate-300 space-y-3.5 text-xs select-text font-sans"
+            className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/80 font-mono text-xs space-y-3.5 min-h-fit mb-4"
           >
             {/* Topo da Etiqueta */}
-            <div className="flex items-center justify-between pb-3 border-b-2 border-slate-950">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-700/70 border-dashed">
               <div className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-slate-900" />
+                <Package className="w-5 h-5 text-slate-300" />
                 <div>
-                  <h4 className="font-black text-sm uppercase tracking-wide leading-none">
+                  <h4 className="font-bold text-sm text-white uppercase tracking-wide leading-none">
                     {transportadora}
                   </h4>
-                  <span className="text-[10px] text-slate-600 font-medium">Logística HUBI</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Logística HUBI</span>
                 </div>
               </div>
               <div className="text-right">
-                <span className="font-mono text-xs font-bold text-slate-800 block">
+                <span className="font-mono text-xs font-bold text-white block">
                   #{pedido.numero_pedido}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded uppercase">
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded uppercase">
                   Despacho
                 </span>
               </div>
             </div>
 
             {/* Código de Rastreio / Barras Simulado */}
-            <div className="p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-center space-y-1">
-              <div className="h-9 flex items-center justify-center tracking-[4px] font-mono text-lg font-black text-slate-800 select-none">
+            <div className="p-3 bg-slate-900/90 border border-slate-700/60 rounded-xl text-center space-y-1">
+              <div className="h-9 flex items-center justify-center tracking-[4px] font-mono text-lg font-black text-slate-200 select-none">
                 ||| | |||| | || |||| | |||
               </div>
-              <div className="font-mono text-xs font-bold text-slate-700 tracking-wider">
+              <div className="font-mono text-xs font-bold text-emerald-400 tracking-wider">
                 {codigoRastreio}
               </div>
               {pinEntrega && (
-                <div className="font-mono text-[11px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded inline-block mt-1">
+                <div className="font-mono text-[11px] font-bold text-amber-400 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded inline-block mt-1">
                   PIN: {pinEntrega}
                 </div>
               )}
             </div>
 
             {/* Bloco Destinatário */}
-            <div className="p-3 bg-slate-100/80 rounded-xl border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider pb-1 border-b border-slate-200">
-                <User className="w-3.5 h-3.5 text-slate-700" />
+            <div className="p-3 bg-slate-900/90 border border-slate-700/60 rounded-xl space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-700/70 border-dashed">
+                <User className="w-3.5 h-3.5 text-slate-400" />
                 <span>Destinatário</span>
               </div>
-              <p className="font-black text-xs text-slate-950 pt-0.5">
+              <p className="font-bold text-xs text-white pt-0.5">
                 {clienteNome}
               </p>
               {clienteTelefone && (
-                <p className="text-[11px] text-slate-600">
-                  Tel: <strong>{clienteTelefone}</strong>
+                <p className="text-[11px] text-slate-300">
+                  Tel: <strong className="text-white">{clienteTelefone}</strong>
                 </p>
               )}
-              <div className="flex items-start gap-1 pt-1 text-[11px] text-slate-700 leading-snug">
-                <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-1 pt-1 text-[11px] text-slate-300 leading-snug">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                 <span>{enderecoEntrega}</span>
               </div>
             </div>
 
-
             {/* Bloco Remetente */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider pb-1 border-b border-slate-200">
-                <Building2 className="w-3.5 h-3.5 text-slate-700" />
+            <div className="p-3 bg-slate-900/90 border border-slate-700/60 rounded-xl space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-700/70 border-dashed">
+                <Building2 className="w-3.5 h-3.5 text-slate-400" />
                 <span>Remetente</span>
               </div>
-              <p className="font-bold text-xs text-slate-900 pt-0.5">
+              <p className="font-bold text-xs text-white pt-0.5">
                 {lojaNome}
               </p>
               {lojaDocumento && (
-                <p className="text-[10px] text-slate-600">
+                <p className="text-[10px] text-slate-400">
                   CNPJ/CPF: {lojaDocumento}
                 </p>
               )}
-              <p className="text-[10px] text-slate-600 leading-tight">
+              <p className="text-[10px] text-slate-400 leading-tight">
                 {lojaEndereco}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Footer do Modal */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-end gap-2.5">
+        {/* Footer do Modal Harmonizado */}
+        <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition cursor-pointer"
           >
             Fechar
           </button>
-          {!ehAppOuManual && ehMelhorEnvio && temEtiquetaOficialValida && (
+
+          {!ehAppOuManual && ehMelhorEnvio && (
             <button
               type="button"
+              disabled={obtendoEtiquetaOficial}
               onClick={handleAbrirMelhorEnvio}
-              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-sky-500/20 transition cursor-pointer active:scale-95"
-              title="Abrir Etiqueta do Melhor Envio (PDF)"
+              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-sky-600/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
+              title="Abrir Etiqueta Oficial do Melhor Envio (PDF)"
             >
-              <Tag className="w-4 h-4" />
-              <span>Etiqueta Melhor Envio</span>
+              {obtendoEtiquetaOficial ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Obtendo...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4" />
+                  <span>Etiqueta Oficial (PDF)</span>
+                </>
+              )}
             </button>
           )}
+
           <button
             type="button"
             onClick={handleImprimir}
-            className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir Etiqueta Térmica</span>

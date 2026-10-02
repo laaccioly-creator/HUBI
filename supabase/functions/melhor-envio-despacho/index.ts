@@ -253,22 +253,138 @@ serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
-    // AÇÃO DEDICADA: Sincronização / Consulta de Rastreamento em Tempo Real
+    // AÇÃO DEDICADA: Obter URL de Impressão Oficial da Etiqueta / Declaração
     // -------------------------------------------------------------------------
     const acao = body.acao || body.action || "despachar";
+
+    if (acao === "imprimir_etiqueta" || acao === "obter_etiqueta" || acao === "declaracao_conteudo") {
+      console.log(`[MelhorEnvio-Edge] Solicitando URL de impressão da etiqueta para o pedido ${pedidoId}...`);
+      let orderId =
+        body.ordem_id ||
+        body.ordemId ||
+        pedido?.metadados?.melhor_envio_order_id ||
+        null;
+
+      const codExistente = (entrega?.codigo_rastreio || pedido?.codigo_rastreio || "").trim();
+      if (!orderId && codExistente.startsWith("ORD-")) {
+        orderId = codExistente;
+      }
+
+      if (!orderId) {
+        try {
+          const listRes = await fetch(`${baseUrl}/api/v2/me/orders`, {
+            headers: headersComuns,
+          });
+          if (listRes.ok) {
+            const listJson = await listRes.json();
+            const ordersList: any[] = Array.isArray(listJson) ? listJson : (listJson.data || []);
+            const cepDestinoLimpo = limparCep(
+              entrega?.destino_cep ||
+              pedido?.cliente?.cep ||
+              extrairCepDeTexto(pedido?.endereco_entrega)
+            );
+            const docCli = (pedido?.cliente?.numero_documento || pedido?.cliente_documento_avulso || "").replace(/\D/g, "");
+            const linkEtq = (entrega?.link_etiqueta || "").trim();
+
+            const found = ordersList.find((ord: any) => {
+              if (linkEtq && ord.id && linkEtq.includes(ord.id)) return true;
+              const ordCep = limparCep(ord.to?.postal_code);
+              const ordDoc = (ord.to?.document || "").replace(/\D/g, "");
+              if (cepDestinoLimpo && ordCep && cepDestinoLimpo === ordCep) {
+                if (docCli && ordDoc && docCli === ordDoc) return true;
+              }
+              return false;
+            });
+            if (found) orderId = found.id;
+          }
+        } catch (eFind) {
+          console.warn("[MelhorEnvio-Edge] Falha ao buscar ordem para impressão:", eFind);
+        }
+      }
+
+      if (!orderId) {
+        return new Response(
+          JSON.stringify({
+            sucesso: false,
+            error: "Ordem do Melhor Envio não localizada para este pedido.",
+            code: "ORDER_NOT_FOUND",
+          }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 1. Garante que a etiqueta foi solicitada para geração caso ainda esteja pendente
+      try {
+        await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
+          method: "POST",
+          headers: headersComuns,
+          body: JSON.stringify({ orders: [orderId] }),
+        });
+      } catch (eGen) {
+        console.warn("[MelhorEnvio-Edge] Aviso na geração antes do print:", eGen);
+      }
+
+      // Delay seguro de 1 segundo para processamento
+      await new Promise((r) => setTimeout(r, 1000));
+
+      // 2. Chama /api/v2/me/shipment/print para obter PDF público oficial
+      let urlEtiquetaFinal = "";
+      try {
+        const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
+          method: "POST",
+          headers: headersComuns,
+          body: JSON.stringify({ mode: "public", orders: [orderId] }),
+        });
+        const printData = await printRes.json().catch(() => ({}));
+        if (printData?.url && !printData.url.includes("/painel/envios")) {
+          urlEtiquetaFinal = printData.url;
+        }
+      } catch (ePrint) {
+        console.warn("[MelhorEnvio-Edge] Falha ao chamar print da etiqueta:", ePrint);
+      }
+
+      if (urlEtiquetaFinal && pedidoId) {
+        await supabaseAdmin
+          .from("pedido_entregas")
+          .update({
+            link_etiqueta: urlEtiquetaFinal,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq("pedido_id", pedidoId);
+      }
+
+      return new Response(
+        JSON.stringify({
+          sucesso: Boolean(urlEtiquetaFinal),
+          ordem_id: String(orderId),
+          url: urlEtiquetaFinal,
+          link_etiqueta: urlEtiquetaFinal,
+          declaracao_url: urlEtiquetaFinal,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // AÇÃO DEDICADA: Sincronização / Consulta de Rastreamento em Tempo Real
+    // -------------------------------------------------------------------------
     if (acao === "sincronizar_rastreio" || acao === "consultar_rastreio") {
       console.log(`[MelhorEnvio-Edge] Executando sincronização de rastreio para o pedido ${pedidoId}...`);
 
       const codRastreioExistente = (body.codigo_rastreio || entrega?.codigo_rastreio || pedido?.codigo_rastreio || "").trim();
       const transpNome = (entrega?.transportadora_nome || pedido?.nome_transportadora || "").trim();
       const servicoCorreios = entrega?.servico_correios || pedido?.servico_correios || (pedido?.metadados as any)?.servico_correios;
+      
+      const ehOrdemInterna = codRastreioExistente.startsWith("ORD-") || /^[0-9a-fA-F-]{36}$/.test(codRastreioExistente);
+
       const isCorreios =
-        transpNome.toLowerCase().includes("correios") ||
+        !ehOrdemInterna &&
+        (transpNome.toLowerCase().includes("correios") ||
         (entrega?.tipo_operacao === "correios") ||
         (entrega?.provedor === "correios") ||
         (entrega?.provedor === "frete_proprio" && Boolean(servicoCorreios)) ||
         Boolean(servicoCorreios) ||
-        /^[a-zA-Z]{2}\d{9}[a-zA-Z]{2}$/.test(codRastreioExistente);
+        /^[a-zA-Z]{2}\d{9}[a-zA-Z]{2}$/.test(codRastreioExistente));
 
       // Tratamento Dedicado para Envios Correios (balcão ou contrato direto)
       if (isCorreios && codRastreioExistente) {
@@ -352,7 +468,7 @@ serve(async (req: Request) => {
         }
 
         const atualizadoEm = new Date().toISOString();
-        const linkOficial = `https://melhorrastreio.com.br/rastreio/${codRastreioExistente}`;
+        const linkOficial = `https://melhorrastreio.com.br/app/${codRastreioExistente}`;
 
         if (pedidoId) {
           await supabaseAdmin
@@ -377,7 +493,7 @@ serve(async (req: Request) => {
             },
             atualizado_em: atualizadoEm
           };
-          if (statusEnvioMapeado === "entregue" && pedido?.status === "enviado") {
+          if (statusEnvioMapeado === "entregue" && (pedido?.status === "enviado" || pedido?.status === "confirmado" || pedido?.status === "aguardando_envio")) {
             updatePed.status = "entregue";
           }
           await supabaseAdmin
@@ -406,6 +522,7 @@ serve(async (req: Request) => {
         body.ordem_id ||
         body.ordemId ||
         pedido?.metadados?.melhor_envio_order_id ||
+        (ehOrdemInterna ? codRastreioExistente : null) ||
         null;
 
       let orderData: any = null;
@@ -470,12 +587,13 @@ serve(async (req: Request) => {
       }
 
       if (!orderData) {
+        const codLimpo = ehOrdemInterna ? "" : (entrega?.codigo_rastreio || pedido?.codigo_rastreio || "");
         return new Response(
           JSON.stringify({
             sucesso: false,
             error: "Ordem de envio não localizada no Melhor Envio para sincronização.",
             code: "ORDER_NOT_FOUND_ON_PROVIDER",
-            codigo_rastreio: entrega?.codigo_rastreio || pedido?.codigo_rastreio || "",
+            codigo_rastreio: codLimpo,
             status_envio: entrega?.status_envio || "despachado",
           }),
           { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -498,31 +616,36 @@ serve(async (req: Request) => {
         console.warn("[MelhorEnvio-Edge] Falha na consulta de tracking complementar:", eTrk);
       }
 
-      // 4. Extração minuciosa do Código de Rastreio Oficial
+      // 4. Extração minuciosa do Código de Rastreio Oficial da Transportadora
       const codTracking = (orderData.tracking || trackingInfo?.tracking || "").trim();
       const codAuth = (orderData.authorization_code || trackingInfo?.authorization_code || "").trim();
       const codBarraJadlog = (orderData.additional_info?.volume?.[0]?.codbarra || "").trim();
       const codVolume = (orderData.volumes?.[0]?.tracking || "").trim();
       const codSelfTracking = (orderData.self_tracking || trackingInfo?.self_tracking || "").trim();
 
+      const codExistenteValido = (codRastreioExistente && !codRastreioExistente.startsWith("ORD-") && !codRastreioExistente.includes("-")) ? codRastreioExistente : "";
+
       // Prioridade: Código numérico Jadlog / Correios > Authorization Code > Self Tracking
+      // NUNCA salvar 'ORD-...' ou protocolo de compra interna no campo de rastreio visível ao cliente
       const codigoRastreioFinal =
-        codTracking || codAuth || codVolume || codBarraJadlog || codSelfTracking || entrega?.codigo_rastreio || "";
+        codTracking || codAuth || codVolume || codBarraJadlog || codSelfTracking || codExistenteValido || "";
 
       let linkRastreioFinal = "";
       if (codigoRastreioFinal) {
-        linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codigoRastreioFinal}`;
+        linkRastreioFinal = `https://melhorrastreio.com.br/app/${codigoRastreioFinal}`;
       } else if (codSelfTracking) {
-        linkRastreioFinal = `https://melhorrastreio.com.br/rastreio/${codSelfTracking}`;
+        linkRastreioFinal = `https://melhorrastreio.com.br/app/${codSelfTracking}`;
       }
 
       // 5. Mapeamento de Status Logístico (pedido_entregas)
       const rawStatus = (trackingInfo?.status || orderData.status || "").toLowerCase();
       let statusEnvioMapeado = "despachado";
 
-      if (rawStatus === "delivered" || orderData.delivered_at) {
+      if (rawStatus === "delivered" || rawStatus === "entregue" || orderData.delivered_at) {
         statusEnvioMapeado = "entregue";
-      } else if (rawStatus === "posted" || orderData.posted_at) {
+      } else if (rawStatus === "out_for_delivery" || rawStatus === "saiu_para_entrega") {
+        statusEnvioMapeado = "saiu_para_entrega";
+      } else if (rawStatus === "posted" || rawStatus === "in_transit" || orderData.posted_at) {
         statusEnvioMapeado = "em_transito";
       } else if (rawStatus === "released" || rawStatus === "generated") {
         statusEnvioMapeado = "despachado";
@@ -530,10 +653,77 @@ serve(async (req: Request) => {
         statusEnvioMapeado = "cancelado";
       }
 
+      // 6. Consulta eventos de rastreio detalhados via Melhor Rastreio GraphQL se tivermos o código real
+      let eventosFinais: any[] = (pedido?.metadados as any)?.eventos_rastreio || (entrega as any)?.eventos_rastreio || [];
+      if (codigoRastreioFinal) {
+        try {
+          const mrQuery = {
+            query: `query {
+              findByTrackingCode(tracker: { trackingCode: "${codigoRastreioFinal}" }) {
+                id
+                lastStatus
+                postedAt
+                deliveredAt
+                trackingEvents {
+                  createdAt
+                  status
+                  title
+                  description
+                  location {
+                    city
+                    state
+                  }
+                }
+              }
+            }`
+          };
+          const mrRes = await fetch("https://api.melhorrastreio.com.br/graphql", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "HUBI Sistema (suporte@hubi.app)"
+            },
+            body: JSON.stringify(mrQuery)
+          });
+          if (mrRes.ok) {
+            const mrData = await mrRes.json();
+            const parcel = mrData?.data?.findByTrackingCode;
+            if (parcel) {
+              if (parcel.deliveredAt || parcel.lastStatus === "DELIVERED") {
+                statusEnvioMapeado = "entregue";
+              } else if (parcel.lastStatus === "OUT_FOR_DELIVERY") {
+                statusEnvioMapeado = "saiu_para_entrega";
+              } else if (parcel.lastStatus === "IN_TRANSIT") {
+                statusEnvioMapeado = "em_transito";
+              }
+
+              if (Array.isArray(parcel.trackingEvents) && parcel.trackingEvents.length > 0) {
+                eventosFinais = parcel.trackingEvents.map((ev: any) => ({
+                  data: ev.createdAt,
+                  data_formatada: new Date(ev.createdAt).toLocaleString("pt-BR"),
+                  titulo: ev.title || ev.status,
+                  descricao: ev.description,
+                  local: ev.location ? `${ev.location.city || ""} - ${ev.location.state || ""}`.trim() : "",
+                  tipo: ev.status
+                }));
+              }
+            }
+          }
+        } catch (eMrJadlog) {
+          console.warn("[MelhorEnvio-Edge] Falha na consulta GraphQL Jadlog/Melhor Rastreio:", eMrJadlog);
+        }
+      }
+
+      // Se o pedido já estava entregue, nunca rebaixa
+      if (entrega?.status_envio === "entregue" || pedido?.status === "entregue") {
+        statusEnvioMapeado = "entregue";
+      }
+
       const atualizadoEm = new Date().toISOString();
       const dataPostagem = orderData.posted_at || (statusEnvioMapeado === "em_transito" ? (entrega?.despachado_em || atualizadoEm) : null);
+      const dataEntrega = orderData.delivered_at || (statusEnvioMapeado === "entregue" ? ((pedido?.metadados as any)?.data_entrega || atualizadoEm) : null);
 
-      // 6. Atualiza o banco de dados Supabase
+      // 7. Atualiza o banco de dados Supabase
       if (pedidoId) {
         await supabaseAdmin
           .from("pedido_entregas")
@@ -554,17 +744,19 @@ serve(async (req: Request) => {
           despachado_em: dataPostagem || pedido.despachado_em || atualizadoEm,
           metadados: {
             ...(pedido.metadados || {}),
-            melhor_envio_order_id: orderId,
+            melhor_envio_order_id: String(orderId),
             melhor_envio_protocol: orderData.protocol,
             melhor_envio_status: rawStatus,
             melhor_envio_posted_at: orderData.posted_at,
-            melhor_envio_delivered_at: orderData.delivered_at,
+            melhor_envio_delivered_at: dataEntrega,
+            eventos_rastreio: eventosFinais,
+            data_entrega: dataEntrega,
           },
           atualizado_em: atualizadoEm,
         };
 
-        // Apenas evolui pedidos.status para 'entregue' se o pedido já estava 'enviado' e ainda não está concluído
-        if (statusEnvioMapeado === "entregue" && pedido?.status === "enviado") {
+        // Evolui pedidos.status para 'entregue' se o pedido estava 'enviado' ou 'confirmado' e não foi concluído/cancelado
+        if (statusEnvioMapeado === "entregue" && pedido?.status !== "concluido" && pedido?.status !== "cancelado") {
           updatePedidoPayload.status = "entregue";
         }
 
@@ -584,12 +776,12 @@ serve(async (req: Request) => {
           protocolo: orderData.protocol,
           status_melhor_envio: rawStatus,
           status_envio: statusEnvioMapeado,
-          status_pedido: statusPedidoMapeado,
           codigo_rastreio: codigoRastreioFinal,
           link_rastreio: linkRastreioFinal,
           link_etiqueta: entrega?.link_etiqueta || null,
           data_postagem: dataPostagem,
-          data_entrega: orderData.delivered_at || null,
+          data_entrega: dataEntrega,
+          eventos_rastreio: eventosFinais,
           transportadora: orderData.service?.company?.name || entrega?.transportadora_nome || "Jadlog",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1203,11 +1395,12 @@ serve(async (req: Request) => {
             statusEnvioTransportadora = "despachado";
           }
 
-          // Prioridade: tracking oficial (ex: código numérico Jadlog 830803761) > authorization_code > volumes > self_tracking > protocol
-          codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking || orderData.protocol || "";
+          // Prioridade: tracking oficial (ex: código numérico Jadlog 830803761 ou Correios SRO) > authorization_code > volumes > codBarraJadlog > self_tracking
+          // NUNCA salvar orderData.protocol, cartData.id ou 'ORD-...' no campo codigoRastreio visível
+          codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking || "";
 
           if (codigoRastreio) {
-            linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+            linkRastreioOficial = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
             console.log(`[MelhorEnvio-Edge] Código de rastreio obtido com sucesso: ${codigoRastreio}`);
             break;
           }
@@ -1221,13 +1414,13 @@ serve(async (req: Request) => {
       }
     }
 
-    // Fallback: se ainda assim não preencheu, tenta no cartData
+    // Fallback: se ainda assim não preencheu, tenta apenas campos estritamente de rastreio do cartData
     if (!codigoRastreio) {
-      codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || cartData.protocol || "";
+      codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || "";
     }
 
     if (!linkRastreioOficial && codigoRastreio) {
-      linkRastreioOficial = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+      linkRastreioOficial = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
     }
 
     // Se a etiqueta ainda não estiver pronta (status !== 'released'), marque link_etiqueta = null

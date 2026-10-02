@@ -138,8 +138,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       if (!silencioso) setAtualizando(true);
 
       const codAlvo = (codigoRastreioLocal || peResolvido?.codigo_rastreio || pedido.codigo_rastreio || '').trim();
+      const ordemIdMeta = (pedido.metadados as any)?.melhor_envio_order_id || (codAlvo.startsWith('ORD-') ? codAlvo : undefined);
 
-      // 1. Invoca Edge Function para sincronizar status atualizado com o provedor / Correios
+      // 1. Invoca Edge Function para sincronizar status atualizado com o provedor / Melhor Envio / Correios
       let dadosSinc: any = null;
       try {
         const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
@@ -147,7 +148,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             pedidoId: pedido.id,
             loja_id: loja?.id || pedido.loja_id,
             acao: 'sincronizar_rastreio',
-            codigo_rastreio: codAlvo || undefined
+            codigo_rastreio: codAlvo || undefined,
+            ordem_id: ordemIdMeta
           }
         });
         if (!error && data?.sucesso) {
@@ -158,9 +160,12 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       }
 
       // 2. Fallback / Enriquecimento direto via Melhor Rastreio GraphQL caso não tenha retornado eventos da edge
-      if (codAlvo && (!dadosSinc?.eventos_rastreio || dadosSinc.eventos_rastreio.length === 0)) {
+      const codParaConsulta = (dadosSinc?.codigo_rastreio || codAlvo || '').trim();
+      const codValidoGraphQL = codParaConsulta && !codParaConsulta.startsWith('ORD-') && !codParaConsulta.includes('-');
+
+      if (codValidoGraphQL && (!dadosSinc?.eventos_rastreio || dadosSinc.eventos_rastreio.length === 0)) {
         try {
-          const parcel = await consultarMelhorRastreioGraphQL(codAlvo);
+          const parcel = await consultarMelhorRastreioGraphQL(codValidoGraphQL);
           if (parcel) {
             const rawEvents = Array.isArray(parcel.trackingEvents) ? parcel.trackingEvents : [];
             const evs = rawEvents.map((ev: any) => ({
@@ -185,8 +190,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
             dadosSinc = {
               sucesso: true,
-              codigo_rastreio: codAlvo,
-              link_rastreio: `https://melhorrastreio.com.br/rastreio/${codAlvo}`,
+              codigo_rastreio: codValidoGraphQL,
+              link_rastreio: `https://melhorrastreio.com.br/app/${codValidoGraphQL}`,
               status_envio: stMapeado,
               data_postagem: parcel.postedAt || null,
               data_entrega: parcel.deliveredAt || null,
@@ -199,26 +204,34 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       }
 
       if (dadosSinc?.sucesso) {
-        if (dadosSinc.codigo_rastreio) setCodigoRastreioLocal(dadosSinc.codigo_rastreio);
-        if (dadosSinc.link_rastreio) setLinkRastreioLocal(dadosSinc.link_rastreio);
-        setStatusEnvioLocal(dadosSinc.status_envio || 'aguardando_postagem');
+        const codLimpo = String(dadosSinc.codigo_rastreio || '').trim();
+        const codValido = codLimpo && !codLimpo.startsWith('ORD-') && !codLimpo.includes('-') ? codLimpo : '';
+        if (codValido) {
+          setCodigoRastreioLocal(codValido);
+          setLinkRastreioLocal(`https://melhorrastreio.com.br/app/${codValido}`);
+        } else if (dadosSinc.link_rastreio) {
+          setLinkRastreioLocal(dadosSinc.link_rastreio);
+        }
+
+        const statusMapeadoFinal = dadosSinc.status_envio || 'aguardando_postagem';
+        setStatusEnvioLocal(statusMapeadoFinal);
         setDataPostagemLocal(dadosSinc.data_postagem || null);
         setDataEntregaLocal(dadosSinc.data_entrega || null);
         const evs = Array.isArray(dadosSinc.eventos_rastreio) ? dadosSinc.eventos_rastreio : [];
         setEventosRastreioLocal(evs);
 
         if (!silencioso) {
-          if (evs.length === 0) {
-            mostrarToast('Aguardando primeira postagem ou atualização na agência dos Correios.', 'info');
+          if (evs.length === 0 && statusMapeadoFinal !== 'entregue') {
+            mostrarToast('Aguardando primeira postagem ou atualização na agência.', 'info');
           } else {
             const statusLabel =
-              dadosSinc.status_envio === 'em_transito'
+              statusMapeadoFinal === 'em_transito'
                 ? 'Em Trânsito'
-                : dadosSinc.status_envio === 'saiu_para_entrega'
+                : statusMapeadoFinal === 'saiu_para_entrega'
                 ? 'Saiu para Entrega'
-                : dadosSinc.status_envio === 'entregue'
+                : statusMapeadoFinal === 'entregue'
                 ? 'Entregue'
-                : dadosSinc.status_envio === 'postado'
+                : statusMapeadoFinal === 'postado'
                 ? 'Postado'
                 : 'Atualizado';
             mostrarSucesso(`Status sincronizado: ${statusLabel}!`);
@@ -226,7 +239,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         }
         if (onAtualizarStatus) onAtualizarStatus();
       } else if (!silencioso) {
-        mostrarToast('Aguardando postagem ou primeira atualização dos Correios.', 'info');
+        mostrarToast('Aguardando postagem ou primeira atualização da transportadora.', 'info');
       }
     } catch {
       if (!silencioso) {
@@ -371,9 +384,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
     let linkAcompanhamento = '';
     if (ehCorreios && codigoRastreio) {
-      linkAcompanhamento = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+      linkAcompanhamento = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
     } else if (ehMelhorEnvio && codigoRastreio) {
-      linkAcompanhamento = `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`;
+      linkAcompanhamento = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
     } else if (urlRastreioTransportadora) {
       linkAcompanhamento = urlRastreioTransportadora;
     } else if (linkRastreio && !linkRastreio.includes('imprimir')) {
@@ -532,7 +545,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const urlRastreioOficial = ehCorreios
     ? linkCorreiosOficial
     : (codigoRastreio
-        ? `https://melhorrastreio.com.br/rastreio/${codigoRastreio}`
+        ? `https://melhorrastreio.com.br/app/${codigoRastreio}`
         : (linkRastreio && !linkRastreio.includes('imprimir') ? linkRastreio : null));
 
   return (
@@ -792,7 +805,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           {/* 1. MELHOR ENVIO (Outras transportadoras, ex: Jadlog, Azul): Botão [ Melhor Rastreio ] */}
           {ehMelhorEnvio && !ehCorreios && codigoRastreio && (
             <a
-              href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
+              href={`https://melhorrastreio.com.br/app/${codigoRastreio}`}
               target="_blank"
               rel="noopener noreferrer"
               className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
@@ -807,7 +820,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             <>
               {/* Botão Principal: Rastrear no Melhor Rastreio */}
               <a
-                href={`https://melhorrastreio.com.br/rastreio/${codigoRastreio}`}
+                href={`https://melhorrastreio.com.br/app/${codigoRastreio}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"

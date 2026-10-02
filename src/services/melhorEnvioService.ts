@@ -658,13 +658,17 @@ export class MelhorEnvioService {
 
       if (!edgeErr && edgeData && edgeData.sucesso) {
         console.log('[MelhorEnvio] Despacho realizado com sucesso via Edge Function.');
+        const codRastreioLimpo = String(edgeData.codigo_rastreio || '').trim();
+        const codRastreioValido = codRastreioLimpo && !codRastreioLimpo.startsWith('ORD-') && !codRastreioLimpo.includes('-') ? codRastreioLimpo : '';
+        const linkRastreioFinal = codRastreioValido
+          ? `https://melhorrastreio.com.br/app/${codRastreioValido}`
+          : (edgeData.link_rastreio || '');
+
         return {
-          ordem_id: String(edgeData.ordem_id || edgeData.orderId),
-          codigo_rastreio: String(edgeData.codigo_rastreio || ''),
+          ordem_id: String(edgeData.ordem_id || edgeData.orderId || ''),
+          codigo_rastreio: codRastreioValido,
           link_etiqueta: edgeData.link_etiqueta || '',
-          link_rastreio: edgeData.codigo_rastreio
-            ? `https://melhorrastreio.com.br/rastreio/${edgeData.codigo_rastreio}`
-            : (edgeData.link_rastreio || ''),
+          link_rastreio: linkRastreioFinal,
           transportadora: entrega.transportadora_nome || edgeData.transportadora || 'Melhor Envio'
         };
       }
@@ -739,12 +743,14 @@ export class MelhorEnvioService {
 
       if (!rpcError && rpcData && rpcData.sucesso) {
         console.log('[MelhorEnvio] Despacho realizado com sucesso via Supabase RPC.');
+        const rpcCod = String(rpcData.codigo_rastreio || '').trim();
+        const codValido = rpcCod && !rpcCod.startsWith('ORD-') && !rpcCod.includes('-') ? rpcCod : '';
         return {
           ordem_id: String(rpcData.ordem_id),
-          codigo_rastreio: String(rpcData.codigo_rastreio),
+          codigo_rastreio: codValido,
           link_etiqueta: (rpcData.link_etiqueta && !rpcData.link_etiqueta.includes('/painel/envios') && !rpcData.link_etiqueta.includes('/404')) ? rpcData.link_etiqueta : '',
-          link_rastreio: rpcData.codigo_rastreio
-            ? `https://melhorrastreio.com.br/rastreio/${rpcData.codigo_rastreio}`
+          link_rastreio: codValido
+            ? `https://melhorrastreio.com.br/app/${codValido}`
             : (rpcData.link_rastreio || ''),
           transportadora: entrega.transportadora_nome || 'Melhor Envio'
         };
@@ -764,5 +770,59 @@ export class MelhorEnvioService {
     }
 
     throw new Error('Não foi possível se comunicar com o Melhor Envio. Verifique sua conexão e configurações.');
+  }
+
+  /**
+   * Obtém a URL do PDF oficial da etiqueta gerada pelo Melhor Envio (Jadlog / Correios)
+   * através da Edge Function e abre em nova aba.
+   */
+  public static async obterEtiquetaOficialPdf(
+    pedidoId: string,
+    lojaId: string,
+    ordemId?: string | null,
+    tipo: 'etiqueta' | 'declaracao' = 'etiqueta'
+  ): Promise<string> {
+    const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
+      body: {
+        pedidoId,
+        loja_id: lojaId,
+        acao: tipo === 'declaracao' ? 'declaracao_conteudo' : 'imprimir_etiqueta',
+        ordem_id: ordemId || undefined
+      }
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Falha ao obter etiqueta oficial do Melhor Envio.');
+    }
+
+    if (!data?.sucesso || !data?.url) {
+      throw new Error(data?.error || data?.erro || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
+    }
+
+    return data.url;
+  }
+
+  /**
+   * Sincroniza o status do rastreamento em tempo real com o Melhor Envio
+   */
+  public static async sincronizarRastreio(
+    pedidoId: string,
+    lojaId: string,
+    codigoOuOrdem?: string | null
+  ): Promise<any> {
+    const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
+      body: {
+        pedidoId,
+        loja_id: lojaId,
+        acao: 'sincronizar_rastreio',
+        codigo_rastreio: codigoOuOrdem || undefined
+      }
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Falha ao sincronizar rastreio com Melhor Envio.');
+    }
+
+    return data;
   }
 }

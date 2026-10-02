@@ -57,6 +57,8 @@ import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/corr
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalDespacharPedido } from './shipping/ModalDespacharPedido';
+import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
+import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
@@ -221,6 +223,57 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [filtroHistoricoFiadoModal, setFiltroHistoricoFiadoModal] = useState<'todos' | 'vencidos' | 'a_vencer'>('a_vencer');
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
+  const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
+  const [gerandoEtiquetaOficial, setGerandoEtiquetaOficial] = useState<boolean>(false);
+
+  const handleImprimirEtiquetaOficialMelhorEnvio = async (ped: Pedido) => {
+    if (!loja?.id) {
+      mostrarToast('Loja não identificada.', 'erro');
+      return;
+    }
+    const pe = ped.pedido_entrega || entregaPedido;
+    const ordemId = pe?.servico_codigo || (ped as any)?.servico_codigo || (ped.codigo_rastreio?.startsWith('ORD-') ? ped.codigo_rastreio : undefined);
+
+    setGerandoEtiquetaOficial(true);
+    mostrarToast('Buscando Etiqueta Oficial em PDF na Jadlog/Correios...', 'info');
+    try {
+      const url = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, loja.id, ordemId, 'etiqueta');
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        mostrarToast('Etiqueta oficial aberta em nova aba!', 'sucesso');
+      } else {
+        mostrarToast('Não foi possível gerar a etiqueta oficial no momento. Abrindo etiqueta HUBI.', 'aviso');
+        setPedidoEtiquetaModal(ped);
+      }
+    } catch (err: any) {
+      mostrarToast(err?.message || 'Falha ao buscar etiqueta oficial. Abrindo etiqueta interna.', 'aviso');
+      setPedidoEtiquetaModal(ped);
+    } finally {
+      setGerandoEtiquetaOficial(false);
+    }
+  };
+
+  const handleImprimirDeclaracaoConteudoMelhorEnvio = async (ped: Pedido) => {
+    if (!loja?.id) return;
+    const pe = ped.pedido_entrega || entregaPedido;
+    const ordemId = pe?.servico_codigo || (ped as any)?.servico_codigo;
+
+    setGerandoEtiquetaOficial(true);
+    mostrarToast('Buscando Declaração de Conteúdo...', 'info');
+    try {
+      const url = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, loja.id, ordemId, 'declaracao');
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        mostrarToast('Declaração de Conteúdo aberta!', 'sucesso');
+      } else {
+        mostrarToast('Declaração não disponível na transportadora.', 'aviso');
+      }
+    } catch (err: any) {
+      mostrarToast(err?.message || 'Erro ao gerar declaração de conteúdo.', 'erro');
+    } finally {
+      setGerandoEtiquetaOficial(false);
+    }
+  };
 
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
@@ -1120,36 +1173,67 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </div>
                     )}
 
-                    {ehCorreios ? (
-                      ehMelhorEnvio ? (
+                    {ehMelhorEnvio ? (
+                      <div className="space-y-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado)}
+                          disabled={gerandoEtiquetaOficial}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Imprimir Etiqueta Oficial (PDF)</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
-                          className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-sky-600 text-white font-black text-xs hover:bg-sky-500 shadow-md shadow-sky-600/20 transition cursor-pointer active:scale-95"
                         >
                           <Package className="w-3.5 h-3.5" />
-                          <span>Rastrear Envio</span>
+                          <span>Rastrear Envio em Tempo Real</span>
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const cod = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
-                            if (cod) {
-                              try {
-                                navigator.clipboard.writeText(cod);
-                              } catch {}
-                            }
-                            mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
-                            window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
-                          }}
-                          className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
-                          title="Copiar código e abrir rastreamento oficial dos Correios"
-                        >
-                          <Package className="w-3.5 h-3.5" />
-                          <span>Rastrear</span>
-                        </button>
-                      )
+
+                        <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleImprimirDeclaracaoConteudoMelhorEnvio(pedidoSelecionado)}
+                            disabled={gerandoEtiquetaOficial}
+                            className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] transition cursor-pointer"
+                          >
+                            <FileText className="w-3 h-3 text-slate-500" />
+                            <span>Declaração</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                            className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] transition cursor-pointer"
+                          >
+                            <Tag className="w-3 h-3 text-slate-500" />
+                            <span>Etiqueta HUBI</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : ehCorreios ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cod = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
+                          if (cod) {
+                            try {
+                              navigator.clipboard.writeText(cod);
+                            } catch {}
+                          }
+                          mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
+                          window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
+                        }}
+                        className="mt-1 w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                        title="Copiar código e abrir rastreamento oficial dos Correios"
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        <span>Rastrear</span>
+                      </button>
                     ) : ehTransportadoraPrivada ? (
                       <button
                         type="button"
@@ -2581,6 +2665,17 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           if (onRecarregar) onRecarregar();
         }}
       />
+
+      {/* MODAL DE IMPRESSÃO DE ETIQUETA DE ENVIO */}
+      {pedidoEtiquetaModal && loja && (
+        <ModalImprimirEtiqueta
+          isOpen={Boolean(pedidoEtiquetaModal)}
+          onClose={() => setPedidoEtiquetaModal(null)}
+          pedido={pedidoEtiquetaModal}
+          loja={loja}
+          entrega={entregaPedido}
+        />
+      )}
     </div>
   );
 };
