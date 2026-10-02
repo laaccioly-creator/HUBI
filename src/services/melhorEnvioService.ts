@@ -742,7 +742,7 @@ export class MelhorEnvioService {
         return {
           ordem_id: String(rpcData.ordem_id),
           codigo_rastreio: String(rpcData.codigo_rastreio),
-          link_etiqueta: rpcData.link_etiqueta || `${baseUrl}/painel/envios`,
+          link_etiqueta: (rpcData.link_etiqueta && !rpcData.link_etiqueta.includes('/painel/envios') && !rpcData.link_etiqueta.includes('/404')) ? rpcData.link_etiqueta : '',
           link_rastreio: rpcData.codigo_rastreio
             ? `https://melhorrastreio.com.br/rastreio/${rpcData.codigo_rastreio}`
             : (rpcData.link_rastreio || ''),

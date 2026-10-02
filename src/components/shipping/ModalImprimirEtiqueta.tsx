@@ -68,18 +68,19 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     pe?.provedor === 'uber' ||
     pe?.provedor === 'frete_proprio';
 
+  const temEtiquetaOficialValida = ehUrlEtiquetaValida(linkEtiquetaOficial);
+
   const ehMelhorEnvio = !ehAppOuManual && (
     pe?.provedor === 'melhor_envio' ||
     (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
-    Boolean((pedido as any).metadados?.melhor_envio_order_id) ||
-    Boolean(linkEtiquetaOficial && !linkEtiquetaOficial.includes('/404'))
+    Boolean((pedido as any).metadados?.melhor_envio_order_id)
   );
 
   const handleAbrirMelhorEnvio = () => {
-    if (ehUrlEtiquetaValida(linkEtiquetaOficial) && !linkEtiquetaOficial.includes('/404')) {
+    if (temEtiquetaOficialValida) {
       window.open(linkEtiquetaOficial, '_blank', 'noopener,noreferrer');
     } else {
-      mostrarToast('A etiqueta do Melhor Envio ainda não foi gerada ou está em processamento.', 'info');
+      mostrarToast('A etiqueta oficial em PDF do Melhor Envio ainda não está disponível. Utilize a impressão da Etiqueta Térmica pelo botão verde abaixo.', 'info');
     }
   };
 
@@ -255,7 +256,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         </div>
 
         {/* Banner Etiqueta Oficial da Transportadora (Melhor Envio) */}
-        {!ehAppOuManual && ehMelhorEnvio && (
+        {!ehAppOuManual && ehMelhorEnvio && temEtiquetaOficialValida && (
           <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sky-300 text-xs font-bold">
               <Tag className="w-4 h-4 shrink-0 text-sky-400" />
@@ -365,7 +366,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           >
             Fechar
           </button>
-          {!ehAppOuManual && ehMelhorEnvio && (
+          {!ehAppOuManual && ehMelhorEnvio && temEtiquetaOficialValida && (
             <button
               type="button"
               onClick={handleAbrirMelhorEnvio}

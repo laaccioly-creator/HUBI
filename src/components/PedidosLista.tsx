@@ -102,6 +102,9 @@ export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
   if (!u || u === 'null' || u === 'undefined') return false;
   if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
   if (u.includes('404')) return false;
+  if (u.includes('/painel/envios') || u.includes('/painel/')) return false;
+  if (u.includes('sandbox.melhorenvio.com.br/imprimir')) return false;
+  if (u.endsWith('.com.br') || u.endsWith('.com.br/')) return false;
   return true;
 };
 
@@ -1376,11 +1379,7 @@ export const PedidosLista: React.FC = () => {
         const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
-        // Bloqueio de Redirecionamento 404 Externo:
-        // Evite qualquer chamada do tipo window.open quando a URL da etiqueta for nula, vazia ou inválida
-        if (ehUrlEtiquetaValida(linkEtqFinal)) {
-          window.open(linkEtqFinal, '_blank', 'noopener,noreferrer');
-        }
+        mostrarSucesso('Envio gerado com sucesso!', 'Pedido despachado via transportadora. Etiqueta e rastreamento disponíveis.');
       }
     } catch (err: any) {
       console.error('Erro ao despachar pedido via API integrada:', err);
@@ -1500,9 +1499,7 @@ export const PedidosLista: React.FC = () => {
       const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
       if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
-      if (ehUrlEtiquetaValida(resultado.link_etiqueta)) {
-        window.open(resultado.link_etiqueta, '_blank', 'noopener,noreferrer');
-      }
+      mostrarSucesso('Envio gerado com sucesso!', 'Pedido despachado via transportadora. Etiqueta e rastreamento disponíveis.');
     } catch (err: any) {
       console.error('Erro ao salvar CPF e despachar:', err);
       let mensagem = err?.message || 'Falha na comunicação com o provedor de frete.';
