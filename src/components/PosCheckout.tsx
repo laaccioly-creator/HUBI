@@ -2897,15 +2897,23 @@ export const PosCheckout: React.FC = () => {
       )}
 
       {/* MODAL DE RECIBO & FINALIZAÇÃO */}
+      {/* MODAL DE RECIBO & FINALIZAÇÃO */}
       {pedidoConcluido && (() => {
+        const pe = (pedidoConcluido as any).pedido_entrega || (Array.isArray((pedidoConcluido as any).pedido_entregas) ? (pedidoConcluido as any).pedido_entregas[0] : null);
+        const meta = (pedidoConcluido as any).metadados || {};
+        const codigoCorrida = pe?.codigo_corrida || meta.codigo_corrida || null;
+        const codigoRastreio = pe?.codigo_rastreio || meta.codigo_rastreio || null;
+
         const {
           ehRetirada,
           formaEntregaTexto,
           labelEndereco,
           enderecoExibicao
-        } = obterInfoEntregaRecibo(pedidoConcluido, loja, (pedidoConcluido as any).pedido_entrega);
+        } = obterInfoEntregaRecibo(pedidoConcluido, loja, pe);
 
-        const badgeEstilo = ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800';
+        const badgeEstilo = ehRetirada 
+          ? 'bg-purple-950/50 text-purple-300 border border-purple-700/60' 
+          : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
 
         const valorSubtotal = Number((pedidoConcluido as any).subtotal_produtos || pedidoConcluido.subtotal || pedidoConcluido.valor_total || 0);
         const valorDesconto = Number(pedidoConcluido.valor_desconto || 0);
@@ -2914,7 +2922,7 @@ export const PosCheckout: React.FC = () => {
 
         return (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="bg-slate-900 border border-slate-750 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150 text-slate-200">
               {/* Topo do Modal */}
               <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
                 <div className="flex items-center gap-2.5">
@@ -2922,7 +2930,7 @@ export const PosCheckout: React.FC = () => {
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-100 text-sm">
+                    <h3 className="font-extrabold text-white text-sm">
                       {ehVendaOfflineSalva ? 'Venda Salva (Modo Offline)!' : 'Venda Concluída com Sucesso!'}
                     </h3>
                     <p className="text-[11px] text-slate-400">Recibo do Pedido #{pedidoConcluido.numero_pedido}</p>
@@ -2930,13 +2938,13 @@ export const PosCheckout: React.FC = () => {
                 </div>
                 <button
                   onClick={handleFecharRecibo}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Visualização do Cupom/Recibo Conforme Modelo dos Logs */}
+              {/* Visualização do Cupom/Recibo Padronizado com ReciboPedidoModal */}
               <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3 flex flex-col items-center custom-scrollbar">
                 {ehVendaOfflineSalva && (
                   <div className="w-full max-w-md p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 space-y-1">
@@ -2952,158 +2960,180 @@ export const PosCheckout: React.FC = () => {
 
                 <div
                   ref={reciboRef}
-                  className="w-full max-w-md bg-white text-slate-900 p-6 pb-8 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-xl font-mono min-h-fit mb-6"
+                  className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/70 font-mono text-xs space-y-3.5 min-h-fit mb-6"
                 >
-                  {/* Logo da Loja se houver */}
-                  {loja?.url_logo && (
-                    <div className="text-center pb-1">
-                      <img
-                        src={loja.url_logo}
-                        alt={loja.nome_fantasia}
-                        crossOrigin="anonymous"
-                        className="max-h-12 max-w-[160px] mx-auto object-contain"
-                      />
-                    </div>
-                  )}
-
-                  {/* Título RECIBO # */}
-                  <div className="text-center border-b border-slate-200 border-dashed pb-2">
-                    <h4 className="font-black text-slate-900 text-base tracking-wide uppercase">
-                      RECIBO #{pedidoConcluido.numero_pedido}
-                    </h4>
-                    <p className="font-bold text-slate-800 uppercase text-[11px]">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                    <p className="text-slate-500 text-[10px]">
+                  {/* Topo: Logo ou Ícone Store, Nome da Loja, Endereço e Telefone */}
+                  <div className="text-center space-y-1 border-b border-slate-700/70 border-dashed pb-3">
+                    {loja?.url_logo ? (
+                      <div className="pb-1">
+                        <img
+                          src={loja.url_logo}
+                          alt={loja.nome_fantasia}
+                          crossOrigin="anonymous"
+                          className="max-h-12 max-w-[160px] mx-auto object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <Store className="w-8 h-8 text-slate-400 mx-auto mb-1" />
+                    )}
+                    <h4 className="font-bold text-sm text-white uppercase tracking-wider">{loja?.nome_fantasia || loja?.razao_social || 'HUBI PDV'}</h4>
+                    <p className="text-[11px] text-slate-300">
                       {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
-                      {loja?.whatsapp ? ` • +55 ${loja.whatsapp}` : (loja?.telefone ? ` • +55 ${loja.telefone}` : '')}
                     </p>
-                  </div>
-
-                  {/* Dados do Vendedor / Origem (Antes do Cliente) */}
-                  <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
-                    <span className="text-slate-500 font-semibold">
-                      {pedidoConcluido.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
-                    </span>
-                    <p className="font-bold text-slate-900">
-                      {pedidoConcluido.origem === 'catalogo_online'
-                        ? 'Catálogo Online (Pedido Online)'
-                        : pedidoConcluido.vendedor?.nome_completo || 'Caixa / Balcão'}
-                    </p>
-                  </div>
-
-                  {/* Dados do Cliente */}
-                  <div className="space-y-0.5 text-xs text-slate-700 border-b border-slate-200 border-dashed pb-2">
-                    <p className="font-bold text-slate-900">Cliente: {pedidoConcluido.cliente?.nome || 'Cliente Avulso'}</p>
-                    {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
-                      <p className="text-slate-500 text-[10px]">
-                        Tel: +55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}
+                    {(loja?.whatsapp || loja?.telefone) && (
+                      <p className="text-[10px] text-slate-400">
+                        Tel: +55 {loja.whatsapp || loja.telefone}
                       </p>
+                    )}
+                    <div className="pt-1 text-[10px] text-slate-400">
+                      RECIBO #{pedidoConcluido.numero_pedido} • {formatarDataRecibo(pedidoConcluido.data_venda || pedidoConcluido.criado_em)}
+                    </div>
+                  </div>
+
+                  {/* Metadados: Vendedor / Canal e Cliente */}
+                  <div className="space-y-1 text-xs border-b border-slate-700/70 border-dashed pb-2">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">
+                        {pedidoConcluido.origem === 'catalogo_online' ? 'Canal:' : 'Vendedor:'}
+                      </span>
+                      <span className="font-bold text-white">
+                        {pedidoConcluido.origem === 'catalogo_online'
+                          ? 'Catálogo Online'
+                          : pedidoConcluido.vendedor?.nome_completo || 'Caixa / Balcão'}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Cliente:</span>
+                      <span className="font-bold text-white">{pedidoConcluido.cliente?.nome || 'Consumidor Final'}</span>
+                    </div>
+                    {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-400">Contato:</span>
+                        <span className="text-slate-300">+55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}</span>
+                      </div>
                     )}
                   </div>
 
-                  {/* Forma de Entrega & Endereço */}
-                  <div className="p-2 rounded bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
+                  {/* Card de Logística / Entrega */}
+                  <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] space-y-1">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-700 uppercase">Forma de Entrega:</span>
-                      <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
-                        {formaEntregaTexto}
+                      <span className="font-bold text-slate-300 uppercase text-[10px]">Forma de Entrega:</span>
+                      <span className={`font-black px-2 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
+                        {ehRetirada ? 'Retirada na Loja' : formaEntregaTexto}
                       </span>
                     </div>
-                    <div className="text-slate-600 pt-0.5">
-                      <strong className="text-slate-800">{labelEndereco} </strong>
+                    <div className="text-slate-300 pt-0.5 leading-snug">
+                      <strong className="text-white">{labelEndereco} </strong>
                       <span>{enderecoExibicao}</span>
                     </div>
+                    {codigoCorrida && (
+                      <div className="flex justify-between text-emerald-400 font-bold pt-1">
+                        <span>Código da Corrida:</span>
+                        <span>{codigoCorrida}</span>
+                      </div>
+                    )}
+                    {codigoRastreio && (
+                      <div className="flex justify-between text-emerald-400 font-bold pt-1">
+                        <span>Código de Rastreio:</span>
+                        <span>{codigoRastreio}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Resumo de itens */}
-                  <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">
-                    {pedidoConcluido?.itens?.length || 0} itens (Qtd.: {(pedidoConcluido?.itens || []).reduce((acc, i) => acc + Number(i.quantidade || 1), 0)})
+                  {/* Listagem de Itens */}
+                  <div className="space-y-1 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                    {pedidoConcluido?.itens?.length || 0} ITENS (QTD: {(pedidoConcluido?.itens || []).reduce((acc: number, i: any) => acc + Number(i.quantidade || 1), 0)})
                   </div>
 
-                  {/* Tabela de Itens */}
-                  <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2">
-                    {pedidoConcluido.itens?.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-start text-xs text-slate-800">
-                        <span>
-                          <strong className="text-slate-950">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+                  <div className="space-y-1.5 border-b border-slate-700/70 border-dashed pb-3">
+                    {pedidoConcluido.itens?.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-xs">
+                        <span className="truncate pr-2 text-slate-200">
+                          <strong className="text-white font-bold">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
                         </span>
-                        <span className="font-bold text-slate-900 whitespace-nowrap pl-3">
+                        <span className="font-bold text-white shrink-0 tabular-nums">
                           R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Fechamento Financeiro */}
-                  <div className="space-y-1.5 text-xs text-slate-700">
-                    <div className="flex justify-between text-slate-800">
-                      <span>Subtotal dos Produtos:</span>
-                      <span className="font-semibold text-slate-900">R$ {valorSubtotal.toFixed(2)}</span>
+                  {/* Totais e Fechamento Financeiro */}
+                  <div className="space-y-1.5 text-xs text-slate-300">
+                    <div className="flex justify-between">
+                      <span className="text-slate-300">Subtotal dos Produtos:</span>
+                      <span className="font-semibold text-white">R$ {valorSubtotal.toFixed(2)}</span>
                     </div>
 
                     {valorDesconto > 0 && (
-                      <div className="flex justify-between text-red-600 font-bold">
+                      <div className="flex justify-between text-rose-400 font-bold">
                         <span>Desconto Aplicado:</span>
                         <span>- R$ {valorDesconto.toFixed(2)}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between text-slate-800">
-                      <span>Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
-                      <span className="font-semibold text-slate-900">
+                    <div className="flex justify-between">
+                      <span className="text-slate-300">Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
+                      <span className="font-semibold text-white">
                         {valorFrete > 0 
                           ? `+ R$ ${valorFrete.toFixed(2)}` 
                           : (ehRetirada ? 'Grátis (Retirada)' : 'Grátis')}
                       </span>
                     </div>
 
-                    <div className="border-t border-dashed border-slate-300 pt-2 my-1"></div>
+                    <div className="border-t border-dashed border-slate-700/70 pt-2 my-1"></div>
 
-                    <div className="flex justify-between items-center text-sm font-black text-slate-950 pt-0.5">
-                      <span>VALOR TOTAL:</span>
-                      <span className="text-base font-black">R$ {valorTotal.toFixed(2)}</span>
+                    <div className="flex justify-between items-center text-sm font-bold text-white pt-0.5">
+                      <span className="text-white font-bold tracking-wide">VALOR TOTAL:</span>
+                      <span className="text-lg font-black text-white">R$ {valorTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
-                  {/* Dados do Pagamento (Após o Valor Total) */}
+                  {/* Dados do Pagamento */}
                   {(() => {
                     const pagInfo = obterDadosPagamentoRecibo(pedidoConcluido);
                     return (
                       <>
                         {pagInfo.ehFiado && Number(pedidoConcluido.saldo_devedor) > 0 && (
-                          <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
-                            <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                            <span className="text-sm font-black text-red-600">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
+                          <div className="p-2.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-center space-y-0.5">
+                            <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                            <span className="text-sm font-black text-rose-400">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
                             {obterInfoVencimentoFiado(pedidoConcluido).temVencimento && (
-                              <span className="text-[11px] font-bold text-red-700 block pt-0.5">
-                                Data de Vencimento: {obterInfoVencimentoFiado(pedidoConcluido).formatada}
+                              <span className="text-[11px] font-bold text-rose-300 block pt-0.5">
+                                Vencimento: {obterInfoVencimentoFiado(pedidoConcluido).formatada}
                               </span>
                             )}
                           </div>
                         )}
 
-                        <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                          <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
-                            <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
-                            <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        <div className="mt-3 p-3 rounded-xl border border-slate-800 bg-[#0d131f] space-y-2 text-xs">
+                          <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-800">
+                            <span className="font-bold text-[10px] text-slate-300 uppercase tracking-wider">Status Pagamento:</span>
+                            <span className={`font-semibold text-[10px] px-2 py-0.5 rounded border ${
+                              pagInfo.foiPago
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                            }`}>
                               {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                             </span>
                           </div>
                           {pagInfo.foiPago && (pagInfo.pagamentosDetalhados?.length || 0) > 0 ? (
-                            <div className="space-y-1.5 pt-1.5 text-slate-800">
+                            <div className="space-y-1.5 pt-1">
                               {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                                 <div key={idx} className="flex justify-between items-start text-[11px]">
                                   <div>
-                                    <span className="font-semibold">{pag.forma}</span>
+                                    <span className="font-semibold text-white block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
                                     {pag.origemGateway && (
-                                      <span className="text-[10px] text-sky-700 block font-medium">Origem: {pag.origemGateway}</span>
+                                      <span className="text-[10px] text-slate-400 block font-normal">Origem: {pag.origemGateway}</span>
                                     )}
                                   </div>
-                                  <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                                  <span className="font-bold text-white">R$ {pag.valor.toFixed(2)}</span>
                                 </div>
                               ))}
-                              <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
-                                <span>Valor Pago:</span>
-                                <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                              <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-slate-800">
+                                <span className="text-slate-300">Valor Pago:</span>
+                                <span className="text-emerald-400 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
                               </div>
                             </div>
                           ) : null}
@@ -3111,14 +3141,6 @@ export const PosCheckout: React.FC = () => {
                       </>
                     );
                   })()}
-
-                  {/* Linha Divisória */}
-                  <div className="border-t border-slate-700 my-2"></div>
-
-                  {/* Data Formatada por Extenso */}
-                  <div className="text-center text-[11px] text-slate-400">
-                    {formatarDataRecibo(pedidoConcluido.data_venda || pedidoConcluido.criado_em)}
-                  </div>
                 </div>
               </div>
 
@@ -3233,18 +3255,18 @@ export const PosCheckout: React.FC = () => {
 
       {/* Modal de Gestão de Frete, Retirada e Endereços */}
       {modalFulfillmentAberto && loja && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-750 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto text-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                   <Truck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-800">
+                  <h3 className="font-bold text-base text-white">
                     Forma de Entrega / Retirada
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-400">
                     Selecione retirada na loja física ou entrega no endereço do cliente
                   </p>
                 </div>
@@ -3255,7 +3277,7 @@ export const PosCheckout: React.FC = () => {
                   setDraftFulfillment(null);
                   setModalFulfillmentAberto(false);
                 }}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3279,6 +3301,7 @@ export const PosCheckout: React.FC = () => {
               valorFreteAtual={draftFulfillment ? draftFulfillment.valor_frete : taxaEntrega}
               opcaoSelecionadaId={draftFulfillment?.pedido_entrega?.forma_entrega_id || draftFulfillment?.pedido_entrega?.servico_codigo || pedidoEntrega?.forma_entrega_id || pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={draftFulfillment?.tipo_atendimento || pedidoEntrega?.tipo_atendimento || 'retirada'}
+              temaDark={true}
               enderecoEntregaAtual={pedidoEntrega?.destino_cep ? {
                 id: pedidoEntrega.cliente_endereco_id || undefined,
                 cep: pedidoEntrega.destino_cep,
@@ -3303,14 +3326,14 @@ export const PosCheckout: React.FC = () => {
               }}
             />
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   setDraftFulfillment(null);
                   setModalFulfillmentAberto(false);
                 }}
-                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs border border-slate-200 transition cursor-pointer"
+                className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -3325,9 +3348,9 @@ export const PosCheckout: React.FC = () => {
                   }
                   setModalFulfillmentAberto(false);
                 }}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-lg shadow-emerald-950/40 cursor-pointer"
               >
-                Confirmar Forma de Entrega
+                CONFIRMAR FORMA DE ENVIO
               </button>
             </div>
           </div>

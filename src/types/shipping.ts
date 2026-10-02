@@ -184,6 +184,9 @@ export interface OpcaoFreteCotada {
   erro?: string | null;
   permite_edicao_valor?: boolean;
   tipo_cobranca?: 'fixo' | 'manual' | 'gratis';
+  desabilitada?: boolean;
+  motivo_desabilitada?: string | null;
+  distancia_km?: number | null;
 }
 
 export interface NovoEnderecoFormInput {

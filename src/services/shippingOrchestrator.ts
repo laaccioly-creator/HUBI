@@ -14,7 +14,7 @@ import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
-import { normalizarTexto } from '../utils/geoUtils';
+import { normalizarTexto, calcularDistanciaEntreEnderecosKm } from '../utils/geoUtils';
 
 export class ShippingOrchestrator {
   /**
@@ -429,6 +429,28 @@ export class ShippingOrchestrator {
       destino_cep
     ].filter(Boolean).join(', ');
 
+    // Validação preventiva do raio da Uber Direct (<= 5 km)
+    let distanciaUberKm: number | null = null;
+    if (config?.uber_ativo === true) {
+      try {
+        const enderecoOrigem = [
+          config.origem_logradouro,
+          config.origem_numero,
+          config.origem_bairro,
+          config.origem_cidade,
+          config.origem_uf,
+          config.origem_cep
+        ].filter(Boolean).join(', ');
+
+        distanciaUberKm = await calcularDistanciaEntreEnderecosKm(
+          { cep: config.origem_cep, endereco: enderecoOrigem },
+          { cep: destino_cep, endereco: enderecoDestinoLinha }
+        );
+      } catch (eDist) {
+        console.warn('[ShippingOrchestrator] Falha ao calcular distância:', eDist);
+      }
+    }
+
     const promessas: Promise<{ provedor: 'uber' | 'melhor_envio'; valor: any }>[] = [];
 
     // 1. Uber Direct - APENAS se ativado explicitamente na loja
@@ -460,9 +482,20 @@ export class ShippingOrchestrator {
       for (const res of resultados) {
         if (res.status === 'fulfilled' && res.value) {
           if (res.value.provedor === 'uber' && res.value.valor) {
-            const opcaoUber: OpcaoFreteCotada = res.value.valor;
-            // Se houver erro de bloqueio/cadastro ou conta desativada na Uber, não expor no PDV
-            if (opcaoUber.id !== 'uber-blocked' && !opcaoUber.erro) {
+            const opcaoUber: OpcaoFreteCotada = { ...res.value.valor };
+
+            // Se calculamos a distância ou a Uber já marcou desabilitada
+            if (distanciaUberKm != null) {
+              opcaoUber.distancia_km = distanciaUberKm;
+              if (distanciaUberKm > 5) {
+                opcaoUber.desabilitada = true;
+                opcaoUber.motivo_desabilitada = `Fora do raio de atendimento (~${distanciaUberKm.toFixed(1)} km / máx: 5 km)`;
+                opcaoUber.prazo_estimado_texto = `Fora do raio (~${distanciaUberKm.toFixed(1)} km)`;
+              }
+            }
+
+            // Se houver erro cadastral da Uber, descarta; se for fora de raio, mantém com flag desabilitada
+            if (opcaoUber.id !== 'uber-blocked' && (!opcaoUber.erro || opcaoUber.desabilitada)) {
               opcoesTotais.push(opcaoUber);
             }
           } else if (res.value.provedor === 'melhor_envio' && Array.isArray(res.value.valor)) {
@@ -504,26 +537,25 @@ export class ShippingOrchestrator {
     let opcoesFiltradas = opcoesTotais;
     if (cidadeOrigemNorm && cidadeDestinoNorm) {
       const ehMesmaCidade = cidadeOrigemNorm === cidadeDestinoNorm;
-      opcoesFiltradas = opcoesTotais.filter(op => {
-        if (ehMesmaCidade) {
-          // Se Origem === Destino (Mesma Cidade / Entrega Municipal):
-          // - Ocultar transportadoras rodoviárias/interestaduais do Melhor Envio (Jadlog, Azul Cargo, Buslog, LATAM Cargo, etc.)
-          // - Exibir: Uber Direct e serviços rápidos/locais (ex.: Correios SEDEX e frete próprio/manual)
-          if (op.provedor === 'uber') return true;
-          if (op.provedor === 'melhor_envio') {
-            const texto = `${op.transportadora_nome || ''} ${op.servico_nome || ''}`.toLowerCase();
-            const ehRodoviariaInterestadual = ['jadlog', 'azul', 'buslog', 'latam', 'pac'].some(t => texto.includes(t));
-            if (ehRodoviariaInterestadual) return false;
-            return texto.includes('sedex');
-          }
-          return true;
-        } else {
-          // Se Origem !== Destino (Outra Cidade / Intermunicipal / Interestadual):
-          // - Ocultar Uber Direct (raio local urbano apenas)
-          // - Exibir: Todas as opções de transportadoras integradas do Melhor Envio (Jadlog, Correios PAC/SEDEX, etc.)
-          if (op.provedor === 'uber') return false;
-          return true;
+      opcoesFiltradas = opcoesTotais.map(op => {
+        if (!ehMesmaCidade && op.provedor === 'uber') {
+          // Se for outra cidade, Uber é desabilitada por fora do raio de atendimento
+          return {
+            ...op,
+            desabilitada: true,
+            motivo_desabilitada: 'Fora do raio de atendimento (Intermunicipal)',
+            prazo_estimado_texto: 'Fora do raio de atendimento'
+          };
         }
+        return op;
+      }).filter(op => {
+        if (ehMesmaCidade && op.provedor === 'melhor_envio') {
+          const texto = `${op.transportadora_nome || ''} ${op.servico_nome || ''}`.toLowerCase();
+          const ehRodoviariaInterestadual = ['jadlog', 'azul', 'buslog', 'latam', 'pac'].some(t => texto.includes(t));
+          if (ehRodoviariaInterestadual) return false;
+          return texto.includes('sedex');
+        }
+        return true;
       });
     }
 

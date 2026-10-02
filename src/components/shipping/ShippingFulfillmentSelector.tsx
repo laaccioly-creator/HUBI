@@ -96,6 +96,7 @@ export interface ShippingFulfillmentSelectorProps {
   className?: string;
   modoCompacto?: boolean;
   modoCatalogo?: boolean;
+  temaDark?: boolean;
 }
 
 const resolverEnderecoInicial = (
@@ -159,9 +160,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   onChange,
   className = '',
   modoCompacto = false,
-  modoCatalogo = false
+  modoCatalogo = false,
+  temaDark = true
 }) => {
   const ehCatalogo = modoCatalogo || modoCompacto;
+  const ehDark = temaDark || ehCatalogo;
   const [configLoja, setConfigLoja] = useState<LojaShippingConfig | null>(null);
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
 
@@ -1094,6 +1097,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // Seleção de uma opção cotada específica
   const handleEscolherCotacao = (opcao: OpcaoFreteCotada) => {
+    if (opcao.desabilitada) {
+      return; // Bloqueio preventivo: não permite selecionar opções fora do raio de atendimento
+    }
+
     const cepLimpo = (enderecoSelecionado?.cep || '').replace(/\D/g, '');
     const logrLimpo = (enderecoSelecionado?.logradouro || '').trim();
     const numLimpo = (enderecoSelecionado?.numero || '').trim();
@@ -1222,39 +1229,39 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         </div>
       ) : (enderecoSelecionado && (enderecoSelecionado.cep || '').replace(/\D/g, '') && (enderecoSelecionado.logradouro || '').trim()) ? (
         <div className="space-y-2">
-          <div className={`flex items-center gap-2 text-xs font-bold ${ehCatalogo ? 'text-slate-300' : 'text-slate-700'}`}>
-            <ShieldCheck className={`w-4 h-4 ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`} />
+          <div className={`flex items-center gap-2 text-xs font-bold ${ehDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <ShieldCheck className={`w-4 h-4 ${ehDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
             <span>Calculamos os custos e prazos para este endereço:</span>
           </div>
 
           <div className={`p-3.5 rounded-2xl border space-y-2 relative overflow-hidden shadow-sm ${
-            ehCatalogo
-              ? 'bg-slate-800/40 border-slate-700/60 text-slate-200'
+            ehDark
+              ? 'bg-slate-900/80 border-slate-750 text-slate-200'
               : 'bg-slate-50 border-slate-200 text-slate-800'
           }`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
-                <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${ehDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold ${ehCatalogo ? 'text-slate-100' : 'text-slate-900'}`}>
+                    <span className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-900'}`}>
                       {enderecoSelecionado.identificador || 'Endereço Principal'}
                     </span>
                     {enderecoSelecionado.is_principal && (
                       <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                        ehCatalogo
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        ehDark
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                           : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                       }`}>
                         Principal
                       </span>
                     )}
                   </div>
-                  <p className={`text-xs mt-1 ${ehCatalogo ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <p className={`text-xs mt-1 font-medium ${ehDark ? 'text-slate-100' : 'text-slate-700'}`}>
                     {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
                     {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
                   </p>
-                  <p className={`text-[11px] mt-0.5 ${ehCatalogo ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p className={`text-[11px] mt-0.5 ${ehDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                   </p>
                 </div>
@@ -1265,7 +1272,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   type="button"
                   onClick={() => onSolicitarAtualizarEndereco()}
                   className={`text-xs font-bold flex items-center gap-1 cursor-pointer transition hover:underline shrink-0 ${
-                    ehCatalogo ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
+                    ehDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
                   }`}
                   title="Editar endereço principal"
                 >
@@ -1276,12 +1283,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
 
             {/* Botão Escolher Outro Endereço */}
-            <div className={`pt-2 border-t flex justify-end ${ehCatalogo ? 'border-slate-700/60' : 'border-slate-200'}`}>
+            <div className={`pt-2 border-t flex justify-end ${ehDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <button
                 type="button"
                 onClick={() => setModalEscolherOutroAberto(true)}
                 className={`text-xs font-bold flex items-center gap-1 cursor-pointer transition hover:underline ${
-                  ehCatalogo ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
+                  ehDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
                 }`}
               >
                 <span>Escolher outro endereço</span>
@@ -1355,50 +1362,62 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
           ) : (
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-700 block">Balcão da Loja Física</span>
+              <span className={`text-xs font-bold block ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>Balcão da Loja Física</span>
               <div
                 onClick={handleSelecionarRetirada}
                 className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                   modalidade === 'retirada'
-                    ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                    : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                    ? ehDark
+                      ? 'bg-emerald-950/60 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40'
+                      : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                    : ehDark
+                      ? 'bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-200'
+                      : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                     modalidade === 'retirada'
                       ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-purple-50 text-purple-700 border-purple-200'
+                      : ehDark
+                        ? 'bg-purple-950/40 text-purple-300 border-purple-800/60'
+                        : 'bg-purple-50 text-purple-700 border-purple-200'
                   }`}>
                     <Store className="w-4 h-4" />
                   </div>
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-900 truncate">
+                      <span className={`text-xs font-bold truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
                         Retirar na Loja
                       </span>
-                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                        ehDark
+                          ? 'bg-purple-950/50 text-purple-300 border-purple-700/60'
+                          : 'bg-purple-100 text-purple-800 border-purple-200'
+                      }`}>
                         Balcão Físico
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="text-slate-600">Disponibilidade Imediata</span>
+                    <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
+                      <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className={ehDark ? 'text-slate-300' : 'text-slate-600'}>Disponibilidade Imediata</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <span className="font-extrabold text-sm text-emerald-600">
+                    <span className="font-extrabold text-sm text-emerald-400">
                       Grátis (R$ 0,00)
                     </span>
                   </div>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                     modalidade === 'retirada'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'border-2 border-slate-300'
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                      : ehDark
+                        ? 'border-2 border-slate-600'
+                        : 'border-2 border-slate-300'
                   }`}>
                     {modalidade === 'retirada' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </div>
@@ -1407,9 +1426,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               {/* Informações detalhadas da retirada física quando selecionada */}
               {modalidade === 'retirada' && (
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-2.5 animate-in fade-in duration-200 text-xs shadow-sm">
-                  <div className="text-slate-600 leading-relaxed">
-                    <strong className="text-slate-800">Endereço da Loja:</strong>{' '}
+                <div className={`p-3.5 rounded-2xl border space-y-2.5 animate-in fade-in duration-200 text-xs shadow-sm ${
+                  ehDark
+                    ? 'bg-slate-900/80 border-slate-750 text-slate-200'
+                    : 'bg-slate-50 border-slate-200 text-slate-800'
+                }`}>
+                  <div className={`leading-relaxed ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <strong className={ehDark ? 'text-white' : 'text-slate-800'}>Endereço da Loja:</strong>{' '}
                     {[
                       dadosLojaFormatados.endereco_logradouro,
                       dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
@@ -1423,16 +1446,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       .join(', ') || 'Consulte o balcão da loja'}
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                  <div className={`pt-2 border-t flex flex-wrap items-center gap-2 ${ehDark ? 'border-slate-800' : 'border-slate-200'}`}>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setModalMapaLojaAberto(true);
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border ${
+                        ehDark
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
                     >
-                      <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                      <Navigation className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Ver no Mapa</span>
                     </button>
 
@@ -1491,7 +1518,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             <div className="space-y-3">
               {/* Seletor de Duas Vias de Entrega (Apenas no painel do lojista) */}
               {!ehCatalogo && (
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border ${
+                  ehDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-100 border-slate-200'
+                }`}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1500,11 +1529,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     }}
                     className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
                       modalidade === 'entrega' && viaEntrega === 'cotar'
-                        ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? ehDark
+                          ? 'bg-emerald-600 text-white shadow-sm border border-emerald-500'
+                          : 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
+                        : ehDark
+                          ? 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <Zap className={`w-3.5 h-3.5 shrink-0 ${modalidade === 'entrega' && viaEntrega === 'cotar' && ehDark ? 'text-amber-300' : 'text-amber-500'}`} />
                     <span className="truncate">Cotar Frete (Automático)</span>
                   </button>
 
@@ -1516,11 +1549,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     }}
                     className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
                       modalidade === 'entrega' && viaEntrega === 'manual'
-                        ? 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? ehDark
+                          ? 'bg-emerald-600 text-white shadow-sm border border-emerald-500'
+                          : 'bg-white text-emerald-700 shadow-sm border border-emerald-200/60'
+                        : ehDark
+                          ? 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <PenLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <PenLine className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">Informar Frete (Manual)</span>
                   </button>
                 </div>
@@ -1531,15 +1568,23 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 <div className="space-y-3">
                   {/* Painel de Conferência de Volumes e Dimensões do Pacote (Apenas lojista) */}
                   {(temMelhorEnvio || temUber) && !ehCatalogo && (
-                    <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-3">
+                    <div className={`p-3.5 rounded-2xl border shadow-sm space-y-3 ${
+                      ehDark
+                        ? 'bg-slate-900/90 border-slate-750 text-slate-200'
+                        : 'bg-white border-slate-200/90 text-slate-800'
+                    }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
+                            ehDark
+                              ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50'
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                          }`}>
                             <Package className="w-4 h-4" />
                           </div>
                           <div>
-                            <h4 className="text-xs font-bold text-slate-800">Conferência da Embalagem & Volumes</h4>
-                            <p className="text-[11px] text-slate-500">Ajuste peso e medidas antes de cotar no Melhor Envio</p>
+                            <h4 className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-800'}`}>Conferência da Embalagem & Volumes</h4>
+                            <p className={`text-[11px] ${ehDark ? 'text-slate-400' : 'text-slate-500'}`}>Ajuste peso e medidas antes de cotar no Melhor Envio</p>
                           </div>
                         </div>
 
@@ -1547,7 +1592,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           type="button"
                           onClick={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                           disabled={cotando}
-                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1.5 transition border border-emerald-200 cursor-pointer disabled:opacity-50 active:scale-95"
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border cursor-pointer disabled:opacity-50 active:scale-95 ${
+                            ehDark
+                              ? 'bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-700/60'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                          }`}
                           title="Recalcular com as medidas informadas"
                         >
                           <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
@@ -1557,7 +1606,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Volumes</label>
+                          <label className={`block text-[11px] font-semibold mb-1 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Volumes</label>
                           <input
                             type="number"
                             min="1"
@@ -1572,12 +1621,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 executarCotacao(enderecoSelecionado, true);
                               }
                             }}
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                              ehDark
+                                ? 'bg-slate-800 border-slate-700 text-white focus:bg-slate-750 focus:border-emerald-500'
+                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                            }`}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Peso (kg)</label>
+                          <label className={`block text-[11px] font-semibold mb-1 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Peso (kg)</label>
                           <input
                             type="text"
                             value={pesoInput}
@@ -1592,12 +1645,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               }
                             }}
                             placeholder="0.300"
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                              ehDark
+                                ? 'bg-slate-800 border-slate-700 text-white focus:bg-slate-750 focus:border-emerald-500'
+                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                            }`}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Comp. (cm)</label>
+                          <label className={`block text-[11px] font-semibold mb-1 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Comp. (cm)</label>
                           <input
                             type="text"
                             value={comprimentoInput}
@@ -1612,12 +1669,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               }
                             }}
                             placeholder="16"
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                              ehDark
+                                ? 'bg-slate-800 border-slate-700 text-white focus:bg-slate-750 focus:border-emerald-500'
+                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                            }`}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Largura (cm)</label>
+                          <label className={`block text-[11px] font-semibold mb-1 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Largura (cm)</label>
                           <input
                             type="text"
                             value={larguraInput}
@@ -1632,12 +1693,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               }
                             }}
                             placeholder="11"
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                              ehDark
+                                ? 'bg-slate-800 border-slate-700 text-white focus:bg-slate-750 focus:border-emerald-500'
+                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                            }`}
                           />
                         </div>
 
                         <div className="col-span-2 sm:col-span-1">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Altura (cm)</label>
+                          <label className={`block text-[11px] font-semibold mb-1 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Altura (cm)</label>
                           <input
                             type="text"
                             value={alturaInput}
@@ -1652,7 +1717,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               }
                             }}
                             placeholder="4"
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-center font-bold focus:bg-white focus:border-emerald-500 focus:outline-none transition"
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                              ehDark
+                                ? 'bg-slate-800 border-slate-700 text-white focus:bg-slate-750 focus:border-emerald-500'
+                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                            }`}
                           />
                         </div>
                       </div>
@@ -1835,8 +1904,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 space-y-1">
-                        <p className="font-semibold text-slate-700">Nenhuma cotação automática disponível para este endereço.</p>
+                      <div className={`p-4 rounded-2xl border text-center text-xs space-y-1 ${
+                        ehDark
+                          ? 'bg-slate-900/60 border-slate-800 text-slate-400'
+                          : 'bg-slate-50 border-slate-200 text-slate-500'
+                      }`}>
+                        <p className={`font-semibold ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>Nenhuma cotação automática disponível para este endereço.</p>
                         <p>Utilize a aba "Informar Frete (Manual)" para definir o frete manualmente.</p>
                       </div>
                     )
@@ -1845,26 +1918,31 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     <div className="space-y-2">
                       {cotacoes.map((opcao) => {
                         const selecionada = modalidade === 'entrega' && viaEntrega === 'cotar' && cotacaoEscolhida?.id === opcao.id;
+                        const desabilitada = Boolean(opcao.desabilitada);
 
                         return (
                           <div
                             key={opcao.id}
-                            onClick={() => handleEscolherCotacao(opcao)}
-                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                              selecionada
-                                ? ehCatalogo
-                                  ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
-                                  : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                                : ehCatalogo
-                                  ? 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
-                                  : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                            onClick={() => !desabilitada && handleEscolherCotacao(opcao)}
+                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                              desabilitada
+                                ? ehDark
+                                  ? 'bg-slate-900/40 border-slate-800/80 opacity-60 cursor-not-allowed select-none'
+                                  : 'bg-slate-100 border-slate-200 opacity-60 cursor-not-allowed select-none'
+                                : selecionada
+                                  ? ehDark
+                                    ? 'bg-emerald-950/60 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40 cursor-pointer'
+                                    : 'bg-emerald-50/90 border-2 border-emerald-600 text-slate-900 shadow-sm cursor-pointer'
+                                  : ehDark
+                                    ? 'bg-slate-900/80 hover:bg-slate-800/90 border border-slate-750 text-slate-200 cursor-pointer'
+                                    : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800 cursor-pointer'
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                                 opcao.provedor === 'uber'
-                                  ? 'bg-black text-white font-black text-[11px] border-black'
-                                  : ehCatalogo
+                                  ? 'bg-black text-white font-black text-[11px] border-slate-700'
+                                  : ehDark
                                     ? 'bg-slate-800 text-emerald-400 font-bold text-xs border-slate-700'
                                     : 'bg-white text-emerald-600 font-bold text-xs border-slate-200'
                               }`}>
@@ -1877,28 +1955,51 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`text-xs font-bold truncate ${ehCatalogo ? 'text-slate-100' : 'text-slate-900'}`}>
+                                  <span className={`text-xs font-bold truncate ${
+                                    desabilitada
+                                      ? 'text-slate-400'
+                                      : selecionada
+                                        ? ehDark ? 'text-white' : 'text-slate-950'
+                                        : ehDark ? 'text-slate-100' : 'text-slate-900'
+                                  }`}>
                                     {opcao.transportadora_nome}
                                   </span>
                                   {opcao.servico_nome && opcao.servico_nome !== opcao.transportadora_nome && (
-                                    <span className={`text-[11px] font-semibold truncate ${ehCatalogo ? 'text-slate-400' : 'text-slate-600'}`}>
+                                    <span className={`text-[11px] font-semibold truncate ${
+                                      desabilitada
+                                        ? 'text-slate-500'
+                                        : selecionada
+                                          ? ehDark ? 'text-emerald-300' : 'text-emerald-700'
+                                          : ehDark ? 'text-slate-400' : 'text-slate-600'
+                                    }`}>
                                       ({opcao.servico_nome})
                                     </span>
                                   )}
-                                  {opcao.is_frete_gratis && (
+                                  {desabilitada ? (
+                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                                      <AlertCircle className="w-3 h-3" />
+                                      {opcao.motivo_desabilitada || 'Fora do raio de atendimento'}
+                                    </span>
+                                  ) : opcao.is_frete_gratis ? (
                                     <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                                      ehCatalogo
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      ehDark
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                                         : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                                     }`}>
                                       Frete Grátis
                                     </span>
-                                  )}
+                                  ) : null}
                                 </div>
                                 {opcao.prazo_estimado_texto && (
                                   <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
-                                    <Clock className={`w-3.5 h-3.5 shrink-0 ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                                    <span className={ehCatalogo ? 'text-slate-400' : 'text-slate-600'}>{opcao.prazo_estimado_texto}</span>
+                                    <Clock className={`w-3.5 h-3.5 shrink-0 ${
+                                      desabilitada
+                                        ? 'text-slate-500'
+                                        : ehDark ? 'text-emerald-400' : 'text-emerald-600'
+                                    }`} />
+                                    <span className={desabilitada ? 'text-slate-500' : ehDark ? 'text-slate-300' : 'text-slate-600'}>
+                                      {opcao.prazo_estimado_texto}
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -1906,31 +2007,41 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                             <div className="flex items-center gap-3 shrink-0">
                               <div className="text-right">
-                                {opcao.is_frete_gratis ? (
+                                {desabilitada ? (
+                                  <span className="text-xs font-bold text-slate-500">
+                                    Indisponível
+                                  </span>
+                                ) : opcao.is_frete_gratis ? (
                                   <div className="flex flex-col items-end leading-tight">
                                     {opcao.valor_original != null && opcao.valor_original > 0 && (
                                       <span className="text-xs line-through text-slate-400 font-bold">
                                         R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </span>
                                     )}
-                                    <span className={`font-extrabold text-sm ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                                    <span className={`font-extrabold text-sm ${ehDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                                       Grátis
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className={`font-extrabold text-sm ${ehCatalogo ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                                  <span className={`font-extrabold text-sm ${
+                                    selecionada
+                                      ? ehDark ? 'text-emerald-400' : 'text-emerald-600'
+                                      : ehDark ? 'text-emerald-400' : 'text-emerald-600'
+                                  }`}>
                                     R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 )}
                               </div>
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                                selecionada
-                                  ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                                  : ehCatalogo
-                                    ? 'border-2 border-slate-500'
-                                    : 'border-2 border-slate-300'
+                                desabilitada
+                                  ? 'border border-slate-700 bg-slate-900/50 text-slate-600'
+                                  : selecionada
+                                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                    : ehDark
+                                      ? 'border-2 border-slate-600'
+                                      : 'border-2 border-slate-300'
                               }`}>
-                                {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                {selecionada && !desabilitada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                               </div>
                             </div>
                           </div>
@@ -1945,10 +2056,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               {viaEntrega === 'manual' && (
                 <div className="space-y-2.5">
                   {formasEntrega.filter(f => f.tipo !== 'retirada' && ['correios', 'app_entrega', 'transportadora', 'proprio', 'frota_propria', 'motoboy'].includes(f.tipo)).length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-1.5">
+                    <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${
+                      ehDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
                       <Truck className="w-6 h-6 text-slate-400 mx-auto" />
-                      <p className="text-xs font-bold text-slate-700">Nenhuma forma de entrega manual ativa</p>
-                      <p className="text-xs text-slate-500">
+                      <p className={`text-xs font-bold ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>Nenhuma forma de entrega manual ativa</p>
+                      <p className={`text-xs ${ehDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Acesse <strong>Configurações &gt; Frete</strong> para cadastrar modalidades manuais como Correios, Aplicativo de Corrida, Transportadora ou Frete Próprio.
                       </p>
                     </div>
@@ -1965,8 +2078,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             onClick={() => handleSelecionarFormaManual(forma)}
                             className={`p-3.5 rounded-2xl border transition cursor-pointer ${
                               selecionada
-                                ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                                : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                                ? ehDark
+                                  ? 'bg-emerald-950/60 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40'
+                                  : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                                : ehDark
+                                  ? 'bg-slate-900/80 hover:bg-slate-800/90 border border-slate-750 text-slate-200'
+                                  : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-3">
@@ -1974,7 +2091,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                                   selecionada
                                     ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : ehDark
+                                      ? 'bg-slate-800 text-emerald-400 border-slate-700'
+                                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 }`}>
                                   {forma.tipo === 'motoboy' || forma.tipo === 'frota_propria' || forma.tipo === 'proprio' ? (
                                     <Bike className="w-4 h-4" />
@@ -1989,14 +2108,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs font-bold text-slate-900 truncate">
+                                    <span className={`text-xs font-bold truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
                                       {forma.nome}
                                     </span>
                                   </div>
                                   {forma.tempo_estimado && (
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                      <span className="text-slate-600">{forma.tempo_estimado}</span>
+                                    <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
+                                      <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                      <span className={ehDark ? 'text-slate-300' : 'text-slate-600'}>{forma.tempo_estimado}</span>
                                     </div>
                                   )}
                                 </div>
@@ -2005,10 +2124,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                               <div className="flex items-center gap-3 shrink-0">
                                 {/* Input com estado isolado por ID da modalidade */}
                                 <div
-                                  className="flex items-center gap-1 bg-white border border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl px-2.5 py-1.5 transition shadow-sm"
+                                  className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 transition shadow-sm border ${
+                                    ehDark
+                                      ? 'bg-slate-800 border-slate-700 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'
+                                      : 'bg-white border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'
+                                  }`}
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <span className="text-xs font-bold text-slate-500 select-none">R$</span>
+                                  <span className={`text-xs font-bold select-none ${ehDark ? 'text-slate-400' : 'text-slate-500'}`}>R$</span>
                                   <input
                                     type="number"
                                     step="0.01"
@@ -2021,12 +2144,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                       handleSelecionarFormaManual(forma);
                                     }}
                                     onChange={(e) => handleAlterarValorManualForma(forma, e.target.value)}
-                                    className="w-24 text-right font-extrabold text-sm text-slate-800 focus:text-emerald-600 outline-none bg-transparent"
+                                    className={`w-24 text-right font-extrabold text-sm outline-none bg-transparent ${
+                                      ehDark ? 'text-white focus:text-emerald-400' : 'text-slate-800 focus:text-emerald-600'
+                                    }`}
                                   />
                                 </div>
 
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                                  selecionada ? 'bg-emerald-600 text-white shadow-sm' : 'border-2 border-slate-300'
+                                  selecionada
+                                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                    : ehDark
+                                      ? 'border-2 border-slate-600'
+                                      : 'border-2 border-slate-300'
                                 }`}>
                                   {selecionada && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                 </div>
@@ -2035,12 +2164,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                             {/* Campos especializados por modalidade de operação quando selecionada */}
                             {selecionada && (
-                              <div className="pt-3 mt-3 border-t border-emerald-200/60 space-y-3 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                              <div className={`pt-3 mt-3 border-t space-y-3 animate-in fade-in duration-200 ${
+                                ehDark ? 'border-emerald-500/30' : 'border-emerald-200/60'
+                              }`} onClick={(e) => e.stopPropagation()}>
                                 {/* MEIO 1: Frete Próprio / Motoboy */}
                                 {(forma.tipo === 'frota_propria' || forma.tipo === 'motoboy' || forma.tipo === 'proprio' || forma.requer_entregador) && (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                      <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                         Nome do Entregador / Motoboy:
                                       </label>
                                       <input
@@ -2048,11 +2179,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                         placeholder="Ex: Carlos"
                                         value={entregadores[forma.id] || ''}
                                         onChange={(e) => handleAlterarEntregador(forma, e.target.value)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
+                                        className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition ${
+                                          ehDark
+                                            ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                            : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                        }`}
                                       />
                                     </div>
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                      <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                         Contato (Telefone / WhatsApp):
                                       </label>
                                       <input
@@ -2060,7 +2195,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                         placeholder="Ex: (85) 99999-0000"
                                         value={contatosEntregadores[forma.id] || ''}
                                         onChange={(e) => handleAlterarContatoEntregador(forma, e.target.value)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
+                                        className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition ${
+                                          ehDark
+                                            ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                            : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                        }`}
                                       />
                                     </div>
                                   </div>
@@ -2071,24 +2210,28 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                   <div className="space-y-2.5">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                       <div>
-                                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                           App de Entrega:
                                         </label>
                                         <select
                                           value={appsEntregaIds[forma.id] || ''}
                                           onChange={(e) => handleAlterarAppEntrega(forma, e.target.value)}
-                                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                          className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition font-medium ${
+                                            ehDark
+                                              ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                              : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                          }`}
                                         >
-                                          <option value="">Selecione o aplicativo...</option>
+                                          <option value="" className={ehDark ? 'bg-slate-800 text-slate-200' : ''}>Selecione o aplicativo...</option>
                                           {appsCadastrados.map((app) => (
-                                            <option key={app.id} value={app.id}>
+                                            <option key={app.id} value={app.id} className={ehDark ? 'bg-slate-800 text-slate-200' : ''}>
                                               {app.nome}
                                             </option>
                                           ))}
                                         </select>
                                       </div>
                                       <div>
-                                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                        <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                           Código da Corrida:
                                         </label>
                                         <input
@@ -2096,12 +2239,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                           placeholder="Ex: ABC-1234 ou #8921"
                                           value={codigosCorrida[forma.id] || ''}
                                           onChange={(e) => handleAlterarCodigoCorrida(forma, e.target.value)}
-                                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-bold tracking-wider"
+                                          className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition font-bold tracking-wider ${
+                                            ehDark
+                                              ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                              : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                          }`}
                                         />
                                       </div>
                                     </div>
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                      <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                         Link de Rastreio da Corrida:
                                       </label>
                                       <input
@@ -2109,7 +2256,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                         placeholder="https://trip.uber.com/... ou https://99app.com/..."
                                         value={linksRastreio[forma.id] || ''}
                                         onChange={(e) => handleAlterarLinkRastreio(forma, e.target.value)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800"
+                                        className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition ${
+                                          ehDark
+                                            ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                            : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                        }`}
                                       />
                                     </div>
                                   </div>
@@ -2122,23 +2273,29 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                   const validacao = validarRastreioCorreios(codigoAtual, servicoAtual);
 
                                   return (
-                                    <div className="space-y-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                                    <div className={`space-y-2 p-2.5 rounded-2xl border ${
+                                      ehDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                                    }`}>
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                         <div>
-                                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                             Serviço dos Correios: <span className="text-rose-500">*</span>
                                           </label>
                                           <select
                                             value={servicoAtual}
                                             onChange={(e) => handleAlterarServicoCorreios(forma, e.target.value as 'PAC' | 'SEDEX')}
-                                            className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                            className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition font-medium ${
+                                              ehDark
+                                                ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                                : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                            }`}
                                           >
-                                            <option value="SEDEX">SEDEX</option>
-                                            <option value="PAC">PAC</option>
+                                            <option value="SEDEX" className={ehDark ? 'bg-slate-800 text-slate-200' : ''}>SEDEX</option>
+                                            <option value="PAC" className={ehDark ? 'bg-slate-800 text-slate-200' : ''}>PAC</option>
                                           </select>
                                         </div>
                                         <div>
-                                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                             Código de Rastreamento:
                                           </label>
                                           <input
@@ -2150,12 +2307,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                               const val = e.target.value.toUpperCase().replace(/\s+/g, '').slice(0, 13);
                                               handleAlterarCodigoRastreio(forma, val);
                                             }}
-                                            className={`w-full px-3 py-1.5 text-xs rounded-xl bg-white border focus:ring-1 outline-none transition uppercase text-slate-800 font-mono font-bold tracking-wider ${
+                                            className={`w-full px-3 py-1.5 text-xs rounded-xl border focus:ring-1 outline-none transition uppercase font-mono font-bold tracking-wider ${
+                                              ehDark ? 'bg-slate-800 text-white' : 'bg-white text-slate-800'
+                                            } ${
                                               codigoAtual.length > 0
                                                 ? validacao.valido
-                                                  ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500 text-emerald-800'
-                                                  : 'border-rose-400 focus:border-rose-500 focus:ring-rose-400 text-rose-800'
-                                                : 'border-slate-300 focus:border-emerald-500 focus:ring-emerald-500'
+                                                  ? ehDark
+                                                    ? 'border-emerald-500 focus:border-emerald-500 text-emerald-400'
+                                                    : 'border-emerald-500 focus:border-emerald-500 text-emerald-800'
+                                                  : 'border-rose-500 focus:border-rose-500 text-rose-400'
+                                                : ehDark
+                                                  ? 'border-slate-700 focus:border-emerald-500'
+                                                  : 'border-slate-300 focus:border-emerald-500'
                                             }`}
                                           />
                                         </div>
@@ -2164,20 +2327,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                       {codigoAtual && (
                                         <div className="pt-0.5">
                                           {!validacao.valido ? (
-                                            <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 space-y-1 text-[11px]">
+                                            <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 space-y-1 text-[11px]">
                                               <div className="flex items-start gap-1.5 font-bold">
-                                                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500 mt-0.5" />
+                                                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-400 mt-0.5" />
                                                 <span>{validacao.motivo}</span>
                                               </div>
                                               {validacao.servicoDetectado &&
                                                 validacao.servicoDetectado !== servicoAtual &&
                                                 validacao.servicoDetectado !== 'OUTRO' && (
                                                   <div className="pt-0.5 flex items-center gap-2">
-                                                    <span className="text-[10px] text-slate-600">Prefixo de {validacao.servicoDetectado}:</span>
+                                                    <span className={`text-[10px] ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Prefixo de {validacao.servicoDetectado}:</span>
                                                     <button
                                                       type="button"
                                                       onClick={() => handleAlterarServicoCorreios(forma, validacao.servicoDetectado as 'PAC' | 'SEDEX')}
-                                                      className="px-2 py-0.5 rounded-lg bg-rose-200 hover:bg-rose-300 text-rose-900 text-[10px] font-bold underline cursor-pointer"
+                                                      className="px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold underline cursor-pointer"
                                                     >
                                                       Mudar para {validacao.servicoDetectado}
                                                     </button>
@@ -2185,8 +2348,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                                 )}
                                             </div>
                                           ) : (
-                                            <p className="text-[11px] text-emerald-700 font-bold flex items-center gap-1.5">
-                                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                            <p className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5">
+                                              <Check className="w-3.5 h-3.5 text-emerald-400" />
                                               <span>Código de rastreamento {servicoAtual} validado!</span>
                                             </p>
                                           )}
@@ -2200,24 +2363,28 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 {forma.tipo === 'transportadora' && (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                      <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                         Transportadora:
                                       </label>
                                       <select
                                         value={transportadorasIds[forma.id] || ''}
                                         onChange={(e) => handleAlterarTransportadora(forma, e.target.value)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-slate-800 font-medium"
+                                        className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition font-medium ${
+                                          ehDark
+                                            ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                            : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                        }`}
                                       >
-                                        <option value="">Selecione a transportadora...</option>
+                                        <option value="" className={ehDark ? 'bg-slate-800 text-slate-200' : ''}>Selecione a transportadora...</option>
                                         {transportadorasCadastradas.map((t) => (
-                                          <option key={t.id} value={t.id}>
+                                          <option key={t.id} value={t.id} className={ehDark ? 'bg-slate-800 text-slate-200' : ''}>
                                             {t.nome}
                                           </option>
                                         ))}
                                       </select>
                                     </div>
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                      <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                         Código de Rastreio:
                                       </label>
                                       <input
@@ -2225,7 +2392,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                         placeholder="Ex: JAD12345678"
                                         value={codigosRastreio[forma.id] || ''}
                                         onChange={(e) => handleAlterarCodigoRastreio(forma, e.target.value)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition uppercase text-slate-800 font-mono font-bold"
+                                        className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition uppercase font-mono font-bold ${
+                                          ehDark
+                                            ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                            : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                        }`}
                                       />
                                     </div>
                                   </div>
@@ -2234,7 +2405,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 {/* Fallback genérico de rastreio se a forma requer rastreio mas não é correios/transportadora */}
                                 {forma.requer_codigo_rastreio && forma.tipo !== 'correios' && forma.tipo !== 'transportadora' && (
                                   <div>
-                                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                    <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                       Código de Rastreamento:
                                     </label>
                                     <input
@@ -2242,7 +2413,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                       placeholder="Ex: AA123456789BR"
                                       value={codigosRastreio[forma.id] || ''}
                                       onChange={(e) => handleAlterarCodigoRastreio(forma, e.target.value)}
-                                      className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition uppercase text-slate-800 font-mono"
+                                      className={`w-full px-3 py-1.5 text-xs rounded-xl outline-none transition uppercase font-mono ${
+                                        ehDark
+                                          ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                                          : 'bg-white border border-slate-300 text-slate-800 focus:border-emerald-500'
+                                      }`}
                                     />
                                   </div>
                                 )}

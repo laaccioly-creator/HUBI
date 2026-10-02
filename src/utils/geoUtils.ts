@@ -336,3 +336,100 @@ export function gerarLinkWhatsAppLocalizacaoLoja(
 
   return { link, texto, linkMaps };
 }
+
+const cacheCoordenadasCep = new Map<string, CoordenadasGeo>();
+
+/**
+ * Obtém coordenadas de latitude/longitude a partir de CEP ou endereço com cache
+ */
+export async function obterCoordenadasPorCepOuEndereco(
+  cep?: string | null,
+  enderecoCompleto?: string | null
+): Promise<CoordenadasGeo | null> {
+  const cepLimpo = (cep || '').replace(/\D/g, '');
+  if (cepLimpo && cacheCoordenadasCep.has(cepLimpo)) {
+    return cacheCoordenadasCep.get(cepLimpo)!;
+  }
+
+  // 1. BrasilAPI v2 (retorna coordenadas de CEPs brasileiros)
+  if (cepLimpo && cepLimpo.length === 8) {
+    try {
+      const resp = await fetch(`https://brasilapi.com.br/api/cep/v2/${cepLimpo}`);
+      if (resp.ok) {
+        const dados = await resp.json();
+        if (dados?.location?.coordinates?.latitude && dados?.location?.coordinates?.longitude) {
+          const coords: CoordenadasGeo = {
+            latitude: Number(dados.location.coordinates.latitude),
+            longitude: Number(dados.location.coordinates.longitude)
+          };
+          cacheCoordenadasCep.set(cepLimpo, coords);
+          return coords;
+        }
+      }
+    } catch {
+      // Fallback para OpenStreetMap
+    }
+  }
+
+  // 2. OpenStreetMap / Nominatim
+  const query = cepLimpo && cepLimpo.length === 8
+    ? `${cepLimpo}, Brasil`
+    : (enderecoCompleto || '').trim();
+
+  if (query) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' } });
+      if (res.ok) {
+        const items = await res.json();
+        if (Array.isArray(items) && items.length > 0 && items[0].lat && items[0].lon) {
+          const coords: CoordenadasGeo = {
+            latitude: Number(items[0].lat),
+            longitude: Number(items[0].lon)
+          };
+          if (cepLimpo) cacheCoordenadasCep.set(cepLimpo, coords);
+          return coords;
+        }
+      }
+    } catch {
+      // Silencioso
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Calcula distância estimada em KM entre dois endereços/CEPs
+ */
+export async function calcularDistanciaEntreEnderecosKm(
+  origem: { cep?: string | null; endereco?: string | null; latitude?: number | null; longitude?: number | null },
+  destino: { cep?: string | null; endereco?: string | null; latitude?: number | null; longitude?: number | null }
+): Promise<number | null> {
+  let lat1 = origem.latitude != null ? Number(origem.latitude) : null;
+  let lon1 = origem.longitude != null ? Number(origem.longitude) : null;
+  let lat2 = destino.latitude != null ? Number(destino.latitude) : null;
+  let lon2 = destino.longitude != null ? Number(destino.longitude) : null;
+
+  if (lat1 == null || lon1 == null) {
+    const c1 = await obterCoordenadasPorCepOuEndereco(origem.cep, origem.endereco);
+    if (c1) {
+      lat1 = c1.latitude;
+      lon1 = c1.longitude;
+    }
+  }
+
+  if (lat2 == null || lon2 == null) {
+    const c2 = await obterCoordenadasPorCepOuEndereco(destino.cep, destino.endereco);
+    if (c2) {
+      lat2 = c2.latitude;
+      lon2 = c2.longitude;
+    }
+  }
+
+  if (lat1 != null && lon1 != null && lat2 != null && lon2 != null) {
+    return calcularDistanciaKm(lat1, lon1, lat2, lon2);
+  }
+
+  return null;
+}

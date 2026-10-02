@@ -86,23 +86,24 @@ export class UberDirectService {
       fullMsg.includes('distance') ||
       fullMsg.includes('radius') ||
       fullMsg.includes('coverage') ||
-      fullMsg.includes('unsupported')
+      fullMsg.includes('unsupported') ||
+      fullMsg.includes('address_undeliverable') ||
+      fullMsg.includes('outside the delivery radius') ||
+      fullMsg.includes('outside_delivery_radius')
     ) {
-      if (isSandbox) {
-        // Em sandbox, permite cotação de teste mesmo se o raio do endereço exceder o padrão
-        return {
-          id: `uber-direct-${Date.now()}`,
-          provedor: 'uber',
-          transportadora_nome: 'Uber Direct',
-          servico_codigo: 'uber_flash',
-          servico_nome: 'Uber Flash / Moto (Teste)',
-          valor_frete: 16.00,
-          prazo_estimado_texto: 'Aprox. 30 a 45 min (Entrega Imediata)',
-          icone_tipo: 'uber'
-        };
-      }
-      console.warn('[UberDirect] Entrega indisponível para esta localidade (raio excedido ou fora de cobertura).');
-      return null;
+      console.warn('[UberDirect] Entrega indisponível para esta localidade (raio excedido > 5 km ou fora de cobertura).');
+      return {
+        id: `uber-direct-disabled-${Date.now()}`,
+        provedor: 'uber',
+        transportadora_nome: 'Uber Direct',
+        servico_codigo: 'uber_flash',
+        servico_nome: 'Uber Flash / Moto',
+        valor_frete: 0,
+        prazo_estimado_texto: 'Fora do raio de atendimento (máx. 5 km)',
+        icone_tipo: 'uber',
+        desabilitada: true,
+        motivo_desabilitada: 'Fora do raio de atendimento'
+      };
     }
 
     // Uber retorna taxa em centavos na maioria dos endpoints de entrega direta
