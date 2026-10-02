@@ -1622,7 +1622,7 @@ export class ShippingOrchestrator {
     // 1. Buscar dados atuais do pedido e cliente
     const { data: pedAtual } = await supabase
       .from('pedidos')
-      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega, status')
+      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega, status, valor_frete, saldo_devedor')
       .eq('id', pedidoId)
       .maybeSingle();
 
@@ -1768,9 +1768,27 @@ export class ShippingOrchestrator {
     // 4. Recalcular valores do pedido e atualizar snapshot
     const subtotalPed = Number(pedAtual?.subtotal || pedAtual?.valor_total || 0);
     const descontoPed = Number(pedAtual?.valor_desconto || 0);
-    const novoValorTotal = Math.max(0, subtotalPed - descontoPed + valorFrete);
     const valorPagoPed = Number(pedAtual?.valor_pago || 0);
-    const novoSaldoDevedor = Math.max(0, novoValorTotal - valorPagoPed);
+    const pedidoJaPago = (
+      pedAtual?.status === 'concluido' ||
+      (pedAtual as any)?.status_pagamento === 'pago' ||
+      (valorPagoPed > 0 && valorPagoPed >= Number(pedAtual?.valor_total || 0))
+    );
+
+    // Em pedidos já liquidados/pagos: a troca de modalidade de frete é puramente operacional/logística.
+    // Não alterar o valor total pago pelo cliente nem o status de pagamento.
+    // A diferença de custo de frete não gera cobrança extra ao cliente.
+    const novoValorTotal = pedidoJaPago
+      ? Number(pedAtual?.valor_total || 0)
+      : Math.max(0, subtotalPed - descontoPed + valorFrete);
+
+    const novoSaldoDevedor = pedidoJaPago
+      ? Number(pedAtual?.saldo_devedor || 0)
+      : Math.max(0, novoValorTotal - valorPagoPed);
+
+    const valorFreteGravado = pedidoJaPago
+      ? Number(pedAtual?.valor_frete || 0)
+      : Number(valorFrete || 0);
 
     const nomeRealFrete = (pe.tipo_operacao === 'app_entrega' && pe.nome_app)
       ? pe.nome_app
@@ -1785,6 +1803,7 @@ export class ShippingOrchestrator {
     metaAtual.provedor_frete = provedorFinal;
     metaAtual.servico_frete_codigo = pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null);
     metaAtual.tipo_atendimento = resultado.tipo_atendimento || 'entrega';
+    metaAtual.contato_entregador = pe.contato_entregador || (pe as any).entregador_telefone || null;
 
     const pacRes = (resultado as any)?.pacote;
     if (pacRes || pe.largura_cm || pe.peso_kg) {
@@ -1807,7 +1826,7 @@ export class ShippingOrchestrator {
       .update({
         status: statusDestinoEnvio,
         endereco_entrega: textoEnderecoEntrega,
-        valor_frete: Number(valorFrete || 0),
+        valor_frete: valorFreteGravado,
         valor_total: novoValorTotal,
         saldo_devedor: novoSaldoDevedor,
         forma_entrega_id: (pe.forma_entrega_id && isUuidValido(pe.forma_entrega_id)) ? pe.forma_entrega_id : null,
@@ -1819,7 +1838,6 @@ export class ShippingOrchestrator {
         servico_correios: pe.servico_correios || null,
         nome_transportadora: nomeRealFrete,
         entregador_nome: pe.entregador_nome || null,
-        contato_entregador: pe.contato_entregador || (pe as any).entregador_telefone || null,
         pin_entrega: pe.pin_entrega || null,
         metadados: metaAtual,
         atualizado_por: usuarioId || null,

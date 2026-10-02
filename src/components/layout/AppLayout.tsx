@@ -411,7 +411,7 @@ export const AppLayout: React.FC = () => {
       )}
 
       {/* TOP HEADER DESKTOP (BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES) */}
-      <header className="hidden md:block bg-slate-900 border-b border-slate-800/80 z-30 shrink-0 shadow-md">
+      <header className="hidden md:block bg-slate-950 border-b border-slate-800 z-40 relative shrink-0 shadow-md">
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
           {/* IDENTIFICAÇÃO DA LOJA */}
           <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">

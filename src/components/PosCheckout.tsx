@@ -51,6 +51,7 @@ import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
 import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
+import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
@@ -520,21 +521,7 @@ export const PosCheckout: React.FC = () => {
   }, [loja?.id]);
 
   const handleClicarFormaEntrega = () => {
-    const entregaAtual: Partial<PedidoEntrega> = pedidoEntrega ? { ...pedidoEntrega } : {
-      tipo_atendimento: 'retirada',
-      valor_frete: 0,
-      transportadora_nome: 'Retirada na Loja',
-      servico_codigo: 'retirada_balcao',
-      status_envio: 'pronto_para_retirar'
-    };
-
-    setDraftFulfillment({
-      tipo_atendimento: entregaAtual.tipo_atendimento || 'retirada',
-      valor_frete: taxaEntrega,
-      opcao_selecionada: null,
-      pedido_entrega: entregaAtual
-    });
-    setModalFulfillmentAberto(true);
+    setModalDefinirEnvioAberto(true);
   };
 
   const handleAbrirFechamento = () => {
@@ -2896,342 +2883,25 @@ export const PosCheckout: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE RECIBO & FINALIZAÇÃO */}
-      {/* MODAL DE RECIBO & FINALIZAÇÃO */}
-      {pedidoConcluido && (() => {
-        const pe = (pedidoConcluido as any).pedido_entrega || (Array.isArray((pedidoConcluido as any).pedido_entregas) ? (pedidoConcluido as any).pedido_entregas[0] : null);
-        const meta = (pedidoConcluido as any).metadados || {};
-        const codigoCorrida = pe?.codigo_corrida || meta.codigo_corrida || null;
-        const codigoRastreio = pe?.codigo_rastreio || meta.codigo_rastreio || null;
-
-        const {
-          ehRetirada,
-          formaEntregaTexto,
-          labelEndereco,
-          enderecoExibicao
-        } = obterInfoEntregaRecibo(pedidoConcluido, loja, pe);
-
-        const badgeEstilo = ehRetirada 
-          ? 'bg-purple-950/50 text-purple-300 border border-purple-700/60' 
-          : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-
-        const valorSubtotal = Number((pedidoConcluido as any).subtotal_produtos || pedidoConcluido.subtotal || pedidoConcluido.valor_total || 0);
-        const valorDesconto = Number(pedidoConcluido.valor_desconto || 0);
-        const valorFrete = Number(pedidoConcluido.valor_frete || 0);
-        const valorTotal = Number(pedidoConcluido.valor_total || 0);
-
-        return (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-750 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150 text-slate-200">
-              {/* Topo do Modal */}
-              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-white text-sm">
-                      {ehVendaOfflineSalva ? 'Venda Salva (Modo Offline)!' : 'Venda Concluída com Sucesso!'}
-                    </h3>
-                    <p className="text-[11px] text-slate-400">Recibo do Pedido #{pedidoConcluido.numero_pedido}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleFecharRecibo}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Visualização do Cupom/Recibo Padronizado com ReciboPedidoModal */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3 flex flex-col items-center custom-scrollbar">
-                {ehVendaOfflineSalva && (
-                  <div className="w-full max-w-md p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <CloudOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>Armazenado com segurança localmente</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 leading-relaxed">
-                      O pedido foi gravado no dispositivo e será sincronizado com a nuvem assim que houver conexão.
-                    </p>
-                  </div>
-                )}
-
-                <div
-                  ref={reciboRef}
-                  className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/70 font-mono text-xs space-y-3.5 min-h-fit mb-6"
-                >
-                  {/* Topo: Logo ou Ícone Store, Nome da Loja, Endereço e Telefone */}
-                  <div className="text-center space-y-1 border-b border-slate-700/70 border-dashed pb-3">
-                    {loja?.url_logo ? (
-                      <div className="pb-1">
-                        <img
-                          src={loja.url_logo}
-                          alt={loja.nome_fantasia}
-                          crossOrigin="anonymous"
-                          className="max-h-12 max-w-[160px] mx-auto object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <Store className="w-8 h-8 text-slate-400 mx-auto mb-1" />
-                    )}
-                    <h4 className="font-bold text-sm text-white uppercase tracking-wider">{loja?.nome_fantasia || loja?.razao_social || 'HUBI PDV'}</h4>
-                    <p className="text-[11px] text-slate-300">
-                      {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
-                    </p>
-                    {(loja?.whatsapp || loja?.telefone) && (
-                      <p className="text-[10px] text-slate-400">
-                        Tel: +55 {loja.whatsapp || loja.telefone}
-                      </p>
-                    )}
-                    <div className="pt-1 text-[10px] text-slate-400">
-                      RECIBO #{pedidoConcluido.numero_pedido} • {formatarDataRecibo(pedidoConcluido.data_venda || pedidoConcluido.criado_em)}
-                    </div>
-                  </div>
-
-                  {/* Metadados: Vendedor / Canal e Cliente */}
-                  <div className="space-y-1 text-xs border-b border-slate-700/70 border-dashed pb-2">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">
-                        {pedidoConcluido.origem === 'catalogo_online' ? 'Canal:' : 'Vendedor:'}
-                      </span>
-                      <span className="font-bold text-white">
-                        {pedidoConcluido.origem === 'catalogo_online'
-                          ? 'Catálogo Online'
-                          : pedidoConcluido.vendedor?.nome_completo || 'Caixa / Balcão'}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Cliente:</span>
-                      <span className="font-bold text-white">{pedidoConcluido.cliente?.nome || 'Consumidor Final'}</span>
-                    </div>
-                    {(pedidoConcluido.cliente?.whatsapp || pedidoConcluido.cliente?.telefone) && (
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Contato:</span>
-                        <span className="text-slate-300">+55 {pedidoConcluido.cliente.whatsapp || pedidoConcluido.cliente.telefone}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card de Logística / Entrega */}
-                  <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-300 uppercase text-[10px]">Forma de Entrega:</span>
-                      <span className={`font-black px-2 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
-                        {ehRetirada ? 'Retirada na Loja' : formaEntregaTexto}
-                      </span>
-                    </div>
-                    <div className="text-slate-300 pt-0.5 leading-snug">
-                      <strong className="text-white">{labelEndereco} </strong>
-                      <span>{enderecoExibicao}</span>
-                    </div>
-                    {codigoCorrida && (
-                      <div className="flex justify-between text-emerald-400 font-bold pt-1">
-                        <span>Código da Corrida:</span>
-                        <span>{codigoCorrida}</span>
-                      </div>
-                    )}
-                    {codigoRastreio && (
-                      <div className="flex justify-between text-emerald-400 font-bold pt-1">
-                        <span>Código de Rastreio:</span>
-                        <span>{codigoRastreio}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Listagem de Itens */}
-                  <div className="space-y-1 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
-                    {pedidoConcluido?.itens?.length || 0} ITENS (QTD: {(pedidoConcluido?.itens || []).reduce((acc: number, i: any) => acc + Number(i.quantidade || 1), 0)})
-                  </div>
-
-                  <div className="space-y-1.5 border-b border-slate-700/70 border-dashed pb-3">
-                    {pedidoConcluido.itens?.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between text-xs">
-                        <span className="truncate pr-2 text-slate-200">
-                          <strong className="text-white font-bold">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
-                        </span>
-                        <span className="font-bold text-white shrink-0 tabular-nums">
-                          R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Totais e Fechamento Financeiro */}
-                  <div className="space-y-1.5 text-xs text-slate-300">
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">Subtotal dos Produtos:</span>
-                      <span className="font-semibold text-white">R$ {valorSubtotal.toFixed(2)}</span>
-                    </div>
-
-                    {valorDesconto > 0 && (
-                      <div className="flex justify-between text-rose-400 font-bold">
-                        <span>Desconto Aplicado:</span>
-                        <span>- R$ {valorDesconto.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
-                      <span className="font-semibold text-white">
-                        {valorFrete > 0 
-                          ? `+ R$ ${valorFrete.toFixed(2)}` 
-                          : (ehRetirada ? 'Grátis (Retirada)' : 'Grátis')}
-                      </span>
-                    </div>
-
-                    <div className="border-t border-dashed border-slate-700/70 pt-2 my-1"></div>
-
-                    <div className="flex justify-between items-center text-sm font-bold text-white pt-0.5">
-                      <span className="text-white font-bold tracking-wide">VALOR TOTAL:</span>
-                      <span className="text-lg font-black text-white">R$ {valorTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {/* Dados do Pagamento */}
-                  {(() => {
-                    const pagInfo = obterDadosPagamentoRecibo(pedidoConcluido);
-                    return (
-                      <>
-                        {pagInfo.ehFiado && Number(pedidoConcluido.saldo_devedor) > 0 && (
-                          <div className="p-2.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-center space-y-0.5">
-                            <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                            <span className="text-sm font-black text-rose-400">R$ {Number(pedidoConcluido.saldo_devedor).toFixed(2)}</span>
-                            {obterInfoVencimentoFiado(pedidoConcluido).temVencimento && (
-                              <span className="text-[11px] font-bold text-rose-300 block pt-0.5">
-                                Vencimento: {obterInfoVencimentoFiado(pedidoConcluido).formatada}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="mt-3 p-3 rounded-xl border border-slate-800 bg-[#0d131f] space-y-2 text-xs">
-                          <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-800">
-                            <span className="font-bold text-[10px] text-slate-300 uppercase tracking-wider">Status Pagamento:</span>
-                            <span className={`font-semibold text-[10px] px-2 py-0.5 rounded border ${
-                              pagInfo.foiPago
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                            }`}>
-                              {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
-                            </span>
-                          </div>
-                          {pagInfo.foiPago && (pagInfo.pagamentosDetalhados?.length || 0) > 0 ? (
-                            <div className="space-y-1.5 pt-1">
-                              {pagInfo.pagamentosDetalhados.map((pag, idx) => (
-                                <div key={idx} className="flex justify-between items-start text-[11px]">
-                                  <div>
-                                    <span className="font-semibold text-white block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
-                                    {pag.origemGateway && (
-                                      <span className="text-[10px] text-slate-400 block font-normal">Origem: {pag.origemGateway}</span>
-                                    )}
-                                  </div>
-                                  <span className="font-bold text-white">R$ {pag.valor.toFixed(2)}</span>
-                                </div>
-                              ))}
-                              <div className="flex justify-between items-center font-bold text-xs pt-2 border-t border-slate-800">
-                                <span className="text-slate-300">Valor Pago:</span>
-                                <span className="text-emerald-400 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Ações do Modal de Recibo com Botões Compactos */}
-              <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2 shrink-0">
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, '80mm');
-                    }}
-                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                    title="Imprimir Cupom em Bobina Térmica (58mm/80mm)"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="truncate">Térmica 58/80mm</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (loja && pedidoConcluido) PrintService.printReceipt(pedidoConcluido, loja, 'a4');
-                    }}
-                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                    title="Imprimir Recibo em Folha A4"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="truncate">Imprimir A4</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={baixandoPdfRecibo || compartilhandoWhatsAppPdf}
-                    onClick={handleBaixarReciboPdf}
-                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer disabled:opacity-50"
-                    title="Baixar e Salvar Recibo em PDF"
-                  >
-                    {baixandoPdfRecibo ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
-                    ) : (
-                      <Download className="w-3.5 h-3.5 text-sky-400" />
-                    )}
-                    <span className="truncate">
-                      {baixandoPdfRecibo ? 'Gerando...' : 'Baixar PDF'}
-                    </span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (pedidoConcluido) PrintService.openEmail(pedidoConcluido, loja);
-                    }}
-                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                    title="Enviar Recibo por E-mail"
-                  >
-                    <Mail className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="truncate">E-mail</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={compartilhandoWhatsAppPdf || baixandoPdfRecibo}
-                    onClick={handleCompartilharWhatsAppPdf}
-                    className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer disabled:opacity-50"
-                    title="Enviar Recibo Oficial via WhatsApp diretamente ao Cliente"
-                  >
-                    {compartilhandoWhatsAppPdf ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                    ) : (
-                      <Share2 className="w-3.5 h-3.5" />
-                    )}
-                    <span className="truncate">
-                      {compartilhandoWhatsAppPdf ? 'Abrindo...' : 'WhatsApp'}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleFecharRecibo}
-                    className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-                  >
-                    Nova Venda
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* MODAL DE RECIBO OFICIAL PADRONIZADO (DRY) */}
+      {pedidoConcluido && (
+        <ReciboPedidoModal
+          isOpen={Boolean(pedidoConcluido)}
+          pedido={pedidoConcluido}
+          loja={loja}
+          onClose={handleFecharRecibo}
+          onImprimir={(ped) => PrintService.printReceipt(ped, loja, '80mm')}
+          onCompartilharWhatsApp={loja ? (ped) => {
+            const msg = PrintService.generateWhatsAppMessage(ped, loja);
+            const phone = (ped.cliente?.whatsapp || ped.cliente?.telefone || '').replace(/\D/g, '');
+            PrintService.openWhatsApp(phone, msg);
+          } : undefined}
+          onCopiarTexto={loja ? (ped) => {
+            const msg = PrintService.generateWhatsAppMessage(ped, loja);
+            navigator.clipboard.writeText(msg);
+          } : undefined}
+        />
+      )}
 
       {/* Modal Novo Cliente */}
       <ModalNovoCliente
@@ -3253,124 +2923,20 @@ export const PosCheckout: React.FC = () => {
         }}
       />
 
-      {/* Modal de Gestão de Frete, Retirada e Endereços */}
-      {modalFulfillmentAberto && loja && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-750 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto text-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-white">
-                    Forma de Entrega / Retirada
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Selecione retirada na loja física ou entrega no endereço do cliente
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraftFulfillment(null);
-                  setModalFulfillmentAberto(false);
-                }}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <ShippingFulfillmentSelector
-              lojaId={loja.id}
-              loja={loja}
-              clienteId={clienteSelecionado?.id || null}
-              cliente={clienteSelecionado}
-              subtotal={subtotal}
-              itens={itens.map(i => ({
-                nome: i.produto.nome,
-                quantidade: i.quantidade,
-                preco_unitario: i.precoUnitario,
-                peso_kg: (i.produto as any)?.peso_kg || undefined,
-                largura_cm: (i.produto as any)?.largura_cm || undefined,
-                altura_cm: (i.produto as any)?.altura_cm || undefined,
-                comprimento_cm: (i.produto as any)?.comprimento_cm || undefined
-              }))}
-              valorFreteAtual={draftFulfillment ? draftFulfillment.valor_frete : taxaEntrega}
-              opcaoSelecionadaId={draftFulfillment?.pedido_entrega?.forma_entrega_id || draftFulfillment?.pedido_entrega?.servico_codigo || pedidoEntrega?.forma_entrega_id || pedidoEntrega?.servico_codigo}
-              tipoAtendimentoAtual={draftFulfillment?.tipo_atendimento || pedidoEntrega?.tipo_atendimento || 'retirada'}
-              temaDark={true}
-              enderecoEntregaAtual={pedidoEntrega?.destino_cep ? {
-                id: pedidoEntrega.cliente_endereco_id || undefined,
-                cep: pedidoEntrega.destino_cep,
-                logradouro: pedidoEntrega.destino_logradouro || '',
-                numero: pedidoEntrega.destino_numero || '',
-                complemento: pedidoEntrega.destino_complemento || null,
-                bairro: pedidoEntrega.destino_bairro || '',
-                cidade: pedidoEntrega.destino_cidade || '',
-                uf: pedidoEntrega.destino_uf || 'CE'
-              } : null}
-              onSolicitarAtualizarEndereco={() => {
-                setModalFulfillmentAberto(false);
-                if (!clienteSelecionado) {
-                  setClienteDropdownAberto(true);
-                  mostrarAviso('Por favor, selecione ou cadastre um cliente com endereço para entrega.', 'Identificação do Cliente');
-                } else {
-                  setModalAtualizarEnderecoAberto(true);
-                }
-              }}
-              onChange={(resultado) => {
-                setDraftFulfillment(resultado);
-              }}
-            />
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setDraftFulfillment(null);
-                  setModalFulfillmentAberto(false);
-                }}
-                className="py-2.5 px-4 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (draftFulfillment) {
-                    setTaxaEntrega(draftFulfillment.valor_frete);
-                    if (draftFulfillment.pedido_entrega) {
-                      setPedidoEntrega(draftFulfillment.pedido_entrega as PedidoEntrega);
-                    }
-                  }
-                  setModalFulfillmentAberto(false);
-                }}
-                className="px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-500 transition active:scale-95 shadow-lg shadow-emerald-950/40 cursor-pointer"
-              >
-                CONFIRMAR FORMA DE ENVIO
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal de Atualização de Endereço do Cliente */}
       {modalAtualizarEnderecoAberto && clienteSelecionado && (
         <ModalAtualizarEnderecoCliente
           aberto={modalAtualizarEnderecoAberto}
           onFechar={() => {
             setModalAtualizarEnderecoAberto(false);
-            setModalFulfillmentAberto(true);
+            setModalDefinirEnvioAberto(true);
           }}
           cliente={clienteSelecionado}
           onSucesso={(clienteAtualizado) => {
             setClienteSelecionado(clienteAtualizado);
             setClientes(prev => prev.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c));
             setModalAtualizarEnderecoAberto(false);
-            setModalFulfillmentAberto(true);
+            setModalDefinirEnvioAberto(true);
           }}
         />
       )}
@@ -3409,10 +2975,13 @@ export const PosCheckout: React.FC = () => {
           onSucesso={() => {}}
           onConfirmarEnvio={(resultado: ShippingSelectionResult) => {
             setFreteConfirmado(true);
-            const valFrete = Number(resultado.valor_frete || 0);
+            const valFrete = Number(resultado.valor_frete ?? resultado.opcao_frete?.valor_frete ?? resultado.pedido_entrega?.valor_frete ?? 0);
             setTaxaEntrega(valFrete);
             if (resultado.pedido_entrega) {
-              setPedidoEntrega(resultado.pedido_entrega as PedidoEntrega);
+              setPedidoEntrega({
+                ...resultado.pedido_entrega,
+                valor_frete: valFrete
+              } as PedidoEntrega);
             } else {
               setPedidoEntrega({
                 ...(pedidoEntrega || FORMA_ENTREGA_RETIRADA_PADRAO),

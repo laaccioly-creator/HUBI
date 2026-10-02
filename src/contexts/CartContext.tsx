@@ -455,7 +455,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!freteGratisAtivo || valorMinimo <= 0) return;
 
-    // Cenário 1: Subtotal caiu abaixo da régua de gratuidade
+    // A regra de gratuidade automática de carrinho só subsidia se a entrega foi marcada como elegível a frete grátis
+    // ou se já possui subsídio configurado. Não deve sobrescrever cotações normais de transportadoras pagas.
     if (subtotal < valorMinimo) {
       if (pedidoEntrega.is_frete_gratis || (pedidoEntrega.valor_subsidio && pedidoEntrega.valor_subsidio > 0)) {
         const valorOriginal = (typeof pedidoEntrega.valor_original === 'number' && pedidoEntrega.valor_original > 0)
@@ -471,8 +472,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTaxaEntrega(valorOriginal);
       }
     } else {
-      // Cenário 2: Subtotal atingiu ou superou a meta de gratuidade após retorno dos itens
-      if (!pedidoEntrega.is_frete_gratis && typeof pedidoEntrega.valor_original === 'number' && pedidoEntrega.valor_original > 0) {
+      // Apenas reativa subsídio se a entrega já havia sido configurada com subsídio ou era elegível
+      if (pedidoEntrega.is_frete_gratis && typeof pedidoEntrega.valor_original === 'number' && pedidoEntrega.valor_original > 0) {
         const valorOriginal = pedidoEntrega.valor_original;
         const subsidio = (typeof pedidoEntrega.valor_subsidio === 'number' && pedidoEntrega.valor_subsidio > 0)
           ? pedidoEntrega.valor_subsidio

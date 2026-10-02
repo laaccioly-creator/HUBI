@@ -2302,7 +2302,7 @@ export const PedidosLista: React.FC = () => {
         {pedidoSelecionado ? (
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 animate-in fade-in duration-150 max-w-7xl mx-auto w-full">
           {/* HEADER DA VISÃO DETALHADA DO PEDIDO (TELA002) */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800 bg-slate-950/90 sticky top-0 z-20 backdrop-blur">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 pt-4 md:pt-6 -mt-4 md:-mt-6 -mx-4 md:-mx-6 px-4 md:px-6 border-b border-slate-800 bg-slate-950 sticky top-0 z-20 shadow-md">
             <div className="flex items-center gap-3">
               <button
                 type="button"
