@@ -983,7 +983,7 @@ serve(async (req: Request) => {
     }
 
     // Garantir que os dados do destinatário venham EXCLUSIVAMENTE do endereço de entrega do pedido
-    const cliente = pedido?.cliente || {};
+    const clienteDest = cliente || {};
     let endEntregaRaw: any = pedido?.endereco_entrega || entrega?.endereco || {};
     if (typeof endEntregaRaw === 'string') {
       const trimmed = endEntregaRaw.trim();
