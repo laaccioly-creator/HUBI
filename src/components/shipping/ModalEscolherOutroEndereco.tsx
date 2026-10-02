@@ -458,7 +458,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               <span>Adicionar Novo Endereço</span>
             </button>
           ) : (
-            <form id="form-novo-endereco-cliente" onSubmit={handleSalvarNovoEndereco} className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-3">
+            <form id="form-novo-endereco-cliente" onSubmit={handleSalvarNovoEndereco} className="p-4 rounded-2xl bg-black border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-white">Cadastrar Novo Endereço</span>
                 <button
@@ -471,7 +471,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               </div>
 
               {/* Barra de Preenchimento Inteligente de Endereço (TypeSafe Jev) */}
-              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 border border-slate-700/80">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-black border border-slate-800">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <input
                   type="text"
@@ -492,19 +492,19 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
 
               <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5">
                 <div className="sm:col-span-3 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">Apelido (ex: Trabalho)</label>
+                  <label className="text-[11px] font-bold text-white block">Apelido (ex: Trabalho)</label>
                   <input
                     type="text"
                     value={novoIdentificador}
                     onChange={(e) => setNovoIdentificador(e.target.value)}
                     placeholder="Casa, Trabalho..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                   />
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-0.5">
-                    <label className="text-[11px] font-semibold text-slate-400">CEP *</label>
+                    <label className="text-[11px] font-bold text-white">CEP *</label>
                     <a
                       href="https://buscacepinter.correios.com.br/app/endereco/index.php"
                       target="_blank"
@@ -525,7 +525,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                         if (fmt.replace(/\D/g, '').length === 8) buscarViaCep(fmt);
                       }}
                       placeholder="00000-000"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                      className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                       required
                     />
                     {carregandoCepNovo && (
@@ -535,63 +535,63 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                 </div>
 
                 <div className="sm:col-span-4 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">Rua / Logradouro *</label>
+                  <label className="text-[11px] font-bold text-white block">Rua / Logradouro *</label>
                   <input
                     type="text"
                     value={novoLogradouro}
                     onChange={(e) => setNovoLogradouro(e.target.value)}
                     placeholder="Av., Rua..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">Número *</label>
+                  <label className="text-[11px] font-bold text-white block">Número *</label>
                   <input
                     type="text"
                     value={novoNumero}
                     onChange={(e) => setNovoNumero(e.target.value)}
                     placeholder="123"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">Bairro *</label>
+                  <label className="text-[11px] font-bold text-white block">Bairro *</label>
                   <input
                     type="text"
                     value={novoBairro}
                     onChange={(e) => setNovoBairro(e.target.value)}
                     placeholder="Bairro"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">Cidade *</label>
+                  <label className="text-[11px] font-bold text-white block">Cidade *</label>
                   <input
                     type="text"
                     value={novoCidade}
                     onChange={(e) => setNovoCidade(e.target.value)}
                     placeholder="Cidade"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">UF *</label>
+                  <label className="text-[11px] font-bold text-white block">UF *</label>
                   <select
                     value={novoUf}
                     onChange={(e) => setNovoUf(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer"
                     required
                   >
                     {ESTADOS_BRASIL.map((est) => (
-                      <option key={est.sigla} value={est.sigla} className="bg-slate-900 text-white">
+                      <option key={est.sigla} value={est.sigla} className="bg-black text-white font-bold">
                         {est.sigla}
                       </option>
                     ))}
@@ -599,13 +599,13 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                 </div>
 
                 <div className="sm:col-span-4 space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-400 block">Complemento</label>
+                  <label className="text-[11px] font-bold text-white block">Complemento</label>
                   <input
                     type="text"
                     value={novoComplemento}
                     onChange={(e) => setNovoComplemento(e.target.value)}
                     placeholder="Apto, Sala..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                    className="w-full bg-black border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -615,7 +615,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
         </div>
 
         {/* Rodapé com Botão de Confirmação Único */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between gap-3">
+        <div className="p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onFechar}

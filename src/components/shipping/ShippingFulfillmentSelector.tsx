@@ -179,7 +179,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(enderecoInicialDetectado);
   const [carregandoEnderecos, setCarregandoEnderecos] = useState<boolean>(!enderecoInicialDetectado && Boolean(clienteId));
 
+  // Ref que registra quando o operador escolheu explicitamente um endereço alternativo na sessão
+  const enderecoEscolhidoManualmenteRef = useRef<ClienteEndereco | null>(null);
+
   useEffect(() => {
+    // Se o operador escolheu manualmente outro endereço nesta sessão, tem precedência absoluta
+    if (enderecoEscolhidoManualmenteRef.current) return;
+
     if (enderecoInicialDetectado) {
       setEnderecoSelecionado(prev => {
         if (
@@ -428,6 +434,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     let ativo = true;
 
     async function carregarEnderecoInicial() {
+      // Se o operador escolheu manualmente outro endereço nesta sessão, tem precedência absoluta
+      if (enderecoEscolhidoManualmenteRef.current) return;
+
       // 1. Se já existe um endereço de entrega ativo no pedido com dados completos, preservá-lo
       const cepLimpoAtual = (enderecoEntregaAtual?.cep || '').replace(/\D/g, '');
       const temEnderecoCompleto = Boolean(
@@ -2510,6 +2519,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           clienteId={clienteId}
           enderecoAtualId={enderecoSelecionado?.id}
           onConfirmarEndereco={(novoEnd) => {
+            enderecoEscolhidoManualmenteRef.current = novoEnd;
             setEnderecoSelecionado(novoEnd);
             executarCotacao(novoEnd, true);
           }}

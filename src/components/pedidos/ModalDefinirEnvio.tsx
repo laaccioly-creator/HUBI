@@ -1,5 +1,5 @@
 // HUBI - Modal de Definição e Cotação de Envio do Pedido v1.1
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Truck, X, Check, Loader2 } from 'lucide-react';
 import { Pedido, Cliente } from '../../types';
 import { ShippingSelectionResult, ClienteEndereco } from '../../types/shipping';
@@ -96,6 +96,41 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
     }
   };
 
+  const enderecoEntregaOriginal = useMemo(() => {
+    if (!pedido) return null;
+    const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
+    if (pe?.destino_logradouro && pe?.destino_numero && pe?.destino_cep) {
+      return {
+        id: pe.cliente_endereco_id || undefined,
+        cep: pe.destino_cep,
+        logradouro: pe.destino_logradouro,
+        numero: pe.destino_numero,
+        complemento: pe.destino_complemento || null,
+        bairro: pe.destino_bairro || '',
+        cidade: pe.destino_cidade || '',
+        uf: pe.destino_uf || 'CE'
+      };
+    }
+    return null;
+  }, [pedido?.id]);
+
+  const enderecoEntregaAtivo = enderecoAtualizadoLocal || enderecoEntregaOriginal;
+
+  const dadosEnvioIniciais = useMemo(() => {
+    if (!pedido) return undefined;
+    const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
+    const meta = (pedido as any).metadados || {};
+    return {
+      formaEntregaId: pe?.forma_entrega_id || (pedido as any).forma_entrega_id || null,
+      codigoCorrida: pe?.codigo_corrida || (pedido as any).codigo_corrida || meta.codigo_corrida || null,
+      linkRastreio: pe?.link_rastreio || (pedido as any).link_rastreio || meta.link_rastreio || null,
+      codigoRastreio: pe?.codigo_rastreio || (pedido as any).codigo_rastreio || meta.codigo_rastreio || null,
+      pinEntrega: pe?.pin_entrega || (pedido as any).pin_entrega || meta.pin_entrega || null,
+      nomeEntregador: pe?.entregador_nome || pe?.nome_entregador || (pedido as any).nome_entregador || null,
+      telefoneEntregador: pe?.contato_entregador || pe?.telefone_entregador || (pedido as any).telefone_entregador || null
+    };
+  }, [pedido?.id]);
+
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col text-slate-200">
@@ -149,41 +184,17 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             valorFreteAtual={Number(pedido.valor_frete || 0)}
             tipoAtendimentoAtual="entrega"
             temaDark={true}
-            enderecoEntregaAtual={enderecoAtualizadoLocal || (() => {
-              const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
-              if (pe?.destino_logradouro && pe?.destino_numero && pe?.destino_cep) {
-                return {
-                  id: pe.cliente_endereco_id || undefined,
-                  cep: pe.destino_cep,
-                  logradouro: pe.destino_logradouro,
-                  numero: pe.destino_numero,
-                  complemento: pe.destino_complemento || null,
-                  bairro: pe.destino_bairro || '',
-                  cidade: pe.destino_cidade || '',
-                  uf: pe.destino_uf || 'CE'
-                };
-              }
-              return null;
-            })()}
+            enderecoEntregaAtual={enderecoEntregaAtivo}
             onSolicitarAtualizarEndereco={() => {
               setModalEnderecoAberto(true);
             }}
-            dadosEnvioIniciais={(() => {
-              const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
-              const meta = (pedido as any).metadados || {};
-              return {
-                formaEntregaId: pe?.forma_entrega_id || (pedido as any).forma_entrega_id || null,
-                codigoCorrida: pe?.codigo_corrida || (pedido as any).codigo_corrida || meta.codigo_corrida || null,
-                linkRastreio: pe?.link_rastreio || (pedido as any).link_rastreio || meta.link_rastreio || null,
-                codigoRastreio: pe?.codigo_rastreio || (pedido as any).codigo_rastreio || meta.codigo_rastreio || null,
-                pinEntrega: pe?.pin_entrega || (pedido as any).pin_entrega || meta.pin_entrega || null,
-                nomeEntregador: pe?.entregador_nome || pe?.nome_entregador || (pedido as any).nome_entregador || null,
-                telefoneEntregador: pe?.contato_entregador || pe?.telefone_entregador || (pedido as any).telefone_entregador || null
-              };
-            })()}
+            dadosEnvioIniciais={dadosEnvioIniciais}
             onChange={(resultado: ShippingSelectionResult) => {
               // Apenas armazena a seleção no estado local do modal; JAMAIS fecha ou salva automaticamente!
               setSelecaoPendente(resultado);
+              if (resultado.endereco_selecionado) {
+                setEnderecoAtualizadoLocal(resultado.endereco_selecionado);
+              }
             }}
           />
         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Store, Printer, Share2, Copy, Edit } from 'lucide-react';
+import { X, Store, Printer, Share2, Edit } from 'lucide-react';
 import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
 import { obterInfoVencimentoFiado } from '../../utils/statusPedidoUtils';
@@ -400,18 +400,6 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               >
                 <Share2 className="w-3.5 h-3.5" />
                 <span>WhatsApp</span>
-              </button>
-            )}
-
-            {onCopiarTexto && (
-              <button
-                type="button"
-                onClick={() => onCopiarTexto(pedido)}
-                className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
-                title="Copiar texto do recibo"
-              >
-                <Copy className="w-3.5 h-3.5 text-slate-400" />
-                <span>Copiar</span>
               </button>
             )}
           </div>
