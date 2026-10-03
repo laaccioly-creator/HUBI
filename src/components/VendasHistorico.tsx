@@ -48,6 +48,7 @@ import { extrairObservacaoLimpa } from '../utils/formatters';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
+import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { obterDataOperacao } from '../utils/dataOperacao';
 
@@ -838,38 +839,38 @@ export const VendasHistorico: React.FC = () => {
 
           {/* BARRA DE MÉTRICAS DE RESUMO (TELA001) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
-            <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-3 space-y-0.5 shadow-sm">
-              <span className="text-[11px] font-medium text-slate-400 block">
-                Hoje: <strong className="text-slate-200">{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
+                Hoje: <strong className="text-white font-bold">{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-bold text-slate-100 font-mono">
+              <div className="text-sm sm:text-base font-black text-white font-mono">
                 R$ {metricas.hoje.total.toFixed(2)}
               </div>
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-3 space-y-0.5 shadow-sm">
-              <span className="text-[11px] font-medium text-slate-400 block">
-                Ontem: <strong className="text-slate-200">{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
+                Ontem: <strong className="text-white font-bold">{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-bold text-slate-100 font-mono">
+              <div className="text-sm sm:text-base font-black text-white font-mono">
                 R$ {metricas.ontem.total.toFixed(2)}
               </div>
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-3 space-y-0.5 shadow-sm">
-              <span className="text-[11px] font-medium text-slate-400 block">
-                Esta semana: <strong className="text-slate-200">{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
+                Esta semana: <strong className="text-white font-bold">{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-bold text-slate-100 font-mono">
+              <div className="text-sm sm:text-base font-black text-white font-mono">
                 R$ {metricas.estaSemana.total.toFixed(2)}
               </div>
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-3 space-y-0.5 shadow-sm">
-              <span className="text-[11px] font-medium text-slate-400 block">
-                Este mês: <strong className="text-slate-200">{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'vendas' : 'vendas'}</strong>
+            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
+                Este mês: <strong className="text-white font-bold">{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-bold text-slate-100 font-mono">
+              <div className="text-sm sm:text-base font-black text-white font-mono">
                 R$ {metricas.esteMes.total.toFixed(2)}
               </div>
             </div>
@@ -895,11 +896,11 @@ export const VendasHistorico: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-900/80 text-slate-400 font-semibold sticky top-0 z-10 border-b border-slate-800/80 backdrop-blur">
+              <thead className="bg-slate-900 text-slate-300 font-semibold uppercase tracking-wider sticky top-0 z-10 border-b border-slate-700/80 backdrop-blur">
                 <tr>
                   <th
                     onClick={() => toggleOrdenacao('codigo')}
-                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition"
+                    className="py-3 px-4 cursor-pointer hover:text-white transition"
                   >
                     <div className="flex items-center gap-1">
                       <span>Código</span>
@@ -908,7 +909,7 @@ export const VendasHistorico: React.FC = () => {
                   </th>
                   <th
                     onClick={() => toggleOrdenacao('data')}
-                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition"
+                    className="py-3 px-4 cursor-pointer hover:text-white transition"
                   >
                     <div className="flex items-center gap-1">
                       <span>Data</span>
@@ -917,7 +918,7 @@ export const VendasHistorico: React.FC = () => {
                   </th>
                   <th
                     onClick={() => toggleOrdenacao('cliente')}
-                    className="py-3 px-4 cursor-pointer hover:text-slate-200 transition"
+                    className="py-3 px-4 cursor-pointer hover:text-white transition"
                   >
                     <div className="flex items-center gap-1">
                       <span>Cliente</span>
@@ -928,7 +929,7 @@ export const VendasHistorico: React.FC = () => {
                   <th className="py-3 px-4 text-center">Itens</th>
                   <th
                     onClick={() => toggleOrdenacao('valor')}
-                    className="py-3 px-4 text-right cursor-pointer hover:text-slate-200 transition"
+                    className="py-3 px-4 text-right cursor-pointer hover:text-white transition"
                   >
                     <div className="flex items-center justify-end gap-1">
                       <span>Valor</span>
@@ -939,7 +940,7 @@ export const VendasHistorico: React.FC = () => {
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-800/90">
                 {vendasFiltradas.map((venda) => {
                   const { data, hora } = formatarDataTabela(venda.data_venda || venda.criado_em || '');
                   const totalItens = calcularTotalItens(venda);
@@ -950,7 +951,7 @@ export const VendasHistorico: React.FC = () => {
                   return (
                     <tr
                       key={venda.id}
-                      className={`hover:bg-slate-900/60 transition group ${
+                      className={`hover:bg-slate-900/40 border-b border-slate-800/90 transition group ${
                         foiCancelada ? 'opacity-60 bg-rose-950/10' : ''
                       }`}
                     >
@@ -1356,287 +1357,13 @@ export const VendasHistorico: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE RECIBO DA VENDA (TELA006) */}
-      {vendaReciboModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
-            {/* Topo do Recibo */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                  <Receipt className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-100 text-sm">
-                    Recibo da Venda #{vendaReciboModal.numero_pedido}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setVendaReciboModal(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Cupom/Recibo Formatado */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-8 space-y-4 bg-slate-900 custom-scrollbar">
-              <div className="bg-black p-5 rounded-xl border border-slate-700/70 text-slate-200 text-xs space-y-3 shadow-2xl">
-                {loja?.url_logo && (
-                  <div className="text-center pb-1">
-                    <img
-                      src={loja.url_logo}
-                      alt={loja.nome_fantasia}
-                      className="max-h-12 max-w-[160px] mx-auto object-contain"
-                    />
-                  </div>
-                )}
-
-                <div className="text-center">
-                  <h4 className="font-bold text-slate-100 text-base tracking-wide">
-                    RECIBO #{vendaReciboModal.numero_pedido}
-                  </h4>
-                </div>
-
-                {/* Dados da Loja */}
-                <div className="space-y-0.5 text-xs text-slate-300">
-                  <p className="font-bold uppercase text-slate-100">{loja?.nome_fantasia || 'HUBI PDV'}</p>
-                  <p className="text-slate-400">
-                    {[
-                      loja?.endereco_logradouro,
-                      loja?.endereco_numero,
-                      loja?.endereco_bairro,
-                      loja?.endereco_cidade
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
-                    {loja?.whatsapp ? ` - +55 ${loja.whatsapp}` : loja?.telefone ? ` - +55 ${loja.telefone}` : ''}
-                  </p>
-                </div>
-
-                {/* Dados do Vendedor / Origem (Antes do Cliente) */}
-                <div className="space-y-0.5 text-xs text-slate-300 border-b border-slate-700/60 pb-2">
-                  <span className="text-slate-400 font-medium">
-                    {vendaReciboModal.origem === 'catalogo_online' ? 'Canal / Vendedor:' : 'Vendedor:'}
-                  </span>
-                  <p className="font-semibold text-slate-100">
-                    {vendaReciboModal.origem === 'catalogo_online'
-                      ? 'Catálogo Online (Pedido Online)'
-                      : vendaReciboModal.vendedor?.nome_completo || 'Caixa / Balcão'}
-                  </p>
-                </div>
-
-                {/* Dados do Cliente */}
-                <div className="space-y-0.5 text-xs text-slate-300">
-                  <p className="font-semibold text-slate-100">
-                    {vendaReciboModal.cliente?.nome || 'Cliente Avulso (Balcão)'}
-                  </p>
-                  {(vendaReciboModal.cliente?.whatsapp || vendaReciboModal.cliente?.telefone) && (
-                    <p className="text-slate-400">
-                      +55 {vendaReciboModal.cliente.whatsapp || vendaReciboModal.cliente.telefone}
-                    </p>
-                  )}
-                  {vendaReciboModal.endereco_entrega && (
-                    <p className="text-[11px] text-slate-400">
-                      {limparEnderecoRecibo(vendaReciboModal.endereco_entrega)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Resumo de itens */}
-                <div className="font-semibold text-slate-300 text-xs pt-1">
-                  {vendaReciboModal.itens?.length || 0} itens (Qtd.:{' '}
-                  {vendaReciboModal.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0})
-                </div>
-
-                <div className="border-t border-slate-700 my-2"></div>
-
-                {/* Lista de Itens */}
-                <div className="space-y-1.5">
-                  {vendaReciboModal.itens?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start text-xs">
-                      <span className="text-slate-200">
-                        <strong>{Number(item.quantidade)}x</strong> {item.nome_produto}{' '}
-                        {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
-                      </span>
-                      <span className="font-semibold text-slate-100 whitespace-nowrap pl-3">
-                        R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t border-slate-700 my-2"></div>
-
-                {/* Totais e Descontos */}
-                {(Number(vendaReciboModal.valor_desconto) > 0 || Number(vendaReciboModal.valor_frete) > 0) && (
-                  <div className="space-y-1 text-xs text-slate-400">
-                    {Number(vendaReciboModal.subtotal) > 0 && (
-                      <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>R$ {Number(vendaReciboModal.subtotal).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {Number(vendaReciboModal.valor_desconto) > 0 && (
-                      <div className="flex justify-between text-rose-400">
-                        <span>Desconto:</span>
-                        <span>- R$ {Number(vendaReciboModal.valor_desconto).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {Number(vendaReciboModal.valor_frete) > 0 && (
-                      <div className="flex justify-between text-purple-400">
-                        <span>Taxa de Entrega:</span>
-                        <span>+ R$ {Number(vendaReciboModal.valor_frete).toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="border-t border-dashed border-slate-700/60 pt-2 my-1"></div>
-
-                <div className="flex justify-between items-center text-sm font-bold text-white pt-0.5">
-                  <span>VALOR TOTAL:</span>
-                  <span className="text-lg font-black text-white">R$ {Number(vendaReciboModal.valor_total).toFixed(2)}</span>
-                </div>
-
-                {/* Dados do Pagamento (Após o Valor Total) */}
-                {(() => {
-                  const pagInfo =  obterDadosPagamentoRecibo(vendaReciboModal);
-                  return (
-                    <>
-                      {pagInfo.ehFiado && Number(vendaReciboModal.saldo_devedor) > 0 && (
-                        <div className="mt-2.5 p-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-center space-y-0.5">
-                          <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                          <span className="text-sm font-black text-rose-400 block">R$ {Number(vendaReciboModal.saldo_devedor).toFixed(2)}</span>
-                          {obterInfoVencimentoFiado(vendaReciboModal).temVencimento && (
-                            <span className="text-[11px] font-bold text-rose-300 block pt-0.5">
-                              Data de Vencimento: {obterInfoVencimentoFiado(vendaReciboModal).formatada}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="mt-3 p-3 rounded-xl border border-slate-700/50 bg-slate-800/80 space-y-2 text-xs">
-                        <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-700/60">
-                          <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Status Pagamento:</span>
-                          <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pagInfo.foiPago ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
-                            {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
-                          </span>
-                        </div>
-                        {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
-                          <div className="space-y-1.5 pt-1 text-slate-300">
-                            {pagInfo.pagamentosDetalhados.map((pag, idx) => (
-                              <div key={idx} className="flex justify-between items-start text-[11px]">
-                                <div>
-                                  <span className="font-semibold text-white block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
-                                  {pag.origemGateway && (
-                                    <span className="text-[10px] text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
-                                  )}
-                                </div>
-                                <span className="font-bold text-white">R$ {pag.valor.toFixed(2)}</span>
-                              </div>
-                            ))}
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-700/60 text-xs">
-                              <span className="text-slate-300 font-medium">Valor Pago:</span>
-                              <span className="text-emerald-400 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </>
-                  );
-                })()}
-
-                <div className="border-t border-slate-700 my-2"></div>
-
-                <div className="text-center text-[11px] text-slate-400">
-                  {formatarDataRecibo(vendaReciboModal.data_venda || vendaReciboModal.criado_em)}
-                </div>
-              </div>
-            </div>
-
-            {/* Ações de Impressão e Compartilhamento */}
-            <div className="p-3.5 border-t border-slate-800 bg-slate-900 space-y-2 shrink-0">
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => PrintService.printReceipt(vendaReciboModal, loja, '80mm')}
-                  className="py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5 text-white" />
-                  <span className="truncate">Térmica 58/80mm</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => PrintService.printReceipt(vendaReciboModal, loja, 'a4')}
-                  className="py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5 text-white" />
-                  <span className="truncate">Imprimir A4</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => PrintService.printReceipt(vendaReciboModal, loja, 'a4')}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5 text-sky-400" />
-                  <span className="truncate">Baixar PDF</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-4 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => PrintService.openEmail(vendaReciboModal, loja)}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                >
-                  <Mail className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="truncate">E-mail</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loja && vendaReciboModal) {
-                      const msg = PrintService.generateWhatsAppMessage(vendaReciboModal, loja);
-                      PrintService.openWhatsApp(vendaReciboModal.cliente?.whatsapp || '', msg);
-                    }
-                  }}
-                  className="py-2 px-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span className="truncate">WhatsApp</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCopiarReciboTexto(vendaReciboModal)}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition cursor-pointer"
-                >
-                  {copiado ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5 text-slate-400" />
-                  )}
-                  <span className="truncate">{copiado ? 'Copiado!' : 'Copiar'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setVendaReciboModal(null)}
-                  className="py-2 px-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL CANÔNICO DE RECIBO DA VENDA */}
+      <ReciboPedidoModal
+        isOpen={Boolean(vendaReciboModal)}
+        pedido={vendaReciboModal}
+        loja={loja}
+        onClose={() => setVendaReciboModal(null)}
+      />
 
       {/* MODAL DE ITENS DO PEDIDO (TELA008) */}
       <ModalItensPedido

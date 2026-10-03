@@ -71,6 +71,7 @@ interface ModalRastreioPedidoProps {
   entrega: PedidoEntrega | null;
   loja: Loja | null;
   onAtualizarStatus?: () => void;
+  onImprimirEtiqueta?: () => void;
 }
 
 export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
@@ -79,7 +80,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   pedido,
   entrega,
   loja,
-  onAtualizarStatus
+  onAtualizarStatus,
+  onImprimirEtiqueta
 }) => {
   const { mostrarSucesso, mostrarToast } = useFeedbackModal();
   const [copiado, setCopiado] = useState(false);
@@ -550,7 +552,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-xl bg-slate-900 border border-slate-700/80 rounded-3xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
@@ -559,14 +561,14 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-base text-slate-100">
+                <h3 className="font-black text-base text-white">
                   Rastreamento do Pedido #{pedido.numero_pedido || pedido.id.slice(0, 5)}
                 </h3>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 uppercase">
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-black border border-slate-800 text-emerald-400 uppercase">
                   {transportadora}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-300">
                 Acompanhe as etapas de envio e movimentação da carga
               </p>
             </div>
@@ -582,20 +584,20 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         </div>
 
         {/* Card do Código de Rastreio */}
-        <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-black border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
               Código de Rastreamento:
             </span>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-base font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20">
+              <span className="font-mono text-base font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/30">
                 {codigoRastreio || 'Pendente de sincronização'}
               </span>
               {codigoRastreio && (
                 <button
                   type="button"
                   onClick={handleCopiarCodigo}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 transition cursor-pointer"
                   title="Copiar código de rastreio"
                 >
                   {copiado ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -716,13 +718,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Histórico Detalhado de Movimentações */}
         {eventosRastreioLocal.length > 0 && (
-          <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-              <span className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
                 <Package className="w-4 h-4 text-emerald-400" />
                 <span>Histórico de Movimentações ({eventosRastreioLocal.length})</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-bold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800">
+              <span className="text-[10px] text-slate-300 font-bold px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800">
                 {ehCorreios ? 'Correios Oficial' : 'Transportadora'}
               </span>
             </div>
@@ -739,7 +741,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                         : ehSaiu
                         ? 'bg-sky-500/10 border-sky-500/30 text-sky-200'
-                        : 'bg-slate-900/80 border-slate-800 text-slate-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-200'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -751,20 +753,20 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                         ) : (
                           <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         )}
-                        <span>{ev.titulo || ev.tipo}</span>
+                        <span className="text-white font-bold">{ev.titulo || ev.tipo}</span>
                       </span>
                       <span className="text-[11px] text-slate-400 shrink-0 font-medium">
                         {ev.data_formatada || (ev.data ? new Date(ev.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')}
                       </span>
                     </div>
                     {ev.local && (
-                      <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+                      <p className="text-[11px] text-slate-300 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
                         <span>{ev.local}</span>
                       </p>
                     )}
                     {ev.descricao && ev.descricao !== ev.titulo && (
-                      <p className="text-[11px] text-slate-300/80 leading-relaxed pl-4">
+                      <p className="text-[11px] text-slate-300/90 leading-relaxed pl-4">
                         {ev.descricao}
                       </p>
                     )}
@@ -777,12 +779,12 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Endereço de Destino */}
         {pedido.endereco_entrega && (
-          <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-3.5 space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+          <div className="bg-black border border-slate-800 rounded-2xl p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <MapPin className="w-3 h-3 text-emerald-400" />
               Endereço de Entrega do Destinatário
             </span>
-            <p className="text-xs font-semibold text-slate-300">
+            <p className="text-xs font-bold text-white">
               {pedido.endereco_entrega}
             </p>
           </div>
@@ -790,137 +792,71 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Barra de Ações do Rodapé Unificada */}
         <div className="pt-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800">
-          {linkEtiqueta && (
-            <a
-              href={linkEtiqueta}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Tag className="w-3.5 h-3.5" />
-              <span>Imprimir Etiqueta</span>
-            </a>
-          )}
+          {/* Botão Primário: Imprimir Etiqueta */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onImprimirEtiqueta) {
+                onImprimirEtiqueta();
+              } else if (linkEtiqueta) {
+                window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
+              }
+            }}
+            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95"
+            title="Imprimir Etiqueta de Envio"
+          >
+            <Tag className="w-3.5 h-3.5 text-white" />
+            <span>Imprimir Etiqueta</span>
+          </button>
 
-          {/* 1. MELHOR ENVIO (Outras transportadoras, ex: Jadlog, Azul): Botão [ Melhor Rastreio ] */}
-          {ehMelhorEnvio && !ehCorreios && codigoRastreio && (
+          {/* Rastreio Transportadora Manual (se houver url específica) */}
+          {ehTransportadoraManual && urlRastreioTransportadora && (
             <a
-              href={`https://melhorrastreio.com.br/app/${codigoRastreio}`}
+              href={urlRastreioTransportadora}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 border border-slate-700 cursor-pointer active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Melhor Rastreio</span>
+              <span>
+                {transportadoraObj?.url_rastreio && codigoRastreio
+                  ? `Rastrear na ${nomeTransportadoraExibicao}`
+                  : `Acessar ${nomeTransportadoraExibicao}`}
+              </span>
             </a>
           )}
 
-          {/* 2. CORREIOS (Manual ou Integrado): Botão Principal Melhor Rastreio (sem CAPTCHA) + Botão Secundário Portal dos Correios (com cópia automática) */}
-          {ehCorreios && codigoRastreio && (
-            <>
-              {/* Botão Principal: Rastrear no Melhor Rastreio */}
-              <a
-                href={`https://melhorrastreio.com.br/app/${codigoRastreio}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                title="Rastrear envio nos Correios sem CAPTCHA via Melhor Rastreio"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Rastrear no Melhor Rastreio</span>
-              </a>
-
-              {/* Botão Secundário: Portal dos Correios com cópia automática */}
-              <button
-                type="button"
-                onClick={handleAbrirPortalCorreios}
-                className="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 active:scale-95"
-                title="Copiar código de rastreio e abrir Portal Oficial dos Correios"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                <span>Portal dos Correios</span>
-              </button>
-            </>
-          )}
-
-          {/* 3. TRANSPORTADORA MANUAL: Rastrear na Transportadora / Site / WhatsApp, NUNCA Melhor Rastreio */}
-          {ehTransportadoraManual && (
-            <>
-              {urlRastreioTransportadora && (
-                <a
-                  href={urlRastreioTransportadora}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>
-                    {transportadoraObj?.url_rastreio && codigoRastreio
-                      ? `Rastrear na ${nomeTransportadoraExibicao}`
-                      : `Acessar ${nomeTransportadoraExibicao}`}
-                  </span>
-                </a>
-              )}
-
-              {/* Se já abriu a URL de rastreio mas também possui site institucional cadastrado */}
-              {transportadoraObj?.url_rastreio && codigoRastreio && transportadoraObj?.site && (
-                <a
-                  href={transportadoraObj.site}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
-                  title={`Acessar site institucional da ${nomeTransportadoraExibicao}`}
-                >
-                  <Globe className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Site</span>
-                </a>
-              )}
-
-              {linkWhatsTransp && (
-                <a
-                  href={linkWhatsTransp}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-2.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-500/30"
-                  title={`Contato via WhatsApp da ${nomeTransportadoraExibicao}`}
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>WhatsApp</span>
-                </a>
-              )}
-            </>
-          )}
-
-          {/* 4. UBER DIRECT: Link nativo da corrida ao vivo, NUNCA Melhor Rastreio */}
+          {/* UBER DIRECT: Link nativo da corrida ao vivo mantido em nova aba */}
           {ehUber && linkRastreio && (
             <a
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 border border-slate-700 cursor-pointer active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Acompanhar Uber</span>
             </a>
           )}
 
-          {/* 5. APP DE CORRIDA: Link da corrida se houver, NUNCA Melhor Rastreio */}
+          {/* APP DE CORRIDA: Link da corrida se houver */}
           {ehAppCorrida && linkRastreio && (
             <a
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 border border-slate-700 cursor-pointer active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Acompanhar Corrida</span>
             </a>
           )}
 
+          {/* Botão Fechar em estilo outline verde */}
           <button
             type="button"
             onClick={onClose}
-            className="py-2.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+            className="py-2.5 px-5 rounded-xl border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40 font-semibold text-xs transition cursor-pointer"
           >
             Fechar
           </button>

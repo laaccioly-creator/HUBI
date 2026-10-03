@@ -305,17 +305,17 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-900 flex justify-center items-start custom-scrollbar">
           <div
             ref={etiquetaRef}
-            className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/80 font-mono text-xs space-y-3.5 min-h-fit mb-4"
+            className="w-full max-w-sm bg-black text-slate-100 rounded-xl p-5 shadow-2xl border border-slate-800 font-mono text-xs space-y-3.5 min-h-fit mb-4"
           >
             {/* Topo da Etiqueta */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-700/70 border-dashed">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 border-dashed">
               <div className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-slate-300" />
+                <Package className="w-5 h-5 text-emerald-400" />
                 <div>
                   <h4 className="font-bold text-sm text-white uppercase tracking-wide leading-none">
                     {transportadora}
                   </h4>
-                  <span className="text-[10px] text-slate-400 font-medium">Logística HUBI</span>
+                  <span className="text-[10px] text-slate-300 font-semibold">Logística HUBI</span>
                 </div>
               </div>
               <div className="text-right">
@@ -329,55 +329,55 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             </div>
 
             {/* Código de Rastreio / Barras Simulado */}
-            <div className="p-3 bg-slate-900/90 border border-slate-700/60 rounded-xl text-center space-y-1">
-              <div className="h-9 flex items-center justify-center tracking-[4px] font-mono text-lg font-black text-slate-200 select-none">
+            <div className="p-3 bg-black border border-slate-800 rounded-xl text-center space-y-1">
+              <div className="h-9 flex items-center justify-center tracking-[4px] font-mono text-lg font-black text-white select-none">
                 ||| | |||| | || |||| | |||
               </div>
               <div className="font-mono text-xs font-bold text-emerald-400 tracking-wider">
                 {codigoRastreio}
               </div>
               {pinEntrega && (
-                <div className="font-mono text-[11px] font-bold text-amber-400 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded inline-block mt-1">
+                <div className="font-mono text-[11px] font-bold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded inline-block mt-1">
                   PIN: {pinEntrega}
                 </div>
               )}
             </div>
 
             {/* Bloco Destinatário */}
-            <div className="p-3 bg-slate-900/90 border border-slate-700/60 rounded-xl space-y-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-700/70 border-dashed">
-                <User className="w-3.5 h-3.5 text-slate-400" />
+            <div className="p-3 bg-black border border-slate-800 rounded-xl space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-1 border-b border-slate-800 border-dashed">
+                <User className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Destinatário</span>
               </div>
               <p className="font-bold text-xs text-white pt-0.5">
                 {clienteNome}
               </p>
               {clienteTelefone && (
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-slate-200">
                   Tel: <strong className="text-white">{clienteTelefone}</strong>
                 </p>
               )}
-              <div className="flex items-start gap-1 pt-1 text-[11px] text-slate-300 leading-snug">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span>{enderecoEntrega}</span>
+              <div className="flex items-start gap-1 pt-1 text-[11px] text-slate-200 leading-snug">
+                <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span className="font-semibold text-white">{enderecoEntrega}</span>
               </div>
             </div>
 
             {/* Bloco Remetente */}
-            <div className="p-3 bg-slate-900/90 border border-slate-700/60 rounded-xl space-y-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-700/70 border-dashed">
-                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+            <div className="p-3 bg-black border border-slate-800 rounded-xl space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider pb-1 border-b border-slate-800 border-dashed">
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Remetente</span>
               </div>
               <p className="font-bold text-xs text-white pt-0.5">
                 {lojaNome}
               </p>
               {lojaDocumento && (
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-slate-300 font-semibold">
                   CNPJ/CPF: {lojaDocumento}
                 </p>
               )}
-              <p className="text-[10px] text-slate-400 leading-tight">
+              <p className="text-[10px] text-slate-300 font-medium leading-tight">
                 {lojaEndereco}
               </p>
             </div>
@@ -389,7 +389,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition cursor-pointer"
+            className="px-4 py-2 rounded-lg border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40 font-semibold text-xs transition cursor-pointer"
           >
             Fechar
           </button>
@@ -397,9 +397,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={handleImprimir}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-4 h-4 text-white" />
             <span>Imprimir</span>
           </button>
         </div>

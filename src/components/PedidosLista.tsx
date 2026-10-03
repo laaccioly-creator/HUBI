@@ -3449,9 +3449,9 @@ export const PedidosLista: React.FC = () => {
             ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold text-[11px] tracking-wider bg-slate-900/60 sticky top-0 z-10 backdrop-blur">
+                  <tr className="border-b border-slate-700/80 text-slate-300 uppercase font-semibold text-[11px] tracking-wider bg-slate-900 sticky top-0 z-10 backdrop-blur">
                     <th
-                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[85px]"
+                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-white transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('codigo')}
                     >
                       <div className="flex items-center gap-1">
@@ -3460,7 +3460,7 @@ export const PedidosLista: React.FC = () => {
                       </div>
                     </th>
                     <th
-                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[95px]"
+                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-white transition min-w-[95px]"
                       onClick={() => toggleOrdenacao('data')}
                     >
                       <div className="flex items-center gap-1">
@@ -3472,7 +3472,7 @@ export const PedidosLista: React.FC = () => {
                     <th className="py-2.5 px-2 font-semibold min-w-[110px]">Vendedor</th>
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[70px]">Itens</th>
                     <th
-                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-slate-200 transition min-w-[85px]"
+                      className="py-2.5 px-2 font-semibold cursor-pointer hover:text-white transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('valor')}
                     >
                       <div className="flex items-center gap-1">
@@ -3486,7 +3486,7 @@ export const PedidosLista: React.FC = () => {
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-800/90">
                   {pedidosFiltrados.map((pedido) => {
                     const isCancelado = pedido.status === 'cancelado';
                     const totalItens = calcularTotalItens(pedido);
@@ -3496,7 +3496,7 @@ export const PedidosLista: React.FC = () => {
                     return (
                       <tr
                         key={pedido.id}
-                        className={`transition group hover:bg-slate-900/60 ${isCancelado ? 'opacity-60' : ''}`}
+                        className={`transition group hover:bg-slate-900/40 border-b border-slate-800/90 ${isCancelado ? 'opacity-60' : ''}`}
                       >
                         <td className="py-2.5 px-2 whitespace-nowrap font-medium">
                           <div className="flex items-center gap-1.5">

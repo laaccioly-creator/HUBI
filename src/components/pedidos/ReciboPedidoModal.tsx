@@ -1,7 +1,8 @@
-import React from 'react';
-import { X, Store, Printer, Share2, Edit } from 'lucide-react';
+import React, { useRef } from 'react';
+import { X, Store, Printer, Share2, Download } from 'lucide-react';
 import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
+import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa } from '../../utils/formatters';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
@@ -28,6 +29,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   onCopiarTexto,
   onEditarRecibo
 }) => {
+  const reciboRef = useRef<HTMLDivElement>(null);
+
   if (!isOpen || !pedido) return null;
 
   const rawPe = (pedido as any).pedido_entrega || (pedido as any).pedido_entregas;
@@ -191,7 +194,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-900 flex justify-center items-start custom-scrollbar">
-          <div className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/70 font-mono text-xs space-y-3.5 min-h-fit mb-6">
+          <div ref={reciboRef} className="w-full max-w-sm bg-black text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700/70 font-mono text-xs space-y-3.5 min-h-fit mb-6">
             {/* Logo e Cabeçalho do Recibo */}
             <div className="text-center space-y-1 border-b border-slate-700/60 border-dashed pb-3">
               {logoLojaUrl ? (
@@ -355,54 +358,63 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           </div>
         </div>
 
-        {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL */}
-        <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <div>
-            {onEditarRecibo && (
-              <button
-                type="button"
-                onClick={onEditarRecibo}
-                className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Edit className="w-3.5 h-3.5" />
-                <span>Editar meu recibo</span>
-              </button>
-            )}
-          </div>
+        {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (LINHA ÚNICA PADRONIZADA) */}
+        <div className="p-4 border-t border-slate-700/80 bg-slate-900 flex items-center justify-center sm:justify-end gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          <button
+            type="button"
+            onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
+            title="Imprimir Cupom Térmico 58mm ou 80mm"
+          >
+            <Printer className="w-3.5 h-3.5 text-white" />
+            <span>Térmica 58/80mm</span>
+          </button>
 
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <button
-              type="button"
-              onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
-              title="Imprimir Cupom Térmico 58mm ou 80mm"
-            >
-              <Printer className="w-3.5 h-3.5 text-white" />
-              <span>Térmica 58/80mm</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
+            title="Imprimir Folha A4"
+          >
+            <Printer className="w-3.5 h-3.5 text-white" />
+            <span>Imprimir A4</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
-              title="Imprimir Folha A4"
-            >
-              <Printer className="w-3.5 h-3.5 text-white" />
-              <span>Imprimir A4</span>
-            </button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (reciboRef.current) {
+                await ReceiptPdfService.baixarPdfRecibo(reciboRef.current, pedido, loja);
+              } else {
+                PrintService.printReceipt(pedido, loja, 'a4');
+              }
+            }}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
+            title="Baixar Recibo em PDF"
+          >
+            <Download className="w-3.5 h-3.5 text-white" />
+            <span>Baixar PDF</span>
+          </button>
 
-            {onCompartilharWhatsApp && (
-              <button
-                type="button"
-                onClick={() => onCompartilharWhatsApp(pedido)}
-                className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-400 border border-slate-700 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer"
-                title="Compartilhar no WhatsApp"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>WhatsApp</span>
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (onCompartilharWhatsApp) {
+                onCompartilharWhatsApp(pedido);
+              } else if (reciboRef.current) {
+                ReceiptPdfService.compartilharReciboWhatsApp(reciboRef.current, pedido, loja);
+              } else {
+                const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
+                const msg = PrintService.generateWhatsAppMessage(pedido, loja);
+                PrintService.openWhatsApp(tel, msg);
+              }
+            }}
+            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-400 border border-slate-700 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+            title="Compartilhar no WhatsApp"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>WhatsApp</span>
+          </button>
         </div>
       </div>
     </div>
