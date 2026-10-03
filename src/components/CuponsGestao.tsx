@@ -21,6 +21,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Cupom, TipoCupom } from '../types';
 import { CupomService } from '../services/cupomService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
@@ -29,6 +30,8 @@ type TelaCupomVisao = 'lista' | 'selecionar_tipo' | 'criar_frete_gratis' | 'cria
 
 export const CuponsGestao: React.FC = () => {
   const { loja } = useAuth();
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const navigate = useNavigate();
 
   const [visao, setVisao] = useState<TelaCupomVisao>('lista');
@@ -510,7 +513,11 @@ export const CuponsGestao: React.FC = () => {
           </div>
 
           {/* Carrossel Ilustrado / Card Visual de Venda mais com Cupons (TELA001) */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-950/40 via-slate-900 to-indigo-950/30 border border-emerald-500/30 rounded-3xl p-6 md:p-8 text-center space-y-4 shadow-xl">
+          <div className={`relative overflow-hidden rounded-3xl p-6 md:p-8 text-center space-y-4 border ${
+            isDark
+              ? 'bg-gradient-to-br from-emerald-950/40 via-slate-900 to-indigo-950/30 border-emerald-500/30 shadow-xl'
+              : 'bg-gradient-to-br from-emerald-50 via-white to-slate-50 border-emerald-200 shadow-sm'
+          }`}>
             {/* Visual de Cupons Promocionais */}
             <div className="flex items-center justify-center gap-3 py-2 flex-wrap">
               <div className="bg-emerald-500 text-slate-950 font-black text-xs px-3.5 py-1.5 rounded-lg shadow-lg rotate-[-4deg] border border-emerald-300 flex items-center gap-1">
@@ -527,12 +534,15 @@ export const CuponsGestao: React.FC = () => {
             </div>
 
             <div className="space-y-1.5 max-w-md mx-auto">
-              <h2 className="text-lg md:text-xl font-black text-slate-100">Venda mais com cupons!</h2>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <h2 className={`text-lg md:text-xl font-black ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
+                Venda mais com cupons!
+              </h2>
+              <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-[#475569]'}`}>
                 Aumente suas vendas criando promoções, descontos no carrinho e frete grátis, do jeitinho que você quiser.
               </p>
             </div>
           </div>
+
 
           {/* Lista de Cupons Existentes */}
           <div className="space-y-3">

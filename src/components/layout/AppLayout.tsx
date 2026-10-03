@@ -369,8 +369,10 @@ export const AppLayout: React.FC = () => {
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
   const isCustomMobileRoute = true;
 
+  const isDark = tema === 'dark';
+
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-[#F8FAFC] text-[#0F172A]'}`}>
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
@@ -421,7 +423,7 @@ export const AppLayout: React.FC = () => {
       )}
 
       {/* TOP HEADER DESKTOP (BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES) */}
-      <header className="hidden md:block bg-slate-950 border-b border-slate-800 z-40 relative shrink-0 shadow-md">
+      <header className={`hidden md:block border-b z-40 relative shrink-0 shadow-xs ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
           {/* IDENTIFICAÇÃO DA LOJA */}
           <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">
@@ -434,12 +436,12 @@ export const AppLayout: React.FC = () => {
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
               <div className="hidden sm:block min-w-0">
-                <h1 className="font-bold text-slate-100 text-xs lg:text-sm truncate max-w-[110px] md:max-w-[130px] lg:max-w-[150px] leading-tight group-hover:text-emerald-400 transition">
+                <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[110px] md:max-w-[130px] lg:max-w-[150px] leading-tight group-hover:text-emerald-500 transition ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
                   {loja?.nome_fantasia || 'HUBI PDV'}
                 </h1>
                 <div className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[9px] text-emerald-400 font-semibold uppercase tracking-wider">Conectado</span>
+                  <span className="text-[9px] text-emerald-500 font-semibold uppercase tracking-wider">Conectado</span>
                 </div>
               </div>
             </button>
@@ -458,10 +460,12 @@ export const AppLayout: React.FC = () => {
                     key={item.path}
                     type="button"
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
-                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
+                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
-                        : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
+                        : isDark
+                        ? 'bg-emerald-500/15 text-white hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400'
+                        : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -487,10 +491,12 @@ export const AppLayout: React.FC = () => {
                     key={item.path}
                     type="button"
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
-                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
+                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
-                        : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
+                        : isDark
+                        ? 'bg-emerald-500/15 text-white hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400'
+                        : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -507,47 +513,55 @@ export const AppLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(prev => !prev)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition text-left cursor-pointer shadow-sm"
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-left cursor-pointer shadow-xs ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200'
+                    : 'bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-[#0F172A]'
+                }`}
               >
-                <div className="w-6 h-6 rounded-lg bg-emerald-600/20 text-emerald-400 font-bold text-[11px] flex items-center justify-center border border-emerald-500/30">
+                <div className="w-6 h-6 rounded-lg bg-emerald-600/20 text-emerald-500 font-bold text-[11px] flex items-center justify-center border border-emerald-500/30">
                   {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
                 </div>
-                <span className="text-xs font-medium text-slate-200 max-w-[100px] truncate">
+                <span className={`text-xs font-medium max-w-[100px] truncate ${isDark ? 'text-slate-200' : 'text-[#0F172A]'}`}>
                   {usuario?.nome_completo || 'Operador'}
                 </span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`} />
               </button>
 
               {userMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-slate-800 mb-1 bg-slate-950/50 rounded-xl">
-                    <p className="text-xs font-bold text-slate-100 truncate">{usuario?.nome_completo || 'Operador'}</p>
-                    <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
+                <div className={`absolute top-full right-0 mt-2 w-64 rounded-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150 border ${
+                  isDark ? 'bg-slate-900 border-slate-800 shadow-2xl' : 'bg-white border-[#E2E8F0] shadow-xl'
+                }`}>
+                  <div className={`px-3 py-2 mb-1 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/50' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
+                    <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>{usuario?.nome_completo || 'Operador'}</p>
+                    <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
 
                   {permissions.ehOwner && (
-                    <div className="px-1 py-1 border-b border-slate-800 mb-1">
+                    <div className={`px-1 py-1 mb-1 border-b ${isDark ? 'border-slate-800' : 'border-[#E2E8F0]'}`}>
                       <button
                         type="button"
                         onClick={() => {
                           setUserMenuOpen(false);
                           abrirModalData();
                         }}
-                        className="w-full px-2.5 py-2 rounded-xl hover:bg-slate-800 text-left text-xs font-bold text-amber-400 flex items-center justify-between transition cursor-pointer border border-amber-500/20"
+                        className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-bold text-amber-500 flex items-center justify-between transition cursor-pointer border border-amber-500/20 ${
+                          isDark ? 'hover:bg-slate-800' : 'hover:bg-amber-50/60'
+                        }`}
                       >
                         <span className="flex items-center gap-2">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>Data Operacional</span>
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-mono">
                           {dataOperacaoFormatada}
                         </span>
                       </button>
                     </div>
                   )}
 
-                  <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  <div className={`px-3 py-2 mb-1 border-b ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1.5 ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>
                       Tema do Sistema
                     </span>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -555,7 +569,9 @@ export const AppLayout: React.FC = () => {
                         type="button"
                         onClick={() => setTema('dark')}
                         className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                          tema === 'dark' ? 'bg-slate-800 text-amber-300 border border-slate-700' : 'text-slate-400 hover:text-slate-200'
+                          tema === 'dark'
+                            ? 'bg-slate-800 text-amber-300 border border-slate-700'
+                            : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-[#64748B] hover:text-[#0F172A]'
                         }`}
                       >
                         <Moon className="w-3.5 h-3.5" />
@@ -565,7 +581,9 @@ export const AppLayout: React.FC = () => {
                         type="button"
                         onClick={() => setTema('light')}
                         className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                          tema === 'light' ? 'bg-amber-500/20 text-amber-700 border border-amber-400/50 shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                          tema === 'light'
+                            ? 'bg-amber-500/20 text-amber-700 border border-amber-400/50 shadow-xs font-bold'
+                            : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-[#64748B] hover:text-[#0F172A]'
                         }`}
                       >
                         <Sun className="w-3.5 h-3.5 text-amber-500" />

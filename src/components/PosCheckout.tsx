@@ -46,6 +46,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPedido, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
@@ -182,6 +183,8 @@ const MoneyInput: React.FC<MoneyInputProps> = ({
 export const PosCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const permissions = usePermissions();
   const { mostrarSucesso, mostrarAviso, mostrarErro, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
   const cart = useCart();
@@ -1934,14 +1937,18 @@ export const PosCheckout: React.FC = () => {
       </div>
 
       {/* PAINEL DIREITO: CARRINHO & TOTAL */}
-      <div className="w-full lg:w-[440px] xl:w-[480px] bg-slate-900 flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-800">
+      <div className={`w-full lg:w-[440px] xl:w-[480px] flex flex-col h-full border-t lg:border-t-0 lg:border-l ${
+        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-[#E2E8F0]'
+      }`}>
         {/* Header do Carrinho & Seleção de Cliente */}
-        <div className="p-3.5 border-b border-slate-800 space-y-2.5">
+        <div className={`p-3.5 border-b space-y-2.5 ${isDark ? 'border-slate-800' : 'border-[#E2E8F0]'}`}>
           {/* Seletor de Status e Fechar X ao Editar Pedido */}
           {pedidoEmEdicao && (
-            <div className="p-2 bg-slate-800/90 border border-slate-700/80 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in">
+            <div className={`p-2 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in border ${
+              isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+            }`}>
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-[11px] text-slate-400 font-semibold shrink-0">Status:</span>
+                <span className={`text-[11px] font-semibold shrink-0 ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>Status:</span>
                 <select
                   value={pedidoEmEdicao.status || 'pendente'}
                   onChange={(e) => {
@@ -1950,7 +1957,9 @@ export const PosCheckout: React.FC = () => {
                       atualizarStatusPedidoEmEdicao(st);
                     }
                   }}
-                  className="flex-1 bg-slate-900 border border-slate-700 text-emerald-400 font-bold text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer capitalize"
+                  className={`flex-1 border text-emerald-500 font-bold text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer capitalize ${
+                    isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-[#CBD5E1]'
+                  }`}
                 >
                   {opcoesStatusPdv.map((op) => (
                     <option key={op.id} value={op.id}>
@@ -1967,7 +1976,9 @@ export const PosCheckout: React.FC = () => {
                     navigate('/orders');
                   });
                 }}
-                className="p-1.5 rounded-xl bg-slate-700/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition cursor-pointer shrink-0"
+                className={`p-1.5 rounded-xl transition cursor-pointer shrink-0 ${
+                  isDark ? 'bg-slate-700/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300' : 'bg-[#F1F5F9] hover:bg-rose-50 text-[#64748B] hover:text-rose-600'
+                }`}
                 title="Fechar e voltar para Pedidos"
               >
                 <X className="w-4 h-4" />
@@ -1976,12 +1987,15 @@ export const PosCheckout: React.FC = () => {
           )}
 
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+            <h2 className={`font-bold text-sm flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
               <span>Carrinho de Venda</span>
-              <span className="text-[11px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0]'
+              }`}>
                 {totalItens} un
               </span>
             </h2>
+
             {((itens?.length || 0) > 0) && !isEdicaoTravada && (
               <button
                 type="button"
@@ -2124,14 +2138,18 @@ export const PosCheckout: React.FC = () => {
               if (opcoes.length <= 1) return null;
 
               return (
-                <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+                <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
+                  isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                }`}>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span className="text-[11px] text-slate-400 font-semibold">Tipo da Venda:</span>
+                    <Tag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className={`text-[11px] font-semibold ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>Tipo da Venda:</span>
                   </div>
 
                   {permissions.ehAdmin && !isEdicaoTravada ? (
-                    <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                    <div className={`flex items-center gap-1 p-0.5 rounded-lg border ${
+                      isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#F1F5F9] border-[#E2E8F0]'
+                    }`}>
                       {opcoes.map((tab) => (
                         <button
                           key={tab.id}
@@ -2139,8 +2157,10 @@ export const PosCheckout: React.FC = () => {
                           onClick={() => setTabelaPrecoGlobal(tab.id)}
                           className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition cursor-pointer ${
                             tabelaPrecoCalculada === tab.id
-                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                              : 'text-slate-400 hover:text-slate-200'
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : isDark
+                              ? 'text-slate-400 hover:text-slate-200'
+                              : 'text-[#334155] hover:text-[#0F172A]'
                           }`}
                         >
                           {tab.nome}
@@ -2148,7 +2168,9 @@ export const PosCheckout: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg border ${
+                      isDark ? 'text-slate-400 bg-slate-900 border-slate-800' : 'text-[#475569] bg-[#F1F5F9] border-[#E2E8F0]'
+                    }`}>
                       {tabelaPrecoCalculada === 'autoatacado' ? 'Distribuidor' : tabelaPrecoCalculada === 'atacado' ? 'Atacado' : 'Varejo'}
                     </span>
                   )}
@@ -2157,14 +2179,16 @@ export const PosCheckout: React.FC = () => {
             })()}
 
             {/* Linha 2: Forma de Entrega */}
-            <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+            <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
+              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+            }`}>
               <div className="flex items-center gap-1.5 min-w-0">
                 {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
-                  <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <Truck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 ) : (
-                  <Store className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <Store className="w-3.5 h-3.5 text-purple-500 shrink-0" />
                 )}
-                <span className="text-[11px] text-slate-400 font-semibold truncate">Forma de Entrega:</span>
+                <span className={`text-[11px] font-semibold truncate ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>Forma de Entrega:</span>
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
@@ -2178,7 +2202,9 @@ export const PosCheckout: React.FC = () => {
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento !== 'entrega'
                       ? 'bg-purple-600 text-white shadow-sm'
-                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      : isDark
+                      ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
                   }`}
                 >
                   <Store className="w-3 h-3" />
@@ -2198,8 +2224,10 @@ export const PosCheckout: React.FC = () => {
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
-                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : isDark
+                      ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
                   }`}
                 >
                   <Truck className="w-3 h-3" />
@@ -2207,6 +2235,7 @@ export const PosCheckout: React.FC = () => {
                 </button>
               </div>
             </div>
+
 
             {/* TERMÔMETROS COMPACTOS (ATACADO & FRETE GRÁTIS) */}
             {((itens?.length || 0) > 0) && (
@@ -2283,14 +2312,16 @@ export const PosCheckout: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-2.5 space-y-1.5 shadow-sm"
+                  className={`rounded-2xl p-2.5 space-y-1.5 shadow-xs border ${
+                    isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-xs text-slate-200 truncate">{item.produto.nome}</h4>
+                      <h4 className={`font-bold text-xs truncate ${isDark ? 'text-slate-200' : 'text-[#0F172A]'}`}>{item.produto.nome}</h4>
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
                         {item.variacao && (
-                          <span className="text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded font-medium">
+                          <span className="text-emerald-500 bg-emerald-500/10 px-1 py-0.2 rounded font-medium">
                             {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 || ''}
                           </span>
                         )}
@@ -2299,27 +2330,30 @@ export const PosCheckout: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
+                      <div className={`flex items-center border rounded-lg overflow-hidden ${
+                        isDark ? 'border-slate-700 bg-slate-900' : 'border-[#CBD5E1] bg-white'
+                      }`}>
                         <button
                           onClick={() => !isEdicaoTravada && atualizarQuantidade(item.id, item.quantidade - 1)}
                           disabled={isEdicaoTravada}
-                          className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white cursor-pointer'}`}
+                          className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : isDark ? 'text-slate-400 hover:text-white cursor-pointer' : 'text-slate-500 hover:text-slate-900 cursor-pointer'}`}
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="px-2 text-xs font-bold text-slate-100">{item.quantidade}</span>
+                        <span className={`px-2 text-xs font-bold ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>{item.quantidade}</span>
                         <button
                           onClick={() => !isEdicaoTravada && atualizarQuantidade(item.id, item.quantidade + 1)}
                           disabled={isEdicaoTravada}
-                          className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white cursor-pointer'}`}
+                          className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : isDark ? 'text-slate-400 hover:text-white cursor-pointer' : 'text-slate-500 hover:text-slate-900 cursor-pointer'}`}
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
                       </div>
 
-                      <span className="font-bold text-xs text-emerald-400 w-16 text-right">
+                      <span className="font-bold text-xs text-emerald-600 w-16 text-right">
                         R$ {Number(item.subtotal || 0).toFixed(2)}
                       </span>
+
 
                       {!isEdicaoTravada && (
                         <button onClick={() => removerItem(item.id)} className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer">
@@ -2350,12 +2384,15 @@ export const PosCheckout: React.FC = () => {
         </div>
 
         {/* Resumo Financeiro & Dois Botões de Fechamento */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-950/90 space-y-3">
-          <div className="space-y-1.5 text-xs text-slate-400">
+        <div className={`p-3.5 border-t space-y-3 ${
+          isDark ? 'border-slate-800 bg-slate-950/90' : 'border-[#E2E8F0] bg-white'
+        }`}>
+          <div className={`space-y-1.5 text-xs ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span className="text-slate-200 font-medium">R$ {Number(subtotal || 0).toFixed(2)}</span>
+              <span className={`font-medium ${isDark ? 'text-slate-200' : 'text-[#0F172A]'}`}>R$ {Number(subtotal || 0).toFixed(2)}</span>
             </div>
+
 
             {/* Desconto R$ ou % (se autorizado) */}
             {permissions.podeDarDesconto ? (
@@ -2435,11 +2472,14 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
-            <div className="flex justify-between text-base font-bold text-white pt-1.5 border-t border-slate-800">
+            <div className={`flex justify-between text-base font-bold pt-1.5 border-t ${
+              isDark ? 'border-slate-800 text-white' : 'border-[#E2E8F0] text-[#0F172A]'
+            }`}>
               <span>TOTAL A PAGAR:</span>
-              <span className="text-emerald-400 text-lg">{formatarMoeda(total)}</span>
+              <span className="text-emerald-600 text-lg font-black">{formatarMoeda(total)}</span>
             </div>
           </div>
+
 
           {/* BOTÕES: SALVAR, OPÇÕES DE ENVIO & FINALIZAR VENDA */}
           <div className="flex flex-row items-center gap-2 pt-1">

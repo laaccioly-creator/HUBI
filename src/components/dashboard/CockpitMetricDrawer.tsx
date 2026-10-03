@@ -27,6 +27,7 @@ import {
   ProdutoEstoqueRisco,
   ItemInadimplente
 } from '../../services/dashboardJevService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export type TipoMetricaCockpitDrawer =
   | 'faturamento'
@@ -51,6 +52,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   payload,
   onAbrirEntradaEstoque
 }) => {
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   // Fecha com a tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -149,23 +152,29 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <div className="w-screen max-w-2xl bg-slate-950 border-l border-slate-800 text-slate-100 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+        <div className={`w-screen max-w-2xl border-l flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 ${
+          isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-[#E2E8F0] text-[#0F172A]'
+        }`}>
           
           {/* ================================================================= */}
           {/* TOPO DO DRAWER */}
           {/* ================================================================= */}
-          <div className="p-5 sm:p-6 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+          <div className={`p-5 sm:p-6 border-b backdrop-blur-md sticky top-0 z-10 ${
+            isDark ? 'border-slate-800/80 bg-slate-900/50' : 'border-[#E2E8F0] bg-white/95'
+          }`}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                  isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-[#ECFDF5] border-[#A7F3D0] text-[#047857]'
+                }`}>
                   <IconeCabecalho className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                  <h2 className={`text-base sm:text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>
                     <span>{configAtual.titulo}</span>
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {configAtual.subtitulo} • <span className="text-slate-300 font-medium">{intervalo.label}</span>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>
+                    {configAtual.subtitulo} • <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-[#0F172A]'}`}>{intervalo.label}</span>
                   </p>
                 </div>
               </div>
@@ -173,7 +182,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white'
+                    : 'bg-[#F1F5F9] border-[#E2E8F0] hover:bg-[#E2E8F0] text-[#475569] hover:text-[#0F172A]'
+                }`}
                 title="Fechar Gaveta (Esc)"
               >
                 <X className="w-5 h-5" />
@@ -181,19 +194,23 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             </div>
 
             {/* Parecer do Jev System 1 (Diagnóstico Rápido) */}
-            <div className="mt-4 p-3 bg-slate-900/90 border border-slate-800 rounded-xl flex items-start gap-2.5">
-              <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-400 shrink-0 mt-0.5">
+            <div className={`mt-4 p-3 rounded-xl flex items-start gap-2.5 border ${
+              isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+            }`}>
+              <div className={`p-1 rounded-md shrink-0 mt-0.5 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-[#ECFDF5] text-[#047857]'}`}>
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
               <div className="text-xs space-y-0.5">
-                <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                <div className={`flex items-center gap-1.5 font-bold ${isDark ? 'text-slate-200' : 'text-[#0F172A]'}`}>
                   <span>Diagnóstico Jev AI</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-emerald-400 uppercase tracking-wider font-mono">
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded uppercase tracking-wider font-mono ${
+                    isDark ? 'bg-slate-800 text-emerald-400' : 'bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0]'
+                  }`}>
                     System 1
                   </span>
                 </div>
-                <p className="text-slate-400 leading-relaxed">
-                  {parecerJev.diagnosticoRapido} <strong className="text-slate-200">{parecerJev.prioridadeImediata}</strong>
+                <p className={`leading-relaxed ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>
+                  {parecerJev.diagnosticoRapido} <strong className={isDark ? 'text-slate-200' : 'text-[#0F172A]'}>{parecerJev.prioridadeImediata}</strong>
                 </p>
               </div>
             </div>

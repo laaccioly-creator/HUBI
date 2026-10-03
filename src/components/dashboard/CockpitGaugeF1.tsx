@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export interface CockpitGaugeF1Props {
   titulo: string;
@@ -29,21 +30,23 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   isLoading = false
 }) => {
   const gradientId = useId();
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
 
   // Skeleton de carregamento
   if (isLoading) {
     return (
-      <div className="bg-black border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between h-full animate-pulse min-h-[260px]">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-          <div className="h-4 bg-slate-800 rounded w-28" />
-          <div className="h-4 bg-slate-800 rounded-full w-12" />
+      <div className={`border rounded-2xl p-5 shadow-xl flex flex-col justify-between h-full animate-pulse min-h-[260px] ${isDark ? 'bg-black border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
+        <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+          <div className={`h-4 rounded w-28 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+          <div className={`h-4 rounded-full w-12 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
         </div>
         <div className="flex items-center justify-center my-4">
-          <div className="w-40 h-24 bg-slate-900/60 rounded-t-full border-t-8 border-slate-800" />
+          <div className={`w-40 h-24 rounded-t-full border-t-8 ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100 border-[#E2E8F0]'}`} />
         </div>
-        <div className="space-y-2 pt-2 border-t border-slate-800/80">
-          <div className="h-4 bg-slate-800 rounded w-3/4 mx-auto" />
-          <div className="h-3 bg-slate-900 rounded w-1/2 mx-auto" />
+        <div className={`space-y-2 pt-2 border-t ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+          <div className={`h-4 rounded w-3/4 mx-auto ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+          <div className={`h-3 rounded w-1/2 mx-auto ${isDark ? 'bg-slate-900' : 'bg-slate-100'}`} />
         </div>
       </div>
     );
@@ -149,25 +152,29 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   return (
     <div
       onClick={onClickDrillDown}
-      className={`bg-black border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xl transition-all duration-200 select-none ${
+      className={`border rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 select-none ${
+        isDark
+          ? 'bg-black border-slate-800 shadow-xl'
+          : 'bg-white border-[#E2E8F0] shadow-sm hover:border-emerald-300'
+      } ${
         onClickDrillDown
-          ? 'cursor-pointer hover:border-slate-700 hover:shadow-2xl hover:shadow-emerald-500/5 group active:scale-[0.99]'
+          ? 'cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/5 group active:scale-[0.99]'
           : ''
       }`}
     >
       {/* Topo do Card: Título da Métrica + Badge de Percentual */}
-      <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-800/80">
+      <div className={`flex items-start justify-between gap-2 pb-2 border-b ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-slate-300 font-bold text-xs uppercase tracking-wider truncate">
+            <span className={`font-bold text-xs uppercase tracking-wider truncate ${isDark ? 'text-slate-300' : 'text-[#475569]'}`}>
               {titulo}
             </span>
             {onClickDrillDown && (
-              <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition shrink-0" />
+              <ChevronRight className={`w-3.5 h-3.5 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition shrink-0 ${isDark ? 'text-slate-500' : 'text-[#94A3B8]'}`} />
             )}
           </div>
           {subtituloTag && (
-            <span className="text-[10px] font-medium text-emerald-400/90 truncate mt-0.5">
+            <span className={`text-[10px] font-medium truncate mt-0.5 ${isDark ? 'text-emerald-400/90' : 'text-[#047857]'}`}>
               {subtituloTag}
             </span>
           )}
@@ -208,7 +215,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
 
             {/* Filtro de Sombra Suave para o Ponteiro */}
             <filter id={`${gradientId}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.8" />
+              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity={isDark ? "0.8" : "0.2"} />
             </filter>
           </defs>
 
@@ -216,7 +223,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
           <path
             d={`M ${cx - raioTrilha} ${cy} A ${raioTrilha} ${raioTrilha} 0 0 1 ${cx + raioTrilha} ${cy}`}
             fill="none"
-            stroke="#0f172a"
+            stroke={isDark ? '#0f172a' : '#F1F5F9'}
             strokeWidth="14"
             strokeLinecap="round"
           />
@@ -237,7 +244,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
             y1={metaTickY1}
             x2={metaTickX2}
             y2={metaTickY2}
-            stroke="#ffffff"
+            stroke={isDark ? '#ffffff' : '#0F172A'}
             strokeWidth="3"
             strokeLinecap="round"
             opacity="0.95"
@@ -255,7 +262,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
             {/* Lança Afunilada do Ponteiro */}
             <polygon
               points={`${cx - 2.5},${cy} ${cx},${cy - raio + 12} ${cx + 2.5},${cy} ${cx},${cy + 8}`}
-              fill="#ffffff"
+              fill={isDark ? '#ffffff' : '#0F172A'}
             />
             {/* Ponta de Destaque da Agulha */}
             <circle
@@ -271,8 +278,8 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
             cx={cx}
             cy={cy}
             r="8"
-            fill="#090d16"
-            stroke="#334155"
+            fill={isDark ? '#090d16' : '#FFFFFF'}
+            stroke={isDark ? '#334155' : '#CBD5E1'}
             strokeWidth="2.5"
           />
           <circle
@@ -285,7 +292,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
 
         {/* Valor Realizado em Destaque Central */}
         <div className="text-center -mt-3 space-y-0.5">
-          <div className="text-white font-black text-2xl md:text-3xl tracking-tight font-sans">
+          <div className={`font-black text-2xl md:text-3xl tracking-tight font-sans ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>
             {valorExibicaoCustomizado || textoRealizado}
           </div>
 
@@ -299,15 +306,15 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       </div>
 
       {/* Rodapé: Meta Proporcional + Variação do Período Anterior */}
-      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
-        <span className="text-slate-400 text-[11px]">
-          Meta: <strong className="text-slate-200">{metaExibicaoCustomizada || textoMeta}</strong>
+      <div className={`pt-2 border-t flex items-center justify-between text-xs font-mono ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+        <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>
+          Meta: <strong className={isDark ? 'text-slate-200' : 'text-[#0F172A]'}>{metaExibicaoCustomizada || textoMeta}</strong>
         </span>
 
         {temVariacao && (
           <span
             className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${
-              variacaoEhBoa ? 'text-emerald-400' : 'text-rose-400'
+              variacaoEhBoa ? (isDark ? 'text-emerald-400' : 'text-[#047857]') : 'text-rose-500'
             }`}
             title={`Variação em relação ao período anterior (${variacaoPositiva ? '+' : ''}${variacaoPeriodoAnterior?.toFixed(1)}%)`}
           >

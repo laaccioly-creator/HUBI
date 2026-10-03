@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido, FormaPagamento } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
@@ -78,6 +79,8 @@ type PeriodoPreset =
 
 export const VendasHistorico: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const permissions = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -839,42 +842,67 @@ export const VendasHistorico: React.FC = () => {
 
           {/* BARRA DE MÉTRICAS DE RESUMO (TELA001) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
-            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
-                Hoje: <strong className="text-white font-bold">{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            }`}>
+              <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
+                isDark ? 'text-slate-300' : 'text-[#475569]'
+              }`}>
+                Hoje: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-black text-white font-mono">
+              <div className={`text-sm sm:text-base font-black font-mono ${
+                isDark ? 'text-white' : 'text-[#0F172A]'
+              }`}>
                 R$ {metricas.hoje.total.toFixed(2)}
               </div>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
-                Ontem: <strong className="text-white font-bold">{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            }`}>
+              <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
+                isDark ? 'text-slate-300' : 'text-[#475569]'
+              }`}>
+                Ontem: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-black text-white font-mono">
+              <div className={`text-sm sm:text-base font-black font-mono ${
+                isDark ? 'text-white' : 'text-[#0F172A]'
+              }`}>
                 R$ {metricas.ontem.total.toFixed(2)}
               </div>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
-                Esta semana: <strong className="text-white font-bold">{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            }`}>
+              <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
+                isDark ? 'text-slate-300' : 'text-[#475569]'
+              }`}>
+                Esta semana: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-black text-white font-mono">
+              <div className={`text-sm sm:text-base font-black font-mono ${
+                isDark ? 'text-white' : 'text-[#0F172A]'
+              }`}>
                 R$ {metricas.estaSemana.total.toFixed(2)}
               </div>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-1 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-300 block uppercase tracking-wider">
-                Este mês: <strong className="text-white font-bold">{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'venda' : 'vendas'}</strong>
+            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            }`}>
+              <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
+                isDark ? 'text-slate-300' : 'text-[#475569]'
+              }`}>
+                Este mês: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className="text-sm sm:text-base font-black text-white font-mono">
+              <div className={`text-sm sm:text-base font-black font-mono ${
+                isDark ? 'text-white' : 'text-[#0F172A]'
+              }`}>
                 R$ {metricas.esteMes.total.toFixed(2)}
               </div>
             </div>
           </div>
+
         </div>
 
         {/* TABELA DE VENDAS (TELA001) */}
@@ -987,24 +1015,25 @@ export const VendasHistorico: React.FC = () => {
                       </td>
 
                       {/* Cliente */}
-                      <td className="py-3.5 px-4 font-medium text-slate-100 max-w-[200px] truncate">
+                      <td className={`py-3.5 px-4 font-medium max-w-[200px] truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
                         {venda.cliente?.nome || 'Cliente Avulso (Balcão)'}
                       </td>
 
                       {/* Vendedor */}
-                      <td className="py-3.5 px-4 text-slate-300 whitespace-nowrap">
+                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-[#334155]'}`}>
                         {isCatalogo ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
                             <Store className="w-3.5 h-3.5" />
                             <span>Catálogo</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-slate-300">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span className={`inline-flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-[#0F172A]'}`}>
+                            <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`} />
                             <span>{venda.vendedor?.nome_completo || 'Balcão'}</span>
                           </span>
                         )}
                       </td>
+
 
                       {/* Itens (TELA008) */}
                       <td className="py-3.5 px-4 text-center">

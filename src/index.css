@@ -223,6 +223,14 @@ html.light .text-slate-600 {
   color: #94a3b8 !important;
 }
 
+/* Proteção de contraste: text-white em containers claros */
+html.light .bg-white .text-white:not(button *):not(button):not([class*="bg-"]):not(span[class*="bg-"]):not([class*="shadow"]),
+html.light .bg-slate-900 .text-white:not(button *):not(button):not([class*="bg-"]):not(span[class*="bg-"]):not([class*="shadow"]),
+html.light .bg-slate-950 .text-white:not(button *):not(button):not([class*="bg-"]):not(span[class*="bg-"]):not([class*="shadow"]) {
+  color: #0f172a !important;
+}
+
+
 /* Inputs, Textareas e Seletores no Modo Claro */
 html.light input[type="text"],
 html.light input[type="search"],
@@ -354,7 +362,7 @@ html.light .bg-rose-500\/10 {
   border-color: #fda4af !important;
 }
 
-/* Cabeçalho da Tabela no Modo Claro */
+/* Cabeçalho e Linhas da Tabela no Modo Claro (Linhas Alternadas e Alto Contraste) */
 html.light table thead tr {
   background-color: #f1f5f9 !important;
   border-bottom: 2px solid #cbd5e1 !important;
@@ -370,8 +378,27 @@ html.light table tbody tr {
   border-bottom: 1px solid #f1f5f9 !important;
 }
 
-html.light table tbody tr:hover {
+html.light table tbody tr:nth-child(even) {
   background-color: #f8fafc !important;
+}
+
+html.light table tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Banner Ilustrado de Cupons e Promocional no Modo Claro */
+html.light .bg-gradient-to-br.from-emerald-950\/40 {
+  background: linear-gradient(135deg, #ecfdf5, #ffffff, #f0fdf4) !important;
+  border-color: #a7f3d0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .bg-gradient-to-br.from-emerald-950\/40 h2 {
+  color: #0f172a !important;
+}
+
+html.light .bg-gradient-to-br.from-emerald-950\/40 p {
+  color: #475569 !important;
 }
 
 /* Top Banner DesktopAppPrompt no Modo Claro */
@@ -388,6 +415,7 @@ html.light .bg-gradient-to-r.from-emerald-950 span.text-white {
 html.light .bg-gradient-to-r.from-emerald-950 span.text-slate-300 {
   color: #047857 !important;
 }
+
 
 /* ==========================================================================
    MOBILE & LIGHT SURFACES DARK MODE ENGINE

@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { cashAuditJevService, AuditoriaCaixaJev } from '../services/cashAuditJevService';
 
@@ -137,6 +138,8 @@ const CardAuditoriaFechamentoCaixa: React.FC<{
 
 export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const permissions = usePermissions();
   const navigate = useNavigate();
   const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
@@ -2108,19 +2111,24 @@ export const FinancasCaixa: React.FC = () => {
                     <div className="space-y-5">
                       {/* ALERTA DE SESSÃO ABERTA HÁ MAIS DE 24 HORAS */}
                       {resumoSessao.abertoHaMaisDe24h && (
-                        <div className="bg-amber-500/15 border-2 border-amber-500/60 rounded-3xl p-4 flex items-center gap-3 text-amber-200 animate-pulse">
-                          <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
+                        <div className={`rounded-3xl p-4 flex items-center gap-3 animate-pulse border-2 ${
+                          isDark
+                            ? 'bg-amber-500/15 border-amber-500/60 text-amber-200'
+                            : 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]'
+                        }`}>
+                          <AlertTriangle className={`w-6 h-6 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                           <div className="text-xs">
-                            <strong className="font-bold text-sm text-amber-300 block">
+                            <strong className={`font-bold text-sm block ${isDark ? 'text-amber-300' : 'text-[#78350F]'}`}>
                               Atenção: Sessão de Caixa aberta há mais de 24 horas ({resumoSessao.duracaoTexto})!
                             </strong>
-                            <span>
+                            <span className={isDark ? 'text-amber-200/90' : 'text-[#92400E]'}>
                               Este caixa foi aberto em {new Date(sessaoAtiva.aberto_em).toLocaleString('pt-BR')} e continua acumulando movimentações.
                               Para evitar discrepâncias entre turnos, recomenda-se realizar o Fechamento Cego e abrir uma nova sessão.
                             </span>
                           </div>
                         </div>
                       )}
+
 
                       {/* CABEÇALHO DA SESSÃO ATIVA */}
                       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
