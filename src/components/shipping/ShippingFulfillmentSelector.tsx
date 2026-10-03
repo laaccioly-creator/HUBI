@@ -36,6 +36,8 @@ import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja, no
 import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
 import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
+import { useTheme } from '../../contexts/ThemeContext';
+
 
 export interface ShippingFulfillmentSelectorProps {
   lojaId: string;
@@ -163,10 +165,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   className = '',
   modoCompacto = false,
   modoCatalogo = false,
-  temaDark = true
+  temaDark
 }) => {
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const ehCatalogo = modoCatalogo || modoCompacto;
-  const ehDark = temaDark || ehCatalogo;
+  const ehDark = temaDark !== undefined ? temaDark : (ehCatalogo ? true : isDark);
+
   const [configLoja, setConfigLoja] = useState<LojaShippingConfig | null>(null);
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
 
@@ -1399,8 +1404,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       ? 'bg-emerald-950/60 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40'
                       : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                     : ehDark
-                      ? 'bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-200'
-                      : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                      ? 'bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200'
+                      : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 shadow-xs'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -1436,7 +1441,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <span className="font-extrabold text-sm text-emerald-400">
+                    <span className="font-extrabold text-sm text-emerald-500">
                       Grátis (R$ 0,00)
                     </span>
                   </div>
@@ -1454,11 +1459,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               {/* Informações detalhadas da retirada física quando selecionada */}
               {modalidade === 'retirada' && (
-                <div className={`p-3.5 rounded-2xl border space-y-2.5 animate-in fade-in duration-200 text-xs shadow-sm ${
+                <div className={`p-3.5 rounded-2xl border space-y-2.5 animate-in fade-in duration-200 text-xs shadow-xs ${
                   ehDark
                     ? 'bg-slate-900/80 border-slate-750 text-slate-200'
-                    : 'bg-slate-50 border-slate-200 text-slate-800'
+                    : 'bg-white border-slate-200 text-slate-900'
                 }`}>
+
                   <div className={`leading-relaxed ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     <strong className={ehDark ? 'text-white' : 'text-slate-800'}>Endereço da Loja:</strong>{' '}
                     {[
@@ -2014,8 +2020,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                     : 'bg-emerald-50/90 border-2 border-emerald-600 text-slate-900 shadow-sm cursor-pointer'
                                   : ehDark
                                     ? 'bg-black hover:bg-slate-950 border border-slate-800 text-white cursor-pointer'
-                                    : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800 cursor-pointer'
+                                    : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 cursor-pointer shadow-xs'
                             }`}
+
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
@@ -2162,8 +2169,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                   : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                                 : ehDark
                                   ? 'bg-black hover:bg-slate-950 border border-slate-800 text-white'
-                                  : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                                  : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 shadow-xs'
                             }`}
+
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">

@@ -2503,17 +2503,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Card Varejo */}
               <div className={`p-5 rounded-2xl border transition-all ${
                 tipoVendaVarejo
-                  ? 'bg-slate-950/80 border-blue-500/40 shadow-lg shadow-blue-500/5'
-                  : 'bg-slate-950/30 border-slate-800 opacity-60'
+                  ? 'bg-white dark:bg-slate-950/80 border-blue-500/40 shadow-xs'
+                  : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-black text-xs">
+                    <span className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
                       1
                     </span>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-100">Varejo</h3>
-                      <span className="text-[10px] text-blue-400 font-bold">Venda padrão unitária</span>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Varejo</h3>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">Venda padrão unitária</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2523,10 +2523,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       onChange={() => handleToggleTipoVenda('varejo')}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                    <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
                   </label>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   Modalidade essencial para vendas unitárias no PDV e visualização de preços regulares no Catálogo Online.
                 </p>
               </div>
@@ -2534,17 +2534,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Card Atacado */}
               <div className={`p-5 rounded-2xl border transition-all ${
                 tipoVendaAtacado
-                  ? 'bg-slate-950/80 border-emerald-500/40 shadow-lg shadow-emerald-500/5'
-                  : 'bg-slate-950/30 border-slate-800 opacity-60'
+                  ? 'bg-white dark:bg-slate-950/80 border-emerald-500/40 shadow-xs'
+                  : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-xs">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-xs">
                       2
                     </span>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-100">Atacado</h3>
-                      <span className="text-[10px] text-emerald-400 font-bold">Desconto por volume</span>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Atacado</h3>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Desconto por volume</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2554,10 +2554,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       onChange={() => handleToggleTipoVenda('atacado')}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   Permite aplicar automaticamente o preço de atacado quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
                 </p>
               </div>
@@ -2565,17 +2565,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Card Distribuidor */}
               <div className={`p-5 rounded-2xl border transition-all ${
                 tipoVendaDistribuidor
-                  ? 'bg-slate-950/80 border-purple-500/40 shadow-lg shadow-purple-500/5'
-                  : 'bg-slate-950/30 border-slate-800 opacity-60'
+                  ? 'bg-white dark:bg-slate-950/80 border-purple-500/40 shadow-xs'
+                  : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-black text-xs">
+                    <span className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-xs">
                       3
                     </span>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-100">Distribuidor</h3>
-                      <span className="text-[10px] text-purple-400 font-bold">Lotes / Fardos</span>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Distribuidor</h3>
+                      <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">Lotes / Fardos</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2585,25 +2585,25 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       onChange={() => handleToggleTipoVenda('distribuidor')}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                    <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
                   </label>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   Modalidade voltada para caixas fechadas, revendedores e grandes fardos com preço diferenciado por lote.
                 </p>
               </div>
             </div>
 
             {/* Informações de Comportamento Dinâmico */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-              <span className="text-xs font-bold text-slate-300 block flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-emerald-400" />
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-emerald-500" />
                 Comportamento Dinâmico no PDV e Precificação
               </span>
-              <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
-                <li><strong className="text-slate-300">Apenas 1 modalidade ativa:</strong> O seletor manual de tipo de venda no cabeçalho do carrinho e os termômetros de progressão de atacado/distribuidor são automaticamente ocultados.</li>
-                <li><strong className="text-slate-300">2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
-                <li><strong className="text-slate-300">Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
+              <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-disc list-inside">
+                <li><strong className="text-slate-800 dark:text-slate-300">Apenas 1 modalidade ativa:</strong> O seletor manual de tipo de venda no cabeçalho do carrinho e os termômetros de progressão de atacado/distribuidor são automaticamente ocultados.</li>
+                <li><strong className="text-slate-800 dark:text-slate-300">2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
+                <li><strong className="text-slate-800 dark:text-slate-300">Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
               </ul>
             </div>
 

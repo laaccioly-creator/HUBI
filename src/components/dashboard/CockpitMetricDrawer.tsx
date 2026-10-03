@@ -387,15 +387,15 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         ? Math.round((faixa.qtd / decomposicoes.pedidos.totalPedidos) * 100)
                         : 0;
                       return (
-                        <div key={faixa.label} className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+                        <div key={faixa.label} className="p-3 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-200 font-bold">{faixa.label}</span>
+                            <span className="text-slate-800 dark:text-slate-200 font-bold">{faixa.label}</span>
                             <div className="flex items-center gap-3">
-                              <span className="text-slate-400 text-[11px]">Ticket Médio: <strong className="text-slate-200 font-mono">{formMoeda(faixa.ticketMedio)}</strong></span>
-                              <span className="text-emerald-400 font-mono font-bold">{faixa.qtd} pedidos ({pct}%)</span>
+                              <span className="text-slate-500 dark:text-slate-400 text-[11px]">Ticket Médio: <strong className="text-slate-800 dark:text-slate-200 font-mono">{formMoeda(faixa.ticketMedio)}</strong></span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">{faixa.qtd} pedidos ({pct}%)</span>
                             </div>
                           </div>
-                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                               style={{ width: `${pct}%` }}
@@ -415,19 +415,19 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             {tipoMetrica === 'lucro' && (
               <div className="space-y-6">
                 {/* Destaque do Lucro Líquido Real */}
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="p-5 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
                   <div className="space-y-1">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lucro Líquido Real</span>
-                    <div className="text-2xl sm:text-3xl font-black text-white font-mono">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Lucro Líquido Real</span>
+                    <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.lucro.lucroLiquidoReal)}
                     </div>
-                    <span className="text-xs text-slate-400">
-                      Margem Líquida Real: <strong className="text-emerald-400 font-mono">{decomposicoes.lucro.margemLiquidaPercentual}%</strong>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                      Margem Líquida Real: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{decomposicoes.lucro.margemLiquidaPercentual}%</strong>
                     </span>
                   </div>
                   <div className="text-right space-y-1">
                     <span className="text-[11px] text-slate-500">Meta do Período</span>
-                    <div className="text-sm font-mono font-bold text-slate-300">
+                    <div className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">
                       {formMoeda(metasProporcionais.meta_lucro_liquido)}
                     </div>
                   </div>
@@ -435,20 +435,20 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
                 {/* Estrutura do Mini DRE */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                  <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-emerald-500" />
                     <span>Demonstrativo de Resultado do Período (DRE)</span>
                   </h3>
 
-                  <div className="bg-slate-900/60 rounded-2xl border border-slate-800 divide-y divide-slate-800/80 text-xs font-mono">
+                  <div className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800/80 text-xs font-mono shadow-xs">
                     {/* Faturamento Bruto */}
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-[11px]">+</span>
-                        <span className="text-slate-200 font-sans font-medium">Faturamento Bruto</span>
+                        <span className="w-5 h-5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-[11px]">+</span>
+                        <span className="text-slate-800 dark:text-slate-200 font-sans font-medium">Faturamento Bruto</span>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-emerald-400">{formMoeda(decomposicoes.lucro.faturamentoBruto)}</div>
+                        <div className="font-bold text-emerald-600 dark:text-emerald-400">{formMoeda(decomposicoes.lucro.faturamentoBruto)}</div>
                         <div className="text-[10px] text-slate-500">100.0% da receita</div>
                       </div>
                     </div>
@@ -456,11 +456,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     {/* CMV */}
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded bg-rose-500/20 text-rose-400 font-bold flex items-center justify-center text-[11px]">-</span>
-                        <span className="text-slate-300 font-sans font-medium">Custo de Mercadorias Vendidas (CMV)</span>
+                        <span className="w-5 h-5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold flex items-center justify-center text-[11px]">-</span>
+                        <span className="text-slate-800 dark:text-slate-300 font-sans font-medium">Custo de Mercadorias Vendidas (CMV)</span>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-rose-400">-{formMoeda(decomposicoes.lucro.cmv)}</div>
+                        <div className="font-bold text-rose-600 dark:text-rose-400">-{formMoeda(decomposicoes.lucro.cmv)}</div>
                         <div className="text-[10px] text-slate-500">{decomposicoes.lucro.percentualCmv}% do faturamento</div>
                       </div>
                     </div>
@@ -468,16 +468,16 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     {/* Taxas de Meios de Pagamento */}
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-[11px]">-</span>
+                        <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold flex items-center justify-center text-[11px]">-</span>
                         <div>
-                          <span className="text-slate-300 font-sans font-medium">Taxas de Cartão / Meios de Pagamento</span>
+                          <span className="text-slate-800 dark:text-slate-300 font-sans font-medium">Taxas de Cartão / Meios de Pagamento</span>
                           {decomposicoes.lucro.taxasGateways === 0 && (
                             <span className="block text-[10px] text-slate-500 font-sans">Sem dedução (taxas não habilitadas no PDV)</span>
                           )}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className={`font-bold ${decomposicoes.lucro.taxasGateways === 0 ? 'text-slate-500' : 'text-amber-400'}`}>
+                        <div className={`font-bold ${decomposicoes.lucro.taxasGateways === 0 ? 'text-slate-500' : 'text-amber-600 dark:text-amber-400'}`}>
                           {decomposicoes.lucro.taxasGateways > 0 ? `-${formMoeda(decomposicoes.lucro.taxasGateways)}` : formMoeda(0)}
                         </div>
                         <div className="text-[10px] text-slate-500">
@@ -489,16 +489,16 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     {/* Custos Operacionais / Despesas */}
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded bg-rose-500/20 text-rose-400 font-bold flex items-center justify-center text-[11px]">-</span>
+                        <span className="w-5 h-5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold flex items-center justify-center text-[11px]">-</span>
                         <div>
-                          <span className="text-slate-300 font-sans font-medium">Despesas Fixas & Operacionais</span>
+                          <span className="text-slate-800 dark:text-slate-300 font-sans font-medium">Despesas Fixas & Operacionais</span>
                           {decomposicoes.lucro.custosOperacionais === 0 && (
                             <span className="block text-[10px] text-slate-500 font-sans">Nenhum lançamento de despesa no período</span>
                           )}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className={`font-bold ${decomposicoes.lucro.custosOperacionais === 0 ? 'text-slate-500' : 'text-rose-400'}`}>
+                        <div className={`font-bold ${decomposicoes.lucro.custosOperacionais === 0 ? 'text-slate-500' : 'text-rose-600 dark:text-rose-400'}`}>
                           {decomposicoes.lucro.custosOperacionais > 0 ? `-${formMoeda(decomposicoes.lucro.custosOperacionais)}` : formMoeda(0)}
                         </div>
                         <div className="text-[10px] text-slate-500">
@@ -508,14 +508,14 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </div>
 
                     {/* Resultado Final */}
-                    <div className="p-4 bg-emerald-500/5 flex items-center justify-between">
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-500/5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded bg-emerald-500 text-slate-950 font-black flex items-center justify-center text-[11px]">=</span>
-                        <span className="text-white font-sans font-bold text-sm">Lucro Líquido Real</span>
+                        <span className="w-5 h-5 rounded bg-emerald-500 text-white dark:text-slate-950 font-black flex items-center justify-center text-[11px]">=</span>
+                        <span className="text-slate-900 dark:text-white font-sans font-bold text-sm">Lucro Líquido Real</span>
                       </div>
                       <div className="text-right">
-                        <div className="font-black text-emerald-400 text-base">{formMoeda(decomposicoes.lucro.lucroLiquidoReal)}</div>
-                        <div className="text-[11px] text-emerald-400/90 font-bold">Margem Líquida: {decomposicoes.lucro.margemLiquidaPercentual}%</div>
+                        <div className="font-black text-emerald-600 dark:text-emerald-400 text-base">{formMoeda(decomposicoes.lucro.lucroLiquidoReal)}</div>
+                        <div className="text-[11px] text-emerald-600 dark:text-emerald-400/90 font-bold">Margem Líquida: {decomposicoes.lucro.margemLiquidaPercentual}%</div>
                       </div>
                     </div>
                   </div>

@@ -1991,9 +1991,9 @@ export const FinancasCaixa: React.FC = () => {
 
                   {listaTransacoesUnificada
                     .filter(t => (abaAtiva === 'pagar' ? t.tipo === 'SAIDA' && t.status === 'pendente' : true)).length === 0 ? (
-                    <div className="text-center py-12 bg-slate-900/40 border border-slate-800/60 rounded-3xl p-6">
-                      <Layers className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                      <p className="text-slate-300 text-xs font-bold">
+                    <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-300 dark:border-slate-800/60 rounded-3xl p-6">
+                      <Layers className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto mb-2" />
+                      <p className="text-slate-800 dark:text-slate-300 text-xs font-bold">
                         {abaAtiva === 'pagar' ? 'Nenhuma conta a pagar pendente.' : 'Nenhuma movimentação registrada no período selecionado.'}
                       </p>
                       <p className="text-slate-500 text-[11px] mt-1 max-w-md mx-auto">
@@ -2010,25 +2010,25 @@ export const FinancasCaixa: React.FC = () => {
                       .map((tr) => (
                         <div
                           key={tr.id}
-                          className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-sm"
+                          className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-xs"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div
                               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                                tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                               }`}
                             >
                               {tr.tipo === 'ENTRADA' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                             </div>
 
                             <div className="min-w-0">
-                              <h4 className="text-xs font-bold text-slate-100 truncate">{tr.descricao}</h4>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
-                                <span className="font-semibold text-slate-300">{tr.categoria}</span>
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{tr.descricao}</h4>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">{tr.categoria}</span>
                                 {tr.formaPagamento && (
                                   <>
                                     <span>•</span>
-                                    <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded uppercase font-bold text-[9px]">
+                                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded uppercase font-bold text-[9px]">
                                       {tr.formaPagamento}
                                     </span>
                                   </>
@@ -2036,7 +2036,7 @@ export const FinancasCaixa: React.FC = () => {
                                 <span>•</span>
                                 <span>{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
                                 {tr.ehRecorrente && (
-                                  <span className="text-indigo-400 flex items-center gap-0.5">
+                                  <span className="text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5">
                                     <Repeat className="w-2.5 h-2.5" /> Mensal
                                   </span>
                                 )}

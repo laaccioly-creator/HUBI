@@ -524,20 +524,20 @@ export const UsuariosGestao: React.FC = () => {
         
         {/* CARD LATERAL ESQUERDO: FATURAMENTO POR USUÁRIO */}
         <div className="lg:col-span-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-between min-h-[380px] text-center space-y-4">
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl flex flex-col items-center justify-between min-h-[380px] text-center space-y-4">
             <div className="w-full text-left space-y-1">
-              <h2 className="text-base font-bold text-slate-100">Faturamento por usuário</h2>
-              <span className="text-xs text-slate-400 font-medium">Últimos 30 dias</span>
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Faturamento por usuário</h2>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Últimos 30 dias</span>
             </div>
 
             {/* Gráfico de Pizza / Donut Interativo */}
             {renderGraficoPizza()}
 
             <div className="space-y-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-400 block">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
                 {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
               </span>
-              <span className="text-2xl sm:text-3xl font-black text-slate-100 block">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 block">
                 R$ {totalFaturamento30d.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -545,7 +545,7 @@ export const UsuariosGestao: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/analytics')}
-              className="w-full py-2.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center justify-center gap-2 transition cursor-pointer hover:underline border-t border-slate-800/80 pt-4"
+              className="w-full py-2.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold flex items-center justify-center gap-2 transition cursor-pointer hover:underline border-t border-slate-200 dark:border-slate-800/80 pt-4"
             >
               <BarChart3 className="w-4 h-4" />
               <span>Ver mais estatísticas</span>
@@ -555,10 +555,10 @@ export const UsuariosGestao: React.FC = () => {
 
         {/* TABELA / LISTA DE COLABORADORES */}
         <div className="lg:col-span-8">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm dark:shadow-xl space-y-4">
             
             {/* Título da Tabela */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3.5 text-xs text-slate-400 font-bold uppercase tracking-wider px-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5 text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider px-3">
               <div className="flex-1">Nome</div>
               <div className="w-28 text-right">Faturamento</div>
               <div className="w-16 text-right">Vendas</div>
@@ -567,17 +567,17 @@ export const UsuariosGestao: React.FC = () => {
 
             {/* Linhas da Tabela */}
             {carregando ? (
-              <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-400 text-xs">
-                <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
+              <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-500 dark:text-slate-400 text-xs">
+                <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
                 <span>Carregando equipe de usuários...</span>
               </div>
             ) : usuarios.length === 0 ? (
               <div className="py-16 text-center text-slate-500 text-xs space-y-2">
-                <Users className="w-8 h-8 text-slate-600 mx-auto" />
+                <Users className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
                 <p>Nenhum usuário cadastrado além do proprietário principal.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-800/70">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/70">
                 {usuarios.map((user) => {
                   const ehOwner = user.perfil === 'owner';
                   const ehAdmin = user.perfil === 'admin';
@@ -594,14 +594,14 @@ export const UsuariosGestao: React.FC = () => {
                       onMouseEnter={() => setHoveredUserId(user.id)}
                       onMouseLeave={() => setHoveredUserId(null)}
                       className={`py-4 px-3 flex items-center justify-between rounded-2xl transition cursor-pointer group ${
-                        isHovered ? 'bg-slate-800/90 ring-1 ring-emerald-500/40 shadow-md' : 'hover:bg-slate-800/60'
+                        isHovered ? 'bg-slate-100 dark:bg-slate-800/90 ring-1 ring-emerald-500/40 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       {/* Nome e Badge de Perfil */}
                       <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-3">
                         <div
-                          className="w-10 h-10 rounded-xl bg-slate-800 border text-slate-200 font-bold text-xs flex items-center justify-center shrink-0 transition"
-                          style={{ borderColor: isHovered ? corUser : '#334155' }}
+                          className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0 transition"
+                          style={{ borderColor: isHovered ? corUser : '#94A3B8' }}
                         >
                           {formatarIniciais(user.nome_completo)}
                         </div>
@@ -609,66 +609,66 @@ export const UsuariosGestao: React.FC = () => {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: corUser }} />
-                            <span className="font-bold text-sm text-slate-200 truncate group-hover:text-emerald-400 transition">
+                            <span className="font-bold text-sm text-slate-900 dark:text-slate-200 truncate group-hover:text-emerald-500 transition">
                               {user.nome_completo}
                             </span>
 
                             {ehOwner && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                                 <Crown className="w-2.5 h-2.5" />
                                 OWNER
                               </span>
                             )}
 
                             {ehAdmin && !ehOwner && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                                 <Shield className="w-2.5 h-2.5" />
                                 ADMIN
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil === 'gerente' && (
-                              <span className="text-[10px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 GERENTE
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil === 'vendedor' && (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 VENDEDOR
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil !== 'gerente' && user.perfil !== 'vendedor' && (
-                              <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 COMUM
                               </span>
                             )}
 
                             {!user.ativo && (
-                              <span className="text-[10px] bg-rose-500/15 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 INATIVO
                               </span>
                             )}
                           </div>
-                          <span className="text-xs text-slate-400 truncate block mt-0.5">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 truncate block mt-0.5">
                             {user.email}
                           </span>
                         </div>
                       </div>
 
                       {/* Faturamento */}
-                      <div className="w-28 text-right text-xs font-semibold text-slate-200">
+                      <div className="w-28 text-right text-xs font-semibold text-slate-900 dark:text-slate-200">
                         {fat > 0 ? `R$ ${fat.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                       </div>
 
                       {/* Vendas */}
-                      <div className="w-16 text-right text-xs font-semibold text-slate-300">
+                      <div className="w-16 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">
                         {count > 0 ? count : '-'}
                       </div>
 
                       {/* % Participação */}
-                      <div className="w-16 text-right text-xs font-bold text-emerald-400">
+                      <div className="w-16 text-right text-xs font-bold text-emerald-600 dark:text-emerald-400">
                         {perc > 0 ? `${perc.toFixed(1)}%` : '-'}
                       </div>
                     </div>

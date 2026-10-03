@@ -337,26 +337,26 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       </div>
 
       {/* 2. VISUALIZAÇÃO DESKTOP */}
-      <div className="hidden md:flex flex-1 flex-col h-full bg-slate-950 overflow-y-auto">
+      <div className="hidden md:flex flex-1 flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-y-auto">
         {/* HEADER DA PÁGINA */}
-      <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
             title="Voltar"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shadow-inner">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
             <Globe className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-extrabold text-slate-100 flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               Catálogo Online
             </h1>
-            <p className="text-xs text-slate-400">Configure sua vitrine online, identidade visual e regras de pedidos</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Configure sua vitrine online, identidade visual e regras de pedidos</p>
           </div>
         </div>
 
@@ -555,21 +555,21 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   onClick={() => setModoExibicao('lista')}
                   className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 flex flex-col justify-between ${
                     modoExibicao === 'lista'
-                      ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
+                      : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <List className={`w-5 h-5 ${modoExibicao === 'lista' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                    <List className={`w-5 h-5 ${modoExibicao === 'lista' ? 'text-emerald-500' : 'text-slate-400'}`} />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      modoExibicao === 'lista' ? 'border-emerald-400 bg-emerald-500' : 'border-slate-600'
+                      modoExibicao === 'lista' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400 dark:border-slate-600'
                     }`}>
                       {modoExibicao === 'lista' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-slate-200">Modo Lista</h4>
-                    <p className="text-[11px] text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-xs ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>Modo Lista</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
                       Navegação mais rápida, ideal para grandes quantidades de produtos.
                     </p>
                   </div>
@@ -580,21 +580,21 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   onClick={() => setModoExibicao('grade')}
                   className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 flex flex-col justify-between ${
                     modoExibicao === 'grade'
-                      ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
+                      : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <LayoutGrid className={`w-5 h-5 ${modoExibicao === 'grade' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                    <LayoutGrid className={`w-5 h-5 ${modoExibicao === 'grade' ? 'text-emerald-500' : 'text-slate-400'}`} />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      modoExibicao === 'grade' ? 'border-emerald-400 bg-emerald-500' : 'border-slate-600'
+                      modoExibicao === 'grade' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400 dark:border-slate-600'
                     }`}>
                       {modoExibicao === 'grade' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-slate-200">Modo Grade</h4>
-                    <p className="text-[11px] text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-xs ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>Modo Grade</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
                       Ideal para ver vários produtos com fotos e destaques visuais ao mesmo tempo.
                     </p>
                   </div>
@@ -605,21 +605,21 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   onClick={() => setModoExibicao('instaview')}
                   className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 flex flex-col justify-between ${
                     modoExibicao === 'instaview'
-                      ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
+                      : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <Smartphone className={`w-5 h-5 ${modoExibicao === 'instaview' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                    <Smartphone className={`w-5 h-5 ${modoExibicao === 'instaview' ? 'text-emerald-500' : 'text-slate-400'}`} />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      modoExibicao === 'instaview' ? 'border-emerald-400 bg-emerald-500' : 'border-slate-600'
+                      modoExibicao === 'instaview' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400 dark:border-slate-600'
                     }`}>
                       {modoExibicao === 'instaview' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-slate-200">Modo Instaview</h4>
-                    <p className="text-[11px] text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-xs ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>Modo Instaview</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
                       Estilo feed de fotos com imagens grandes e imersão total para moda e lifestyle.
                     </p>
                   </div>
@@ -712,8 +712,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     key={opt.id}
                     className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
                       comportamentoSemEstoque === opt.id
-                        ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-100'
-                        : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-950'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-slate-900 dark:text-slate-100 shadow-xs'
+                        : 'bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-950 shadow-xs'
                     }`}
                   >
                     <input
@@ -722,11 +722,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                       value={opt.id}
                       checked={comportamentoSemEstoque === opt.id}
                       onChange={() => setComportamentoSemEstoque(opt.id as ComportamentoSemEstoque)}
-                      className="mt-1 text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                      className="mt-1 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                     />
                     <div>
-                      <span className="font-bold text-xs text-slate-100 block">{opt.title}</span>
-                      <span className="text-[11px] text-slate-400 block mt-0.5">{opt.desc}</span>
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">{opt.title}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">{opt.desc}</span>
                     </div>
                   </label>
                 ))}
