@@ -854,3 +854,27 @@ export interface ResumoSessaoCaixa {
   totaisPorMetodo: TotaisPorMetodoResumo;
   qtdVendasPorMetodo: QtdVendasPorMetodoResumo;
 }
+
+export interface LojaMetas {
+  id: string;
+  loja_id: string;
+  meta_faturamento: number;
+  meta_pedidos: number;
+  meta_lucro_liquido: number;
+  meta_ticket_medio: number;
+  meta_inadimplencia_maxima: number;
+  meta_giro_estoque: number;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
+export interface MetricasCockpit {
+  faturamento: number;
+  pedidos: number;
+  ticket_medio: number;
+  lucro_liquido: number;
+  inadimplencia: number;
+  giro_estoque: number;
+  cmv?: number;
+  despesas?: number;
+}
