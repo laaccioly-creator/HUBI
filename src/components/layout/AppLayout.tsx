@@ -361,7 +361,7 @@ export const AppLayout: React.FC = () => {
       path: '/config',
       icon: Settings,
       badge: undefined,
-      visivel: permissions.podeAcessarConfig && !permissions.podeAcessarUsuarios
+      visivel: permissions.podeAcessarConfig
     }
   ].filter(b => b.visivel);
 

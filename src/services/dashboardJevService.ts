@@ -186,7 +186,7 @@ const TTL_CACHE_MS = 60 * 1000; // 60 segundos de frescor absoluto
 function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
-  return `hubi_cockpit_v3_${params.lojaId}_${params.tipoPeriodo}_${offset}_${custom}`;
+  return `hubi_cockpit_v4_${params.lojaId}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -341,8 +341,8 @@ export const dashboardJevService = {
     const dInicio = intervalo.dataInicio;
     const dFim = intervalo.dataFim;
 
-    // 2. Busca paralela das 4 fontes de dados isoladas por tenant (loja_id)
-    const [metasLoja, pedidosRes, transacoesRes, produtosRes, historicoPrimeiraVendaRes] = await Promise.all([
+    // 2. Busca paralela das fontes de dados isoladas por tenant (loja_id)
+    const [metasLoja, pedidosRes, transacoesRes, produtosRes, historicoPrimeiraVendaRes, lojaRes] = await Promise.all([
       dashboardService.obterMetasLoja(lojaId),
 
       // Pedidos com relacionamentos analíticos completos e seguros
@@ -381,6 +381,13 @@ export const dashboardJevService = {
         .neq('status', 'cancelado')
         .order('criado_em', { ascending: true })
         .limit(1)
+        .maybeSingle(),
+
+      // Configurações extras da loja (para flags como taxas_venda.usar_taxa_pdv)
+      supabase
+        .from('lojas')
+        .select('configuracoes_extras')
+        .eq('id', lojaId)
         .maybeSingle()
     ]);
 
@@ -395,6 +402,8 @@ export const dashboardJevService = {
     }
 
     const metasProporcionais = dashboardService.calcularMetasProporcionais(metasLoja, intervalo.diasIntervalo);
+    const lojaConfigExtras = (lojaRes?.data as any)?.configuracoes_extras;
+    const usarTaxaPdv = Boolean(lojaConfigExtras?.taxas_venda?.usar_taxa_pdv);
 
     const todosPedidos = (pedidosRes.data || []) as any[];
     const todasTransacoes = (transacoesRes.data || []) as any[];
@@ -459,7 +468,9 @@ export const dashboardJevService = {
         p.pagamentos.forEach((pg: any) => {
           const valorPg = Number(pg.valor || 0);
           const taxaPg = Number(pg.valor_taxa || 0);
-          taxasGateways += taxaPg;
+          if (usarTaxaPdv) {
+            taxasGateways += taxaPg;
+          }
 
           const nomePg = (pg.forma_pagamento?.nome || pg.forma_nome || pg.forma_tipo || pg.forma_pagamento?.tipo || 'Outro').trim();
           if (!porFormaPagamento[nomePg]) {
@@ -578,11 +589,24 @@ export const dashboardJevService = {
       });
     });
 
-    // Despesas operacionais do período
+    // Despesas operacionais reais do período (excluindo compras de mercadorias para estoque, já apuradas no CMV)
     let custosOperacionais = 0;
     todasTransacoes.forEach(t => {
       const tipo = String(t.tipo || '').toUpperCase();
       if (tipo === 'SAIDA' || tipo.startsWith('DESPESA')) {
+        const cat = String(t.categoria || '').toLowerCase();
+        const desc = String(t.descricao || '').toLowerCase();
+
+        // Ignora compra de estoque/mercadorias para evitar duplicidade com CMV
+        if (
+          cat.includes('compra de mercadorias') ||
+          cat.includes('compra de estoque') ||
+          desc.includes('compra de estoque') ||
+          desc.includes('compra de mercadorias')
+        ) {
+          return;
+        }
+
         const dt = new Date(t.data_pagamento || t.criado_em);
         if (dt >= dInicio && dt <= dFim) {
           custosOperacionais += Number(t.valor || 0);

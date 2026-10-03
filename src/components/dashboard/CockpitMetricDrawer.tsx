@@ -452,11 +452,20 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-5 h-5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-[11px]">-</span>
-                        <span className="text-slate-300 font-sans font-medium">Taxas de Cartão / Meios de Pagamento</span>
+                        <div>
+                          <span className="text-slate-300 font-sans font-medium">Taxas de Cartão / Meios de Pagamento</span>
+                          {decomposicoes.lucro.taxasGateways === 0 && (
+                            <span className="block text-[10px] text-slate-500 font-sans">Sem dedução (taxas não habilitadas no PDV)</span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-amber-400">-{formMoeda(decomposicoes.lucro.taxasGateways)}</div>
-                        <div className="text-[10px] text-slate-500">{decomposicoes.lucro.percentualTaxas}% do faturamento</div>
+                        <div className={`font-bold ${decomposicoes.lucro.taxasGateways === 0 ? 'text-slate-500' : 'text-amber-400'}`}>
+                          {decomposicoes.lucro.taxasGateways > 0 ? `-${formMoeda(decomposicoes.lucro.taxasGateways)}` : formMoeda(0)}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {decomposicoes.lucro.taxasGateways > 0 ? `${decomposicoes.lucro.percentualTaxas}% do faturamento` : 'Isento / Não aplicável'}
+                        </div>
                       </div>
                     </div>
 
@@ -464,11 +473,20 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-5 h-5 rounded bg-rose-500/20 text-rose-400 font-bold flex items-center justify-center text-[11px]">-</span>
-                        <span className="text-slate-300 font-sans font-medium">Despesas Fixas & Operacionais</span>
+                        <div>
+                          <span className="text-slate-300 font-sans font-medium">Despesas Fixas & Operacionais</span>
+                          {decomposicoes.lucro.custosOperacionais === 0 && (
+                            <span className="block text-[10px] text-slate-500 font-sans">Nenhum lançamento de despesa no período</span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-rose-400">-{formMoeda(decomposicoes.lucro.custosOperacionais)}</div>
-                        <div className="text-[10px] text-slate-500">{decomposicoes.lucro.percentualDespesas}% do faturamento</div>
+                        <div className={`font-bold ${decomposicoes.lucro.custosOperacionais === 0 ? 'text-slate-500' : 'text-rose-400'}`}>
+                          {decomposicoes.lucro.custosOperacionais > 0 ? `-${formMoeda(decomposicoes.lucro.custosOperacionais)}` : formMoeda(0)}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {decomposicoes.lucro.custosOperacionais > 0 ? `${decomposicoes.lucro.percentualDespesas}% do faturamento` : '0 lançamentos no caixa'}
+                        </div>
                       </div>
                     </div>
 
