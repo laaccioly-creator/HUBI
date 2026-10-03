@@ -343,7 +343,172 @@ export async function salvarMetasLoja(
 }
 
 /**
- * Consulta consolidada das 6 métricas do Cockpit Executivo via RPC no Supabase
+ * Fallback resiliente direto no Supabase Client caso a RPC esteja indisponível ou com divergência de schema
+ */
+async function obterMetricasCockpitFallback(
+  lojaId: string,
+  inicioIso: string,
+  fimIso: string
+): Promise<MetricasCockpit> {
+  const dInicio = new Date(inicioIso);
+  const dFim = new Date(fimIso);
+
+  // 1. Busca pedidos da loja com itens e pagamentos
+  const { data: pedidosData, error: pedidosErr } = await supabase
+    .from('pedidos')
+    .select(`
+      id,
+      valor_total,
+      valor_pago,
+      saldo_devedor,
+      status,
+      status_pagamento,
+      data_venda,
+      criado_em,
+      itens:itens_pedido(quantidade, preco_custo_unitario),
+      pagamentos:pagamentos_pedido(valor, valor_taxa, data_pagamento, eh_pagamento_fiado)
+    `)
+    .eq('loja_id', lojaId)
+    .neq('status', 'cancelado')
+    .neq('status', 'pendente');
+
+  if (pedidosErr) {
+    console.error('[dashboardService] Erro no fallback de pedidos:', pedidosErr.message);
+  }
+
+  const pedidos = (pedidosData || []) as any[];
+
+  // Filtra pedidos pertencentes ao período
+  const pedidosFiltrados = pedidos.filter(p => {
+    let dataReferencia: Date;
+    const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
+    if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
+      dataReferencia = new Date(pag.data_pagamento);
+    } else if (p.data_venda) {
+      dataReferencia = new Date(p.data_venda);
+    } else if (pag && pag.data_pagamento) {
+      dataReferencia = new Date(pag.data_pagamento);
+    } else {
+      dataReferencia = new Date(p.criado_em || '');
+    }
+
+    if (dataReferencia < dInicio || dataReferencia > dFim) {
+      return false;
+    }
+
+    const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+    return stPag === 'pago' || stPag === 'parcialmente_pago';
+  });
+
+  const faturamento = pedidosFiltrados.reduce((acc, p) => {
+    const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+    if (stPag === 'pago') return acc + Number(p.valor_pago || p.valor_total || 0);
+    if (stPag === 'parcialmente_pago') return acc + Number(p.valor_pago || 0);
+    return acc;
+  }, 0);
+
+  const qtdPedidos = pedidosFiltrados.length;
+  const ticketMedio = qtdPedidos > 0 ? Math.round((faturamento / qtdPedidos) * 100) / 100 : 0;
+
+  const cmv = pedidosFiltrados.reduce((acc, p) => {
+    const custoP = (p.itens || []).reduce((cAcc: number, it: any) => {
+      return cAcc + (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1));
+    }, 0);
+    return acc + custoP;
+  }, 0);
+
+  // 2. Busca despesas em transações financeiras
+  let despesas = 0;
+  try {
+    const { data: transacoes } = await supabase
+      .from('transacoes_financeiras')
+      .select('valor, data_pagamento, criado_em, tipo, status')
+      .eq('loja_id', lojaId)
+      .eq('status', 'pago');
+
+    if (transacoes) {
+      despesas = transacoes
+        .filter(t => {
+          const tipo = String(t.tipo || '').toUpperCase();
+          if (tipo !== 'SAIDA' && !tipo.startsWith('DESPESA')) return false;
+          const dt = new Date(t.data_pagamento || t.criado_em);
+          return dt >= dInicio && dt <= dFim;
+        })
+        .reduce((acc, t) => acc + Number(t.valor || 0), 0);
+    }
+  } catch (err) {
+    console.warn('[dashboardService] Falha ao consultar despesas para fallback:', err);
+  }
+
+  const lucroLiquido = Math.round((faturamento - cmv - despesas) * 100) / 100;
+
+  // 3. Inadimplência Fiado
+  let inadimplencia = 0;
+  try {
+    const { data: fiados } = await supabase
+      .from('pedidos')
+      .select('saldo_devedor, data_vencimento_fiado')
+      .eq('loja_id', lojaId)
+      .neq('status', 'cancelado')
+      .gt('saldo_devedor', 0);
+
+    if (fiados && fiados.length > 0) {
+      const limiteVencimento = new Date(dFim.getTime() - (30 * 24 * 60 * 60 * 1000));
+      let totalVencido = 0;
+      let totalDevedor = 0;
+
+      fiados.forEach(f => {
+        const saldo = Number(f.saldo_devedor || 0);
+        totalDevedor += saldo;
+        if (f.data_vencimento_fiado && new Date(f.data_vencimento_fiado) < limiteVencimento) {
+          totalVencido += saldo;
+        }
+      });
+
+      if (totalDevedor > 0) {
+        inadimplencia = Math.round((totalVencido / totalDevedor) * 10000) / 100;
+      }
+    }
+  } catch (err) {
+    console.warn('[dashboardService] Falha ao consultar fiados para fallback:', err);
+  }
+
+  // 4. Giro de Estoque
+  let giroEstoque = 0;
+  try {
+    const { data: produtos } = await supabase
+      .from('produtos')
+      .select('estoque_atual, preco_venda')
+      .eq('loja_id', lojaId)
+      .eq('ativo', true);
+
+    if (produtos && produtos.length > 0) {
+      const valorTotalEstoque = produtos.reduce((acc, pr) => {
+        return acc + (Number(pr.estoque_atual || 0) * Number(pr.preco_venda || 0));
+      }, 0);
+
+      if (valorTotalEstoque > 0) {
+        giroEstoque = Math.round((faturamento / valorTotalEstoque) * 10000) / 100;
+      }
+    }
+  } catch (err) {
+    console.warn('[dashboardService] Falha ao consultar estoque para fallback:', err);
+  }
+
+  return {
+    faturamento: Math.round(faturamento * 100) / 100,
+    pedidos: qtdPedidos,
+    ticket_medio: ticketMedio,
+    cmv: Math.round(cmv * 100) / 100,
+    despesas: Math.round(despesas * 100) / 100,
+    lucro_liquido: lucroLiquido,
+    inadimplencia,
+    giro_estoque: giroEstoque
+  };
+}
+
+/**
+ * Consulta consolidada das 6 métricas do Cockpit Executivo via RPC ou Fallback
  * Aceita dataInicio e dataFim em formato ISO diretamente ou nome do período
  */
 export async function obterMetricasCockpit(
@@ -370,43 +535,43 @@ export async function obterMetricasCockpit(
   const metasProporcionais = calcularMetasProporcionais(metasMensais, diasCalculo);
 
   // 2. Invoca a RPC atômica consolidada no PostgreSQL
-  const { data, error } = await supabase.rpc('obter_metricas_cockpit', {
-    p_loja_id: lojaId,
-    p_data_inicio: inicioIso,
-    p_data_fim: fimIso
-  });
+  try {
+    const { data, error } = await supabase.rpc('obter_metricas_cockpit', {
+      p_loja_id: lojaId,
+      p_data_inicio: inicioIso,
+      p_data_fim: fimIso
+    });
 
-  if (error) {
-    console.error('[dashboardService] Erro ao invocar RPC obter_metricas_cockpit:', error.message);
-    return {
-      metricas: {
-        faturamento: 0,
-        pedidos: 0,
-        ticket_medio: 0,
-        cmv: 0,
-        despesas: 0,
-        lucro_liquido: 0,
-        inadimplencia: 0,
-        giro_estoque: 0
-      },
-      metasProporcionais
-    };
+    if (!error && data && (data.pedidos > 0 || data.faturamento > 0)) {
+      const metricas: MetricasCockpit = {
+        faturamento: Number(data.faturamento || 0),
+        pedidos: Number(data.pedidos || 0),
+        ticket_medio: Number(data.ticket_medio || 0),
+        cmv: Number(data.cmv || 0),
+        despesas: Number(data.despesas || 0),
+        lucro_liquido: Number(data.lucro_liquido || 0),
+        inadimplencia: Number(data.inadimplencia || 0),
+        giro_estoque: Number(data.giro_estoque || 0)
+      };
+
+      return {
+        metricas,
+        metasProporcionais
+      };
+    }
+
+    if (error) {
+      console.warn('[dashboardService] RPC obter_metricas_cockpit indisponível, usando fallback direto:', error.message);
+    }
+  } catch (rpcErr) {
+    console.warn('[dashboardService] Exceção na RPC, usando fallback direto:', rpcErr);
   }
 
-  const res = (data || {}) as Record<string, any>;
-  const metricas: MetricasCockpit = {
-    faturamento: Number(res.faturamento || 0),
-    pedidos: Number(res.pedidos || 0),
-    ticket_medio: Number(res.ticket_medio || 0),
-    cmv: Number(res.cmv || 0),
-    despesas: Number(res.despesas || 0),
-    lucro_liquido: Number(res.lucro_liquido || 0),
-    inadimplencia: Number(res.inadimplencia || 0),
-    giro_estoque: Number(res.giro_estoque || 0)
-  };
+  // 3. Fallback inteligente e resiliente: processa diretamente via Supabase Client
+  const metricasFallback = await obterMetricasCockpitFallback(lojaId, inicioIso, fimIso);
 
   return {
-    metricas,
+    metricas: metricasFallback,
     metasProporcionais
   };
 }

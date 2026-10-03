@@ -43,7 +43,7 @@ BEGIN
       AND (
           status = 'concluido'
           OR status_pagamento IN ('pago', 'parcial', 'parcialmente_pago')
-          OR origem_venda IN ('pdv_mobile', 'pdv_desktop')
+          OR origem IN ('pdv_mobile', 'pdv_desktop')
           OR status != 'pendente'
       )
       AND COALESCE(data_venda, criado_em) BETWEEN p_data_inicio AND p_data_fim;
@@ -64,7 +64,7 @@ BEGIN
       AND (
           ped.status = 'concluido'
           OR ped.status_pagamento IN ('pago', 'parcial', 'parcialmente_pago')
-          OR ped.origem_venda IN ('pdv_mobile', 'pdv_desktop')
+          OR ped.origem IN ('pdv_mobile', 'pdv_desktop')
           OR ped.status != 'pendente'
       )
       AND COALESCE(ped.data_venda, ped.criado_em) BETWEEN p_data_inicio AND p_data_fim;
@@ -75,20 +75,20 @@ BEGIN
     WHERE loja_id = p_loja_id
       AND (tipo = 'SAIDA' OR tipo ILIKE 'despesa%')
       AND status = 'pago'
-      AND COALESCE(data_pagamento, data_vencimento, criado_em) BETWEEN p_data_inicio AND p_data_fim;
+      AND COALESCE(data_pagamento, criado_em) BETWEEN p_data_inicio AND p_data_fim;
 
     v_lucro := v_faturamento - v_cmv - v_despesas;
 
     -- 4. Inadimplência de Fiado (> 30 dias de atraso sobre total a receber de fiado)
     -- Utiliza p_data_fim como referência temporal para cálculo de atraso
     SELECT 
-        COALESCE(SUM(CASE WHEN data_vencimento < p_data_fim - INTERVAL '30 days' THEN saldo_devedor ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN data_vencimento_fiado < (p_data_fim::date - 30) THEN saldo_devedor ELSE 0 END), 0),
         COALESCE(SUM(saldo_devedor), 0)
     INTO v_fiado_vencido, v_fiado_total
     FROM public.pedidos
     WHERE loja_id = p_loja_id
       AND status NOT IN ('cancelado')
-      AND (forma_pagamento = 'fiado' OR saldo_devedor > 0)
+      AND saldo_devedor > 0
       AND status_pagamento != 'pago';
 
     IF v_fiado_total > 0 THEN
