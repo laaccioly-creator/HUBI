@@ -46,7 +46,8 @@ import {
   ExternalLink,
   RefreshCw,
   Loader2,
-  Gift
+  Gift,
+  Target
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,6 +67,7 @@ import { feedExportService } from '../services/feedExportService';
 import { paymentGatewayService } from '../services/paymentGatewayService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
+import { ConfiguracoesMetas } from './configuracoes/ConfiguracoesMetas';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { setGoogleSearchConfig } from '../services/geminiService';
@@ -74,6 +76,7 @@ import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../serv
 type SubTelaConfig =
   | 'menu'
   | 'geral'
+  | 'metas'
   | 'dados-loja'
   | 'produtos'
   | 'catalogo'
@@ -1299,8 +1302,11 @@ export const ConfiguracoesLoja: React.FC = () => {
   }, [modalProvedor, modalTelaInicial, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate, verificarSaidaComConfirmacao]);
 
   // Itens do Menu Principal de Configurações em Botões
+  const podeGerenciarMetas = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente || permissions.podeAcessarConfig;
+
   const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'geral', label: 'Geral', icon: Settings },
+    ...(podeGerenciarMetas ? [{ id: 'metas', label: 'Metas da Loja', icon: Target, badge: 'Cockpit' }] : []),
     { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard, badge: 'Mercado Pago' },
     { id: 'importar-exportar', label: 'Importar / Exportar', icon: FileSpreadsheet, badge: 'Excel / CSV' },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
@@ -1355,6 +1361,7 @@ export const ConfiguracoesLoja: React.FC = () => {
             <h1 className="font-bold text-base text-slate-800">
               {subTela === 'menu' && 'Configurações'}
               {subTela === 'geral' && 'Geral'}
+              {subTela === 'metas' && 'Metas da Loja'}
               {subTela === 'pagamentos' && 'Opções de Pagamento'}
               {subTela === 'dados-loja' && 'Dados da Loja'}
               {subTela === 'recibo' && 'Meu Recibo'}
@@ -1913,8 +1920,16 @@ export const ConfiguracoesLoja: React.FC = () => {
             </div>
           )}
 
+          {/* SUBTELA METAS MOBILE */}
+          {subTela === 'metas' && (
+            <ConfiguracoesMetas
+              lojaId={loja?.id}
+              onVoltar={() => setSubTela('menu')}
+            />
+          )}
+
           {/* DEMAIS SUBTELAS */}
-          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && (
+          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
               <h3 className="font-bold text-sm text-slate-800">Configurações desta seção</h3>
               <p className="text-xs text-slate-500">
@@ -3610,6 +3625,16 @@ export const ConfiguracoesLoja: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUBTELA: METAS DA LOJA (COCKPIT F1) */}
+        {/* ========================================================================= */}
+        {subTela === 'metas' && (
+          <ConfiguracoesMetas
+            lojaId={loja?.id}
+            onVoltar={() => setSubTela('menu')}
+          />
         )}
 
       </div>
