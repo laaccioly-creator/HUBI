@@ -310,17 +310,17 @@ export const AppLayout: React.FC = () => {
       icon: Users,
       badge: undefined,
       visivel: permissions.podeAcessarClientes
-    },
+    }
+  ].filter(b => b.visivel);
+
+  const row2Buttons = [
     {
       name: 'Finanças & Caixa',
       path: '/finances',
       icon: DollarSign,
       badge: undefined,
       visivel: permissions.podeAcessarFinancas
-    }
-  ].filter(b => b.visivel);
-
-  const row2Buttons = [
+    },
     {
       name: 'Estatísticas',
       path: '/analytics',
@@ -361,7 +361,7 @@ export const AppLayout: React.FC = () => {
       path: '/config',
       icon: Settings,
       badge: undefined,
-      visivel: permissions.podeAcessarConfig
+      visivel: permissions.podeAcessarConfig && !permissions.podeAcessarUsuarios
     }
   ].filter(b => b.visivel);
 

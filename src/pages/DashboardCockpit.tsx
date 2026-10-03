@@ -7,14 +7,17 @@ import {
   AlertTriangle,
   Calendar,
   Sparkles,
-  ArrowUpRight,
-  TrendingUp
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import {
   dashboardService,
-  PeriodoDashboard,
+  TipoPeriodoDashboard,
+  PERIODOS_DASHBOARD_OPCOES,
   METAS_PADRAO_LOJA
 } from '../services/dashboardService';
 import { MetricasCockpit, LojaMetas } from '../types';
@@ -33,8 +36,13 @@ export const DashboardCockpit: React.FC = () => {
     permissions.ehGerente ||
     permissions.podeAcessarConfig;
 
-  // Estados principais
-  const [periodo, setPeriodo] = useState<PeriodoDashboard>('mes');
+  // Estados principais do seletor de período padronizado
+  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodoDashboard>('este_mes');
+  const [periodoOffset, setPeriodoOffset] = useState<number>(0);
+  const [dropdownPeriodoAberto, setDropdownPeriodoAberto] = useState<boolean>(false);
+  const [dataInicioCustom, setDataInicioCustom] = useState<string>('');
+  const [dataFimCustom, setDataFimCustom] = useState<string>('');
+
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
@@ -57,6 +65,15 @@ export const DashboardCockpit: React.FC = () => {
     ...METAS_PADRAO_LOJA
   });
 
+  // Cálculo da resolução de período atual
+  const infoIntervalo = dashboardService.resolverIntervaloPeriodo(
+    tipoPeriodo,
+    periodoOffset,
+    dataInicioCustom,
+    dataFimCustom
+  );
+  const labelExibicaoPeriodo = infoIntervalo.label;
+
   // Função para buscar dados consolidados
   const carregarMetricas = useCallback(async () => {
     if (!loja?.id) return;
@@ -65,7 +82,19 @@ export const DashboardCockpit: React.FC = () => {
       setCarregando(true);
       setErroCarregamento(null);
 
-      const resultado = await dashboardService.obterMetricasCockpit(loja.id, periodo);
+      const intervalo = dashboardService.resolverIntervaloPeriodo(
+        tipoPeriodo,
+        periodoOffset,
+        dataInicioCustom,
+        dataFimCustom
+      );
+
+      const resultado = await dashboardService.obterMetricasCockpit(
+        loja.id,
+        intervalo.dataInicioIso,
+        intervalo.dataFimIso,
+        intervalo.diasIntervalo
+      );
       setMetricas(resultado.metricas);
       setMetasProporcionais(resultado.metasProporcionais);
     } catch (err: any) {
@@ -74,19 +103,11 @@ export const DashboardCockpit: React.FC = () => {
     } finally {
       setCarregando(false);
     }
-  }, [loja?.id, periodo]);
+  }, [loja?.id, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
 
   useEffect(() => {
     carregarMetricas();
   }, [carregarMetricas]);
-
-  // Opções de períodos do Segmented Control
-  const opcoesPeriodo: { id: PeriodoDashboard; label: string }[] = [
-    { id: 'hoje', label: 'Hoje' },
-    { id: 'semana', label: 'Esta Semana' },
-    { id: 'mes', label: 'Este Mês' },
-    { id: 'ano', label: 'Este Ano' }
-  ];
 
   // Saudação contextual ao usuário
   const nomeUsuario = usuario?.nome_completo ? usuario.nome_completo.split(' ')[0] : 'Gestor';
@@ -118,29 +139,97 @@ export const DashboardCockpit: React.FC = () => {
             </p>
           </div>
 
-          {/* Segmented Control de Período & Ações Rápidas */}
+          {/* Seletor de Período Padronizado & Ações Rápidas */}
           <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
             
-            {/* Pílulas de Seleção Temporal */}
-            <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl shadow-inner">
-              {opcoesPeriodo.map((opt) => {
-                const ativo = periodo === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setPeriodo(opt.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                      ativo
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
+            {/* Seletor Kyte Style de Períodos */}
+            <div className="relative flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setPeriodoOffset(prev => prev - 1)}
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition cursor-pointer"
+                title="Período Anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <div className="relative min-w-[130px] sm:min-w-[160px] text-center">
+                <button
+                  type="button"
+                  onClick={() => setDropdownPeriodoAberto(prev => !prev)}
+                  className="w-full px-2 py-1 text-xs font-bold text-slate-200 hover:text-emerald-400 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-emerald-400 opacity-80" />
+                  <span>{labelExibicaoPeriodo}</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+
+                {/* Dropdown de 9 Opções de Período */}
+                {dropdownPeriodoAberto && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setDropdownPeriodoAberto(false)}
+                    />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 text-left space-y-0.5 animate-in fade-in zoom-in-95">
+                      {PERIODOS_DASHBOARD_OPCOES.map((op) => (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => {
+                            setTipoPeriodo(op.id);
+                            setPeriodoOffset(0);
+                            setDropdownPeriodoAberto(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
+                            tipoPeriodo === op.id
+                              ? 'bg-emerald-500/15 text-emerald-400 font-bold'
+                              : 'text-slate-300 hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>{op.label}</span>
+                          {tipoPeriodo === op.id && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPeriodoOffset(prev => prev + 1)}
+                disabled={periodoOffset >= 0}
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Próximo Período"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
+
+            {/* Inputs de Data Customizada quando 'personalizado' */}
+            {tipoPeriodo === 'personalizado' && (
+              <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-medium">De:</span>
+                  <input
+                    type="date"
+                    value={dataInicioCustom}
+                    onChange={(e) => setDataInicioCustom(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-0.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-medium">Até:</span>
+                  <input
+                    type="date"
+                    value={dataFimCustom}
+                    onChange={(e) => setDataFimCustom(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-0.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Botão de Atualização Rápida */}
             <button

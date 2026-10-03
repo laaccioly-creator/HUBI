@@ -173,20 +173,24 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
           className="w-full max-w-[210px] h-auto overflow-visible"
         >
           <defs>
-            {/* Gradiente Escala Normal: Vermelho -> Amarelo -> Verde Esmeralda */}
+            {/* Gradiente Escala Normal Tricolor Fixo: Vermelho (0-60%) -> Amarelo (60-80%) -> Verde (80-100%) */}
             <linearGradient id={`${gradientId}-normal`} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#ef4444" />
-              <stop offset="55%" stopColor="#eab308" />
-              <stop offset="80%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#10b981" />
+              <stop offset="55%" stopColor="#ef4444" />
+              <stop offset="65%" stopColor="#f59e0b" />
+              <stop offset="78%" stopColor="#eab308" />
+              <stop offset="82%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#059669" />
             </linearGradient>
 
-            {/* Gradiente Escala Invertida: Verde Esmeralda -> Amarelo -> Vermelho */}
+            {/* Gradiente Escala Invertida Tricolor Fixo: Verde (0-60%) -> Amarelo (60-80%) -> Vermelho (80-100%) */}
             <linearGradient id={`${gradientId}-invertido`} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#10b981" />
-              <stop offset="50%" stopColor="#eab308" />
-              <stop offset="80%" stopColor="#ef4444" />
-              <stop offset="100%" stopColor="#ef4444" />
+              <stop offset="55%" stopColor="#10b981" />
+              <stop offset="65%" stopColor="#f59e0b" />
+              <stop offset="78%" stopColor="#eab308" />
+              <stop offset="82%" stopColor="#ef4444" />
+              <stop offset="100%" stopColor="#dc2626" />
             </linearGradient>
 
             {/* Filtro de Sombra Suave para o Ponteiro */}
@@ -195,40 +199,38 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
             </filter>
           </defs>
 
-          {/* 1. Trilha de Fundo (Track Escura Semicircular) */}
+          {/* 1. Trilha de Fundo Estrutural */}
           <path
             d={`M ${cx - raioTrilha} ${cy} A ${raioTrilha} ${raioTrilha} 0 0 1 ${cx + raioTrilha} ${cy}`}
             fill="none"
-            stroke="#1e293b"
-            strokeWidth="12"
+            stroke="#0f172a"
+            strokeWidth="14"
             strokeLinecap="round"
           />
 
-          {/* 2. Faixa Gradiente Ativa com Zonas de Calor */}
+          {/* 2. Arco Tricolor Contínuo Fixo (180 graus de ponta a ponta) */}
           <path
             d={`M ${cx - raioTrilha} ${cy} A ${raioTrilha} ${raioTrilha} 0 0 1 ${cx + raioTrilha} ${cy}`}
             fill="none"
             stroke={`url(#${gradientId}-${escalaInvertida ? 'invertido' : 'normal'})`}
-            strokeWidth="12"
+            strokeWidth="11"
             strokeLinecap="round"
-            strokeDasharray={compArco}
-            strokeDashoffset={dashOffset}
-            className="transition-all duration-700 ease-out"
+            opacity="0.95"
           />
 
-          {/* 3. Marcador / Tick de Meta (100%) */}
+          {/* 3. Marcador / Tick de Meta (100%) no divisor exato */}
           <line
             x1={metaTickX1}
             y1={metaTickY1}
             x2={metaTickX2}
             y2={metaTickY2}
             stroke="#ffffff"
-            strokeWidth="2.5"
+            strokeWidth="3"
             strokeLinecap="round"
-            opacity="0.9"
+            opacity="0.95"
           />
 
-          {/* 4. Agulha / Ponteiro Esportivo */}
+          {/* 4. Agulha / Ponteiro Esportivo Dinâmico */}
           <g
             style={{
               transform: `rotate(${anguloAgulha}deg)`,
@@ -246,8 +248,8 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
             <circle
               cx={cx}
               cy={cy - raio + 12}
-              r="2"
-              fill={escalaInvertida && realizadoValido > metaValida ? '#ef4444' : '#10b981'}
+              r="2.5"
+              fill={escalaInvertida ? (realizadoValido <= metaValida ? '#10b981' : '#ef4444') : (percentualMeta >= 100 ? '#10b981' : percentualMeta >= 75 ? '#eab308' : '#ef4444')}
             />
           </g>
 
