@@ -99,7 +99,7 @@ export const DashboardCockpit: React.FC = () => {
     if (!loja?.id) return;
 
     try {
-      if (forcar || !payloadExecutivo) {
+      if (forcar) {
         setCarregando(true);
       }
       setErroCarregamento(null);
@@ -129,7 +129,7 @@ export const DashboardCockpit: React.FC = () => {
     } finally {
       setCarregando(false);
     }
-  }, [loja?.id, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom, payloadExecutivo]);
+  }, [loja?.id, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
 
   useEffect(() => {
     carregarMetricas();

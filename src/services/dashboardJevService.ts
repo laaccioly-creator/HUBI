@@ -186,7 +186,7 @@ const TTL_CACHE_MS = 60 * 1000; // 60 segundos de frescor absoluto
 function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
-  return `hubi_cockpit_${params.lojaId}_${params.tipoPeriodo}_${offset}_${custom}`;
+  return `hubi_cockpit_v3_${params.lojaId}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -345,49 +345,31 @@ export const dashboardJevService = {
     const [metasLoja, pedidosRes, transacoesRes, produtosRes, historicoPrimeiraVendaRes] = await Promise.all([
       dashboardService.obterMetasLoja(lojaId),
 
-      // Pedidos com relacionamentos analíticos
+      // Pedidos com relacionamentos analíticos completos e seguros
       supabase
         .from('pedidos')
         .select(`
-          id,
-          numero_pedido,
-          valor_total,
-          valor_pago,
-          saldo_devedor,
-          status,
-          status_pagamento,
-          data_venda,
-          criado_em,
-          origem,
-          data_vencimento_fiado,
-          cliente:clientes(id, nome_completo, whatsapp, telefone),
-          itens:itens_pedido(id, produto_id, nome_produto, quantidade, preco_unitario, preco_custo_unitario, subtotal),
-          pagamentos:pagamentos_pedido(id, valor, valor_taxa, forma_tipo, forma_nome, data_pagamento, eh_pagamento_fiado)
+          *,
+          cliente:clientes(*),
+          itens:itens_pedido(*),
+          pagamentos:pagamentos_pedido(
+            *,
+            forma_pagamento:formas_pagamento(*)
+          )
         `)
         .eq('loja_id', lojaId),
 
       // Transações financeiras (despesas do período)
       supabase
         .from('transacoes_financeiras')
-        .select('id, valor, data_pagamento, criado_em, tipo, status')
+        .select('*')
         .eq('loja_id', lojaId)
         .eq('status', 'pago'),
 
       // Produtos ativos do catálogo
       supabase
         .from('produtos')
-        .select(`
-          id,
-          nome,
-          codigo_interno,
-          codigo_barras,
-          quantidade_estoque,
-          estoque_minimo_alerta,
-          preco_custo,
-          preco_venda_varejo,
-          fotos_urls,
-          ativo
-        `)
+        .select('*')
         .eq('loja_id', lojaId)
         .eq('ativo', true),
 
@@ -401,6 +383,16 @@ export const dashboardJevService = {
         .limit(1)
         .maybeSingle()
     ]);
+
+    if (pedidosRes.error) {
+      console.error('[dashboardJevService] Erro ao carregar pedidos:', pedidosRes.error.message);
+    }
+    if (transacoesRes.error) {
+      console.error('[dashboardJevService] Erro ao carregar transações:', transacoesRes.error.message);
+    }
+    if (produtosRes.error) {
+      console.error('[dashboardJevService] Erro ao carregar produtos:', produtosRes.error.message);
+    }
 
     const metasProporcionais = dashboardService.calcularMetasProporcionais(metasLoja, intervalo.diasIntervalo);
 
@@ -427,11 +419,11 @@ export const dashboardJevService = {
       return dataRef >= dInicio && dataRef <= dFim;
     });
 
-    // Pedidos faturados (pagos ou parcialmente pagos, não cancelados)
+    // Pedidos faturados (concluídos ou com pagamento confirmado, não cancelados)
     const pedidosFaturados = pedidosDoPeriodo.filter(p => {
       if (p.status === 'cancelado') return false;
       const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
-      return stPag === 'pago' || stPag === 'parcialmente_pago';
+      return p.status === 'concluido' || stPag === 'pago' || stPag === 'parcialmente_pago';
     });
 
     // ------------------------------------------------------------------------
@@ -444,12 +436,17 @@ export const dashboardJevService = {
     let taxasGateways = 0;
 
     pedidosFaturados.forEach(p => {
-      const valorPedido = Number(p.valor_pago || p.valor_total || 0);
+      const valorPedido = Number(p.valor_total || p.valor_pago || 0);
       faturamentoBruto += valorPedido;
 
       // Canal (origem)
       const canalRaw = (p.origem || 'pdv').toLowerCase();
-      const canalFormatado = canalRaw === 'catalogo' ? 'Catálogo Online' : canalRaw === 'whatsapp' ? 'WhatsApp' : canalRaw === 'pdv' ? 'PDV Balcão' : 'Outro';
+      let canalFormatado = 'PDV Balcão';
+      if (canalRaw.includes('catalogo')) canalFormatado = 'Catálogo Online';
+      else if (canalRaw.includes('whats')) canalFormatado = 'WhatsApp';
+      else if (canalRaw.includes('pdv')) canalFormatado = 'PDV Balcão';
+      else canalFormatado = 'Balcão / Outro';
+
       if (!porCanal[canalFormatado]) {
         porCanal[canalFormatado] = { total: 0, quantidade: 0, percentual: 0 };
       }
@@ -457,21 +454,23 @@ export const dashboardJevService = {
       porCanal[canalFormatado].quantidade += 1;
 
       // Formas de Pagamento & Taxas
-      let formaPrincipal = 'Não identificada';
+      let formaPrincipal = 'Dinheiro';
       if (p.pagamentos && p.pagamentos.length > 0) {
         p.pagamentos.forEach((pg: any) => {
           const valorPg = Number(pg.valor || 0);
           const taxaPg = Number(pg.valor_taxa || 0);
           taxasGateways += taxaPg;
 
-          const nomePg = (pg.forma_nome || pg.forma_tipo || 'Outro').trim();
+          const nomePg = (pg.forma_pagamento?.nome || pg.forma_nome || pg.forma_tipo || pg.forma_pagamento?.tipo || 'Outro').trim();
           if (!porFormaPagamento[nomePg]) {
             porFormaPagamento[nomePg] = { total: 0, quantidade: 0, percentual: 0 };
           }
           porFormaPagamento[nomePg].total += valorPg;
           porFormaPagamento[nomePg].quantidade += 1;
         });
-        formaPrincipal = p.pagamentos.length === 1 ? (p.pagamentos[0].forma_nome || p.pagamentos[0].forma_tipo || 'Outro') : `${p.pagamentos.length} formas`;
+        formaPrincipal = p.pagamentos.length === 1
+          ? (p.pagamentos[0].forma_pagamento?.nome || p.pagamentos[0].forma_nome || p.pagamentos[0].forma_tipo || 'Outro')
+          : `${p.pagamentos.length} formas`;
       } else {
         const nomePg = 'Dinheiro';
         if (!porFormaPagamento[nomePg]) {
@@ -483,6 +482,7 @@ export const dashboardJevService = {
       }
 
       // Adiciona na lista resumida
+      const nomeCliente = p.cliente?.nome || p.cliente?.nome_completo || p.cliente_nome_avulso || 'Cliente Avulso';
       vendasSumarizadas.push({
         id: p.id,
         numero_pedido: p.numero_pedido || 0,
@@ -491,7 +491,7 @@ export const dashboardJevService = {
         canal: canalFormatado,
         formaPagamento: formaPrincipal,
         status: p.status || 'concluido',
-        clienteNome: p.cliente?.nome_completo || 'Cliente Avulso'
+        clienteNome: nomeCliente
       });
     });
 
@@ -680,12 +680,13 @@ export const dashboardJevService = {
         if (dataVenc < agoraRef) {
           totalInadimplente += saldo;
           const diffDias = Math.max(1, Math.round((agoraRef.getTime() - dataVenc.getTime()) / (1000 * 60 * 60 * 24)));
-          const telBruto = p.cliente?.whatsapp || p.cliente?.telefone || null;
+          const telBruto = p.cliente?.whatsapp || p.cliente?.telefone || p.cliente_telefone_avulso || null;
+          const nomeClienteFiado = p.cliente?.nome || p.cliente?.nome_completo || p.cliente_nome_avulso || 'Cliente Fiado';
 
           itensAtrasados.push({
             pedidoId: p.id,
             numeroPedido: p.numero_pedido || 0,
-            clienteNome: p.cliente?.nome_completo || 'Cliente Fiado',
+            clienteNome: nomeClienteFiado,
             clienteContatoSeguro: mascararTelefone(telBruto),
             clienteTelefoneBruto: telBruto || undefined,
             valorDevido: saldo,
@@ -721,7 +722,7 @@ export const dashboardJevService = {
       if (p.status !== 'cancelado') {
         (p.itens || []).forEach((it: any) => {
           if (it.produto_id) {
-            const sub = Number(it.subtotal || (Number(it.preco_unitario || 0) * Number(it.quantidade || 1)));
+            const sub = Number(it.subtotal || (Number(it.preco_venda_unitario || it.preco_unitario || 0) * Number(it.quantidade || 1)));
             receitaPorProduto.set(it.produto_id, (receitaPorProduto.get(it.produto_id) || 0) + sub);
           }
         });
