@@ -2115,7 +2115,7 @@ export const PosCheckout: React.FC = () => {
           <div className="space-y-2">
             {/* Linha 1: Tipo da Venda (oculto se apenas 1 modalidade estiver ativa) */}
             {(() => {
-              const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+              const tiposAtivos = loja?.tipos_venda || loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
               const opcoes: { id: TabelaPreco; nome: string }[] = [];
               if (tiposAtivos.varejo !== false) opcoes.push({ id: 'varejo', nome: 'Varejo' });
               if (tiposAtivos.atacado !== false) opcoes.push({ id: 'atacado', nome: 'Atacado' });

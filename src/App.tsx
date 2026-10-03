@@ -234,6 +234,22 @@ const AppRotasInternas: React.FC = () => {
             </RotaProtegida>
           }
         />
+        <Route
+          path="config/tipos-venda"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarConfig}>
+              <ConfiguracoesLoja subTelaInicial="tipos-venda" />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="configuracoes/tipos-venda"
+          element={
+            <RotaProtegida permitido={permissions.podeAcessarConfig}>
+              <ConfiguracoesLoja subTelaInicial="tipos-venda" />
+            </RotaProtegida>
+          }
+        />
       </Route>
 
       {/* Fallback */}

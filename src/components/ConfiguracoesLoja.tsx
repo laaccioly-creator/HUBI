@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Store,
   Settings,
@@ -287,11 +287,18 @@ const gerarSnapshotConfig = (dados: any) => {
     freteGratisAtivo: Boolean(dados.freteGratisAtivo),
     freteGratisValorMinimo: Number(dados.freteGratisValorMinimo ?? 0),
     facebookPixelId: (dados.facebookPixelId || '').trim(),
-    tiktokPixelId: (dados.tiktokPixelId || '').trim()
+    tiktokPixelId: (dados.tiktokPixelId || '').trim(),
+    tipoVendaVarejo: Boolean(dados.tipoVendaVarejo ?? true),
+    tipoVendaAtacado: Boolean(dados.tipoVendaAtacado ?? true),
+    tipoVendaDistribuidor: Boolean(dados.tipoVendaDistribuidor ?? true)
   });
 };
 
-export const ConfiguracoesLoja: React.FC = () => {
+interface ConfiguracoesLojaProps {
+  subTelaInicial?: SubTelaConfig;
+}
+
+export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaInicial }) => {
   const { loja, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
@@ -304,6 +311,7 @@ export const ConfiguracoesLoja: React.FC = () => {
     }
   }, [permissions.podeAcessarConfig, navigate]);
 
+  const location = useLocation();
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
@@ -314,12 +322,16 @@ export const ConfiguracoesLoja: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam) {
+    if (location.pathname.includes('tipos-venda') || subTelaInicial === 'tipos-venda' || tabParam === 'tipos-venda') {
+      setSubTela('tipos-venda');
+    } else if (tabParam) {
       setSubTela(tabParam as SubTelaConfig);
+    } else if (subTelaInicial) {
+      setSubTela(subTelaInicial);
     } else {
       setSubTela('menu');
     }
-  }, [searchParams]);
+  }, [searchParams, location.pathname, subTelaInicial]);
 
   useEffect(() => {
     const handleResetSubTela = (e: any) => {
@@ -348,6 +360,39 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [tipoVendaAtacado, setTipoVendaAtacado] = useState<boolean>(true);
   const [tipoVendaDistribuidor, setTipoVendaDistribuidor] = useState<boolean>(true);
   const [erroTiposVenda, setErroTiposVenda] = useState<string | null>(null);
+  const [carregandoTiposVenda, setCarregandoTiposVenda] = useState<boolean>(false);
+  const [salvandoTiposVenda, setSalvandoTiposVenda] = useState<boolean>(false);
+
+  const carregarTiposVendaDoBanco = async () => {
+    if (!loja?.id) return;
+    try {
+      setCarregandoTiposVenda(true);
+      const { data, error } = await supabase
+        .from('lojas')
+        .select('*')
+        .eq('id', loja.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const configBanco = (data as any)?.tipos_venda || (data as any)?.configuracoes_extras?.tipos_venda_ativos || {};
+        setTipoVendaVarejo(configBanco.varejo !== false);
+        setTipoVendaAtacado(configBanco.atacado !== false);
+        setTipoVendaDistribuidor(configBanco.distribuidor !== false);
+      }
+    } catch (err: any) {
+      console.warn('Erro ao carregar tipos de venda diretamente do Supabase:', err);
+    } finally {
+      setCarregandoTiposVenda(false);
+    }
+  };
+
+  useEffect(() => {
+    if (subTela === 'tipos-venda' && loja?.id) {
+      carregarTiposVendaDoBanco();
+    }
+  }, [subTela, loja?.id]);
 
   const handleToggleTipoVenda = (tipo: 'varejo' | 'atacado' | 'distribuidor') => {
     const atual = {
@@ -369,6 +414,83 @@ export const ConfiguracoesLoja: React.FC = () => {
     if (tipo === 'varejo') setTipoVendaVarejo(novoValor);
     if (tipo === 'atacado') setTipoVendaAtacado(novoValor);
     if (tipo === 'distribuidor') setTipoVendaDistribuidor(novoValor);
+  };
+
+  const handleSalvarTiposVenda = async () => {
+    if (!loja?.id) return;
+
+    if (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor) {
+      setErroTiposVenda('Pelo menos uma modalidade de venda deve permanecer ativa na loja.');
+      mostrarAviso('Pelo menos uma modalidade de venda deve permanecer ativa.', 'Seleção Obrigatória');
+      return;
+    }
+
+    try {
+      setSalvandoTiposVenda(true);
+      setErroTiposVenda(null);
+
+      const payloadTiposVenda = {
+        varejo: Boolean(tipoVendaVarejo),
+        atacado: Boolean(tipoVendaAtacado),
+        distribuidor: Boolean(tipoVendaDistribuidor)
+      };
+
+      const extrasAtuais = (loja as any)?.configuracoes_extras || {};
+      const novasExtras = {
+        ...extrasAtuais,
+        tipos_venda_ativos: payloadTiposVenda
+      };
+
+      let erroDb: any = null;
+      const resComColuna = await supabase
+        .from('lojas')
+        .update({
+          tipos_venda: payloadTiposVenda,
+          configuracoes_extras: novasExtras
+        })
+        .eq('id', loja.id);
+
+      if (resComColuna.error) {
+        if (resComColuna.error.code === '42703' || resComColuna.error.message?.includes('tipos_venda')) {
+          const resFallback = await supabase
+            .from('lojas')
+            .update({
+              configuracoes_extras: novasExtras
+            })
+            .eq('id', loja.id);
+          erroDb = resFallback.error;
+        } else {
+          erroDb = resComColuna.error;
+        }
+      }
+
+      if (erroDb) throw erroDb;
+
+      await recarregarDadosLoja();
+
+      setSnapshotInicial((prev) => {
+        try {
+          const obj = JSON.parse(prev);
+          obj.tipoVendaVarejo = tipoVendaVarejo;
+          obj.tipoVendaAtacado = tipoVendaAtacado;
+          obj.tipoVendaDistribuidor = tipoVendaDistribuidor;
+          return JSON.stringify(obj);
+        } catch {
+          return prev;
+        }
+      });
+      setTemAlteracoesNaoSalvas(false);
+
+      mostrarToast('Tipos de venda salvos no Supabase com sucesso!');
+      mostrarSucesso('As modalidades de venda foram salvas no Supabase e sincronizadas com o PDV.', 'Configurações Salvas');
+    } catch (err: any) {
+      console.error('Erro ao salvar tipos de venda:', err);
+      const msg = err?.message || 'Falha ao gravar modalidades no banco de dados. Verifique a conexão e permissões.';
+      setErroTiposVenda(msg);
+      mostrarErro(msg, 'Erro ao Salvar');
+    } finally {
+      setSalvandoTiposVenda(false);
+    }
   };
 
   // 2. DADOS DA LOJA & IDENTIFICAÇÃO
@@ -1005,11 +1127,51 @@ export const ConfiguracoesLoja: React.FC = () => {
           frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
             ? freteGratisValorMinimo
             : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+          tipos_venda: {
+            varejo: tipoVendaVarejo,
+            atacado: tipoVendaAtacado,
+            distribuidor: tipoVendaDistribuidor
+          },
           configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42703' || error.message?.includes('tipos_venda')) {
+          const { error: erroFallback } = await supabase
+            .from('lojas')
+            .update({
+              nome_fantasia: nomeLoja,
+              razao_social: razaoSocial,
+              numero_documento: documento,
+              tipo_documento: documento.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF',
+              telefone,
+              whatsapp,
+              email,
+              instagram,
+              sobre_loja: sobreLoja,
+              url_logo: urlLogo,
+              endereco_logradouro: enderecoLogradouro,
+              endereco_numero: enderecoNumero,
+              endereco_bairro: enderecoBairro,
+              endereco_complemento: enderecoComplemento,
+              endereco_cep: enderecoCep,
+              endereco_cidade: enderecoCidade,
+              endereco_estado: enderecoEstado,
+              serpapi_key: serpApiKey.trim() || null,
+              retirada_loja_ativa: Boolean(trabalhoComRetirada),
+              frete_gratis_ativo: Boolean(freteGratisAtivo),
+              frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
+                ? freteGratisValorMinimo
+                : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+              configuracoes_extras: novasExtras
+            })
+            .eq('id', loja.id);
+          if (erroFallback) throw erroFallback;
+        } else {
+          throw error;
+        }
+      }
 
       const valorMinimoNum = typeof freteGratisValorMinimo === 'number'
         ? freteGratisValorMinimo
@@ -1212,7 +1374,10 @@ export const ConfiguracoesLoja: React.FC = () => {
       freteGratisAtivo,
       freteGratisValorMinimo,
       facebookPixelId,
-      tiktokPixelId
+      tiktokPixelId,
+      tipoVendaVarejo,
+      tipoVendaAtacado,
+      tipoVendaDistribuidor
     });
   }, [
     moeda,
@@ -1303,7 +1468,10 @@ export const ConfiguracoesLoja: React.FC = () => {
     freteGratisAtivo,
     freteGratisValorMinimo,
     facebookPixelId,
-    tiktokPixelId
+    tiktokPixelId,
+    tipoVendaVarejo,
+    tipoVendaAtacado,
+    tipoVendaDistribuidor
   ]);
 
   const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
@@ -1957,6 +2125,13 @@ export const ConfiguracoesLoja: React.FC = () => {
                 </span>
               </div>
 
+              {carregandoTiposVenda && (
+                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs flex items-center gap-2 animate-pulse">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
+                  <span>Sincronizando dados com o Supabase...</span>
+                </div>
+              )}
+
               {erroTiposVenda && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
@@ -2032,11 +2207,29 @@ export const ConfiguracoesLoja: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleSalvarTiposVenda}
+                  disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
+                  className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
+                >
+                  {salvandoTiposVenda ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando no Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Salvar Tipos de Venda</span>
+                    </>
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={() => setSubTela('menu')}
-                  className="w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition"
+                  className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition"
                 >
                   Voltar ao Menu
                 </button>
@@ -2262,15 +2455,42 @@ export const ConfiguracoesLoja: React.FC = () => {
                   Configure quais modalidades comerciais e tabelas de preço estão ativas na loja e no PDV.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setSubTela('menu')}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Voltar
-              </button>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setSubTela('menu')}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSalvarTiposVenda}
+                  disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
+                >
+                  {salvandoTiposVenda ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Salvar Alterações</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {carregandoTiposVenda && (
+              <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs flex items-center gap-2.5 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-400 shrink-0" />
+                <span>Buscando configurações reais de tipos de venda no Supabase...</span>
+              </div>
+            )}
 
             {erroTiposVenda && (
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs flex items-center gap-2.5">
@@ -2385,6 +2605,40 @@ export const ConfiguracoesLoja: React.FC = () => {
                 <li><strong className="text-slate-300">2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
                 <li><strong className="text-slate-300">Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
               </ul>
+            </div>
+
+            {/* Rodapé com Ação de Salvar */}
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">
+                As alterações gravadas são refletidas imediatamente no PDV Desktop, PDV Mobile e no Catálogo.
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSubTela('menu')}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                >
+                  Voltar ao Menu
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSalvarTiposVenda}
+                  disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
+                >
+                  {salvandoTiposVenda ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando no Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Salvar Tipos de Venda</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

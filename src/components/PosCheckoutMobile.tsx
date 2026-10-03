@@ -500,7 +500,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
           <div className="space-y-2">
             {(() => {
-              const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+              const tiposAtivos = loja?.tipos_venda || loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
               const opcoes = [
                 { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal', ativo: tiposAtivos.varejo !== false },
                 { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume', ativo: tiposAtivos.atacado !== false },
@@ -972,7 +972,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* 2. Termômetro Dinâmico de Tabela de Preço por Volume (pricingEngine.ts) */}
         {avaliacaoCarrinho && (() => {
-          const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+          const tiposAtivos = loja?.tipos_venda || loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
           const qtdAtivos = [tiposAtivos.varejo !== false, tiposAtivos.atacado !== false, tiposAtivos.distribuidor !== false].filter(Boolean).length;
           if (qtdAtivos <= 1) return null;
           if (!avaliacaoCarrinho.proximoNivel && avaliacaoCarrinho.tabelaAtiva === 'varejo') return null;
@@ -1149,7 +1149,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
               {/* Tabela de Preço Ativa (apenas se mais de 1 tipo estiver ativo) */}
               {(() => {
-                const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+                const tiposAtivos = loja?.tipos_venda || loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
                 const qtdAtivos = [tiposAtivos.varejo !== false, tiposAtivos.atacado !== false, tiposAtivos.distribuidor !== false].filter(Boolean).length;
                 if (qtdAtivos <= 1) return null;
 

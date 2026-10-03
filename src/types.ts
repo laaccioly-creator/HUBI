@@ -260,6 +260,11 @@ export interface Loja {
   retirada_loja_ativa?: boolean;
   frete_gratis_ativo?: boolean;
   frete_gratis_valor_minimo?: number;
+  tipos_venda?: {
+    varejo?: boolean;
+    atacado?: boolean;
+    distribuidor?: boolean;
+  } | null;
   configuracoes_extras?: ConfiguracoesExtrasLoja | null;
   criado_em?: string;
   atualizado_em?: string;

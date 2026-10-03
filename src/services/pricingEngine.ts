@@ -18,7 +18,7 @@ export const REGRAS_PADRAO_INICIAIS: RegrasPrecificacaoLoja = {
 export const obterRegrasPrecificacao = (loja?: Loja | null): RegrasPrecificacaoLoja => {
   if (!loja?.id) return { ...REGRAS_PADRAO_INICIAIS };
 
-  const tiposVenda = loja.configuracoes_extras?.tipos_venda_ativos || {
+  const tiposVenda = loja.tipos_venda || loja.configuracoes_extras?.tipos_venda_ativos || {
     varejo: true,
     atacado: true,
     distribuidor: true

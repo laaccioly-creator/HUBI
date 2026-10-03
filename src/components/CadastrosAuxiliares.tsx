@@ -68,7 +68,7 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { mostrarSucesso, mostrarErro, mostrarAviso, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
 
-  const tiposVendaLoja = loja?.configuracoes_extras?.tipos_venda_ativos;
+  const tiposVendaLoja = loja?.tipos_venda || loja?.configuracoes_extras?.tipos_venda_ativos;
   const atacadoHabilitado = tiposVendaLoja?.atacado !== false;
   const distribuidorHabilitado = tiposVendaLoja?.distribuidor !== false;
 
