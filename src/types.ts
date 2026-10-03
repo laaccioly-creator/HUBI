@@ -139,6 +139,11 @@ export interface IntegracoesParceiros {
 
 export interface ConfiguracoesExtrasLoja {
   geral?: ConfiguracaoGeralLoja;
+  tipos_venda_ativos?: {
+    varejo?: boolean;
+    atacado?: boolean;
+    distribuidor?: boolean;
+  };
   preferencias_gerais?: {
     casas_decimais?: boolean;
     transacoes_canceladas?: 'riscadas' | 'ocultar';
@@ -270,6 +275,12 @@ export interface RegrasPrecificacaoLoja {
   valorMinimoAutoatacado: number;
   qtdTotalMinimaAutoatacado: number;
   qtdMinimaSkuAutoatacado: number;
+
+  tiposVendaAtivos?: {
+    varejo?: boolean;
+    atacado?: boolean;
+    distribuidor?: boolean;
+  };
 }
 
 

@@ -14,7 +14,8 @@ import {
   ArrowLeft,
   Loader2,
   Percent,
-  HelpCircle
+  HelpCircle,
+  ShieldAlert
 } from 'lucide-react';
 import { LojaMetas } from '../../types';
 import { dashboardService, METAS_PADRAO_LOJA } from '../../services/dashboardService';
@@ -56,7 +57,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
   const [metaLucroLiquido, setMetaLucroLiquido] = useState<number>(METAS_PADRAO_LOJA.meta_lucro_liquido);
   const [metaTicketMedio, setMetaTicketMedio] = useState<number>(METAS_PADRAO_LOJA.meta_ticket_medio);
   const [metaInadimplenciaMaxima, setMetaInadimplenciaMaxima] = useState<number>(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
-  const [metaGiroEstoque, setMetaGiroEstoque] = useState<number>(METAS_PADRAO_LOJA.meta_giro_estoque);
+  const [metaSaudeEstoqueRuptura, setMetaSaudeEstoqueRuptura] = useState<number>(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
 
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -81,7 +82,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           setMetaLucroLiquido(Number(dados.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido));
           setMetaTicketMedio(Number(dados.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio));
           setMetaInadimplenciaMaxima(Number(dados.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima));
-          setMetaGiroEstoque(Number(dados.meta_giro_estoque ?? METAS_PADRAO_LOJA.meta_giro_estoque));
+          const rupturaCarregada = Number(
+            dados.meta_saude_estoque_max_ruptura !== undefined && dados.meta_saude_estoque_max_ruptura !== null
+              ? dados.meta_saude_estoque_max_ruptura
+              : (dados.meta_giro_estoque !== undefined ? dados.meta_giro_estoque : 0)
+          );
+          setMetaSaudeEstoqueRuptura(rupturaCarregada);
         }
       } catch (err) {
         console.error('[ConfiguracoesMetas] Erro ao carregar metas:', err);
@@ -104,7 +110,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
     setMetaLucroLiquido(METAS_PADRAO_LOJA.meta_lucro_liquido);
     setMetaTicketMedio(METAS_PADRAO_LOJA.meta_ticket_medio);
     setMetaInadimplenciaMaxima(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
-    setMetaGiroEstoque(METAS_PADRAO_LOJA.meta_giro_estoque);
+    setMetaSaudeEstoqueRuptura(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
   };
 
   // Salva as alterações na tabela loja_metas
@@ -127,7 +133,8 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         meta_lucro_liquido: Math.max(0, metaLucroLiquido),
         meta_ticket_medio: Math.max(0, metaTicketMedio),
         meta_inadimplencia_maxima: Math.min(100, Math.max(0, metaInadimplenciaMaxima)),
-        meta_giro_estoque: Math.min(1000, Math.max(0, metaGiroEstoque))
+        meta_giro_estoque: Math.min(1000, Math.max(0, metaSaudeEstoqueRuptura)),
+        meta_saude_estoque_max_ruptura: Math.min(1000, Math.max(0, metaSaudeEstoqueRuptura))
       };
 
       const resultado = await dashboardService.salvarMetasLoja(idLojaAlvo, payload);
@@ -332,20 +339,20 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           </div>
         </div>
 
-        {/* 6. Meta de Giro de Estoque */}
+        {/* 6. Meta de Saúde do Estoque (Ruptura Máxima Tolerada) */}
         <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <RotateCcw className="w-4 h-4 text-purple-400" />
-              <span>6. Giro de Estoque</span>
+              <ShieldAlert className="w-4 h-4 text-emerald-400" />
+              <span>6. Saúde do Estoque</span>
             </label>
-            <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full font-bold">
-              Percentual (%)
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+              Ruptura Máxima
             </span>
           </div>
 
           <p className="text-[11px] text-slate-400 leading-snug">
-            Percentual de rotatividade do inventário no mês em relação ao estoque total.
+            Teto máximo tolerável de produtos ativos com estoque zerado ou abaixo do mínimo configurado (ex: meta de 0 rupturas).
           </p>
 
           <div className="relative pt-1">
@@ -355,12 +362,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               min="0"
               max="500"
               disabled={!podeEditar || carregando}
-              value={metaGiroEstoque}
-              onChange={(e) => setMetaGiroEstoque(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3.5 pr-8 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              value={metaSaudeEstoqueRuptura}
+              onChange={(e) => setMetaSaudeEstoqueRuptura(parseInt(e.target.value) || 0)}
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3.5 pr-14 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
             <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-400 pt-1">
-              %
+              itens
             </span>
           </div>
         </div>

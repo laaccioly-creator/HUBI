@@ -2113,36 +2113,48 @@ export const PosCheckout: React.FC = () => {
 
           {/* SELETORES RÁPIDOS: TIPO DA VENDA & FORMA DE ENTREGA */}
           <div className="space-y-2">
-            {/* Linha 1: Tipo da Venda */}
-            <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="text-[11px] text-slate-400 font-semibold">Tipo da Venda:</span>
-              </div>
+            {/* Linha 1: Tipo da Venda (oculto se apenas 1 modalidade estiver ativa) */}
+            {(() => {
+              const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+              const opcoes: { id: TabelaPreco; nome: string }[] = [];
+              if (tiposAtivos.varejo !== false) opcoes.push({ id: 'varejo', nome: 'Varejo' });
+              if (tiposAtivos.atacado !== false) opcoes.push({ id: 'atacado', nome: 'Atacado' });
+              if (tiposAtivos.distribuidor !== false) opcoes.push({ id: 'autoatacado', nome: 'Distribuidor' });
 
-              {permissions.ehAdmin && !isEdicaoTravada ? (
-                <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-                  {(['varejo', 'atacado', 'autoatacado'] as TabelaPreco[]).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setTabelaPrecoGlobal(tab)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition cursor-pointer ${
-                        tabelaPrecoCalculada === tab
-                          ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      {tab === 'autoatacado' ? 'Distribuidor' : tab === 'atacado' ? 'Atacado' : 'Varejo'}
-                    </button>
-                  ))}
+              if (opcoes.length <= 1) return null;
+
+              return (
+                <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="text-[11px] text-slate-400 font-semibold">Tipo da Venda:</span>
+                  </div>
+
+                  {permissions.ehAdmin && !isEdicaoTravada ? (
+                    <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                      {opcoes.map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setTabelaPrecoGlobal(tab.id)}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition cursor-pointer ${
+                            tabelaPrecoCalculada === tab.id
+                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {tab.nome}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+                      {tabelaPrecoCalculada === 'autoatacado' ? 'Distribuidor' : tabelaPrecoCalculada === 'atacado' ? 'Atacado' : 'Varejo'}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
-                  {tabelaPrecoCalculada === 'autoatacado' ? 'Distribuidor' : tabelaPrecoCalculada === 'atacado' ? 'Atacado' : 'Varejo'}
-                </span>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Linha 2: Forma de Entrega */}
             <div className="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-2">

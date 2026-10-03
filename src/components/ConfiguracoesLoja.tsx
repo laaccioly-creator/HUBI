@@ -47,7 +47,8 @@ import {
   RefreshCw,
   Loader2,
   Gift,
-  Target
+  Target,
+  Tag
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,6 +77,7 @@ import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../serv
 type SubTelaConfig =
   | 'menu'
   | 'geral'
+  | 'tipos-venda'
   | 'metas'
   | 'dados-loja'
   | 'produtos'
@@ -341,6 +343,34 @@ export const ConfiguracoesLoja: React.FC = () => {
   const [transacoesCanceladas, setTransacoesCanceladas] = useState<'riscadas' | 'ocultar'>('riscadas');
   const [ordenarProdutosPdv, setOrdenarProdutosPdv] = useState<'cadastro' | 'alfabetica'>('cadastro');
 
+  // 1.1 TIPOS DE VENDA ATIVOS (VAREJO, ATACADO, DISTRIBUIDOR)
+  const [tipoVendaVarejo, setTipoVendaVarejo] = useState<boolean>(true);
+  const [tipoVendaAtacado, setTipoVendaAtacado] = useState<boolean>(true);
+  const [tipoVendaDistribuidor, setTipoVendaDistribuidor] = useState<boolean>(true);
+  const [erroTiposVenda, setErroTiposVenda] = useState<string | null>(null);
+
+  const handleToggleTipoVenda = (tipo: 'varejo' | 'atacado' | 'distribuidor') => {
+    const atual = {
+      varejo: tipoVendaVarejo,
+      atacado: tipoVendaAtacado,
+      distribuidor: tipoVendaDistribuidor
+    };
+    const novoValor = !atual[tipo];
+    const proximos = { ...atual, [tipo]: novoValor };
+    const ativos = Object.values(proximos).filter(Boolean).length;
+
+    if (ativos === 0) {
+      setErroTiposVenda('Pelo menos um modelo de venda deve permanecer ativo na loja.');
+      setTimeout(() => setErroTiposVenda(null), 4000);
+      return;
+    }
+
+    setErroTiposVenda(null);
+    if (tipo === 'varejo') setTipoVendaVarejo(novoValor);
+    if (tipo === 'atacado') setTipoVendaAtacado(novoValor);
+    if (tipo === 'distribuidor') setTipoVendaDistribuidor(novoValor);
+  };
+
   // 2. DADOS DA LOJA & IDENTIFICAÇÃO
   const [nomeLoja, setNomeLoja] = useState<string>('');
   const [urlLogo, setUrlLogo] = useState<string>('');
@@ -512,6 +542,12 @@ export const ConfiguracoesLoja: React.FC = () => {
       const statusAtivos = extras.status_pedidos_ativos || {};
       const entregaRet = extras.entrega_retirada || {};
       const parceiros = extras.integracoes_parceiros || {};
+
+      // Tipos de Venda
+      const tiposVenda = extras.tipos_venda_ativos || {};
+      setTipoVendaVarejo(tiposVenda.varejo !== false);
+      setTipoVendaAtacado(tiposVenda.atacado !== false);
+      setTipoVendaDistribuidor(tiposVenda.distribuidor !== false);
 
       // Geral
       setMoeda(geral.moeda || 'BR - R$');
@@ -810,6 +846,11 @@ export const ConfiguracoesLoja: React.FC = () => {
 
       const novasExtras = {
         ...extrasAtuais,
+        tipos_venda_ativos: {
+          varejo: tipoVendaVarejo,
+          atacado: tipoVendaAtacado,
+          distribuidor: tipoVendaDistribuidor
+        },
         controlar_estoque: controlarEstoque,
         geral: {
           moeda,
@@ -1298,6 +1339,7 @@ export const ConfiguracoesLoja: React.FC = () => {
 
   const itensMenu: { id: string; label: string; icon: any; badge?: string }[] = [
     { id: 'geral', label: 'Geral', icon: Settings },
+    { id: 'tipos-venda', label: 'Tipos de Venda', icon: Tag, badge: 'PDV' },
     ...(podeGerenciarMetas ? [{ id: 'metas', label: 'Metas da Loja', icon: Target, badge: 'Cockpit' }] : []),
     { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard, badge: 'Mercado Pago' },
     { id: 'importar-exportar', label: 'Importar / Exportar', icon: FileSpreadsheet, badge: 'Excel / CSV' },
@@ -1353,6 +1395,7 @@ export const ConfiguracoesLoja: React.FC = () => {
             <h1 className="font-bold text-base text-slate-800">
               {subTela === 'menu' && 'Configurações'}
               {subTela === 'geral' && 'Geral'}
+              {subTela === 'tipos-venda' && 'Tipos de Venda'}
               {subTela === 'metas' && 'Metas da Loja'}
               {subTela === 'pagamentos' && 'Opções de Pagamento'}
               {subTela === 'dados-loja' && 'Dados da Loja'}
@@ -1904,8 +1947,105 @@ export const ConfiguracoesLoja: React.FC = () => {
             />
           )}
 
+          {/* SUBTELA TIPOS DE VENDA MOBILE */}
+          {subTela === 'tipos-venda' && (
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-1">
+                <span className="font-bold text-sm text-slate-800 block">Modalidades de Venda da Loja</span>
+                <span className="text-xs text-slate-500 block leading-relaxed">
+                  Defina quais modalidades de preço estão ativas na sua operação. Pelo menos uma deve permanecer habilitada.
+                </span>
+              </div>
+
+              {erroTiposVenda && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>{erroTiposVenda}</span>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {/* Varejo */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[75%]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-slate-800">Varejo</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Padrão</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 block leading-tight">
+                      Venda unitária padrão no PDV e catálogo virtual.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={tipoVendaVarejo}
+                      onChange={() => handleToggleTipoVenda('varejo')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {/* Atacado */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[75%]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-slate-800">Atacado</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Volume</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 block leading-tight">
+                      Preço reduzido por quantidade mínima ou valor mínimo atingido.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={tipoVendaAtacado}
+                      onChange={() => handleToggleTipoVenda('atacado')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {/* Distribuidor */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[75%]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-slate-800">Distribuidor</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Lotes/Fardos</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 block leading-tight">
+                      Preço especial para caixas fechadas, lotes e fardos.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={tipoVendaDistribuidor}
+                      onChange={() => handleToggleTipoVenda('distribuidor')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSubTela('menu')}
+                  className="w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition"
+                >
+                  Voltar ao Menu
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* DEMAIS SUBTELAS */}
-          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && (
+          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'tipos-venda' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
               <h3 className="font-bold text-sm text-slate-800">Configurações desta seção</h3>
               <p className="text-xs text-slate-500">
@@ -2103,6 +2243,148 @@ export const ConfiguracoesLoja: React.FC = () => {
                   </label>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TELA: TIPOS DE VENDA (PARAMETRIZAÇÃO FLEXÍVEL NO PDV) */}
+        {/* ========================================================================= */}
+        {subTela === 'tipos-venda' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-emerald-400" />
+                  Tipos de Venda
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Configure quais modalidades comerciais e tabelas de preço estão ativas na loja e no PDV.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubTela('menu')}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar
+              </button>
+            </div>
+
+            {erroTiposVenda && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-5 h-5 shrink-0 text-amber-400" />
+                <span>{erroTiposVenda}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card Varejo */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                tipoVendaVarejo
+                  ? 'bg-slate-950/80 border-blue-500/40 shadow-lg shadow-blue-500/5'
+                  : 'bg-slate-950/30 border-slate-800 opacity-60'
+              }`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-black text-xs">
+                      1
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-100">Varejo</h3>
+                      <span className="text-[10px] text-blue-400 font-bold">Venda padrão unitária</span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={tipoVendaVarejo}
+                      onChange={() => handleToggleTipoVenda('varejo')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                  </label>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Modalidade essencial para vendas unitárias no PDV e visualização de preços regulares no Catálogo Online.
+                </p>
+              </div>
+
+              {/* Card Atacado */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                tipoVendaAtacado
+                  ? 'bg-slate-950/80 border-emerald-500/40 shadow-lg shadow-emerald-500/5'
+                  : 'bg-slate-950/30 border-slate-800 opacity-60'
+              }`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-xs">
+                      2
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-100">Atacado</h3>
+                      <span className="text-[10px] text-emerald-400 font-bold">Desconto por volume</span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={tipoVendaAtacado}
+                      onChange={() => handleToggleTipoVenda('atacado')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Permite aplicar automaticamente o preço de atacado quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
+                </p>
+              </div>
+
+              {/* Card Distribuidor */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                tipoVendaDistribuidor
+                  ? 'bg-slate-950/80 border-purple-500/40 shadow-lg shadow-purple-500/5'
+                  : 'bg-slate-950/30 border-slate-800 opacity-60'
+              }`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-black text-xs">
+                      3
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-100">Distribuidor</h3>
+                      <span className="text-[10px] text-purple-400 font-bold">Lotes / Fardos</span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={tipoVendaDistribuidor}
+                      onChange={() => handleToggleTipoVenda('distribuidor')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                  </label>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Modalidade voltada para caixas fechadas, revendedores e grandes fardos com preço diferenciado por lote.
+                </p>
+              </div>
+            </div>
+
+            {/* Informações de Comportamento Dinâmico */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <span className="text-xs font-bold text-slate-300 block flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-emerald-400" />
+                Comportamento Dinâmico no PDV e Precificação
+              </span>
+              <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                <li><strong className="text-slate-300">Apenas 1 modalidade ativa:</strong> O seletor manual de tipo de venda no cabeçalho do carrinho e os termômetros de progressão de atacado/distribuidor são automaticamente ocultados.</li>
+                <li><strong className="text-slate-300">2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
+                <li><strong className="text-slate-300">Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
+              </ul>
             </div>
           </div>
         )}

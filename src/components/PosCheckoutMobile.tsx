@@ -499,33 +499,38 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           </p>
 
           <div className="space-y-2">
-            {[
-              { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal' },
-              { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume' },
-              { id: 'autoatacado', rotulo: '⚡ Distribuidor', desc: 'Preço especial para grandes quantidades' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
-                  setModalTabelaPrecoAberto(false);
-                }}
-                className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
-                  (tabelaPrecoGlobal || 'varejo') === tab.id
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div>
-                  <span className="font-bold text-xs block">{tab.rotulo}</span>
-                  <span className="text-[10px] text-slate-500">{tab.desc}</span>
-                </div>
-                {(tabelaPrecoGlobal || 'varejo') === tab.id && (
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                )}
-              </button>
-            ))}
+            {(() => {
+              const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+              const opcoes = [
+                { id: 'varejo', rotulo: '🛒 Varejo (Padrão)', desc: 'Preço unitário normal', ativo: tiposAtivos.varejo !== false },
+                { id: 'atacado', rotulo: '🏷️ Atacado', desc: 'Preço reduzido para compras em volume', ativo: tiposAtivos.atacado !== false },
+                { id: 'autoatacado', rotulo: '⚡ Distribuidor', desc: 'Preço especial para grandes quantidades', ativo: tiposAtivos.distribuidor !== false }
+              ].filter(t => t.ativo);
+
+              return opcoes.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
+                    setModalTabelaPrecoAberto(false);
+                  }}
+                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
+                    (tabelaPrecoGlobal || 'varejo') === tab.id
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div>
+                    <span className="font-bold text-xs block">{tab.rotulo}</span>
+                    <span className="text-[10px] text-slate-500">{tab.desc}</span>
+                  </div>
+                  {(tabelaPrecoGlobal || 'varejo') === tab.id && (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  )}
+                </button>
+              ));
+            })()}
           </div>
         </div>
       </div>,
@@ -967,6 +972,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* 2. Termômetro Dinâmico de Tabela de Preço por Volume (pricingEngine.ts) */}
         {avaliacaoCarrinho && (() => {
+          const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+          const qtdAtivos = [tiposAtivos.varejo !== false, tiposAtivos.atacado !== false, tiposAtivos.distribuidor !== false].filter(Boolean).length;
+          if (qtdAtivos <= 1) return null;
+          if (!avaliacaoCarrinho.proximoNivel && avaliacaoCarrinho.tabelaAtiva === 'varejo') return null;
+
           // Desacoplamento estrito: o termômetro reflete apenas o progresso orgânico acumulado em produtos
           const tabelaOrganica = avaliacaoCarrinho.tabelaAtiva;
           const atingiuDistribuidor = tabelaOrganica === 'autoatacado';
@@ -1137,44 +1147,54 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 </button>
               )}
 
-              {/* Tabela de Preço Ativa */}
-              {isEdicaoTravada ? (
-                <div
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0 cursor-not-allowed opacity-85"
-                  title="Tabela de preços bloqueada para este status"
-                >
-                  <Tag className="w-3 h-3 text-slate-400" />
-                  <span>
-                    {tabelaPrecoCalculada === 'autoatacado'
-                      ? 'Distribuidor'
-                      : tabelaPrecoCalculada === 'atacado'
-                      ? 'Atacado'
-                      : 'Varejo'}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setModalTabelaPrecoAberto(true)}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
-                    tabelaPrecoCalculada === 'autoatacado'
-                      ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
-                      : tabelaPrecoCalculada === 'atacado'
-                      ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
-                  title="Toque para alterar tabela de preços"
-                >
-                  <Tag className="w-3 h-3 text-current" />
-                  <span>
-                    {tabelaPrecoCalculada === 'autoatacado'
-                      ? 'Distribuidor'
-                      : tabelaPrecoCalculada === 'atacado'
-                      ? 'Atacado'
-                      : 'Varejo'}
-                  </span>
-                </button>
-              )}
+              {/* Tabela de Preço Ativa (apenas se mais de 1 tipo estiver ativo) */}
+              {(() => {
+                const tiposAtivos = loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
+                const qtdAtivos = [tiposAtivos.varejo !== false, tiposAtivos.atacado !== false, tiposAtivos.distribuidor !== false].filter(Boolean).length;
+                if (qtdAtivos <= 1) return null;
+
+                if (isEdicaoTravada) {
+                  return (
+                    <div
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0 cursor-not-allowed opacity-85"
+                      title="Tabela de preços bloqueada para este status"
+                    >
+                      <Tag className="w-3 h-3 text-slate-400" />
+                      <span>
+                        {tabelaPrecoCalculada === 'autoatacado'
+                          ? 'Distribuidor'
+                          : tabelaPrecoCalculada === 'atacado'
+                          ? 'Atacado'
+                          : 'Varejo'}
+                      </span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setModalTabelaPrecoAberto(true)}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
+                      tabelaPrecoCalculada === 'autoatacado'
+                        ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
+                        : tabelaPrecoCalculada === 'atacado'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                    title="Toque para alterar tabela de preços"
+                  >
+                    <Tag className="w-3 h-3 text-current" />
+                    <span>
+                      {tabelaPrecoCalculada === 'autoatacado'
+                        ? 'Distribuidor'
+                        : tabelaPrecoCalculada === 'atacado'
+                        ? 'Atacado'
+                        : 'Varejo'}
+                    </span>
+                  </button>
+                );
+              })()}
             </div>
 
             <div className="flex justify-between text-xs text-slate-500">

@@ -445,10 +445,10 @@ export const AppLayout: React.FC = () => {
             </button>
           </div>
 
-          {/* GRID CENTRAL EM 2 FILEIRAS DE 6 BOTÕES */}
-          <nav className="flex flex-col gap-1.5 flex-1 max-w-4xl min-w-0 justify-center">
-            {/* FILEIRA 1 */}
-            <div className="grid grid-cols-6 gap-1.5 lg:gap-2 w-full">
+          {/* GRID CENTRAL EM EXATAMENTE 2 FILEIRAS BALANCEADAS (LINHA 1: 6 BOTÕES | LINHA 2: 7 BOTÕES) */}
+          <nav className="flex flex-col gap-1.5 flex-1 max-w-5xl min-w-0 justify-center">
+            {/* FILEIRA 1 (6 BOTÕES) */}
+            <div className="grid grid-cols-6 gap-1 lg:gap-1.5 w-full">
               {row1Buttons.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname.startsWith(item.path);
@@ -458,7 +458,7 @@ export const AppLayout: React.FC = () => {
                     key={item.path}
                     type="button"
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
-                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
+                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
                         : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
@@ -476,8 +476,8 @@ export const AppLayout: React.FC = () => {
               })}
             </div>
 
-            {/* FILEIRA 2 */}
-            <div className="grid grid-cols-6 gap-1.5 lg:gap-2 w-full">
+            {/* FILEIRA 2 (7 BOTÕES) */}
+            <div className="grid grid-cols-7 gap-1 lg:gap-1.5 w-full">
               {row2Buttons.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname.startsWith(item.path);
@@ -487,7 +487,7 @@ export const AppLayout: React.FC = () => {
                     key={item.path}
                     type="button"
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
-                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
+                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs text-white font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? 'bg-emerald-600 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
                         : 'bg-emerald-500/15 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/25'
@@ -501,25 +501,8 @@ export const AppLayout: React.FC = () => {
             </div>
           </nav>
 
-          {/* LADO DIREITO: DATA OPERACIONAL (OWNER) & MENU DO USUÁRIO */}
+          {/* LADO DIREITO: MENU DO USUÁRIO (DATA OPERACIONAL ACESSÍVEL VIA DROPDOWN) */}
           <div className="flex items-center gap-2 shrink-0 justify-end">
-            {permissions.ehOwner && (
-              <button
-                type="button"
-                onClick={abrirModalData}
-                className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-sm border ${
-                  modoSimulacaoAtivo
-                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 shadow-amber-500/20'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 hover:border-slate-600'
-                }`}
-                title="Definir Data de Operação do Sistema (Exclusivo Owner)"
-              >
-                <Calendar className={`w-3.5 h-3.5 ${modoSimulacaoAtivo ? 'text-slate-950' : 'text-amber-400'}`} />
-                <span className="hidden xl:inline">{modoSimulacaoAtivo ? 'Simulando:' : 'Data:'}</span>
-                <span>{dataOperacaoFormatada}</span>
-              </button>
-            )}
-
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"

@@ -68,6 +68,10 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { mostrarSucesso, mostrarErro, mostrarAviso, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
 
+  const tiposVendaLoja = loja?.configuracoes_extras?.tipos_venda_ativos;
+  const atacadoHabilitado = tiposVendaLoja?.atacado !== false;
+  const distribuidorHabilitado = tiposVendaLoja?.distribuidor !== false;
+
   useEffect(() => {
     if (!permissions.podeAcessarAuxiliares) {
       navigate('/pos');
@@ -1985,13 +1989,20 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* ATACADO */}
-                    <div className="bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
-                      <div className="flex items-center gap-2 text-emerald-600 md:text-emerald-400 border-b border-slate-200 md:border-slate-800 pb-2.5">
-                        <Percent className="w-5 h-5" />
-                        <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Atacado</h3>
+                    <div className={`bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs ${!atacadoHabilitado ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-2.5">
+                        <div className="flex items-center gap-2 text-emerald-600 md:text-emerald-400">
+                          <Percent className="w-5 h-5" />
+                          <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Atacado</h3>
+                        </div>
+                        {!atacadoHabilitado && (
+                          <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            Desativado em Configurações
+                          </span>
+                        )}
                       </div>
 
-                      <div className="space-y-3.5">
+                      <div className={`space-y-3.5 ${!atacadoHabilitado ? 'pointer-events-none select-none' : ''}`}>
                         <div>
                           <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
                             Desconto Padrão (%):
@@ -2117,13 +2128,20 @@ export const CadastrosAuxiliares: React.FC = () => {
                     </div>
 
                     {/* DISTRIBUIDOR / AUTOATACADO */}
-                    <div className="bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
-                      <div className="flex items-center gap-2 text-indigo-600 md:text-indigo-400 border-b border-slate-200 md:border-slate-800 pb-2.5">
-                        <Percent className="w-5 h-5" />
-                        <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Distribuidor</h3>
+                    <div className={`bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs ${!distribuidorHabilitado ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-2.5">
+                        <div className="flex items-center gap-2 text-indigo-600 md:text-indigo-400">
+                          <Percent className="w-5 h-5" />
+                          <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Distribuidor</h3>
+                        </div>
+                        {!distribuidorHabilitado && (
+                          <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            Desativado em Configurações
+                          </span>
+                        )}
                       </div>
 
-                      <div className="space-y-3.5">
+                      <div className={`space-y-3.5 ${!distribuidorHabilitado ? 'pointer-events-none select-none' : ''}`}>
                         <div>
                           <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
                             Desconto Padrão (%):
