@@ -41,7 +41,8 @@ export const METAS_PADRAO_LOJA: Omit<LojaMetas, 'id' | 'loja_id'> = {
   meta_lucro_liquido: 15000.0,
   meta_ticket_medio: 166.0,
   meta_inadimplencia_maxima: 5.0,
-  meta_giro_estoque: 25.0
+  meta_giro_estoque: 25.0,
+  meta_saude_estoque_max_ruptura: 0.0
 };
 
 /**
@@ -250,7 +251,8 @@ export function calcularMetasProporcionais(
     meta_lucro_liquido: Math.round(Number(metasMensais.meta_lucro_liquido) * fator * 100) / 100,
     meta_ticket_medio: Number(metasMensais.meta_ticket_medio),
     meta_inadimplencia_maxima: Number(metasMensais.meta_inadimplencia_maxima),
-    meta_giro_estoque: Number(metasMensais.meta_giro_estoque)
+    meta_giro_estoque: Number(metasMensais.meta_giro_estoque),
+    meta_saude_estoque_max_ruptura: Number(metasMensais.meta_saude_estoque_max_ruptura ?? 0)
   };
 }
 

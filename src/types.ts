@@ -865,6 +865,7 @@ export interface LojaMetas {
   meta_ticket_medio: number;
   meta_inadimplencia_maxima: number;
   meta_giro_estoque: number;
+  meta_saude_estoque_max_ruptura?: number;
   criado_em?: string;
   atualizado_em?: string;
 }
@@ -876,6 +877,13 @@ export interface MetricasCockpit {
   lucro_liquido: number;
   inadimplencia: number;
   giro_estoque: number;
+  saude_estoque?: number;
+  saude_estoque_fase?: 'fase1' | 'fase2';
+  saude_estoque_itens_risco?: number;
+  saude_estoque_itens_total?: number;
+  saude_estoque_tag?: string;
   cmv?: number;
   despesas?: number;
+  taxas_gateways?: number;
 }
+

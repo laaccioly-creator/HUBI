@@ -3,22 +3,28 @@ import { TrendingUp, TrendingDown, AlertTriangle, ChevronRight, CheckCircle2 } f
 
 export interface CockpitGaugeF1Props {
   titulo: string;
+  subtituloTag?: string;
   valorRealizado: number;
   valorMeta: number;
   tipoFormato: 'moeda' | 'inteiro' | 'percentual';
   escalaInvertida?: boolean;
   variacaoPeriodoAnterior?: number; // Ex: +12.5 ou -3.2
+  valorExibicaoCustomizado?: string;
+  metaExibicaoCustomizada?: string;
   onClickDrillDown?: () => void;
   isLoading?: boolean;
 }
 
 export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   titulo,
+  subtituloTag,
   valorRealizado,
   valorMeta,
   tipoFormato,
   escalaInvertida = false,
   variacaoPeriodoAnterior,
+  valorExibicaoCustomizado,
+  metaExibicaoCustomizada,
   onClickDrillDown,
   isLoading = false
 }) => {
@@ -150,13 +156,20 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       }`}
     >
       {/* Topo do Card: Título da Métrica + Badge de Percentual */}
-      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-slate-300 font-bold text-xs uppercase tracking-wider truncate">
-            {titulo}
-          </span>
-          {onClickDrillDown && (
-            <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition shrink-0" />
+      <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-800/80">
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-slate-300 font-bold text-xs uppercase tracking-wider truncate">
+              {titulo}
+            </span>
+            {onClickDrillDown && (
+              <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition shrink-0" />
+            )}
+          </div>
+          {subtituloTag && (
+            <span className="text-[10px] font-medium text-emerald-400/90 truncate mt-0.5">
+              {subtituloTag}
+            </span>
           )}
         </div>
 
@@ -273,7 +286,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
         {/* Valor Realizado em Destaque Central */}
         <div className="text-center -mt-3 space-y-0.5">
           <div className="text-white font-black text-2xl md:text-3xl tracking-tight font-sans">
-            {textoRealizado}
+            {valorExibicaoCustomizado || textoRealizado}
           </div>
 
           {ehNegativo && (
@@ -288,7 +301,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       {/* Rodapé: Meta Proporcional + Variação do Período Anterior */}
       <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
         <span className="text-slate-400 text-[11px]">
-          Meta: <strong className="text-slate-200">{textoMeta}</strong>
+          Meta: <strong className="text-slate-200">{metaExibicaoCustomizada || textoMeta}</strong>
         </span>
 
         {temVariacao && (

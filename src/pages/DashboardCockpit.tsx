@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Gauge,
   RefreshCw,
@@ -10,7 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Check
+  Check,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -20,12 +20,22 @@ import {
   PERIODOS_DASHBOARD_OPCOES,
   METAS_PADRAO_LOJA
 } from '../services/dashboardService';
-import { MetricasCockpit, LojaMetas } from '../types';
+import {
+  dashboardJevService,
+  PayloadDashboardExecutivo,
+  ProdutoEstoqueRisco
+} from '../services/dashboardJevService';
+import { MetricasCockpit, LojaMetas, Produto } from '../types';
 import { CockpitGaugeF1 } from '../components/dashboard/CockpitGaugeF1';
+import {
+  CockpitMetricDrawer,
+  TipoMetricaCockpitDrawer
+} from '../components/dashboard/CockpitMetricDrawer';
 import { ConfiguracoesMetas } from '../components/configuracoes/ConfiguracoesMetas';
+import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
+import { supabase } from '../lib/supabase';
 
 export const DashboardCockpit: React.FC = () => {
-  const navigate = useNavigate();
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
 
@@ -44,8 +54,17 @@ export const DashboardCockpit: React.FC = () => {
   const [dataFimCustom, setDataFimCustom] = useState<string>('');
 
   const [carregando, setCarregando] = useState<boolean>(true);
+  const [revalidando, setRevalidando] = useState<boolean>(false);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
+
+  // Estados da Gaveta Lateral e Entrada de Estoque
+  const [drawerMetrica, setDrawerMetrica] = useState<TipoMetricaCockpitDrawer | null>(null);
+  const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false);
+  const [produtoSelecionadoEntrada, setProdutoSelecionadoEntrada] = useState<Produto | null>(null);
+
+  // Payload Executivo Consolidado fornecido pelo Jev (Type-Safe Schema)
+  const [payloadExecutivo, setPayloadExecutivo] = useState<PayloadDashboardExecutivo | null>(null);
 
   // Dados das métricas e metas proporcionais
   const [metricas, setMetricas] = useState<MetricasCockpit>({
@@ -56,7 +75,8 @@ export const DashboardCockpit: React.FC = () => {
     despesas: 0,
     lucro_liquido: 0,
     inadimplencia: 0,
-    giro_estoque: 0
+    giro_estoque: 0,
+    saude_estoque: 0
   });
 
   const [metasProporcionais, setMetasProporcionais] = useState<LojaMetas>({
@@ -74,40 +94,67 @@ export const DashboardCockpit: React.FC = () => {
   );
   const labelExibicaoPeriodo = infoIntervalo.label;
 
-  // Função para buscar dados consolidados
-  const carregarMetricas = useCallback(async () => {
+  // Função para buscar dados consolidados com SWR (0 ms no retorno ao Dashboard)
+  const carregarMetricas = useCallback(async (forcar = false) => {
     if (!loja?.id) return;
 
     try {
-      setCarregando(true);
+      if (forcar || !payloadExecutivo) {
+        setCarregando(true);
+      }
       setErroCarregamento(null);
 
-      const intervalo = dashboardService.resolverIntervaloPeriodo(
+      const res = await dashboardJevService.obterDashboardExecutivo({
+        lojaId: loja.id,
         tipoPeriodo,
         periodoOffset,
         dataInicioCustom,
-        dataFimCustom
-      );
+        dataFimCustom,
+        forcarAtualizacao: forcar,
+        onBackgroundUpdate: (novoPayload) => {
+          setPayloadExecutivo(novoPayload);
+          setMetricas(novoPayload.metricas);
+          setMetasProporcionais(novoPayload.metasProporcionais);
+          setRevalidando(false);
+        }
+      });
 
-      const resultado = await dashboardService.obterMetricasCockpit(
-        loja.id,
-        intervalo.dataInicioIso,
-        intervalo.dataFimIso,
-        intervalo.diasIntervalo
-      );
-      setMetricas(resultado.metricas);
-      setMetasProporcionais(resultado.metasProporcionais);
+      setPayloadExecutivo(res.payload);
+      setMetricas(res.payload.metricas);
+      setMetasProporcionais(res.payload.metasProporcionais);
+      setRevalidando(res.isStale);
     } catch (err: any) {
       console.error('[DashboardCockpit] Erro ao carregar métricas:', err);
       setErroCarregamento('Não foi possível carregar os indicadores do cockpit no momento.');
     } finally {
       setCarregando(false);
     }
-  }, [loja?.id, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
+  }, [loja?.id, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom, payloadExecutivo]);
 
   useEffect(() => {
     carregarMetricas();
-  }, [carregarMetricas]);
+  }, [tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom, loja?.id]);
+
+  // Ação de abertura de estoque a partir da gaveta lateral
+  const handleAbrirEntradaEstoque = async (prodRisco?: ProdutoEstoqueRisco) => {
+    if (prodRisco && loja?.id) {
+      try {
+        const { data } = await supabase
+          .from('produtos')
+          .select('*')
+          .eq('id', prodRisco.id)
+          .eq('loja_id', loja.id)
+          .maybeSingle();
+
+        setProdutoSelecionadoEntrada((data as Produto) || null);
+      } catch {
+        setProdutoSelecionadoEntrada(null);
+      }
+    } else {
+      setProdutoSelecionadoEntrada(null);
+    }
+    setModalEntradaAberto(true);
+  };
 
   // Saudação contextual ao usuário
   const nomeUsuario = usuario?.nome_completo ? usuario.nome_completo.split(' ')[0] : 'Gestor';
@@ -231,10 +278,18 @@ export const DashboardCockpit: React.FC = () => {
               </div>
             )}
 
+            {/* Indicador de Revalidação SWR em Background */}
+            {revalidando && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium animate-pulse">
+                <Zap className="w-3 h-3 text-emerald-400" />
+                <span>Atualizando dados...</span>
+              </span>
+            )}
+
             {/* Botão de Atualização Rápida */}
             <button
               type="button"
-              onClick={carregarMetricas}
+              onClick={() => carregarMetricas(true)}
               disabled={carregando}
               title="Recarregar Indicadores"
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer disabled:opacity-50"
@@ -273,7 +328,7 @@ export const DashboardCockpit: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={carregarMetricas}
+              onClick={() => carregarMetricas(true)}
               className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold transition cursor-pointer"
             >
               Tentar Novamente
@@ -290,8 +345,8 @@ export const DashboardCockpit: React.FC = () => {
             valorRealizado={metricas.faturamento}
             valorMeta={metasProporcionais.meta_faturamento}
             tipoFormato="moeda"
-            isLoading={carregando}
-            onClickDrillDown={() => navigate('/analytics')}
+            isLoading={carregando && !payloadExecutivo}
+            onClickDrillDown={() => setDrawerMetrica('faturamento')}
           />
 
           {/* 2. VOLUME DE PEDIDOS */}
@@ -300,8 +355,8 @@ export const DashboardCockpit: React.FC = () => {
             valorRealizado={metricas.pedidos}
             valorMeta={metasProporcionais.meta_pedidos}
             tipoFormato="inteiro"
-            isLoading={carregando}
-            onClickDrillDown={() => navigate('/sales')}
+            isLoading={carregando && !payloadExecutivo}
+            onClickDrillDown={() => setDrawerMetrica('pedidos')}
           />
 
           {/* 3. LUCRO LÍQUIDO REAL */}
@@ -310,8 +365,8 @@ export const DashboardCockpit: React.FC = () => {
             valorRealizado={metricas.lucro_liquido}
             valorMeta={metasProporcionais.meta_lucro_liquido}
             tipoFormato="moeda"
-            isLoading={carregando}
-            onClickDrillDown={() => navigate('/finances')}
+            isLoading={carregando && !payloadExecutivo}
+            onClickDrillDown={() => setDrawerMetrica('lucro')}
           />
 
           {/* 4. TICKET MÉDIO */}
@@ -320,8 +375,8 @@ export const DashboardCockpit: React.FC = () => {
             valorRealizado={metricas.ticket_medio}
             valorMeta={metasProporcionais.meta_ticket_medio}
             tipoFormato="moeda"
-            isLoading={carregando}
-            onClickDrillDown={() => navigate('/analytics')}
+            isLoading={carregando && !payloadExecutivo}
+            onClickDrillDown={() => setDrawerMetrica('ticket')}
           />
 
           {/* 5. INADIMPLÊNCIA FIADO (ESCALA INVERTIDA) */}
@@ -331,18 +386,22 @@ export const DashboardCockpit: React.FC = () => {
             valorMeta={metasProporcionais.meta_inadimplencia_maxima}
             tipoFormato="percentual"
             escalaInvertida={true}
-            isLoading={carregando}
-            onClickDrillDown={() => navigate('/customers')}
+            isLoading={carregando && !payloadExecutivo}
+            onClickDrillDown={() => setDrawerMetrica('inadimplencia')}
           />
 
-          {/* 6. GIRO DE ESTOQUE */}
+          {/* 6. SAÚDE DO ESTOQUE (HÍBRIDO: FASE 1 ESTOQUE MÍNIMO / FASE 2 CURVA ABC) */}
           <CockpitGaugeF1
-            titulo="Giro de Estoque"
-            valorRealizado={metricas.giro_estoque}
-            valorMeta={metasProporcionais.meta_giro_estoque}
+            titulo="Saúde do Estoque"
+            subtituloTag={payloadExecutivo?.decomposicoes.saudeEstoque.subtituloTag || 'Base: Estoque Mínimo Geral'}
+            valorRealizado={payloadExecutivo?.decomposicoes.saudeEstoque.indiceRuptura ?? metricas.saude_estoque ?? 0}
+            valorMeta={0}
             tipoFormato="percentual"
-            isLoading={carregando}
-            onClickDrillDown={() => navigate('/products')}
+            escalaInvertida={true}
+            valorExibicaoCustomizado={`${payloadExecutivo?.decomposicoes.saudeEstoque.totalItensEmRisco ?? 0} em risco`}
+            metaExibicaoCustomizada="0 rupturas"
+            isLoading={carregando && !payloadExecutivo}
+            onClickDrillDown={() => setDrawerMetrica('saude_estoque')}
           />
 
         </div>
@@ -352,15 +411,46 @@ export const DashboardCockpit: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
-              Valores sincronizados com o motor de apuração financeira e estoque do HUBI.
+              Valores pré-computados com inteligência TypeSafe Jev (System 1) e sincronizados em tempo real.
             </span>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>Clique em qualquer velocímetro para ver detalhes da métrica.</span>
+            <span>Clique em qualquer velocímetro para auditar a decomposição analítica.</span>
           </div>
         </div>
 
       </main>
+
+      {/* ========================================================================= */}
+      {/* GAVETA LATERAL DE AUDITORIA E DECOMPOSIÇÃO DAS MÉTRICAS */}
+      {/* ========================================================================= */}
+      <CockpitMetricDrawer
+        isOpen={drawerMetrica !== null}
+        onClose={() => setDrawerMetrica(null)}
+        tipoMetrica={drawerMetrica}
+        payload={payloadExecutivo}
+        onAbrirEntradaEstoque={handleAbrirEntradaEstoque}
+      />
+
+      {/* ========================================================================= */}
+      {/* MODAL DE ENTRADA RÁPIDA DE ESTOQUE (ACIONADO VIA GAVETA LATERAL) */}
+      {/* ========================================================================= */}
+      {modalEntradaAberto && (
+        <ModalEntradaEstoque
+          isOpen={modalEntradaAberto}
+          onClose={() => {
+            setModalEntradaAberto(false);
+            setProdutoSelecionadoEntrada(null);
+          }}
+          produto={produtoSelecionadoEntrada}
+          onEstoqueAtualizado={() => {
+            setModalEntradaAberto(false);
+            setProdutoSelecionadoEntrada(null);
+            dashboardJevService.invalidarCache(loja?.id);
+            carregarMetricas(true);
+          }}
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL DE AJUSTE RÁPIDO DE METAS */}
@@ -370,9 +460,10 @@ export const DashboardCockpit: React.FC = () => {
           lojaId={loja?.id}
           isModal={true}
           onClose={() => setModalMetasAberto(false)}
-          onSucessoSalvar={(novasMetas) => {
+          onSucessoSalvar={() => {
             setModalMetasAberto(false);
-            carregarMetricas();
+            dashboardJevService.invalidarCache(loja?.id);
+            carregarMetricas(true);
           }}
         />
       )}
