@@ -70,38 +70,6 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
     };
   }, [isOpen, pedido?.id]);
 
-  if (!isOpen || !pedido || !loja) return null;
-
-  const handleConfirmar = async () => {
-    if (!selecaoPendente || salvando) return;
-
-    try {
-      setSalvando(true);
-      if (onConfirmarEnvio) {
-        onConfirmarEnvio(selecaoPendente);
-        setSelecaoPendente(null);
-        onSucesso();
-        onClose();
-        return;
-      }
-
-      await ShippingOrchestrator.definirEnvioPedido(
-        pedido.id,
-        selecaoPendente,
-        usuario?.id || null
-      );
-
-      setSelecaoPendente(null);
-      onSucesso();
-      onClose();
-    } catch (err: any) {
-      console.error('Erro ao definir envio do pedido:', err);
-      onFeedbackErro?.(err.message || 'Erro ao definir forma de envio.');
-    } finally {
-      setSalvando(false);
-    }
-  };
-
   const enderecoEntregaOriginal = useMemo(() => {
     if (!pedido) return null;
     const pe = (pedido as any).pedido_entrega || (Array.isArray((pedido as any).pedido_entregas) ? (pedido as any).pedido_entregas[0] : null);
@@ -136,6 +104,39 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
       telefoneEntregador: pe?.contato_entregador || pe?.telefone_entregador || (pedido as any).telefone_entregador || null
     };
   }, [pedido?.id]);
+
+  const handleConfirmar = async () => {
+    if (!selecaoPendente || salvando || !pedido) return;
+
+    try {
+      setSalvando(true);
+      if (onConfirmarEnvio) {
+        onConfirmarEnvio(selecaoPendente);
+        setSelecaoPendente(null);
+        onSucesso();
+        onClose();
+        return;
+      }
+
+      await ShippingOrchestrator.definirEnvioPedido(
+        pedido.id,
+        selecaoPendente,
+        usuario?.id || null
+      );
+
+      setSelecaoPendente(null);
+      onSucesso();
+      onClose();
+    } catch (err: any) {
+      console.error('Erro ao definir envio do pedido:', err);
+      onFeedbackErro?.(err.message || 'Erro ao definir forma de envio.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  // Cláusula de guarda posicionada ESTRITAMENTE após todos os Hooks (Rules of Hooks)
+  if (!isOpen || !pedido || !loja) return null;
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
