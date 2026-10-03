@@ -40,6 +40,7 @@ export interface SalvarOperadorParams {
   podeVerPrecoCusto?: boolean;
   podeExportarRelatorios?: boolean;
   podeEditarVendasPassadas?: boolean;
+  telaInicial?: string;
 }
 
 export const usuarioService = {
@@ -125,6 +126,7 @@ export const usuarioService = {
       pode_ver_preco_custo: ehAdmin || (params.podeVerPrecoCusto ?? false),
       pode_exportar_relatorios: ehAdmin || (params.podeExportarRelatorios ?? false),
       pode_editar_vendas_passadas: ehAdmin || (params.podeEditarVendasPassadas ?? false),
+      tela_inicial: params.telaInicial || (ehAdmin || params.perfil === 'gerente' ? 'dashboard' : 'pos'),
       ativo: ehOwner ? true : (params.ativo ?? true)
     };
 

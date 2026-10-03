@@ -26,7 +26,8 @@ import {
   Sun,
   Moon,
   Laptop,
-  Calendar
+  Calendar,
+  Gauge
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
@@ -265,7 +266,16 @@ export const AppLayout: React.FC = () => {
   const catalogUrl = loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : '/catalog';
 
   // 12 BOTÕES DISTRIBUÍDOS EM 2 FILEIRAS DE 6 BOTÕES CADA (ALINHADOS E COM FONTE BRANCA)
+  const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
+
   const row1Buttons = [
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      icon: Gauge,
+      badge: undefined,
+      visivel: ehGestor
+    },
     {
       name: 'Vender (PDV)',
       path: '/pos',

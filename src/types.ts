@@ -318,6 +318,7 @@ export interface UsuarioLoja {
   senha_hash?: string | null;
   ultimo_login?: string | null;
   ativo: boolean;
+  tela_inicial?: 'dashboard' | 'pos' | 'pedidos' | 'vendas' | string;
   criado_em?: string;
 
   // Campos calculados para estatísticas

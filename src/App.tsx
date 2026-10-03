@@ -1,12 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { FeedbackProvider } from './contexts/FeedbackContext';
 import { usePermissions } from './hooks/usePermissions';
 import { AppLayout } from './components/layout/AppLayout';
 
+import { DashboardCockpit } from './pages/DashboardCockpit';
 import { PosCheckout } from './components/PosCheckout';
 import { PedidosLista } from './components/PedidosLista';
 import { VendasHistorico } from './components/VendasHistorico';
@@ -39,8 +40,36 @@ const RotaProtegida: React.FC<RotaProtegidaProps> = ({ permitido, children, redi
   return children;
 };
 
+const RedirecionamentoInicial: React.FC = () => {
+  const { usuario } = useAuth();
+  const permissions = usePermissions();
+
+  const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
+  const telaPref = usuario?.tela_inicial;
+
+  if (telaPref === 'dashboard' && ehGestor) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  if (telaPref === 'pedidos') {
+    return <Navigate to="/orders" replace />;
+  }
+  if (telaPref === 'vendas' && permissions.podeAcessarVendas) {
+    return <Navigate to="/sales" replace />;
+  }
+  if (telaPref === 'pos') {
+    return <Navigate to="/pos" replace />;
+  }
+
+  // Fallback padrão baseado no perfil
+  if (ehGestor) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Navigate to="/pos" replace />;
+};
+
 const AppRotasInternas: React.FC = () => {
   const permissions = usePermissions();
+  const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
 
   return (
     <Routes>
@@ -57,7 +86,18 @@ const AppRotasInternas: React.FC = () => {
 
       {/* Rotas Internas do HUBI */}
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<Navigate to="/pos" replace />} />
+        <Route index element={<RedirecionamentoInicial />} />
+        <Route
+          path="dashboard"
+          element={
+            <RotaProtegida
+              permitido={ehGestor}
+              redirecionarPara="/pos"
+            >
+              <DashboardCockpit />
+            </RotaProtegida>
+          }
+        />
         <Route path="pos" element={<PosCheckout />} />
         <Route path="orders" element={<PedidosLista />} />
         <Route

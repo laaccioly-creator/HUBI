@@ -51,6 +51,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [mostrarSenha, setMostrarSenha] = useState<boolean>(false);
   const [ativo, setAtivo] = useState<boolean>(true);
   const [perfil, setPerfil] = useState<PerfilUsuario>('vendedor');
+  const [telaInicial, setTelaInicial] = useState<string>('dashboard');
 
   // Permissões
   const [ehAdmin, setEhAdmin] = useState<boolean>(false);
@@ -69,11 +70,14 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     if (!isOpen) return '';
     const perfilAtivo = usuarioEdicao ? (usuarioEdicao.perfil || 'comum') : 'vendedor';
     const isAdmin = usuarioEdicao ? (usuarioEdicao.perfil === 'admin' || usuarioEdicao.perfil === 'owner') : false;
+    const ehGestor = isAdmin || perfilAtivo === 'gerente';
+    const telaInicialPadrao = usuarioEdicao?.tela_inicial || (ehGestor ? 'dashboard' : 'pos');
     return JSON.stringify({
       nome: usuarioEdicao?.nome_completo || '',
       email: usuarioEdicao?.email || '',
       senha: '',
       perfil: perfilAtivo,
+      telaInicial: telaInicialPadrao,
       ativo: usuarioEdicao ? (usuarioEdicao.ativo ?? true) : true,
       ehAdmin: isAdmin,
       podeCelular: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_uso_celular_pessoal ?? true)) : true,
@@ -92,6 +96,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       email,
       senha,
       perfil,
+      telaInicial,
       ativo,
       ehAdmin,
       podeCelular,
@@ -107,6 +112,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     email,
     senha,
     perfil,
+    telaInicial,
     ativo,
     ehAdmin,
     podeCelular,
@@ -164,13 +170,16 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeFiado(isAdmin ? true : (usuarioEdicao.pode_ativar_fiado ?? false));
         setPodeCaixa(isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false));
       }
+      const ehGestor = p === 'owner' || p === 'admin' || p === 'gerente';
+      setTelaInicial(usuarioEdicao.tela_inicial || (ehGestor ? 'dashboard' : 'pos'));
     } else {
-      // Novo usuário (Padrão: Vendedor com celular pessoal ativado)
+      // Novo usuário (Padrão: Vendedor com celular pessoal ativado e tela inicial no PDV)
       setNome('');
       setEmail('');
       setSenha('');
       setAtivo(true);
       setPerfil('vendedor');
+      setTelaInicial('pos');
       setEhAdmin(false);
       setPodeCelular(true);
       setPodeVerOutros(false);
@@ -197,6 +206,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeEstoque(true);
       setPodeFiado(true);
       setPodeCaixa(true);
+      if (telaInicial === 'pos') setTelaInicial('dashboard');
     } else if (novoPerfil === 'gerente') {
       setEhAdmin(false);
       setPodeCelular(true);
@@ -206,6 +216,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeEstoque(true);
       setPodeFiado(true);
       setPodeCaixa(true);
+      if (telaInicial === 'pos') setTelaInicial('dashboard');
     } else if (novoPerfil === 'vendedor') {
       setEhAdmin(false);
       setPodeCelular(true);
@@ -215,6 +226,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeEstoque(false);
       setPodeFiado(false);
       setPodeCaixa(false);
+      if (telaInicial === 'dashboard') setTelaInicial('pos');
     } else {
       setEhAdmin(false);
       setPodeCelular(true);
@@ -293,7 +305,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         podeAbrirFecharCaixa: ehOwner ? true : (ehAdmin ? true : podeCaixa),
         podeVerPrecoCusto: ehOwner || ehAdmin,
         podeExportarRelatorios: ehOwner || ehAdmin,
-        podeEditarVendasPassadas: ehOwner || ehAdmin
+        podeEditarVendasPassadas: ehOwner || ehAdmin,
+        telaInicial: (ehOwner || ehAdmin || perfilFinal === 'gerente') ? telaInicial : (telaInicial === 'dashboard' ? 'pos' : telaInicial)
       });
 
       onSalvo();
@@ -560,6 +573,72 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Campo de Tela Inicial Padrão */}
+            <div className="space-y-2 pt-2 border-t border-slate-200/80 md:border-slate-800">
+              <label className="text-xs font-bold text-slate-700 md:text-slate-300 block">
+                Tela Inicial Padrão *
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                {(ehOwner || ehAdmin || perfil === 'gerente' || perfil === 'admin') && (
+                  <button
+                    type="button"
+                    onClick={() => setTelaInicial('dashboard')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      telaInicial === 'dashboard'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 shadow-sm ring-1 ring-emerald-500/30'
+                        : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-slate-200">Dashboard Executivo</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">Cockpit F1 & Metas</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setTelaInicial('pos')}
+                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                    telaInicial === 'pos'
+                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 shadow-sm ring-1 ring-emerald-500/30'
+                      : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <span className="text-xs font-bold text-slate-200">Vender (PDV)</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Frente de Caixa</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTelaInicial('pedidos')}
+                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                    telaInicial === 'pedidos'
+                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 shadow-sm ring-1 ring-emerald-500/30'
+                      : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <span className="text-xs font-bold text-slate-200">Pedidos em Aberto</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Gestão Operacional</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTelaInicial('vendas')}
+                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                    telaInicial === 'vendas'
+                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 shadow-sm ring-1 ring-emerald-500/30'
+                      : 'bg-slate-50 md:bg-slate-800/60 border-slate-200 md:border-slate-700 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <span className="text-xs font-bold text-slate-200">Histórico de Vendas</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Vendas Realizadas</span>
+                </button>
+              </div>
+              <span className="text-[11px] text-slate-500 md:text-slate-400 block">
+                Define qual módulo será aberto automaticamente ao fazer login ou abrir a aplicação.
+              </span>
             </div>
           </div>
 

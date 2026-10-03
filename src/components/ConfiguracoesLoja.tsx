@@ -194,7 +194,6 @@ export const SEGMENTOS_NEGOCIO = [
 
 const gerarSnapshotConfig = (dados: any) => {
   return JSON.stringify({
-    telaInicialPadrao: dados.telaInicialPadrao || 'inicio',
     moeda: dados.moeda || 'BR - R$',
     casasDecimais: Boolean(dados.casasDecimais),
     controlarEstoque: Boolean(dados.controlarEstoque),
@@ -336,8 +335,6 @@ export const ConfiguracoesLoja: React.FC = () => {
   }, []);
 
   // 1. GERAL
-  const [telaInicialPadrao, setTelaInicialPadrao] = useState<string>('inicio');
-  const [modalTelaInicial, setModalTelaInicial] = useState<boolean>(false);
   const [moeda, setMoeda] = useState<string>('BR - R$');
   const [casasDecimais, setCasasDecimais] = useState<boolean>(true);
   const [controlarEstoque, setControlarEstoque] = useState<boolean>(true);
@@ -517,7 +514,6 @@ export const ConfiguracoesLoja: React.FC = () => {
       const parceiros = extras.integracoes_parceiros || {};
 
       // Geral
-      setTelaInicialPadrao(geral.tela_inicial_padrao || 'inicio');
       setMoeda(geral.moeda || 'BR - R$');
       setCasasDecimais(geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true);
       setControlarEstoque(extras.controlar_estoque ?? geral.controlar_estoque ?? true);
@@ -816,7 +812,6 @@ export const ConfiguracoesLoja: React.FC = () => {
         ...extrasAtuais,
         controlar_estoque: controlarEstoque,
         geral: {
-          tela_inicial_padrao: telaInicialPadrao,
           moeda,
           casas_decimais: casasDecimais,
           controlar_estoque: controlarEstoque,
@@ -1088,7 +1083,6 @@ export const ConfiguracoesLoja: React.FC = () => {
 
   const snapshotAtual = useMemo(() => {
     return gerarSnapshotConfig({
-      telaInicialPadrao,
       moeda,
       casasDecimais,
       controlarEstoque,
@@ -1180,7 +1174,6 @@ export const ConfiguracoesLoja: React.FC = () => {
       tiktokPixelId
     });
   }, [
-    telaInicialPadrao,
     moeda,
     casasDecimais,
     controlarEstoque,
@@ -1286,7 +1279,6 @@ export const ConfiguracoesLoja: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (modalProvedor) { setModalProvedor(false); return; }
-        if (modalTelaInicial) { setModalTelaInicial(false); return; }
         if (modalPreviewRecibo) { setModalPreviewRecibo(false); return; }
         if (modalExportConcluido) { setModalExportConcluido(false); return; }
         if (modalNovoStatus) { setModalNovoStatus(false); return; }
@@ -1299,7 +1291,7 @@ export const ConfiguracoesLoja: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalProvedor, modalTelaInicial, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate, verificarSaidaComConfirmacao]);
+  }, [modalProvedor, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate, verificarSaidaComConfirmacao]);
 
   // Itens do Menu Principal de Configurações em Botões
   const podeGerenciarMetas = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente || permissions.podeAcessarConfig;
@@ -1419,22 +1411,6 @@ export const ConfiguracoesLoja: React.FC = () => {
           {/* SUBTELA GERAL MOBILE */}
           {subTela === 'geral' && (
             <div className="space-y-3">
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Preferências de Início</span>
-                <div
-                  onClick={() => setModalTelaInicial(true)}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 cursor-pointer"
-                >
-                  <div>
-                    <span className="font-bold text-xs text-slate-800 block">Tela Inicial Padrão</span>
-                    <span className="text-[11px] text-slate-500">Tela carregada ao abrir o app</span>
-                  </div>
-                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 uppercase">
-                    {telaInicialPadrao === 'pos' ? 'PDV' : telaInicialPadrao === 'pedidos' ? 'Pedidos' : 'Início'}
-                  </span>
-                </div>
-              </div>
-
               {/* Controlar Estoque */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
                 <div className="space-y-0.5 max-w-[75%]">
@@ -2049,26 +2025,7 @@ export const ConfiguracoesLoja: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
               <h2 className="font-extrabold text-base text-slate-100">Geral</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Tela inicial padrão e preferências da loja</p>
-            </div>
-
-            {/* Tela Inicial */}
-            <div
-              onClick={() => setModalTelaInicial(true)}
-              className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition cursor-pointer"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-slate-200">Tela inicial</span>
-                  <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-500/30 uppercase">
-                    {telaInicialPadrao === 'pos' ? 'Vender (PDV)' : telaInicialPadrao === 'pedidos' ? 'Pedidos' : 'Início'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-400 block mt-0.5">
-                  Tela carregada automaticamente ao abrir o aplicativo
-                </span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-500" />
+              <p className="text-xs text-slate-400 mt-0.5">Preferências gerais de funcionamento da loja</p>
             </div>
 
             {/* Controlar Estoque */}
@@ -3640,51 +3597,6 @@ export const ConfiguracoesLoja: React.FC = () => {
       </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODAL: SELETOR DE TELA INICIAL */}
-      {/* ========================================================================= */}
-      {modalTelaInicial && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Tela inicial</h3>
-              <button onClick={() => setModalTelaInicial(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {[
-                { id: 'inicio', title: 'Início', desc: 'Resumo das informações mais importantes' },
-                { id: 'pdv', title: 'Vender (PDV)', desc: 'Abertura direta na tela de vendas' },
-                { id: 'pedidos', title: 'Pedidos em aberto', desc: 'Fluxo de pedidos operacionais' },
-                { id: 'products', title: 'Produtos', desc: 'Estoque e catálogo de produtos' },
-                { id: 'customers', title: 'Clientes', desc: 'Gestão de contatos e fiado' },
-                { id: 'analytics', title: 'Estatísticas', desc: 'Relatórios de faturamento' }
-              ].map((opt) => (
-                <label
-                  key={opt.id}
-                  onClick={() => {
-                    setTelaInicialPadrao(opt.id);
-                    setModalTelaInicial(false);
-                  }}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${
-                    telaInicialPadrao === opt.id
-                      ? 'bg-emerald-50 md:bg-emerald-500/10 border-emerald-500 text-emerald-900 md:text-slate-100'
-                      : 'bg-slate-50 md:bg-slate-950 border-slate-200 md:border-slate-800 text-slate-700 md:text-slate-400 hover:bg-slate-100 md:hover:bg-slate-900'
-                  }`}
-                >
-                  <div>
-                    <span className="font-bold text-xs block">{opt.title}</span>
-                    <span className="text-[10px] text-slate-500 block">{opt.desc}</span>
-                  </div>
-                  {telaInicialPadrao === opt.id && <Check className="w-4 h-4 text-emerald-500" />}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* MODAL: PREVIEW DO RECIBO */}

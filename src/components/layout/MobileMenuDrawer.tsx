@@ -20,7 +20,8 @@ import {
   X,
   Calendar,
   Sun,
-  Moon
+  Moon,
+  Gauge
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -103,7 +104,16 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
     });
   };
 
+  const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
+
   const modulos = [
+    {
+      nome: 'Dashboard Executivo',
+      caminho: '/dashboard',
+      icone: Gauge,
+      visivel: ehGestor,
+      badge: undefined
+    },
     {
       nome: 'Vender (Frente de Caixa)',
       caminho: '/pos',
