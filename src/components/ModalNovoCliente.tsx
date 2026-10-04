@@ -223,7 +223,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
-  const { confirmar } = useFeedbackModal();
+  const { confirmar, setTemAlteracoesNaoSalvas } = useFeedbackModal();
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
 
   // Sincronizar dados para Edição ou Criação
@@ -384,6 +384,15 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   });
 
   const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTemAlteracoesNaoSalvas(isDirty);
+    }
+    return () => {
+      setTemAlteracoesNaoSalvas(false);
+    };
+  }, [isOpen, isDirty, setTemAlteracoesNaoSalvas]);
 
   const handleFecharComConfirmacao = () => {
     if (isDirty) {
