@@ -892,13 +892,15 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               <div className="space-y-2">
                 <Link
                   to="/config?tab=pagamentos"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition shadow-xs"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-indigo-500" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
                     <div>
-                      <span className="block font-bold text-slate-900 dark:text-slate-200">Opções de pagamento</span>
-                      <span className="text-[10px] text-slate-500 font-normal">Personalize as formas de pagamento da sua loja</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-100">Opções de pagamento</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">Personalize as formas de pagamento da sua loja</span>
                     </div>
                   </div>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -906,13 +908,15 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
                 <Link
                   to="/config?tab=entrega"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition shadow-xs"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Truck className="w-4 h-4 text-emerald-500" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
+                      <Truck className="w-4 h-4" />
+                    </div>
                     <div>
-                      <span className="block font-bold text-slate-900 dark:text-slate-200">Entrega e retirada</span>
-                      <span className="text-[10px] text-slate-500 font-normal">Configure as opções de delivery e retirada</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-100">Entrega e retirada</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">Configure as opções de delivery e retirada</span>
                     </div>
                   </div>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -920,13 +924,15 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
                 <Link
                   to="/config?tab=parceiros"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition shadow-xs"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Share2 className="w-4 h-4 text-pink-500" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
+                      <Share2 className="w-4 h-4" />
+                    </div>
                     <div>
-                      <span className="block font-bold text-slate-900 dark:text-slate-200">Canais de Venda</span>
-                      <span className="text-[10px] text-slate-500 font-normal">Integre com Instagram, Facebook e WhatsApp</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-100">Canais de Venda</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">Integre com Instagram, Facebook e WhatsApp</span>
                     </div>
                   </div>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />

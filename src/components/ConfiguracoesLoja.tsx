@@ -2331,10 +2331,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     {item.badge}
                   </span>
                 )}
-                <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:border-emerald-300 dark:group-hover:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-slate-950 border border-emerald-200 dark:border-slate-800 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-500/10 group-hover:border-emerald-300 dark:group-hover:border-emerald-500/30 text-emerald-800 dark:text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
                   <item.icon className="w-6 h-6" />
                 </div>
-                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition leading-tight">
+                <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition leading-tight">
                   {item.label}
                 </span>
               </button>

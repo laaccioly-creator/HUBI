@@ -2242,8 +2242,8 @@ export const PosCheckout: React.FC = () => {
               <div className="space-y-1.5 pt-0.5">
                 {/* Termômetro Atacado / Volume */}
                 {avaliacaoCarrinho.proximoNivel && (
-                  <div className="p-1.5 bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg space-y-1">
-                    <div className="flex items-center justify-between text-[10px] text-slate-700 dark:text-slate-300">
+                  <div className="p-2 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-2xs">
+                    <div className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300">
                       <span className="flex items-center gap-1 font-medium truncate">
                         ⚡ {(() => {
                           const proxNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
@@ -2259,9 +2259,9 @@ export const PosCheckout: React.FC = () => {
                           return `Faltam ${formatarMoeda(avaliacaoCarrinho.faltaValorParaProximo)} para ${proxNome}`;
                         })()}
                       </span>
-                      <span className="font-bold text-emerald-600 dark:text-amber-400 shrink-0 ml-1.5">{avaliacaoCarrinho.progressoGeralPercent}%</span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-400 shrink-0 ml-1.5">{avaliacaoCarrinho.progressoGeralPercent}%</span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-2 rounded-full overflow-hidden p-0.5">
                       <div
                         className="bg-emerald-500 h-full rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(100, avaliacaoCarrinho.progressoGeralPercent)}%` }}
@@ -2272,22 +2272,22 @@ export const PosCheckout: React.FC = () => {
 
                 {/* Termômetro Frete Grátis */}
                 {freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && (
-                  <div className="p-1.5 bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg space-y-1">
-                    <div className="flex items-center justify-between text-[10px]">
+                  <div className="p-2 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-2xs">
+                    <div className="flex items-center justify-between text-[11px]">
                       <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300 truncate">
                         {subtotal >= freteGratisMinimoLoja ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">🎉 Frete Grátis Atingido!</span>
+                          <span className="text-emerald-700 dark:text-emerald-400 font-bold">🎉 Frete Grátis Atingido!</span>
                         ) : (
                           <span>🚚 Faltam {formatarMoeda(faltaParaFreteGratis)} para Frete Grátis</span>
                         )}
                       </span>
-                      <span className={`font-bold shrink-0 ml-1.5 ${subtotal >= freteGratisMinimoLoja ? 'text-emerald-600 dark:text-emerald-400' : 'text-emerald-600 dark:text-blue-400'}`}>
+                      <span className="font-bold shrink-0 ml-1.5 text-emerald-700 dark:text-emerald-400">
                         {progressoFreteGratis}%
                       </span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-2 rounded-full overflow-hidden p-0.5">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${subtotal >= freteGratisMinimoLoja ? 'bg-emerald-500' : 'bg-emerald-500'}`}
+                        className="h-full rounded-full transition-all duration-300 bg-emerald-500"
                         style={{ width: `${progressoFreteGratis}%` }}
                       />
                     </div>

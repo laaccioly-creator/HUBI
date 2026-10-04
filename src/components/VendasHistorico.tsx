@@ -996,7 +996,7 @@ export const VendasHistorico: React.FC = () => {
                               e.stopPropagation();
                               setVendaReciboModal(venda);
                             }}
-                            className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-200 text-slate-500 hover:text-emerald-600'}`}
+                            className="hover:bg-slate-100 hover:text-emerald-700 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg p-1 transition-colors cursor-pointer"
                             title={`Visualizar recibo de ${codigoFormatado}`}
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -1114,32 +1114,32 @@ export const VendasHistorico: React.FC = () => {
       {/* GAVETA LATERAL DE FILTROS (TELA002) */}
       {drawerFiltrosAberto && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-l border-slate-800 w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+          <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
             {/* Header da Gaveta */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-emerald-400" />
-                <h3 className="font-bold text-base text-slate-100">Filtros</h3>
+                <Filter className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Filtros</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Conteúdo com scroll */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/50 dark:bg-transparent">
               {/* SEÇÃO 1: PERÍODO */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Período</h4>
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Período</h4>
 
                 {/* Inputs de Data Inicial e Final */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">Inicial</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">Inicial</label>
                     <div className="relative">
                       <input
                         type="date"
@@ -1148,13 +1148,13 @@ export const VendasHistorico: React.FC = () => {
                           setDataInicial(e.target.value);
                           setPeriodoSelecionado('custom');
                         }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:border-emerald-500 focus:outline-none"
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-200 focus:border-emerald-500 focus:outline-none"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">Final</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">Final</label>
                     <div className="relative">
                       <input
                         type="date"
@@ -1163,7 +1163,7 @@ export const VendasHistorico: React.FC = () => {
                           setDataFinal(e.target.value);
                           setPeriodoSelecionado('custom');
                         }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:border-emerald-500 focus:outline-none"
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-200 focus:border-emerald-500 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1186,8 +1186,8 @@ export const VendasHistorico: React.FC = () => {
                       key={p.id}
                       className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition ${
                         periodoSelecionado === p.id
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+                          ? 'bg-emerald-200 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/40 text-slate-900 dark:text-emerald-300 font-bold shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-700'
                       }`}
                     >
                       <input
@@ -1208,14 +1208,14 @@ export const VendasHistorico: React.FC = () => {
               </div>
 
               {/* SEÇÃO 2: MEIO DE PAGAMENTO (Conforme TELA002) */}
-              <div className="space-y-3 pt-2 border-t border-slate-800">
+              <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Meio de Pagamento</h4>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Meio de Pagamento</h4>
                   {meiosPagamentoSelecionados.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setMeiosPagamentoSelecionados([])}
-                      className="text-[10px] text-emerald-400 hover:underline"
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                     >
                       Desmarcar todos
                     </button>
@@ -1235,8 +1235,8 @@ export const VendasHistorico: React.FC = () => {
                           key={fp.id}
                           className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition ${
                             ativo
-                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+                              ? 'bg-emerald-200 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/40 text-slate-900 dark:text-emerald-300 font-bold shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-700'
                           }`}
                         >
                           <input
@@ -1261,18 +1261,18 @@ export const VendasHistorico: React.FC = () => {
             </div>
 
             {/* Rodapé da Gaveta */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between gap-3">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={limparTodosFiltros}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition cursor-pointer"
               >
                 Limpar filtros
               </button>
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer shadow"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold border border-emerald-300 transition cursor-pointer shadow-xs"
               >
                 Filtrar ({vendasFiltradas.length} vendas)
               </button>

@@ -388,18 +388,18 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
             <button
               type="button"
               onClick={() => PrintService.printReceipt(pedAtual, lojaAtual, '80mm')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
+              className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-4 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             >
-              <Printer className="w-3.5 h-3.5 text-white" />
+              <Printer className="w-3.5 h-3.5 text-slate-900 shrink-0" />
               <span>Térmica 58/80mm</span>
             </button>
 
             <button
               type="button"
               onClick={() => PrintService.printReceipt(pedAtual, lojaAtual, 'a4')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
+              className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-4 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             >
-              <Printer className="w-3.5 h-3.5 text-white" />
+              <Printer className="w-3.5 h-3.5 text-slate-900 shrink-0" />
               <span>Imprimir A4</span>
             </button>
           </div>

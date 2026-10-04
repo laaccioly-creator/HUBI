@@ -814,16 +814,14 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Endereço de Destino */}
         {pedido.endereco_entrega && (
-          <div className={`border rounded-2xl p-3.5 space-y-1 ${
-            isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
-          }`}>
+          <div className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-2xl p-3.5 space-y-1 text-slate-800 dark:text-slate-200">
             <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
               isDark ? 'text-emerald-400' : 'text-emerald-700'
             }`}>
               <MapPin className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
               Endereço de Entrega do Destinatário
             </span>
-            <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <p className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               {pedido.endereco_entrega}
             </p>
           </div>
@@ -843,10 +841,10 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                 window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
               }
             }}
-            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95"
+            className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             title="Imprimir Etiqueta de Envio"
           >
-            <Tag className="w-3.5 h-3.5 text-white" />
+            <Tag className="w-3.5 h-3.5 text-slate-900" />
             <span>Imprimir Etiqueta</span>
           </button>
 

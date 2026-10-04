@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, X, Info, ShoppingBag } from 'lucide-react';
 import { Pedido, ItemPedido, Produto } from '../types';
+import { formatarMoeda } from '../utils/formatters';
 
 interface ModalItensPedidoProps {
   isOpen: boolean;
@@ -22,18 +23,18 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-800 md:text-slate-100">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
         {/* Header */}
-        <div className="p-4 sm:px-6 border-b border-slate-200 md:border-slate-800 flex items-center justify-between bg-white md:bg-slate-900/90">
+        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900/90">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base text-slate-800 md:text-slate-100">
+              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
                 Itens do Pedido #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
               </h3>
-              <span className="text-[11px] text-slate-500 md:text-slate-400">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
                 {itens.length} produtos • {totalQuantidade} unidades no total
               </span>
             </div>
@@ -41,14 +42,14 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Lista de Itens */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5 bg-slate-50 md:bg-transparent">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5 bg-slate-50 dark:bg-slate-950/40">
           {itens.length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-xs">
               Nenhum item registrado neste pedido.
@@ -57,27 +58,27 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
             itens.map((item) => (
               <div
                 key={item.id}
-                className="p-3 sm:p-3.5 rounded-2xl bg-white md:bg-slate-950/60 border border-slate-200 md:border-slate-800/80 flex items-center justify-between gap-3 shadow-xs md:shadow-none hover:border-slate-300 md:hover:border-slate-700 transition"
+                className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 md:bg-slate-900 border border-slate-200 md:border-slate-800 flex items-center justify-center shrink-0">
-                    <Package className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                    <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs sm:text-sm text-slate-800 md:text-slate-100 block truncate">
+                    <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 block truncate">
                       {item.nome_produto}
                     </span>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className="text-[11px] font-bold text-emerald-600 md:text-emerald-400">
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                         {Number(item.quantidade)}x
                       </span>
                       {item.rotulo_variacao && (
-                        <span className="text-[10px] bg-slate-100 md:bg-slate-800 text-slate-600 md:text-slate-400 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">
                           {item.rotulo_variacao}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        R$ {Number(item.preco_venda_unitario).toFixed(2)} /un
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                        {formatarMoeda(Number(item.preco_venda_unitario))} /un
                       </span>
                     </div>
                   </div>
@@ -85,9 +86,9 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <span className="text-xs text-slate-500 md:text-slate-400 block">Subtotal</span>
-                    <span className="font-bold text-slate-800 md:text-slate-100 text-sm font-mono">
-                      R$ {Number(item.subtotal).toFixed(2)}
+                    <span className="text-xs text-slate-500 dark:text-slate-400 block">Subtotal</span>
+                    <span className="font-bold text-slate-900 dark:text-white text-sm font-mono">
+                      {formatarMoeda(Number(item.subtotal))}
                     </span>
                   </div>
 
@@ -95,7 +96,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                   <button
                     type="button"
                     onClick={() => onConsultarProduto(item)}
-                    className="p-2 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-500 md:text-slate-300 hover:text-emerald-600 md:hover:text-emerald-400 transition cursor-pointer"
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition cursor-pointer"
                     title="Ver Ficha e Detalhes do Produto"
                   >
                     <Info className="w-4 h-4" />
@@ -107,17 +108,17 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
         </div>
 
         {/* Rodapé com Resumo */}
-        <div className="p-4 border-t border-slate-200 md:border-slate-800 bg-white md:bg-slate-900/90 flex items-center justify-between">
-          <div className="text-xs text-slate-500 md:text-slate-400">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex items-center justify-between">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             <span>Total: </span>
-            <span className="text-emerald-600 md:text-emerald-400 font-bold text-base font-mono">
-              R$ {Number(pedido.valor_total).toFixed(2)}
+            <span className="text-slate-900 dark:text-white font-bold text-base font-mono">
+              {formatarMoeda(Number(pedido.valor_total))}
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-100 md:bg-slate-800 hover:bg-slate-200 md:hover:bg-slate-700 text-slate-700 md:text-slate-200 text-xs font-bold transition cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
           >
             Fechar
           </button>

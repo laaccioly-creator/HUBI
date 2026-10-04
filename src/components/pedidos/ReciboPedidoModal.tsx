@@ -370,27 +370,27 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           </div>
         </div>
 
-        {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (LINHA ÚNICA PADRONIZADA) */}
-        <div className={`p-4 border-t flex items-center justify-center sm:justify-end gap-2 flex-wrap sm:flex-nowrap shrink-0 ${
-          isDark ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-white'
+        {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (GRID HARMONIZADA DE 4 COLUNAS) */}
+        <div className={`p-4 border-t grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0 ${
+          isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
         }`}>
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
+            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Imprimir Cupom Térmico 58mm ou 80mm"
           >
-            <Printer className="w-3.5 h-3.5 text-white" />
+            <Printer className="w-3.5 h-3.5 text-slate-900 shrink-0" />
             <span>Térmica 58/80mm</span>
           </button>
 
           <button
             type="button"
             onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
+            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Imprimir Folha A4"
           >
-            <Printer className="w-3.5 h-3.5 text-white" />
+            <Printer className="w-3.5 h-3.5 text-slate-900 shrink-0" />
             <span>Imprimir A4</span>
           </button>
 
@@ -403,10 +403,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedido, loja, 'a4');
               }
             }}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg transition-colors text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
+            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Baixar Recibo em PDF"
           >
-            <Download className="w-3.5 h-3.5 text-white" />
+            <Download className="w-3.5 h-3.5 text-slate-900 shrink-0" />
             <span>Baixar PDF</span>
           </button>
 
@@ -423,12 +423,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 border ${
-              isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border-slate-700 hover:border-slate-600' : 'bg-slate-100 hover:bg-slate-200 text-emerald-700 border-slate-300'
-            }`}
+            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Compartilhar no WhatsApp"
           >
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 className="w-3.5 h-3.5 text-slate-900 shrink-0" />
             <span>WhatsApp</span>
           </button>
         </div>

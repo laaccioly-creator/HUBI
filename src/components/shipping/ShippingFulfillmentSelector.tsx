@@ -1270,7 +1270,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
           <div className={`p-3.5 rounded-2xl border space-y-2 relative overflow-hidden shadow-sm ${
             ehDark
               ? 'bg-slate-900 border-slate-800 text-white'
-              : 'bg-white border-slate-200 text-slate-900'
+              : 'bg-slate-50 border-slate-200 text-slate-900'
           }`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
@@ -1605,20 +1605,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     <div className={`p-3.5 rounded-2xl border shadow-sm space-y-3 ${
                       ehDark
                         ? 'bg-slate-900 border-slate-800 text-white'
-                        : 'bg-slate-50 border-slate-200 text-slate-800'
+                        : 'bg-white border-slate-200 text-slate-900'
                     }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
                             ehDark
                               ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50'
-                              : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                           }`}>
                             <Package className="w-4 h-4" />
                           </div>
                           <div>
-                            <h4 className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-800'}`}>Conferência da Embalagem & Volumes</h4>
-                            <p className={`text-[11px] ${ehDark ? 'text-slate-300' : 'text-slate-500'}`}>Ajuste peso e medidas antes de cotar no Melhor Envio</p>
+                            <h4 className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-900'}`}>Conferência da Embalagem & Volumes</h4>
+                            <p className={`text-[11px] ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Ajuste peso e medidas antes de cotar no Melhor Envio</p>
                           </div>
                         </div>
 
