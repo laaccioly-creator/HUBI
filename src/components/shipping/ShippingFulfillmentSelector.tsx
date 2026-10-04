@@ -169,8 +169,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
-  const ehCatalogo = modoCatalogo || modoCompacto;
-  const ehDark = temaDark !== undefined ? temaDark : (ehCatalogo ? true : isDark);
+  const ehCatalogo = Boolean(modoCatalogo);
+  const ehDark = temaDark !== undefined ? temaDark : isDark;
 
   const [configLoja, setConfigLoja] = useState<LojaShippingConfig | null>(null);
   const [carregandoConfig, setCarregandoConfig] = useState<boolean>(true);
@@ -1269,8 +1269,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
           <div className={`p-3.5 rounded-2xl border space-y-2 relative overflow-hidden shadow-sm ${
             ehDark
-              ? 'bg-black border-slate-800 text-white'
-              : 'bg-slate-50 border-slate-200 text-slate-800'
+              ? 'bg-slate-900 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900'
           }`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
@@ -1290,11 +1290,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       </span>
                     )}
                   </div>
-                  <p className={`text-xs mt-1 font-semibold ${ehDark ? 'text-white' : 'text-slate-700'}`}>
+                  <p className={`text-xs mt-1 font-semibold ${ehDark ? 'text-white' : 'text-slate-900'}`}>
                     {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
                     {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
                   </p>
-                  <p className={`text-[11px] mt-0.5 ${ehDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                  <p className={`text-[11px] mt-0.5 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                   </p>
                 </div>
@@ -1604,15 +1604,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   {(temMelhorEnvio || temUber) && !ehCatalogo && (
                     <div className={`p-3.5 rounded-2xl border shadow-sm space-y-3 ${
                       ehDark
-                        ? 'bg-black border-slate-800 text-white'
-                        : 'bg-white border-slate-200/90 text-slate-800'
+                        ? 'bg-slate-900 border-slate-800 text-white'
+                        : 'bg-slate-50 border-slate-200 text-slate-800'
                     }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
                             ehDark
                               ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50'
-                              : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                              : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                           }`}>
                             <Package className="w-4 h-4" />
                           </div>
@@ -1640,7 +1640,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                         <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-600'}`}>Volumes</label>
+                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Volumes</label>
                           <input
                             type="number"
                             min="1"
@@ -1657,14 +1657,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             }}
                             className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
                               ehDark
-                                ? 'bg-black border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
                             }`}
                           />
                         </div>
 
                         <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-600'}`}>Peso (kg)</label>
+                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Peso (kg)</label>
                           <input
                             type="text"
                             value={pesoInput}
@@ -1681,14 +1681,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             placeholder="0.300"
                             className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
                               ehDark
-                                ? 'bg-black border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
                             }`}
                           />
                         </div>
 
                         <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-600'}`}>Comp. (cm)</label>
+                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Comp. (cm)</label>
                           <input
                             type="text"
                             value={comprimentoInput}
@@ -1705,14 +1705,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             placeholder="16"
                             className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
                               ehDark
-                                ? 'bg-black border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
                             }`}
                           />
                         </div>
 
                         <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-600'}`}>Largura (cm)</label>
+                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Largura (cm)</label>
                           <input
                             type="text"
                             value={larguraInput}
@@ -1729,14 +1729,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             placeholder="11"
                             className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
                               ehDark
-                                ? 'bg-black border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
                             }`}
                           />
                         </div>
 
                         <div className="col-span-2 sm:col-span-1">
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-600'}`}>Altura (cm)</label>
+                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Altura (cm)</label>
                           <input
                             type="text"
                             value={alturaInput}
@@ -1753,20 +1753,20 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             placeholder="4"
                             className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
                               ehDark
-                                ? 'bg-black border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500'
+                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
                             }`}
                           />
                         </div>
                       </div>
 
                       <div className={`flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl border ${
-                        ehDark ? 'bg-black text-slate-300 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-100'
+                        ehDark ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-600 border-slate-200'
                       }`}>
                         <span>
                           Pacote: <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{volumesCount} {volumesCount > 1 ? 'volumes' : 'volume'}</strong> • <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{pesoInput} kg {volumesCount > 1 ? `(${(parseFloat(pesoInput.replace(',', '.')) / volumesCount || 0).toFixed(2)} kg/vol)` : 'total'}</strong> • <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{comprimentoInput}x{larguraInput}x{alturaInput} cm</strong>
                         </span>
-                        <span className="text-[10px] text-emerald-400 bg-emerald-950/60 font-bold px-1.5 py-0.5 rounded border border-emerald-700/60">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-700/60">
                           Utilizado na cotação
                         </span>
                       </div>
@@ -1970,10 +1970,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     ) : (
                       <div className={`p-4 rounded-2xl border text-center space-y-2.5 ${
                         ehDark
-                          ? 'bg-black border-slate-800 text-slate-300'
+                          ? 'bg-slate-900 border-slate-800 text-slate-300'
                           : 'bg-slate-50 border-slate-200 text-slate-600'
                       }`}>
-                        <p className="font-bold text-xs text-white">Nenhuma cotação automática disponível para este endereço.</p>
+                        <p className={`font-bold text-xs ${ehDark ? 'text-white' : 'text-slate-800'}`}>Nenhuma cotação automática disponível para este endereço.</p>
                         <p className="text-xs text-slate-400">Verifique o CEP/endereço informado ou recalcule os valores.</p>
                         <div className="flex items-center justify-center gap-2 pt-1">
                           <button

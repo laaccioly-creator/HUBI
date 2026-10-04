@@ -848,22 +848,22 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 8. ORIENTAÇÕES PÓS-PEDIDO */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
               <div>
-                <h3 className="font-bold text-slate-100 text-base">Orientações pós-pedido</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Orientações pós-pedido</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Personalize a mensagem que seus clientes verão após concluírem o pedido. Agradeça pela compra, informe sobre prazos de entrega e retirada ou formas de pagamento.
                 </p>
               </div>
 
               {/* Mockup do Celular com a Mensagem */}
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex flex-col items-center shadow-inner space-y-3">
-                <div className="w-full max-w-[200px] bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center space-y-2 shadow-lg">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+              <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center shadow-inner space-y-3">
+                <div className="w-full max-w-[200px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-center space-y-2 shadow-lg">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
                     <Check className="w-5 h-5 stroke-[3]" />
                   </div>
-                  <h5 className="font-bold text-xs text-slate-100">Pedido enviado!</h5>
-                  <p className="text-[10px] text-slate-400 line-clamp-3 leading-tight">
+                  <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100">Pedido enviado!</h5>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-tight">
                     {instrucoesPosPedido || 'Agradecemos pela preferência!'}
                   </p>
                 </div>
@@ -877,59 +877,59 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   value={instrucoesPosPedido}
                   onChange={(e) => setInstrucoesPosPedido(e.target.value)}
                   placeholder="Ex: Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!"
-                  className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                 />
-                <div className="text-right text-[10px] text-slate-500">
+                <div className="text-right text-[10px] text-slate-400 dark:text-slate-500">
                   {instrucoesPosPedido.length}/200
                 </div>
               </div>
             </div>
 
             {/* 9. OUTRAS CONFIGURAÇÕES / ATALHOS */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-3">
-              <h3 className="font-bold text-slate-100 text-base">Outras configurações</h3>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-3">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Outras configurações</h3>
 
               <div className="space-y-2">
                 <Link
                   to="/config?tab=pagamentos"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 transition"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
                 >
                   <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-indigo-400" />
+                    <CreditCard className="w-4 h-4 text-indigo-500" />
                     <div>
-                      <span className="block font-bold text-slate-200">Opções de pagamento</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-200">Opções de pagamento</span>
                       <span className="text-[10px] text-slate-500 font-normal">Personalize as formas de pagamento da sua loja</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </Link>
 
                 <Link
                   to="/config?tab=entrega"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 transition"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Truck className="w-4 h-4 text-emerald-400" />
+                    <Truck className="w-4 h-4 text-emerald-500" />
                     <div>
-                      <span className="block font-bold text-slate-200">Entrega e retirada</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-200">Entrega e retirada</span>
                       <span className="text-[10px] text-slate-500 font-normal">Configure as opções de delivery e retirada</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </Link>
 
                 <Link
                   to="/config?tab=parceiros"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 transition"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Share2 className="w-4 h-4 text-pink-400" />
+                    <Share2 className="w-4 h-4 text-pink-500" />
                     <div>
-                      <span className="block font-bold text-slate-200">Canais de Venda</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-200">Canais de Venda</span>
                       <span className="text-[10px] text-slate-500 font-normal">Integre com Instagram, Facebook e WhatsApp</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </Link>
               </div>
             </div>

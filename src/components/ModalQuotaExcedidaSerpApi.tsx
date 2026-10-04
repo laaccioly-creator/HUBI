@@ -14,19 +14,19 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100">
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-800 dark:text-slate-100">
         
         {/* CABEÇALHO */}
-        <div className="p-5 border-b border-slate-800 flex items-start justify-between gap-3 bg-amber-500/5">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3 bg-amber-50 dark:bg-amber-500/5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-100">
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
                 Limite mensal de 250 buscas atingido!
               </h3>
-              <p className="text-[11px] text-amber-400/90 font-medium mt-0.5">
+              <p className="text-[11px] text-amber-700 dark:text-amber-400/90 font-medium mt-0.5">
                 Cota gratuita mensal da SerpApi
               </p>
             </div>
@@ -34,7 +34,7 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             title="Fechar"
           >
             <X className="w-4 h-4" />
@@ -43,10 +43,10 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
 
         {/* CORPO */}
         <div className="p-5 space-y-4">
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             A sua cota de <strong>250 pesquisas gratuitas</strong> deste mês na SerpApi foi atingida.
           </p>
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400 leading-relaxed space-y-2">
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-2">
             <p>
               ✨ Suas <strong>250 buscas gratuitas serão renovadas automaticamente</strong> no início do próximo mês.
             </p>
@@ -57,12 +57,12 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
         </div>
 
         {/* BOTÕES */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-end gap-2.5">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
           <a
             href="https://serpapi.com/dashboard"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-slate-700"
+            className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
           >
             <span>Acessar Painel SerpApi</span>
             <ExternalLink className="w-3.5 h-3.5" />
