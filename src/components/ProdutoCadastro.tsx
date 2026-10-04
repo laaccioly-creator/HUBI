@@ -1556,20 +1556,20 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 1: FOTOS DO PRODUTO & PREENCHIMENTO INTELIGENTE (FOTO / DESCRIÇÃO / EAN) */}
         {/* ========================================================================= */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border-2 border-indigo-500/30 rounded-3xl p-5 sm:p-6 space-y-5 shadow-2xl relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-indigo-500/20 pb-4">
+        <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-indigo-500/30 rounded-3xl p-5 sm:p-6 space-y-5 shadow-xs relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-indigo-500/20 pb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold">
-                <Sparkles className="w-5 h-5 text-amber-400" />
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
-                <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <span>{ehEdicao ? 'Atualize o seu produto usando a nossa IA' : '1. Preenchimento Inteligente com IA & Fotos'}</span>
-                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
+                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-500/30">
                     {fotosUrls.length}/7 Fotos
                   </span>
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
                   {ehEdicao
                     ? 'Atualize automaticamente os dados comerciais, cópia de vendas e preços com inteligência artificial.'
                     : 'Preencha automaticamente os dados e preços pela Foto, pela Descrição/Nome ou pelo Código de Barras.'}
@@ -1592,14 +1592,14 @@ export const ProdutoCadastro: React.FC = () => {
               )}
 
               {/* SELETOR DE MODALIDADE DE IA */}
-              <div className="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-2xl border border-slate-800">
+              <div className="flex items-center gap-1.5 bg-slate-200/70 dark:bg-slate-950/80 p-1 rounded-2xl border border-slate-300 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setModoPreenchimentoIA('foto')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   modoPreenchimentoIA === 'foto'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -1611,8 +1611,8 @@ export const ProdutoCadastro: React.FC = () => {
                 onClick={() => setModoPreenchimentoIA('descricao')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   modoPreenchimentoIA === 'descricao'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <Tag className="w-3.5 h-3.5" />
@@ -2641,14 +2641,14 @@ export const ProdutoCadastro: React.FC = () => {
           )}
 
           {/* SEÇÃO 6: CATÁLOGO ONLINE E DESTAQUE */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
-            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Eye className="w-4 h-4 text-emerald-400" />
+          <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xs">
+            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>6. Visibilidade no Catálogo Online</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 p-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl cursor-pointer hover:border-slate-700 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition">
                 <input
                   type="checkbox"
                   checked={exibirCatalogo}
@@ -2656,12 +2656,12 @@ export const ProdutoCadastro: React.FC = () => {
                   className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
                 />
                 <div>
-                  <span className="font-bold text-xs text-slate-200 block">Exibir no Catálogo Online</span>
-                  <span className="text-[11px] text-slate-400 block">Ficará visível para os clientes comprarem pelo link</span>
+                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Exibir no Catálogo Online</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Ficará visível para os clientes comprarem pelo link</span>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3.5 bg-slate-950/60 border border-slate-800 rounded-2xl cursor-pointer hover:border-slate-700 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition">
                 <input
                   type="checkbox"
                   checked={destaque}
@@ -2669,11 +2669,11 @@ export const ProdutoCadastro: React.FC = () => {
                   className="w-4 h-4 rounded text-amber-500 focus:ring-0"
                 />
                 <div>
-                  <span className="font-bold text-xs text-slate-200 flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
                     <span>Destacar Produto na Vitrine</span>
                   </span>
-                  <span className="text-[11px] text-slate-400 block">Aparecerá no topo da página de vendas</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Aparecerá no topo da página de vendas</span>
                 </div>
               </label>
             </div>

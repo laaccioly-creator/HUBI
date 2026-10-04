@@ -2262,10 +2262,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         />
       </div>
 
-      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
-      <div className="hidden md:flex flex-col flex-1 h-full bg-slate-950 text-slate-100 overflow-y-auto">
+      {/* 2. VISÃO DESKTOP (RESPONSIVA: MODO CLARO & ESCURO) */}
+      <div className="hidden md:flex flex-col flex-1 h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto">
         {/* HEADER DA PÁGINA */}
-      <div className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -2278,14 +2278,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 }
               });
             }}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
             title="Voltar"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-100 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-emerald-400" />
+            <h1 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-emerald-500" />
               <span>Configurações</span>
             </h1>
           </div>
@@ -2333,17 +2333,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     setSubTela(item.id as SubTelaConfig);
                   }
                 }}
-                className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-lg hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative"
+                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-slate-50 dark:hover:bg-slate-850 hover:shadow-md hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative shadow-xs"
               >
                 {item.badge && (
-                  <span className="absolute top-2.5 right-2.5 bg-emerald-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">
+                  <span className="absolute top-2.5 right-2.5 bg-emerald-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">
                     {item.badge}
                   </span>
                 )}
-                <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:border-emerald-300 dark:group-hover:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
                   <item.icon className="w-6 h-6" />
                 </div>
-                <span className="font-bold text-xs sm:text-sm text-slate-200 group-hover:text-emerald-400 transition leading-tight">
+                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition leading-tight">
                   {item.label}
                 </span>
               </button>
@@ -2355,17 +2355,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: GERAL */}
         {/* ========================================================================= */}
         {subTela === 'geral' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Geral</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Preferências gerais de funcionamento da loja</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Geral</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Preferências gerais de funcionamento da loja</p>
             </div>
 
             {/* Controlar Estoque */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <div className="space-y-0.5 max-w-[80%]">
-                <span className="font-bold text-xs text-slate-100 block">Controlar estoque</span>
-                <span className="text-[11px] text-slate-400 block leading-tight">
+                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Controlar estoque</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
                   Quando ligado, bloqueia vendas que excedam o estoque disponível no PDV e Catálogo. Quando desligado, permite vendas livres.
                 </span>
               </div>
@@ -2376,13 +2376,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   onChange={(e) => setControlarEstoque(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
               </label>
             </div>
 
             {/* Transações Canceladas */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-300 block">Transações canceladas</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block">Transações canceladas</span>
               <div className="space-y-2">
                 {[
                   { id: 'riscadas', label: 'Exibir riscada' },
@@ -2392,8 +2392,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     key={opt.id}
                     className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
                       transacoesCanceladas === opt.id
-                        ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-100'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-slate-100 font-bold'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
                     }`}
                   >
                     <span className="font-bold text-xs">{opt.label}</span>
@@ -2402,7 +2402,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       name="transacoesCanceladas"
                       checked={transacoesCanceladas === opt.id}
                       onChange={() => setTransacoesCanceladas(opt.id as any)}
-                      className="text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                      className="text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                     />
                   </label>
                 ))}
@@ -2411,7 +2411,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
             {/* Ordenar produtos em Vender */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-300 block">Ordenar produtos em Vender por</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block">Ordenar produtos em Vender por</span>
               <div className="space-y-2">
                 {[
                   { id: 'cadastro', label: 'Data do cadastro' },
@@ -2421,8 +2421,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     key={opt.id}
                     className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
                       ordenarProdutosPdv === opt.id
-                        ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-100'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-slate-100 font-bold'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
                     }`}
                   >
                     <span className="font-bold text-xs">{opt.label}</span>
@@ -2431,7 +2431,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       name="ordenarProdutosPdv"
                       checked={ordenarProdutosPdv === opt.id}
                       onChange={() => setOrdenarProdutosPdv(opt.id as any)}
-                      className="text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                      className="text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                     />
                   </label>
                 ))}
@@ -2444,14 +2444,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: TIPOS DE VENDA (PARAMETRIZAÇÃO FLEXÍVEL NO PDV) */}
         {/* ========================================================================= */}
         {subTela === 'tipos-venda' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-extrabold text-base text-slate-100 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-emerald-400" />
+                <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-emerald-500" />
                   Tipos de Venda
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Configure quais modalidades comerciais e tabelas de preço estão ativas na loja e no PDV.
                 </p>
               </div>
@@ -2459,7 +2459,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <button
                   type="button"
                   onClick={() => setSubTela('menu')}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Voltar
@@ -2608,7 +2608,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             </div>
 
             {/* Rodapé com Ação de Salvar */}
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <span className="text-[11px] text-slate-500">
                 As alterações gravadas são refletidas imediatamente no PDV Desktop, PDV Mobile e no Catálogo.
               </span>
@@ -2616,7 +2616,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <button
                   type="button"
                   onClick={() => setSubTela('menu')}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition cursor-pointer"
                 >
                   Voltar ao Menu
                 </button>
@@ -2647,16 +2647,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: DADOS DA LOJA */}
         {/* ========================================================================= */}
         {subTela === 'dados-loja' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Dados da Loja</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Nome, logo, telefone, WhatsApp e endereço</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Dados da Loja</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Nome, logo, telefone, WhatsApp e endereço</p>
             </div>
 
             {/* Logo */}
-            <div className="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
               {urlLogo ? (
-                <div className="relative group w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-900">
+                <div className="relative group w-24 h-24 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
                   <img src={urlLogo} alt="Logo" className="w-full h-full object-contain p-2" />
                   <label className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px] font-bold text-white cursor-pointer">
                     <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
@@ -2666,44 +2666,44 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               ) : (
                 <label className="flex flex-col items-center justify-center cursor-pointer space-y-2">
                   <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
-                  <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
+                  <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shadow-xs">
                     <Upload className="w-6 h-6" />
                   </div>
-                  <span className="text-xs font-bold text-emerald-400">Upload de sua marca</span>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Upload de sua marca</span>
                 </label>
               )}
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Nome da Loja</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Nome da Loja</label>
                 <input
                   type="text"
                   value={nomeLoja}
                   onChange={(e) => setNomeLoja(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-bold"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 font-bold focus:border-emerald-500 outline-hidden transition"
                   placeholder="Nome Fantasia da sua loja"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">WhatsApp (Principal)</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">WhatsApp (Principal)</label>
                   <input
                     type="tel"
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     placeholder="5585986072144"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Telefone/Celular (Opcional)</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Telefone/Celular (Opcional)</label>
                   <input
                     type="tel"
                     value={telefone}
                     onChange={(e) => setTelefone(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     placeholder="Telefone adicional"
                   />
                 </div>
@@ -2711,100 +2711,100 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">CPF ou CNPJ</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">CPF ou CNPJ</label>
                   <input
                     type="text"
                     value={documento}
                     onChange={(e) => setDocumento(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     placeholder="00.000.000/0001-00"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Razão Social</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Razão Social</label>
                   <input
                     type="text"
                     value={razaoSocial}
                     onChange={(e) => setRazaoSocial(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 uppercase"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 uppercase focus:border-emerald-500 outline-hidden transition"
                     placeholder="NOME DA EMPRESA LTDA"
                   />
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-3">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-slate-400 leading-relaxed">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   Estes dados não serão exibidos no catálogo público. O CPF ou CNPJ é utilizado para emissão fiscal e integrações de logística.
                 </p>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Endereço (Rua, Número)</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Endereço (Rua, Número)</label>
                 <input
                   type="text"
                   value={enderecoLogradouro}
                   onChange={(e) => setEnderecoLogradouro(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                   placeholder="Ex: Rua Bélgica, 945"
                 />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Complemento</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Complemento</label>
                   <input
                     type="text"
                     value={enderecoComplemento}
                     onChange={(e) => setEnderecoComplemento(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     placeholder="Apto, Sala, Bloco..."
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Cidade</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Cidade</label>
                   <input
                     type="text"
                     value={enderecoCidade}
                     onChange={(e) => setEnderecoCidade(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     placeholder="Cidade"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">CEP</label>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">CEP</label>
                   <input
                     type="text"
                     value={enderecoCep}
                     onChange={(e) => setEnderecoCep(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     placeholder="60000-000"
                   />
                 </div>
               </div>
 
               {/* SEÇÃO: SEGMENTO DO NEGÓCIO & ESPECIALIZAÇÃO DA RUBI IA */}
-              <div className="pt-6 border-t border-slate-800 space-y-4">
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
-                      <h3 className="font-extrabold text-sm text-slate-100">
+                      <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+                      <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
                         Segmento de Atuação & Especialização da Rubi IA
                       </h3>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       Direcione o comportamento, vocabulário e papel de vendedora da IA para o nicho da sua empresa no Catálogo Online!
                     </p>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
                     Especialização IA
                   </span>
                 </div>
 
                 {/* Grade de Segmentos */}
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-2">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-400 block mb-2">
                     Selecione o Ramo do seu Negócio:
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -2817,29 +2817,33 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           onClick={() => setSegmentoNegocio(seg.id)}
                           className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative group ${
                             isSelected
-                              ? 'bg-emerald-950/40 border-emerald-500 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500'
-                              : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
+                              : 'bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                           }`}
                         >
                           <div className="flex items-start gap-2.5">
-                            <span className="text-xl shrink-0 p-1.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <span className={`text-xl shrink-0 p-1.5 rounded-xl border ${
+                              isSelected
+                                ? 'bg-emerald-100 dark:bg-slate-900 border-emerald-200 dark:border-slate-800'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                            }`}>
                               {seg.icone}
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between">
-                                <span className={`font-bold text-xs truncate ${isSelected ? 'text-emerald-300' : 'text-slate-200'}`}>
+                                <span className={`font-bold text-xs truncate ${isSelected ? 'text-emerald-900 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                   {seg.nome}
                                 </span>
                                 {isSelected && (
-                                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />
+                                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-1" />
                                 )}
                               </div>
-                              <span className="text-[10px] text-slate-400 block mt-0.5 font-medium leading-tight">
+                              <span className={`text-[10px] block mt-0.5 font-medium leading-tight ${isSelected ? 'text-emerald-700 dark:text-slate-300' : 'text-slate-600 dark:text-slate-400'}`}>
                                 {seg.papel}
                               </span>
                             </div>
                           </div>
-                          <span className="text-[10px] text-slate-500 line-clamp-2 mt-2 leading-relaxed">
+                          <span className={`text-[10px] line-clamp-2 mt-2 leading-relaxed ${isSelected ? 'text-emerald-800/80 dark:text-slate-400' : 'text-slate-500 dark:text-slate-500'}`}>
                             {seg.descricao}
                           </span>
                         </button>
@@ -2850,14 +2854,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
                 {/* Especialidade ou Foco da Empresa */}
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-400 block mb-1">
                     Especialidade ou Foco Principal da Loja (Opcional):
                   </label>
                   <input
                     type="text"
                     value={especialidadeNegocio}
                     onChange={(e) => setEspecialidadeNegocio(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition"
                     placeholder="Ex: Especializados em vestidos de festa femininos / Peças originais Honda e Yamaha / Pizzas artesanais..."
                   />
                   <span className="text-[10px] text-slate-500 mt-1 block">
@@ -2868,13 +2872,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 {/* Tom de Voz da IA & Prévia */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-400 block mb-1">
                       Estilo e Tom de Voz da Rubi:
                     </label>
                     <select
                       value={tomVozRubi}
                       onChange={(e) => setTomVozRubi(e.target.value as any)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 cursor-pointer focus:border-emerald-500"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 cursor-pointer focus:border-emerald-500 outline-hidden"
                     >
                       <option value="consultivo">🤝 Consultivo & Atencioso (Recomendado)</option>
                       <option value="tecnico">🔧 Técnico & Especialista (Foco em compatibilidade e precisão)</option>
@@ -2884,24 +2888,24 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </div>
 
                   {/* Prévia da Abordagem */}
-                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
                       <Sparkles className="w-2.5 h-2.5" /> Exemplo de Saudação da Rubi
                     </span>
-                    <p className="text-[11px] text-slate-300 italic mt-1 leading-snug">
+                    <p className="text-[11px] text-slate-700 dark:text-slate-300 italic mt-1 leading-snug">
                       "{SEGMENTOS_NEGOCIO.find(s => s.id === segmentoNegocio)?.exemploFala || SEGMENTOS_NEGOCIO[0].exemploFala}"
                     </p>
                   </div>
                 </div>
 
                 {/* Chave de API Google Gemini (Opcional) */}
-                <div className="pt-3 border-t border-slate-800">
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <label className="text-[11px] font-bold text-slate-800 dark:text-slate-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                       <span>Chave de API do Google Gemini (Opcional - Inteligência Avançada)</span>
                     </label>
-                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                       Recomendado para Vendedora IA
                     </span>
                   </div>
@@ -2910,9 +2914,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     value={geminiApiKey}
                     onChange={(e) => setGeminiApiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 transition font-mono"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                  <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                     Insira sua chave gratuita do <strong>Google AI Studio</strong> para que a Rubi tenha poder total de conversação natural, conheça os produtos a fundo e responda aos clientes com empatia e consultoria humana no Catálogo Online. Se não configurada, a Rubi continuará atendendo normalmente através do motor inteligente local.
                   </p>
                 </div>
@@ -2926,16 +2930,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: MEU RECIBO */}
         {/* ========================================================================= */}
         {subTela === 'recibo' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-extrabold text-base text-slate-100">Meu Recibo</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Cabeçalho, rodapé e formato de impressão</p>
+                <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Meu Recibo</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cabeçalho, rodapé e formato de impressão</p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
                 <Receipt className="w-4 h-4" />
                 <span>Ver meu recibo</span>
@@ -2944,10 +2948,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
             <div className="space-y-4">
               {/* Adicionar dados do cliente */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                 <div>
-                  <span className="font-bold text-xs text-slate-100 block">Adicionar dados do cliente</span>
-                  <span className="text-[11px] text-slate-400">Nome, Endereço e Telefone no corpo do recibo</span>
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Adicionar dados do cliente</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Nome, Endereço e Telefone no corpo do recibo</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -2956,37 +2960,37 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setReciboAdicionarCliente(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {/* Cabeçalho */}
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Texto do cabeçalho (opcional)</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Texto do cabeçalho (opcional)</label>
                 <textarea
                   rows={2}
                   value={reciboCabecalho}
                   onChange={(e) => setReciboCabecalho(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                   placeholder="Ex: Sejam muito bem-vindos à nossa loja!"
                 />
               </div>
 
               {/* Rodapé */}
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Texto do rodapé (opcional)</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Texto do rodapé (opcional)</label>
                 <textarea
                   rows={2}
                   value={reciboRodape}
                   onChange={(e) => setReciboRodape(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                   placeholder="Ex: Trocas em até 7 dias com esta via. Volte sempre!"
                 />
               </div>
 
               {/* Impressora Padrão */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-xs font-bold text-slate-200 block">Formato de Impressão Padrão</span>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Formato de Impressão Padrão</span>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'termica_80mm', label: 'Térmica 80mm' },
@@ -2999,8 +3003,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       onClick={() => setTipoImpressaoPadrao(imp.id as any)}
                       className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
                         tipoImpressaoPadrao === imp.id
-                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                          ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-400 shadow-xs'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
                       {imp.label}
@@ -3016,39 +3020,39 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: OPÇÕES DE PAGAMENTO & GATEWAYS */}
         {/* ========================================================================= */}
         {subTela === 'pagamentos' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Opções de Pagamento</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Mercado Pago, PagBank, Asaas, Pix e Maquininhas</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Opções de Pagamento</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Mercado Pago, PagBank, Asaas, Pix e Maquininhas</p>
             </div>
 
             {/* INTEGRAÇÕES DIGITAIS (AUTOMÁTICAS) */}
             <div className="space-y-3">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 INTEGRAÇÃO DE PAGAMENTO DIGITAL
               </span>
 
               {/* SELETOR PRINCIPAL DO PROVEDOR COM SETA > */}
               <div
                 onClick={() => setModalProvedor(true)}
-                className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center justify-between cursor-pointer transition group"
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 flex items-center justify-between cursor-pointer transition group shadow-xs"
               >
                 <div className="flex items-center gap-3.5">
                   <div
                     className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xs transition ${
                       provedorDigital === 'mercado_pago'
-                        ? 'bg-sky-500/20 text-sky-400'
+                        ? 'bg-sky-50 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400'
                         : provedorDigital === 'pagseguro'
-                        ? 'bg-emerald-500/20 text-emerald-400'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                         : provedorDigital === 'asaas'
-                        ? 'bg-purple-500/20 text-purple-400'
+                        ? 'bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400'
                         : provedorDigital === 'stripe'
-                        ? 'bg-indigo-500/20 text-indigo-400'
+                        ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                         : provedorDigital === 'picpay'
-                        ? 'bg-teal-500/20 text-teal-400'
+                        ? 'bg-teal-50 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400'
                         : provedorDigital === 'google_pay'
-                        ? 'bg-amber-500/20 text-amber-400'
-                        : 'bg-slate-900 text-slate-500'
+                        ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        : 'bg-slate-100 dark:bg-slate-900 text-slate-400'
                     }`}
                   >
                     {provedorDigital === 'mercado_pago' && 'MP'}
@@ -3061,18 +3065,18 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-slate-100">Provedor Selecionado</span>
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Provedor Selecionado</span>
                       {provedorDigital !== 'nenhum' ? (
-                        <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full">
+                        <span className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full">
                           ATIVO
                         </span>
                       ) : (
-                        <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
                           DESATIVADO
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-extrabold block mt-0.5 text-emerald-400">
+                    <span className="text-xs font-extrabold block mt-0.5 text-emerald-600 dark:text-emerald-400">
                       {provedorDigital === 'mercado_pago' && 'Mercado Pago'}
                       {provedorDigital === 'pagseguro' && 'PagBank (PagSeguro)'}
                       {provedorDigital === 'asaas' && 'Asaas'}
@@ -3083,35 +3087,35 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     </span>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-slate-300 transition" />
+                <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition" />
               </div>
 
               {/* CAMPOS CONTEXTUAIS CONFORME O PROVEDOR SELECIONADO */}
               {provedorDigital === 'mercado_pago' && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-sky-500/30 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="font-bold text-xs text-sky-400">Credenciais Mercado Pago</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-sky-500/30 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <span className="font-bold text-xs text-sky-600 dark:text-sky-400">Credenciais Mercado Pago</span>
                     <button
                       type="button"
                       onClick={() => setProvedorDigital('nenhum')}
-                      className="text-[11px] text-rose-400 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-rose-500 dark:text-rose-400 font-bold hover:underline cursor-pointer"
                     >
                       Desativar
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Ambiente</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Ambiente</label>
                     <select
                       value={mpAmbiente}
                       onChange={(e) => setMpAmbiente(e.target.value as any)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-semibold"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-semibold focus:border-emerald-500 outline-hidden transition"
                     >
                       <option value="sandbox">Ambiente de Teste (Sandbox)</option>
                       <option value="producao">Ambiente Real (Produção)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
                       Access Token {mpAmbiente === 'sandbox' ? '(Credenciais de Teste)' : '(Produção)'}
                     </label>
                     <input
@@ -3119,95 +3123,95 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       value={mpAccessToken}
                       onChange={(e) => setMpAccessToken(e.target.value)}
                       placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxx"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Public Key</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Public Key</label>
                     <input
                       type="text"
                       value={mpPublicKey}
                       onChange={(e) => setMpPublicKey(e.target.value)}
                       placeholder="APP_USR-xxxxxxxx"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                 </div>
               )}
 
               {provedorDigital === 'pagseguro' && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="font-bold text-xs text-emerald-400">Credenciais PagBank (PagSeguro)</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-emerald-500/30 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">Credenciais PagBank (PagSeguro)</span>
                     <button
                       type="button"
                       onClick={() => setProvedorDigital('nenhum')}
-                      className="text-[11px] text-rose-400 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-rose-500 dark:text-rose-400 font-bold hover:underline cursor-pointer"
                     >
                       Desativar
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">E-mail da Conta PagBank</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">E-mail da Conta PagBank</label>
                     <input
                       type="email"
                       value={pagseguroEmail}
                       onChange={(e) => setPagseguroEmail(e.target.value)}
                       placeholder="seu-email@pagseguro.com.br"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Token de Integração</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Token de Integração</label>
                     <input
                       type="password"
                       value={pagseguroToken}
                       onChange={(e) => setPagseguroToken(e.target.value)}
                       placeholder="Token gerado no painel PagBank"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Chave Pública (Public Key)</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Chave Pública (Public Key)</label>
                     <input
                       type="text"
                       value={pagseguroPublicKey}
                       onChange={(e) => setPagseguroPublicKey(e.target.value)}
                       placeholder="Public Key PagBank"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                 </div>
               )}
 
               {provedorDigital === 'asaas' && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-purple-500/30 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="font-bold text-xs text-purple-400">Credenciais Asaas</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-purple-500/30 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <span className="font-bold text-xs text-purple-600 dark:text-purple-400">Credenciais Asaas</span>
                     <button
                       type="button"
                       onClick={() => setProvedorDigital('nenhum')}
-                      className="text-[11px] text-rose-400 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-rose-500 dark:text-rose-400 font-bold hover:underline cursor-pointer"
                     >
                       Desativar
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">API Key ($aact_...)</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">API Key ($aact_...)</label>
                     <input
                       type="password"
                       value={asaasApiKey}
                       onChange={(e) => setAsaasApiKey(e.target.value)}
                       placeholder="$aact_YTU5YTE0M2M6N2Z..."
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Ambiente</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Ambiente</label>
                     <select
                       value={asaasAmbiente}
                       onChange={(e) => setAsaasAmbiente(e.target.value as any)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     >
                       <option value="producao">Produção (Real)</option>
                       <option value="sandbox">Sandbox (Testes)</option>
@@ -3217,95 +3221,95 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               )}
 
               {provedorDigital === 'stripe' && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-indigo-500/30 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="font-bold text-xs text-indigo-400">Credenciais Stripe</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-indigo-500/30 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <span className="font-bold text-xs text-indigo-600 dark:text-indigo-400">Credenciais Stripe</span>
                     <button
                       type="button"
                       onClick={() => setProvedorDigital('nenhum')}
-                      className="text-[11px] text-rose-400 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-rose-500 dark:text-rose-400 font-bold hover:underline cursor-pointer"
                     >
                       Desativar
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Publishable Key (pk_live_...)</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Publishable Key (pk_live_...)</label>
                     <input
                       type="text"
                       value={stripePublishableKey}
                       onChange={(e) => setStripePublishableKey(e.target.value)}
                       placeholder="pk_live_..."
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Secret Key (sk_live_...)</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Secret Key (sk_live_...)</label>
                     <input
                       type="password"
                       value={stripeSecretKey}
                       onChange={(e) => setStripeSecretKey(e.target.value)}
                       placeholder="sk_live_..."
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                 </div>
               )}
 
               {provedorDigital === 'picpay' && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-teal-500/30 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="font-bold text-xs text-teal-400">Credenciais PicPay E-commerce</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-teal-500/30 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <span className="font-bold text-xs text-teal-600 dark:text-teal-400">Credenciais PicPay E-commerce</span>
                     <button
                       type="button"
                       onClick={() => setProvedorDigital('nenhum')}
-                      className="text-[11px] text-rose-400 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-rose-500 dark:text-rose-400 font-bold hover:underline cursor-pointer"
                     >
                       Desativar
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">PicPay Token</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">PicPay Token</label>
                     <input
                       type="password"
                       value={picpayToken}
                       onChange={(e) => setPicpayToken(e.target.value)}
                       placeholder="Token PicPay E-commerce"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Seller Token</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Seller Token</label>
                     <input
                       type="password"
                       value={picpaySellerToken}
                       onChange={(e) => setPicpaySellerToken(e.target.value)}
                       placeholder="Seller Token PicPay"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                 </div>
               )}
 
               {provedorDigital === 'google_pay' && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/30 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="font-bold text-xs text-amber-400">Google Pay & Carteiras Digitais</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-amber-500/30 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                    <span className="font-bold text-xs text-amber-600 dark:text-amber-400">Google Pay & Carteiras Digitais</span>
                     <button
                       type="button"
                       onClick={() => setProvedorDigital('nenhum')}
-                      className="text-[11px] text-rose-400 font-bold hover:underline cursor-pointer"
+                      className="text-[11px] text-rose-500 dark:text-rose-400 font-bold hover:underline cursor-pointer"
                     >
                       Desativar
                     </button>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Google Merchant ID</label>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Google Merchant ID</label>
                     <input
                       type="text"
                       value={googlePayMerchantId}
                       onChange={(e) => setGooglePayMerchantId(e.target.value)}
                       placeholder="BCR2DN6TZ6XXXXXX"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                 </div>
@@ -3314,30 +3318,30 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Botão de Atalho para Prazos e Taxas */}
               <div
                 onClick={() => setSubTela('prazos-taxas')}
-                className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center justify-between cursor-pointer transition"
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 flex items-center justify-between cursor-pointer transition shadow-xs"
               >
                 <div>
-                  <span className="font-bold text-xs text-slate-200 block">Prazos e taxas das Maquininhas</span>
-                  <span className="text-[11px] text-slate-400">Configure os prazos de recebimento para previsão no financeiro</span>
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-200 block">Prazos e taxas das Maquininhas</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Configure os prazos de recebimento para previsão no financeiro</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               </div>
             </div>
 
             {/* OPÇÕES DE PAGAMENTO PRESENCIAIS / MANUAIS */}
             <div className="space-y-3">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 OPÇÕES DE PAGAMENTO (CATÁLOGO E PDV)
               </span>
 
               {/* PIX */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Zap className="w-5 h-5 text-emerald-400" />
+                    <Zap className="w-5 h-5 text-emerald-500" />
                     <div>
-                      <span className="font-bold text-xs text-slate-100 block">Pix Manual / Chave</span>
-                      <span className="text-[11px] text-slate-400">Chave Pix para transferências diretas</span>
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Pix Manual / Chave</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Chave Pix para transferências diretas</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -3347,34 +3351,34 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       onChange={(e) => setPixAtivo(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
                 {pixAtivo && (
-                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                     <input
                       type="text"
                       value={pixChave}
                       onChange={(e) => setPixChave(e.target.value)}
                       placeholder="Sua chave Pix (CPF, CNPJ, E-mail ou Telefone)"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     />
                     <input
                       type="text"
                       value={pixOrientacoes}
                       onChange={(e) => setPixOrientacoes(e.target.value)}
                       placeholder="Orientações adicionais (ex: Enviar comprovante no WhatsApp)"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                     />
                   </div>
                 )}
               </div>
 
               {/* DINHEIRO */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-3">
-                  <DollarSign className="w-5 h-5 text-emerald-400" />
-                  <span className="font-bold text-xs text-slate-100">Dinheiro</span>
+                  <DollarSign className="w-5 h-5 text-emerald-500" />
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Dinheiro</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -3383,15 +3387,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setDinheiroAtivo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {/* CARTÃO DE DÉBITO */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-3">
-                  <CreditCard className="w-5 h-5 text-indigo-400" />
-                  <span className="font-bold text-xs text-slate-100">Cartão de Débito</span>
+                  <CreditCard className="w-5 h-5 text-indigo-500" />
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Cartão de Débito</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -3400,15 +3404,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setDebitoAtivo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {/* CARTÃO DE CRÉDITO */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-3">
-                  <CreditCard className="w-5 h-5 text-amber-400" />
-                  <span className="font-bold text-xs text-slate-100">Cartão de Crédito</span>
+                  <CreditCard className="w-5 h-5 text-amber-500" />
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Cartão de Crédito</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -3417,17 +3421,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setCreditoAtivo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {/* FIADO */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-rose-400" />
+                  <Clock className="w-5 h-5 text-rose-500" />
                   <div>
-                    <span className="font-bold text-xs text-slate-100 block">Fiado / Venda a Prazo</span>
-                    <span className="text-[11px] text-slate-400">Controle de saldo pendente por cliente</span>
+                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Fiado / Venda a Prazo</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Controle de saldo pendente por cliente</span>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -3437,7 +3441,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setPermitirFiado(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
             </div>
@@ -3448,23 +3452,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: PRAZOS E TAXAS (MAQUININHAS) */}
         {/* ========================================================================= */}
         {subTela === 'prazos-taxas' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Prazos e taxas das Maquininhas</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Prazos de recebimento e taxas para previsão no financeiro</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Prazos e taxas das Maquininhas</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Prazos de recebimento e taxas para previsão no financeiro</p>
             </div>
 
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-400 flex items-start gap-3">
-              <Info className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-600 dark:text-slate-400 flex items-start gap-3">
+              <Info className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
               <p>
                 Configure os prazos e taxas da sua maquininha para calcular os valores líquidos exatos e acompanhar a previsão de entradas no módulo financeiro.
               </p>
             </div>
 
             {/* Crédito */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-100">Cartões de crédito</span>
+                <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Cartões de crédito</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -3472,35 +3476,35 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setMaqCreditoAtivo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {maqCreditoAtivo && (
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Prazo de Recebimento</label>
-                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Prazo de Recebimento</label>
+                    <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs">
                       <input
                         type="number"
                         value={maqCreditoDias}
                         onChange={(e) => setMaqCreditoDias(Number(e.target.value))}
-                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                        className="bg-transparent text-slate-900 dark:text-slate-100 font-bold outline-none w-16"
                       />
-                      <span className="text-slate-400 text-[11px]">dias corridos</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[11px]">dias corridos</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Taxa da Maquininha (%)</label>
-                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Taxa da Maquininha (%)</label>
+                    <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs">
                       <input
                         type="number"
                         step="0.01"
                         value={maqCreditoTaxa}
                         onChange={(e) => setMaqCreditoTaxa(Number(e.target.value))}
-                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                        className="bg-transparent text-slate-900 dark:text-slate-100 font-bold outline-none w-16"
                       />
-                      <span className="text-slate-400 text-[11px]">%</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[11px]">%</span>
                     </div>
                   </div>
                 </div>
@@ -3508,9 +3512,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             </div>
 
             {/* Débito */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-100">Cartões de débito</span>
+                <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Cartões de débito</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -3518,35 +3522,35 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setMaqDebitoAtivo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {maqDebitoAtivo && (
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Prazo de Recebimento</label>
-                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Prazo de Recebimento</label>
+                    <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs">
                       <input
                         type="number"
                         value={maqDebitoDias}
                         onChange={(e) => setMaqDebitoDias(Number(e.target.value))}
-                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                        className="bg-transparent text-slate-900 dark:text-slate-100 font-bold outline-none w-16"
                       />
-                      <span className="text-slate-400 text-[11px]">dias corridos</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[11px]">dias corridos</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Taxa da Maquininha (%)</label>
-                    <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Taxa da Maquininha (%)</label>
+                    <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs">
                       <input
                         type="number"
                         step="0.01"
                         value={maqDebitoTaxa}
                         onChange={(e) => setMaqDebitoTaxa(Number(e.target.value))}
-                        className="bg-transparent text-slate-100 font-bold outline-none w-16"
+                        className="bg-transparent text-slate-900 dark:text-slate-100 font-bold outline-none w-16"
                       />
-                      <span className="text-slate-400 text-[11px]">%</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-[11px]">%</span>
                     </div>
                   </div>
                 </div>
@@ -3559,30 +3563,30 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: PEDIDOS E VENDAS (TAXAS & STATUS) */}
         {/* ========================================================================= */}
         {subTela === 'pedidos-vendas' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Pedidos e Vendas</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Status de pedidos e taxas de venda adicionais</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Pedidos e Vendas</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Status de pedidos e taxas de venda adicionais</p>
             </div>
 
             {/* Atalho para Status de Pedidos */}
             <div
               onClick={() => setSubTela('status-pedidos')}
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center justify-between cursor-pointer transition"
+              className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 flex items-center justify-between cursor-pointer transition shadow-xs"
             >
               <div>
-                <span className="font-bold text-xs text-slate-200 block">Status de Pedidos</span>
-                <span className="text-[11px] text-slate-400">Ative ou crie novas etapas do fluxo operacional</span>
+                <span className="font-bold text-xs text-slate-900 dark:text-slate-200 block">Status de Pedidos</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Ative ou crie novas etapas do fluxo operacional</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-500" />
+              <ChevronRight className="w-4 h-4 text-slate-400" />
             </div>
 
             {/* TAXA DE VENDA PDV */}
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-xs text-slate-100 block">Usar taxa de vendas no PDV</span>
-                  <span className="text-[11px] text-slate-400">Taxa de serviço ou acréscimo automático</span>
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Usar taxa de vendas no PDV</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Taxa de serviço ou acréscimo automático</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -3591,41 +3595,41 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     onChange={(e) => setUsarTaxaVenda(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>
 
               {usarTaxaVenda && (
-                <div className="space-y-3 pt-3 border-t border-slate-800">
+                <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Nome da Taxa</label>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Nome da Taxa</label>
                       <input
                         type="text"
                         value={nomeTaxaVenda}
                         onChange={(e) => setNomeTaxaVenda(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                         placeholder="Ex: Taxa de Serviço"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Valor da Taxa</label>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Valor da Taxa</label>
                       <input
                         type="number"
                         value={valorTaxaVenda}
                         onChange={(e) => setValorTaxaVenda(Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                       />
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-slate-300 font-semibold">Taxa opcional (removível no PDV)</span>
+                    <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Taxa opcional (removível no PDV)</span>
                     <input
                       type="checkbox"
                       checked={taxaVendaOpcional}
                       onChange={(e) => setTaxaVendaOpcional(e.target.checked)}
-                      className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700 w-4 h-4"
+                      className="rounded text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 w-4 h-4"
                     />
                   </div>
                 </div>
@@ -3638,30 +3642,30 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: STATUS DE PEDIDOS */}
         {/* ========================================================================= */}
         {subTela === 'status-pedidos' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Status de Pedidos</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Ative ou crie novas etapas do fluxo operacional</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Status de Pedidos</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ative ou crie novas etapas do fluxo operacional</p>
             </div>
 
             <div className="space-y-3">
               {/* Fixos */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2.5">
                   <Clock className="w-4 h-4 text-slate-400" />
                   <div>
-                    <span className="font-bold text-slate-200 block">Pendente</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Pendente</span>
                     <span className="text-[10px] text-slate-500">Aparece quando o cliente faz o pedido (Não baixa estoque)</span>
                   </div>
                 </div>
                 <span className="text-[10px] text-slate-500 font-bold">PADRÃO</span>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   <div>
-                    <span className="font-bold text-slate-200 block">Confirmado</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Confirmado</span>
                     <span className="text-[10px] text-slate-500">Vendedor confirma o pedido (Movimenta estoque)</span>
                   </div>
                 </div>
@@ -3669,55 +3673,55 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               </div>
 
               {/* Toggles Customizáveis */}
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                  <span className="font-bold text-slate-200">Em produção</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-200">Em produção</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={statusEmProducao}
                   onChange={(e) => setStatusEmProducao(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                 />
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                  <span className="font-bold text-slate-200">Em expedição</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-200">Em expedição</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={statusEmExpedicao}
                   onChange={(e) => setStatusEmExpedicao(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                 />
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                  <span className="font-bold text-slate-200">Saiu para entrega</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-200">Saiu para entrega</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={statusSaiuEntrega}
                   onChange={(e) => setStatusSaiuEntrega(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                 />
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-sky-400"></div>
-                  <span className="font-bold text-slate-200">Pronto para retirar</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-200">Pronto para retirar</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={statusProntoRetirar}
                   onChange={(e) => setStatusProntoRetirar(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-slate-900 border-slate-700"
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                 />
               </div>
             </div>
@@ -3728,24 +3732,24 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: OPÇÕES DE ENTREGA & RETIRADA */}
         {/* ========================================================================= */}
         {subTela === 'entrega' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Opções de Entrega & Retirada</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Configure entregas via motoboy e retirada no balcão</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Opções de Entrega & Retirada</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Configure entregas via motoboy e retirada no balcão</p>
             </div>
 
             {/* Banner Módulo Avançado de Frete & Logística */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/50 via-slate-950 to-indigo-950/50 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-slate-50 to-indigo-50 dark:from-emerald-950/50 dark:via-slate-950 dark:to-indigo-950/50 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
                   <Truck className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-slate-100">Gestão Avançada de Frete & Logística</span>
-                    <span className="text-[10px] uppercase font-black bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40">Novo</span>
+                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Gestão Avançada de Frete & Logística</span>
+                    <span className="text-[10px] uppercase font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40">Novo</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                     Configure integrações com <strong>Uber Direct</strong> (motoboy flash), <strong>Melhor Envio</strong> (Correios/Jadlog) e regras de cotação em tempo real.
                   </p>
                 </div>
@@ -3753,7 +3757,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <button
                 type="button"
                 onClick={() => navigate('/configuracoes/frete')}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all shrink-0 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all shrink-0 cursor-pointer"
               >
                 <span>Configurar Frete Avançado</span>
                 <ChevronRight className="w-4 h-4" />
@@ -3766,36 +3770,36 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: EXPORTAR RELATÓRIOS */}
         {/* ========================================================================= */}
         {subTela === 'exportar' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Exportar Relatórios</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Download CSV de vendas, produtos e clientes</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Exportar Relatórios</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Download CSV de vendas, produtos e clientes</p>
             </div>
 
             {/* Período */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-500" />
                 <span>Informe o período</span>
               </span>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Data Inicial</label>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Data Inicial</label>
                   <input
                     type="date"
                     value={dataInicioExport}
                     onChange={(e) => setDataInicioExport(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Data Final</label>
+                  <label className="text-[10px] text-slate-600 dark:text-slate-400 block mb-1">Data Final</label>
                   <input
                     type="date"
                     value={dataFimExport}
                     onChange={(e) => setDataFimExport(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:border-emerald-500 outline-hidden transition"
                   />
                 </div>
               </div>
@@ -3803,34 +3807,34 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
             {/* Seleção de Relatórios */}
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-300 block">Quais relatórios deseja exportar?</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block">Quais relatórios deseja exportar?</span>
               <div className="grid grid-cols-3 gap-3">
-                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 cursor-pointer shadow-xs">
                   <input
                     type="checkbox"
                     checked={exportarVendas}
                     onChange={(e) => setExportarVendas(e.target.checked)}
                     className="rounded text-emerald-500"
                   />
-                  <span className="text-xs font-bold text-slate-200">Vendas</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Vendas</span>
                 </label>
-                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 cursor-pointer shadow-xs">
                   <input
                     type="checkbox"
                     checked={exportarProdutos}
                     onChange={(e) => setExportarProdutos(e.target.checked)}
                     className="rounded text-emerald-500"
                   />
-                  <span className="text-xs font-bold text-slate-200">Produtos</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Produtos</span>
                 </label>
-                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
+                <label className="flex items-center gap-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 cursor-pointer shadow-xs">
                   <input
                     type="checkbox"
                     checked={exportarClientes}
                     onChange={(e) => setExportarClientes(e.target.checked)}
                     className="rounded text-emerald-500"
                   />
-                  <span className="text-xs font-bold text-slate-200">Clientes</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Clientes</span>
                 </label>
               </div>
             </div>
@@ -3858,28 +3862,28 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: INTEGRAR COM PARCEIROS (INSTAGRAM, FACEBOOK, GOOGLE, TIKTOK) */}
         {/* ========================================================================= */}
         {subTela === 'parceiros' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
             <div>
-              <h2 className="font-extrabold text-base text-slate-100">Integrar com Parceiros</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Instagram Shopping, Facebook Pixel, Google Merchant e TikTok</p>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Integrar com Parceiros</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Instagram Shopping, Facebook Pixel, Google Merchant e TikTok</p>
             </div>
 
             {/* FACEBOOK & INSTAGRAM */}
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
-                <Share2 className="w-4 h-4 text-pink-400" /> Facebook & Instagram
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2 uppercase">
+                <Share2 className="w-4 h-4 text-pink-500" /> Facebook & Instagram
               </span>
 
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-xs text-slate-100">Instagram Shopping & Loja do Facebook</h4>
-                    <p className="text-[11px] text-slate-400">Feed de produtos para etiquetar itens nos posts e stories</p>
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">Instagram Shopping & Loja do Facebook</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Feed de produtos para etiquetar itens nos posts e stories</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => copiarTexto(`${window.location.origin}/feed/facebook/${loja?.slug_catalogo || loja?.id}`, 'fb_feed')}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copiadoTexto === 'fb_feed' ? 'Copiado!' : 'Copiar Link XML'}</span>
@@ -3887,34 +3891,34 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="font-bold text-xs text-slate-100 block">Facebook Pixel</span>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
+                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Facebook Pixel</span>
                 <input
                   type="text"
                   value={facebookPixelId}
                   onChange={(e) => setFacebookPixelId(e.target.value)}
                   placeholder="ID do Pixel (Ex: 123456789012345)"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                 />
               </div>
             </div>
 
             {/* GOOGLE SHOPPING */}
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
-                <Globe className="w-4 h-4 text-sky-400" /> Google Shopping (Merchant Center)
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2 uppercase">
+                <Globe className="w-4 h-4 text-sky-500" /> Google Shopping (Merchant Center)
               </span>
 
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-xs text-slate-100">Feed Google Merchant Center</h4>
-                    <p className="text-[11px] text-slate-400">Alcance clientes nas pesquisas do Google Shopping</p>
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">Feed Google Merchant Center</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Alcance clientes nas pesquisas do Google Shopping</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => copiarTexto(`${window.location.origin}/feed/google/${loja?.slug_catalogo || loja?.id}`, 'google_feed')}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copiadoTexto === 'google_feed' ? 'Copiado!' : 'Copiar Link XML'}</span>
@@ -3925,44 +3929,44 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
             {/* TIKTOK BUSINESS */}
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
-                <Smartphone className="w-4 h-4 text-rose-400" /> TikTok Business
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2 uppercase">
+                <Smartphone className="w-4 h-4 text-rose-500" /> TikTok Business
               </span>
 
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="font-bold text-xs text-slate-100 block">TikTok Pixel ID</span>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
+                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">TikTok Pixel ID</span>
                 <input
                   type="text"
                   value={tiktokPixelId}
                   onChange={(e) => setTiktokPixelId(e.target.value)}
                   placeholder="ID do TikTok Pixel"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:border-emerald-500 outline-hidden transition"
                 />
               </div>
             </div>
 
             {/* BUSCA AUTOMÁTICA DE FOTOS (SERPAPI - GOOGLE IMAGES ENGINE) */}
-            <div className="space-y-3 pt-3 border-t border-slate-800/80">
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase">
-                <Sparkles className="w-4 h-4 text-teal-400" /> Busca Automática de Fotos (SerpApi - Google Images)
+            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800/80">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2 uppercase">
+                <Sparkles className="w-4 h-4 text-teal-500" /> Busca Automática de Fotos (SerpApi - Google Images)
               </span>
 
-              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-xs text-slate-100">Motor de Imagens Google via SerpApi (BYOK)</h4>
+                      <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">Motor de Imagens Google via SerpApi (BYOK)</h4>
                       {serpApiKey ? (
-                        <span className="text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                        <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Conectada (250 buscas/mês)
                         </span>
                       ) : (
-                        <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-0.5 rounded-full font-bold">
+                        <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 px-2.5 py-0.5 rounded-full font-bold">
                           Não Configurada
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                       Permite ao HUBI trazer fotografias oficiais de produtos pesquisadas no Google diretamente para a tela de cadastro sem abrir abas extras. Cota gratuita renovável de 250 buscas mensais sem custo para a loja.
                     </p>
                   </div>
@@ -3971,7 +3975,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     href="https://serpapi.com/users/sign_up"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-teal-400 hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                    className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-teal-600 dark:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer shrink-0 shadow-xs"
                   >
                     <span>Obter Chave Gratuita</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -3979,17 +3983,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
 
                 {/* Área da Chave */}
-                <div className="space-y-2 pt-3 border-t border-slate-800/80">
+                <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-800/80">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Key className="w-3.5 h-3.5 text-teal-400" />
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-teal-500" />
                       <span>Chave de API SerpApi (API Key):</span>
                     </label>
                     {serpApiKey && !editandoSerpApiKey && (
                       <button
                         type="button"
                         onClick={() => setEditandoSerpApiKey(true)}
-                        className="text-[11px] text-teal-400 hover:text-teal-300 font-bold transition cursor-pointer flex items-center gap-1"
+                        className="text-[11px] text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-bold transition cursor-pointer flex items-center gap-1"
                       >
                         <Edit2 className="w-3 h-3" />
                         <span>Editar / Trocar Chave</span>
@@ -4008,7 +4012,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                             setResultadoTesteSerpApi(null);
                           }}
                           placeholder="Cole sua chave aqui (Ex: 7a8b9c0d1e2f3a4b5c6d...)"
-                          className="flex-1 bg-slate-900 border border-slate-700 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-100 placeholder:text-slate-600 font-mono transition"
+                          className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono outline-hidden transition"
                         />
                         <button
                           type="button"
@@ -4021,7 +4025,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                               mostrarErro(e.message, 'Erro ao salvar chave');
                             }
                           }}
-                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-black text-xs transition cursor-pointer shrink-0 shadow-sm"
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white font-black text-xs transition cursor-pointer shrink-0 shadow-sm"
                         >
                           Salvar Chave
                         </button>
@@ -4029,21 +4033,21 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           <button
                             type="button"
                             onClick={() => setEditandoSerpApiKey(false)}
-                            className="px-3.5 py-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer shrink-0"
+                            className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer shrink-0"
                           >
                             Cancelar
                           </button>
                         )}
                       </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
                         Acesse sua conta no painel da SerpApi, copie o código em <strong>API Key</strong> e salve aqui para ativar a busca automática no cadastro de produtos.
                       </p>
                     </div>
                   ) : (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
                       <div className="flex items-center gap-2">
-                        <Key className="w-4 h-4 text-teal-400 shrink-0" />
-                        <span className="font-mono text-xs text-slate-300 tracking-wider">
+                        <Key className="w-4 h-4 text-teal-500 shrink-0" />
+                        <span className="font-mono text-xs text-slate-700 dark:text-slate-300 tracking-wider">
                           {`••••••••••••••••${serpApiKey.trim().slice(-4)}`}
                         </span>
                       </div>
@@ -4059,16 +4063,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                             setResultadoTesteSerpApi(res);
                             setTestandoSerpApi(false);
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                         >
                           {testandoSerpApi ? (
                             <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-400" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-500" />
                               <span>Testando...</span>
                             </>
                           ) : (
                             <>
-                              <RefreshCw className="w-3.5 h-3.5 text-teal-400" />
+                              <RefreshCw className="w-3.5 h-3.5 text-teal-500" />
                               <span>Testar Conexão</span>
                             </>
                           )}
@@ -4077,7 +4081,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           href="https://serpapi.com/dashboard"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center gap-1 transition"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1 transition"
                           title="Acessar painel SerpApi"
                         >
                           <span>Painel</span>
@@ -4092,14 +4096,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div
                       className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 animate-in fade-in ${
                         resultadoTesteSerpApi.sucesso
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                          : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
                       }`}
                     >
                       {resultadoTesteSerpApi.sucesso ? (
-                        <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                       )}
                       <div>
                         <p className="font-bold">{resultadoTesteSerpApi.mensagem}</p>
@@ -4139,15 +4143,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       {/* ========================================================================= */}
       {modalPreviewRecibo && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-100">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Recibo da Loja (Preview)</h3>
-              <button onClick={() => setModalPreviewRecibo(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Recibo da Loja (Preview)</h3>
+              <button onClick={() => setModalPreviewRecibo(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-white text-slate-900 rounded-2xl p-4 font-mono text-xs shadow-inner space-y-3">
+            <div className="bg-white text-slate-900 rounded-2xl p-4 font-mono text-xs shadow-inner space-y-3 border border-slate-200">
               {urlLogo && (
                 <img src={urlLogo} alt="Logo" className="w-16 h-16 object-contain mx-auto" />
               )}
@@ -4233,7 +4237,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   } as any,
                   '80mm'
                 )}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Imprimir</span>
@@ -4266,7 +4270,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   } as any,
                   'a4'
                 )}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Folha A4</span>
@@ -4275,7 +4279,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(false)}
-                className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm transition"
               >
                 <span>Fechar</span>
               </button>
@@ -4288,19 +4292,19 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       {/* MODAL: EXPORTAÇÃO CONCLUÍDA */}
       {/* ========================================================================= */}
       {modalExportConcluido && (
-        <div className="fixed inset-0 bg-black/60 md:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 md:bg-emerald-500/20 text-emerald-600 md:text-emerald-400 mx-auto flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
               <Download className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Seus relatórios estão prontos! 🎉</h3>
-              <p className="text-xs text-slate-500 md:text-slate-400 mt-1">O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Seus relatórios estão prontos! 🎉</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
             </div>
             <button
               type="button"
               onClick={() => setModalExportConcluido(false)}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer"
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm transition"
             >
               Voltar
             </button>
@@ -4312,17 +4316,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       {/* MODAL: SELECIONAR PROVEDOR DIGITAL */}
       {/* ========================================================================= */}
       {modalProvedor && (
-        <div className="fixed inset-0 bg-black/60 md:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base text-slate-800 md:text-slate-100">Provedor de Pagamento Digital</h3>
-                <p className="text-xs text-slate-500 md:text-slate-400 mt-0.5">Selecione o provedor para integração automática</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Provedor de Pagamento Digital</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Selecione o provedor para integração automática</p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalProvedor(false)}
-                className="text-slate-400 hover:text-slate-700 md:hover:text-white p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 cursor-pointer transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4334,49 +4338,49 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   id: 'nenhum',
                   nome: 'Nenhum (Desativado)',
                   desc: 'Não utilizar integração automática online',
-                  cor: 'text-slate-500 bg-slate-100 md:text-slate-400 md:bg-slate-800/40',
+                  cor: 'text-slate-500 bg-slate-100 dark:text-slate-400 dark:bg-slate-800/40',
                   badge: 'OFF'
                 },
                 {
                   id: 'mercado_pago',
                   nome: 'Mercado Pago',
                   desc: 'Pix dinâmico com QR Code, link de pagamento e cartão',
-                  cor: 'text-sky-600 bg-sky-50 md:text-sky-400 md:bg-sky-500/20',
+                  cor: 'text-sky-600 bg-sky-50 dark:text-sky-400 dark:bg-sky-500/20',
                   badge: 'MP'
                 },
                 {
                   id: 'pagseguro',
                   nome: 'PagBank (PagSeguro)',
                   desc: 'Checkout transparente, Pix e cartão de crédito',
-                  cor: 'text-emerald-600 bg-emerald-50 md:text-emerald-400 md:bg-emerald-500/20',
+                  cor: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/20',
                   badge: 'PAG'
                 },
                 {
                   id: 'asaas',
                   nome: 'Asaas',
                   desc: 'Pix dinâmico com webhook, boleto bancário e cartão',
-                  cor: 'text-purple-600 bg-purple-50 md:text-purple-400 md:bg-purple-500/20',
+                  cor: 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-500/20',
                   badge: 'AS'
                 },
                 {
                   id: 'stripe',
                   nome: 'Stripe',
                   desc: 'Cartões nacionais e internacionais, Apple Pay',
-                  cor: 'text-indigo-600 bg-indigo-50 md:text-indigo-400 md:bg-indigo-500/20',
+                  cor: 'text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-500/20',
                   badge: 'ST'
                 },
                 {
                   id: 'picpay',
                   nome: 'PicPay E-commerce',
                   desc: 'Pagamento via aplicativo PicPay e QR Code',
-                  cor: 'text-teal-600 bg-teal-50 md:text-teal-400 md:bg-teal-500/20',
+                  cor: 'text-teal-600 bg-teal-50 dark:text-teal-400 dark:bg-teal-500/20',
                   badge: 'PIC'
                 },
                 {
                   id: 'google_pay',
                   nome: 'Google Pay & Carteiras',
                   desc: 'Pagamento com 1 clique em dispositivos Android/Chrome',
-                  cor: 'text-amber-600 bg-amber-50 md:text-amber-400 md:bg-amber-500/20',
+                  cor: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/20',
                   badge: 'GP'
                 }
               ].map((item) => (
@@ -4388,8 +4392,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   }}
                   className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
                     provedorDigital === item.id
-                      ? 'bg-emerald-50 md:bg-emerald-500/10 border-emerald-500 text-slate-800 md:text-slate-100'
-                      : 'bg-slate-50 md:bg-slate-950 border-slate-200 md:border-slate-800 text-slate-700 md:text-slate-300 hover:bg-slate-100 md:hover:bg-slate-800/60 hover:border-slate-300 md:hover:border-slate-700'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-slate-900 dark:text-slate-100 font-bold'
+                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -4399,12 +4403,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       {item.badge}
                     </div>
                     <div>
-                      <span className="font-bold text-xs text-slate-800 md:text-slate-100 block">{item.nome}</span>
-                      <span className="text-[11px] text-slate-500 md:text-slate-400 block mt-0.5">{item.desc}</span>
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">{item.nome}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">{item.desc}</span>
                     </div>
                   </div>
                   {provedorDigital === item.id && (
-                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-600 md:text-emerald-400 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5" />
                     </div>
                   )}

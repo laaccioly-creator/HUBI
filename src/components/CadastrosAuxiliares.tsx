@@ -1396,11 +1396,11 @@ export const CadastrosAuxiliares: React.FC = () => {
             }
           }}
         >
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 md:text-slate-100 animate-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 dark:text-slate-100 animate-in zoom-in-95 duration-150">
             {/* CABEÇALHO DO MODAL */}
-            <div className="p-4 sm:p-6 border-b border-slate-200 md:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 md:bg-emerald-500/10 text-emerald-600 md:text-emerald-400 border border-emerald-200 md:border-emerald-500/20 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center shrink-0">
                   {modalSecaoAberta === 'categorias' && <FolderTree className="w-5 h-5" />}
                   {modalSecaoAberta === 'unidades' && <Ruler className="w-5 h-5" />}
                   {modalSecaoAberta === 'fornecedores' && <Truck className="w-5 h-5" />}
@@ -1411,7 +1411,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   {modalSecaoAberta === 'transportadoras' && <PackageCheck className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900 md:text-slate-100">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
                     {modalSecaoAberta === 'categorias' && 'Categorias'}
                     {modalSecaoAberta === 'unidades' && 'Unidades de Medida'}
                     {modalSecaoAberta === 'fornecedores' && 'Fornecedores'}
@@ -1421,7 +1421,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     {modalSecaoAberta === 'apps_corrida' && 'Aplicativos de Corrida & Entregas Rápidas'}
                     {modalSecaoAberta === 'transportadoras' && 'Transportadoras Privadas & Cargas'}
                   </h2>
-                  <p className="text-xs text-slate-500 md:text-slate-400 hidden sm:block">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
                     {modalSecaoAberta === 'categorias' && 'Gerencie os departamentos e categorias do seu catálogo'}
                     {modalSecaoAberta === 'unidades' && 'Gerencie siglas e regras de fracionamento de medidas'}
                     {modalSecaoAberta === 'fornecedores' && 'Cadastre parceiros, contatos e faturamentos'}
@@ -1565,7 +1565,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setBusca('');
                     }
                   }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                   title={rotaOrigem ? "Voltar ao Produto" : "Fechar"}
                 >
                   <X className="w-5 h-5" />
@@ -1575,7 +1575,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             {/* BARRA DE PESQUISA (QUANDO NÃO É PRECIFICAÇÃO) */}
             {modalSecaoAberta !== 'precificacao' && (
-              <div className="p-3 sm:px-6 bg-slate-50 md:bg-slate-950/60 border-b border-slate-200 md:border-slate-800 shrink-0">
+              <div className="p-3 sm:px-6 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 shrink-0">
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -1597,12 +1597,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                     }
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
-                    className="w-full bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs text-slate-800 md:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition"
                   />
                   {busca && (
                     <button
                       onClick={() => setBusca('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 md:hover:text-slate-200 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1618,7 +1618,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : categoriasFiltradas.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
                     Nenhuma categoria encontrada. Clique em <strong>Nova Categoria</strong> para adicionar.
                   </div>
                 ) : (
@@ -1628,17 +1628,17 @@ export const CadastrosAuxiliares: React.FC = () => {
                       return (
                         <div
                           key={cat.id}
-                          className="p-3.5 bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl flex items-center justify-between hover:border-slate-300 md:hover:border-slate-700 transition group shadow-2xs"
+                          className="p-3.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between hover:border-slate-300 dark:hover:border-slate-700 transition group shadow-2xs"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-white md:bg-slate-800 border border-slate-200 md:border-slate-700 flex items-center justify-center text-lg shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-lg shrink-0">
                               {cat.icone || '📦'}
                             </div>
                             <div className="min-w-0">
-                              <h3 className="font-bold text-slate-800 md:text-slate-100 text-xs group-hover:text-emerald-500 transition truncate">
+                              <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xs group-hover:text-emerald-500 transition truncate">
                                 {cat.nome}
                               </h3>
-                              <span className="text-[11px] text-slate-500 md:text-slate-400">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400">
                                 {qtdProds} {qtdProds === 1 ? 'produto' : 'produtos'}
                               </span>
                             </div>
@@ -1653,7 +1653,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 setCatIcone(cat.icone || '📦');
                                 setModalCategoriaAberta(true);
                               }}
-                              className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                               title="Editar Categoria"
                             >
                               <Edit2 className="w-4 h-4" />
@@ -1661,7 +1661,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => excluirCategoria(cat)}
-                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                               title="Excluir Categoria"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1679,13 +1679,13 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : unidadesFiltradas.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
                     Nenhuma unidade encontrada.
                   </div>
                 ) : (
-                  <div className="border border-slate-200 md:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-                    <table className="w-full text-left text-xs text-slate-700 md:text-slate-300">
-                      <thead className="bg-slate-100 md:bg-slate-950/80 text-slate-600 md:text-slate-400 font-semibold border-b border-slate-200 md:border-slate-800 uppercase text-[10px] tracking-wider">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                    <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                      <thead className="bg-slate-100 dark:bg-slate-950/80 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800 uppercase text-[10px] tracking-wider">
                         <tr>
                           <th className="p-3.5">Sigla</th>
                           <th className="p-3.5">Descrição</th>
@@ -1693,24 +1693,24 @@ export const CadastrosAuxiliares: React.FC = () => {
                           <th className="p-3.5 text-right">Ações</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200 md:divide-slate-800/60 bg-white md:bg-transparent">
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 bg-white md:bg-transparent">
                         {unidadesFiltradas.map((u) => (
-                          <tr key={u.id} className="hover:bg-slate-50 md:hover:bg-slate-800/40 transition">
-                            <td className="p-3.5 font-mono font-bold text-emerald-600 md:text-emerald-400">
-                              <span className="px-2 py-1 rounded-lg bg-emerald-50 md:bg-emerald-500/10 border border-emerald-200 md:border-emerald-500/30">
+                          <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                            <td className="p-3.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              <span className="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30">
                                 {u.sigla.toUpperCase()}
                               </span>
                             </td>
-                            <td className="p-3.5 font-semibold text-slate-800 md:text-slate-200">
+                            <td className="p-3.5 font-semibold text-slate-800 dark:text-slate-200">
                               {u.nome}
                             </td>
                             <td className="p-3.5">
                               {u.permite_fracionado ? (
-                                <span className="text-indigo-600 md:text-indigo-300 bg-indigo-50 md:bg-indigo-500/10 border border-indigo-200 md:border-indigo-500/20 px-2 py-0.5 rounded text-[11px] font-bold">
+                                <span className="text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded text-[11px] font-bold">
                                   Sim (decimais)
                                 </span>
                               ) : (
-                                <span className="text-slate-500 md:text-slate-400 bg-slate-100 md:bg-slate-800 px-2 py-0.5 rounded text-[11px]">
+                                <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px]">
                                   Apenas Inteiro
                                 </span>
                               )}
@@ -1726,7 +1726,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                     setUnidadeFracionada(u.permite_fracionado);
                                     setModalUnidadeAberta(true);
                                   }}
-                                  className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                                   title="Editar Unidade"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
@@ -1735,7 +1735,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => excluirUnidade(u)}
-                                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                                     title="Excluir Unidade"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1756,7 +1756,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : fornecedoresFiltrados.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
                     Nenhum fornecedor cadastrado. Clique em <strong>Novo Fornecedor</strong> para adicionar.
                   </div>
                 ) : (
@@ -1764,16 +1764,16 @@ export const CadastrosAuxiliares: React.FC = () => {
                     {fornecedoresFiltrados.map((forn) => (
                       <div
                         key={forn.id}
-                        className="p-4 bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 md:hover:border-slate-700 transition shadow-2xs group"
+                        className="p-4 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition shadow-2xs group"
                       >
                         <div className="space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <h3 className="font-bold text-slate-800 md:text-slate-100 text-xs sm:text-sm group-hover:text-emerald-500 transition truncate">
+                              <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm group-hover:text-emerald-500 transition truncate">
                                 {forn.nome}
                               </h3>
                               {forn.pessoa_contato && (
-                                <p className="text-[11px] text-slate-500 md:text-slate-400 flex items-center gap-1 mt-0.5">
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                   Contato: {forn.pessoa_contato}
                                 </p>
@@ -1793,7 +1793,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                   setFornObs(forn.observacoes || '');
                                   setModalFornecedorAberta(true);
                                 }}
-                                className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-indigo-600 md:hover:text-indigo-400 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                                className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                                 title="Editar Fornecedor"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -1801,7 +1801,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => excluirFornecedor(forn)}
-                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                                 title="Excluir Fornecedor"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1809,7 +1809,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="text-[11px] text-slate-500 md:text-slate-400 space-y-1 pt-1 border-t border-slate-200 md:border-slate-800/80">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-800/80">
                             {forn.numero_documento && (
                               <div className="flex items-center gap-1.5">
                                 <FileText className="w-3.5 h-3.5 text-slate-400" />
@@ -1829,7 +1829,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               </div>
                             )}
                             {forn.observacoes && (
-                              <p className="text-[10px] text-slate-500 italic mt-1 bg-white md:bg-slate-900 p-2 rounded-lg border border-slate-200 md:border-slate-800 line-clamp-2">
+                              <p className="text-[10px] text-slate-500 italic mt-1 bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 line-clamp-2">
                                 "{forn.observacoes}"
                               </p>
                             )}
@@ -1846,7 +1846,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : formasPagamentoFiltradas.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs space-y-2">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs space-y-2">
                     <p>Nenhuma forma de pagamento cadastrada.</p>
                     <button
                       onClick={abrirModalNovoPagamento}
@@ -1865,19 +1865,19 @@ export const CadastrosAuxiliares: React.FC = () => {
                           key={fp.id}
                           className={`border rounded-2xl p-4 space-y-3 transition shadow-xs ${
                             ehAtivo
-                              ? 'bg-slate-50 md:bg-slate-950/80 border-slate-200 md:border-slate-800 hover:border-slate-300 md:hover:border-slate-700'
-                              : 'bg-rose-50/50 md:bg-slate-950/40 border-rose-200 md:border-rose-950/40 opacity-70'
+                              ? 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                              : 'bg-rose-50/50 dark:bg-slate-950/40 border-rose-200 dark:border-rose-950/40 opacity-70'
                           }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2.5">
                               <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                                fp.tipo === 'dinheiro' ? 'bg-emerald-50 md:bg-emerald-500/10 border-emerald-200 md:border-emerald-500/30 text-emerald-600 md:text-emerald-400' :
+                                fp.tipo === 'dinheiro' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400' :
                                 fp.tipo === 'pix' ? 'bg-cyan-50 md:bg-cyan-500/10 border-cyan-200 md:border-cyan-500/30 text-cyan-600 md:text-cyan-400' :
                                 fp.tipo === 'cartao_credito' ? 'bg-purple-50 md:bg-purple-500/10 border-purple-200 md:border-purple-500/30 text-purple-600 md:text-purple-400' :
                                 fp.tipo === 'cartao_debito' ? 'bg-blue-50 md:bg-blue-500/10 border-blue-200 md:border-blue-500/30 text-blue-600 md:text-blue-400' :
                                 fp.tipo === 'fiado' ? 'bg-amber-50 md:bg-amber-500/10 border-amber-200 md:border-amber-500/30 text-amber-600 md:text-amber-400' :
-                                'bg-slate-100 md:bg-slate-800 border-slate-200 md:border-slate-700 text-slate-600 md:text-slate-300'
+                                'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                               }`}>
                                 {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4" />}
                                 {fp.tipo === 'pix' && <Zap className="w-4 h-4" />}
@@ -1889,7 +1889,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <h3 className="font-bold text-slate-800 md:text-slate-100 text-xs sm:text-sm truncate">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate">
                                   {fp.nome}
                                 </h3>
                                 <span className="text-[10px] uppercase font-bold text-slate-400">
@@ -1907,7 +1907,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => abrirModalEditarPagamento(fp)}
-                                className="p-1.5 rounded-lg text-slate-500 md:text-slate-400 hover:text-slate-800 md:hover:text-slate-200 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                                className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                                 title="Editar Forma de Pagamento"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -1915,7 +1915,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => excluirFormaPagamento(fp)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 md:hover:text-rose-400 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                                 title="Excluir Forma de Pagamento"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1924,19 +1924,19 @@ export const CadastrosAuxiliares: React.FC = () => {
                           </div>
 
                           {/* Taxas e Prazos */}
-                          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200 md:border-slate-800/80">
-                            <div className="bg-white md:bg-slate-900/60 p-2 rounded-xl border border-slate-200 md:border-slate-800/60">
+                          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200 dark:border-slate-800/80">
+                            <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200 dark:border-slate-800/60">
                               <span className="text-[10px] text-slate-400 block font-medium">Taxa:</span>
-                              <span className="font-bold text-slate-700 md:text-slate-200 text-[11px]">
+                              <span className="font-bold text-slate-700 dark:text-slate-200 text-[11px]">
                                 {Number(fp.taxa_percentual || 0) > 0 ? `${fp.taxa_percentual}%` : 'Sem taxa'}
                               </span>
                             </div>
 
-                            <div className="bg-white md:bg-slate-900/60 p-2 rounded-xl border border-slate-200 md:border-slate-800/60">
+                            <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200 dark:border-slate-800/60">
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 {fp.tipo === 'fiado' ? 'Prazo de Pagamento:' : 'Parcelamento:'}
                               </span>
-                              <span className="font-bold text-slate-700 md:text-slate-200 text-[11px]">
+                              <span className="font-bold text-slate-700 dark:text-slate-200 text-[11px]">
                                 {fp.tipo === 'fiado'
                                   ? `${fp.prazo_dias || 30} dias`
                                   : fp.tipo === 'cartao_credito'
@@ -1950,7 +1950,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                           <div className="flex items-center justify-between pt-1 text-xs">
                             <div className="flex items-center gap-1.5">
                               <span className={`w-2 h-2 rounded-full ${fp.exibir_catalogo ? 'bg-cyan-500' : 'bg-slate-400'}`} />
-                              <span className="text-[11px] text-slate-500 md:text-slate-400">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400">
                                 {fp.exibir_catalogo ? 'No Catálogo' : 'Apenas PDV'}
                               </span>
                             </div>
@@ -1960,8 +1960,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                               onClick={() => alternarStatusPagamento(fp)}
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
                                 ehAtivo
-                                  ? 'bg-emerald-50 md:bg-emerald-500/15 text-emerald-700 md:text-emerald-400 border border-emerald-200 md:border-emerald-500/30'
-                                  : 'bg-rose-50 md:bg-rose-500/15 text-rose-700 md:text-rose-400 border border-rose-200 md:border-rose-500/30'
+                                  ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
+                                  : 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
                               }`}
                             >
                               {ehAtivo ? 'Ativo' : 'Inativo'}
@@ -1977,10 +1977,10 @@ export const CadastrosAuxiliares: React.FC = () => {
               {/* 5. MODAL REGRAS DE PRECIFICAÇÃO */}
               {modalSecaoAberta === 'precificacao' && (
                 <form onSubmit={salvarRegrasPrecificacao} className="space-y-5">
-                  <div className="p-3.5 bg-indigo-50 md:bg-indigo-500/10 border border-indigo-200 md:border-indigo-500/30 rounded-2xl flex items-start gap-2.5">
-                    <Sparkles className="w-5 h-5 text-indigo-600 md:text-indigo-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-slate-700 md:text-slate-300 space-y-0.5">
-                      <h4 className="font-bold text-indigo-700 md:text-indigo-300 text-xs sm:text-sm">Sugestão de Preços no HUBI</h4>
+                  <div className="p-3.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl flex items-start gap-2.5">
+                    <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-slate-700 dark:text-slate-300 space-y-0.5">
+                      <h4 className="font-bold text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm">Sugestão de Preços no HUBI</h4>
                       <p className="text-[11px]">
                         Defina os descontos padrão e o critério de ativação para vendas no atacado e para distribuidores (por valor em R$ ou quantidade de peças).
                       </p>
@@ -1989,11 +1989,11 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* ATACADO */}
-                    <div className={`bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs ${!atacadoHabilitado ? 'opacity-60' : ''}`}>
-                      <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-2.5">
-                        <div className="flex items-center gap-2 text-emerald-600 md:text-emerald-400">
+                    <div className={`bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs ${!atacadoHabilitado ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                           <Percent className="w-5 h-5" />
-                          <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Atacado</h3>
+                          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Atacado</h3>
                         </div>
                         {!atacadoHabilitado && (
                           <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
@@ -2004,7 +2004,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                       <div className={`space-y-3.5 ${!atacadoHabilitado ? 'pointer-events-none select-none' : ''}`}>
                         <div>
-                          <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                             Desconto Padrão (%):
                           </label>
                           <div className="relative">
@@ -2015,7 +2015,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               max="100"
                               value={descontoAtacado}
                               onChange={(e) => setDescontoAtacado(e.target.value)}
-                              className="w-full bg-white md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-emerald-600 md:text-emerald-400 focus:outline-none focus:border-emerald-500"
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-emerald-500"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
                           </div>
@@ -2030,12 +2030,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                           }}
                           className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
                             tipoMinimoAtacado === 'valor'
-                              ? 'bg-white md:bg-slate-950 border-emerald-500 shadow-2xs'
-                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                              ? 'bg-white dark:bg-slate-950 border-emerald-500 shadow-2xs'
+                              : 'bg-white/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 opacity-60'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name="tipo_minimo_atacado"
@@ -2064,7 +2064,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 setTipoMinimoAtacado('valor');
                                 setValorMinimoAtacado(e.target.value);
                               }}
-                              className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
                             />
                           </div>
                         </div>
@@ -2077,12 +2077,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                           }}
                           className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
                             tipoMinimoAtacado === 'quantidade'
-                              ? 'bg-white md:bg-slate-950 border-emerald-500 shadow-2xs'
-                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                              ? 'bg-white dark:bg-slate-950 border-emerald-500 shadow-2xs'
+                              : 'bg-white/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 opacity-60'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name="tipo_minimo_atacado"
@@ -2107,7 +2107,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 placeholder="50"
                                 value={qtdTotalMinimaAtacado}
                                 onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
-                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
                               />
                             </div>
                             <div>
@@ -2119,7 +2119,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 placeholder="6"
                                 value={qtdMinimaSkuAtacado}
                                 onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
-                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-40"
                               />
                             </div>
                           </div>
@@ -2128,11 +2128,11 @@ export const CadastrosAuxiliares: React.FC = () => {
                     </div>
 
                     {/* DISTRIBUIDOR / AUTOATACADO */}
-                    <div className={`bg-slate-50 md:bg-slate-950/80 border border-slate-200 md:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs ${!distribuidorHabilitado ? 'opacity-60' : ''}`}>
-                      <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-2.5">
-                        <div className="flex items-center gap-2 text-indigo-600 md:text-indigo-400">
+                    <div className={`bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs ${!distribuidorHabilitado ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                        <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
                           <Percent className="w-5 h-5" />
-                          <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Distribuidor</h3>
+                          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Distribuidor</h3>
                         </div>
                         {!distribuidorHabilitado && (
                           <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
@@ -2143,7 +2143,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                       <div className={`space-y-3.5 ${!distribuidorHabilitado ? 'pointer-events-none select-none' : ''}`}>
                         <div>
-                          <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                             Desconto Padrão (%):
                           </label>
                           <div className="relative">
@@ -2154,7 +2154,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               max="100"
                               value={descontoAutoatacado}
                               onChange={(e) => setDescontoAutoatacado(e.target.value)}
-                              className="w-full bg-white md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 md:text-indigo-400 focus:outline-none focus:border-indigo-500"
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 focus:outline-none focus:border-indigo-500"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
                           </div>
@@ -2169,12 +2169,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                           }}
                           className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
                             tipoMinimoDistribuidor === 'valor'
-                              ? 'bg-white md:bg-slate-950 border-indigo-500 shadow-2xs'
-                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                              ? 'bg-white dark:bg-slate-950 border-indigo-500 shadow-2xs'
+                              : 'bg-white/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 opacity-60'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name="tipo_minimo_distribuidor"
@@ -2203,7 +2203,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 setTipoMinimoDistribuidor('valor');
                                 setValorMinimoAutoatacado(e.target.value);
                               }}
-                              className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
                             />
                           </div>
                         </div>
@@ -2216,12 +2216,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                           }}
                           className={`p-3 rounded-xl border transition cursor-pointer space-y-2 ${
                             tipoMinimoDistribuidor === 'quantidade'
-                              ? 'bg-white md:bg-slate-950 border-indigo-500 shadow-2xs'
-                              : 'bg-white/50 md:bg-slate-950/40 border-slate-200 md:border-slate-800 opacity-60'
+                              ? 'bg-white dark:bg-slate-950 border-indigo-500 shadow-2xs'
+                              : 'bg-white/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 opacity-60'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-700 md:text-slate-200 flex items-center gap-2 cursor-pointer">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name="tipo_minimo_distribuidor"
@@ -2246,7 +2246,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 placeholder="100"
                                 value={qtdTotalMinimaAutoatacado}
                                 onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
-                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
                               />
                             </div>
                             <div>
@@ -2258,7 +2258,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 placeholder="6"
                                 value={qtdMinimaSkuAutoatacado}
                                 onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
-                                className="w-full bg-slate-50 md:bg-slate-900 border border-slate-200 md:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 md:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:border-indigo-500 disabled:opacity-40"
                               />
                             </div>
                           </div>
@@ -2293,7 +2293,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : formasEntregaFiltradas.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
                     Nenhuma modalidade de envio encontrada. Clique em <strong>Nova Forma de Envio</strong> para adicionar.
                   </div>
                 ) : (
@@ -2303,8 +2303,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                         key={forma.id}
                         className={`p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 shadow-2xs ${
                           forma.ativo
-                            ? 'bg-slate-50 md:bg-slate-950/80 border-slate-200 md:border-slate-800'
-                            : 'bg-slate-100/50 md:bg-slate-900/30 border-slate-200/60 md:border-slate-800/60 opacity-60'
+                            ? 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800'
+                            : 'bg-slate-100/50 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-60'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -2320,18 +2320,18 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-bold text-slate-800 md:text-slate-100 truncate">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                                 {forma.nome}
                               </span>
                               {forma.tipo === 'retirada' && forma.padrao && (
-                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-200 md:bg-slate-700 text-slate-700 md:text-slate-300">
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                                   Padrão
                                 </span>
                               )}
                             </div>
 
                             <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                              <span className="text-[10px] font-semibold text-slate-500 md:text-slate-400">
+                              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                                 {forma.tipo === 'retirada' ? 'Retirada na Loja' :
                                  forma.tipo === 'frota_propria' || forma.tipo === 'proprio' ? 'Frota Própria' :
                                  forma.tipo === 'motoboy' ? 'Motoboy' :
@@ -2340,7 +2340,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                  forma.tipo === 'transportadora' ? 'Transportadora' : forma.tipo}
                               </span>
                               {forma.valor_taxa !== undefined && forma.valor_taxa > 0 && (
-                                <span className="text-[10px] font-bold text-emerald-600 md:text-emerald-400">
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                                   • R$ {Number(forma.valor_taxa).toFixed(2).replace('.', ',')}
                                 </span>
                               )}
@@ -2372,7 +2372,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => abrirModalEditarForma(forma)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                             title="Editar forma de envio"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -2382,7 +2382,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => excluirForma(forma)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                               title="Excluir modalidade"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2410,7 +2410,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : appsEntregaFiltrados.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
                     Nenhum aplicativo cadastrado. Clique em <strong>Novo Aplicativo</strong> para adicionar (ex: Uber Flash, 99Entrega, Lalamove).
                   </div>
                 ) : (
@@ -2420,15 +2420,15 @@ export const CadastrosAuxiliares: React.FC = () => {
                         key={app.id}
                         className={`p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 shadow-2xs ${
                           app.ativo
-                            ? 'bg-slate-50 md:bg-slate-950/80 border-slate-200 md:border-slate-800'
-                            : 'bg-slate-100/50 md:bg-slate-900/30 border-slate-200/60 md:border-slate-800/60 opacity-60'
+                            ? 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800'
+                            : 'bg-slate-100/50 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-60'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                             <Navigation className="w-4 h-4" />
                           </div>
-                          <span className="text-xs font-bold text-slate-800 md:text-slate-100 truncate">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                             {app.nome}
                           </span>
                         </div>
@@ -2437,7 +2437,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => excluirApp(app)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                             title="Excluir aplicativo"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -2464,7 +2464,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : transportadorasFiltradas.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-300 md:border-slate-800 rounded-2xl text-slate-400 text-xs">
+                  <div className="text-center py-12 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
                     Nenhuma transportadora cadastrada. Clique em <strong>Nova Transportadora</strong> para adicionar (ex: Jadlog, Braspress, Total Express).
                   </div>
                 ) : (
@@ -2474,8 +2474,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                         key={t.id}
                         className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 shadow-2xs ${
                           t.ativo
-                            ? 'bg-slate-50 md:bg-slate-950/80 border-slate-200 md:border-slate-800'
-                            : 'bg-slate-100/50 md:bg-slate-900/30 border-slate-200/60 md:border-slate-800/60 opacity-60'
+                            ? 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-slate-800'
+                            : 'bg-slate-100/50 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-60'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -2484,11 +2484,11 @@ export const CadastrosAuxiliares: React.FC = () => {
                               <Truck className="w-5 h-5" />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-xs font-bold text-slate-800 md:text-slate-100 block truncate">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block truncate">
                                 {t.nome}
                               </span>
                               {t.pessoa_contato && (
-                                <span className="text-[11px] text-slate-500 md:text-slate-400 block truncate">
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
                                   Contato: {t.pessoa_contato}
                                 </span>
                               )}
@@ -2499,7 +2499,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => abrirModalEditarTransp(t)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                               title="Editar transportadora"
                             >
                               <Edit2 className="w-4 h-4" />
@@ -2508,7 +2508,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => excluirTransportadora(t)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 md:hover:bg-rose-500/10 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                               title="Excluir transportadora"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2527,7 +2527,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                         </div>
 
                         {/* Detalhes de contato e rastreio */}
-                        <div className="space-y-1.5 pt-2 border-t border-slate-200/60 md:border-slate-800 text-[11px] text-slate-500 md:text-slate-400">
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
                           {t.site && (
                             <div className="flex items-center gap-1.5 truncate">
                               <Globe className="w-3.5 h-3.5 shrink-0 text-slate-400" />
@@ -2549,7 +2549,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               </div>
                             )}
                             {t.whatsapp && (
-                              <div className="flex items-center gap-1 text-emerald-600 md:text-emerald-400 font-semibold">
+                              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
                                 <MessageSquare className="w-3 h-3" />
                                 <span>{t.whatsapp}</span>
                               </div>
@@ -2571,36 +2571,36 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalCategoriaAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 {catEditando ? 'Editar Categoria' : 'Nova Categoria'}
               </h3>
-              <button onClick={() => setModalCategoriaAberta(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
+              <button onClick={() => setModalCategoriaAberta(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={salvarCategoria} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">Nome da Categoria:</label>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">Nome da Categoria:</label>
                 <input
                   type="text"
                   placeholder="Ex: BEBIDAS, ROUPAS..."
                   value={catNome}
                   onChange={(e) => setCatNome(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 uppercase focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 uppercase focus:outline-none focus:border-emerald-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">Ícone / Emoji:</label>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">Ícone / Emoji:</label>
                 <input
                   type="text"
                   value={catIcone}
                   onChange={(e) => setCatIcone(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                   placeholder="Ex: 📦, 🧴, 🥤, 👗, 🍔"
                 />
               </div>
@@ -2609,7 +2609,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalCategoriaAberta(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -2631,12 +2631,12 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalUnidadeAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 {unidadeEditando ? 'Editar Unidade de Medida' : 'Nova Unidade de Medida'}
               </h3>
-              <button onClick={() => setModalUnidadeAberta(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
+              <button onClick={() => setModalUnidadeAberta(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2706,12 +2706,12 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalFornecedorAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 {fornecedorEditando ? 'Editar Fornecedor' : 'Novo Fornecedor'}
               </h3>
-              <button onClick={() => setModalFornecedorAberta(false)} className="text-slate-400 hover:text-slate-700 md:hover:text-white">
+              <button onClick={() => setModalFornecedorAberta(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2812,15 +2812,15 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalPagamentoAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-800 md:text-slate-100 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <span>{pagEditando ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}</span>
               </h3>
               <button
                 onClick={() => setModalPagamentoAberta(false)}
-                className="text-slate-400 hover:text-slate-700 md:hover:text-white p-1 rounded-lg hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3002,20 +3002,20 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalFormaAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 md:bg-emerald-500/10 text-emerald-600 md:text-emerald-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Truck className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
+                <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                   {formaEditando ? 'Editar Forma de Envio' : 'Nova Forma de Envio'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setModalFormaAberta(false)}
-                className="text-slate-400 hover:text-slate-700 md:hover:text-white"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3023,7 +3023,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarFormaEnvio} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                   Nome da Modalidade *
                 </label>
                 <input
@@ -3032,19 +3032,19 @@ export const CadastrosAuxiliares: React.FC = () => {
                   placeholder="Ex: Entrega Expressa, Motoboy Terceirizado, Retirada no Balcão"
                   value={formaNome}
                   onChange={(e) => setFormaNome(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                     Tipo de Entrega:
                   </label>
                   <select
                     value={formaTipo}
                     onChange={(e) => handleMudarTipoForma(e.target.value as TipoEntrega)}
-                    className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                   >
                     <option value="frota_propria">Frota Própria</option>
                     <option value="motoboy">Motoboy</option>
@@ -3056,7 +3056,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                     Taxa Base (R$):
                   </label>
                   <div className="relative">
@@ -3068,14 +3068,14 @@ export const CadastrosAuxiliares: React.FC = () => {
                       placeholder="0.00"
                       value={formaValorTaxa}
                       onChange={(e) => setFormaValorTaxa(e.target.value)}
-                      className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-emerald-500 font-bold"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500 font-bold"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Requisitos Operacionais para o Despacho */}
-              <div className="p-3 bg-slate-50 md:bg-slate-950 rounded-2xl border border-slate-200 md:border-slate-800 space-y-2 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
                   Requisitos ao Despachar Pedidos
                 </span>
@@ -3087,7 +3087,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     onChange={(e) => setFormaRequerEntregador(e.target.checked)}
                     className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
                   />
-                  <span className="text-slate-700 md:text-slate-300">Exigir identificação do entregador / motoboy</span>
+                  <span className="text-slate-700 dark:text-slate-300">Exigir identificação do entregador / motoboy</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -3097,7 +3097,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     onChange={(e) => setFormaRequerRastreio(e.target.checked)}
                     className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
                   />
-                  <span className="text-slate-700 md:text-slate-300">Exigir código de rastreamento</span>
+                  <span className="text-slate-700 dark:text-slate-300">Exigir código de rastreamento</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -3107,7 +3107,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     onChange={(e) => setFormaRequerLinkRastreio(e.target.checked)}
                     className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
                   />
-                  <span className="text-slate-700 md:text-slate-300">Exigir link de acompanhamento ao vivo / corrida</span>
+                  <span className="text-slate-700 dark:text-slate-300">Exigir link de acompanhamento ao vivo / corrida</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -3117,7 +3117,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     onChange={(e) => setFormaRequerPin(e.target.checked)}
                     className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
                   />
-                  <span className="text-slate-700 md:text-slate-300">Exigir código PIN de 4 dígitos</span>
+                  <span className="text-slate-700 dark:text-slate-300">Exigir código PIN de 4 dígitos</span>
                 </label>
               </div>
 
@@ -3125,7 +3125,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalFormaAberta(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -3154,20 +3154,20 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalAppAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 md:bg-emerald-500/10 text-emerald-600 md:text-emerald-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Navigation className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
+                <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                   Novo Aplicativo de Corrida
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setModalAppAberta(false)}
-                className="text-slate-400 hover:text-slate-700 md:hover:text-white"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3175,7 +3175,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarAppCorrida} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                   Nome do Aplicativo *
                 </label>
                 <input
@@ -3184,7 +3184,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   placeholder="Ex: Uber Flash, 99Entrega, Lalamove, Borzo"
                   value={appNome}
                   onChange={(e) => setAppNome(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -3192,7 +3192,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAppAberta(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -3221,20 +3221,20 @@ export const CadastrosAuxiliares: React.FC = () => {
       {/* ========================================================================= */}
       {modalTranspAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl text-slate-800 md:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 md:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-50 md:bg-amber-500/10 text-amber-600 md:text-amber-400 flex items-center justify-center">
                   <PackageCheck className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-base text-slate-800 md:text-slate-100">
+                <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                   {transpEditando ? 'Editar Transportadora' : 'Nova Transportadora'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setModalTranspAberta(false)}
-                className="text-slate-400 hover:text-slate-700 md:hover:text-white"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3242,7 +3242,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarTransportadora} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                   Nome da Transportadora *
                 </label>
                 <input
@@ -3251,13 +3251,13 @@ export const CadastrosAuxiliares: React.FC = () => {
                   placeholder="Ex: Jadlog, Braspress, Total Express, Azul Cargo"
                   value={transpNome}
                   onChange={(e) => setTranspNome(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                     Website Oficial:
                   </label>
                   <input
@@ -3265,12 +3265,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                     placeholder="https://transportadora.com.br"
                     value={transpSite}
                     onChange={(e) => setTranspSite(e.target.value)}
-                    className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                     Pessoa / Setor de Contato:
                   </label>
                   <input
@@ -3278,13 +3278,13 @@ export const CadastrosAuxiliares: React.FC = () => {
                     placeholder="Ex: João (Coleta) ou Comercial"
                     value={transpContato}
                     onChange={(e) => setTranspContato(e.target.value)}
-                    className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                   URL Direta para Rastreamento (Opcional):
                 </label>
                 <input
@@ -3292,7 +3292,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   placeholder="https://transportadora.com.br/rastreio?codigo={{codigo}}"
                   value={transpUrlRastreio}
                   onChange={(e) => setTranspUrlRastreio(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500 font-mono"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-mono"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
                   Dica: Utilize a tag <strong className="text-amber-500 font-mono">{'{{codigo}}'}</strong> onde o código de rastreio deve ser inserido dinamicamente.
@@ -3301,7 +3301,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                     Telefone Comercial:
                   </label>
                   <input
@@ -3309,12 +3309,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                     placeholder="(11) 4000-0000"
                     value={transpTelefone}
                     onChange={(e) => setTranspTelefone(e.target.value)}
-                    className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                     WhatsApp:
                   </label>
                   <input
@@ -3322,13 +3322,13 @@ export const CadastrosAuxiliares: React.FC = () => {
                     placeholder="(11) 99999-9999"
                     value={transpWhatsapp}
                     onChange={(e) => setTranspWhatsapp(e.target.value)}
-                    className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-600 md:text-slate-300 block mb-1">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-1">
                   Observações / Horário de Coleta:
                 </label>
                 <textarea
@@ -3336,7 +3336,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   placeholder="Ex: Coletas diárias às 15h; exige nota fiscal afixada"
                   value={transpObservacoes}
                   onChange={(e) => setTranspObservacoes(e.target.value)}
-                  className="w-full bg-slate-50 md:bg-slate-950 border border-slate-200 md:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 md:text-slate-100 focus:outline-none focus:border-amber-500 resize-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500 resize-none"
                 />
               </div>
 
@@ -3344,7 +3344,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalTranspAberta(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 md:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 md:hover:bg-slate-800 text-slate-700 md:text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>

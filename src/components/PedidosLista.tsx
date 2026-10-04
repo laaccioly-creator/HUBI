@@ -2427,16 +2427,16 @@ export const PedidosLista: React.FC = () => {
             {/* COLUNA ESQUERDA (7 colunas) */}
             <div className="lg:col-span-7 space-y-6">
               {/* Card Cliente (TELA002) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cliente</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cliente</span>
                   {pedidoSelecionado.status !== 'cancelado' && (
                     <div className="flex items-center gap-2">
                       <div className="relative">
                         <select
                           value={pedidoSelecionado.cliente_id || 'avulso'}
                           onChange={(e) => handleAlterarClientePedido(e.target.value)}
-                          className="bg-slate-950 border border-slate-700 hover:border-emerald-500 rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate"
+                          className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate"
                           title="Alterar cliente do pedido"
                         >
                           <option value="avulso">Cliente Avulso (Balcão)</option>
@@ -2452,7 +2452,7 @@ export const PedidosLista: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalNovoClienteAberto(true)}
-                        className="p-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 transition cursor-pointer"
+                        className="p-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-500 dark:bg-emerald-500/20 dark:hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 dark:hover:text-slate-950 border border-emerald-300 dark:border-emerald-500/30 transition cursor-pointer"
                         title="Adicionar novo cliente"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -2463,13 +2463,13 @@ export const PedidosLista: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-700 text-slate-200 font-black text-sm flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-black text-sm flex items-center justify-center">
                       {pedidoSelecionado.cliente?.nome
                         ? pedidoSelecionado.cliente.nome.slice(0, 2).toUpperCase()
                         : 'AV'}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-100">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                         {pedidoSelecionado.cliente?.nome || 'Cliente Avulso (Balcão)'}
                       </h4>
                       {pedidoSelecionado.cliente?.whatsapp || pedidoSelecionado.cliente?.telefone ? (
@@ -2477,7 +2477,7 @@ export const PedidosLista: React.FC = () => {
                           href={`https://wa.me/55${(pedidoSelecionado.cliente.whatsapp || pedidoSelecionado.cliente.telefone || '').replace(/\D/g, '')}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs font-bold text-emerald-400 hover:underline inline-flex items-center gap-1.5 mt-0.5"
+                          className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1.5 mt-0.5"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
                           <span>+{pedidoSelecionado.cliente.whatsapp || pedidoSelecionado.cliente.telefone}</span>
@@ -2491,9 +2491,9 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Observação (TELA002) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Observação</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Observação</span>
                 </div>
 
                 <div className="space-y-2">
@@ -2505,15 +2505,15 @@ export const PedidosLista: React.FC = () => {
                     readOnly={pedidoSelecionado.status === 'cancelado'}
                     onChange={(e) => setObservacaoTexto(e.target.value)}
                     onBlur={handleSalvarObservacao}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
-                  <label className={`flex items-center gap-2 text-xs text-slate-400 ${pedidoSelecionado.status === 'cancelado' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <label className={`flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 ${pedidoSelecionado.status === 'cancelado' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                     <input
                       type="checkbox"
                       disabled={pedidoSelecionado.status === 'cancelado'}
                       checked={exibirObsRecibo}
                       onChange={(e) => setExibirObsRecibo(e.target.checked)}
-                      className="rounded text-emerald-500 focus:ring-emerald-500 border-slate-700 bg-slate-950 disabled:cursor-not-allowed"
+                      className="rounded text-emerald-500 focus:ring-emerald-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 disabled:cursor-not-allowed"
                     />
                     <span>Exibir no recibo</span>
                   </label>
@@ -2539,10 +2539,10 @@ export const PedidosLista: React.FC = () => {
                 const despachadoEm = pe?.despachado_em || pedidoSelecionado.despachado_em;
 
                 return (
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                      <div className="flex items-center gap-2 font-bold text-slate-200 text-xs uppercase tracking-wider">
-                        <Truck className="w-4 h-4 text-emerald-400" />
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                      <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider">
+                        <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span>Logística & Despacho</span>
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
@@ -3064,16 +3064,16 @@ export const PedidosLista: React.FC = () => {
               })()}
 
               {/* Card Itens do Pedido (TELA002 / TELA002A) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <span className="text-sm font-bold text-slate-100">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     {pedidoSelecionado.itens?.length || 0} itens no pedido
                   </span>
                   {podeEditarPedido(pedidoSelecionado) && (
                     <button
                       type="button"
                       onClick={() => handleEditarPedido(pedidoSelecionado)}
-                      className="text-xs text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                      className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Edit className="w-3.5 h-3.5" />
                       <span>Editar itens</span>
@@ -3085,14 +3085,14 @@ export const PedidosLista: React.FC = () => {
                   {pedidoSelecionado.itens?.map((item) => (
                     <div
                       key={item.id}
-                      className="p-2.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-700 transition"
+                      className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold text-xs shrink-0">
                           {item.quantidade}x
                         </div>
                         <div className="min-w-0">
-                          <span className="text-xs font-bold text-slate-200 block truncate">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
                             {item.nome_produto || item.produto?.nome || 'Produto'}
                           </span>
                           {item.codigo_barras && (
@@ -3104,7 +3104,7 @@ export const PedidosLista: React.FC = () => {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-slate-100 block">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">
                           R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
                         </span>
                         <span className="text-[10px] text-slate-500">
@@ -3120,14 +3120,14 @@ export const PedidosLista: React.FC = () => {
             {/* COLUNA DIREITA (5 colunas): RESUMO, PAGAMENTO, RECIBO PREVIEW, HISTÓRICO */}
             <div className="lg:col-span-5 space-y-6">
               {/* Card Resumo do Pedido (TELA002) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Resumo do pedido</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resumo do pedido</span>
                   {podeEditarPedido(pedidoSelecionado) && (
                     <button
                       type="button"
                       onClick={() => handleEditarPedido(pedidoSelecionado)}
-                      className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                      className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold cursor-pointer"
                     >
                       Editar
                     </button>
@@ -3135,7 +3135,7 @@ export const PedidosLista: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-300">
+                  <div className="flex justify-between text-slate-700 dark:text-slate-300">
                     <span>Subtotal de produtos</span>
                     <span className="font-bold">
                       R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0).toFixed(2)}
@@ -3143,31 +3143,31 @@ export const PedidosLista: React.FC = () => {
                   </div>
 
                   {Number(pedidoSelecionado.valor_desconto || 0) > 0 && (
-                    <div className="flex justify-between text-rose-400 font-semibold">
+                    <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
                       <span>Desconto</span>
                       <span>-R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
                     </div>
                   )}
 
-                  <div className="flex justify-between text-slate-300">
+                  <div className="flex justify-between text-slate-700 dark:text-slate-300">
                     <span>Valor do frete</span>
-                    <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-400 font-bold" : "font-bold"}>
+                    <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
                       {Number(pedidoSelecionado.valor_frete || 0) > 0
                         ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}`
                         : 'Grátis'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-base font-black text-slate-100 pt-2 border-t border-slate-800">
+                  <div className="flex justify-between text-base font-black text-slate-900 dark:text-slate-100 pt-2 border-t border-slate-200 dark:border-slate-800">
                     <span>Total</span>
-                    <span className="text-emerald-400">
+                    <span className="text-emerald-600 dark:text-emerald-400">
                       R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
                     </span>
                   </div>
 
                   {/* Lucro Estimado (TELA002) */}
                   <div className="text-right pt-1">
-                    <span className="text-[11px] font-bold text-emerald-400">
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                       Lucro estimado: R$ {calcularLucroEstimado(pedidoSelecionado).toFixed(2)}
                     </span>
                   </div>
@@ -3175,21 +3175,21 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Meios de Pagamento (TELA002) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Meios de pagamento</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Meios de pagamento</span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                  <div className="flex items-center gap-2 text-slate-200 font-bold">
-                    <Coins className="w-4 h-4 text-emerald-400" />
+                <div className="flex items-center justify-between text-xs p-2.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                    <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span className="capitalize">
                       {pedidoSelecionado.pagamentos && pedidoSelecionado.pagamentos.length > 0
                         ? pedidoSelecionado.pagamentos[pedidoSelecionado.pagamentos.length - 1]?.forma_pagamento?.nome || 'Dinheiro / Pix'
                         : 'Dinheiro / Pix'}
                     </span>
                   </div>
-                  <span className="font-black text-slate-100">
+                  <span className="font-black text-slate-900 dark:text-slate-100">
                     R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
                   </span>
                 </div>
@@ -3197,14 +3197,14 @@ export const PedidosLista: React.FC = () => {
                 {resolverStatusPagamento(pedidoSelecionado) === 'fiado' && (() => {
                   const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
                   return (
-                    <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                      <span className="text-slate-400 font-semibold">Data de Vencimento:</span>
+                    <div className="flex items-center justify-between text-xs p-2.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <span className="text-slate-600 dark:text-slate-400 font-semibold">Data de Vencimento:</span>
                       <div className="text-right">
-                        <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-400' : 'text-slate-200'}`}>
+                        <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}`}>
                           {infoVenc.formatada}
                         </span>
                         {infoVenc.estaVencido && (
-                          <span className="text-[9px] font-black uppercase text-rose-300 bg-rose-500/20 border border-rose-500/30 px-1.5 py-0.2 rounded ml-1.5">
+                          <span className="text-[9px] font-black uppercase text-rose-700 bg-rose-50 dark:bg-rose-500/20 border border-rose-300 dark:border-rose-500/30 px-1.5 py-0.2 rounded ml-1.5">
                             Vencido
                           </span>
                         )}
@@ -3232,26 +3232,26 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Recibo Preview (TELA002A) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recibo</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Recibo</span>
                   <button
                     type="button"
                     onClick={() => setPedidoReciboModal(pedidoSelecionado)}
-                    className="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold cursor-pointer"
                   >
                     Ver completo
                   </button>
                 </div>
 
                 {/* Mini Preview do Recibo */}
-                <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-2">
+                <div className="p-4 bg-slate-50 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-2">
                   {logoLojaUrl ? (
                     <img src={logoLojaUrl} alt="Logo" className="h-8 max-w-[120px] object-contain mx-auto" />
                   ) : (
-                    <Store className="w-6 h-6 text-emerald-400 mx-auto" />
+                    <Store className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mx-auto" />
                   )}
-                  <p className="text-xs font-black text-slate-200">
+                  <p className="text-xs font-black text-slate-900 dark:text-slate-200">
                     RECIBO #{pedidoSelecionado.numero_pedido}
                   </p>
                   {pedidoSelecionado.status === 'cancelado' && (
@@ -3269,30 +3269,30 @@ export const PedidosLista: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCopiarReciboTexto(pedidoSelecionado)}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
                     title="Copiar texto do recibo"
                   >
-                    <Copy className="w-4 h-4 mb-0.5 text-emerald-400" />
+                    <Copy className="w-4 h-4 mb-0.5 text-emerald-600 dark:text-emerald-400" />
                     <span className="text-[10px]">{copiado ? 'Copiado' : 'Copiar'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoSelecionado, loja, 'a4')}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
                     title="Baixar PDF / A4"
                   >
-                    <Download className="w-4 h-4 mb-0.5 text-sky-400" />
+                    <Download className="w-4 h-4 mb-0.5 text-sky-600 dark:text-sky-400" />
                     <span className="text-[10px]">PDF</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleCompartilharReciboWhatsApp(pedidoSelecionado)}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer"
                     title="Enviar recibo pelo WhatsApp"
                   >
-                    <MessageCircle className="w-4 h-4 mb-0.5 text-emerald-400" />
+                    <MessageCircle className="w-4 h-4 mb-0.5 text-emerald-600 dark:text-emerald-400" />
                     <span className="text-[10px]">WhatsApp</span>
                   </button>
 
@@ -3309,8 +3309,8 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Histórico do Pedido (TELA002B) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3 shadow-xl">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-800 pb-2">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block border-b border-slate-200 dark:border-slate-800 pb-2">
                   Histórico do Pedido
                 </span>
 
@@ -3326,12 +3326,12 @@ export const PedidosLista: React.FC = () => {
                             isEdicao
                               ? 'bg-amber-400 ring-4 ring-amber-400/20'
                               : isLast
-                              ? 'bg-emerald-400 ring-4 ring-emerald-400/20'
-                              : 'bg-slate-600'
+                              ? 'bg-emerald-500 ring-4 ring-emerald-500/20'
+                              : 'bg-slate-300 dark:bg-slate-600'
                           }`}
                         />
                         <div>
-                          <p className={`font-bold capitalize ${isEdicao ? 'text-amber-400' : isLast ? 'text-emerald-400' : 'text-slate-300'}`}>
+                          <p className={`font-bold capitalize ${isEdicao ? 'text-amber-600 dark:text-amber-400' : isLast ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}`}>
                             {rotuloStatus}
                           </p>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-normal">
@@ -3339,7 +3339,7 @@ export const PedidosLista: React.FC = () => {
                             {item.usuario && <span>• Por {item.usuario}</span>}
                           </div>
                           {item.detalhes && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">{item.detalhes}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{item.detalhes}</p>
                           )}
                         </div>
                       </div>

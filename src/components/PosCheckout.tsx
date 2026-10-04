@@ -2598,29 +2598,29 @@ export const PosCheckout: React.FC = () => {
       {/* MODAL DE FECHAMENTO DE VENDA */}
       {modalFechamento && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-400" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <span>Pagamento & Fechamento</span>
               </h3>
-              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
+              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 text-center space-y-0.5">
-              <span className="text-xs text-slate-400 block font-medium">Valor Total da Venda</span>
-              <span className="text-3xl font-black text-emerald-400">{formatarMoeda(total)}</span>
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-center space-y-0.5">
+              <span className="text-xs text-emerald-800/80 dark:text-emerald-400/80 block font-semibold">Valor Total da Venda</span>
+              <span className="text-3xl font-black text-emerald-700 dark:text-emerald-400">{formatarMoeda(total)}</span>
             </div>
 
             {/* Linhas de Pagamento (Múltiplas formas de pagamento) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Meios de Pagamento ({(linhasPagamento || []).length}):
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
                   Permite dividir o total em vários meios
                 </span>
               </div>
@@ -2630,10 +2630,10 @@ export const PosCheckout: React.FC = () => {
                 const maxParcelas = formaSelecionada?.maximo_parcelas || 12;
 
                 return (
-                  <div key={linha.id} className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-2.5 shadow-sm">
+                  <div key={linha.id} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-950 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-[10px] font-black">
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">
                           {idx + 1}
                         </span>
                         Pagamento #{idx + 1}
@@ -2642,7 +2642,7 @@ export const PosCheckout: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleRemoverLinhaPagamento(linha.id)}
-                          className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
                           title="Remover este pagamento"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2661,15 +2661,15 @@ export const PosCheckout: React.FC = () => {
                             onClick={() => handleAlterarFormaLinha(linha.id, fp)}
                             className={`p-2 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
                               estaSelecionado
-                                ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40 shadow-sm'
-                                : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40 shadow-xs'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                             }`}
                           >
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
+                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
                             {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && (
                               <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             )}
@@ -2680,37 +2680,37 @@ export const PosCheckout: React.FC = () => {
                     </div>
 
                     {/* Valor deste pagamento */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800">
-                      <span className="text-xs text-slate-300 font-bold">Valor a pagar:</span>
-                      <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                        <span className="text-xs text-emerald-400 font-black">R$</span>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                      <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">Valor a pagar:</span>
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-black">R$</span>
                         <MoneyInput
                           autoFocus={idx === 0}
                           valor={linha.valor}
                           onChange={(novoValor) => handleAlterarValorLinha(linha.id, novoValor)}
                           placeholder="0,00"
-                          className="w-28 bg-transparent text-right text-sm font-black text-white focus:outline-none placeholder:text-slate-500"
+                          className="w-28 bg-transparent text-right text-sm font-black text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
 
                     {/* Dinheiro: Troco */}
                     {linha.forma_tipo === 'dinheiro' && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-800 text-xs">
+                      <div className="space-y-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-300 font-medium">Valor Entregue pelo Cliente:</span>
-                          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                            <span className="text-xs text-emerald-400 font-bold">R$</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">Valor Entregue pelo Cliente:</span>
+                          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
                             <MoneyInput
                               valor={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : 0}
                               onChange={(novoValor) => handleAlterarEntregueLinha(linha.id, novoValor)}
                               placeholder="0,00"
-                              className="w-28 bg-transparent text-right text-xs font-bold text-white focus:outline-none placeholder:text-slate-500"
+                              className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
                             />
                           </div>
                         </div>
                         {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                          <div className="flex justify-between font-bold text-emerald-400">
+                          <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
                             <span>Troco a devolver:</span>
                             <span>{formatarMoeda(linha.valor_entregue - linha.valor)}</span>
                           </div>
@@ -2720,15 +2720,15 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Cartão de Crédito: Parcelas */}
                     {linha.forma_tipo === 'cartao_credito' && (
-                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-800 text-xs">
-                        <span className="text-slate-300">Número de Parcelas:</span>
+                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200 dark:border-slate-800 text-xs">
+                        <span className="text-slate-700 dark:text-slate-300">Número de Parcelas:</span>
                         <select
                           value={linha.parcelas || 1}
                           onChange={(e) => handleAlterarParcelasLinha(linha.id, parseInt(e.target.value) || 1)}
-                          className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer"
+                          className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1 text-xs text-slate-900 dark:text-white font-bold focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer"
                         >
                           {Array.from({ length: Math.min(12, maxParcelas) }, (_, i) => i + 1).map(num => (
-                            <option key={num} value={num} className="text-white bg-slate-900">
+                            <option key={num} value={num} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">
                               {num}x {linha.valor > 0 ? `de ${formatarMoeda(linha.valor / num)}` : ''}
                             </option>
                           ))}
@@ -2738,57 +2738,57 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Fiado: Informações do Cliente e Limite */}
                     {linha.forma_tipo === 'fiado' && (
-                      <div className="p-2.5 bg-amber-950/30 border border-amber-500/30 rounded-xl space-y-2 text-xs text-amber-200">
+                      <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-500/30 rounded-xl space-y-2 text-xs text-amber-900 dark:text-amber-200">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-amber-400">Cliente Fiado:</span>
-                          <span className="text-slate-200 font-semibold truncate max-w-[200px]">
+                          <span className="font-bold text-amber-700 dark:text-amber-400">Cliente Fiado:</span>
+                          <span className="text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[200px]">
                             {clienteSelecionado ? clienteSelecionado.nome : 'Nenhum selecionado'}
                           </span>
                         </div>
                         {clienteSelecionado && (
-                          <div className="flex justify-between text-[11px] text-slate-400">
+                          <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
                             <span>Limite de Crédito Disponível:</span>
-                            <span className="font-bold text-emerald-400">
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
                               {formatarMoeda(Number(clienteSelecionado.limite_credito || 0))}
                             </span>
                           </div>
                         )}
                         {linha.valor > Number(clienteSelecionado?.limite_credito || 0) && (
-                          <p className="text-[11px] text-rose-400 font-bold">
+                          <p className="text-[11px] text-rose-600 dark:text-rose-400 font-bold">
                             ⚠️ Valor informado excede o limite disponível de {formatarMoeda(Number(clienteSelecionado?.limite_credito || 0))}.
                           </p>
                         )}
 
                         {/* Fase 4: Análise Preditiva de Risco de Crédito (TypeSafe Jev) */}
                         {avaliandoRiscoFiado ? (
-                          <div className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-900/60 text-slate-400 text-[11px] animate-pulse">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                          <div className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 text-[11px] animate-pulse">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500 dark:text-amber-400" />
                             <span>Analisando comportamento financeiro com IA...</span>
                           </div>
                         ) : avaliacaoRiscoFiado ? (
                           <div className={`p-2 rounded-xl border space-y-1 transition text-xs ${
                             avaliacaoRiscoFiado.badgeCor === 'emerald'
-                              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
                               : avaliacaoRiscoFiado.badgeCor === 'amber'
-                              ? 'bg-amber-950/40 border-amber-500/40 text-amber-200'
-                              : 'bg-rose-950/40 border-rose-500/40 text-rose-200'
+                              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-500/40 text-amber-900 dark:text-amber-200'
+                              : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-500/40 text-rose-900 dark:text-rose-200'
                           }`}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5 font-bold">
-                                {avaliacaoRiscoFiado.badgeCor === 'emerald' && <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />}
-                                {avaliacaoRiscoFiado.badgeCor === 'amber' && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
-                                {avaliacaoRiscoFiado.badgeCor === 'rose' && <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />}
+                                {avaliacaoRiscoFiado.badgeCor === 'emerald' && <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                                {avaliacaoRiscoFiado.badgeCor === 'amber' && <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />}
+                                {avaliacaoRiscoFiado.badgeCor === 'rose' && <AlertOctagon className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />}
                                 <span className="text-[11px] uppercase tracking-wide font-black">{avaliacaoRiscoFiado.titulo}</span>
                               </div>
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/40 text-slate-300 flex items-center gap-1">
-                                <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Jev AI
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-black/40 text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5 text-amber-500 dark:text-amber-400" /> Jev AI
                               </span>
                             </div>
-                            <p className="text-[11px] leading-tight text-slate-300">
+                            <p className="text-[11px] leading-tight text-slate-700 dark:text-slate-300">
                               {avaliacaoRiscoFiado.recomendacao}
                             </p>
                             {avaliacaoRiscoFiado.totalFiadosQuitados > 0 && (
-                              <span className="text-[10px] text-slate-400 block">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
                                 • {avaliacaoRiscoFiado.totalFiadosQuitados} compras fiado quitadas anteriormente
                               </span>
                             )}
@@ -2804,7 +2804,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAdicionarLinhaPagamento}
-                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-900/60 hover:bg-slate-800 text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500/60 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4" />
                 <span>
@@ -2814,23 +2814,23 @@ export const PosCheckout: React.FC = () => {
             </div>
 
             {/* Resumo de Conferência dos Valores com Discriminação de Frete */}
-            <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-400">
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Subtotal dos Produtos:</span>
-                <span className="font-semibold text-slate-200">{formatarMoeda(subtotal)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatarMoeda(subtotal)}</span>
               </div>
 
               {desconto > 0 && (
-                <div className="flex justify-between text-emerald-400">
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                   <span>Desconto {tipoDesconto === 'percentual' ? `(${descontoPercentual}%)` : ''}:</span>
                   <span className="font-semibold">- {formatarMoeda(desconto)}</span>
                 </div>
               )}
 
               {/* Discriminação explícita do Frete / Retirada */}
-              <div className="flex justify-between items-center text-slate-400">
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                  <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>
                     {pedidoEntrega?.tipo_atendimento === 'retirada'
                       ? 'Retirada no Balcão:'
@@ -2839,44 +2839,44 @@ export const PosCheckout: React.FC = () => {
                       : 'Taxa de Entrega / Frete:'}
                   </span>
                 </span>
-                <span className="font-semibold text-slate-200">
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
                   {taxaEntrega > 0 ? (
                     formatarMoeda(taxaEntrega)
                   ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
-                    <span className="text-purple-400 font-bold">Grátis (Balcão)</span>
+                    <span className="text-purple-600 dark:text-purple-400 font-bold">Grátis (Balcão)</span>
                   ) : (
-                    <span className="text-emerald-400 font-bold">Grátis</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">Grátis</span>
                   )}
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-sm text-slate-200">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between font-bold text-sm text-slate-800 dark:text-slate-200">
                 <span>Total da Venda:</span>
-                <span className="text-emerald-400 font-black text-base">{formatarMoeda(total)}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-black text-base">{formatarMoeda(total)}</span>
               </div>
 
-              <div className="flex justify-between text-slate-400 pt-1 border-t border-dashed border-slate-800">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
                 <span>Total dos Meios Informados:</span>
-                <span className="font-bold text-white">{formatarMoeda(totalLinhasPagamento)}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{formatarMoeda(totalLinhasPagamento)}</span>
               </div>
 
-              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-800/80">
+              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200 dark:border-slate-800/80">
                 {Math.abs(diferencaPagamento) < 0.01 ? (
                   <>
-                    <span className="text-emerald-400 flex items-center gap-1 font-semibold">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Total Conferido (100%)
+                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Total Conferido (100%)
                     </span>
-                    <span className="text-emerald-400">R$ 0,00</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
                   </>
                 ) : diferencaPagamento > 0 ? (
                   <>
-                    <span className="text-amber-400">Restante a Definir:</span>
-                    <span className="text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
+                    <span className="text-amber-600 dark:text-amber-400">Restante a Definir:</span>
+                    <span className="text-amber-600 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-rose-400">Excedente Ultrapassado:</span>
-                    <span className="text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
+                    <span className="text-rose-600 dark:text-rose-400">Excedente Ultrapassado:</span>
+                    <span className="text-rose-600 dark:text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
                   </>
                 )}
               </div>
@@ -2886,7 +2886,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFechamento(false)}
-                className="py-3 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+                className="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs border border-slate-300 dark:border-slate-700 transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -2895,7 +2895,7 @@ export const PosCheckout: React.FC = () => {
                 type="button"
                 disabled={salvandoPendente || finalizandoVenda}
                 onClick={handleSalvarComFormaPagamento}
-                className="flex-1 py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-emerald-400 font-bold text-xs border border-emerald-500/40 shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                className="flex-1 py-3 px-3 rounded-2xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 font-bold text-xs border border-emerald-300 dark:border-emerald-500/40 shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
               >
                 {salvandoPendente ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />

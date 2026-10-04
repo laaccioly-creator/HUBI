@@ -162,9 +162,9 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           <span>Apenas administradores e gerentes da loja possuem permissão para alterar as metas.</span>
         </div>
       ) : (
-        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
           <div className="flex items-center gap-2.5">
-            <Target className="w-4 h-4 text-emerald-400 shrink-0" />
+            <Target className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <p className="leading-relaxed">
               As metas cadastradas abaixo representam a projeção <strong>mensal</strong> da loja. O Dashboard Cockpit converte-as automaticamente para os filtros Diário, Semanal e Anual.
             </p>
@@ -182,23 +182,23 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
       {/* Grid com os 6 Cards de Metas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 1. Meta de Faturamento Mensal */}
-        <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-emerald-400" />
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>1. Faturamento Mensal</span>
             </label>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
               Moeda (R$)
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-snug">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
             Faturamento bruto mensal total projetado para a loja.
           </p>
 
           <div className="relative pt-1">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-400 pt-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
               R$
             </span>
             <input
@@ -208,24 +208,24 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaFaturamento}
               onChange={(e) => setMetaFaturamento(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
 
         {/* 2. Meta de Pedidos / Vendas */}
-        <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <ShoppingBag className="w-4 h-4 text-sky-400" />
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <ShoppingBag className="w-4 h-4 text-sky-600 dark:text-sky-400" />
               <span>2. Volume de Pedidos</span>
             </label>
-            <span className="text-[10px] font-mono text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 px-2 py-0.5 rounded-full font-bold">
               Unidades
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-snug">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
             Quantidade de pedidos/vendas concluídas no mês.
           </p>
 
@@ -237,29 +237,29 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaPedidos}
               onChange={(e) => setMetaPedidos(parseInt(e.target.value, 10) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
 
         {/* 3. Meta de Lucro Líquido Real */}
-        <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>3. Lucro Líquido Real</span>
             </label>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
               Moeda (R$)
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-snug">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
             Lucro após dedução de CMV, taxas financeiras e despesas operacionais pagas.
           </p>
 
           <div className="relative pt-1">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-400 pt-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
               R$
             </span>
             <input
@@ -269,29 +269,29 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaLucroLiquido}
               onChange={(e) => setMetaLucroLiquido(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
 
         {/* 4. Meta de Ticket Médio */}
-        <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <Receipt className="w-4 h-4 text-indigo-400" />
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Receipt className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span>4. Ticket Médio</span>
             </label>
-            <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full font-bold">
               R$ / Pedido
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-snug">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
             Valor médio esperado por pedido concluído.
           </p>
 
           <div className="relative pt-1">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-400 pt-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
               R$
             </span>
             <input
@@ -301,24 +301,24 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaTicketMedio}
               onChange={(e) => setMetaTicketMedio(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
 
         {/* 5. Meta de Inadimplência Máxima (Escala Invertida) */}
-        <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
               <span>5. Inadimplência Máxima</span>
             </label>
-            <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
               Escala Invertida (%)
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-snug">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
             Teto limite de tolerância para contas/fiados com atraso superior a 30 dias.
           </p>
 
@@ -331,27 +331,27 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaInadimplenciaMaxima}
               onChange={(e) => setMetaInadimplenciaMaxima(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3.5 pr-8 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-8 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-400 pt-1">
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
               %
             </span>
           </div>
         </div>
 
         {/* 6. Meta de Saúde do Estoque (Ruptura Máxima Tolerada) */}
-        <div className="bg-black border border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-emerald-400" />
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>6. Saúde do Estoque</span>
             </label>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
               Ruptura Máxima
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-400 leading-snug">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
             Teto máximo tolerável de produtos ativos com estoque zerado ou abaixo do mínimo configurado (ex: meta de 0 rupturas).
           </p>
 
@@ -364,9 +364,9 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaSaudeEstoqueRuptura}
               onChange={(e) => setMetaSaudeEstoqueRuptura(parseInt(e.target.value) || 0)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3.5 pr-14 py-2.5 text-sm font-black font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-14 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-400 pt-1">
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
               itens
             </span>
           </div>
@@ -374,12 +374,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
       </div>
 
       {/* Barra de Ações Inferior */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
         <button
           type="button"
           disabled={!podeEditar || carregando || salvando}
           onClick={handleRestaurarPadroes}
-          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Restaurar Padrões de Mercado</span>
@@ -390,7 +390,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             <button
               type="button"
               onClick={onVoltar}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-800 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-slate-800 transition cursor-pointer"
             >
               Voltar
             </button>
@@ -400,7 +400,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-800 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-slate-800 transition cursor-pointer"
             >
               Fechar
             </button>
@@ -435,16 +435,16 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
   if (isModal) {
     return (
       <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-        <div className="w-full max-w-3xl bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           {/* Header do Modal */}
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900 shrink-0">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
                 <Target className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-white">Configurar Metas da Loja</h3>
-                <p className="text-[11px] text-slate-400">Parâmetros executivos mensais para os velocímetros F1</p>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Configurar Metas da Loja</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Parâmetros executivos mensais para os velocímetros F1</p>
               </div>
             </div>
 
@@ -452,14 +452,14 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-900 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/60 custom-scrollbar">
             {conteudoFormulario}
           </div>
         </div>
@@ -469,25 +469,25 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
 
   // Se renderizado na página de Configurações
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-6 animate-in fade-in">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 animate-in fade-in">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
           {onVoltar && (
             <button
               type="button"
               onClick={onVoltar}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
               title="Voltar ao Menu"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
           <div>
-            <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
-              <Target className="w-5 h-5 text-emerald-400" />
+            <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               <span>Metas da Loja (Cockpit Executivo)</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Configure as metas operacionais mensais que guiam os velocímetros de alta performance
             </p>
           </div>
