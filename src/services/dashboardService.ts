@@ -40,6 +40,7 @@ export const METAS_PADRAO_LOJA: Omit<LojaMetas, 'id' | 'loja_id'> = {
   meta_pedidos: 300,
   meta_lucro_liquido: 15000.0,
   meta_ticket_medio: 166.0,
+  meta_despesas_maximas: 5000.0,
   meta_inadimplencia_maxima: 5.0,
   meta_giro_estoque: 25.0,
   meta_saude_estoque_max_ruptura: 0.0
@@ -250,6 +251,7 @@ export function calcularMetasProporcionais(
     meta_pedidos: Math.max(1, Math.round(Number(metasMensais.meta_pedidos) * fator)),
     meta_lucro_liquido: Math.round(Number(metasMensais.meta_lucro_liquido) * fator * 100) / 100,
     meta_ticket_medio: Number(metasMensais.meta_ticket_medio),
+    meta_despesas_maximas: Math.round(Number(metasMensais.meta_despesas_maximas ?? metasMensais.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000.0) * fator * 100) / 100,
     meta_inadimplencia_maxima: Number(metasMensais.meta_inadimplencia_maxima),
     meta_giro_estoque: Number(metasMensais.meta_giro_estoque),
     meta_saude_estoque_max_ruptura: Number(
@@ -287,6 +289,12 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
           : (data.meta_giro_estoque !== undefined && data.meta_giro_estoque !== null ? data.meta_giro_estoque : METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0)
       );
 
+      const despesasCarregada = Number(
+        data.meta_despesas_maximas !== undefined && data.meta_despesas_maximas !== null
+          ? data.meta_despesas_maximas
+          : (data.meta_despesas !== undefined && data.meta_despesas !== null ? data.meta_despesas : METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000.0)
+      );
+
       return {
         id: data.id,
         loja_id: data.loja_id,
@@ -294,6 +302,7 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
         meta_pedidos: Number(data.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos),
         meta_lucro_liquido: Number(data.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido),
         meta_ticket_medio: Number(data.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio),
+        meta_despesas_maximas: despesasCarregada,
         meta_inadimplencia_maxima: Number(data.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima),
         meta_giro_estoque: Number(data.meta_giro_estoque ?? METAS_PADRAO_LOJA.meta_giro_estoque),
         meta_saude_estoque_max_ruptura: rupturaCarregada,
@@ -325,22 +334,41 @@ export async function salvarMetasLoja(
       : (metas.meta_giro_estoque ?? METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0)
   );
 
+  const despesasValor = Number(
+    metas.meta_despesas_maximas !== undefined && metas.meta_despesas_maximas !== null
+      ? metas.meta_despesas_maximas
+      : (metas.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000.0)
+  );
+
   const payload: any = {
     loja_id: lojaId,
     meta_faturamento: Number(metas.meta_faturamento ?? METAS_PADRAO_LOJA.meta_faturamento),
     meta_pedidos: Number(metas.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos),
     meta_lucro_liquido: Number(metas.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido),
     meta_ticket_medio: Number(metas.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio),
+    meta_despesas_maximas: despesasValor,
     meta_inadimplencia_maxima: Number(metas.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima),
     meta_giro_estoque: rupturaValor,
     atualizado_em: new Date().toISOString()
   };
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('loja_metas')
     .upsert(payload, { onConflict: 'loja_id' })
     .select()
     .single();
+
+  // Fallback gracioso se a coluna meta_despesas_maximas não existir no banco
+  if (error && error.message && error.message.includes('meta_despesas_maximas')) {
+    delete payload.meta_despesas_maximas;
+    const retry = await supabase
+      .from('loja_metas')
+      .upsert(payload, { onConflict: 'loja_id' })
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error('[dashboardService] Erro ao salvar metas da loja:', error);
@@ -354,6 +382,7 @@ export async function salvarMetasLoja(
     meta_pedidos: Number(data.meta_pedidos),
     meta_lucro_liquido: Number(data.meta_lucro_liquido),
     meta_ticket_medio: Number(data.meta_ticket_medio),
+    meta_despesas_maximas: Number(data.meta_despesas_maximas ?? despesasValor),
     meta_inadimplencia_maxima: Number(data.meta_inadimplencia_maxima),
     meta_giro_estoque: Number(data.meta_giro_estoque),
     meta_saude_estoque_max_ruptura: Number(data.meta_saude_estoque_max_ruptura ?? data.meta_giro_estoque ?? rupturaValor),

@@ -879,6 +879,8 @@ export interface LojaMetas {
   meta_pedidos: number;
   meta_lucro_liquido: number;
   meta_ticket_medio: number;
+  meta_despesas_maximas?: number;
+  meta_despesas?: number;
   meta_inadimplencia_maxima: number;
   meta_giro_estoque: number;
   meta_saude_estoque_max_ruptura?: number;

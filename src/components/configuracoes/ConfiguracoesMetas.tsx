@@ -56,6 +56,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
   const [metaPedidos, setMetaPedidos] = useState<number>(METAS_PADRAO_LOJA.meta_pedidos);
   const [metaLucroLiquido, setMetaLucroLiquido] = useState<number>(METAS_PADRAO_LOJA.meta_lucro_liquido);
   const [metaTicketMedio, setMetaTicketMedio] = useState<number>(METAS_PADRAO_LOJA.meta_ticket_medio);
+  const [metaDespesasMaximas, setMetaDespesasMaximas] = useState<number>(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000);
   const [metaInadimplenciaMaxima, setMetaInadimplenciaMaxima] = useState<number>(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
   const [metaSaudeEstoqueRuptura, setMetaSaudeEstoqueRuptura] = useState<number>(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
 
@@ -81,6 +82,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           setMetaPedidos(Number(dados.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos));
           setMetaLucroLiquido(Number(dados.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido));
           setMetaTicketMedio(Number(dados.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio));
+          setMetaDespesasMaximas(Number(dados.meta_despesas_maximas ?? dados.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000));
           setMetaInadimplenciaMaxima(Number(dados.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima));
           const rupturaCarregada = Number(
             dados.meta_saude_estoque_max_ruptura !== undefined && dados.meta_saude_estoque_max_ruptura !== null
@@ -109,6 +111,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
     setMetaPedidos(METAS_PADRAO_LOJA.meta_pedidos);
     setMetaLucroLiquido(METAS_PADRAO_LOJA.meta_lucro_liquido);
     setMetaTicketMedio(METAS_PADRAO_LOJA.meta_ticket_medio);
+    setMetaDespesasMaximas(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000);
     setMetaInadimplenciaMaxima(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
     setMetaSaudeEstoqueRuptura(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
   };
@@ -132,6 +135,8 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         meta_pedidos: Math.max(1, Math.round(metaPedidos)),
         meta_lucro_liquido: Math.max(0, metaLucroLiquido),
         meta_ticket_medio: Math.max(0, metaTicketMedio),
+        meta_despesas_maximas: Math.max(0, metaDespesasMaximas),
+        meta_despesas: Math.max(0, metaDespesasMaximas),
         meta_inadimplencia_maxima: Math.min(100, Math.max(0, metaInadimplenciaMaxima)),
         meta_giro_estoque: Math.min(1000, Math.max(0, metaSaudeEstoqueRuptura)),
         meta_saude_estoque_max_ruptura: Math.min(1000, Math.max(0, metaSaudeEstoqueRuptura))
@@ -274,20 +279,20 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           </div>
         </div>
 
-        {/* 4. Meta de Ticket Médio */}
+        {/* 4. Meta de Despesas Operacionais (Teto Orçamentário) */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-              <Receipt className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>4. Ticket Médio</span>
+              <DollarSign className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <span>4. Teto de Despesas Operacionais</span>
             </label>
-            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded-full font-bold">
-              R$ / Pedido
+            <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-2 py-0.5 rounded-full font-bold">
+              Teto Mensal (R$)
             </span>
           </div>
 
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-            Valor médio esperado por pedido concluído.
+            Teto orçamentário mensal para saídas operacionais e despesas/sangrias de caixa.
           </p>
 
           <div className="relative pt-1">
@@ -296,11 +301,11 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
             <input
               type="number"
-              step="5"
+              step="100"
               min="0"
               disabled={!podeEditar || carregando}
-              value={metaTicketMedio}
-              onChange={(e) => setMetaTicketMedio(parseFloat(e.target.value) || 0)}
+              value={metaDespesasMaximas}
+              onChange={(e) => setMetaDespesasMaximas(parseFloat(e.target.value) || 0)}
               className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>

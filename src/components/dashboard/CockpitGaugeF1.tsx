@@ -36,17 +36,17 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   // Skeleton de carregamento
   if (isLoading) {
     return (
-      <div className={`border rounded-2xl p-5 shadow-xl flex flex-col justify-between h-full animate-pulse min-h-[260px] ${isDark ? 'bg-black border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
-        <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+      <div className={`rounded-2xl p-5 flex flex-col justify-between h-full animate-pulse min-h-[260px] ${isDark ? 'bg-slate-900/90 border-2 border-slate-200 shadow-lg shadow-black/50' : 'bg-slate-100 border border-slate-200 shadow-sm'}`}>
+        <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
           <div className={`h-4 rounded w-28 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
           <div className={`h-4 rounded-full w-12 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
         </div>
         <div className="flex items-center justify-center my-4">
-          <div className={`w-40 h-24 rounded-t-full border-t-8 ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100 border-[#E2E8F0]'}`} />
+          <div className={`w-40 h-24 rounded-t-full border-t-8 ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-200 border-slate-300'}`} />
         </div>
-        <div className={`space-y-2 pt-2 border-t ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+        <div className={`space-y-2 pt-2 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
           <div className={`h-4 rounded w-3/4 mx-auto ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
-          <div className={`h-3 rounded w-1/2 mx-auto ${isDark ? 'bg-slate-900' : 'bg-slate-100'}`} />
+          <div className={`h-3 rounded w-1/2 mx-auto ${isDark ? 'bg-slate-900' : 'bg-slate-200'}`} />
         </div>
       </div>
     );
@@ -113,39 +113,62 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   let atingiuMeta = false;
 
   if (escalaInvertida) {
-    // Para Inadimplência e Saúde do Estoque (quanto menor, melhor)
-    const atingiu = metaValida > 0 ? realizadoValido <= metaValida : realizadoValido === 0;
-    if (atingiu) {
-      badgeCor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-      badgeTexto = tipoFormato === 'percentual'
-        ? `Saudável (${realizadoValido.toFixed(1)}% / máx ${metaValida.toFixed(1)}%)`
-        : `Saudável (${realizadoValido} / máx ${metaValida})`;
-      atingiuMeta = true;
-    } else if (metaValida > 0 && realizadoValido <= metaValida * 1.5) {
-      badgeCor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-      badgeTexto = tipoFormato === 'percentual'
-        ? `Atenção (${realizadoValido.toFixed(1)}%)`
-        : `Atenção (${realizadoValido} itens)`;
+    if (tipoFormato === 'moeda') {
+      // Para Despesas Operacionais (teto orçamentário: <= 80% verde, 80-100% amarelo, > 100% vermelho)
+      if (metaValida > 0) {
+        if (percentualMeta <= 80) {
+          badgeCor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20';
+          badgeTexto = `Dentro da meta (${percentualMeta.toFixed(0)}%)`;
+          atingiuMeta = true;
+        } else if (percentualMeta <= 100) {
+          badgeCor = 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/20';
+          badgeTexto = `No limite (${percentualMeta.toFixed(0)}%)`;
+        } else {
+          badgeCor = 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 border-rose-300 dark:border-rose-500/30';
+          badgeTexto = `Estouro (${percentualMeta.toFixed(0)}%)`;
+        }
+      } else {
+        badgeCor = realizadoValido === 0
+          ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20'
+          : 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/20';
+        badgeTexto = realizadoValido === 0 ? 'Sem despesas' : 'Sem meta';
+        atingiuMeta = realizadoValido === 0;
+      }
     } else {
-      badgeCor = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
-      badgeTexto = tipoFormato === 'percentual'
-        ? `Crítico (${realizadoValido.toFixed(1)}%)`
-        : `Crítico (${realizadoValido} itens)`;
+      // Para Inadimplência e Saúde do Estoque (quanto menor, melhor)
+      const atingiu = metaValida > 0 ? realizadoValido <= metaValida : realizadoValido === 0;
+      if (atingiu) {
+        badgeCor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20';
+        badgeTexto = tipoFormato === 'percentual'
+          ? `Saudável (${realizadoValido.toFixed(1)}% / máx ${metaValida.toFixed(1)}%)`
+          : `Saudável (${realizadoValido} / máx ${metaValida})`;
+        atingiuMeta = true;
+      } else if (metaValida > 0 && realizadoValido <= metaValida * 1.5) {
+        badgeCor = 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/20';
+        badgeTexto = tipoFormato === 'percentual'
+          ? `Atenção (${realizadoValido.toFixed(1)}%)`
+          : `Atenção (${realizadoValido} itens)`;
+      } else {
+        badgeCor = 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 border-rose-300 dark:border-rose-500/30';
+        badgeTexto = tipoFormato === 'percentual'
+          ? `Crítico (${realizadoValido.toFixed(1)}%)`
+          : `Crítico (${realizadoValido} itens)`;
+      }
     }
   } else {
     // Escala Padrão: quanto maior, melhor
     if (ehNegativo) {
-      badgeCor = 'text-rose-400 bg-rose-500/20 border-rose-500/30';
+      badgeCor = 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 border-rose-300 dark:border-rose-500/30';
       badgeTexto = 'Prejuízo';
     } else if (percentualMeta >= 100) {
-      badgeCor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+      badgeCor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20';
       badgeTexto = `${percentualMeta.toFixed(0)}% da meta`;
       atingiuMeta = true;
     } else if (percentualMeta >= 75) {
-      badgeCor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+      badgeCor = 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/20';
       badgeTexto = `${percentualMeta.toFixed(0)}% da meta`;
     } else {
-      badgeCor = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+      badgeCor = 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 border-rose-300 dark:border-rose-500/30';
       badgeTexto = `${percentualMeta.toFixed(0)}% da meta`;
     }
   }
@@ -153,16 +176,16 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   // 5. Tendência vs Período Anterior
   const temVariacao = typeof variacaoPeriodoAnterior === 'number' && !isNaN(variacaoPeriodoAnterior);
   const variacaoPositiva = (variacaoPeriodoAnterior || 0) >= 0;
-  // Se for escala invertida (inadimplência), subida é ruim e queda é boa
+  // Se for escala invertida (inadimplência ou despesas), subida é ruim e queda é boa
   const variacaoEhBoa = escalaInvertida ? !variacaoPositiva : variacaoPositiva;
 
   return (
     <div
       onClick={onClickDrillDown}
-      className={`border rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 select-none ${
+      className={`rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 select-none ${
         isDark
-          ? 'bg-black border-slate-800 shadow-xl'
-          : 'bg-white border-[#E2E8F0] shadow-sm hover:border-emerald-300'
+          ? 'bg-slate-900/90 border-2 border-slate-200 shadow-lg shadow-black/50'
+          : 'bg-slate-100 border border-slate-200 shadow-sm hover:border-emerald-300'
       } ${
         onClickDrillDown
           ? 'cursor-pointer hover:shadow-2xl hover:shadow-emerald-500/5 group active:scale-[0.99]'
@@ -170,7 +193,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       }`}
     >
       {/* Topo do Card: Título da Métrica + Badge de Percentual */}
-      <div className={`flex items-start justify-between gap-2 pb-2 border-b ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
+      <div className={`flex items-start justify-between gap-2 pb-2 border-b ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={`font-bold text-xs uppercase tracking-wider truncate ${isDark ? 'text-slate-300' : 'text-[#475569]'}`}>
@@ -230,7 +253,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
           <path
             d={`M ${cx - raioTrilha} ${cy} A ${raioTrilha} ${raioTrilha} 0 0 1 ${cx + raioTrilha} ${cy}`}
             fill="none"
-            stroke={isDark ? '#0f172a' : '#F1F5F9'}
+            stroke={isDark ? '#0f172a' : '#E2E8F0'}
             strokeWidth="14"
             strokeLinecap="round"
           />
@@ -313,9 +336,9 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       </div>
 
       {/* Rodapé: Meta Proporcional + Variação do Período Anterior */}
-      <div className={`pt-2 border-t flex items-center justify-between text-xs font-mono ${isDark ? 'border-slate-800/80' : 'border-[#E2E8F0]'}`}>
-        <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`}>
-          Meta: <strong className={isDark ? 'text-slate-200' : 'text-[#0F172A]'}>{metaExibicaoCustomizada || textoMeta}</strong>
+      <div className={`pt-2 border-t flex items-center justify-between text-xs font-mono ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
+        <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          Meta: <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{metaExibicaoCustomizada || textoMeta}</strong>
         </span>
 
         {temVariacao && (

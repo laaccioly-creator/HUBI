@@ -481,10 +481,12 @@ export const AppLayout: React.FC = () => {
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/25 font-bold border border-emerald-500'
+                        ? isDark
+                          ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 shadow-xs'
+                          : 'bg-emerald-200 text-slate-900 font-bold border border-emerald-400 ring-2 ring-emerald-300/60 shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
+                        : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -512,10 +514,12 @@ export const AppLayout: React.FC = () => {
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/25 font-bold border border-emerald-500'
+                        ? isDark
+                          ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 shadow-xs'
+                          : 'bg-emerald-200 text-slate-900 font-bold border border-emerald-400 ring-2 ring-emerald-300/60 shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
+                        : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -535,16 +539,20 @@ export const AppLayout: React.FC = () => {
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-left cursor-pointer shadow-xs ${
                   isDark
                     ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200'
-                    : 'bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#E2E8F0] text-[#0F172A]'
+                    : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold'
                 }`}
               >
-                <div className="w-6 h-6 rounded-lg bg-emerald-600/20 text-emerald-500 font-bold text-[11px] flex items-center justify-center border border-emerald-500/30">
+                <div className={`w-6 h-6 rounded-lg font-bold text-[11px] flex items-center justify-center border ${
+                  isDark
+                    ? 'bg-emerald-600/20 text-emerald-500 border-emerald-500/30'
+                    : 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                }`}>
                   {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
                 </div>
-                <span className={`text-xs font-medium max-w-[100px] truncate ${isDark ? 'text-slate-200' : 'text-[#0F172A]'}`}>
+                <span className={`text-xs font-semibold max-w-[100px] truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
                   {usuario?.nome_completo || 'Operador'}
                 </span>
-                <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`} />
+                <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
               </button>
 
               {userMenuOpen && (

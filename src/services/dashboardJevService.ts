@@ -79,6 +79,24 @@ export interface DecomposicaoTicketMedio {
   dispersaoCompras: FaixaTicketDispersao[];
 }
 
+export interface ItemDespesaResumo {
+  id: string;
+  data: string;
+  descricao: string;
+  categoria: string;
+  origem: 'financeiro' | 'caixa';
+  valor: number;
+}
+
+export interface DecomposicaoDespesas {
+  totalDespesas: number;
+  tetoOrcamentario: number;
+  percentualConsumido: number;
+  saldoRestante: number;
+  porCategoria: Record<string, { total: number; quantidade: number; percentual: number }>;
+  itensRecentes: ItemDespesaResumo[];
+}
+
 export interface ItemInadimplente {
   pedidoId: string;
   numeroPedido: number;
@@ -154,6 +172,7 @@ export interface PayloadDashboardExecutivo {
     pedidos: DecomposicaoVolumePedidos;
     lucro: DecomposicaoLucroLiquido;
     ticket: DecomposicaoTicketMedio;
+    despesas: DecomposicaoDespesas;
     inadimplencia: DecomposicaoInadimplencia;
     saudeEstoque: DecomposicaoSaudeEstoque;
   };
@@ -342,7 +361,7 @@ export const dashboardJevService = {
     const dFim = intervalo.dataFim;
 
     // 2. Busca paralela das fontes de dados isoladas por tenant (loja_id)
-    const [metasLoja, pedidosRes, transacoesRes, produtosRes, historicoPrimeiraVendaRes, lojaRes] = await Promise.all([
+    const [metasLoja, pedidosRes, transacoesRes, movimentacoesCaixaRes, produtosRes, historicoPrimeiraVendaRes, lojaRes] = await Promise.all([
       dashboardService.obterMetasLoja(lojaId),
 
       // Pedidos com relacionamentos analíticos completos e seguros
@@ -365,6 +384,13 @@ export const dashboardJevService = {
         .select('*')
         .eq('loja_id', lojaId)
         .eq('status', 'pago'),
+
+      // Movimentações de caixa (sangrias e despesas operacionais da frente de caixa)
+      supabase
+        .from('movimentacoes_caixa')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .in('tipo', ['sangria', 'despesa']),
 
       // Produtos ativos do catálogo
       supabase
@@ -397,6 +423,9 @@ export const dashboardJevService = {
     if (transacoesRes.error) {
       console.error('[dashboardJevService] Erro ao carregar transações:', transacoesRes.error.message);
     }
+    if (movimentacoesCaixaRes.error) {
+      console.error('[dashboardJevService] Erro ao carregar movimentações de caixa:', movimentacoesCaixaRes.error.message);
+    }
     if (produtosRes.error) {
       console.error('[dashboardJevService] Erro ao carregar produtos:', produtosRes.error.message);
     }
@@ -407,6 +436,7 @@ export const dashboardJevService = {
 
     const todosPedidos = (pedidosRes.data || []) as any[];
     const todasTransacoes = (transacoesRes.data || []) as any[];
+    const todasMovimentacoesCaixa = (movimentacoesCaixaRes.data || []) as any[];
     const todosProdutos = (produtosRes.data || []) as Produto[];
 
     // ------------------------------------------------------------------------
@@ -591,28 +621,101 @@ export const dashboardJevService = {
 
     // Despesas operacionais reais do período (excluindo compras de mercadorias para estoque, já apuradas no CMV)
     let custosOperacionais = 0;
+    const itensDespesasDoPeriodo: ItemDespesaResumo[] = [];
+    const despesasPorCategoria: Record<string, { total: number; quantidade: number; percentual: number }> = {};
+
+    // 1. Despesas de transações financeiras
     todasTransacoes.forEach(t => {
       const tipo = String(t.tipo || '').toUpperCase();
       if (tipo === 'SAIDA' || tipo.startsWith('DESPESA')) {
-        const cat = String(t.categoria || '').toLowerCase();
-        const desc = String(t.descricao || '').toLowerCase();
+        const cat = String(t.categoria || 'Geral').trim();
+        const catLower = cat.toLowerCase();
+        const desc = String(t.descricao || 'Despesa Financeira').trim();
+        const descLower = desc.toLowerCase();
 
         // Ignora compra de estoque/mercadorias para evitar duplicidade com CMV
         if (
-          cat.includes('compra de mercadorias') ||
-          cat.includes('compra de estoque') ||
-          desc.includes('compra de estoque') ||
-          desc.includes('compra de mercadorias')
+          catLower.includes('compra de mercadorias') ||
+          catLower.includes('compra de estoque') ||
+          descLower.includes('compra de estoque') ||
+          descLower.includes('compra de mercadorias')
         ) {
           return;
         }
 
         const dt = new Date(t.data_pagamento || t.criado_em);
         if (dt >= dInicio && dt <= dFim) {
-          custosOperacionais += Number(t.valor || 0);
+          const val = Number(t.valor || 0);
+          custosOperacionais += val;
+
+          const nomeCat = cat || 'Outras Despesas';
+          if (!despesasPorCategoria[nomeCat]) {
+            despesasPorCategoria[nomeCat] = { total: 0, quantidade: 0, percentual: 0 };
+          }
+          despesasPorCategoria[nomeCat].total += val;
+          despesasPorCategoria[nomeCat].quantidade += 1;
+
+          itensDespesasDoPeriodo.push({
+            id: t.id,
+            data: t.data_pagamento || t.criado_em,
+            descricao: desc,
+            categoria: nomeCat,
+            origem: 'financeiro',
+            valor: val
+          });
         }
       }
     });
+
+    // 2. Sangrias e despesas lançadas na frente de caixa PDV
+    todasMovimentacoesCaixa.forEach(m => {
+      const dt = new Date(m.criado_em);
+      if (dt >= dInicio && dt <= dFim) {
+        const val = Number(m.valor || 0);
+        custosOperacionais += val;
+
+        const nomeCat = m.tipo === 'sangria' ? 'Sangria de Caixa' : 'Despesa de Caixa';
+        if (!despesasPorCategoria[nomeCat]) {
+          despesasPorCategoria[nomeCat] = { total: 0, quantidade: 0, percentual: 0 };
+        }
+        despesasPorCategoria[nomeCat].total += val;
+        despesasPorCategoria[nomeCat].quantidade += 1;
+
+        itensDespesasDoPeriodo.push({
+          id: m.id,
+          data: m.criado_em,
+          descricao: m.descricao || (m.tipo === 'sangria' ? 'Retirada / Sangria de Caixa' : 'Despesa Frente de Caixa'),
+          categoria: nomeCat,
+          origem: 'caixa',
+          valor: val
+        });
+      }
+    });
+
+    // Ordena itens de despesa dos mais recentes para os mais antigos
+    itensDespesasDoPeriodo.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+
+    // Percentual por categoria de despesa
+    if (custosOperacionais > 0) {
+      Object.keys(despesasPorCategoria).forEach(k => {
+        despesasPorCategoria[k].percentual = Math.round((despesasPorCategoria[k].total / custosOperacionais) * 1000) / 10;
+      });
+    }
+
+    const tetoOrcamentarioDespesas = Number(metasProporcionais.meta_despesas_maximas || metasLoja.meta_despesas_maximas || 5000);
+    const percentualOrcamentoConsumido = tetoOrcamentarioDespesas > 0
+      ? Math.round((custosOperacionais / tetoOrcamentarioDespesas) * 1000) / 10
+      : 0;
+    const saldoOrcamentarioRestante = Math.max(0, tetoOrcamentarioDespesas - custosOperacionais);
+
+    const decomposicaoDespesas: DecomposicaoDespesas = {
+      totalDespesas: Math.round(custosOperacionais * 100) / 100,
+      tetoOrcamentario: Math.round(tetoOrcamentarioDespesas * 100) / 100,
+      percentualConsumido: percentualOrcamentoConsumido,
+      saldoRestante: Math.round(saldoOrcamentarioRestante * 100) / 100,
+      porCategoria: despesasPorCategoria,
+      itensRecentes: itensDespesasDoPeriodo
+    };
 
     const lucroLiquidoReal = Math.round((faturamentoBruto - cmvTotal - taxasGateways - custosOperacionais) * 100) / 100;
     const margemLiquidaPercentual = faturamentoBruto > 0
@@ -929,7 +1032,7 @@ export const dashboardJevService = {
       metasProporcionais,
       decomposicoes: {
         faturamento: {
-          vendasSumarizadas: vendasSumarizadas.slice(0, 50), // 50 mais recentes para performance
+          vendasSumarizadas: vendasSumarizadas.slice(0, 300), // Até 300 itens para suportar paginação dinâmica em blocos de 50 na gaveta
           porCanal,
           porFormaPagamento,
           totalFaturamento: Math.round(faturamentoBruto * 100) / 100
@@ -967,6 +1070,7 @@ export const dashboardJevService = {
           mediaItensPorPedido,
           dispersaoCompras
         },
+        despesas: decomposicaoDespesas,
         inadimplencia: {
           totalInadimplente: Math.round(totalInadimplente * 100) / 100,
           totalReceber: Math.round(totalDevedorGeral * 100) / 100,

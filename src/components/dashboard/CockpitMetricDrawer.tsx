@@ -34,6 +34,7 @@ export type TipoMetricaCockpitDrawer =
   | 'pedidos'
   | 'lucro'
   | 'ticket'
+  | 'despesas'
   | 'inadimplencia'
   | 'saude_estoque';
 
@@ -54,6 +55,12 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
+  const [limiteVendasExibidas, setLimiteVendasExibidas] = React.useState<number>(50);
+
+  // Reseta limite de vendas ao trocar métrica ou reabrir
+  useEffect(() => {
+    setLimiteVendasExibidas(50);
+  }, [tipoMetrica, isOpen]);
   // Fecha com a tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -114,6 +121,12 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
       titulo: 'Dispersão & Ticket Médio',
       subtitulo: 'Distribuição dos valores por compra e itens por cesta',
       icone: Receipt,
+      cor: 'emerald'
+    },
+    despesas: {
+      titulo: 'Auditoria de Despesas Operacionais',
+      subtitulo: 'Centro de custos, teto orçamentário e saídas de caixa',
+      icone: Banknote,
       cor: 'emerald'
     },
     inadimplencia: {
@@ -228,8 +241,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Cards de Resumo */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Faturado no Período</span>
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Faturado no Período</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.faturamento.totalFaturamento)}
                     </div>
@@ -238,12 +251,12 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total de Vendas</span>
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Total de Vendas</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {metricas.pedidos}
                     </div>
-                    <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                    <span className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
                       Ticket: {formMoeda(metricas.ticket_medio)}
                     </span>
                   </div>
@@ -301,13 +314,18 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </div>
                 </div>
 
-                {/* Vendas Sumarizadas Recentes */}
+                {/* Vendas Sumarizadas com Paginação Dinâmica em Blocos de 50 */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Vendas Sumarizadas do Período ({decomposicoes.faturamento.vendasSumarizadas.length})
-                  </h3>
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {decomposicoes.faturamento.vendasSumarizadas.map((v) => (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Vendas do Período ({decomposicoes.faturamento.vendasSumarizadas.length})
+                    </h3>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Exibindo {Math.min(limiteVendasExibidas, decomposicoes.faturamento.vendasSumarizadas.length)} de {decomposicoes.faturamento.vendasSumarizadas.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {decomposicoes.faturamento.vendasSumarizadas.slice(0, limiteVendasExibidas).map((v) => (
                       <div
                         key={v.id}
                         className="p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xs"
@@ -329,6 +347,19 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       </div>
                     ))}
                   </div>
+
+                  {/* Botão para carregar mais 50 vendas */}
+                  {decomposicoes.faturamento.vendasSumarizadas.length > limiteVendasExibidas && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setLimiteVendasExibidas(prev => prev + 50)}
+                        className="w-full py-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold text-xs transition cursor-pointer shadow-xs"
+                      >
+                        Carregar mais 50 vendas... (Restam {decomposicoes.faturamento.vendasSumarizadas.length - limiteVendasExibidas})
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -340,19 +371,19 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* 4 Cards de Breakdown de Status */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Total Pedidos</span>
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Total Pedidos</span>
                     <div className="text-xl font-black text-slate-900 dark:text-white font-mono mt-1">{decomposicoes.pedidos.totalPedidos}</div>
                   </div>
-                  <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-slate-900/80 border border-emerald-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold">Concluídos</span>
                     <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{decomposicoes.pedidos.concluidos}</div>
                   </div>
-                  <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-slate-900/80 border border-amber-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Pendentes</span>
                     <div className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">{decomposicoes.pedidos.pendentes}</div>
                   </div>
-                  <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-slate-900/80 border border-rose-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Cancelados</span>
                     <div className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono mt-1">{decomposicoes.pedidos.cancelados}</div>
                   </div>
@@ -415,21 +446,25 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             {tipoMetrica === 'lucro' && (
               <div className="space-y-6">
                 {/* Destaque do Lucro Líquido Real */}
-                <div className="p-5 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
-                  <div className="space-y-1">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Lucro Líquido Real</span>
-                    <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Lucro Líquido Real</span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.lucro.lucroLiquidoReal)}
                     </div>
-                    <span className="text-xs text-slate-600 dark:text-slate-400">
-                      Margem Líquida Real: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{decomposicoes.lucro.margemLiquidaPercentual}%</strong>
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      Margem Líquida: {decomposicoes.lucro.margemLiquidaPercentual}%
                     </span>
                   </div>
-                  <div className="text-right space-y-1">
-                    <span className="text-[11px] text-slate-500">Meta do Período</span>
-                    <div className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">
+
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Meta do Período</span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(metasProporcionais.meta_lucro_liquido)}
                     </div>
+                    <span className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+                      Proporcional ao período
+                    </span>
                   </div>
                 </div>
 
@@ -530,16 +565,16 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* 3 Métricas Principais de Dispersão */}
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Menor Venda</span>
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Menor Venda</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">{formMoeda(decomposicoes.ticket.menorVenda)}</div>
                   </div>
-                  <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-slate-900/80 border border-emerald-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold">Ticket Médio</span>
                     <div className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{formMoeda(decomposicoes.ticket.ticketMedio)}</div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Maior Venda</span>
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Maior Venda</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">{formMoeda(decomposicoes.ticket.maiorVenda)}</div>
                   </div>
                 </div>
@@ -585,25 +620,127 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             )}
 
             {/* ------------------------------------------------------------- */}
+            {/* GAVETA: DESPESAS OPERACIONAIS */}
+            {/* ------------------------------------------------------------- */}
+            {tipoMetrica === 'despesas' && decomposicoes.despesas && (
+              <div className="space-y-6">
+                {/* Cards de Resumo Orçamentário */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Despesas Realizadas</span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
+                      {formMoeda(decomposicoes.despesas.totalDespesas)}
+                    </div>
+                    <span className={`text-[11px] font-semibold ${
+                      decomposicoes.despesas.percentualConsumido <= 80
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : decomposicoes.despesas.percentualConsumido <= 100
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}>
+                      {decomposicoes.despesas.percentualConsumido}% do orçamento
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Teto Orçamentário</span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
+                      {formMoeda(decomposicoes.despesas.tetoOrcamentario)}
+                    </div>
+                    <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                      Saldo restante: <strong className="text-slate-900 dark:text-slate-200 font-mono">{formMoeda(decomposicoes.despesas.saldoRestante)}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Decomposição por Categorias de Centro de Custo */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Centro de Custos por Categoria</span>
+                  </h3>
+                  <div className="space-y-2.5 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800/80">
+                    {Object.keys(decomposicoes.despesas.porCategoria).length === 0 ? (
+                      <p className="text-xs text-slate-500 py-2 text-center">Nenhuma despesa ou saída registrada no período.</p>
+                    ) : (
+                      Object.entries(decomposicoes.despesas.porCategoria).map(([cat, d]) => (
+                        <div key={cat} className="space-y-1">
+                          <div className="flex justify-between text-xs font-medium">
+                            <span className="text-slate-700 dark:text-slate-300">{cat} ({d.quantidade} lançamentos)</span>
+                            <span className="text-slate-900 dark:text-white font-mono font-bold">{formMoeda(d.total)} ({d.percentual}%)</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(100, d.percentual)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Últimas Saídas / Despesas Lançadas */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Saídas e Despesas do Período ({decomposicoes.despesas.itensRecentes.length})</span>
+                  </h3>
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {decomposicoes.despesas.itensRecentes.length === 0 ? (
+                      <p className="text-xs text-slate-500 py-4 text-center">Nenhum lançamento no período.</p>
+                    ) : (
+                      decomposicoes.despesas.itensRecentes.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xs"
+                        >
+                          <div className="space-y-0.5 min-w-0 pr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900 dark:text-white truncate">{item.descricao}</span>
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                                {item.origem === 'caixa' ? 'Frente de Caixa' : 'Financeiro'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                              <span>{new Date(item.data).toLocaleDateString('pt-BR')}</span>
+                              <span>• {item.categoria}</span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+                              - {formMoeda(item.valor)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
             {/* 5. GAVETA: INADIMPLÊNCIA FIADO */}
             {/* ------------------------------------------------------------- */}
             {tipoMetrica === 'inadimplencia' && (
               <div className="space-y-6">
                 {/* Resumo de Inadimplência */}
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-slate-900/80 border border-rose-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Total em Atraso</span>
                     <div className="text-base font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
                       {formMoeda(decomposicoes.inadimplencia.totalInadimplente)}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Total a Receber</span>
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Total a Receber</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
                       {formMoeda(decomposicoes.inadimplencia.totalReceber)}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-slate-900/80 border border-amber-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Taxa Inadimplência</span>
                     <div className="text-base font-black font-mono mt-1 text-amber-600 dark:text-amber-400">
                       {decomposicoes.inadimplencia.taxaInadimplencia}%
@@ -704,19 +841,19 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
                 {/* Métricas do Estoque */}
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-slate-900/80 border border-rose-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Itens em Risco</span>
                     <div className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
                       {decomposicoes.saudeEstoque.totalItensEmRisco}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Monitorados</span>
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Monitorados</span>
                     <div className="text-lg font-black text-slate-900 dark:text-white font-mono mt-1">
                       {decomposicoes.saudeEstoque.totalItensMonitorados}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-slate-900/80 border border-amber-500/20">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Índice Ruptura</span>
                     <div className="text-lg font-black font-mono mt-1 text-amber-600 dark:text-amber-400">
                       {decomposicoes.saudeEstoque.indiceRuptura}%
@@ -883,7 +1020,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold transition cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold transition cursor-pointer shadow-xs"
             >
               Fechar
             </button>
