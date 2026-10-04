@@ -15,6 +15,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { UsuarioLoja, MetricasUsuario } from '../types';
 import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { useTheme } from '../contexts/ThemeContext';
 
 const CORES_PALETA = [
   '#10B981', // Emerald
@@ -32,6 +33,7 @@ const CORES_PALETA = [
 export const UsuariosGestao: React.FC = () => {
   const navigate = useNavigate();
   const { loja } = useAuth();
+  const { isDark } = useTheme();
   const permissions = usePermissions();
 
   useEffect(() => {
@@ -230,7 +232,7 @@ export const UsuariosGestao: React.FC = () => {
   };
 
   // Renderizar Gráfico Donut/Pizza Interativo
-  const renderGraficoPizza = (tema: 'claro' | 'escuro' = 'escuro') => {
+  const renderGraficoPizza = (tema: 'claro' | 'escuro' = isDark ? 'escuro' : 'claro') => {
     if (dadosGraficoUsuarios.length === 0 || totalFaturamento30d === 0) {
       return (
         <div className="relative flex items-center justify-center my-2">
@@ -301,7 +303,7 @@ export const UsuariosGestao: React.FC = () => {
             {hoveredItem ? (
               <div className="animate-in fade-in zoom-in-95 flex flex-col items-center justify-center">
                 <span className={`text-[11px] font-bold truncate max-w-[110px] ${
-                  tema === 'claro' ? 'text-slate-800' : 'text-slate-200'
+                  tema === 'claro' ? 'text-slate-900' : 'text-slate-200'
                 }`} title={hoveredItem.nome}>
                   {hoveredItem.nome}
                 </span>
@@ -311,12 +313,12 @@ export const UsuariosGestao: React.FC = () => {
                   {hoveredItem.percentual.toFixed(1)}%
                 </span>
                 <span className={`text-[11px] font-bold ${
-                  tema === 'claro' ? 'text-emerald-600' : 'text-emerald-400'
+                  tema === 'claro' ? 'text-emerald-700' : 'text-emerald-400'
                 }`}>
                   R$ {hoveredItem.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-                <span className={`text-[9px] font-medium ${
-                  tema === 'claro' ? 'text-slate-500' : 'text-slate-400'
+                <span className={`text-[9px] font-semibold ${
+                  tema === 'claro' ? 'text-slate-800' : 'text-slate-400'
                 }`}>
                   {hoveredItem.vendas} {hoveredItem.vendas === 1 ? 'venda' : 'vendas'}
                 </span>
@@ -324,15 +326,15 @@ export const UsuariosGestao: React.FC = () => {
             ) : (
               <div className="flex flex-col items-center justify-center">
                 <Users className={`w-5 h-5 mb-0.5 ${
-                  tema === 'claro' ? 'text-emerald-600' : 'text-emerald-400'
+                  tema === 'claro' ? 'text-emerald-700' : 'text-emerald-400'
                 }`} />
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                  tema === 'claro' ? 'text-slate-500' : 'text-slate-400'
+                  tema === 'claro' ? 'text-slate-700' : 'text-slate-400'
                 }`}>
                   {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
                 </span>
                 <span className={`text-xs font-black ${
-                  tema === 'claro' ? 'text-slate-800' : 'text-slate-200'
+                  tema === 'claro' ? 'text-slate-900' : 'text-slate-200'
                 }`}>100,0%</span>
               </div>
             )}
@@ -341,31 +343,34 @@ export const UsuariosGestao: React.FC = () => {
 
         {/* Mini legenda com cores das fatias */}
         <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3 max-w-[290px]">
-          {dadosGraficoUsuarios.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onMouseEnter={() => setHoveredUserId(item.id)}
-              onMouseLeave={() => setHoveredUserId(null)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] transition cursor-pointer border ${
-                tema === 'claro'
-                  ? hoveredUserId === item.id
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-xs font-bold'
-                    : 'bg-white text-slate-700 hover:text-slate-900 border-slate-200 hover:border-slate-300 shadow-2xs'
-                  : hoveredUserId === item.id
-                    ? 'bg-slate-800 text-slate-100 border-emerald-500/50 shadow-sm'
-                    : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border-slate-800'
-              }`}
-            >
-              <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.cor }} />
-              <span className={`truncate max-w-[80px] font-semibold ${tema === 'claro' ? 'text-slate-800' : 'text-slate-200'}`}>
-                {item.nome.split(' ')[0]}
-              </span>
-              <span className={`font-bold ${tema === 'claro' ? 'text-slate-900' : 'text-slate-100'}`}>
-                {item.percentual.toFixed(1)}%
-              </span>
-            </button>
-          ))}
+          {dadosGraficoUsuarios.map((item) => {
+            const isHovered = hoveredUserId === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onMouseEnter={() => setHoveredUserId(item.id)}
+                onMouseLeave={() => setHoveredUserId(null)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] transition-all cursor-pointer border ${
+                  tema === 'claro'
+                    ? isHovered
+                      ? 'bg-emerald-50 text-slate-900 border-emerald-400 shadow-xs font-black ring-1 ring-emerald-400/40 scale-105'
+                      : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-300 hover:border-slate-400 shadow-2xs font-bold'
+                    : isHovered
+                      ? 'bg-slate-800 text-white border-emerald-400 shadow-sm font-black ring-1 ring-emerald-400/40 scale-105'
+                      : 'bg-slate-900 text-slate-100 hover:text-white border-slate-700 hover:border-slate-600 font-bold'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.cor }} />
+                <span className="truncate max-w-[90px]">
+                  {item.nome.split(' ')[0]}
+                </span>
+                <span className={tema === 'claro' ? 'text-slate-900 font-black' : 'text-white font-black'}>
+                  {item.percentual.toFixed(1)}%
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -483,8 +488,8 @@ export const UsuariosGestao: React.FC = () => {
         />
       </div>
 
-      {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
-      <div className="hidden md:flex flex-col h-full overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* 2. VISÃO DESKTOP (TEMA CLARO E ESCURO UNIFICADOS) */}
+      <div className="hidden md:flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
       
       {/* CABEÇALHO SUPERIOR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
@@ -492,16 +497,16 @@ export const UsuariosGestao: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+            className="p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition cursor-pointer shadow-xs"
             title="Voltar"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-100 flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-3">
               <span>Usuários</span>
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-400 mt-1">
               Gerencie sua equipe, permissões de acesso e acompanhe o faturamento por colaborador.
             </p>
           </div>
@@ -511,7 +516,7 @@ export const UsuariosGestao: React.FC = () => {
           <button
             type="button"
             onClick={handleAbrirAdicionar}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer active:scale-95"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>+ Usuários</span>
@@ -527,14 +532,14 @@ export const UsuariosGestao: React.FC = () => {
           <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl flex flex-col items-center justify-between min-h-[380px] text-center space-y-4">
             <div className="w-full text-left space-y-1">
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Faturamento por usuário</h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Últimos 30 dias</span>
+              <span className="text-xs text-slate-700 dark:text-slate-400 font-medium">Últimos 30 dias</span>
             </div>
 
             {/* Gráfico de Pizza / Donut Interativo */}
-            {renderGraficoPizza()}
+            {renderGraficoPizza(isDark ? 'escuro' : 'claro')}
 
             <div className="space-y-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-400 block">
                 {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
               </span>
               <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 block">
@@ -545,7 +550,7 @@ export const UsuariosGestao: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/analytics')}
-              className="w-full py-2.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold flex items-center justify-center gap-2 transition cursor-pointer hover:underline border-t border-slate-200 dark:border-slate-800/80 pt-4"
+              className="w-full py-2.5 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-bold flex items-center justify-center gap-2 transition cursor-pointer hover:underline border-t border-slate-200 dark:border-slate-800/80 pt-4"
             >
               <BarChart3 className="w-4 h-4" />
               <span>Ver mais estatísticas</span>
@@ -558,7 +563,7 @@ export const UsuariosGestao: React.FC = () => {
           <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm dark:shadow-xl space-y-4">
             
             {/* Título da Tabela */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5 text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider px-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5 text-xs text-slate-700 dark:text-slate-400 font-bold uppercase tracking-wider px-3">
               <div className="flex-1">Nome</div>
               <div className="w-28 text-right">Faturamento</div>
               <div className="w-16 text-right">Vendas</div>
@@ -600,7 +605,7 @@ export const UsuariosGestao: React.FC = () => {
                       {/* Nome e Badge de Perfil */}
                       <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-3">
                         <div
-                          className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0 transition"
+                          className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border text-slate-900 dark:text-slate-100 font-bold text-xs flex items-center justify-center shrink-0 transition"
                           style={{ borderColor: isHovered ? corUser : '#94A3B8' }}
                         >
                           {formatarIniciais(user.nome_completo)}
@@ -609,66 +614,66 @@ export const UsuariosGestao: React.FC = () => {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: corUser }} />
-                            <span className="font-bold text-sm text-slate-900 dark:text-slate-200 truncate group-hover:text-emerald-500 transition">
+                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition">
                               {user.nome_completo}
                             </span>
 
                             {ehOwner && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-800 dark:text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                                 <Crown className="w-2.5 h-2.5" />
                                 OWNER
                               </span>
                             )}
 
                             {ehAdmin && !ehOwner && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                                 <Shield className="w-2.5 h-2.5" />
                                 ADMIN
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil === 'gerente' && (
-                              <span className="text-[10px] bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-indigo-500/15 text-indigo-800 dark:text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 GERENTE
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil === 'vendedor' && (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 VENDEDOR
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil !== 'gerente' && user.perfil !== 'vendedor' && (
-                              <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 COMUM
                               </span>
                             )}
 
                             {!user.ativo && (
-                              <span className="text-[10px] bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 INATIVO
                               </span>
                             )}
                           </div>
-                          <span className="text-xs text-slate-500 dark:text-slate-400 truncate block mt-0.5">
+                          <span className="text-xs text-slate-600 dark:text-slate-400 truncate block mt-0.5 font-medium">
                             {user.email}
                           </span>
                         </div>
                       </div>
 
                       {/* Faturamento */}
-                      <div className="w-28 text-right text-xs font-semibold text-slate-900 dark:text-slate-200">
+                      <div className="w-28 text-right text-xs font-mono font-bold text-slate-900 dark:text-white">
                         {fat > 0 ? `R$ ${fat.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                       </div>
 
                       {/* Vendas */}
-                      <div className="w-16 text-right text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <div className="w-16 text-right text-xs font-mono font-bold text-slate-900 dark:text-white">
                         {count > 0 ? count : '-'}
                       </div>
 
                       {/* % Participação */}
-                      <div className="w-16 text-right text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      <div className="w-16 text-right text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">
                         {perc > 0 ? `${perc.toFixed(1)}%` : '-'}
                       </div>
                     </div>

@@ -44,6 +44,7 @@ interface CartContextType {
   totalItens: number;
   pedidoEmEdicao: any | null;
   temAlteracoesPedido: boolean;
+  isHydrated: boolean;
   resetarSnapshotPedido: () => void;
   adicionarItem: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number, observacoes?: string) => void;
   removerItem: (cartId: string) => void;
@@ -802,6 +803,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalItens,
         pedidoEmEdicao,
         temAlteracoesPedido,
+        isHydrated,
         resetarSnapshotPedido,
         adicionarItem,
         removerItem,

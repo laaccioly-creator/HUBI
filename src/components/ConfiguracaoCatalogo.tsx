@@ -35,6 +35,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Loja, ModoExibicaoCatalogo, ComportamentoSemEstoque } from '../types';
 import { ConfiguracaoCatalogoMobile } from './ConfiguracaoCatalogoMobile';
+import { useTheme } from '../contexts/ThemeContext';
 
 const CORES_PALETA = [
   { hex: '#F59E0B', nome: 'Amarelo Ouro' },
@@ -50,6 +51,7 @@ const CORES_PALETA = [
 
 export const ConfiguracaoCatalogo: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
 
   // Estados do Catálogo
@@ -387,21 +389,21 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       <div className="max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6">
         
         {/* CARD DO LINK DO CATÁLOGO (TOPO) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs dark:shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-wider">
-              <Globe className="w-3.5 h-3.5 text-emerald-400" /> Link do catálogo
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-400 flex items-center gap-1.5 uppercase tracking-wider">
+              <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Link do catálogo
             </span>
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm sm:text-base font-semibold text-slate-200 break-all select-all font-mono">
+              <span className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-200 break-all select-all font-mono">
                 {catalogoUrl}
               </span>
               <button
                 type="button"
                 onClick={handleCopiarLink}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
               >
-                {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                {copiado ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />}
                 <span>{copiado ? 'Link Copiado!' : 'Copiar link'}</span>
               </button>
             </div>
@@ -425,16 +427,16 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           <div className="lg:col-span-7 space-y-6">
 
             {/* 1. PUBLICAR CATÁLOGO ONLINE */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-3">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-100 text-base">Publicar Catálogo Online</h3>
-                  <p className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                    <span className="font-mono text-slate-300">/catalog/{slugCatalogo}</span>
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Publicar Catálogo Online</h3>
+                  <p className="text-xs text-slate-700 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                    <span className="font-mono text-slate-800 dark:text-slate-300">/catalog/{slugCatalogo}</span>
                     <button
                       type="button"
                       onClick={() => setModalEditarSlug(true)}
-                      className="text-emerald-400 hover:text-emerald-300 font-bold hover:underline cursor-pointer text-xs"
+                      className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold hover:underline cursor-pointer text-xs"
                     >
                       Editar link
                     </button>
@@ -448,16 +450,16 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setPublicarCatalogo(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
               </div>
             </div>
 
             {/* 2. COR PRINCIPAL / TEMA DE CORES */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-5">
               <div>
-                <h3 className="font-bold text-slate-100 text-base">Cor principal</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Cor principal</h3>
+                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
                   Escolha o tema de cores que mais combina com a sua marca!
                 </p>
               </div>
@@ -541,10 +543,10 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 3. MODO DE EXIBIÇÃO PRINCIPAL */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div>
-                <h3 className="font-bold text-slate-100 text-base">Modo de exibição principal</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Modo de exibição principal</h3>
+                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
                   Como seus clientes visualizarão a listagem de produtos no catálogo online.
                 </p>
               </div>
@@ -568,8 +570,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-xs ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>Modo Lista</h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-xs ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Lista</h4>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight mt-1">
                       Navegação mais rápida, ideal para grandes quantidades de produtos.
                     </p>
                   </div>
@@ -593,8 +595,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-xs ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>Modo Grade</h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-xs ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Grade</h4>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight mt-1">
                       Ideal para ver vários produtos com fotos e destaques visuais ao mesmo tempo.
                     </p>
                   </div>
@@ -618,8 +620,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-xs ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>Modo Instaview</h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-xs ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Instaview</h4>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight mt-1">
                       Estilo feed de fotos com imagens grandes e imersão total para moda e lifestyle.
                     </p>
                   </div>
@@ -628,11 +630,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 4. BANNER DA LOJA */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-100 text-base">Banner da loja</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Banner da loja</h3>
+                  <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
                     Ocultar ou exibir o banner da loja no topo do catálogo online.
                   </p>
                 </div>
@@ -682,10 +684,10 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 5. PRODUTOS SEM ESTOQUE */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div>
-                <h3 className="font-bold text-slate-100 text-base">Produtos sem estoque</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Produtos sem estoque</h3>
+                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
                   Defina o comportamento do catálogo para produtos que zeraram no estoque físico.
                 </p>
               </div>
@@ -726,7 +728,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     />
                     <div>
                       <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">{opt.title}</span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">{opt.desc}</span>
+                      <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">{opt.desc}</span>
                     </div>
                   </label>
                 ))}
@@ -734,11 +736,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 6. PRODUTOS SEM FOTO */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-100 text-base">Exibir produtos sem foto</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exibir produtos sem foto</h3>
+                  <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
                     Defina se produtos que ainda não possuem imagens cadastradas devem aparecer no catálogo online.
                   </p>
                 </div>
@@ -750,12 +752,12 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setExibirProdutosSemFoto(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
               </div>
 
-              <div className="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
-                <ImageIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="p-3.5 bg-slate-100 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-400 flex items-center gap-2.5">
+                <ImageIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>
                   {exibirProdutosSemFoto
                     ? 'Produtos sem foto estão VISÍVEIS no catálogo online com uma imagem padrão.'
@@ -770,10 +772,10 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           <div className="lg:col-span-5 space-y-6">
 
             {/* 6. DADOS DA LOJA (CHECKLIST DE PERFIL) */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div>
-                <h3 className="font-bold text-slate-100 text-base">Dados da Loja</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Dados da Loja</h3>
+                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
                   Complete as informações da sua loja e deixe seu catálogo profissional!
                 </p>
               </div>
@@ -782,11 +784,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 {checklist.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs">
                     <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                      item.preenchido ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-600'
+                      item.preenchido ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-600'
                     }`}>
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </span>
-                    <span className={`font-semibold text-[11px] ${item.preenchido ? 'text-slate-300' : 'text-slate-500'}`}>
+                    <span className={`font-semibold text-[11px] ${item.preenchido ? 'text-slate-900 dark:text-slate-300' : 'text-slate-500'}`}>
                       {item.label}
                     </span>
                   </div>
@@ -795,7 +797,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
               <Link
                 to="/config?tab=dados-loja"
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer pt-2"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer pt-2"
               >
                 <span>Editar dados da loja</span>
                 <ChevronRight className="w-4 h-4" />
@@ -803,14 +805,14 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 7. PEDIDOS ONLINE & WHATSAPP */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
-              <h3 className="font-bold text-slate-100 text-base">Pedidos</h3>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-5">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Pedidos</h3>
 
               {/* Switch Aceitar Pedidos */}
-              <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="space-y-0.5">
-                  <span className="font-bold text-xs text-slate-100 block">Aceitar pedidos online</span>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Aceitar pedidos online</span>
+                  <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight">
                     Seus pedidos virão como <strong>Pendente</strong> até que você os aceite como Confirmado.
                   </p>
                 </div>
@@ -822,15 +824,15 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setAceitaPedidosOnline(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
               </div>
 
               {/* Switch Resumo WhatsApp */}
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-0.5">
-                  <span className="font-bold text-xs text-slate-100 block">Receber resumo do pedido pelo WhatsApp</span>
-                  <p className="text-[11px] text-slate-400 leading-tight">
+                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Receber resumo do pedido pelo WhatsApp</span>
+                  <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight">
                     Além de ter seu pedido criado no HUBI, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
                   </p>
                 </div>
@@ -949,38 +951,38 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       {/* MODAL DE EDIÇÃO DE SLUG / LINK DO CATÁLOGO */}
       {modalEditarSlug && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-100">Editar Link do Catálogo</h3>
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Editar Link do Catálogo</h3>
               <button
                 type="button"
                 onClick={() => setModalEditarSlug(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-700 dark:text-slate-400">
               Escolha um endereço fácil de lembrar para compartilhar com seus clientes nas redes sociais.
             </p>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">
                 Endereço do Catálogo
               </label>
-              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-slate-300">
                 <span className="text-slate-500">{window.location.origin}/catalog/</span>
                 <input
                   type="text"
                   value={novoSlug}
                   onChange={(e) => setNovoSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                   placeholder="minha-loja"
-                  className="bg-transparent text-emerald-400 font-bold outline-none flex-1 font-mono"
+                  className="bg-transparent text-emerald-700 dark:text-emerald-400 font-bold outline-none flex-1 font-mono"
                 />
               </div>
               {erroSlug && (
-                <p className="text-[11px] text-rose-400 font-semibold">{erroSlug}</p>
+                <p className="text-[11px] text-rose-500 font-semibold">{erroSlug}</p>
               )}
             </div>
 
@@ -988,7 +990,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalEditarSlug(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
               >
                 Cancelar
               </button>
@@ -996,7 +998,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 type="button"
                 onClick={handleSalvarSlug}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 text-xs font-bold cursor-pointer disabled:opacity-50"
               >
                 {salvando ? 'Salvando...' : 'Salvar Novo Link'}
               </button>

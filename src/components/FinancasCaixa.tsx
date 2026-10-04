@@ -2085,7 +2085,11 @@ export const FinancasCaixa: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => abrirModalEditarTransacao(tr)}
-                                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer border border-slate-700/60"
+                                  className={`p-1.5 rounded-xl transition cursor-pointer border ${
+                                    isDark
+                                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700/60'
+                                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-200'
+                                  }`}
                                   title="Editar Lançamento"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />

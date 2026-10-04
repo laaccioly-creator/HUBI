@@ -928,11 +928,11 @@ export const VendasHistorico: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
-              <thead className={`font-semibold uppercase tracking-wider sticky top-0 z-10 border-b backdrop-blur ${isDark ? 'bg-slate-900 text-slate-300 border-slate-700/80' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+              <thead className={`font-semibold uppercase tracking-wider sticky top-0 z-10 border-b backdrop-blur ${isDark ? 'bg-slate-900 text-slate-300 border-slate-700/80' : 'bg-slate-100 text-slate-900 border-slate-200 font-bold'}`}>
                 <tr>
                   <th
                     onClick={() => toggleOrdenacao('codigo')}
-                    className="py-3 px-4 cursor-pointer hover:text-white transition"
+                    className="py-3 px-4 cursor-pointer hover:text-emerald-500 transition"
                   >
                     <div className="flex items-center gap-1">
                       <span>Código</span>
@@ -941,7 +941,7 @@ export const VendasHistorico: React.FC = () => {
                   </th>
                   <th
                     onClick={() => toggleOrdenacao('data')}
-                    className="py-3 px-4 cursor-pointer hover:text-white transition"
+                    className="py-3 px-4 cursor-pointer hover:text-emerald-500 transition"
                   >
                     <div className="flex items-center gap-1">
                       <span>Data</span>
@@ -950,7 +950,7 @@ export const VendasHistorico: React.FC = () => {
                   </th>
                   <th
                     onClick={() => toggleOrdenacao('cliente')}
-                    className="py-3 px-4 cursor-pointer hover:text-white transition"
+                    className="py-3 px-4 cursor-pointer hover:text-emerald-500 transition"
                   >
                     <div className="flex items-center gap-1">
                       <span>Cliente</span>
@@ -961,7 +961,7 @@ export const VendasHistorico: React.FC = () => {
                   <th className="py-3 px-4 text-center">Itens</th>
                   <th
                     onClick={() => toggleOrdenacao('valor')}
-                    className="py-3 px-4 text-right cursor-pointer hover:text-white transition"
+                    className="py-3 px-4 text-right cursor-pointer hover:text-emerald-500 transition"
                   >
                     <div className="flex items-center justify-end gap-1">
                       <span>Valor</span>
@@ -996,7 +996,7 @@ export const VendasHistorico: React.FC = () => {
                               e.stopPropagation();
                               setVendaReciboModal(venda);
                             }}
-                            className="hover:bg-slate-100 hover:text-emerald-700 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg p-1 transition-colors cursor-pointer"
+                            className="hover:bg-slate-100 hover:text-emerald-700 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 rounded-lg p-1 transition-colors cursor-pointer"
                             title={`Visualizar recibo de ${codigoFormatado}`}
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -1004,7 +1004,7 @@ export const VendasHistorico: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => navigate(`/orders?id=${venda.id}&origem=sales`)}
-                            className={`transition cursor-pointer font-bold hover:underline ${isDark ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-700 hover:text-emerald-600'}`}
+                            className={`transition cursor-pointer font-bold hover:underline ${isDark ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-900 hover:text-emerald-700'}`}
                             title={`Abrir detalhes do pedido ${codigoFormatado}`}
                           >
                             {codigoFormatado}
@@ -1013,9 +1013,9 @@ export const VendasHistorico: React.FC = () => {
                       </td>
 
                       {/* Data da Venda */}
-                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                         <span className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{data}</span>
-                        {hora && <span className={`ml-1.5 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{hora}</span>}
+                        {hora && <span className={`ml-1.5 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{hora}</span>}
                       </td>
 
                       {/* Cliente */}
@@ -1024,15 +1024,15 @@ export const VendasHistorico: React.FC = () => {
                       </td>
 
                       {/* Vendedor */}
-                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <td className={`py-3.5 px-4 whitespace-nowrap font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                         {isCatalogo ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold">
                             <Store className="w-3.5 h-3.5" />
                             <span>Catálogo</span>
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                            <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                          <span className={`inline-flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                            <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                             <span>{venda.vendedor?.nome_completo || 'Balcão'}</span>
                           </span>
                         )}

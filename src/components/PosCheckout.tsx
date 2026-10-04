@@ -44,7 +44,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO } from '../contexts/CartContext';
+import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO, CartItem } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPedido, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
@@ -180,6 +180,38 @@ const MoneyInput: React.FC<MoneyInputProps> = ({
   );
 };
 
+const gerarSnapshotCarrinhoPdv = (
+  itensAtuais: CartItem[],
+  cli: Cliente | null | undefined,
+  desc: number,
+  tipoDesc: 'valor' | 'percentual',
+  taxa: number,
+  entrega: PedidoEntrega | null | undefined,
+  tabela: TabelaPreco
+) => {
+  return JSON.stringify({
+    itens: (itensAtuais || [])
+      .map(i => ({
+        id: i.id,
+        produto_id: i.produto?.id || '',
+        variacao_id: i.variacao?.id || null,
+        quantidade: i.quantidade,
+        precoUnitario: Number(i.precoUnitario?.toFixed?.(2) || i.precoUnitario || 0),
+        observacoes: i.observacoes || ''
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+    clienteId: cli?.id || null,
+    desconto: Number(desc?.toFixed?.(2) || desc || 0),
+    tipoDesconto: tipoDesc || 'valor',
+    taxaEntrega: Number(taxa?.toFixed?.(2) || taxa || 0),
+    entregaTransp: entrega?.transportadora_nome || null,
+    entregaTipo: entrega?.tipo_atendimento || null,
+    entregaServico: entrega?.servico_codigo || null,
+    entregaValor: Number(entrega?.valor_frete || 0),
+    tabela: tabela || 'varejo'
+  });
+};
+
 export const PosCheckout: React.FC = () => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
@@ -204,6 +236,7 @@ export const PosCheckout: React.FC = () => {
     totalItens,
     pedidoEmEdicao,
     temAlteracoesPedido,
+    isHydrated,
     resetarSnapshotPedido,
     adicionarItem,
     removerItem,
@@ -246,16 +279,51 @@ export const PosCheckout: React.FC = () => {
     setFreteConfirmado(false);
   }, [clienteSelecionado?.id]);
 
+  const snapshotInicialRef = useRef<string | null>(null);
+
+  // Snapshot determinístico do carrinho para verificação estrita de alterações na sessão
+  const snapshotAtual = useMemo(() => {
+    return gerarSnapshotCarrinhoPdv(
+      itens,
+      clienteSelecionado,
+      desconto,
+      tipoDesconto,
+      taxaEntrega,
+      pedidoEntrega,
+      tabelaPrecoGlobal
+    );
+  }, [itens, clienteSelecionado, desconto, tipoDesconto, taxaEntrega, pedidoEntrega, tabelaPrecoGlobal]);
+
   useEffect(() => {
+    if (!isHydrated) return;
+
+    // Se estiver em modo de edição de pedido existente, respeita estritamente o snapshot do pedido original
     if (pedidoEmEdicao) {
       setTemAlteracoesNaoSalvas(Boolean(temAlteracoesPedido));
-    } else {
-      setTemAlteracoesNaoSalvas((itens?.length || 0) > 0);
+      return;
     }
+
+    // Inicializa o snapshot de referência da sessão quando o PDV monta ou após salvar/limpar
+    if (snapshotInicialRef.current === null) {
+      snapshotInicialRef.current = snapshotAtual;
+      setTemAlteracoesNaoSalvas(false);
+      return;
+    }
+
+    // Só sinaliza alterações não salvas se o usuário efetivamente alterou o carrinho nesta sessão e não salvou
+    const houveAlteracao = snapshotAtual !== snapshotInicialRef.current;
+    setTemAlteracoesNaoSalvas(houveAlteracao);
+
     return () => {
       setTemAlteracoesNaoSalvas(false);
     };
-  }, [pedidoEmEdicao, temAlteracoesPedido, itens?.length, setTemAlteracoesNaoSalvas]);
+  }, [
+    isHydrated,
+    pedidoEmEdicao,
+    temAlteracoesPedido,
+    snapshotAtual,
+    setTemAlteracoesNaoSalvas
+  ]);
 
   const {
     isOnline,
@@ -958,6 +1026,7 @@ export const PosCheckout: React.FC = () => {
       audioService.playBeep();
       const eraEdicao = !!pedidoEmEdicao;
       resetarSnapshotPedido();
+      snapshotInicialRef.current = null;
       setTemAlteracoesNaoSalvas(false);
 
       const aoConfirmarSucesso = () => {
@@ -1222,6 +1291,7 @@ export const PosCheckout: React.FC = () => {
       setModalFechamento(false);
       const eraEdicao = !!pedidoEmEdicao;
       resetarSnapshotPedido();
+      snapshotInicialRef.current = null;
       setTemAlteracoesNaoSalvas(false);
 
       const aoConfirmarSucesso = () => {
@@ -1529,6 +1599,7 @@ export const PosCheckout: React.FC = () => {
           };
 
           resetarSnapshotPedido();
+          snapshotInicialRef.current = null;
           setTemAlteracoesNaoSalvas(false);
           setEhVendaOfflineSalva(false);
           setPedidoConcluido(pedidoCompletoFinal);
@@ -1604,6 +1675,7 @@ export const PosCheckout: React.FC = () => {
       };
 
       resetarSnapshotPedido();
+      snapshotInicialRef.current = null;
       setTemAlteracoesNaoSalvas(false);
       setEhVendaOfflineSalva(true);
       setPedidoConcluido(pedidoOfflineCompleto);
@@ -2002,6 +2074,8 @@ export const PosCheckout: React.FC = () => {
                 onClick={() => {
                   verificarSaidaComConfirmacao(() => {
                     limparCarrinho();
+                    snapshotInicialRef.current = null;
+                    setTemAlteracoesNaoSalvas(false);
                   });
                 }}
                 className="text-xs text-rose-400 hover:text-rose-300 font-medium cursor-pointer"

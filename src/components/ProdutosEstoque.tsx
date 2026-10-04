@@ -430,7 +430,11 @@ export const ProdutosEstoque: React.FC = () => {
               placeholder="Buscar por nome, código SKU ou código de barras..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-9 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+              className={`w-full border rounded-xl pl-10 pr-9 py-2 text-xs transition shadow-xs focus:outline-none focus:border-emerald-500 ${
+                isDark
+                  ? 'bg-slate-800/80 border-slate-700/80 text-slate-100 placeholder:text-slate-500'
+                  : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
+              }`}
             />
             {busca && (
               <button
@@ -451,15 +455,17 @@ export const ProdutosEstoque: React.FC = () => {
               onClick={() => setModalFiltroAberto(true)}
               className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs shrink-0 ${
                 temFiltroAtivo
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
-                  : 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-600/20'
+                  : isDark
+                  ? 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
+                  : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-900'
               }`}
               title="Filtrar por Categoria, Estoque e Ativo"
             >
-              <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-emerald-400' : 'text-slate-400'}`} />
+              <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-white' : 'text-slate-400'}`} />
               <span>Filtros</span>
               {qtdFiltrosAtivos > 0 && (
-                <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs">
+                <span className="w-5 h-5 rounded-full bg-white text-emerald-800 font-black text-[10px] flex items-center justify-center shadow-xs">
                   {qtdFiltrosAtivos}
                 </span>
               )}
@@ -537,7 +543,7 @@ export const ProdutosEstoque: React.FC = () => {
         ) : (
           <div className={`flex-1 min-h-0 border rounded-2xl shadow-sm overflow-y-auto overflow-x-auto ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
             <table className={`w-full text-left text-xs border-collapse ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-              <thead className={`sticky top-0 z-20 shadow-xs border-b uppercase text-[10px] tracking-wider font-semibold ${isDark ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+              <thead className={`sticky top-0 z-20 shadow-xs border-b uppercase text-[10px] tracking-wider font-semibold ${isDark ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-900 border-slate-200 font-bold'}`}>
                 <tr>
                   <th className="p-3.5">Produto</th>
                   <th className="p-3.5">Categoria</th>
@@ -582,7 +588,7 @@ export const ProdutosEstoque: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className={`p-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <td className={`p-3.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                           {produto.categoria?.nome || 'Geral'}
                         </td>
 
@@ -590,7 +596,7 @@ export const ProdutosEstoque: React.FC = () => {
                           {formatarMoeda(produto.preco_venda_varejo)}
                         </td>
 
-                        <td className={`p-3.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        <td className={`p-3.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                           {produto.preco_venda_atacado ? (
                             <span className="font-medium font-mono">
                               {formatarMoeda(produto.preco_venda_atacado)}{' '}
@@ -610,7 +616,9 @@ export const ProdutosEstoque: React.FC = () => {
                                   ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                                   : estoqueBaixo
                                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
+                                  : isDark
+                                  ? 'bg-slate-800 text-slate-200 border border-slate-700'
+                                  : 'bg-slate-100 text-slate-900 border border-slate-300'
                               }`}
                             >
                               {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
@@ -622,7 +630,7 @@ export const ProdutosEstoque: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setProdutoGradeModal(produto)}
-                                className="px-2 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
+                                className="px-2 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
                                 title="Ver estoque detalhado por cor, tamanho ou variação"
                               >
                                 <Layers className="w-3 h-3 text-indigo-400" />
@@ -635,7 +643,7 @@ export const ProdutosEstoque: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setProdutoEstoqueAlvo(produto)}
-                                className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
                                 title="Dar entrada por compra ou ajustar estoque"
                               >
                                 <PackagePlus className="w-3 h-3 text-emerald-400" />
