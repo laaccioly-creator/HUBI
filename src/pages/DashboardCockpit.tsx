@@ -33,6 +33,7 @@ import {
 } from '../components/dashboard/CockpitMetricDrawer';
 import { ConfiguracoesMetas } from '../components/configuracoes/ConfiguracoesMetas';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { supabase } from '../lib/supabase';
 
 export const DashboardCockpit: React.FC = () => {
@@ -62,6 +63,14 @@ export const DashboardCockpit: React.FC = () => {
   const [drawerMetrica, setDrawerMetrica] = useState<TipoMetricaCockpitDrawer | null>(null);
   const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false);
   const [produtoSelecionadoEntrada, setProdutoSelecionadoEntrada] = useState<Produto | null>(null);
+
+  // Registro na pilha de navegação para tecla ESC e botão Voltar Mobile
+  useRegisterOverlay(drawerMetrica !== null, () => setDrawerMetrica(null), 'cockpit-metric-drawer');
+  useRegisterOverlay(modalEntradaAberto, () => {
+    setModalEntradaAberto(false);
+    setProdutoSelecionadoEntrada(null);
+  }, 'cockpit-modal-entrada');
+  useRegisterOverlay(modalMetasAberto, () => setModalMetasAberto(false), 'cockpit-modal-metas');
 
   // Payload Executivo Consolidado fornecido pelo Jev (Type-Safe Schema)
   const [payloadExecutivo, setPayloadExecutivo] = useState<PayloadDashboardExecutivo | null>(null);
@@ -391,18 +400,29 @@ export const DashboardCockpit: React.FC = () => {
           />
 
           {/* 6. SAÚDE DO ESTOQUE (HÍBRIDO: FASE 1 ESTOQUE MÍNIMO / FASE 2 CURVA ABC) */}
-          <CockpitGaugeF1
-            titulo="Saúde do Estoque"
-            subtituloTag={payloadExecutivo?.decomposicoes.saudeEstoque.subtituloTag || 'Base: Estoque Mínimo Geral'}
-            valorRealizado={payloadExecutivo?.decomposicoes.saudeEstoque.indiceRuptura ?? metricas.saude_estoque ?? 0}
-            valorMeta={0}
-            tipoFormato="percentual"
-            escalaInvertida={true}
-            valorExibicaoCustomizado={`${payloadExecutivo?.decomposicoes.saudeEstoque.totalItensEmRisco ?? 0} em risco`}
-            metaExibicaoCustomizada="0 rupturas"
-            isLoading={carregando && !payloadExecutivo}
-            onClickDrillDown={() => setDrawerMetrica('saude_estoque')}
-          />
+          {(() => {
+            const metaRupturaEstoque = Number(
+              metasProporcionais.meta_saude_estoque_max_ruptura !== undefined && metasProporcionais.meta_saude_estoque_max_ruptura !== null
+                ? metasProporcionais.meta_saude_estoque_max_ruptura
+                : (metasProporcionais.meta_giro_estoque ?? 0)
+            );
+            const totalItensEmRisco = payloadExecutivo?.decomposicoes.saudeEstoque.totalItensEmRisco ?? metricas.saude_estoque_itens_risco ?? 0;
+
+            return (
+              <CockpitGaugeF1
+                titulo="Saúde do Estoque"
+                subtituloTag={payloadExecutivo?.decomposicoes.saudeEstoque.subtituloTag || 'Base: Estoque Mínimo Geral'}
+                valorRealizado={totalItensEmRisco}
+                valorMeta={metaRupturaEstoque}
+                tipoFormato="inteiro"
+                escalaInvertida={true}
+                valorExibicaoCustomizado={`${totalItensEmRisco} em risco`}
+                metaExibicaoCustomizada={`${metaRupturaEstoque} ${metaRupturaEstoque === 1 ? 'ruptura' : 'rupturas'}`}
+                isLoading={carregando && !payloadExecutivo}
+                onClickDrillDown={() => setDrawerMetrica('saude_estoque')}
+              />
+            );
+          })()}
 
         </div>
 

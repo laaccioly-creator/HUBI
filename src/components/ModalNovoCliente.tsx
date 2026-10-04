@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Cliente, TabelaPreco } from '../types';
 
 interface ModalNovoClienteProps {
@@ -398,6 +399,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     }
   };
 
+  useRegisterOverlay(isOpen, handleFecharComConfirmacao, 'modal-novo-cliente');
+
   if (!isOpen) return null;
 
   // Formatadores de Máscara
@@ -698,6 +701,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       if (error) throw error;
 
       if (data) {
+        setSnapshotInicial(snapshotAtual);
         onClienteCadastrado(data as Cliente);
         onClose();
       }

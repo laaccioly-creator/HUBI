@@ -7,6 +7,7 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 export type TipoFeedback = 'sucesso' | 'aviso' | 'erro' | 'info';
 
@@ -37,6 +38,16 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
   textoBotaoCancelar = 'Cancelar',
   onCancelar
 }) => {
+  const handleCancelar = () => {
+    if (onCancelar) {
+      onCancelar();
+    } else {
+      onClose();
+    }
+  };
+
+  useRegisterOverlay(aberto, handleCancelar, 'modal-alerta-feedback');
+
   if (!aberto) return null;
 
   const getEstilosTipo = () => {
@@ -89,14 +100,6 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
       onConfirmar();
     }
     onClose();
-  };
-
-  const handleCancelar = () => {
-    if (onCancelar) {
-      onCancelar();
-    } else {
-      onClose();
-    }
   };
 
   return (

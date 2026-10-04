@@ -33,6 +33,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { overlayStackService } from '../../services/overlayStackService';
 import { useDataOperacao } from '../../contexts/DataOperacaoContext';
 import { supabase } from '../../lib/supabase';
 import { audioService } from '../../services/audioService';
@@ -71,7 +72,7 @@ export const AppLayout: React.FC = () => {
     });
   };
 
-  // Manipulador global da tecla ESC em todo o sistema
+  // Manipulador global da tecla ESC (Desktop Stack) e Popstate (Mobile Voltar)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -88,20 +89,38 @@ export const AppLayout: React.FC = () => {
           return;
         }
 
-        // Se houver algum modal fixo no DOM, deixa o modal tratar
-        const openModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
-        if (!openModal) {
-          if (location.pathname !== '/pos' && location.pathname !== '/') {
-            verificarSaidaComConfirmacao(() => {
-              navigate(-1);
-            });
-          }
+        // Nível 1 (Overlays): Fecha o overlay no topo da pilha (modais, drawers, popovers)
+        const fechouOverlay = overlayStackService.handleEscape();
+        if (fechouOverlay) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
+        // Nível 2 (Telas / Submenus): Se não houver nenhum modal aberto, retrocede rota anterior
+        if (location.pathname !== '/pos' && location.pathname !== '/dashboard' && location.pathname !== '/') {
+          e.preventDefault();
+          verificarSaidaComConfirmacao(() => {
+            navigate(-1);
+          });
         }
       }
     };
 
+    const handlePopState = (e: PopStateEvent) => {
+      // Mobile: Intercepta o botão voltar físico/virtual para fechar modal antes de descarregar a tela
+      const fechouOverlay = overlayStackService.handlePopstate();
+      if (fechouOverlay) {
+        e.preventDefault();
+      }
+    };
+
     window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, location.pathname, navigate, verificarSaidaComConfirmacao]);
 
   useEffect(() => {

@@ -113,17 +113,24 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   let atingiuMeta = false;
 
   if (escalaInvertida) {
-    // Para Inadimplência: quanto menor, melhor
-    if (realizadoValido <= metaValida) {
+    // Para Inadimplência e Saúde do Estoque (quanto menor, melhor)
+    const atingiu = metaValida > 0 ? realizadoValido <= metaValida : realizadoValido === 0;
+    if (atingiu) {
       badgeCor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-      badgeTexto = `Saudável (${realizadoValido.toFixed(1)}% / máx ${metaValida.toFixed(1)}%)`;
+      badgeTexto = tipoFormato === 'percentual'
+        ? `Saudável (${realizadoValido.toFixed(1)}% / máx ${metaValida.toFixed(1)}%)`
+        : `Saudável (${realizadoValido} / máx ${metaValida})`;
       atingiuMeta = true;
-    } else if (realizadoValido <= metaValida * 1.5) {
+    } else if (metaValida > 0 && realizadoValido <= metaValida * 1.5) {
       badgeCor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-      badgeTexto = `Atenção (${realizadoValido.toFixed(1)}%)`;
+      badgeTexto = tipoFormato === 'percentual'
+        ? `Atenção (${realizadoValido.toFixed(1)}%)`
+        : `Atenção (${realizadoValido} itens)`;
     } else {
       badgeCor = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
-      badgeTexto = `Crítico (${realizadoValido.toFixed(1)}%)`;
+      badgeTexto = tipoFormato === 'percentual'
+        ? `Crítico (${realizadoValido.toFixed(1)}%)`
+        : `Crítico (${realizadoValido} itens)`;
     }
   } else {
     // Escala Padrão: quanto maior, melhor

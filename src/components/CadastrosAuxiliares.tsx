@@ -44,6 +44,7 @@ import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { SyncService } from '../services/syncService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fracionado: boolean; padrao?: boolean }> = [
   { sigla: 'un', nome: 'Unidade', permite_fracionado: false, padrao: true },
@@ -283,76 +284,113 @@ export const CadastrosAuxiliares: React.FC = () => {
       // Carregar Regras de Precificação
       const keyStorage = `hubi_regras_precificacao_${loja.id}`;
       const regrasSalvas = localStorage.getItem(keyStorage);
+      let initDescAtacado = '20';
+      let initTipoMinimoAtacado: 'valor' | 'quantidade' = 'valor';
+      let initValorMinimoAtacado = '1500.00';
+      let initQtdTotalMinimaAtacado = '50';
+      let initQtdMinimaSkuAtacado = '6';
+
+      let initDescAuto = '25';
+      let initTipoMinimoDistribuidor: 'valor' | 'quantidade' = 'valor';
+      let initValorMinimoAutoatacado = '3000.00';
+      let initQtdTotalMinimaAutoatacado = '100';
+      let initQtdMinimaSkuAutoatacado = '6';
+
       if (regrasSalvas) {
         try {
           const parsed = JSON.parse(regrasSalvas);
-          if (parsed.descontoAtacado !== undefined) setDescontoAtacado(String(parsed.descontoAtacado));
+          if (parsed.descontoAtacado !== undefined) initDescAtacado = String(parsed.descontoAtacado);
           
           if (parsed.valorMinimoAtacado && Number(parsed.valorMinimoAtacado) > 0) {
-            setTipoMinimoAtacado('valor');
-            setValorMinimoAtacado(String(parsed.valorMinimoAtacado));
-            setQtdTotalMinimaAtacado('');
-            setQtdMinimaSkuAtacado('');
+            initTipoMinimoAtacado = 'valor';
+            initValorMinimoAtacado = String(parsed.valorMinimoAtacado);
+            initQtdTotalMinimaAtacado = '';
+            initQtdMinimaSkuAtacado = '';
           } else if (parsed.qtdTotalMinimaAtacado && Number(parsed.qtdTotalMinimaAtacado) > 0) {
-            setTipoMinimoAtacado('quantidade');
-            setValorMinimoAtacado('');
-            setQtdTotalMinimaAtacado(String(parsed.qtdTotalMinimaAtacado));
-            setQtdMinimaSkuAtacado(String(parsed.qtdMinimaSkuAtacado || '6'));
+            initTipoMinimoAtacado = 'quantidade';
+            initValorMinimoAtacado = '';
+            initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado);
+            initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado || '6');
           } else {
-            setValorMinimoAtacado(String(parsed.valorMinimoAtacado ?? '1500.00'));
-            setQtdTotalMinimaAtacado(String(parsed.qtdTotalMinimaAtacado ?? '50'));
-            setQtdMinimaSkuAtacado(String(parsed.qtdMinimaSkuAtacado ?? '6'));
+            initValorMinimoAtacado = String(parsed.valorMinimoAtacado ?? '1500.00');
+            initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado ?? '50');
+            initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado ?? '6');
           }
 
-          if (parsed.descontoAutoatacado !== undefined) setDescontoAutoatacado(String(parsed.descontoAutoatacado));
+          if (parsed.descontoAutoatacado !== undefined) initDescAuto = String(parsed.descontoAutoatacado);
           
           if (parsed.valorMinimoAutoatacado && Number(parsed.valorMinimoAutoatacado) > 0) {
-            setTipoMinimoDistribuidor('valor');
-            setValorMinimoAutoatacado(String(parsed.valorMinimoAutoatacado));
-            setQtdTotalMinimaAutoatacado('');
-            setQtdMinimaSkuAutoatacado('');
+            initTipoMinimoDistribuidor = 'valor';
+            initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado);
+            initQtdTotalMinimaAutoatacado = '';
+            initQtdMinimaSkuAutoatacado = '';
           } else if (parsed.qtdTotalMinimaAutoatacado && Number(parsed.qtdTotalMinimaAutoatacado) > 0) {
-            setTipoMinimoDistribuidor('quantidade');
-            setValorMinimoAutoatacado('');
-            setQtdTotalMinimaAutoatacado(String(parsed.qtdTotalMinimaAutoatacado));
-            setQtdMinimaSkuAutoatacado(String(parsed.qtdMinimaSkuAutoatacado || '6'));
+            initTipoMinimoDistribuidor = 'quantidade';
+            initValorMinimoAutoatacado = '';
+            initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado);
+            initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado || '6');
           } else {
-            setValorMinimoAutoatacado(String(parsed.valorMinimoAutoatacado ?? '3000.00'));
-            setQtdTotalMinimaAutoatacado(String(parsed.qtdTotalMinimaAutoatacado ?? '100'));
-            setQtdMinimaSkuAutoatacado(String(parsed.qtdMinimaSkuAutoatacado ?? '6'));
+            initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado ?? '3000.00');
+            initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado ?? '100');
+            initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado ?? '6');
           }
         } catch (e) {
           // Ignora
         }
       } else {
         if (loja.desconto_padrao_atacado_percentual !== undefined && loja.desconto_padrao_atacado_percentual !== null) {
-          setDescontoAtacado(String(loja.desconto_padrao_atacado_percentual));
+          initDescAtacado = String(loja.desconto_padrao_atacado_percentual);
         }
         if (loja.valor_minimo_padrao_atacado !== undefined && loja.valor_minimo_padrao_atacado !== null && Number(loja.valor_minimo_padrao_atacado) > 0) {
-          setTipoMinimoAtacado('valor');
-          setValorMinimoAtacado(String(loja.valor_minimo_padrao_atacado));
-          setQtdTotalMinimaAtacado('');
+          initTipoMinimoAtacado = 'valor';
+          initValorMinimoAtacado = String(loja.valor_minimo_padrao_atacado);
+          initQtdTotalMinimaAtacado = '';
         } else if (loja.qtd_minima_padrao_atacado !== undefined && loja.qtd_minima_padrao_atacado !== null && Number(loja.qtd_minima_padrao_atacado) > 0) {
-          setTipoMinimoAtacado('quantidade');
-          setValorMinimoAtacado('');
-          setQtdTotalMinimaAtacado(String(loja.qtd_minima_padrao_atacado));
-          setQtdMinimaSkuAtacado(String(loja.qtd_minima_sku_padrao_atacado || '6'));
+          initTipoMinimoAtacado = 'quantidade';
+          initValorMinimoAtacado = '';
+          initQtdTotalMinimaAtacado = String(loja.qtd_minima_padrao_atacado);
+          initQtdMinimaSkuAtacado = String(loja.qtd_minima_sku_padrao_atacado || '6');
         }
 
         if (loja.desconto_padrao_autoatacado_percentual !== undefined && loja.desconto_padrao_autoatacado_percentual !== null) {
-          setDescontoAutoatacado(String(loja.desconto_padrao_autoatacado_percentual));
+          initDescAuto = String(loja.desconto_padrao_autoatacado_percentual);
         }
         if (loja.valor_minimo_padrao_autoatacado !== undefined && loja.valor_minimo_padrao_autoatacado !== null && Number(loja.valor_minimo_padrao_autoatacado) > 0) {
-          setTipoMinimoDistribuidor('valor');
-          setValorMinimoAutoatacado(String(loja.valor_minimo_padrao_autoatacado));
-          setQtdTotalMinimaAutoatacado('');
+          initTipoMinimoDistribuidor = 'valor';
+          initValorMinimoAutoatacado = String(loja.valor_minimo_padrao_autoatacado);
+          initQtdTotalMinimaAutoatacado = '';
         } else if (loja.qtd_minima_padrao_autoatacado !== undefined && loja.qtd_minima_padrao_autoatacado !== null && Number(loja.qtd_minima_padrao_autoatacado) > 0) {
-          setTipoMinimoDistribuidor('quantidade');
-          setValorMinimoAutoatacado('');
-          setQtdTotalMinimaAutoatacado(String(loja.qtd_minima_padrao_autoatacado));
-          setQtdMinimaSkuAutoatacado(String(loja.qtd_minima_sku_padrao_autoatacado || '6'));
+          initTipoMinimoDistribuidor = 'quantidade';
+          initValorMinimoAutoatacado = '';
+          initQtdTotalMinimaAutoatacado = String(loja.qtd_minima_padrao_autoatacado);
+          initQtdMinimaSkuAutoatacado = String(loja.qtd_minima_sku_padrao_autoatacado || '6');
         }
       }
+
+      setDescontoAtacado(initDescAtacado);
+      setTipoMinimoAtacado(initTipoMinimoAtacado);
+      setValorMinimoAtacado(initValorMinimoAtacado);
+      setQtdTotalMinimaAtacado(initQtdTotalMinimaAtacado);
+      setQtdMinimaSkuAtacado(initQtdMinimaSkuAtacado);
+
+      setDescontoAutoatacado(initDescAuto);
+      setTipoMinimoDistribuidor(initTipoMinimoDistribuidor);
+      setValorMinimoAutoatacado(initValorMinimoAutoatacado);
+      setQtdTotalMinimaAutoatacado(initQtdTotalMinimaAutoatacado);
+      setQtdMinimaSkuAutoatacado(initQtdMinimaSkuAutoatacado);
+
+      setSnapshotPrecificacaoInicial(JSON.stringify({
+        descontoAtacado: initDescAtacado,
+        tipoMinimoAtacado: initTipoMinimoAtacado,
+        valorMinimoAtacado: initValorMinimoAtacado,
+        qtdTotalMinimaAtacado: initQtdTotalMinimaAtacado,
+        qtdMinimaSkuAtacado: initQtdMinimaSkuAtacado,
+        descontoAutoatacado: initDescAuto,
+        tipoMinimoDistribuidor: initTipoMinimoDistribuidor,
+        valorMinimoAutoatacado: initValorMinimoAutoatacado,
+        qtdTotalMinimaAutoatacado: initQtdTotalMinimaAutoatacado,
+        qtdMinimaSkuAutoatacado: initQtdMinimaSkuAutoatacado
+      }));
 
       // Carregar Formas de Envio, Apps de Corrida e Transportadoras
       try {
@@ -1083,16 +1121,40 @@ export const CadastrosAuxiliares: React.FC = () => {
 
   const isDirtyPrecificacao = Boolean(snapshotPrecificacaoInicial && snapshotPrecificacaoAtual !== snapshotPrecificacaoInicial);
   const isDirtyCategoria = modalCategoriaAberta && Boolean(
-    catNome.trim() && (!catEditando || catNome.trim().toUpperCase() !== catEditando.nome || (catIcone.trim() || '📦') !== (catEditando.icone || '📦'))
+    catEditando
+      ? (catNome.trim() !== (catEditando.nome || '').trim() || (catIcone.trim() || '📦') !== (catEditando.icone || '📦'))
+      : (catNome.trim() || (catIcone.trim() && catIcone.trim() !== '📦'))
   );
   const isDirtyUnidade = modalUnidadeAberta && Boolean(
-    (unidadeSigla.trim() || unidadeNome.trim()) && (!unidadeEditando || unidadeSigla.trim() !== unidadeEditando.sigla || unidadeNome.trim() !== unidadeEditando.nome)
+    unidadeEditando
+      ? (unidadeSigla.trim() !== (unidadeEditando.sigla || '').trim() || unidadeNome.trim() !== (unidadeEditando.nome || '').trim() || unidadeFracionada !== Boolean(unidadeEditando.permite_fracionado))
+      : (unidadeSigla.trim() || unidadeNome.trim() || unidadeFracionada)
   );
   const isDirtyFornecedor = modalFornecedorAberta && Boolean(
-    (fornNome.trim() || fornDoc.trim() || fornWhatsapp.trim()) && (!fornecedorEditando || fornNome.trim() !== fornecedorEditando.nome || fornDoc.trim() !== (fornecedorEditando.numero_documento || '') || fornWhatsapp.trim() !== (fornecedorEditando.whatsapp || ''))
+    fornecedorEditando
+      ? (
+          fornNome.trim() !== (fornecedorEditando.nome || '').trim() ||
+          fornContato.trim() !== (fornecedorEditando.pessoa_contato || '').trim() ||
+          fornDoc.trim() !== (fornecedorEditando.numero_documento || '').trim() ||
+          fornWhatsapp.trim() !== (fornecedorEditando.whatsapp || '').trim() ||
+          fornEmail.trim() !== (fornecedorEditando.email || '').trim() ||
+          fornObs.trim() !== (fornecedorEditando.observacoes || '').trim()
+        )
+      : (fornNome.trim() || fornContato.trim() || fornDoc.trim() || fornWhatsapp.trim() || fornEmail.trim() || fornObs.trim())
   );
   const isDirtyPagamento = modalPagamentoAberta && Boolean(
-    (pagNome.trim() || pagTipo !== 'dinheiro') && (!pagEditando || pagNome.trim() !== pagEditando.nome || pagTipo !== pagEditando.tipo)
+    pagEditando
+      ? (
+          pagNome.trim() !== (pagEditando.nome || '').trim() ||
+          pagTipo !== pagEditando.tipo ||
+          pagTaxaPercentual.trim() !== String(pagEditando.taxa_percentual || 0).trim() ||
+          pagTaxaFixa.trim() !== String(pagEditando.taxa_fixa || 0).trim() ||
+          pagMaximoParcelas.trim() !== String(pagEditando.maximo_parcelas || 1).trim() ||
+          pagPrazoDias.trim() !== String(pagEditando.prazo_dias || 30).trim() ||
+          pagAtivo !== (pagEditando.ativo !== false) ||
+          pagExibirCatalogo !== (pagEditando.exibir_catalogo !== false)
+        )
+      : (pagNome.trim() || pagTipo !== 'dinheiro')
   );
 
   const isDirtyGeral = isDirtyPrecificacao || isDirtyCategoria || isDirtyUnidade || isDirtyFornecedor || isDirtyPagamento;
@@ -1104,56 +1166,115 @@ export const CadastrosAuxiliares: React.FC = () => {
     };
   }, [isDirtyGeral, setTemAlteracoesNaoSalvas]);
 
-  // Esc key listener para voltar ou fechar modais
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (modalCategoriaAberta) {
-          if (isDirtyCategoria) {
-            verificarSaidaComConfirmacao(() => { setModalCategoriaAberta(false); setCatEditando(null); setCatNome(''); });
-          } else {
-            setModalCategoriaAberta(false); setCatEditando(null); setCatNome('');
-          }
-          return;
-        }
-        if (modalUnidadeAberta) {
-          if (isDirtyUnidade) {
-            verificarSaidaComConfirmacao(() => { setModalUnidadeAberta(false); setUnidadeEditando(null); setUnidadeSigla(''); setUnidadeNome(''); });
-          } else {
-            setModalUnidadeAberta(false); setUnidadeEditando(null); setUnidadeSigla(''); setUnidadeNome('');
-          }
-          return;
-        }
-        if (modalFornecedorAberta) {
-          if (isDirtyFornecedor) {
-            verificarSaidaComConfirmacao(() => { setModalFornecedorAberta(false); setFornecedorEditando(null); setFornNome(''); setFornDoc(''); setFornWhatsapp(''); });
-          } else {
-            setModalFornecedorAberta(false); setFornecedorEditando(null); setFornNome(''); setFornDoc(''); setFornWhatsapp('');
-          }
-          return;
-        }
-        if (modalPagamentoAberta) {
-          if (isDirtyPagamento) {
-            verificarSaidaComConfirmacao(() => { setModalPagamentoAberta(false); setPagEditando(null); setPagNome(''); });
-          } else {
-            setModalPagamentoAberta(false); setPagEditando(null); setPagNome('');
-          }
-          return;
-        }
-        if (modalSecaoAberta) {
-          if (modalSecaoAberta === 'precificacao' && isDirtyPrecificacao) {
-            verificarSaidaComConfirmacao(() => { setModalSecaoAberta(null); setBusca(''); });
-          } else {
-            setModalSecaoAberta(null); setBusca('');
-          }
-          return;
-        }
-        verificarSaidaComConfirmacao(() => navigate(-1));
-      }
+  // Handlers seguros de fechamento com verificação de dirty
+  const fecharModalCategoria = () => {
+    const fechar = () => {
+      setModalCategoriaAberta(false);
+      setCatEditando(null);
+      setCatNome('');
+      setCatIcone('📦');
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalCategoriaAberta, modalUnidadeAberta, modalFornecedorAberta, modalPagamentoAberta, modalSecaoAberta, isDirtyCategoria, isDirtyUnidade, isDirtyFornecedor, isDirtyPagamento, isDirtyPrecificacao, navigate, verificarSaidaComConfirmacao]);
+    if (isDirtyCategoria) {
+      verificarSaidaComConfirmacao(fechar);
+    } else {
+      fechar();
+    }
+  };
+
+  const fecharModalUnidade = () => {
+    const fechar = () => {
+      setModalUnidadeAberta(false);
+      setUnidadeEditando(null);
+      setUnidadeSigla('');
+      setUnidadeNome('');
+      setUnidadeFracionada(false);
+    };
+    if (isDirtyUnidade) {
+      verificarSaidaComConfirmacao(fechar);
+    } else {
+      fechar();
+    }
+  };
+
+  const fecharModalFornecedor = () => {
+    const fechar = () => {
+      setModalFornecedorAberta(false);
+      setFornecedorEditando(null);
+      setFornNome('');
+      setFornContato('');
+      setFornDoc('');
+      setFornWhatsapp('');
+      setFornEmail('');
+      setFornObs('');
+    };
+    if (isDirtyFornecedor) {
+      verificarSaidaComConfirmacao(fechar);
+    } else {
+      fechar();
+    }
+  };
+
+  const fecharModalPagamento = () => {
+    const fechar = () => {
+      setModalPagamentoAberta(false);
+      setPagEditando(null);
+      setPagNome('');
+      setPagTipo('dinheiro');
+      setPagTaxaPercentual('0');
+      setPagTaxaFixa('0');
+      setPagMaximoParcelas('1');
+      setPagPrazoDias('30');
+      setPagAtivo(true);
+      setPagExibirCatalogo(true);
+    };
+    if (isDirtyPagamento) {
+      verificarSaidaComConfirmacao(fechar);
+    } else {
+      fechar();
+    }
+  };
+
+  const fecharModalSecao = () => {
+    const fechar = () => {
+      setModalSecaoAberta(null);
+      setBusca('');
+    };
+    if (modalSecaoAberta === 'precificacao' && isDirtyPrecificacao) {
+      verificarSaidaComConfirmacao(fechar);
+    } else {
+      fechar();
+    }
+  };
+
+  const fecharModalForma = () => {
+    setModalFormaAberta(false);
+    setFormaEditando(null);
+  };
+
+  const fecharModalApp = () => {
+    setModalAppAberta(false);
+    setAppNome('');
+  };
+
+  const fecharModalTransp = () => {
+    setModalTranspAberta(false);
+    setTranspEditando(null);
+  };
+
+  const fecharDrawerMenu = () => {
+    setDrawerMenuAberto(false);
+  };
+
+  // Registro na pilha de navegação global (Esc no Desktop e Popstate no Mobile)
+  useRegisterOverlay(modalCategoriaAberta, fecharModalCategoria, 'modal-categoria-aux');
+  useRegisterOverlay(modalUnidadeAberta, fecharModalUnidade, 'modal-unidade-aux');
+  useRegisterOverlay(modalFornecedorAberta, fecharModalFornecedor, 'modal-fornecedor-aux');
+  useRegisterOverlay(modalPagamentoAberta, fecharModalPagamento, 'modal-pagamento-aux');
+  useRegisterOverlay(modalFormaAberta, fecharModalForma, 'modal-forma-aux');
+  useRegisterOverlay(modalAppAberta, fecharModalApp, 'modal-app-aux');
+  useRegisterOverlay(modalTranspAberta, fecharModalTransp, 'modal-transp-aux');
+  useRegisterOverlay(drawerMenuAberto, fecharDrawerMenu, 'drawer-menu-aux');
+  useRegisterOverlay(Boolean(modalSecaoAberta), fecharModalSecao, 'modal-secao-aux');
 
   // Filtros de busca
   const categoriasFiltradas = categorias.filter(c =>
@@ -1559,10 +1680,9 @@ export const CadastrosAuxiliares: React.FC = () => {
                   type="button"
                   onClick={() => {
                     if (rotaOrigem) {
-                      handleVoltar();
+                      verificarSaidaComConfirmacao(handleVoltar);
                     } else {
-                      setModalSecaoAberta(null);
-                      setBusca('');
+                      fecharModalSecao();
                     }
                   }}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
@@ -2576,7 +2696,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 {catEditando ? 'Editar Categoria' : 'Nova Categoria'}
               </h3>
-              <button onClick={() => setModalCategoriaAberta(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" onClick={fecharModalCategoria} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2608,7 +2728,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalCategoriaAberta(false)}
+                  onClick={fecharModalCategoria}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 md:bg-transparent hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
@@ -2636,7 +2756,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 {unidadeEditando ? 'Editar Unidade de Medida' : 'Nova Unidade de Medida'}
               </h3>
-              <button onClick={() => setModalUnidadeAberta(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" onClick={fecharModalUnidade} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2683,7 +2803,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalUnidadeAberta(false)}
+                  onClick={fecharModalUnidade}
                   className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
@@ -2711,7 +2831,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 {fornecedorEditando ? 'Editar Fornecedor' : 'Novo Fornecedor'}
               </h3>
-              <button onClick={() => setModalFornecedorAberta(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" onClick={fecharModalFornecedor} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2789,7 +2909,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalFornecedorAberta(false)}
+                  onClick={fecharModalFornecedor}
                   className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
@@ -2819,7 +2939,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <span>{pagEditando ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}</span>
               </h3>
               <button
-                onClick={() => setModalPagamentoAberta(false)}
+                type="button"
+                onClick={fecharModalPagamento}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -2972,7 +3093,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalPagamentoAberta(false)}
+                  onClick={fecharModalPagamento}
                   className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar

@@ -252,7 +252,11 @@ export function calcularMetasProporcionais(
     meta_ticket_medio: Number(metasMensais.meta_ticket_medio),
     meta_inadimplencia_maxima: Number(metasMensais.meta_inadimplencia_maxima),
     meta_giro_estoque: Number(metasMensais.meta_giro_estoque),
-    meta_saude_estoque_max_ruptura: Number(metasMensais.meta_saude_estoque_max_ruptura ?? 0)
+    meta_saude_estoque_max_ruptura: Number(
+      metasMensais.meta_saude_estoque_max_ruptura !== undefined && metasMensais.meta_saude_estoque_max_ruptura !== null
+        ? metasMensais.meta_saude_estoque_max_ruptura
+        : (metasMensais.meta_giro_estoque ?? 0)
+    )
   };
 }
 
@@ -277,6 +281,12 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
     }
 
     if (data) {
+      const rupturaCarregada = Number(
+        data.meta_saude_estoque_max_ruptura !== undefined && data.meta_saude_estoque_max_ruptura !== null
+          ? data.meta_saude_estoque_max_ruptura
+          : (data.meta_giro_estoque !== undefined && data.meta_giro_estoque !== null ? data.meta_giro_estoque : METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0)
+      );
+
       return {
         id: data.id,
         loja_id: data.loja_id,
@@ -286,6 +296,7 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
         meta_ticket_medio: Number(data.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio),
         meta_inadimplencia_maxima: Number(data.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima),
         meta_giro_estoque: Number(data.meta_giro_estoque ?? METAS_PADRAO_LOJA.meta_giro_estoque),
+        meta_saude_estoque_max_ruptura: rupturaCarregada,
         criado_em: data.criado_em,
         atualizado_em: data.atualizado_em
       };
@@ -308,14 +319,20 @@ export async function salvarMetasLoja(
   lojaId: string,
   metas: Partial<LojaMetas>
 ): Promise<LojaMetas> {
-  const payload = {
+  const rupturaValor = Number(
+    metas.meta_saude_estoque_max_ruptura !== undefined && metas.meta_saude_estoque_max_ruptura !== null
+      ? metas.meta_saude_estoque_max_ruptura
+      : (metas.meta_giro_estoque ?? METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0)
+  );
+
+  const payload: any = {
     loja_id: lojaId,
     meta_faturamento: Number(metas.meta_faturamento ?? METAS_PADRAO_LOJA.meta_faturamento),
     meta_pedidos: Number(metas.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos),
     meta_lucro_liquido: Number(metas.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido),
     meta_ticket_medio: Number(metas.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio),
     meta_inadimplencia_maxima: Number(metas.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima),
-    meta_giro_estoque: Number(metas.meta_giro_estoque ?? METAS_PADRAO_LOJA.meta_giro_estoque),
+    meta_giro_estoque: rupturaValor,
     atualizado_em: new Date().toISOString()
   };
 
@@ -339,6 +356,7 @@ export async function salvarMetasLoja(
     meta_ticket_medio: Number(data.meta_ticket_medio),
     meta_inadimplencia_maxima: Number(data.meta_inadimplencia_maxima),
     meta_giro_estoque: Number(data.meta_giro_estoque),
+    meta_saude_estoque_max_ruptura: Number(data.meta_saude_estoque_max_ruptura ?? data.meta_giro_estoque ?? rupturaValor),
     criado_em: data.criado_em,
     atualizado_em: data.atualizado_em
   };

@@ -24,6 +24,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { UsuarioLoja, PerfilUsuario } from '../types';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { usuarioService } from '../services/usuarioService';
 
 interface ModalUsuarioDrawerProps {
@@ -335,6 +336,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setSalvando(false);
     }
   };
+
+  useRegisterOverlay(isOpen, handleFecharComConfirmacao, 'modal-usuario-drawer');
 
   if (!isOpen) return null;
 

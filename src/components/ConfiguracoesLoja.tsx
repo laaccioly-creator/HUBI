@@ -71,6 +71,7 @@ import { CentralImportarExportar } from './CentralImportarExportar';
 import { ConfiguracoesMetas } from './configuracoes/ConfiguracoesMetas';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { setGoogleSearchConfig } from '../services/geminiService';
 import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../services/serpApiService';
 
@@ -466,19 +467,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
       if (erroDb) throw erroDb;
 
+      salvouRecenteRef.current = true;
       await recarregarDadosLoja();
-
-      setSnapshotInicial((prev) => {
-        try {
-          const obj = JSON.parse(prev);
-          obj.tipoVendaVarejo = tipoVendaVarejo;
-          obj.tipoVendaAtacado = tipoVendaAtacado;
-          obj.tipoVendaDistribuidor = tipoVendaDistribuidor;
-          return JSON.stringify(obj);
-        } catch {
-          return prev;
-        }
-      });
+      setSnapshotInicial(snapshotAtual);
       setTemAlteracoesNaoSalvas(false);
 
       mostrarToast('Tipos de venda salvos no Supabase com sucesso!');
@@ -640,6 +631,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [facebookPixelId, setFacebookPixelId] = useState<string>('');
   const [tiktokPixelId, setTiktokPixelId] = useState<string>('');
   const [modalTutorialParceiro, setModalTutorialParceiro] = useState<string | null>(null);
+
+  // Registros na pilha de navegação (ESC Desktop e Voltar Mobile)
+  useRegisterOverlay(modalProvedor, () => setModalProvedor(false), 'config-modal-provedor');
+  useRegisterOverlay(modalPreviewRecibo, () => setModalPreviewRecibo(false), 'config-modal-preview');
+  useRegisterOverlay(modalExportConcluido, () => setModalExportConcluido(false), 'config-modal-export');
+  useRegisterOverlay(modalNovoStatus, () => setModalNovoStatus(false), 'config-modal-status');
+  useRegisterOverlay(drawerMenuAberto, () => setDrawerMenuAberto(false), 'config-drawer-menu');
+  useRegisterOverlay(subTela !== 'menu', () => {
+    verificarSaidaComConfirmacao(() => setSubTela('menu'));
+  }, 'config-subtela');
 
   // Inicialização com dados da Loja
   useEffect(() => {
@@ -810,8 +811,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setFreteGratisAtivo(freteGratisAtivoIni);
       setFreteGratisValorMinimo(freteGratisValorMinIni);
 
-      // Carga direta e prioritária da tabela loja_shipping_configs
-      const carregarShippingConfig = async () => {
+      let retBalcaoFinal = retiradaAtivaIni;
+      let freteGratisFinal = freteGratisAtivoIni;
+      let freteMinimoFinal = freteGratisValorMinIni;
+
+      // Carga direta e prioritária da tabela loja_shipping_configs aguardada antes do snapshot
+      const inicializarConfiguracoesAsync = async () => {
         try {
           const { data: configData, error: errShip } = await supabase
             .from('loja_shipping_configs')
@@ -820,21 +825,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             .maybeSingle();
 
           if (!errShip && configData) {
-            setTrabalhoComRetirada(Boolean(configData.retirada_balcao_ativa));
-            setFreteGratisAtivo(Boolean(configData.frete_gratis_ativo));
-            setFreteGratisValorMinimo(Number(configData.frete_gratis_valor_minimo) || 0);
+            retBalcaoFinal = Boolean(configData.retirada_balcao_ativa);
+            freteGratisFinal = Boolean(configData.frete_gratis_ativo);
+            freteMinimoFinal = Number(configData.frete_gratis_valor_minimo) || 0;
+            setTrabalhoComRetirada(retBalcaoFinal);
+            setFreteGratisAtivo(freteGratisFinal);
+            setFreteGratisValorMinimo(freteMinimoFinal);
           }
         } catch (err: unknown) {
           console.warn('Erro ao carregar shipping config:', err);
         }
-      };
-      carregarShippingConfig();
 
-      // Parceiros
-      setFacebookPixelId(parceiros.facebook_pixel_id || '');
-      setTiktokPixelId(parceiros.tiktok_pixel_id || '');
+        // Parceiros
+        setFacebookPixelId(parceiros.facebook_pixel_id || '');
+        setTiktokPixelId(parceiros.tiktok_pixel_id || '');
 
-      setSnapshotInicial(
+        setSnapshotInicial(
         gerarSnapshotConfig({
           telaInicialPadrao: geral.tela_inicial_padrao || 'inicio',
           moeda: geral.moeda || 'BR - R$',
@@ -922,18 +928,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           statusSaiuEntrega: statusAtivos.saiu_para_entrega ?? true,
           statusProntoRetirar: statusAtivos.pronto_para_retirar ?? true,
           trabalhoComEntregas: entregaRet.trabalho_com_entregas ?? true,
-          trabalhoComRetirada: retiradaAtivaIni,
+          trabalhoComRetirada: retBalcaoFinal,
           descricaoRetirada: entregaRet.descricao_retirada || '',
-          freteGratisAtivo: freteGratisAtivoIni,
-          freteGratisValorMinimo: freteGratisValorMinIni,
+          freteGratisAtivo: freteGratisFinal,
+          freteGratisValorMinimo: freteMinimoFinal,
           facebookPixelId: parceiros.facebook_pixel_id || '',
           tiktokPixelId: parceiros.tiktok_pixel_id || ''
         })
       );
 
+      setTemAlteracoesNaoSalvas(false);
       carregarFormasEntrega();
-    }
-  }, [loja]);
+    };
+
+    inicializarConfiguracoesAsync();
+  }
+}, [loja]);
 
   const carregarFormasEntrega = async () => {
     if (!loja?.id) return;
@@ -1482,25 +1492,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setTemAlteracoesNaoSalvas(false);
     };
   }, [isDirty, setTemAlteracoesNaoSalvas]);
-
-  // Tecla ESC para voltar
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (modalProvedor) { setModalProvedor(false); return; }
-        if (modalPreviewRecibo) { setModalPreviewRecibo(false); return; }
-        if (modalExportConcluido) { setModalExportConcluido(false); return; }
-        if (modalNovoStatus) { setModalNovoStatus(false); return; }
-        if (subTela !== 'menu') {
-          verificarSaidaComConfirmacao(() => setSubTela('menu'));
-        } else {
-          verificarSaidaComConfirmacao(() => navigate(-1));
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalProvedor, modalPreviewRecibo, modalExportConcluido, modalNovoStatus, subTela, navigate, verificarSaidaComConfirmacao]);
 
   // Itens do Menu Principal de Configurações em Botões
   const podeGerenciarMetas = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente || permissions.podeAcessarConfig;

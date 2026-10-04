@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -494,8 +494,51 @@ export const ProdutoCadastro: React.FC = () => {
   const { setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
 
-  const snapshotAtual = useMemo(() => {
+  const gerarSnapshotProduto = useCallback((dados: any) => {
     return JSON.stringify({
+      nome: (dados.nome || '').trim(),
+      codigoInterno: (dados.codigoInterno || '').trim(),
+      codigoBarras: (dados.codigoBarras || '').trim(),
+      categoriaId: dados.categoriaId || '',
+      fornecedorId: dados.fornecedorId || '',
+      descricao: (dados.descricao || '').trim(),
+      tipoUnidade: dados.tipoUnidade || 'un',
+      precoCusto: dados.precoCusto ? Number(dados.precoCusto).toFixed(2) : '0.00',
+      precoVendaVarejo: dados.precoVendaVarejo ? Number(dados.precoVendaVarejo).toFixed(2) : '',
+      precoVendaAtacado: dados.precoVendaAtacado ? Number(dados.precoVendaAtacado).toFixed(2) : '',
+      tipoMinimoAtacado: dados.tipoMinimoAtacado || 'quantidade',
+      qtdMinimaAtacado: dados.qtdMinimaAtacado ? String(dados.qtdMinimaAtacado) : '6',
+      valorMinimoAtacado: dados.valorMinimoAtacado ? String(dados.valorMinimoAtacado) : '300.00',
+      precoVendaAutoatacado: dados.precoVendaAutoatacado ? Number(dados.precoVendaAutoatacado).toFixed(2) : '',
+      tipoMinimoAutoatacado: dados.tipoMinimoAutoatacado || 'quantidade',
+      qtdMinimaAutoatacado: dados.qtdMinimaAutoatacado ? String(dados.qtdMinimaAutoatacado) : '24',
+      valorMinimoAutoatacado: dados.valorMinimoAutoatacado ? String(dados.valorMinimoAutoatacado) : '1000.00',
+      precoPromocional: dados.precoPromocional ? Number(dados.precoPromocional).toFixed(2) : '',
+      promocaoAtiva: Boolean(dados.promocaoAtiva),
+      quantidadeEstoque: String(dados.quantidadeEstoque || 0),
+      estoqueMinimoAlerta: String(dados.estoqueMinimoAlerta || 5),
+      dataValidade: dados.dataValidade || '',
+      exibirCatalogo: Boolean(dados.exibirCatalogo),
+      destaque: Boolean(dados.destaque),
+      ativo: dados.ativo !== false,
+      tipoItem: dados.tipoItem || 'produto',
+      fotosUrls: Array.isArray(dados.fotosUrls) ? dados.fotosUrls : [],
+      fotoPrincipal: dados.fotoPrincipal || '',
+      temVariacoes: Boolean(dados.temVariacoes),
+      nomeTipoVariacao: dados.nomeTipoVariacao || 'Opção',
+      opcoesVariacao: (dados.opcoesVariacao || []).map((v: any) => ({
+        id: v.id || '',
+        nome: (v.nome || '').trim(),
+        estoque: String(v.estoque || 0),
+        precoVarejo: v.precoVarejo ? Number(v.precoVarejo).toFixed(2) : '',
+        precoAtacado: v.precoAtacado ? Number(v.precoAtacado).toFixed(2) : '',
+        barcode: v.barcode || ''
+      }))
+    });
+  }, []);
+
+  const snapshotAtual = useMemo(() => {
+    return gerarSnapshotProduto({
       nome,
       codigoInterno,
       codigoBarras,
@@ -529,6 +572,7 @@ export const ProdutoCadastro: React.FC = () => {
       opcoesVariacao
     });
   }, [
+    gerarSnapshotProduto,
     nome,
     codigoInterno,
     codigoBarras,
@@ -568,7 +612,7 @@ export const ProdutoCadastro: React.FC = () => {
     }
   }, [ehEdicao, snapshotInicial, snapshotAtual]);
 
-  const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+  const isDirty = Boolean(!carregandoProduto && snapshotInicial && snapshotAtual !== snapshotInicial);
 
   useEffect(() => {
     setTemAlteracoesNaoSalvas(isDirty);
@@ -849,19 +893,18 @@ export const ProdutoCadastro: React.FC = () => {
             setTemVariacoes(true);
             setNomeTipoVariacao(prod.rotulo_variacao_1 || 'Opção');
             setEtapaVariacao(2);
-            setOpcoesVariacao(
-              prod.variacoes.map((v: any) => ({
-                id: v.id || Date.now().toString() + Math.random(),
-                nome: v.valor_variacao_1 || '',
-                estoque: String(v.quantidade_estoque || 0),
-                precoVarejo: v.preco_venda_varejo ? Number(v.preco_venda_varejo).toFixed(2) : '',
-                precoAtacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado).toFixed(2) : '',
-                barcode: v.codigo_barras || ''
-              }))
-            );
+            const variacoesFormatadas = (prod.variacoes || []).map((v: any) => ({
+              id: v.id || '',
+              nome: v.valor_variacao_1 || '',
+              estoque: String(v.quantidade_estoque || 0),
+              precoVarejo: v.preco_venda_varejo ? Number(v.preco_venda_varejo).toFixed(2) : '',
+              precoAtacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado).toFixed(2) : '',
+              barcode: v.codigo_barras || ''
+            }));
+            setOpcoesVariacao(variacoesFormatadas);
           }
 
-          const snapObj = {
+          const snapStr = gerarSnapshotProduto({
             nome: prod.nome || '',
             codigoInterno: prod.codigo_interno || '',
             codigoBarras: prod.codigo_barras || '',
@@ -887,6 +930,7 @@ export const ProdutoCadastro: React.FC = () => {
             exibirCatalogo: Boolean(prod.exibir_catalogo),
             destaque: Boolean(prod.destaque),
             ativo: prod.ativo !== false,
+            tipoItem: prod.tipo_item || 'produto',
             fotosUrls: fotos,
             fotoPrincipal: fotos[0] || '',
             temVariacoes: Boolean(prod.tem_variacoes && Array.isArray(prod.variacoes) && prod.variacoes.length > 0),
@@ -899,8 +943,9 @@ export const ProdutoCadastro: React.FC = () => {
               precoAtacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado).toFixed(2) : '',
               barcode: v.codigo_barras || ''
             }))
-          };
-          setSnapshotInicial(JSON.stringify(snapObj));
+          });
+          setSnapshotInicial(snapStr);
+          setTemAlteracoesNaoSalvas(false);
         }
       } catch (err) {
         console.error('Erro ao carregar produto para alteração:', err);
