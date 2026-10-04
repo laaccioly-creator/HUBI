@@ -3038,7 +3038,7 @@ export const PedidosLista: React.FC = () => {
                             type="button"
                             onClick={handleDespacharPedido}
                             disabled={despachando}
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs uppercase tracking-wider transition shadow-xs border border-emerald-300 cursor-pointer active:scale-95 disabled:opacity-50"
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95 disabled:opacity-50"
                           >
                             {despachando ? (
                               <>
@@ -3653,7 +3653,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleEditarPedido(pedido)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                     title="Editar itens e informações do pedido no PDV"
                                   >
                                     <Edit className="w-3.5 h-3.5" />
@@ -3666,7 +3666,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => setPedidoEscolherEnvio(pedido)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                     title="Definir modalidade de envio do pedido"
                                   >
                                     <Truck className="w-3.5 h-3.5" />
@@ -3678,7 +3678,7 @@ export const PedidosLista: React.FC = () => {
                                     onClick={() => {
                                       setPedidoReceberFiadoModal(pedido);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                     title="Receber pagamento do fiado"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
@@ -3701,7 +3701,7 @@ export const PedidosLista: React.FC = () => {
                                             onClick={() => {
                                               setPedidoReceberModal(pedido);
                                             }}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                             title="Receber pagamento"
                                           >
                                             <DollarSign className="w-3.5 h-3.5" />
@@ -3717,7 +3717,7 @@ export const PedidosLista: React.FC = () => {
                                               e.stopPropagation();
                                               handleDespacharPedido(pedido);
                                             }}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95 disabled:opacity-60"
                                             title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar Envio'}
                                           >
                                             {isGerando ? (
@@ -3744,7 +3744,7 @@ export const PedidosLista: React.FC = () => {
                                     onClick={() => {
                                       setPedidoReceberModal(pedido);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
                                     <span>Receber</span>
@@ -3808,7 +3808,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => setPedidoEtiquetaModal(pedido)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                                 title="Imprimir Etiqueta de Envio"
                                               >
                                                 <Tag className="w-3.5 h-3.5" />
@@ -3818,7 +3818,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => setPedidoRastreioModal(pedido)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                                 title="Acompanhar Rastreamento em Tempo Real"
                                               >
                                                 <Package className="w-3.5 h-3.5" />
@@ -3829,7 +3829,7 @@ export const PedidosLista: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => setPedidoEtiquetaModal(pedido)}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                               title="Imprimir Etiqueta de Envio"
                                             >
                                               <Tag className="w-3.5 h-3.5" />
@@ -3841,7 +3841,7 @@ export const PedidosLista: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => handleRastrearTransportadora(pedido)}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                               title="Rastrear envio na Transportadora"
                                             >
                                               <ExternalLink className="w-3.5 h-3.5" />
@@ -3859,7 +3859,7 @@ export const PedidosLista: React.FC = () => {
                                                 mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
                                                 window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
                                               }}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                               title="Rastrear"
                                             >
                                               <Package className="w-3.5 h-3.5" />
@@ -3874,7 +3874,7 @@ export const PedidosLista: React.FC = () => {
                                                   href={link}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                                   title="Abrir mapa de rastreio ao vivo da Uber Direct"
                                                 >
                                                   <Navigation className="w-3 h-3" />
@@ -3885,7 +3885,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => handleCompartilharRastreioUber(pedido)}
-                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                                 title="Enviar link de rastreio da Uber no WhatsApp"
                                               >
                                                 <MessageCircle className="w-3.5 h-3.5" />
@@ -3898,7 +3898,7 @@ export const PedidosLista: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                       title="Concluir Pedido Entregue"
                                     >
                                       <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -3909,7 +3909,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 text-slate-900 border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
                                     title="Concluir Pedido"
                                   >
                                     <Check className="w-3.5 h-3.5 stroke-[2.5]" />

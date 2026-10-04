@@ -361,7 +361,7 @@ export const ProdutosEstoque: React.FC = () => {
             {permissions.podeCadastrarAlterarProdutos && (
               <Link
                 to="/products/create"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs transition cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Novo Produto</span>

@@ -377,20 +377,20 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Imprimir Cupom Térmico 58mm ou 80mm"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+            <Printer className="w-3.5 h-3.5 text-white shrink-0" />
             <span>Térmica 58/80mm</span>
           </button>
 
           <button
             type="button"
             onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Imprimir Folha A4"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+            <Printer className="w-3.5 h-3.5 text-white shrink-0" />
             <span>Imprimir A4</span>
           </button>
 
@@ -403,10 +403,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedido, loja, 'a4');
               }
             }}
-            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Baixar Recibo em PDF"
           >
-            <Download className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+            <Download className="w-3.5 h-3.5 text-white shrink-0" />
             <span>Baixar PDF</span>
           </button>
 
@@ -423,10 +423,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className="bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold px-3 py-2.5 rounded-xl border border-emerald-300 shadow-xs transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
             title="Compartilhar no WhatsApp"
           >
-            <Share2 className="w-3.5 h-3.5 text-slate-900 shrink-0" />
+            <Share2 className="w-3.5 h-3.5 text-white shrink-0" />
             <span>WhatsApp</span>
           </button>
         </div>

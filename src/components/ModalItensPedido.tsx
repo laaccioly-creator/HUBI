@@ -118,7 +118,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold border border-emerald-300 shadow-xs transition cursor-pointer active:scale-95"
+            className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
           >
             Fechar
           </button>

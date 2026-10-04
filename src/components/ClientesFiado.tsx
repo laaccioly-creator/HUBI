@@ -648,7 +648,7 @@ export const ClientesFiado: React.FC = () => {
                 setClienteEditar(null);
                 setModalNovoCliente(true);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs transition cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>+ Cliente</span>

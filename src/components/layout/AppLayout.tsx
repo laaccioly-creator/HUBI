@@ -481,7 +481,7 @@ export const AppLayout: React.FC = () => {
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-200 text-slate-900 shadow-xs ring-2 ring-emerald-300/60 font-bold border border-emerald-300'
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/25 font-bold border border-emerald-500'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
                         : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
@@ -512,7 +512,7 @@ export const AppLayout: React.FC = () => {
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-200 text-slate-900 shadow-xs ring-2 ring-emerald-300/60 font-bold border border-emerald-300'
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/25 font-bold border border-emerald-500'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
                         : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'

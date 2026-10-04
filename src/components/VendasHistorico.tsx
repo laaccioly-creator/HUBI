@@ -712,7 +712,7 @@ export const VendasHistorico: React.FC = () => {
                 onClick={() => setDrawerFiltrosAberto(true)}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-sm ${
                   totalFiltrosAtivos > 0
-                    ? 'bg-emerald-200 hover:bg-emerald-300 text-slate-900 border-emerald-300 font-bold shadow-xs'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 font-bold shadow-xs'
                     : isDark
                     ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
                     : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
@@ -721,7 +721,7 @@ export const VendasHistorico: React.FC = () => {
                 <Filter className="w-3.5 h-3.5" />
                 <span>Filtros</span>
                 {totalFiltrosAtivos > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black flex items-center justify-center ml-0.5">
+                  <span className="w-4 h-4 rounded-full bg-white text-emerald-800 text-[10px] font-black flex items-center justify-center ml-0.5">
                     {totalFiltrosAtivos}
                   </span>
                 )}
@@ -734,7 +734,7 @@ export const VendasHistorico: React.FC = () => {
                   onClick={() => setDropdownVendedorAberto((prev) => !prev)}
                   className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-sm ${
                     vendedorSelecionadoId !== 'todos'
-                      ? 'bg-emerald-200 hover:bg-emerald-300 text-slate-900 border-emerald-300 font-bold shadow-xs'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 font-bold shadow-xs'
                       : isDark
                       ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
                       : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
@@ -768,7 +768,7 @@ export const VendasHistorico: React.FC = () => {
                       <label
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs cursor-pointer transition ${
                           vendedorSelecionadoId === 'todos'
-                            ? 'bg-emerald-200 text-slate-900 font-bold'
+                            ? 'bg-emerald-600 text-white font-bold'
                             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
@@ -789,7 +789,7 @@ export const VendasHistorico: React.FC = () => {
                       <label
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs cursor-pointer transition ${
                           vendedorSelecionadoId === 'catalogo'
-                            ? 'bg-emerald-200 text-slate-900 font-bold'
+                            ? 'bg-emerald-600 text-white font-bold'
                             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
@@ -812,7 +812,7 @@ export const VendasHistorico: React.FC = () => {
                           key={u.id}
                           className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs cursor-pointer transition ${
                             vendedorSelecionadoId === u.id
-                              ? 'bg-emerald-200 text-slate-900 font-bold'
+                              ? 'bg-emerald-600 text-white font-bold'
                               : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
@@ -834,7 +834,7 @@ export const VendasHistorico: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setDropdownVendedorAberto(false)}
-                      className="w-full py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold border border-emerald-300 transition cursor-pointer shadow-xs mt-1"
+                      className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20 mt-1"
                     >
                       Filtrar histórico
                     </button>
@@ -1044,7 +1044,7 @@ export const VendasHistorico: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setVendaItensModal(venda)}
-                          className="inline-block px-2.5 py-1 rounded-full bg-emerald-200 text-slate-900 border border-emerald-300 text-[11px] font-bold transition cursor-pointer shadow-xs"
+                          className="inline-block px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-[11px] font-bold transition cursor-pointer shadow-xs"
                           title="Clique para ver os itens do pedido (TELA008)"
                         >
                           {totalItens} {totalItens === 1 ? 'item' : 'itens'}
@@ -1186,7 +1186,7 @@ export const VendasHistorico: React.FC = () => {
                       key={p.id}
                       className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition ${
                         periodoSelecionado === p.id
-                          ? 'bg-emerald-200 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/40 text-slate-900 dark:text-emerald-300 font-bold shadow-xs'
+                          ? 'bg-emerald-600 text-white border-emerald-500 font-bold shadow-xs'
                           : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-700'
                       }`}
                     >
@@ -1235,7 +1235,7 @@ export const VendasHistorico: React.FC = () => {
                           key={fp.id}
                           className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition ${
                             ativo
-                              ? 'bg-emerald-200 dark:bg-emerald-500/20 border-emerald-300 dark:border-emerald-500/40 text-slate-900 dark:text-emerald-300 font-bold shadow-xs'
+                              ? 'bg-emerald-600 text-white border-emerald-500 font-bold shadow-xs'
                               : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-700'
                           }`}
                         >
@@ -1272,7 +1272,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold border border-emerald-300 transition cursor-pointer shadow-xs"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20"
               >
                 Filtrar ({vendasFiltradas.length} vendas)
               </button>

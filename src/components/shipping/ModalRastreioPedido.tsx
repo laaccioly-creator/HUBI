@@ -841,10 +841,10 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                 window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
               }
             }}
-            className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             title="Imprimir Etiqueta de Envio"
           >
-            <Tag className="w-3.5 h-3.5 text-slate-900" />
+            <Tag className="w-3.5 h-3.5 text-white" />
             <span>Imprimir Etiqueta</span>
           </button>
 

@@ -1716,7 +1716,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalFechamentoCego(true)}
-                    className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <Lock className="w-4 h-4" />
                     <span>Fechar Caixa</span>
@@ -1726,7 +1726,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAberturaCaixa(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Unlock className="w-4 h-4" />
                   <span>Abrir Caixa</span>
@@ -2074,7 +2074,7 @@ export const FinancasCaixa: React.FC = () => {
                                       dataPagamento: obterDataOperacaoYMD(),
                                       processando: false
                                     })}
-                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs flex items-center gap-1 border border-emerald-300 shadow-xs transition cursor-pointer"
+                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer"
                                     title="Dar Baixa / Marcar como Paga"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
