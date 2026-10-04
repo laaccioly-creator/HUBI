@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCart } from '../contexts/CartContext';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
@@ -55,7 +56,7 @@ import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
-import { extrairObservacaoLimpa } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
 import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { audioService } from '../services/audioService';
@@ -178,6 +179,7 @@ export const BadgeRestricaoPedido: React.FC<{ observacao: string | null | undefi
 
 export const PedidosLista: React.FC = () => {
   const { loja, usuario } = useAuth();
+  const { isDark } = useTheme();
   const permissions = usePermissions();
   const { carregarPedidoParaEdicao } = useCart();
   const navigate = useNavigate();
@@ -2298,10 +2300,10 @@ export const PedidosLista: React.FC = () => {
       </div>
 
       {/* VISÃO DESKTOP DE PEDIDOS */}
-      <div className="hidden md:flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
         {/* SE UM PEDIDO ESTIVER SELECIONADO: EXIBIR A VISÃO DETALHADA DO PEDIDO (TELA002, TELA002A, TELA002B) */}
         {pedidoSelecionado ? (
-        <div className="flex-1 overflow-y-auto w-full bg-slate-950 relative">
+        <div className={`flex-1 overflow-y-auto w-full relative ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
           {/* HEADER DA VISÃO DETALHADA DO PEDIDO (TELA002) */}
           <div className="sticky top-0 z-30 w-full bg-slate-950 border-b border-slate-800 shadow-xl">
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -3036,7 +3038,7 @@ export const PedidosLista: React.FC = () => {
                             type="button"
                             onClick={handleDespacharPedido}
                             disabled={despachando}
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95 disabled:opacity-50"
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs uppercase tracking-wider transition shadow-xs border border-emerald-300 cursor-pointer active:scale-95 disabled:opacity-50"
                           >
                             {despachando ? (
                               <>
@@ -3104,11 +3106,11 @@ export const PedidosLista: React.FC = () => {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">
-                          R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                          {formatarMoeda(item.subtotal || item.preco_venda_unitario * item.quantidade || 0)}
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          R$ {Number(item.preco_venda_unitario || 0).toFixed(2)} un
+                          {formatarMoeda(item.preco_venda_unitario || 0)} un
                         </span>
                       </div>
                     </div>
@@ -3449,7 +3451,7 @@ export const PedidosLista: React.FC = () => {
             ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-700/80 text-slate-300 uppercase font-semibold text-[11px] tracking-wider bg-slate-900 sticky top-0 z-10 backdrop-blur">
+                  <tr className={`border-b uppercase font-semibold text-[11px] tracking-wider sticky top-0 z-10 backdrop-blur ${isDark ? 'border-slate-700/80 text-slate-300 bg-slate-900' : 'border-slate-200 text-slate-700 bg-slate-100'}`}>
                     <th
                       className="py-2.5 px-2 font-semibold cursor-pointer hover:text-white transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('codigo')}
@@ -3486,7 +3488,7 @@ export const PedidosLista: React.FC = () => {
                     <th className="py-2.5 px-2 font-semibold text-center min-w-[130px]">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/90">
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/90' : 'divide-slate-200'}`}>
                   {pedidosFiltrados.map((pedido) => {
                     const isCancelado = pedido.status === 'cancelado';
                     const totalItens = calcularTotalItens(pedido);
@@ -3496,7 +3498,7 @@ export const PedidosLista: React.FC = () => {
                     return (
                       <tr
                         key={pedido.id}
-                        className={`transition group hover:bg-slate-900/40 border-b border-slate-800/90 ${isCancelado ? 'opacity-60' : ''}`}
+                        className={`transition group border-b ${isDark ? 'hover:bg-slate-900/40 border-slate-800/90' : 'hover:bg-slate-100/60 border-slate-200'} ${isCancelado ? 'opacity-60' : ''}`}
                       >
                         <td className="py-2.5 px-2 whitespace-nowrap font-medium">
                           <div className="flex items-center gap-1.5">
@@ -3507,7 +3509,7 @@ export const PedidosLista: React.FC = () => {
                                 e.stopPropagation();
                                 setPedidoReciboModal(pedido);
                               }}
-                              className="p-1 rounded-lg hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                              className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-200 text-slate-500 hover:text-emerald-600'}`}
                             >
                               <Receipt className="w-3.5 h-3.5" />
                             </button>
@@ -3519,7 +3521,7 @@ export const PedidosLista: React.FC = () => {
                                 setPedidoSelecionado(pedido);
                               }}
                               className={`font-bold hover:underline cursor-pointer ${
-                                isCancelado ? 'line-through text-slate-400' : 'text-slate-200 group-hover:text-emerald-400'
+                                isCancelado ? 'line-through text-slate-400' : (isDark ? 'text-slate-200 group-hover:text-emerald-400' : 'text-slate-700 group-hover:text-emerald-600')
                               }`}
                             >
                               #{isCatalogo ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
@@ -3527,7 +3529,7 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className="py-2.5 px-2 whitespace-nowrap text-slate-300">
+                        <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                           <span className={isCancelado ? 'line-through' : ''}>
                             {formatarData(pedido.data_venda || pedido.criado_em || '')}
                           </span>
@@ -3535,7 +3537,7 @@ export const PedidosLista: React.FC = () => {
 
                         <td className="py-2.5 px-2.5 whitespace-nowrap">
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-slate-200">
+                            <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
                               {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
                             </span>
                             {pedido.observacoes && (
@@ -3544,11 +3546,11 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className="py-2.5 px-2 whitespace-nowrap text-slate-400">
+                        <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-slate-500" />
-                              <span className={pedido.origem === 'catalogo_online' ? 'text-sky-400 font-semibold' : ''}>
+                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              <span className={pedido.origem === 'catalogo_online' ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''}>
                                 {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
                               </span>
                             </div>
@@ -3559,7 +3561,7 @@ export const PedidosLista: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setPedidoItensModal(pedido)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl text-xs font-bold bg-emerald-200 text-slate-900 border border-emerald-300 transition cursor-pointer shadow-xs"
                           >
                             <Package className="w-3 h-3" />
                             <span>{totalItens} itens</span>
@@ -3567,8 +3569,8 @@ export const PedidosLista: React.FC = () => {
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap">
-                          <span className="font-black text-slate-100">
-                            R$ {Number(pedido.valor_total || 0).toFixed(2)}
+                          <span className={`font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {formatarMoeda(pedido.valor_total || 0)}
                           </span>
                         </td>
 

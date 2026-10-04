@@ -1,5 +1,18 @@
 export const formatarMoeda = (valor: number | string | null | undefined): string => {
-  const num = Number(valor || 0);
+  if (valor === null || valor === undefined || valor === '') return 'R$ 0,00';
+  let num: number;
+  if (typeof valor === 'number') {
+    num = isNaN(valor) ? 0 : valor;
+  } else {
+    const limpo = String(valor).trim().replace('R$', '').trim();
+    if (limpo.includes(',') && limpo.includes('.')) {
+      num = parseFloat(limpo.replace(/\./g, '').replace(',', '.')) || 0;
+    } else if (limpo.includes(',')) {
+      num = parseFloat(limpo.replace(',', '.')) || 0;
+    } else {
+      num = parseFloat(limpo) || 0;
+    }
+  }
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 

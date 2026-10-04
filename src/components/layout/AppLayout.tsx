@@ -481,9 +481,9 @@ export const AppLayout: React.FC = () => {
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
+                        ? 'bg-emerald-200 text-slate-900 shadow-xs ring-2 ring-emerald-300/60 font-bold border border-emerald-300'
                         : isDark
-                        ? 'bg-emerald-500/15 text-white hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400'
+                        ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
                         : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
                     }`}
                   >
@@ -512,9 +512,9 @@ export const AppLayout: React.FC = () => {
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50 font-bold border border-emerald-400'
+                        ? 'bg-emerald-200 text-slate-900 shadow-xs ring-2 ring-emerald-300/60 font-bold border border-emerald-300'
                         : isDark
-                        ? 'bg-emerald-500/15 text-white hover:bg-emerald-500 hover:text-white border border-emerald-500/30 hover:border-emerald-400'
+                        ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
                         : 'bg-[#F1F5F9] text-[#334155] hover:bg-[#E2E8F0] hover:text-[#0F172A] border border-[#E2E8F0]'
                     }`}
                   >
@@ -660,8 +660,8 @@ export const AppLayout: React.FC = () => {
         pedidosConfirmadosCount={pedidosConfirmadosCount}
       />
 
-      {/* ÁREA DE CONTEÚDO PRINCIPAL (MOBILE CLARO PADRÃO PEDIDOS / DESKTOP ESCURO) */}
-      <main className={`flex-1 overflow-y-auto bg-slate-50 md:bg-slate-950 text-slate-900 md:text-slate-100 ${isCustomMobileRoute ? 'pb-0' : 'pb-16 md:pb-0'}`}>
+      {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
+      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} ${isCustomMobileRoute ? 'pb-0' : 'pb-16 md:pb-0'}`}>
         <Outlet />
       </main>
 

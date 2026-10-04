@@ -2728,7 +2728,7 @@ export const ProdutoCadastro: React.FC = () => {
           <button
             type="submit"
             disabled={salvando}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 font-bold text-white shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer"
+            className="w-full py-3.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 font-semibold text-slate-900 border border-emerald-300 shadow-xs flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer"
           >
             {salvando ? (
               <>

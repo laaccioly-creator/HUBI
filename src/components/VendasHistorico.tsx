@@ -45,7 +45,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, Produto, Cliente, UsuarioLoja, StatusPedido, FormaPagamento } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
-import { extrairObservacaoLimpa } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { VendasHistoricoMobile } from './VendasHistoricoMobile';
@@ -588,27 +588,27 @@ export const VendasHistorico: React.FC = () => {
     if (tipo === 'dinheiro') {
       return (
         <span title="Dinheiro">
-          <Coins className="w-3.5 h-3.5 text-emerald-400" />
+          <Coins className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
         </span>
       );
     }
     if (tipo === 'pix') {
       return (
         <span title="Pix">
-          <Wallet className="w-3.5 h-3.5 text-teal-400" />
+          <Wallet className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
         </span>
       );
     }
     if (tipo === 'cartao_credito' || tipo === 'cartao_debito') {
       return (
         <span title="Cartão">
-          <CreditCard className="w-3.5 h-3.5 text-sky-400" />
+          <CreditCard className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
         </span>
       );
     }
     return (
       <span title="Pagamento">
-        <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+        <DollarSign className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
       </span>
     );
   };
@@ -653,30 +653,30 @@ export const VendasHistorico: React.FC = () => {
         />
       </div>
 
-      {/* 2. VISUALIZAÇÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
-      <div className="hidden md:flex flex-col h-full overflow-hidden bg-slate-950 text-slate-100 font-sans">
+      {/* 2. VISUALIZAÇÃO DESKTOP (UNIFICADA COM DESIGN SYSTEM) */}
+      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
         {/* CORPO PRINCIPAL */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* TOPO: CABEÇALHO DA TELA DE VENDAS */}
-          <div className="relative z-30 p-4 sm:px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur space-y-4">
+          <div className={`relative z-30 p-4 sm:px-6 py-4 border-b space-y-4 backdrop-blur ${isDark ? 'border-slate-800/80 bg-slate-900/50' : 'border-slate-200 bg-white/80'}`}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+                className={`p-2 rounded-xl border transition cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'}`}
                 title="Voltar"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight flex items-center gap-2">
+                <h1 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   <span>Histórico de vendas</span>
                 </h1>
-                <p className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                <p className={`text-xs flex items-center gap-2 mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   <span>{vendasFiltradas.length} vendas concluídas listadas</span>
                   {!permissions.podeVerTransacoesOutros && (
-                    <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                    <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
                       👤 Suas Vendas ({usuario?.nome_completo || 'Vendedor'})
                     </span>
                   )}
@@ -694,7 +694,7 @@ export const VendasHistorico: React.FC = () => {
                   placeholder="Nome do cliente ou produto"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-8 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-inner"
+                  className={`w-full border rounded-xl pl-10 pr-8 py-2 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-xs ${isDark ? 'bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
                 />
                 {busca && (
                   <button
@@ -712,8 +712,10 @@ export const VendasHistorico: React.FC = () => {
                 onClick={() => setDrawerFiltrosAberto(true)}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-sm ${
                   totalFiltrosAtivos > 0
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold'
-                    : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
+                    ? 'bg-emerald-200 hover:bg-emerald-300 text-slate-900 border-emerald-300 font-bold shadow-xs'
+                    : isDark
+                    ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
+                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
                 }`}
               >
                 <Filter className="w-3.5 h-3.5" />
@@ -732,28 +734,30 @@ export const VendasHistorico: React.FC = () => {
                   onClick={() => setDropdownVendedorAberto((prev) => !prev)}
                   className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-sm ${
                     vendedorSelecionadoId !== 'todos'
-                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold'
-                      : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
+                      ? 'bg-emerald-200 hover:bg-emerald-300 text-slate-900 border-emerald-300 font-bold shadow-xs'
+                      : isDark
+                      ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
+                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
                   }`}
                 >
                   <User className="w-3.5 h-3.5" />
                   <span className="max-w-[130px] truncate">{labelVendedorBotao}</span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 transition-transform ${dropdownVendedorAberto ? 'rotate-180 text-emerald-400' : ''}`}
+                    className={`w-3.5 h-3.5 transition-transform ${dropdownVendedorAberto ? 'rotate-180 text-emerald-500' : ''}`}
                   />
                 </button>
 
                 {/* Popover TELA003 (Filtrar por Vendedor) */}
                 {dropdownVendedorAberto && (
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-3 z-50 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="text-xs font-bold text-slate-200">Filtrar por vendedor</span>
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-50 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Filtrar por vendedor</span>
                       <button
                         type="button"
                         onClick={() => {
                           setVendedorSelecionadoId('todos');
                         }}
-                        className="text-[11px] text-emerald-400 hover:underline font-semibold cursor-pointer"
+                        className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
                       >
                         Limpar
                       </button>
@@ -764,8 +768,8 @@ export const VendasHistorico: React.FC = () => {
                       <label
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs cursor-pointer transition ${
                           vendedorSelecionadoId === 'todos'
-                            ? 'bg-emerald-500/15 text-emerald-300 font-bold'
-                            : 'text-slate-300 hover:bg-slate-800'
+                            ? 'bg-emerald-200 text-slate-900 font-bold'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         <input
@@ -785,8 +789,8 @@ export const VendasHistorico: React.FC = () => {
                       <label
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs cursor-pointer transition ${
                           vendedorSelecionadoId === 'catalogo'
-                            ? 'bg-emerald-500/15 text-emerald-300 font-bold'
-                            : 'text-slate-300 hover:bg-slate-800'
+                            ? 'bg-emerald-200 text-slate-900 font-bold'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         <input
@@ -797,7 +801,7 @@ export const VendasHistorico: React.FC = () => {
                           className="accent-emerald-500"
                         />
                         <div className="flex items-center gap-1.5 truncate">
-                          <Store className="w-3.5 h-3.5 text-emerald-400" />
+                          <Store className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>Catálogo Online</span>
                         </div>
                       </label>
@@ -808,8 +812,8 @@ export const VendasHistorico: React.FC = () => {
                           key={u.id}
                           className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs cursor-pointer transition ${
                             vendedorSelecionadoId === u.id
-                              ? 'bg-emerald-500/15 text-emerald-300 font-bold'
-                              : 'text-slate-300 hover:bg-slate-800'
+                              ? 'bg-emerald-200 text-slate-900 font-bold'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
                           <input
@@ -830,7 +834,7 @@ export const VendasHistorico: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setDropdownVendedorAberto(false)}
-                      className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer shadow mt-1"
+                      className="w-full py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold border border-emerald-300 transition cursor-pointer shadow-xs mt-1"
                     >
                       Filtrar histórico
                     </button>
@@ -840,65 +844,65 @@ export const VendasHistorico: React.FC = () => {
             </div>
           </div>
 
-          {/* BARRA DE MÉTRICAS DE RESUMO (TELA001) */}
+          {/* BARRA DE MÉTRICAS DE RESUMO (TELA001) - CARDS CENTRALIZADOS E TIPOGRAFIA PADRONIZADA */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
-            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-[#475569]'
+                isDark ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Hoje: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
+                Hoje: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className={`text-sm sm:text-base font-black font-mono ${
-                isDark ? 'text-white' : 'text-[#0F172A]'
+              <div className={`text-sm sm:text-base font-bold font-mono ${
+                isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                R$ {metricas.hoje.total.toFixed(2)}
+                {formatarMoeda(metricas.hoje.total)}
               </div>
             </div>
 
-            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-[#475569]'
+                isDark ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Ontem: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
+                Ontem: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className={`text-sm sm:text-base font-black font-mono ${
-                isDark ? 'text-white' : 'text-[#0F172A]'
+              <div className={`text-sm sm:text-base font-bold font-mono ${
+                isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                R$ {metricas.ontem.total.toFixed(2)}
+                {formatarMoeda(metricas.ontem.total)}
               </div>
             </div>
 
-            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-[#475569]'
+                isDark ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Esta semana: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
+                Esta semana: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className={`text-sm sm:text-base font-black font-mono ${
-                isDark ? 'text-white' : 'text-[#0F172A]'
+              <div className={`text-sm sm:text-base font-bold font-mono ${
+                isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                R$ {metricas.estaSemana.total.toFixed(2)}
+                {formatarMoeda(metricas.estaSemana.total)}
               </div>
             </div>
 
-            <div className={`rounded-2xl p-3.5 space-y-1 shadow-xs border ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-[#E2E8F0]'
+            <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-[#475569]'
+                isDark ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Este mês: <strong className={`font-bold ${isDark ? 'text-white' : 'text-[#0F172A]'}`}>{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'venda' : 'vendas'}</strong>
+                Este mês: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
-              <div className={`text-sm sm:text-base font-black font-mono ${
-                isDark ? 'text-white' : 'text-[#0F172A]'
+              <div className={`text-sm sm:text-base font-bold font-mono ${
+                isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                R$ {metricas.esteMes.total.toFixed(2)}
+                {formatarMoeda(metricas.esteMes.total)}
               </div>
             </div>
           </div>
@@ -924,7 +928,7 @@ export const VendasHistorico: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-900 text-slate-300 font-semibold uppercase tracking-wider sticky top-0 z-10 border-b border-slate-700/80 backdrop-blur">
+              <thead className={`font-semibold uppercase tracking-wider sticky top-0 z-10 border-b backdrop-blur ${isDark ? 'bg-slate-900 text-slate-300 border-slate-700/80' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                 <tr>
                   <th
                     onClick={() => toggleOrdenacao('codigo')}
@@ -968,7 +972,7 @@ export const VendasHistorico: React.FC = () => {
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/90">
+              <tbody className={`divide-y ${isDark ? 'divide-slate-800/90' : 'divide-slate-200'}`}>
                 {vendasFiltradas.map((venda) => {
                   const { data, hora } = formatarDataTabela(venda.data_venda || venda.criado_em || '');
                   const totalItens = calcularTotalItens(venda);
@@ -979,7 +983,7 @@ export const VendasHistorico: React.FC = () => {
                   return (
                     <tr
                       key={venda.id}
-                      className={`hover:bg-slate-900/40 border-b border-slate-800/90 transition group ${
+                      className={`border-b transition group ${isDark ? 'hover:bg-slate-900/40 border-slate-800/90' : 'hover:bg-slate-100/60 border-slate-200'} ${
                         foiCancelada ? 'opacity-60 bg-rose-950/10' : ''
                       }`}
                     >
@@ -992,7 +996,7 @@ export const VendasHistorico: React.FC = () => {
                               e.stopPropagation();
                               setVendaReciboModal(venda);
                             }}
-                            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                            className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-200 text-slate-500 hover:text-emerald-600'}`}
                             title={`Visualizar recibo de ${codigoFormatado}`}
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -1000,7 +1004,7 @@ export const VendasHistorico: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => navigate(`/orders?id=${venda.id}&origem=sales`)}
-                            className="text-slate-300 hover:text-emerald-400 transition cursor-pointer font-bold hover:underline"
+                            className={`transition cursor-pointer font-bold hover:underline ${isDark ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-700 hover:text-emerald-600'}`}
                             title={`Abrir detalhes do pedido ${codigoFormatado}`}
                           >
                             {codigoFormatado}
@@ -1009,26 +1013,26 @@ export const VendasHistorico: React.FC = () => {
                       </td>
 
                       {/* Data da Venda */}
-                      <td className="py-3.5 px-4 text-slate-300 whitespace-nowrap">
-                        <span className="font-medium text-slate-200">{data}</span>
-                        {hora && <span className="text-slate-400 ml-1.5 font-mono text-[11px]">{hora}</span>}
+                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <span className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{data}</span>
+                        {hora && <span className={`ml-1.5 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{hora}</span>}
                       </td>
 
                       {/* Cliente */}
-                      <td className={`py-3.5 px-4 font-medium max-w-[200px] truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
+                      <td className={`py-3.5 px-4 font-medium max-w-[200px] truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                         {venda.cliente?.nome || 'Cliente Avulso (Balcão)'}
                       </td>
 
                       {/* Vendedor */}
-                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-[#334155]'}`}>
+                      <td className={`py-3.5 px-4 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         {isCatalogo ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
+                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
                             <Store className="w-3.5 h-3.5" />
                             <span>Catálogo</span>
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-[#0F172A]'}`}>
-                            <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-[#64748B]'}`} />
+                          <span className={`inline-flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                            <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                             <span>{venda.vendedor?.nome_completo || 'Balcão'}</span>
                           </span>
                         )}
@@ -1040,7 +1044,7 @@ export const VendasHistorico: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setVendaItensModal(venda)}
-                          className="inline-block px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 text-[11px] font-bold transition cursor-pointer"
+                          className="inline-block px-2.5 py-1 rounded-full bg-emerald-200 text-slate-900 border border-emerald-300 text-[11px] font-bold transition cursor-pointer shadow-xs"
                           title="Clique para ver os itens do pedido (TELA008)"
                         >
                           {totalItens} {totalItens === 1 ? 'item' : 'itens'}
@@ -1048,11 +1052,11 @@ export const VendasHistorico: React.FC = () => {
                       </td>
 
                       {/* Valor */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap font-mono font-bold text-slate-100">
+                      <td className={`py-3.5 px-4 text-right whitespace-nowrap font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         <div className="flex items-center justify-end gap-1.5">
                           {obterIconeMeioPagamento(venda)}
-                          <span className={foiCancelada ? 'line-through text-slate-500' : 'text-slate-100'}>
-                            R$ {Number(venda.valor_total || 0).toFixed(2)}
+                          <span className={foiCancelada ? 'line-through text-slate-400' : (isDark ? 'text-white' : 'text-slate-900')}>
+                            {formatarMoeda(venda.valor_total || 0)}
                           </span>
                         </div>
                       </td>

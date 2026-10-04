@@ -4,6 +4,7 @@ export type ModoTema = 'dark' | 'light';
 
 interface ThemeContextType {
   tema: ModoTema;
+  isDark: boolean;
   setTema: (novoTema: ModoTema) => void;
   alternarTema: () => void;
 }
@@ -77,8 +78,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTema(tema === 'dark' ? 'light' : 'dark');
   };
 
+  const isDark = tema === 'dark';
+
   return (
-    <ThemeContext.Provider value={{ tema, setTema, alternarTema }}>
+    <ThemeContext.Provider value={{ tema, isDark, setTema, alternarTema }}>
       {children}
     </ThemeContext.Provider>
   );

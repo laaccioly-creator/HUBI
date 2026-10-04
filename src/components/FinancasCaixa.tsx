@@ -63,6 +63,7 @@ import { financeExportService } from '../services/financeExportService';
 import { FinancasMobile } from './FinancasMobile';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterDataOperacao, obterDataOperacaoISO, obterDataOperacaoYMD, formatarDataLocalYMD } from '../utils/dataOperacao';
+import { formatarMoeda } from '../utils/formatters';
 
 // Componente de Auditoria de Fechamento de Caixa com Jev TypeSafe
 const CardAuditoriaFechamentoCaixa: React.FC<{
@@ -1649,27 +1650,27 @@ export const FinancasCaixa: React.FC = () => {
       </div>
 
       {/* 2. VISUALIZAÇÃO DESKTOP */}
-      <div className="hidden lg:flex flex-col h-full overflow-hidden bg-slate-950 font-sans">
+      <div className="hidden lg:flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
         {/* ========================================================================= */}
         {/* HEADER SUPERIOR                                                           */}
         {/* ========================================================================= */}
-        <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 backdrop-blur space-y-4 shrink-0">
+        <div className="p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 backdrop-blur space-y-4 shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition cursor-pointer"
+                className="p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition cursor-pointer shadow-xs"
                 title="Voltar"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-emerald-400" />
+                <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>Controle de Caixa & Sessões Transacionais</span>
                 </h1>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                   Ciclo de vida por turnos contínuos (sessao_caixa_id), suprimentos, sangrias, despesas e conferência cega.
                 </p>
               </div>
@@ -1683,30 +1684,30 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalSuprimento(true)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="Adicionar Troco Extra na Gaveta"
                       >
-                        <ArrowDown className="w-4 h-4 text-emerald-400" />
+                        <ArrowDown className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span>Suprimento</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalSangria(true)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="Retirar Dinheiro para o Cofre"
                       >
-                        <ArrowUp className="w-4 h-4 text-rose-400" />
+                        <ArrowUp className="w-4 h-4 text-rose-500" />
                         <span>Sangria</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalDespesaRapida(true)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="Despesa Paga com Dinheiro da Gaveta"
                       >
-                        <Banknote className="w-4 h-4 text-amber-400" />
+                        <Banknote className="w-4 h-4 text-amber-500" />
                         <span>Despesa Gaveta</span>
                       </button>
                     </>
@@ -1715,7 +1716,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalFechamentoCego(true)}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <Lock className="w-4 h-4" />
                     <span>Fechar Caixa</span>
@@ -1725,7 +1726,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAberturaCaixa(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs border border-emerald-300 shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Unlock className="w-4 h-4" />
                   <span>Abrir Caixa</span>
@@ -1735,20 +1736,20 @@ export const FinancasCaixa: React.FC = () => {
             </div>
           </div>
 
-          {/* CARDS DE RESUMO FINANCEIRO GERAL COM BOTÃO DETALHAR */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          {/* CARDS DE RESUMO FINANCEIRO GERAL COM INFORMAÇÕES CENTRALIZADAS */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* Entradas Totais */}
-            <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> Entradas Gerais
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+              <div className="w-full flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Entradas Gerais
                 </span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={handleExportarEntradas}
                     title="Exportar Entradas Gerais para Excel (.xlsx)"
-                    className="px-1.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-500/20 flex items-center gap-1"
+                    className="px-1.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1"
                   >
                     <FileSpreadsheet className="w-3 h-3" />
                     <span>Excel</span>
@@ -1756,20 +1757,22 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('entradas')}
-                    className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-700/60"
+                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700"
                   >
                     Detalhar
                   </button>
                 </div>
               </div>
-              <span className="text-base font-black text-emerald-400 block truncate">R$ {totalReceitas.toFixed(2)}</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+                {formatarMoeda(totalReceitas)}
+              </span>
             </div>
 
             {/* Despesas */}
-            <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-semibold">
-                  <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" /> Despesas Gerais
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+              <div className="w-full flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <ArrowDownRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> Despesas Gerais
                 </span>
                 <div className="flex items-center gap-1">
                   {permissions.ehAdmin && (
@@ -1777,7 +1780,7 @@ export const FinancasCaixa: React.FC = () => {
                       type="button"
                       onClick={abrirModalNovaDespesa}
                       title="Lançar Nova Despesa"
-                      className="px-1.5 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold transition cursor-pointer border border-rose-500/30 flex items-center gap-0.5"
+                      className="px-1.5 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/30 text-rose-700 dark:text-rose-300 text-[10px] font-bold transition cursor-pointer border border-rose-200 dark:border-rose-500/30 flex items-center gap-0.5"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Nova</span>
@@ -1786,20 +1789,22 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('saidas')}
-                    className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-700/60"
+                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700"
                   >
                     Detalhar
                   </button>
                 </div>
               </div>
-              <span className="text-base font-black text-rose-400 block truncate">R$ {totalDespesasPagas.toFixed(2)}</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+                {formatarMoeda(totalDespesasPagas)}
+              </span>
             </div>
 
             {/* Contas a Pagar */}
-            <div className="bg-slate-900/90 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-amber-400 flex items-center gap-1 font-semibold">
-                  <AlertTriangle className="w-3.5 h-3.5" /> A Pagar
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+              <div className="w-full flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> A Pagar
                 </span>
                 <div className="flex items-center gap-1">
                   {permissions.ehAdmin && (
@@ -1807,7 +1812,7 @@ export const FinancasCaixa: React.FC = () => {
                       type="button"
                       onClick={abrirModalNovaContaPagar}
                       title="Lançar Nova Conta a Pagar"
-                      className="px-1.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-500/30 flex items-center gap-0.5"
+                      className="px-1.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-200 dark:border-amber-500/30 flex items-center gap-0.5"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Nova</span>
@@ -1816,34 +1821,36 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('pagar')}
-                    className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-700/60"
+                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700"
                   >
                     Detalhar
                   </button>
                 </div>
               </div>
-              <span className="text-base font-black text-amber-400 block truncate">R$ {totalDespesasPendentes.toFixed(2)}</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+                {formatarMoeda(totalDespesasPendentes)}
+              </span>
             </div>
 
             {/* Resultado Acumulado */}
-            <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-3 space-y-1.5 shadow-sm transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400 font-semibold truncate block">Resultado Acumulado</span>
-                  <span className="text-[9px] text-indigo-400 font-bold block">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+              <div className="w-full flex items-center justify-between">
+                <div className="text-left">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate block">Resultado Acumulado</span>
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block">
                     {filtroPeriodoFluxo === 'sessao_atual' ? '• Turno Atual' : filtroPeriodoFluxo === 'hoje' ? '• Hoje' : filtroPeriodoFluxo === 'mes' ? '• Este Mês' : '• Todos'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica('lucro')}
-                  className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-[10px] font-bold transition cursor-pointer border border-indigo-500/20 shrink-0"
+                  className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700 shrink-0"
                 >
                   Detalhar
                 </button>
               </div>
-              <span className={`text-base font-black block truncate ${lucroLiquido >= 0 ? 'text-indigo-400' : 'text-rose-400'}`}>
-                R$ {lucroLiquido.toFixed(2)}
+              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+                {formatarMoeda(lucroLiquido)}
               </span>
             </div>
           </div>
@@ -2046,21 +2053,17 @@ export const FinancasCaixa: React.FC = () => {
 
                           <div className="flex items-center gap-3 shrink-0">
                             <div className="text-right">
-                              <span
-                                className={`font-bold text-sm block ${
-                                  tr.tipo === 'ENTRADA' ? 'text-emerald-400' : 'text-rose-400'
-                                }`}
-                              >
-                                {tr.tipo === 'ENTRADA' ? '+' : '-'} R$ {tr.valor.toFixed(2)}
+                              <span className="font-bold text-sm block text-slate-900 dark:text-white">
+                                {tr.tipo === 'ENTRADA' ? '+' : '-'} {formatarMoeda(tr.valor)}
                               </span>
-                              <span className={`text-[10px] uppercase font-bold ${tr.status === 'pendente' ? 'text-amber-400' : 'text-slate-500'}`}>
+                              <span className={`text-[10px] uppercase font-bold ${tr.status === 'pendente' ? 'text-amber-500 dark:text-amber-400' : 'text-slate-500'}`}>
                                 {tr.status}
                               </span>
                             </div>
 
                             {/* AÇÕES DE GESTÃO: BAIXAR CONTA, EDITAR, EXCLUIR */}
                             {permissions.ehAdmin && !tr.id.startsWith('ped_') && (
-                              <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+                              <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-800">
                                 {tr.tipo === 'SAIDA' && tr.status === 'pendente' && (
                                   <button
                                     type="button"
@@ -2071,7 +2074,7 @@ export const FinancasCaixa: React.FC = () => {
                                       dataPagamento: obterDataOperacaoYMD(),
                                       processando: false
                                     })}
-                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 font-semibold text-xs flex items-center gap-1 border border-emerald-300 shadow-xs transition cursor-pointer"
                                     title="Dar Baixa / Marcar como Paga"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -2131,75 +2134,75 @@ export const FinancasCaixa: React.FC = () => {
 
 
                       {/* CABEÇALHO DA SESSÃO ATIVA */}
-                      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                              <span className="font-bold text-xs text-emerald-400 uppercase tracking-wider">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                                 Sessão Transacional Aberta • Terminal {sessaoAtiva.terminal_id}
                               </span>
                             </div>
-                            <h3 className="text-xl font-black text-slate-100 mt-1">
+                            <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-1">
                               Operador: {sessaoAtiva.usuario_abertura?.nome_completo || 'Operador'}
                             </h3>
-                            <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                               <span className="flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                                 Aberto às {new Date(sessaoAtiva.aberto_em).toLocaleTimeString('pt-BR')} ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})
                               </span>
                               <span>•</span>
-                              <span className="font-semibold text-emerald-400">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">
                                 Duração: {resumoSessao.duracaoTexto}
                               </span>
                             </div>
                           </div>
 
-                          <div className="bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-right shrink-0">
-                            <span className="text-[11px] text-slate-400 block font-semibold">Fundo de Troco Inicial</span>
-                            <span className="text-lg font-black text-emerald-400">
-                              R$ {(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}
+                          <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-3 text-right shrink-0">
+                            <span className="text-[11px] text-slate-600 dark:text-slate-400 block font-semibold">Fundo de Troco Inicial</span>
+                            <span className="text-lg font-black text-slate-900 dark:text-white">
+                              {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}
                             </span>
                           </div>
                         </div>
 
                         {/* BIG KPI CARD: SALDO ESPERADO EM DINHEIRO NA GAVETA FÍSICA */}
-                        <div className="bg-gradient-to-br from-emerald-950/40 via-slate-950 to-slate-950 border border-emerald-500/30 rounded-3xl p-5 space-y-3">
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
-                              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                                <Banknote className="w-4 h-4" /> Saldo Esperado em Dinheiro na Gaveta Física
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <Banknote className="w-4 h-4 text-slate-500 dark:text-slate-400" /> Saldo Esperado em Dinheiro na Gaveta Física
                               </span>
-                              <p className="text-[11px] text-slate-400 mt-0.5">
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                 Valor exato que deve constar em notas e moedas neste momento.
                               </p>
                             </div>
-                            <span className="text-3xl font-black text-emerald-300">
-                              R$ {resumoSessao.saldoEsperadoDinheiro.toFixed(2)}
+                            <span className="text-3xl font-black text-slate-900 dark:text-white">
+                              {formatarMoeda(resumoSessao.saldoEsperadoDinheiro)}
                             </span>
                           </div>
 
                           {/* FÓRMULA DE COMPOSIÇÃO FÍSICA DETALHADA */}
-                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-800 text-[11px]">
-                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                              <span className="text-slate-400 block text-[10px]">Fundo Inicial</span>
-                              <span className="font-bold text-slate-200">+ R$ {(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}</span>
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px]">
+                            <div className="bg-white dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Fundo Inicial</span>
+                              <span className="font-bold text-slate-900 dark:text-white">+ {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}</span>
                             </div>
-                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                              <span className="text-slate-400 block text-[10px]">Vendas Dinheiro</span>
-                              <span className="font-bold text-emerald-400">+ R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}</span>
+                            <div className="bg-white dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Vendas Dinheiro</span>
+                              <span className="font-bold text-slate-900 dark:text-white">+ {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}</span>
                             </div>
-                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                              <span className="text-slate-400 block text-[10px]">Suprimentos</span>
-                              <span className="font-bold text-cyan-400">+ R$ {resumoSessao.totalSuprimentos.toFixed(2)}</span>
+                            <div className="bg-white dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Suprimentos</span>
+                              <span className="font-bold text-slate-900 dark:text-white">+ {formatarMoeda(resumoSessao.totalSuprimentos)}</span>
                             </div>
-                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                              <span className="text-slate-400 block text-[10px]">Sangrias (Cofre)</span>
-                              <span className="font-bold text-rose-400">- R$ {resumoSessao.totalSangrias.toFixed(2)}</span>
+                            <div className="bg-white dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Sangrias (Cofre)</span>
+                              <span className="font-bold text-slate-900 dark:text-white">- {formatarMoeda(resumoSessao.totalSangrias)}</span>
                             </div>
-                            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                              <span className="text-slate-400 block text-[10px]">Despesas Gaveta</span>
-                              <span className="font-bold text-amber-400">- R$ {resumoSessao.totalDespesas.toFixed(2)}</span>
+                            <div className="bg-white dark:bg-slate-900/80 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                              <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Despesas Gaveta</span>
+                              <span className="font-bold text-slate-900 dark:text-white">- {formatarMoeda(resumoSessao.totalDespesas)}</span>
                             </div>
                           </div>
                         </div>
@@ -2207,81 +2210,81 @@ export const FinancasCaixa: React.FC = () => {
                         {/* VENDAS DO TURNO POR MÉTODO DE PAGAMENTO */}
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-400">
                               Vendas do Turno por Meio de Pagamento
                             </h4>
-                            <span className="text-xs font-black text-slate-300">
-                              Total Faturado: <strong className="text-emerald-400">R$ {resumoSessao.faturamentoTotalVendas.toFixed(2)}</strong>
+                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              Total Faturado: <strong className="text-slate-900 dark:text-white">{formatarMoeda(resumoSessao.faturamentoTotalVendas)}</strong>
                             </span>
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                             {/* Dinheiro */}
-                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                            <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-400 font-semibold">Dinheiro</span>
-                                <Banknote className="w-4 h-4 text-emerald-400" />
+                                <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Dinheiro</span>
+                                <Banknote className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                               </div>
-                              <span className="text-base font-bold text-emerald-400 block">
-                                R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
+                              <span className="text-base font-bold text-slate-900 dark:text-white block">
+                                {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                 {resumoSessao.qtdVendasPorMetodo.dinheiro} vendas
                               </span>
                             </div>
 
                             {/* Pix */}
-                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                            <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-400 font-semibold">Pix</span>
-                                <Zap className="w-4 h-4 text-cyan-400" />
+                                <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Pix</span>
+                                <Zap className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                               </div>
-                              <span className="text-base font-bold text-cyan-400 block">
-                                R$ {resumoSessao.totaisPorMetodo.pix.toFixed(2)}
+                              <span className="text-base font-bold text-slate-900 dark:text-white block">
+                                {formatarMoeda(resumoSessao.totaisPorMetodo.pix)}
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                 {resumoSessao.qtdVendasPorMetodo.pix} vendas
                               </span>
                             </div>
 
                             {/* Cartão Débito */}
-                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                            <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-400 font-semibold">Cartão Débito</span>
-                                <CreditCard className="w-4 h-4 text-blue-400" />
+                                <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Cartão Débito</span>
+                                <CreditCard className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                               </div>
-                              <span className="text-base font-bold text-blue-400 block">
-                                R$ {resumoSessao.totaisPorMetodo.cartao_debito.toFixed(2)}
+                              <span className="text-base font-bold text-slate-900 dark:text-white block">
+                                {formatarMoeda(resumoSessao.totaisPorMetodo.cartao_debito)}
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                 {resumoSessao.qtdVendasPorMetodo.cartao_debito} vendas
                               </span>
                             </div>
 
                             {/* Cartão Crédito */}
-                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                            <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-400 font-semibold">Cartão Crédito</span>
-                                <CreditCard className="w-4 h-4 text-purple-400" />
+                                <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Cartão Crédito</span>
+                                <CreditCard className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                               </div>
-                              <span className="text-base font-bold text-purple-400 block">
-                                R$ {resumoSessao.totaisPorMetodo.cartao_credito.toFixed(2)}
+                              <span className="text-base font-bold text-slate-900 dark:text-white block">
+                                {formatarMoeda(resumoSessao.totaisPorMetodo.cartao_credito)}
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                 {resumoSessao.qtdVendasPorMetodo.cartao_credito} vendas
                               </span>
                             </div>
 
                             {/* Outros */}
-                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                            <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-400 font-semibold">Outros</span>
-                                <Layers className="w-4 h-4 text-amber-400" />
+                                <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Outros</span>
+                                <Layers className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                               </div>
-                              <span className="text-base font-bold text-amber-400 block">
-                                R$ {resumoSessao.totaisPorMetodo.outros.toFixed(2)}
+                              <span className="text-base font-bold text-slate-900 dark:text-white block">
+                                {formatarMoeda(resumoSessao.totaisPorMetodo.outros)}
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                 {resumoSessao.qtdVendasPorMetodo.outros} vendas
                               </span>
                             </div>
@@ -2289,7 +2292,7 @@ export const FinancasCaixa: React.FC = () => {
                         </div>
 
                         {/* LINHA DO TEMPO: MOVIMENTAÇÕES DESTA SESSÃO */}
-                        <div className="border-t border-slate-800 pt-4 space-y-3">
+                        <div className="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
                               Movimentações da Sessão Ativa
@@ -2332,19 +2335,11 @@ export const FinancasCaixa: React.FC = () => {
                                 return (
                                   <div
                                     key={m.id}
-                                    className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 flex items-center justify-between text-xs"
+                                    className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs"
                                   >
                                     <div className="flex items-center gap-2.5">
                                       <div
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
-                                          m.tipo === 'SUPRIMENTO'
-                                            ? 'bg-emerald-500/20 text-emerald-400'
-                                            : m.tipo === 'SANGRIA'
-                                            ? 'bg-rose-500/20 text-rose-400'
-                                            : m.tipo === 'DESPESA'
-                                            ? 'bg-amber-500/20 text-amber-400'
-                                            : 'bg-indigo-500/20 text-indigo-400'
-                                        }`}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                                       >
                                         {m.tipo === 'SUPRIMENTO' && <ArrowDown className="w-4 h-4" />}
                                         {m.tipo === 'SANGRIA' && <ArrowUp className="w-4 h-4" />}
@@ -2352,8 +2347,8 @@ export const FinancasCaixa: React.FC = () => {
                                         {m.tipo === 'VENDA' && <ShoppingCart className="w-4 h-4" />}
                                       </div>
                                       <div>
-                                        <span className="font-bold text-slate-200 block">{m.descricao}</span>
-                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                                        <span className="font-bold text-slate-900 dark:text-slate-200 block">{m.descricao}</span>
+                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                                           <span className="uppercase font-semibold">{m.metodo_pagamento}</span>
                                           <span>•</span>
                                           <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
@@ -2367,12 +2362,8 @@ export const FinancasCaixa: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    <span
-                                      className={`font-black text-sm ${
-                                        ehSaida ? 'text-rose-400' : 'text-emerald-400'
-                                      }`}
-                                    >
-                                      {ehSaida ? '-' : '+'} R$ {Number(m.valor).toFixed(2)}
+                                    <span className="font-bold text-sm text-slate-900 dark:text-white">
+                                      {ehSaida ? '-' : '+'} {formatarMoeda(m.valor)}
                                     </span>
                                   </div>
                                 );
