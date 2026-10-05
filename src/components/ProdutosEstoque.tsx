@@ -796,22 +796,22 @@ export const ProdutosEstoque: React.FC = () => {
             if (e.target === e.currentTarget) setModalFiltroAberto(false);
           }}
         >
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl text-slate-100 animate-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl text-slate-900 dark:text-slate-100 animate-in zoom-in-95 duration-150">
             {/* Cabeçalho do Modal */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 flex items-center justify-center">
                   <Filter className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-100">Filtrar Produtos & Estoque</h3>
-                  <p className="text-[11px] text-slate-400">Escolha as categorias e a situação de estoque desejadas</p>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Filtrar Produtos & Estoque</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Escolha as categorias e a situação de estoque desejadas</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setModalFiltroAberto(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -823,14 +823,14 @@ export const ProdutosEstoque: React.FC = () => {
               {/* Categoria */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Categoria
                   </label>
                   {categoriasFiltro.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setCategoriasFiltro([])}
-                      className="text-[11px] text-emerald-400 hover:underline cursor-pointer"
+                      className="text-[11px] text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:underline cursor-pointer font-semibold"
                     >
                       Limpar categorias
                     </button>
@@ -843,12 +843,12 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setCategoriasFiltro([])}
                     className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between ${
                       categoriasFiltro.length === 0
-                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>Todas as Categorias</span>
-                    {categoriasFiltro.length === 0 && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                    {categoriasFiltro.length === 0 && <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />}
                   </button>
 
                   {categorias.map((c) => {
@@ -865,12 +865,12 @@ export const ProdutosEstoque: React.FC = () => {
                         }}
                         className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between truncate ${
                           isSelected
-                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
-                            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                            ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
+                            : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                         }`}
                       >
                         <span className="truncate">{c.icone ? `${c.icone} ` : ''}{c.nome} ({qtdProdutosNaCat})</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0 ml-1" />}
                       </button>
                     );
                   })}
@@ -879,7 +879,7 @@ export const ProdutosEstoque: React.FC = () => {
 
               {/* Situação do Estoque */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Situação do Estoque
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -888,12 +888,12 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroEstoque('todos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroEstoque === 'todos'
-                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>Todos</span>
-                    <span className="text-[10px] text-slate-400">Sem restrição</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Sem restrição</span>
                   </button>
 
                   <button
@@ -901,12 +901,12 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroEstoque('baixo')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroEstoque === 'baixo'
-                        ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold dark:bg-amber-500/15 dark:border-amber-500 dark:text-amber-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>⚠️ Estoque Baixo</span>
-                    <span className="text-[10px] text-amber-400/80">{produtosAlertaEstoque.length} itens</span>
+                    <span className="text-[10px] text-amber-700 dark:text-amber-400/80">{produtosAlertaEstoque.length} itens</span>
                   </button>
 
                   <button
@@ -914,19 +914,19 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroEstoque('zerado')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroEstoque === 'zerado'
-                        ? 'bg-rose-500/15 border-rose-500 text-rose-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-rose-100 border-rose-400 text-rose-950 font-bold dark:bg-rose-500/15 dark:border-rose-500 dark:text-rose-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>🚫 Sem Estoque</span>
-                    <span className="text-[10px] text-rose-400/80">Zerados</span>
+                    <span className="text-[10px] text-rose-700 dark:text-rose-400/80">Zerados</span>
                   </button>
                 </div>
               </div>
 
               {/* Status do Produto (Ativo / Inativo) */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Status do Produto
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -935,12 +935,12 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroAtivo('todos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroAtivo === 'todos'
-                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>Todos</span>
-                    <span className="text-[10px] text-slate-400">Ativos e Inativos</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Ativos e Inativos</span>
                   </button>
 
                   <button
@@ -948,12 +948,12 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroAtivo('ativos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroAtivo === 'ativos'
-                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>✅ Ativos</span>
-                    <span className="text-[10px] text-emerald-400/80">Habilitados</span>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400/80">Habilitados</span>
                   </button>
 
                   <button
@@ -961,19 +961,19 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroAtivo('inativos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroAtivo === 'inativos'
-                        ? 'bg-rose-500/15 border-rose-500 text-rose-300 font-bold'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-rose-100 border-rose-400 text-rose-950 font-bold dark:bg-rose-500/15 dark:border-rose-500 dark:text-rose-300'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <span>🚫 Inativos</span>
-                    <span className="text-[10px] text-rose-400/80">Desabilitados</span>
+                    <span className="text-[10px] text-rose-700 dark:text-rose-400/80">Desabilitados</span>
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => {
@@ -981,7 +981,7 @@ export const ProdutosEstoque: React.FC = () => {
                   setFiltroEstoque('todos');
                   setFiltroAtivo('todos');
                 }}
-                className="text-xs text-slate-400 hover:text-rose-400 transition cursor-pointer"
+                className="px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold dark:border-slate-800 dark:text-slate-400 dark:hover:text-rose-400 transition cursor-pointer"
               >
                 Limpar Filtros
               </button>
@@ -989,7 +989,7 @@ export const ProdutosEstoque: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFiltroAberto(false)}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs shadow-sm transition cursor-pointer"
               >
                 Aplicar e Ver ({produtosFiltrados.length})
               </button>
