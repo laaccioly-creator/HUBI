@@ -483,10 +483,10 @@ export const AppLayout: React.FC = () => {
                       isActive
                         ? isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
-                          : 'bg-emerald-400 hover:bg-emerald-500 border border-emerald-500 text-slate-950 font-bold shadow-xs'
+                          : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -516,10 +516,10 @@ export const AppLayout: React.FC = () => {
                       isActive
                         ? isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
-                          : 'bg-emerald-400 hover:bg-emerald-500 border border-emerald-500 text-slate-950 font-bold shadow-xs'
+                          : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -539,13 +539,13 @@ export const AppLayout: React.FC = () => {
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-left cursor-pointer shadow-xs ${
                   isDark
                     ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold'
-                    : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
                 }`}
               >
                 <div className={`w-6 h-6 rounded-lg font-bold text-[11px] flex items-center justify-center border ${
                   isDark
                     ? 'bg-emerald-600/30 text-white border-emerald-500/40'
-                    : 'bg-emerald-300 text-slate-950 border-emerald-400/50'
+                    : 'bg-slate-200 text-slate-900 border-slate-300'
                 }`}>
                   {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
                 </div>
