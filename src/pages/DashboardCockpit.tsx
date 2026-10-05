@@ -197,12 +197,12 @@ export const DashboardCockpit: React.FC = () => {
           {/* Seletor de Período Padronizado & Ações Rápidas */}
           <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
             
-            {/* Seletor Kyte Style de Períodos com tom Creme/Pastel (Light) e Esmeralda Sólido (Dark) */}
-            <div className="relative flex items-center bg-[#F7F4EE] hover:bg-[#EFE9DC] border border-[#E5DEC9] text-[#4A4238] font-bold rounded-xl p-0.5 shadow-xs transition dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:border-emerald-400 dark:text-slate-950">
+            {/* Seletor Kyte Style de Períodos unificado com a base dos botões do menu */}
+            <div className="relative flex items-center bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold rounded-xl p-0.5 shadow-xs transition dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:border-emerald-400 dark:text-slate-950 dark:font-bold">
               <button
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev - 1)}
-                className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-black/10 text-[#4A4238] dark:text-slate-950 transition cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-800 transition cursor-pointer dark:hover:bg-black/10 dark:text-slate-950"
                 title="Período Anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -212,11 +212,11 @@ export const DashboardCockpit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDropdownPeriodoAberto(prev => !prev)}
-                  className="w-full px-2 py-1 text-xs font-bold text-[#4A4238] dark:text-slate-950 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full px-2 py-1 text-xs font-bold text-slate-900 transition flex items-center justify-center gap-1.5 cursor-pointer dark:text-slate-950"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-[#4A4238] dark:text-slate-950 opacity-90" />
+                  <Calendar className="w-3.5 h-3.5 text-slate-700 opacity-90 dark:text-slate-950" />
                   <span>{labelExibicaoPeriodo}</span>
-                  <ChevronDown className="w-3 h-3 text-[#4A4238] dark:text-slate-950 opacity-80" />
+                  <ChevronDown className="w-3 h-3 text-slate-600 opacity-80 dark:text-slate-950" />
                 </button>
 
                 {/* Dropdown de 9 Opções de Período */}
@@ -238,12 +238,12 @@ export const DashboardCockpit: React.FC = () => {
                           }}
                           className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
                             tipoPeriodo === op.id
-                              ? 'bg-[#F7F4EE] border border-[#E5DEC9] text-[#4A4238] font-bold dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
+                              ? 'bg-slate-200/80 border border-slate-300 text-slate-900 font-bold dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
                               : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
                           <span>{op.label}</span>
-                          {tipoPeriodo === op.id && <Check className="w-3.5 h-3.5 text-[#4A4238] dark:text-emerald-400" />}
+                          {tipoPeriodo === op.id && <Check className="w-3.5 h-3.5 text-slate-800 dark:text-emerald-400" />}
                         </button>
                       ))}
                     </div>
@@ -255,7 +255,7 @@ export const DashboardCockpit: React.FC = () => {
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev + 1)}
                 disabled={periodoOffset >= 0}
-                className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-black/10 text-[#4A4238] dark:text-slate-950 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-800 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-black/10 dark:text-slate-950"
                 title="Próximo Período"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -294,25 +294,25 @@ export const DashboardCockpit: React.FC = () => {
               </span>
             )}
 
-            {/* Botão de Atualização Rápida com tom Pastel / Esmeralda Sólido */}
+            {/* Botão de Atualização Rápida unificado com a base dos botões */}
             <button
               type="button"
               onClick={() => carregarMetricas(true)}
               disabled={carregando}
               title="Recarregar Indicadores"
-              className="p-2 rounded-xl bg-[#F7F4EE] hover:bg-[#EFE9DC] border border-[#E5DEC9] text-[#4A4238] font-bold dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:border-emerald-400 dark:text-slate-950 transition cursor-pointer shadow-xs disabled:opacity-50"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs transition cursor-pointer disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:border-emerald-400 dark:text-slate-950 dark:font-bold"
             >
-              <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''} text-[#4A4238] dark:text-slate-950`} />
+              <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''} text-slate-800 dark:text-slate-950`} />
             </button>
 
-            {/* Atalho para Configurar Metas com tom Pastel / Esmeralda Sólido */}
+            {/* Atalho para Configurar Metas unificado com a base dos botões */}
             {podeGerenciarMetas && (
               <button
                 type="button"
                 onClick={() => setModalMetasAberto(true)}
-                className="px-3.5 py-2 rounded-xl bg-[#F7F4EE] hover:bg-[#EFE9DC] border border-[#E5DEC9] text-[#4A4238] font-bold text-xs flex items-center gap-2 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:border-emerald-400 dark:text-slate-950 transition cursor-pointer shadow-xs group"
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer group dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:border-emerald-400 dark:text-slate-950 dark:font-bold"
               >
-                <Settings className="w-4 h-4 text-[#4A4238] dark:text-slate-950 group-hover:rotate-45 transition-transform duration-200" />
+                <Settings className="w-4 h-4 text-slate-800 group-hover:rotate-45 transition-transform duration-200 dark:text-slate-950" />
                 <span>Configurar Metas</span>
               </button>
             )}

@@ -479,16 +479,16 @@ export const AppLayout: React.FC = () => {
                     key={item.path}
                     type="button"
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
-                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
+                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
                           : item.path === '/dashboard'
-                          ? 'bg-[#F7F4EE] hover:bg-[#EFE9DC] border border-[#E5DEC9] text-[#4A4238] font-bold shadow-xs'
+                          ? 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
                           : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -514,14 +514,14 @@ export const AppLayout: React.FC = () => {
                     key={item.path}
                     type="button"
                     onClick={(e) => handleNavegacaoMenu(item.path, e)}
-                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
+                    className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
                           : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
