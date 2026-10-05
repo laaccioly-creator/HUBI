@@ -1684,30 +1684,30 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalSuprimento(true)}
-                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="Adicionar Troco Extra na Gaveta"
                       >
-                        <ArrowDown className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <ArrowDown className="w-4 h-4 text-emerald-800 dark:text-emerald-300" />
                         <span>Suprimento</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalSangria(true)}
-                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="Retirar Dinheiro para o Cofre"
                       >
-                        <ArrowUp className="w-4 h-4 text-rose-500" />
+                        <ArrowUp className="w-4 h-4 text-emerald-800 dark:text-emerald-300" />
                         <span>Sangria</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalDespesaRapida(true)}
-                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="Despesa Paga com Dinheiro da Gaveta"
                       >
-                        <Banknote className="w-4 h-4 text-amber-500" />
+                        <Banknote className="w-4 h-4 text-emerald-800 dark:text-emerald-300" />
                         <span>Despesa Gaveta</span>
                       </button>
                     </>
@@ -1716,7 +1716,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalFechamentoCego(true)}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                   >
                     <Lock className="w-4 h-4" />
                     <span>Fechar Caixa</span>
@@ -1726,7 +1726,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAberturaCaixa(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                 >
                   <Unlock className="w-4 h-4" />
                   <span>Abrir Caixa</span>
@@ -1749,7 +1749,7 @@ export const FinancasCaixa: React.FC = () => {
                     type="button"
                     onClick={handleExportarEntradas}
                     title="Exportar Entradas Gerais para Excel (.xlsx)"
-                    className="px-1.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold transition cursor-pointer border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1"
+                    className="px-1.5 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer flex items-center gap-1"
                   >
                     <FileSpreadsheet className="w-3 h-3" />
                     <span>Excel</span>
@@ -1757,7 +1757,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('entradas')}
-                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700"
+                    className="px-2 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer"
                   >
                     Detalhar
                   </button>
@@ -1780,7 +1780,7 @@ export const FinancasCaixa: React.FC = () => {
                       type="button"
                       onClick={abrirModalNovaDespesa}
                       title="Lançar Nova Despesa"
-                      className="px-1.5 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/30 text-rose-700 dark:text-rose-300 text-[10px] font-bold transition cursor-pointer border border-rose-200 dark:border-rose-500/30 flex items-center gap-0.5"
+                      className="px-1.5 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer flex items-center gap-0.5"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Nova</span>
@@ -1789,7 +1789,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('saidas')}
-                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700"
+                    className="px-2 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer"
                   >
                     Detalhar
                   </button>
@@ -1812,7 +1812,7 @@ export const FinancasCaixa: React.FC = () => {
                       type="button"
                       onClick={abrirModalNovaContaPagar}
                       title="Lançar Nova Conta a Pagar"
-                      className="px-1.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold transition cursor-pointer border border-amber-200 dark:border-amber-500/30 flex items-center gap-0.5"
+                      className="px-1.5 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer flex items-center gap-0.5"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Nova</span>
@@ -1821,7 +1821,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('pagar')}
-                    className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700"
+                    className="px-2 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer"
                   >
                     Detalhar
                   </button>
@@ -1844,7 +1844,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica('lucro')}
-                  className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold transition cursor-pointer border border-slate-200 dark:border-slate-700 shrink-0"
+                  className="px-2 py-0.5 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] transition cursor-pointer shrink-0"
                 >
                   Detalhar
                 </button>
@@ -2306,21 +2306,21 @@ export const FinancasCaixa: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setModalSuprimento(true)}
-                                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                                  className="px-3 py-1.5 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-xl cursor-pointer"
                                 >
                                   + Suprimento
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setModalSangria(true)}
-                                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                                  className="px-3 py-1.5 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-xl cursor-pointer"
                                 >
                                   - Sangria
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setModalDespesaRapida(true)}
-                                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                                  className="px-3 py-1.5 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-xl cursor-pointer"
                                 >
                                   - Despesa
                                 </button>
@@ -2384,7 +2384,7 @@ export const FinancasCaixa: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setModalFechamentoCego(true)}
-                            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-amber-500/25 transition cursor-pointer flex items-center gap-2"
+                            className="px-6 py-3 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-2xl shadow-md transition cursor-pointer flex items-center gap-2"
                           >
                             <Lock className="w-4 h-4" />
                             <span>Realizar Fechamento Cego de Caixa</span>
@@ -2576,9 +2576,9 @@ export const FinancasCaixa: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleAbrirDrillDown(cx)}
-                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+                              className="px-4 py-2 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                             >
-                              <Search className="w-3.5 h-3.5 text-indigo-400" />
+                              <Search className="w-3.5 h-3.5 text-slate-700 dark:text-emerald-300" />
                               <span>Inspecionar (Drill-Down)</span>
                             </button>
 
@@ -2650,14 +2650,14 @@ export const FinancasCaixa: React.FC = () => {
               </div>
 
               {/* SELETOR DE TIPO: DESPESA PAGA vs CONTA A PAGAR */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setStatusLancamento('pago')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     statusLancamento === 'pago'
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-emerald-200 text-slate-900 border border-emerald-300/60 dark:bg-emerald-600 dark:border-emerald-500 dark:text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <ArrowDownRight className="w-3.5 h-3.5" />
@@ -2666,10 +2666,10 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setStatusLancamento('pendente')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     statusLancamento === 'pendente'
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-emerald-200 text-slate-900 border border-emerald-300/60 dark:bg-emerald-600 dark:border-emerald-500 dark:text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <AlertTriangle className="w-3.5 h-3.5" />
@@ -2782,11 +2782,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvandoDespesa}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white ${
-                    statusLancamento === 'pendente'
-                      ? 'bg-amber-500 hover:bg-amber-600'
-                      : 'bg-rose-600 hover:bg-rose-700'
-                  }`}
+                  className="w-full py-3.5 rounded-xl font-semibold text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white"
                 >
                   {salvandoDespesa
                     ? 'Salvando...'
@@ -3090,7 +3086,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoSuprimento}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoSuprimento ? 'Registrando...' : 'Confirmar Suprimento'}
                 </button>
@@ -3158,7 +3154,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoSangria}
-                  className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoSangria ? 'Processando...' : 'Confirmar Sangria'}
                 </button>
@@ -3246,7 +3242,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoDespesaRapida}
-                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoDespesaRapida ? 'Lançando...' : 'Confirmar Saída da Gaveta'}
                 </button>
@@ -3307,7 +3303,7 @@ export const FinancasCaixa: React.FC = () => {
                     placeholder="0.00"
                     value={contagemDinheiro}
                     onChange={(e) => setContagemDinheiro(e.target.value)}
-                    className="w-full bg-amber-50/50 border-2 border-amber-500 rounded-2xl px-4 py-3 text-2xl font-black text-amber-700 text-center focus:outline-none"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-3 text-2xl font-black text-slate-900 dark:text-white text-center focus:outline-none"
                   />
                   <span className="text-[10px] text-slate-400 block text-center mt-1">
                     Soma de todas as cédulas e moedas físicas presentes na gaveta
@@ -3380,7 +3376,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoFechamento}
-                  className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="w-full py-4 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-sm shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {processandoFechamento ? 'Apurando e Encerrando...' : 'Concluir Fechamento Cego'}
                 </button>
@@ -3455,14 +3451,14 @@ export const FinancasCaixa: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
                   <span className="text-[11px] text-slate-500 font-bold block">Total Faturado (Vendas)</span>
-                  <span className="text-lg font-black text-emerald-600 block">
+                  <span className="text-lg font-black text-slate-900 dark:text-white block">
                     R$ {relatorioFechamentoResumo.faturamentoTotalVendas.toFixed(2)}
                   </span>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
                   <span className="text-[11px] text-slate-500 font-bold block">Esperado em Dinheiro</span>
-                  <span className="text-lg font-black text-slate-900 block">
+                  <span className="text-lg font-black text-slate-900 dark:text-white block">
                     R$ {relatorioFechamentoResumo.saldoEsperadoDinheiro.toFixed(2)}
                   </span>
                   <span className="text-[10px] text-slate-400">Fundo + Vendas - Saídas</span>
@@ -3470,7 +3466,7 @@ export const FinancasCaixa: React.FC = () => {
 
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
                   <span className="text-[11px] text-slate-500 font-bold block">Contado pelo Operador</span>
-                  <span className="text-lg font-black text-amber-600 block">
+                  <span className="text-lg font-black text-slate-900 dark:text-white block">
                     R$ {Number(relatorioFechamentoResumo.sessao.saldo_declarado_dinheiro ?? relatorioFechamentoResumo.sessao.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                   </span>
                   <span className="text-[10px] text-slate-400">Valor físico declarado</span>
@@ -3493,27 +3489,27 @@ export const FinancasCaixa: React.FC = () => {
                       <tr className="hover:bg-slate-50/75">
                         <td className="p-2.5 font-medium text-slate-800">Dinheiro</td>
                         <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.dinheiro}</td>
-                        <td className="p-2.5 text-right font-bold text-emerald-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.dinheiro.toFixed(2)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900 dark:text-white">R$ {relatorioFechamentoResumo.totaisPorMetodo.dinheiro.toFixed(2)}</td>
                       </tr>
                       <tr className="hover:bg-slate-50/75">
                         <td className="p-2.5 font-medium text-slate-800">Pix</td>
                         <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.pix}</td>
-                        <td className="p-2.5 text-right font-bold text-cyan-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.pix.toFixed(2)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900 dark:text-white">R$ {relatorioFechamentoResumo.totaisPorMetodo.pix.toFixed(2)}</td>
                       </tr>
                       <tr className="hover:bg-slate-50/75">
                         <td className="p-2.5 font-medium text-slate-800">Cartão de Débito</td>
                         <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_debito}</td>
-                        <td className="p-2.5 text-right font-bold text-blue-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_debito.toFixed(2)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900 dark:text-white">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_debito.toFixed(2)}</td>
                       </tr>
                       <tr className="hover:bg-slate-50/75">
                         <td className="p-2.5 font-medium text-slate-800">Cartão de Crédito</td>
                         <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_credito}</td>
-                        <td className="p-2.5 text-right font-bold text-purple-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_credito.toFixed(2)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900 dark:text-white">R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_credito.toFixed(2)}</td>
                       </tr>
                       <tr className="hover:bg-slate-50/75">
                         <td className="p-2.5 font-medium text-slate-800">Outros</td>
                         <td className="p-2.5 text-center text-slate-500">{relatorioFechamentoResumo.qtdVendasPorMetodo.outros}</td>
-                        <td className="p-2.5 text-right font-bold text-amber-700">R$ {relatorioFechamentoResumo.totaisPorMetodo.outros.toFixed(2)}</td>
+                        <td className="p-2.5 text-right font-bold text-slate-900 dark:text-white">R$ {relatorioFechamentoResumo.totaisPorMetodo.outros.toFixed(2)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -3535,7 +3531,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleEnviarWhatsappRelatorioTexto(relatorioFechamentoTexto)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                   >
                     <Share2 className="w-4 h-4" />
                     <span>WhatsApp</span>
@@ -3546,7 +3542,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleImprimirRelatorioTexto(relatorioFechamentoResumo)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-2 transition cursor-pointer shadow-xs"
                   >
                     <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
@@ -3555,7 +3551,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalRelatorioFechamento(false)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold transition cursor-pointer"
                   >
                     Fechar
                   </button>
@@ -3623,29 +3619,23 @@ export const FinancasCaixa: React.FC = () => {
 
                   {/* CARDS COMPARATIVOS */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
                       <span className="text-[10px] text-slate-500 block font-medium">Total Faturado</span>
-                      <span className="font-black text-sm text-emerald-600">R$ {resumoDrillDown.faturamentoTotalVendas.toFixed(2)}</span>
+                      <span className="font-black text-sm text-slate-900 dark:text-white">R$ {resumoDrillDown.faturamentoTotalVendas.toFixed(2)}</span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
                       <span className="text-[10px] text-slate-500 block font-medium">Esperado Dinheiro</span>
-                      <span className="font-black text-sm text-slate-800">R$ {resumoDrillDown.saldoEsperadoDinheiro.toFixed(2)}</span>
+                      <span className="font-black text-sm text-slate-900 dark:text-white">R$ {resumoDrillDown.saldoEsperadoDinheiro.toFixed(2)}</span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
                       <span className="text-[10px] text-slate-500 block font-medium">Declarado Físico</span>
-                      <span className="font-black text-sm text-amber-600">
+                      <span className="font-black text-sm text-slate-900 dark:text-white">
                         R$ {Number(sessaoDrillDown.saldo_declarado_dinheiro ?? sessaoDrillDown.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                       </span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
                       <span className="text-[10px] text-slate-500 block font-medium">Diferença Final</span>
-                      <span className={`font-black text-sm ${
-                        Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
-                          ? 'text-emerald-600'
-                          : Number(sessaoDrillDown.diferenca_dinheiro || 0) > 0
-                          ? 'text-cyan-600'
-                          : 'text-rose-600'
-                      }`}>
+                      <span className="font-black text-sm text-slate-900 dark:text-white">
                         {Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
                           ? 'R$ 0,00'
                           : `R$ ${Number(sessaoDrillDown.diferenca_dinheiro).toFixed(2)}`}
@@ -3687,9 +3677,7 @@ export const FinancasCaixa: React.FC = () => {
                                 <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
                               </div>
                             </div>
-                            <span className={`font-bold ${
-                              m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? 'text-rose-600' : 'text-emerald-600'
-                            }`}>
+                            <span className="font-bold text-slate-900 dark:text-white">
                               {m.tipo === 'SANGRIA' || m.tipo === 'DESPESA' ? '-' : '+'} R$ {Number(m.valor).toFixed(2)}
                             </span>
                           </div>
@@ -3709,7 +3697,7 @@ export const FinancasCaixa: React.FC = () => {
                         PrintService.printFechamentoCaixa({ ...resumoDrillDown, sessao: sessaoDrillDown }, loja);
                       }
                     }}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    className="px-4 py-2 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs"
                   >
                     <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
@@ -3718,7 +3706,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalDrillDown(false)}
-                  className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer ml-auto"
+                  className="px-5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs transition cursor-pointer ml-auto"
                 >
                   Fechar Auditoria
                 </button>
@@ -3948,25 +3936,25 @@ export const FinancasCaixa: React.FC = () => {
         {/* ========================================================================= */}
         {modalDetalhesMetrica && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-            <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 font-bold flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center">
                     <Info className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-800">
+                    <h3 className="font-bold text-base text-slate-800 dark:text-white">
                       {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
                       {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Despesas'}
                       {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
                       {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
                     </h3>
-                    <span className="text-xs text-slate-500">Composição detalhada dos valores apurados</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Composição detalhada dos valores apurados</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setModalDetalhesMetrica(null)}
-                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition cursor-pointer"
+                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3975,30 +3963,30 @@ export const FinancasCaixa: React.FC = () => {
               <div className="space-y-4">
                 {modalDetalhesMetrica === 'entradas' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3">
                       <div>
-                        <span className="text-xs text-slate-500 font-semibold block">Total de Entradas Recebidas:</span>
-                        <span className="text-xl font-black text-emerald-600">R$ {totalReceitas.toFixed(2)}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold block">Total de Entradas Recebidas:</span>
+                        <span className="text-xl font-black text-slate-900 dark:text-white">R$ {totalReceitas.toFixed(2)}</span>
                       </div>
                       <button
                         type="button"
                         onClick={handleExportarEntradas}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                       >
                         <FileSpreadsheet className="w-4 h-4" />
                         <span>Exportar Excel</span>
                       </button>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-700 block">Últimas Transações de Entrada:</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Últimas Transações de Entrada:</span>
                       <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
-                          <div key={t.id} className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center text-xs shadow-2xs">
+                          <div key={t.id} className="p-2.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs shadow-2xs">
                             <div>
-                              <span className="font-bold text-slate-800 block truncate">{t.descricao}</span>
-                              <span className="text-[10px] text-slate-500">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-100 block truncate">{t.descricao}</span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">{t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}</span>
                             </div>
-                            <span className="font-bold text-emerald-600 text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
+                            <span className="font-bold text-slate-900 dark:text-white text-xs shrink-0">+ R$ {t.valor.toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
@@ -4008,16 +3996,16 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'saidas' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3">
                       <div>
-                        <span className="text-xs text-slate-500 font-semibold block">Total de Despesas:</span>
-                        <span className="text-xl font-black text-rose-600">R$ {totalDespesasPagas.toFixed(2)}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold block">Total de Despesas:</span>
+                        <span className="text-xl font-black text-slate-900 dark:text-white">R$ {totalDespesasPagas.toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={handleExportarDespesas}
-                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -4029,7 +4017,7 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaDespesa();
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1 shadow-xs transition cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Nova Despesa</span>
@@ -4038,33 +4026,33 @@ export const FinancasCaixa: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-700 block">Últimas Despesas Registradas:</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Últimas Despesas Registradas:</span>
                       <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
                           const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
                           return (
-                            <div key={t.id} className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs shadow-2xs">
+                            <div key={t.id} className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs shadow-2xs">
                               <div className="flex-1 min-w-0">
-                                <span className="font-bold text-slate-800 block truncate leading-tight">
+                                <span className="font-bold text-slate-800 dark:text-slate-100 block truncate leading-tight">
                                   {descLimpa}
                                 </span>
-                                <span className="text-[10px] text-slate-500 block mt-1">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
                                   {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-black text-rose-600 text-xs block">
+                                <span className="font-black text-slate-900 dark:text-white text-xs block">
                                   - R$ {t.valor.toFixed(2)}
                                 </span>
                                 {permissions.ehAdmin && !t.id.startsWith('ped_') && (
-                                  <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+                                  <div className="flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-slate-800">
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setModalDetalhesMetrica(null);
                                         abrirModalEditarTransacao(t);
                                       }}
-                                      className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition cursor-pointer"
+                                      className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-800 dark:text-slate-300 transition cursor-pointer"
                                       title="Editar Despesa"
                                     >
                                       <Pencil className="w-3 h-3" />
@@ -4075,7 +4063,7 @@ export const FinancasCaixa: React.FC = () => {
                                         setModalDetalhesMetrica(null);
                                         setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
                                       }}
-                                      className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition cursor-pointer"
+                                      className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition cursor-pointer"
                                       title="Excluir Despesa"
                                     >
                                       <Trash2 className="w-3 h-3" />
@@ -4093,16 +4081,16 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'pagar' && (
                   <div className="space-y-3">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between items-center gap-3">
                       <div>
-                        <span className="text-xs text-amber-700 font-semibold block">Total de Contas Pendentes a Pagar:</span>
-                        <span className="text-xl font-black text-amber-600">R$ {totalDespesasPendentes.toFixed(2)}</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold block">Total de Contas Pendentes a Pagar:</span>
+                        <span className="text-xl font-black text-slate-900 dark:text-white">R$ {totalDespesasPendentes.toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={handleExportarContasPagar}
-                          className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -4114,7 +4102,7 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaContaPagar();
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1 shadow-xs transition cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Nova Conta</span>
@@ -4123,18 +4111,18 @@ export const FinancasCaixa: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <span className="text-xs font-bold text-slate-700 block">Lista de Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length}):</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Lista de Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length}):</span>
                       <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
-                          <div key={t.id} className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center text-xs shadow-2xs">
+                          <div key={t.id} className="p-2.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs shadow-2xs">
                             <div className="min-w-0 flex-1 pr-2">
-                              <span className="font-bold text-slate-800 block truncate">{t.descricao}</span>
-                              <span className="text-[10px] text-amber-700 font-medium">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-100 block truncate">{t.descricao}</span>
+                              <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium">Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}</span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="font-bold text-amber-600 text-xs">R$ {t.valor.toFixed(2)}</span>
+                              <span className="font-bold text-slate-900 dark:text-white text-xs">R$ {t.valor.toFixed(2)}</span>
                               {permissions.ehAdmin && (
-                                <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+                                <div className="flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-slate-800">
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -4147,7 +4135,7 @@ export const FinancasCaixa: React.FC = () => {
                                         processando: false
                                       });
                                     }}
-                                    className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs"
+                                    className="px-2 py-1 rounded-lg bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs"
                                     title="Pagar / Baixar Conta"
                                   >
                                     <CheckCircle2 className="w-3 h-3" />
@@ -4159,7 +4147,7 @@ export const FinancasCaixa: React.FC = () => {
                                       setModalDetalhesMetrica(null);
                                       abrirModalEditarTransacao(t);
                                     }}
-                                    className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition cursor-pointer"
+                                    className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-800 dark:text-slate-300 transition cursor-pointer"
                                     title="Editar Conta"
                                   >
                                     <Pencil className="w-3 h-3" />
@@ -4170,7 +4158,7 @@ export const FinancasCaixa: React.FC = () => {
                                       setModalDetalhesMetrica(null);
                                       setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
                                     }}
-                                    className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition cursor-pointer"
+                                    className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition cursor-pointer"
                                     title="Excluir Conta"
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -4187,41 +4175,41 @@ export const FinancasCaixa: React.FC = () => {
 
                 {modalDetalhesMetrica === 'lucro' && (
                   <div className="space-y-3">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs">
-                      <div className="flex justify-between items-center text-slate-700">
+                    <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs">
+                      <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
                         <span className="flex items-center gap-1.5 font-medium">
-                          <ArrowUpRight className="w-4 h-4 text-emerald-600" /> (+) Entradas / Receitas Totais:
+                          <ArrowUpRight className="w-4 h-4 text-slate-900 dark:text-white" /> (+) Entradas / Receitas Totais:
                         </span>
-                        <span className="font-bold text-emerald-600 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
                       </div>
 
-                      <div className="flex justify-between items-center text-slate-700">
+                      <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
                         <span className="flex items-center gap-1.5 font-medium">
-                          <ArrowDownRight className="w-4 h-4 text-rose-600" /> (-) Saídas / Despesas Pagas:
+                          <ArrowDownRight className="w-4 h-4 text-slate-900 dark:text-white" /> (-) Saídas / Despesas Pagas:
                         </span>
-                        <span className="font-bold text-rose-600 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                        <span className="font-bold text-slate-800 text-sm">(=) Resultado Acumulado em Caixa:</span>
-                        <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                        <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">(=) Resultado Acumulado em Caixa:</span>
+                        <span className="text-lg font-black text-slate-900 dark:text-white">
                           R$ {lucroLiquido.toFixed(2)}
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 text-[11px] text-slate-600 leading-relaxed">
+                    <div className="p-3 bg-slate-100/70 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                       💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-2 border-t border-slate-100 flex justify-end">
+              <div className="p-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica(null)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs transition cursor-pointer shadow-xs"
                 >
                   Fechar
                 </button>

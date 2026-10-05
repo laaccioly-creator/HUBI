@@ -368,7 +368,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               type="button"
               onClick={handleSalvarConfiguracoes}
               disabled={salvando}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+              className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-2 transition cursor-pointer disabled:opacity-50 animate-in fade-in shadow-xs"
             >
               <Save className="w-4 h-4" />
               <span>{salvando ? 'Salvando...' : 'Salvar Alterações'}</span>
@@ -413,7 +413,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             href={catalogoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer shrink-0"
+            className="px-5 py-3 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-xs"
           >
             <span>Ver em outra aba</span>
             <ExternalLink className="w-4 h-4" />
@@ -570,8 +570,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-xs ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Lista</h4>
-                    <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-sm ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Lista</h4>
+                    <p className="text-sm text-slate-800 dark:text-slate-400 leading-normal mt-1">
                       Navegação mais rápida, ideal para grandes quantidades de produtos.
                     </p>
                   </div>
@@ -595,8 +595,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-xs ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Grade</h4>
-                    <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-sm ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Grade</h4>
+                    <p className="text-sm text-slate-800 dark:text-slate-400 leading-normal mt-1">
                       Ideal para ver vários produtos com fotos e destaques visuais ao mesmo tempo.
                     </p>
                   </div>
@@ -620,8 +620,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-xs ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Instaview</h4>
-                    <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight mt-1">
+                    <h4 className={`font-bold text-sm ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Instaview</h4>
+                    <p className="text-sm text-slate-800 dark:text-slate-400 leading-normal mt-1">
                       Estilo feed de fotos com imagens grandes e imersão total para moda e lifestyle.
                     </p>
                   </div>
@@ -634,7 +634,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Banner da loja</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
+                  <p className="text-sm text-slate-800 dark:text-slate-400 mt-0.5">
                     Ocultar ou exibir o banner da loja no topo do catálogo online.
                   </p>
                 </div>
@@ -687,7 +687,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Produtos sem estoque</h3>
-                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
+                <p className="text-sm text-slate-800 dark:text-slate-400 mt-0.5">
                   Defina o comportamento do catálogo para produtos que zeraram no estoque físico.
                 </p>
               </div>
@@ -727,8 +727,8 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                       className="mt-1 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                     />
                     <div>
-                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">{opt.title}</span>
-                      <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">{opt.desc}</span>
+                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100 block">{opt.title}</span>
+                      <span className="text-sm text-slate-800 dark:text-slate-400 block mt-0.5">{opt.desc}</span>
                     </div>
                   </label>
                 ))}
@@ -740,7 +740,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exibir produtos sem foto</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
+                  <p className="text-sm text-slate-800 dark:text-slate-400 mt-0.5">
                     Defina se produtos que ainda não possuem imagens cadastradas devem aparecer no catálogo online.
                   </p>
                 </div>
@@ -756,7 +756,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 </label>
               </div>
 
-              <div className="p-3.5 bg-slate-100 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-400 flex items-center gap-2.5">
+              <div className="p-3.5 bg-slate-100 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm text-slate-800 dark:text-slate-400 flex items-center gap-2.5">
                 <ImageIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>
                   {exibirProdutosSemFoto

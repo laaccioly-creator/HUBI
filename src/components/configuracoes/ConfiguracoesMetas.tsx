@@ -198,12 +198,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
             Faturamento bruto mensal total projetado para a loja.
           </p>
 
           <div className="relative pt-1">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-800 dark:text-slate-300 pt-1">
               R$
             </span>
             <input
@@ -213,7 +213,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaFaturamento}
               onChange={(e) => setMetaFaturamento(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
@@ -230,7 +230,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
             Quantidade de pedidos/vendas concluídas no mês.
           </p>
 
@@ -259,12 +259,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
             Lucro após dedução de CMV, taxas financeiras e despesas operacionais pagas.
           </p>
 
           <div className="relative pt-1">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-800 dark:text-slate-300 pt-1">
               R$
             </span>
             <input
@@ -274,7 +274,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaLucroLiquido}
               onChange={(e) => setMetaLucroLiquido(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
@@ -291,12 +291,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
             Teto orçamentário mensal para saídas operacionais e despesas/sangrias de caixa.
           </p>
 
           <div className="relative pt-1">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-800 dark:text-slate-300 pt-1">
               R$
             </span>
             <input
@@ -306,7 +306,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaDespesasMaximas}
               onChange={(e) => setMetaDespesasMaximas(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
           </div>
         </div>
@@ -323,7 +323,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
             Teto limite de tolerância para contas/fiados com atraso superior a 30 dias.
           </p>
 
@@ -336,9 +336,9 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaInadimplenciaMaxima}
               onChange={(e) => setMetaInadimplenciaMaxima(parseFloat(e.target.value) || 0)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-8 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-8 py-2.5 text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-800 dark:text-slate-300 pt-1">
               %
             </span>
           </div>
@@ -356,7 +356,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
             Teto máximo tolerável de produtos ativos com estoque zerado ou abaixo do mínimo configurado (ex: meta de 0 rupturas).
           </p>
 
@@ -369,9 +369,9 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               disabled={!podeEditar || carregando}
               value={metaSaudeEstoqueRuptura}
               onChange={(e) => setMetaSaudeEstoqueRuptura(parseInt(e.target.value) || 0)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-14 py-2.5 text-sm font-black font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-14 py-2.5 text-sm font-bold font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50"
             />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-slate-800 dark:text-slate-300 pt-1">
               itens
             </span>
           </div>
@@ -384,7 +384,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           type="button"
           disabled={!podeEditar || carregando || salvando}
           onClick={handleRestaurarPadroes}
-          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-200 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Restaurar Padrões de Mercado</span>
@@ -395,7 +395,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             <button
               type="button"
               onClick={onVoltar}
-              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-slate-800 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-200 font-semibold text-xs border border-slate-300 dark:border-slate-800 transition cursor-pointer"
             >
               Voltar
             </button>
@@ -405,7 +405,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-slate-800 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-200 font-semibold text-xs border border-slate-300 dark:border-slate-800 transition cursor-pointer"
             >
               Fechar
             </button>
@@ -416,7 +416,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               type="button"
               disabled={salvando || carregando}
               onClick={handleSalvar}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {salvando ? (
                 <>
