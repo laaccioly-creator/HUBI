@@ -108,7 +108,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   const textoMeta = formatarValor(metaValida);
 
   // 4. Status e Cores do Badge de Desempenho
-  let badgeCor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+  let badgeCor = 'text-slate-900 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-500/10 border-emerald-400/60 dark:border-emerald-500/20';
   let badgeTexto = `${percentualMeta.toFixed(1)}%`;
   let atingiuMeta = false;
 
@@ -117,7 +117,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       // Para Despesas Operacionais (teto orçamentário: <= 80% verde, 80-100% amarelo, > 100% vermelho)
       if (metaValida > 0) {
         if (percentualMeta <= 80) {
-          badgeCor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20';
+          badgeCor = 'text-slate-900 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-500/10 border-emerald-400/60 dark:border-emerald-500/20';
           badgeTexto = `Dentro da meta (${percentualMeta.toFixed(0)}%)`;
           atingiuMeta = true;
         } else if (percentualMeta <= 100) {
@@ -129,7 +129,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
         }
       } else {
         badgeCor = realizadoValido === 0
-          ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20'
+          ? 'text-slate-900 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-500/10 border-emerald-400/60 dark:border-emerald-500/20'
           : 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/20';
         badgeTexto = realizadoValido === 0 ? 'Sem despesas' : 'Sem meta';
         atingiuMeta = realizadoValido === 0;
@@ -138,7 +138,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       // Para Inadimplência e Saúde do Estoque (quanto menor, melhor)
       const atingiu = metaValida > 0 ? realizadoValido <= metaValida : realizadoValido === 0;
       if (atingiu) {
-        badgeCor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20';
+        badgeCor = 'text-slate-900 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-500/10 border-emerald-400/60 dark:border-emerald-500/20';
         badgeTexto = tipoFormato === 'percentual'
           ? `Saudável (${realizadoValido.toFixed(1)}% / máx ${metaValida.toFixed(1)}%)`
           : `Saudável (${realizadoValido} / máx ${metaValida})`;
@@ -161,7 +161,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       badgeCor = 'text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 border-rose-300 dark:border-rose-500/30';
       badgeTexto = 'Prejuízo';
     } else if (percentualMeta >= 100) {
-      badgeCor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/20';
+      badgeCor = 'text-slate-900 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-500/10 border-emerald-400/60 dark:border-emerald-500/20';
       badgeTexto = `${percentualMeta.toFixed(0)}% da meta`;
       atingiuMeta = true;
     } else if (percentualMeta >= 75) {

@@ -664,7 +664,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className={`p-2 rounded-xl border transition cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'}`}
+                className={`p-2 rounded-xl border transition cursor-pointer ${isDark ? 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-white' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-900'}`}
                 title="Voltar"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -694,7 +694,7 @@ export const VendasHistorico: React.FC = () => {
                   placeholder="Nome do cliente ou produto"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className={`w-full border rounded-xl pl-10 pr-8 py-2 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-xs ${isDark ? 'bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
+                  className={`w-full border rounded-xl pl-10 pr-8 py-2 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-xs ${isDark ? 'bg-slate-900/90 border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'}`}
                 />
                 {busca && (
                   <button
@@ -714,8 +714,8 @@ export const VendasHistorico: React.FC = () => {
                   totalFiltrosAtivos > 0
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 font-bold shadow-xs'
                     : isDark
-                    ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
-                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
+                    ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-white'
+                    : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-900 font-semibold'
                 }`}
               >
                 <Filter className="w-3.5 h-3.5" />
@@ -736,8 +736,8 @@ export const VendasHistorico: React.FC = () => {
                     vendedorSelecionadoId !== 'todos'
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 font-bold shadow-xs'
                       : isDark
-                      ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
-                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
+                      ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-white'
+                      : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-900 font-semibold'
                   }`}
                 >
                   <User className="w-3.5 h-3.5" />
@@ -847,10 +847,10 @@ export const VendasHistorico: React.FC = () => {
           {/* BARRA DE MÉTRICAS DE RESUMO (TELA001) - CARDS CENTRALIZADOS E TIPOGRAFIA PADRONIZADA */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
             <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-100 border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-slate-900'
               }`}>
                 Hoje: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.hoje.qtd} {metricas.hoje.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
@@ -862,10 +862,10 @@ export const VendasHistorico: React.FC = () => {
             </div>
 
             <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-100 border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-slate-900'
               }`}>
                 Ontem: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.ontem.qtd} {metricas.ontem.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
@@ -877,10 +877,10 @@ export const VendasHistorico: React.FC = () => {
             </div>
 
             <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-100 border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-slate-900'
               }`}>
                 Esta semana: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.estaSemana.qtd} {metricas.estaSemana.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
@@ -892,10 +892,10 @@ export const VendasHistorico: React.FC = () => {
             </div>
 
             <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-              isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-100 border-slate-200'
             }`}>
               <span className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-slate-900'
               }`}>
                 Este mês: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{metricas.esteMes.qtd} {metricas.esteMes.qtd === 1 ? 'venda' : 'vendas'}</strong>
               </span>
@@ -928,7 +928,7 @@ export const VendasHistorico: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
-              <thead className={`font-semibold uppercase tracking-wider sticky top-0 z-10 border-b backdrop-blur ${isDark ? 'bg-slate-900 text-slate-300 border-slate-700/80' : 'bg-slate-100 text-slate-900 border-slate-200 font-bold'}`}>
+              <thead className={`font-bold uppercase tracking-wider sticky top-0 z-10 border-b backdrop-blur ${isDark ? 'bg-slate-800/60 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-200'}`}>
                 <tr>
                   <th
                     onClick={() => toggleOrdenacao('codigo')}

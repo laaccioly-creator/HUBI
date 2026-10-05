@@ -151,28 +151,28 @@ export const ReciboPublico: React.FC = () => {
 
   if (carregando) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 border border-emerald-500/30">
-          <Loader2 className="w-6 h-6 animate-spin" />
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 text-slate-900" style={{ colorScheme: 'light' }}>
+        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 border border-emerald-300">
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
         </div>
-        <p className="text-sm font-semibold text-slate-300">Carregando recibo oficial...</p>
+        <p className="text-sm font-semibold text-slate-700">Carregando recibo oficial...</p>
       </div>
     );
   }
 
   if (erroMsg || !pedido) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white text-center">
-        <div className="w-16 h-16 rounded-3xl bg-rose-500/20 text-rose-400 flex items-center justify-center mb-4 border border-rose-500/30">
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 text-slate-900 text-center" style={{ colorScheme: 'light' }}>
+        <div className="w-16 h-16 rounded-3xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4 border border-rose-300">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="text-lg font-black text-slate-100 mb-1">Recibo não encontrado</h2>
-        <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
+        <h2 className="text-lg font-black text-slate-900 mb-1">Recibo não encontrado</h2>
+        <p className="text-xs text-slate-600 max-w-sm mb-6 leading-relaxed">
           {erroMsg || 'Verifique o endereço informado ou solicite uma nova via ao estabelecimento.'}
         </p>
         <Link
           to="/"
-          className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+          className="px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900 text-xs font-bold transition border border-slate-300"
         >
           Voltar à Página Inicial
         </Link>
@@ -204,17 +204,17 @@ export const ReciboPublico: React.FC = () => {
   const totalQtdItens = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center p-3 sm:p-6 select-none print:p-0 print:bg-white">
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center p-3 sm:p-6 select-none print:p-0 print:bg-white" style={{ colorScheme: 'light' }}>
       {/* Ação Única do Cabeçalho: Baixar PDF */}
       <div className="w-full max-w-md mb-4 flex items-center justify-end print:hidden">
         <button
           type="button"
           disabled={baixandoPdf}
           onClick={handleBaixarPdf}
-          className="py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-bold flex items-center gap-2 transition cursor-pointer border border-slate-700 shadow-sm disabled:opacity-50 active:scale-95"
+          className="py-2 px-3.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold flex items-center gap-2 transition cursor-pointer border border-emerald-300/60 shadow-xs disabled:opacity-50 active:scale-95"
           title="Baixar PDF do Recibo"
         >
-          {baixandoPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {baixandoPdf ? <Loader2 className="w-4 h-4 animate-spin text-slate-900" /> : <Download className="w-4 h-4 text-slate-900" />}
           <span>Baixar PDF</span>
         </button>
       </div>
@@ -223,7 +223,7 @@ export const ReciboPublico: React.FC = () => {
       <div className="w-full max-w-md print:max-w-full">
         <div
           ref={reciboRef}
-          className="bg-white text-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200 text-xs space-y-3 shadow-2xl font-mono print:shadow-none print:border-0 print:rounded-none"
+          className="bg-white text-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-300/80 text-xs space-y-3 shadow-xl font-mono print:shadow-none print:border-0 print:rounded-none"
         >
           {/* Logo da Loja */}
           {loja?.url_logo ? (
@@ -390,14 +390,14 @@ export const ReciboPublico: React.FC = () => {
             )}
           </div>
 
-          <div className="border-t border-slate-700 my-2" />
+          <div className="border-t border-slate-300 my-2" />
 
           {/* Data por Extenso */}
           <div className="text-center text-[11px] text-slate-500">
             {formatarDataRecibo(pedido.data_venda || pedido.criado_em)}
           </div>
 
-          <div className="text-center text-[9px] text-slate-400 pt-1 border-t border-slate-100">
+          <div className="text-center text-[9px] text-slate-500 pt-1 border-t border-slate-200">
             Comprovante Oficial • HUBI PDV
           </div>
         </div>

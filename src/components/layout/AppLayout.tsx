@@ -482,11 +482,11 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 shadow-xs'
-                          : 'bg-emerald-200 text-slate-900 font-bold border border-emerald-400 ring-2 ring-emerald-300/60 shadow-xs'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
+                          : 'bg-emerald-400 hover:bg-emerald-500 border border-emerald-500 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold'
+                        : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -515,11 +515,11 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-200 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40 shadow-xs'
-                          : 'bg-emerald-200 text-slate-900 font-bold border border-emerald-400 ring-2 ring-emerald-300/60 shadow-xs'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
+                          : 'bg-emerald-400 hover:bg-emerald-500 border border-emerald-500 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
-                        : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold'
+                        : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -538,21 +538,21 @@ export const AppLayout: React.FC = () => {
                 onClick={() => setUserMenuOpen(prev => !prev)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-left cursor-pointer shadow-xs ${
                   isDark
-                    ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200'
-                    : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-900 font-semibold'
+                    ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold'
+                    : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
                 }`}
               >
                 <div className={`w-6 h-6 rounded-lg font-bold text-[11px] flex items-center justify-center border ${
                   isDark
-                    ? 'bg-emerald-600/20 text-emerald-500 border-emerald-500/30'
-                    : 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                    ? 'bg-emerald-600/30 text-white border-emerald-500/40'
+                    : 'bg-emerald-300 text-slate-950 border-emerald-400/50'
                 }`}>
                   {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
                 </div>
-                <span className={`text-xs font-semibold max-w-[100px] truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                <span className={`text-xs font-semibold max-w-[100px] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {usuario?.nome_completo || 'Operador'}
                 </span>
-                <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
+                <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`} />
               </button>
 
               {userMenuOpen && (
@@ -594,8 +594,11 @@ export const AppLayout: React.FC = () => {
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setTema('dark')}
-                        className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                        onClick={() => {
+                          setTema('dark');
+                          setUserMenuOpen(false);
+                        }}
+                        className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           tema === 'dark'
                             ? 'bg-slate-800 text-amber-300 border border-slate-700'
                             : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-[#64748B] hover:text-[#0F172A]'
@@ -606,7 +609,10 @@ export const AppLayout: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setTema('light')}
+                        onClick={() => {
+                          setTema('light');
+                          setUserMenuOpen(false);
+                        }}
                         className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           tema === 'light'
                             ? 'bg-amber-500/20 text-amber-700 border border-amber-400/50 shadow-xs font-bold'
@@ -623,9 +629,11 @@ export const AppLayout: React.FC = () => {
                     <Link
                       to="/config"
                       onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition ${
+                        isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-900 font-medium'
+                      }`}
                     >
-                      <Settings className="w-3.5 h-3.5 text-slate-400" />
+                      <Settings className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                       <span>Configurações</span>
                     </Link>
                   )}
@@ -634,13 +642,15 @@ export const AppLayout: React.FC = () => {
                     to={catalogUrl}
                     target="_blank"
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs transition ${
+                      isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-900 font-medium'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Store className="w-3.5 h-3.5 text-emerald-400" />
+                      <Store className="w-3.5 h-3.5 text-emerald-500" />
                       <span>Catálogo Online</span>
                     </div>
-                    <ExternalLink className="w-3 h-3 text-slate-500" />
+                    <ExternalLink className={`w-3 h-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                   </Link>
 
                   <button
