@@ -483,6 +483,8 @@ export const AppLayout: React.FC = () => {
                       isActive
                         ? isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
+                          : item.path === '/dashboard'
+                          ? 'bg-[#F7F4EE] hover:bg-[#EFE9DC] border border-[#E5DEC9] text-[#4A4238] font-bold shadow-xs'
                           : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
                         : isDark
                         ? 'bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white border border-slate-800'
