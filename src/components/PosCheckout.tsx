@@ -2763,24 +2763,24 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Valor deste pagamento */}
                     <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
-                      <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">Valor a pagar:</span>
+                      <span className="text-xs text-slate-800 dark:text-slate-200 font-bold">Valor a pagar:</span>
                       <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-black">R$</span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
                         <MoneyInput
                           autoFocus={idx === 0}
                           valor={linha.valor}
                           onChange={(novoValor) => handleAlterarValorLinha(linha.id, novoValor)}
                           placeholder="0,00"
-                          className="w-28 bg-transparent text-right text-sm font-black text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
+                          className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
 
-                    {/* Dinheiro: Troco */}
+                    {/* Dinheiro: Valor Entregue e Troco */}
                     {linha.forma_tipo === 'dinheiro' && (
                       <div className="space-y-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-700 dark:text-slate-300 font-medium">Valor Entregue pelo Cliente:</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-800 dark:text-slate-200 font-bold">Valor Entregue pelo Cliente:</span>
                           <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
                             <MoneyInput
@@ -2791,10 +2791,16 @@ export const PosCheckout: React.FC = () => {
                             />
                           </div>
                         </div>
+
                         {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                          <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
-                            <span>Troco a devolver:</span>
-                            <span>{formatarMoeda(linha.valor_entregue - linha.valor)}</span>
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                            <span className="text-slate-800 dark:text-slate-200 font-bold">Troco a devolver:</span>
+                            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5">
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
+                              <span className="w-28 text-right text-xs font-bold text-slate-900 dark:text-white">
+                                {Number(linha.valor_entregue - linha.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2897,22 +2903,22 @@ export const PosCheckout: React.FC = () => {
 
             {/* Resumo de Conferência dos Valores com Discriminação de Frete */}
             <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-800 dark:text-slate-300">
+              <div className="flex justify-between items-center text-slate-800 dark:text-slate-300">
                 <span className="font-medium">Subtotal dos Produtos:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">{formatarMoeda(subtotal)}</span>
               </div>
 
               {desconto > 0 && (
-                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
-                  <span>Desconto {tipoDesconto === 'percentual' ? `(${descontoPercentual}%)` : ''}:</span>
-                  <span className="font-semibold">- {formatarMoeda(desconto)}</span>
+                <div className="flex justify-between items-center text-slate-800 dark:text-slate-300">
+                  <span className="font-medium">Desconto {tipoDesconto === 'percentual' ? `(${descontoPercentual}%)` : ''}:</span>
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">- {formatarMoeda(desconto)}</span>
                 </div>
               )}
 
               {/* Discriminação explícita do Frete / Retirada */}
               <div className="flex justify-between items-center text-slate-800 dark:text-slate-300">
                 <span className="flex items-center gap-1.5 font-medium">
-                  <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>
                     {(() => {
                       if (pedidoEntrega?.tipo_atendimento === 'retirada') {
@@ -2939,40 +2945,43 @@ export const PosCheckout: React.FC = () => {
                   {taxaEntrega > 0 ? (
                     formatarMoeda(taxaEntrega)
                   ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
-                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">Grátis (Balcão)</span>
+                    'Grátis (Balcão)'
                   ) : (
-                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">Grátis</span>
+                    'Grátis'
                   )}
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between font-bold text-sm text-slate-800 dark:text-slate-200">
+              {/* TOTAL DA VENDA (EM DESTAQUE) */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center font-bold text-sm text-slate-900 dark:text-white">
                 <span>Total da Venda:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-black text-base">{formatarMoeda(total)}</span>
               </div>
 
-              <div className="flex justify-between text-slate-800 dark:text-slate-300 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
+              {/* Total dos Meios Informados */}
+              <div className="flex justify-between items-center text-slate-800 dark:text-slate-300 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
                 <span className="font-medium">Total dos Meios Informados:</span>
-                <span className="font-bold text-slate-950 dark:text-white">{formatarMoeda(totalLinhasPagamento)}</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{formatarMoeda(totalLinhasPagamento)}</span>
               </div>
 
-              <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200 dark:border-slate-800/80">
+              {/* Total Conferido / Diferença */}
+              <div className="flex justify-between items-center font-medium text-slate-800 dark:text-slate-300 pt-1 border-t border-slate-200 dark:border-slate-800/80">
                 {Math.abs(diferencaPagamento) < 0.01 ? (
                   <>
-                    <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-bold">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Total Conferido (100%)
+                    <span className="flex items-center gap-1 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Total Conferido (100%):
                     </span>
-                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">R$ 0,00</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">R$ 0,00</span>
                   </>
                 ) : diferencaPagamento > 0 ? (
                   <>
-                    <span className="text-amber-600 dark:text-amber-400">Restante a Definir:</span>
-                    <span className="text-amber-600 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">Restante a Definir:</span>
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-rose-600 dark:text-rose-400">Excedente Ultrapassado:</span>
-                    <span className="text-rose-600 dark:text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
+                    <span className="text-rose-700 dark:text-rose-400 font-medium">Excedente Ultrapassado:</span>
+                    <span className="font-semibold text-rose-700 dark:text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
                   </>
                 )}
               </div>

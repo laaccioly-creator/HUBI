@@ -370,19 +370,19 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           </div>
         </div>
 
-        {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (HORIZONTAIS COMPACTOS ALINHADOS) */}
-        <div className={`p-2.5 sm:p-3 border-t flex flex-row items-center justify-between gap-1 sm:gap-1.5 shrink-0 ${
+        {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (EXATAMENTE 4 BOTÕES HORIZONTAIS COMPACTOS ALINHADOS) */}
+        <div className={`p-2.5 sm:p-3 border-t flex flex-row items-center justify-between gap-1.5 sm:gap-2 shrink-0 ${
           isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
         }`}>
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-            className={`flex-1 font-semibold px-1 sm:px-2 py-2 rounded-xl border transition text-[11px] sm:text-xs flex items-center justify-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
               isDark
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
                 : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
             }`}
-            title="Imprimir Cupom Térmico"
+            title="Imprimir Cupom Térmico 58mm/80mm"
           >
             <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
             <span>Térmica</span>
@@ -390,22 +390,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
           <button
             type="button"
-            onClick={() => PrintService.printReceipt(pedido, loja, '80mm')}
-            className={`flex-1 font-semibold px-1 sm:px-2 py-2 rounded-xl border transition text-[11px] sm:text-xs flex items-center justify-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
-              isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
-                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
-            }`}
-            title="Imprimir Cupom"
-          >
-            <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
-            <span>Imprimir</span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-            className={`flex-1 font-semibold px-1 sm:px-2 py-2 rounded-xl border transition text-[11px] sm:text-xs flex items-center justify-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
               isDark
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
                 : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
@@ -425,7 +411,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedido, loja, 'a4');
               }
             }}
-            className={`flex-1 font-semibold px-1 sm:px-2 py-2 rounded-xl border transition text-[11px] sm:text-xs flex items-center justify-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
               isDark
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
                 : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
@@ -449,7 +435,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className={`flex-1 font-semibold px-1 sm:px-2 py-2 rounded-xl border transition text-[11px] sm:text-xs flex items-center justify-center gap-1 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
               isDark
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
                 : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
