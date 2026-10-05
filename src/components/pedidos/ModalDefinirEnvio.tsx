@@ -237,7 +237,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
                 setSelecaoPendente(null);
                 onClose();
               }}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-600 text-slate-700 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-emerald-950/40 font-semibold text-xs transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border transition text-xs font-bold cursor-pointer shadow-xs bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white"
             >
               Cancelar
             </button>
@@ -246,7 +246,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               type="button"
               disabled={!selecaoPendente || salvando}
               onClick={handleConfirmar}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-950/40 transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 rounded-xl border font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white"
             >
               {salvando ? (
                 <>

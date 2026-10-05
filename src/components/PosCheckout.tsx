@@ -174,7 +174,7 @@ const MoneyInput: React.FC<MoneyInputProps> = ({
       value={texto}
       onChange={handleChange}
       placeholder={placeholder}
-      style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', ...style }}
+      style={style}
       className={className}
     />
   );
@@ -2260,7 +2260,7 @@ export const PosCheckout: React.FC = () => {
                 {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
                   <Truck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 ) : (
-                  <Store className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                  <Store className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 )}
                 <span className={`text-[11px] font-semibold truncate ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>Forma de Entrega:</span>
               </div>
@@ -2275,7 +2275,9 @@ export const PosCheckout: React.FC = () => {
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento !== 'entrega'
-                      ? 'bg-purple-600 text-white shadow-sm'
+                      ? isDark
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-emerald-400 text-slate-950 shadow-sm'
                       : isDark
                       ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                       : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
@@ -2298,7 +2300,9 @@ export const PosCheckout: React.FC = () => {
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
-                      ? 'bg-emerald-600 text-white shadow-sm'
+                      ? isDark
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-emerald-400 text-slate-950 shadow-sm'
                       : isDark
                       ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                       : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
@@ -2562,13 +2566,17 @@ export const PosCheckout: React.FC = () => {
               type="button"
               disabled={(itens?.length || 0) === 0 || salvandoPendente}
               onClick={handleSalvarPedidoPendente}
-              className="flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center active:scale-95"
+              className={`flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center active:scale-95 shadow-xs ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
+              }`}
               title={pedidoEmEdicao ? 'Atualizar pedido' : 'Salvar pedido como orçamento/pendente'}
             >
               {salvandoPendente ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400 shrink-0" />
+                <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
               ) : (
-                <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <FileText className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
               )}
               <span>{pedidoEmEdicao ? 'Atualizar' : 'Salvar'}</span>
             </button>
@@ -2579,14 +2587,10 @@ export const PosCheckout: React.FC = () => {
                 type="button"
                 disabled={!temCliente || salvandoPendente || (itens?.length || 0) === 0}
                 onClick={() => setModalDefinirEnvioAberto(true)}
-                className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${
-                  isFreteConfirmado
-                    ? isDark
-                      ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-semibold shadow-xs'
-                      : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold shadow-xs'
-                    : isDark
-                    ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow'
-                    : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-800 font-semibold shadow-xs'
+                className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shadow-xs ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-semibold'
+                    : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold'
                 }`}
                 title={
                   !temCliente
@@ -2596,7 +2600,7 @@ export const PosCheckout: React.FC = () => {
                     : 'Definir opções de envio'
                 }
               >
-                <Truck className={`w-3.5 h-3.5 shrink-0 ${isFreteConfirmado ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-amber-400' : 'text-amber-700')}`} />
+                <Truck className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
                 <span className="leading-tight">
                   Opções<br />de Envio
                 </span>
@@ -2612,10 +2616,10 @@ export const PosCheckout: React.FC = () => {
                 (ehEnvio && !isFreteConfirmado)
               }
               onClick={handleAbrirFechamento}
-              className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition text-center ${
-                ehEnvio && !isFreteConfirmado
-                  ? 'bg-slate-800 border border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95'
+              className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition text-center shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
               }`}
               title={
                 ehEnvio && !isFreteConfirmado
@@ -2626,7 +2630,7 @@ export const PosCheckout: React.FC = () => {
               <span className="leading-tight">
                 Finalizar<br />Venda
               </span>
-              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+              <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
             </button>
           </div>
         </div>
@@ -2695,10 +2699,10 @@ export const PosCheckout: React.FC = () => {
             {/* Linhas de Pagamento (Múltiplas formas de pagamento) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   Meios de Pagamento ({(linhasPagamento || []).length}):
                 </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="text-[11px] text-slate-700 dark:text-slate-300 font-medium">
                   Permite dividir o total em vários meios
                 </span>
               </div>
@@ -2893,37 +2897,51 @@ export const PosCheckout: React.FC = () => {
 
             {/* Resumo de Conferência dos Valores com Discriminação de Frete */}
             <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>Subtotal dos Produtos:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatarMoeda(subtotal)}</span>
+              <div className="flex justify-between text-slate-800 dark:text-slate-300">
+                <span className="font-medium">Subtotal dos Produtos:</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{formatarMoeda(subtotal)}</span>
               </div>
 
               {desconto > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
                   <span>Desconto {tipoDesconto === 'percentual' ? `(${descontoPercentual}%)` : ''}:</span>
                   <span className="font-semibold">- {formatarMoeda(desconto)}</span>
                 </div>
               )}
 
               {/* Discriminação explícita do Frete / Retirada */}
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
-                <span className="flex items-center gap-1.5">
+              <div className="flex justify-between items-center text-slate-800 dark:text-slate-300">
+                <span className="flex items-center gap-1.5 font-medium">
                   <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    {pedidoEntrega?.tipo_atendimento === 'retirada'
-                      ? 'Retirada no Balcão:'
-                      : pedidoEntrega?.transportadora_nome
-                      ? `Frete (${pedidoEntrega.transportadora_nome}${pedidoEntrega.servico_codigo ? ` - ${pedidoEntrega.servico_codigo}` : ''}):`
-                      : 'Taxa de Entrega / Frete:'}
+                    {(() => {
+                      if (pedidoEntrega?.tipo_atendimento === 'retirada') {
+                        return 'Retirada no Balcão:';
+                      }
+                      const transp = pedidoEntrega?.transportadora_nome || '';
+                      const serv = (pedidoEntrega?.servico_codigo || '').toLowerCase();
+                      let servicoNome = pedidoEntrega?.servico_codigo || '';
+                      if (serv === '1' || serv.includes('sedex')) servicoNome = 'SEDEX';
+                      else if (serv === '2' || serv.includes('pac')) servicoNome = 'PAC';
+
+                      if (transp && servicoNome && !transp.toLowerCase().includes(servicoNome.toLowerCase())) {
+                        return `Frete (${transp} - ${servicoNome}):`;
+                      } else if (transp) {
+                        return `Frete (${transp}):`;
+                      } else if (servicoNome) {
+                        return `Frete (${servicoNome}):`;
+                      }
+                      return 'Taxa de Entrega / Frete:';
+                    })()}
                   </span>
                 </span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                <span className="font-semibold text-slate-900 dark:text-white">
                   {taxaEntrega > 0 ? (
                     formatarMoeda(taxaEntrega)
                   ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
-                    <span className="text-purple-600 dark:text-purple-400 font-bold">Grátis (Balcão)</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">Grátis (Balcão)</span>
                   ) : (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">Grátis</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">Grátis</span>
                   )}
                 </span>
               </div>
@@ -2933,18 +2951,18 @@ export const PosCheckout: React.FC = () => {
                 <span className="text-emerald-600 dark:text-emerald-400 font-black text-base">{formatarMoeda(total)}</span>
               </div>
 
-              <div className="flex justify-between text-slate-600 dark:text-slate-400 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
-                <span>Total dos Meios Informados:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{formatarMoeda(totalLinhasPagamento)}</span>
+              <div className="flex justify-between text-slate-800 dark:text-slate-300 pt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
+                <span className="font-medium">Total dos Meios Informados:</span>
+                <span className="font-bold text-slate-950 dark:text-white">{formatarMoeda(totalLinhasPagamento)}</span>
               </div>
 
               <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200 dark:border-slate-800/80">
                 {Math.abs(diferencaPagamento) < 0.01 ? (
                   <>
-                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                    <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-bold">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Total Conferido (100%)
                     </span>
-                    <span className="text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">R$ 0,00</span>
                   </>
                 ) : diferencaPagamento > 0 ? (
                   <>
@@ -2964,7 +2982,11 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFechamento(false)}
-                className="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs border border-slate-300 dark:border-slate-700 transition cursor-pointer"
+                className={`py-3 px-3 rounded-2xl font-bold text-xs border transition cursor-pointer shadow-xs ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white'
+                    : 'bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900'
+                }`}
               >
                 Cancelar
               </button>
@@ -2973,12 +2995,16 @@ export const PosCheckout: React.FC = () => {
                 type="button"
                 disabled={salvandoPendente || finalizandoVenda}
                 onClick={handleSalvarComFormaPagamento}
-                className="flex-1 py-3 px-3 rounded-2xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 font-bold text-xs border border-emerald-300 dark:border-emerald-500/40 shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                className={`flex-1 py-3 px-3 rounded-2xl font-bold text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white'
+                    : 'bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900'
+                }`}
               >
                 {salvandoPendente ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-white' : 'text-slate-900'}`} />
                 ) : (
-                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-white' : 'text-slate-900'}`} />
                 )}
                 <span>Salvar</span>
               </button>
@@ -2992,18 +3018,22 @@ export const PosCheckout: React.FC = () => {
                   linhasPagamento.some(l => l.forma_tipo === 'fiado' && l.valor > (Number(clienteSelecionado?.limite_credito || 0) + 0.01))
                 }
                 onClick={handleFinalizarVenda}
-                className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className={`flex-[2] py-3 px-3 rounded-2xl font-black text-xs border shadow-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98 ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white'
+                    : 'bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900'
+                }`}
               >
                 {finalizandoVenda ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-white' : 'text-slate-900'}`} />
                     <span>Processando...</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-slate-900'}`} />
                     <span className="truncate">
-                      Confirmar Pagamento
+                      Confirmar
                     </span>
                   </>
                 )}

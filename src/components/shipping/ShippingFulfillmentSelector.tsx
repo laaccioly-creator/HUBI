@@ -1294,7 +1294,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     {enderecoSelecionado.logradouro}, {enderecoSelecionado.numero}{' '}
                     {enderecoSelecionado.complemento ? `(${enderecoSelecionado.complemento})` : ''}
                   </p>
-                  <p className={`text-[11px] mt-0.5 ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <p className={`text-[11px] mt-0.5 font-medium ${ehDark ? 'text-slate-300' : 'text-slate-800'}`}>
                     {enderecoSelecionado.bairro}, {enderecoSelecionado.cidade}-{enderecoSelecionado.uf} | CEP: {enderecoSelecionado.cep}
                   </p>
                 </div>
@@ -2055,8 +2055,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                       desabilitada
                                         ? 'text-slate-500'
                                         : selecionada
-                                          ? ehDark ? 'text-emerald-300' : 'text-emerald-700'
-                                          : ehDark ? 'text-slate-400' : 'text-slate-600'
+                                          ? ehDark ? 'text-emerald-300' : 'text-emerald-800'
+                                          : ehDark ? 'text-slate-400' : 'text-slate-800'
                                     }`}>
                                       ({opcao.servico_nome})
                                     </span>
@@ -2081,9 +2081,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                     <Clock className={`w-3.5 h-3.5 shrink-0 ${
                                       desabilitada
                                         ? 'text-slate-500'
-                                        : ehDark ? 'text-emerald-400' : 'text-emerald-600'
+                                        : ehDark ? 'text-emerald-400' : 'text-emerald-700'
                                     }`} />
-                                    <span className={desabilitada ? 'text-slate-500' : ehDark ? 'text-slate-300' : 'text-slate-600'}>
+                                    <span className={desabilitada ? 'text-slate-500' : ehDark ? 'text-slate-300' : 'text-slate-800 font-medium'}>
                                       {opcao.prazo_estimado_texto}
                                     </span>
                                   </div>
