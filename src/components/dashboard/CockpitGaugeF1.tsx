@@ -184,7 +184,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
       onClick={onClickDrillDown}
       className={`rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 select-none ${
         isDark
-          ? 'bg-slate-900/90 border-2 border-slate-200 shadow-lg shadow-black/50'
+          ? 'bg-black border border-white/10 shadow-lg shadow-black/50'
           : 'bg-slate-100 border border-slate-200 shadow-sm hover:border-emerald-300'
       } ${
         onClickDrillDown
