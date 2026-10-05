@@ -334,12 +334,14 @@ export const ReciboPublico: React.FC = () => {
               </div>
             )}
 
-            <div className="flex justify-between text-slate-800">
-              <span>Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
-              <span className="font-semibold text-slate-900">
-                {valorFrete > 0 ? `+ R$ ${valorFrete.toFixed(2)}` : 'Grátis (Retirada)'}
-              </span>
-            </div>
+            {!ehRetirada && (
+              <div className="flex justify-between text-slate-800">
+                <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
+                <span className="font-semibold text-slate-900">
+                  {valorFrete > 0 ? `+ R$ ${valorFrete.toFixed(2)}` : 'Grátis'}
+                </span>
+              </div>
+            )}
 
             <div className="border-t border-dashed border-slate-300 pt-2 my-1" />
 

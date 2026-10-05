@@ -173,7 +173,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className={`w-full max-w-lg border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 ${
+      <div className={`w-full max-w-2xl border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 ${
         isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
       }`}>
         {/* Cabeçalho do Modal */}
@@ -304,18 +304,18 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                   </div>
                 )}
 
-                <div className="flex justify-between">
-                  <span>Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
-                  <span className="font-semibold text-slate-900">
-                    {valorFrete > 0 
-                      ? `+ R$ ${valorFrete.toFixed(2)}` 
-                      : ehRetirada 
-                        ? 'Grátis (Retirada)'
+                {!ehRetirada && (
+                  <div className="flex justify-between">
+                    <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
+                    <span className="font-semibold text-slate-900">
+                      {valorFrete > 0 
+                        ? `+ R$ ${valorFrete.toFixed(2)}` 
                         : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
                           ? 'Grátis (R$ 0,00)'
                           : 'A Definir'}
-                  </span>
-                </div>
+                    </span>
+                  </div>
+                )}
 
                 <div className="border-t border-dashed border-slate-200 pt-2 my-1"></div>
 

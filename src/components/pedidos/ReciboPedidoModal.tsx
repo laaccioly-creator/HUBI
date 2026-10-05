@@ -182,7 +182,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className={`w-full max-w-lg border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] ${
+      <div className={`w-full max-w-2xl border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] ${
         isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
       }`}>
         <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
@@ -302,18 +302,18 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <span>Frete{formaEntregaTexto && !ehRetirada ? ` (${formaEntregaTexto})` : ''}:</span>
-                <span className="font-semibold text-slate-900">
-                  {valorFrete > 0 
-                    ? `+ R$ ${valorFrete.toFixed(2)}` 
-                    : ehRetirada 
-                      ? 'Grátis (Retirada)'
+              {!ehRetirada && (
+                <div className="flex justify-between">
+                  <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
+                  <span className="font-semibold text-slate-900">
+                    {valorFrete > 0 
+                      ? `+ R$ ${valorFrete.toFixed(2)}` 
                       : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
                         ? 'Grátis (R$ 0,00)'
                         : 'A Definir'}
-                </span>
-              </div>
+                  </span>
+                </div>
+              )}
 
               <div className="border-t border-dashed border-slate-200 pt-2 my-1"></div>
 
@@ -377,21 +377,29 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className={`font-semibold px-2.5 sm:px-3 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap ${
+              isDark
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-600/20'
+                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 shadow-xs'
+            }`}
             title="Imprimir Cupom Térmico 58mm ou 80mm"
           >
-            <Printer className="w-3.5 h-3.5 text-white shrink-0" />
+            <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
             <span>Térmica 58/80mm</span>
           </button>
 
           <button
             type="button"
             onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className={`font-semibold px-2.5 sm:px-3 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap ${
+              isDark
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-600/20'
+                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 shadow-xs'
+            }`}
             title="Imprimir Folha A4"
           >
-            <Printer className="w-3.5 h-3.5 text-white shrink-0" />
-            <span>Imprimir A4</span>
+            <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
+            <span>Imprimir Cupom</span>
           </button>
 
           <button
@@ -403,11 +411,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedido, loja, 'a4');
               }
             }}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className={`font-semibold px-2.5 sm:px-3 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap ${
+              isDark
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-600/20'
+                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 shadow-xs'
+            }`}
             title="Baixar Recibo em PDF"
           >
-            <Download className="w-3.5 h-3.5 text-white shrink-0" />
-            <span>Baixar PDF</span>
+            <Download className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
+            <span>PDF</span>
           </button>
 
           <button
@@ -423,10 +435,14 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+            className={`font-semibold px-2.5 sm:px-3 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap ${
+              isDark
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-600/20'
+                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 shadow-xs'
+            }`}
             title="Compartilhar no WhatsApp"
           >
-            <Share2 className="w-3.5 h-3.5 text-white shrink-0" />
+            <Share2 className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
             <span>WhatsApp</span>
           </button>
         </div>

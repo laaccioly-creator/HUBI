@@ -226,11 +226,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
                   </span>
                 )}
               </span>
-            ) : (
-              <span className="text-amber-600 dark:text-amber-400 italic">
-                Clique em uma modalidade acima para habilitar a confirmação.
-              </span>
-            )}
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

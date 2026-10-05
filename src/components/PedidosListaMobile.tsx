@@ -637,7 +637,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       cancelado: 0
     };
 
+    const t = busca.toLowerCase().trim();
+
     pedidos.forEach((p) => {
+      if (t) {
+        const numStr = String(p.numero_pedido);
+        const cli = p.cliente_id ? mapaClientes.get(p.cliente_id) : null;
+        const cliNome = cli?.nome.toLowerCase() || '';
+        const itensList = p.itens || p.itens_pedido || [];
+        const temItem = itensList.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
+        if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return;
+      }
+
       if (p.status !== 'concluido') {
         counts.todos += 1;
       }
@@ -647,7 +658,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     });
 
     return counts;
-  }, [pedidos]);
+  }, [pedidos, busca, mapaClientes]);
 
   // Filtros aplicados
   const pedidosFiltrados = useMemo(() => {
@@ -1487,17 +1498,6 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         <Clock className="w-3.5 h-3.5 text-amber-600" />
                         <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
                       </div>
-                      {podeConcluirManual && (
-                        <button
-                          type="button"
-                          onClick={() => setModalContingenciaAberto(true)}
-                          className="w-full py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-slate-300 transition cursor-pointer active:scale-95"
-                          title="Válvula de contingência exclusiva para administradores"
-                        >
-                          <AlertTriangle className="w-3 h-3 text-amber-600" />
-                          <span>Forçar Conclusão Manual (Admin)</span>
-                        </button>
-                      )}
                     </div>
                   );
                 }
@@ -1566,62 +1566,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           }}
         />
 
-        {/* MODAL CONTINGÊNCIA RBAC (FORÇAR CONCLUSÃO MANUAL) */}
-        {modalContingenciaAberto && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl animate-in slide-in-from-bottom">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-sm text-slate-900">
-                      Válvula de Contingência (Admin)
-                    </h3>
-                    <p className="text-[10px] text-slate-400">Conclusão manual forçada</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setModalContingenciaAberto(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-1.5 text-xs text-amber-900">
-                <p className="font-bold">
-                  Deseja forçar a conclusão do Pedido #{pedidoSelecionado.numero_pedido}?
-                </p>
-                <p className="text-[11px] text-amber-800 leading-relaxed">
-                  Esta ação é exclusiva para Gerentes/Administradores e deve ser usada caso a API da transportadora parceira (Uber/Melhor Envio) esteja indisponível ou a entrega tenha sido resolvida por fora.
-                </p>
-              </div>
-
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalContingenciaAberto(false)}
-                  disabled={executandoContingencia}
-                  className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
-                >
-                  Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleForcarConclusaoContingencia}
-                  disabled={executandoContingencia}
-                  className="flex-1 py-3 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>{executandoContingencia ? 'Concluindo...' : 'Sim, Forçar Conclusão'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* TELA006: MODAL ALTERAR STATUS (BOTTOM SHEET) */}
         {modalAlterarStatus && (

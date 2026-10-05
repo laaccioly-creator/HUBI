@@ -61,9 +61,29 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                 className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
-                    <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
+                  {(() => {
+                    const foto = (item as any).foto_url || (item as any).fotos_urls?.[0] || item.produto?.fotos_urls?.[0];
+                    if (foto) {
+                      return (
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                          <img
+                            src={foto}
+                            alt={item.nome_produto}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                              (e.currentTarget.parentElement as HTMLElement).innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>';
+                            }}
+                          />
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                        <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                    );
+                  })()}
                   <div className="min-w-0">
                     <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 block truncate">
                       {item.nome_produto}

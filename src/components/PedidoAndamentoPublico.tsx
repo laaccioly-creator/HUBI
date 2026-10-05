@@ -53,17 +53,23 @@ export const PedidoAndamentoPublico: React.FC = () => {
             pedido_entregas:pedido_entregas(*)
           `);
 
-        const cleanId = (id || '').trim();
-        const numApenas = cleanId.replace(/^PED-/i, '').trim();
-        const ehNumero = /^\d+$/.test(numApenas);
-        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+        const rawId = (id || '').trim();
+        // Remove prefixos comuns: #, PED-, ped-, c-, C-
+        const numMatch = rawId.match(/^(?:#|PED-|c-)?(\d+)$/i);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
 
-        if (ehNumero) {
-          query = query.eq('numero_pedido', parseInt(numApenas, 10));
+        if (numMatch) {
+          query = query.eq('numero_pedido', parseInt(numMatch[1], 10));
         } else if (ehUuid) {
-          query = query.eq('id', cleanId);
+          query = query.eq('id', rawId);
         } else {
-          query = query.or(`id.eq.${cleanId},numero_pedido.eq.${parseInt(numApenas, 10) || 0}`);
+          // Extrai dígitos se for um código numérico com caracteres extras
+          const apenasDigitos = rawId.replace(/\D/g, '');
+          if (apenasDigitos.length > 0 && apenasDigitos.length <= 10) {
+            query = query.eq('numero_pedido', parseInt(apenasDigitos, 10));
+          } else {
+            query = query.eq('id', rawId);
+          }
         }
 
         const { data: pedidosData, error } = await query;

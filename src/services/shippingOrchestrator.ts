@@ -1622,7 +1622,7 @@ export class ShippingOrchestrator {
     // 1. Buscar dados atuais do pedido e cliente
     const { data: pedAtual } = await supabase
       .from('pedidos')
-      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega, status, valor_frete, saldo_devedor')
+      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega, status, valor_frete, saldo_devedor, loja_id')
       .eq('id', pedidoId)
       .maybeSingle();
 
@@ -1848,6 +1848,28 @@ export class ShippingOrchestrator {
     if (errPed) {
       console.error('[ShippingOrchestrator] Erro ao atualizar pedido:', errPed);
       throw new Error(`Erro ao atualizar pedido: ${errPed.message}`);
+    }
+
+    // Registrar no histórico se frete foi alterado em pedido já liquidado/pago (preservando custo operacional)
+    if (pedidoJaPago && pedAtual?.loja_id && Math.abs(valorFrete - Number(pedAtual.valor_frete || 0)) > 0.001) {
+      const valorFreteOriginal = Number(pedAtual.valor_frete || 0);
+      const diffCusto = valorFrete - valorFreteOriginal;
+      const descEvento = `Frete operacional alterado após pagamento: De R$ ${valorFreteOriginal.toFixed(2)} para R$ ${valorFrete.toFixed(2)} (Diferença de custo: ${diffCusto >= 0 ? '+' : ''}R$ ${diffCusto.toFixed(2)} absorvida pela loja). Modalidade: ${nomeRealFrete}`;
+      try {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: pedAtual.loja_id,
+          pedido_id: pedidoId,
+          usuario_id: usuarioId || null,
+          tipo_evento: 'frete_alterado_pos_pago',
+          status_anterior: pedAtual.status,
+          status_novo: statusDestinoEnvio,
+          descricao: descEvento,
+          motivo: descEvento,
+          criado_em: agora
+        });
+      } catch (errHist) {
+        console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos pós-pago:', errHist);
+      }
     }
   }
 }

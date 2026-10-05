@@ -240,9 +240,12 @@ export const PedidosLista: React.FC = () => {
   const [concluirAposReceber, setConcluirAposReceber] = useState<boolean>(false);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
+  const [clienteParaEditar, setClienteParaEditar] = useState<Cliente | null>(null);
   
   // Novos Modais da Especificação (TELA004, TELA005, TELA010)
   const [modalCancelarPedidoAberto, setModalCancelarPedidoAberto] = useState<boolean>(false);
+  const [motivoCancelamentoPedido, setMotivoCancelamentoPedido] = useState<string>('');
+  const [cancelandoPedido, setCancelandoPedido] = useState<boolean>(false);
   const [gavetaConcluirVendaAberta, setGavetaConcluirVendaAberta] = useState<boolean>(false);
   const [modalConfigurarReciboAberto, setModalConfigurarReciboAberto] = useState<boolean>(false);
   const [modalDescontoAberto, setModalDescontoAberto] = useState<boolean>(false);
@@ -773,10 +776,12 @@ export const PedidosLista: React.FC = () => {
     return metaBase;
   };
 
-  const carregarPedidos = async (tocarAlerta = false) => {
+  const carregarPedidos = async (tocarAlerta = false, silencioso = false) => {
     if (!loja?.id) return;
     try {
-      setCarregando(true);
+      if (!silencioso && pedidos.length === 0) {
+        setCarregando(true);
+      }
 
       supabase.from('clientes').select('*').eq('loja_id', loja.id).then(({ data }) => {
         if (data) setClientes(data);
@@ -991,7 +996,7 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
-  const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido) => {
+  const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido, motivoCancelamento?: string) => {
     try {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
       if (!pedAlvo) return;
@@ -1071,14 +1076,19 @@ export const PedidosLista: React.FC = () => {
       let obsLimpa = extrairObservacaoLimpa(pedAlvo?.observacoes);
 
       const dataIsoAlteracao = new Date().toISOString();
+      const updatePayload: Record<string, unknown> = {
+        status: novoStatus,
+        observacoes: motivoCancelamento ? `[Cancelado] ${motivoCancelamento}` : (obsLimpa || null),
+        atualizado_por: usuario?.id || null,
+        atualizado_em: dataIsoAlteracao
+      };
+      if (motivoCancelamento) {
+        updatePayload.motivo_cancelamento = motivoCancelamento;
+      }
+
       const { error } = await supabase
         .from('pedidos')
-        .update({
-          status: novoStatus,
-          observacoes: obsLimpa || null,
-          atualizado_por: usuario?.id || null,
-          atualizado_em: dataIsoAlteracao
-        })
+        .update(updatePayload)
         .eq('id', pedidoId);
 
       if (error) throw error;
@@ -1101,6 +1111,10 @@ export const PedidosLista: React.FC = () => {
       if (loja?.id) {
         try {
           const rotulo = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
+          const descHist = (novoStatus === 'cancelado' && motivoCancelamento)
+            ? `Pedido cancelado por ${usuario?.nome_completo || 'Operador'}. Motivo: ${motivoCancelamento}`
+            : `Status alterado para ${rotulo} por ${usuario?.nome_completo || 'Operador'}`;
+
           await supabase.from('historico_pedidos').insert({
             loja_id: loja.id,
             pedido_id: pedidoId,
@@ -1108,7 +1122,8 @@ export const PedidosLista: React.FC = () => {
             tipo_evento: novoStatus === 'cancelado' ? 'cancelado' : 'status_alterado',
             status_anterior: pedAlvo?.status || null,
             status_novo: novoStatus,
-            descricao: `Status alterado para ${rotulo} por ${usuario?.nome_completo || 'Operador'}`,
+            descricao: descHist,
+            motivo: motivoCancelamento || descHist,
             criado_em: dataIsoAlteracao
           });
         } catch (errHist) {
@@ -1741,10 +1756,28 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleClienteCriado = (novoCliente: Cliente) => {
-    setClientes((prev) => [novoCliente, ...prev]);
+    setClientes((prev) => {
+      const existe = prev.some((c) => c.id === novoCliente.id);
+      if (existe) {
+        return prev.map((c) => (c.id === novoCliente.id ? novoCliente : c));
+      }
+      return [novoCliente, ...prev];
+    });
     setModalNovoClienteAberto(false);
+    setClienteParaEditar(null);
     if (pedidoSelecionado) {
-      handleAlterarClientePedido(novoCliente.id);
+      if (pedidoSelecionado.cliente_id === novoCliente.id) {
+        setPedidoSelecionado({
+          ...pedidoSelecionado,
+          cliente: novoCliente
+        });
+        setPedidos((prev) =>
+          prev.map((p) => (p.id === pedidoSelecionado.id ? { ...p, cliente: novoCliente } : p))
+        );
+        mostrarSucesso('Cadastro do cliente atualizado com sucesso!');
+      } else {
+        handleAlterarClientePedido(novoCliente.id);
+      }
     }
   };
 
@@ -1913,8 +1946,23 @@ export const PedidosLista: React.FC = () => {
 
   const handleConfirmarCancelarPedido = async () => {
     if (!pedidoSelecionado) return;
-    await atualizarStatus(pedidoSelecionado.id, 'cancelado');
-    setModalCancelarPedidoAberto(false);
+    const motivo = motivoCancelamentoPedido.trim();
+    if (!motivo) {
+      mostrarAviso('Por favor, informe o motivo do cancelamento.', 'Motivo Obrigatório');
+      return;
+    }
+    try {
+      setCancelandoPedido(true);
+      await atualizarStatus(pedidoSelecionado.id, 'cancelado', motivo);
+      setModalCancelarPedidoAberto(false);
+      setMotivoCancelamentoPedido('');
+      mostrarSucesso('Pedido cancelado com sucesso.');
+    } catch (err: any) {
+      console.error('Erro ao cancelar pedido:', err);
+      mostrarErro(err.message || 'Erro ao cancelar pedido.');
+    } finally {
+      setCancelandoPedido(false);
+    }
   };
 
   const handleSalvarDesconto = async () => {
@@ -2104,7 +2152,19 @@ export const PedidosLista: React.FC = () => {
       cancelado: 0
     };
 
+    const termo = busca.toLowerCase().trim();
+
     pedidos.forEach((p) => {
+      const nomeCli = p.cliente?.nome || 'cliente avulso (balcão)';
+      const matchBusca =
+        !termo ||
+        p.numero_pedido.toString().includes(termo) ||
+        nomeCli.toLowerCase().includes(termo) ||
+        (p.vendedor?.nome_completo && p.vendedor.nome_completo.toLowerCase().includes(termo)) ||
+        p.itens?.some((i) => i.nome_produto.toLowerCase().includes(termo));
+
+      if (!matchBusca) return;
+
       // Tudo com status diferente de 'concluido' é pedido aberto / ativo (conta em 'todos')
       if (p.status !== 'concluido') {
         counts.todos += 1;
@@ -2119,7 +2179,7 @@ export const PedidosLista: React.FC = () => {
     });
 
     return counts;
-  }, [pedidos]);
+  }, [pedidos, busca]);
 
   const pedidosAbertosCount = useMemo(() => {
     return pedidos.filter((p) =>
@@ -2453,12 +2513,29 @@ export const PedidosLista: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => setModalNovoClienteAberto(true)}
+                        onClick={() => {
+                          setClienteParaEditar(null);
+                          setModalNovoClienteAberto(true);
+                        }}
                         className="p-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-500 dark:bg-emerald-500/20 dark:hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 dark:hover:text-slate-950 border border-emerald-300 dark:border-emerald-500/30 transition cursor-pointer"
                         title="Adicionar novo cliente"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
+
+                      {pedidoSelecionado.cliente && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClienteParaEditar(pedidoSelecionado.cliente || null);
+                            setModalNovoClienteAberto(true);
+                          }}
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border border-slate-300 dark:border-slate-700 transition cursor-pointer"
+                          title="Editar dados cadastrais do cliente"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2564,18 +2641,6 @@ export const PedidosLista: React.FC = () => {
                             </button>
                           )}
                         </div>
-
-                        {pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (prov === 'uber' || prov === 'melhor_envio') && (permissions.ehAdmin || permissions.ehGerente) && (
-                          <button
-                            type="button"
-                            onClick={() => setModalContingenciaAberto(true)}
-                            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 text-[11px] font-bold border border-amber-500/30 flex items-center gap-1 transition cursor-pointer"
-                            title="Válvula de contingência RBAC: Forçar despacho manual caso a API externa falhe"
-                          >
-                            <AlertTriangle className="w-3 h-3" />
-                            <span>Forçar Despacho Manual</span>
-                          </button>
-                        )}
                       </div>
                     </div>
 
@@ -2697,40 +2762,30 @@ export const PedidosLista: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setPedidoRastreioModal(pedidoSelecionado)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-semibold text-xs uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
                               >
                                 <Package className="w-4 h-4" />
-                                <span>Rastrear Envio</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado)}
-                                className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-sky-600/20 cursor-pointer active:scale-95"
-                                title="Imprimir Etiqueta Oficial da Transportadora (PDF)"
-                              >
-                                <Printer className="w-3.5 h-3.5" />
-                                <span>Etiqueta Oficial (PDF)</span>
+                                <span>Rastrear</span>
                               </button>
 
                               <button
                                 type="button"
                                 onClick={() => handleImprimirDeclaracaoConteudoMelhorEnvio(pedidoSelecionado)}
-                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 font-semibold text-xs transition cursor-pointer"
                                 title="Imprimir Declaração de Conteúdo Oficial"
                               >
-                                <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                                 <span>Declaração</span>
                               </button>
 
                               <button
                                 type="button"
                                 onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-slate-300 font-bold text-xs transition cursor-pointer"
-                                title="Imprimir Etiqueta Térmica Padrão HUBI"
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 font-semibold text-xs transition cursor-pointer"
+                                title="Imprimir Etiqueta"
                               >
                                 <Tag className="w-3.5 h-3.5" />
-                                <span>Etiqueta HUBI</span>
+                                <span>Etiqueta</span>
                               </button>
                             </div>
                           );
@@ -3399,7 +3454,7 @@ export const PedidosLista: React.FC = () => {
                   placeholder="Item ou cliente..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-8 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-800 rounded-xl pl-9 pr-8 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                 />
                 {busca && (
                   <button
@@ -3421,8 +3476,8 @@ export const PedidosLista: React.FC = () => {
                       onClick={() => setStatusFiltro(f.id)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
                         isActive
-                          ? 'bg-emerald-500 text-slate-950 shadow-sm font-bold'
-                          : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                          ? 'bg-emerald-400 hover:bg-emerald-500 border border-emerald-500 text-slate-950 font-bold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs'
+                          : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                     >
                       <span>{f.label}</span>
@@ -3653,7 +3708,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleEditarPedido(pedido)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                     title="Editar itens e informações do pedido no PDV"
                                   >
                                     <Edit className="w-3.5 h-3.5" />
@@ -3666,7 +3721,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => setPedidoEscolherEnvio(pedido)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                     title="Definir modalidade de envio do pedido"
                                   >
                                     <Truck className="w-3.5 h-3.5" />
@@ -3678,7 +3733,7 @@ export const PedidosLista: React.FC = () => {
                                     onClick={() => {
                                       setPedidoReceberFiadoModal(pedido);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                     title="Receber pagamento do fiado"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
@@ -3701,7 +3756,7 @@ export const PedidosLista: React.FC = () => {
                                             onClick={() => {
                                               setPedidoReceberModal(pedido);
                                             }}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                             title="Receber pagamento"
                                           >
                                             <DollarSign className="w-3.5 h-3.5" />
@@ -3717,7 +3772,7 @@ export const PedidosLista: React.FC = () => {
                                               e.stopPropagation();
                                               handleDespacharPedido(pedido);
                                             }}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95 disabled:opacity-60"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60"
                                             title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar Envio'}
                                           >
                                             {isGerando ? (
@@ -3744,7 +3799,7 @@ export const PedidosLista: React.FC = () => {
                                     onClick={() => {
                                       setPedidoReceberModal(pedido);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
                                     <span>Receber</span>
@@ -3808,7 +3863,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => setPedidoEtiquetaModal(pedido)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                                 title="Imprimir Etiqueta de Envio"
                                               >
                                                 <Tag className="w-3.5 h-3.5" />
@@ -3818,7 +3873,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => setPedidoRastreioModal(pedido)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                                 title="Acompanhar Rastreamento em Tempo Real"
                                               >
                                                 <Package className="w-3.5 h-3.5" />
@@ -3829,7 +3884,7 @@ export const PedidosLista: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => setPedidoEtiquetaModal(pedido)}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                               title="Imprimir Etiqueta de Envio"
                                             >
                                               <Tag className="w-3.5 h-3.5" />
@@ -3841,7 +3896,7 @@ export const PedidosLista: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => handleRastrearTransportadora(pedido)}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                               title="Rastrear envio na Transportadora"
                                             >
                                               <ExternalLink className="w-3.5 h-3.5" />
@@ -3859,7 +3914,7 @@ export const PedidosLista: React.FC = () => {
                                                 mostrarToast('Código de rastreio copiado! Cole na página dos Correios.');
                                                 window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
                                               }}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                               title="Rastrear"
                                             >
                                               <Package className="w-3.5 h-3.5" />
@@ -3874,7 +3929,7 @@ export const PedidosLista: React.FC = () => {
                                                   href={link}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                                   title="Abrir mapa de rastreio ao vivo da Uber Direct"
                                                 >
                                                   <Navigation className="w-3 h-3" />
@@ -3885,7 +3940,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => handleCompartilharRastreioUber(pedido)}
-                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                                 title="Enviar link de rastreio da Uber no WhatsApp"
                                               >
                                                 <MessageCircle className="w-3.5 h-3.5" />
@@ -3898,7 +3953,7 @@ export const PedidosLista: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                       title="Concluir Pedido Entregue"
                                     >
                                       <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -3909,7 +3964,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs transition cursor-pointer active:scale-95"
                                     title="Concluir Pedido"
                                   >
                                     <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -3940,45 +3995,81 @@ export const PedidosLista: React.FC = () => {
       {/* ========================================================================= */}
       {modalCancelarPedidoAberto && pedidoSelecionado && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 text-center">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-bold text-slate-200">
-                R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)} para{' '}
-                {pedidoSelecionado.cliente?.nome || 'Cliente Balcão'}
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                Pedido #{pedidoSelecionado.numero_pedido} • R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
               </span>
               <button
                 type="button"
-                onClick={() => setModalCancelarPedidoAberto(false)}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+                onClick={() => {
+                  setModalCancelarPedidoAberto(false);
+                  setMotivoCancelamentoPedido('');
+                }}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 rounded-full bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto">
               <Ban className="w-7 h-7" />
             </div>
 
-            <div className="space-y-1">
-              <h3 className="text-xl font-black text-slate-100">Cancelar pedido?</h3>
-              <p className="text-xs text-slate-400">Este pedido não poderá ser alterado.</p>
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">Cancelar pedido?</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Esta ação cancelará o pedido de <strong className="text-slate-800 dark:text-slate-200">{pedidoSelecionado.cliente?.nome || 'Cliente Balcão'}</strong>.
+              </p>
             </div>
 
-            <div className="flex items-center justify-center gap-3 pt-2">
+            {/* Aviso de impacto operacional */}
+            <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl space-y-1.5 text-xs text-amber-800 dark:text-amber-300 text-left">
+              <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Impacto Operacional Automático:</span>
+              </div>
+              <ul className="text-[11px] space-y-1 list-disc list-inside text-amber-800 dark:text-amber-300/90 leading-tight">
+                <li><strong className="font-semibold">Estorno de estoque:</strong> As unidades dos itens retornarão automaticamente ao inventário.</li>
+                <li><strong className="font-semibold">Cancelamento financeiro:</strong> Lançamentos de fiado e saldo devedor vinculados serão estornados.</li>
+              </ul>
+            </div>
+
+            {/* Motivo do Cancelamento Obrigatório */}
+            <div className="text-left space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                Motivo do Cancelamento <span className="text-rose-500">*</span>:
+              </label>
+              <textarea
+                value={motivoCancelamentoPedido}
+                onChange={(e) => setMotivoCancelamentoPedido(e.target.value)}
+                placeholder="Informe detalhadamente a razão do cancelamento (ex: Desistência do cliente, erro no pedido)..."
+                rows={2}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 dark:focus:border-rose-500 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
-                onClick={() => setModalCancelarPedidoAberto(false)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
+                onClick={() => {
+                  setModalCancelarPedidoAberto(false);
+                  setMotivoCancelamentoPedido('');
+                }}
+                disabled={cancelandoPedido}
+                className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition cursor-pointer"
               >
                 Voltar
               </button>
 
               <button
                 type="button"
+                disabled={!motivoCancelamentoPedido.trim() || cancelandoPedido}
                 onClick={handleConfirmarCancelarPedido}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white transition shadow-lg shadow-rose-600/20 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                Cancelar pedido
+                {cancelandoPedido ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                <span>{cancelandoPedido ? 'Cancelando...' : 'Confirmar Cancelamento'}</span>
               </button>
             </div>
           </div>
@@ -4231,7 +4322,11 @@ export const PedidosLista: React.FC = () => {
       {/* MODAL NOVO CLIENTE */}
       <ModalNovoCliente
         isOpen={modalNovoClienteAberto}
-        onClose={() => setModalNovoClienteAberto(false)}
+        onClose={() => {
+          setModalNovoClienteAberto(false);
+          setClienteParaEditar(null);
+        }}
+        clienteEditar={clienteParaEditar}
         onClienteCadastrado={handleClienteCriado}
       />
 
@@ -4252,62 +4347,7 @@ export const PedidosLista: React.FC = () => {
         }}
       />
 
-      {/* MODAL CONTINGÊNCIA RBAC (DESKTOP) */}
-      {modalContingenciaAberto && pedidoSelecionado && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm text-slate-100">
-                    Válvula de Contingência (Admin)
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Despacho manual forçado</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalContingenciaAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2 text-xs text-amber-300">
-              <p className="font-bold text-amber-200">
-                Deseja forçar o despacho do Pedido #{pedidoSelecionado.numero_pedido}?
-              </p>
-              <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                Esta ação é exclusiva para Gerentes/Administradores e deve ser usada caso a API da transportadora parceira (Uber/Melhor Envio) esteja indisponível ou a entrega tenha sido resolvida por fora. O status mudará para &quot;Saiu para Entrega&quot;.
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setModalContingenciaAberto(false)}
-                disabled={executandoContingencia}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
-              >
-                Voltar
-              </button>
-              <button
-                type="button"
-                onClick={handleForcarConclusaoContingencia}
-                disabled={executandoContingencia}
-                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
-              >
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>{executandoContingencia ? 'Despachando...' : 'Sim, Forçar Despacho'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODAL IMPRIMIR ETIQUETA DE ENVIO */}
       <ModalImprimirEtiqueta

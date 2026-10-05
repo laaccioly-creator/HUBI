@@ -2581,8 +2581,12 @@ export const PosCheckout: React.FC = () => {
                 onClick={() => setModalDefinirEnvioAberto(true)}
                 className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${
                   isFreteConfirmado
-                    ? 'bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 shadow-sm'
-                    : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow'
+                    ? isDark
+                      ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-semibold shadow-xs'
+                      : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold shadow-xs'
+                    : isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow'
+                    : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-slate-800 font-semibold shadow-xs'
                 }`}
                 title={
                   !temCliente
@@ -2592,7 +2596,7 @@ export const PosCheckout: React.FC = () => {
                     : 'Definir opções de envio'
                 }
               >
-                <Truck className={`w-3.5 h-3.5 shrink-0 ${isFreteConfirmado ? 'text-emerald-400' : 'text-amber-400'}`} />
+                <Truck className={`w-3.5 h-3.5 shrink-0 ${isFreteConfirmado ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-amber-400' : 'text-amber-700')}`} />
                 <span className="leading-tight">
                   Opções<br />de Envio
                 </span>

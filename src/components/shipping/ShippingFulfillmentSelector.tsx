@@ -2110,9 +2110,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                   </div>
                                 ) : (
                                   <span className={`font-extrabold text-sm ${
-                                    selecionada
-                                      ? ehDark ? 'text-emerald-400' : 'text-emerald-600'
-                                      : ehDark ? 'text-emerald-400' : 'text-emerald-600'
+                                    ehDark ? 'text-white font-bold' : 'text-emerald-700 font-bold'
                                   }`}>
                                     R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
@@ -2213,7 +2211,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 <div
                                   className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 transition shadow-sm border ${
                                     ehDark
-                                      ? 'bg-black border-slate-700 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'
+                                      ? 'bg-slate-950 border-slate-700 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'
                                       : 'bg-white border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'
                                   }`}
                                   onClick={(e) => e.stopPropagation()}
@@ -2231,8 +2229,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                       handleSelecionarFormaManual(forma);
                                     }}
                                     onChange={(e) => handleAlterarValorManualForma(forma, e.target.value)}
-                                    className={`w-24 text-right font-extrabold text-sm outline-none bg-transparent ${
-                                      ehDark ? 'text-white focus:text-emerald-400' : 'text-slate-800 focus:text-emerald-600'
+                                    className={`w-24 text-right font-extrabold text-sm outline-none bg-transparent placeholder:text-slate-400 ${
+                                      ehDark ? 'text-white font-medium focus:text-white' : 'text-slate-800 font-medium focus:text-slate-900'
                                     }`}
                                   />
                                 </div>
