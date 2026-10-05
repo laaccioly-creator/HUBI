@@ -472,7 +472,9 @@ export const AppLayout: React.FC = () => {
             <div className="grid grid-cols-6 gap-1 lg:gap-1.5 w-full">
               {row1Buttons.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname.startsWith(item.path);
+                const isActive = item.path === '/pos'
+                  ? location.pathname === '/pos' || location.pathname === '/'
+                  : location.pathname.startsWith(item.path);
 
                 return (
                   <button
@@ -482,12 +484,8 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? item.path === '/dashboard'
-                            ? 'bg-black hover:bg-black text-white font-bold border border-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)] shadow-inner translate-y-[1px]'
-                            : 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
-                          : item.path === '/dashboard'
-                          ? 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
-                          : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
+                          ? 'bg-black hover:bg-black text-white font-bold border border-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)] shadow-inner translate-y-[1px]'
+                          : 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
                         : isDark
                         ? 'bg-black text-slate-200 hover:bg-slate-900 hover:text-white border border-white/15 shadow-xs'
                         : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
@@ -519,8 +517,8 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold border border-emerald-500 shadow-xs'
-                          : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold shadow-xs'
+                          ? 'bg-black hover:bg-black text-white font-bold border border-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)] shadow-inner translate-y-[1px]'
+                          : 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
                         : isDark
                         ? 'bg-black text-slate-200 hover:bg-slate-900 hover:text-white border border-white/15 shadow-xs'
                         : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
