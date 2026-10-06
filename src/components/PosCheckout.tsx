@@ -2148,7 +2148,9 @@ export const PosCheckout: React.FC = () => {
 
             {/* Dropdown de Clientes com busca e seleção */}
             {clienteDropdownAberto && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto animate-in fade-in">
+              <div className={`absolute left-0 right-0 top-full mt-1.5 z-40 rounded-2xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto animate-in fade-in border ${
+                isDark ? 'bg-slate-900 border-slate-700/90' : 'bg-white border-slate-200'
+              }`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2156,16 +2158,28 @@ export const PosCheckout: React.FC = () => {
                     setClienteBuscaTexto('');
                     setClienteDropdownAberto(false);
                   }}
-                  className={`w-full p-2.5 text-left text-xs font-medium flex items-center justify-between border-b border-slate-800 transition cursor-pointer ${
-                    !clienteSelecionado ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-300 hover:bg-slate-800'
+                  className={`w-full p-2.5 text-left text-xs font-medium flex items-center justify-between border-b transition cursor-pointer ${
+                    isDark ? 'border-slate-800' : 'border-slate-100'
+                  } ${
+                    !clienteSelecionado
+                      ? isDark
+                        ? 'bg-emerald-500/15 text-emerald-300 font-bold'
+                        : 'bg-emerald-50 text-emerald-800 font-bold'
+                      : isDark
+                      ? 'text-slate-300 hover:bg-slate-800/80'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
-                  <span>👤 Cliente Avulso (Balcão)</span>
-                  {!clienteSelecionado && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                  <span className={!clienteSelecionado ? (isDark ? 'text-emerald-300 font-bold' : 'text-emerald-800 font-bold') : (isDark ? 'text-slate-200' : 'text-slate-900 font-semibold')}>
+                    👤 Cliente Avulso (Balcão)
+                  </span>
+                  {!clienteSelecionado && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
                 </button>
 
                 {(clientesFiltrados || []).length === 0 ? (
-                  <div className="p-3 text-center text-xs text-slate-500">Nenhum cliente encontrado.</div>
+                  <div className={`p-3 text-center text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Nenhum cliente encontrado.
+                  </div>
                 ) : (
                   clientesFiltrados.map((cli) => {
                     const isSelected = clienteSelecionado?.id === cli.id;
@@ -2178,19 +2192,37 @@ export const PosCheckout: React.FC = () => {
                           setClienteBuscaTexto('');
                           setClienteDropdownAberto(false);
                         }}
-                        className={`w-full p-2.5 text-left text-xs flex items-center justify-between border-b border-slate-800/60 transition cursor-pointer ${
-                          isSelected ? 'bg-emerald-500/15 text-emerald-300 font-bold' : 'text-slate-200 hover:bg-slate-800/80'
+                        className={`w-full p-2.5 text-left text-xs flex items-center justify-between border-b transition cursor-pointer ${
+                          isDark ? 'border-slate-800/60' : 'border-slate-100'
+                        } ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-emerald-500/15 text-emerald-300 font-bold'
+                              : 'bg-emerald-50 text-emerald-900 font-bold'
+                            : isDark
+                            ? 'text-slate-200 hover:bg-slate-800/80'
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <div className="min-w-0 pr-2">
-                          <span className="block truncate font-bold">{cli.nome}</span>
+                          <span className={`block truncate font-bold ${
+                            isSelected
+                              ? isDark ? 'text-emerald-300' : 'text-emerald-900'
+                              : isDark ? 'text-slate-100' : 'text-slate-900'
+                          }`}>
+                            {cli.nome}
+                          </span>
                           {(cli.whatsapp || cli.telefone) && (
-                            <span className="text-[10px] text-slate-400 block truncate">
+                            <span className={`text-[10px] block truncate ${
+                              isSelected
+                                ? isDark ? 'text-emerald-400/80' : 'text-emerald-700'
+                                : isDark ? 'text-slate-400' : 'text-slate-500'
+                            }`}>
                               Tel: {cli.whatsapp || cli.telefone}
                             </span>
                           )}
                         </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
                       </button>
                     );
                   })

@@ -1749,7 +1749,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => galleryInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-400 bg-slate-900/50 hover:bg-emerald-500/10 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-300 font-medium transition cursor-pointer"
+                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-slate-600 dark:hover:border-emerald-400 bg-white hover:bg-slate-50 dark:bg-slate-800/40 dark:hover:bg-slate-800/60 flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
                         title="Adicionar mais foto"
                       >
                         <Plus className="w-4 h-4" />
@@ -1768,17 +1768,17 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         <form onSubmit={salvarProduto} className="space-y-6">
           {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO (ORDEM AJUSTADA) */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+          <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
             {/* Header da Seção com Toggle de Produto Ativo */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-              <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-400" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                 <span>2. Identificação do Produto</span>
               </h2>
 
               {/* Interruptor (Toggle Switch) Produto Ativo */}
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-slate-300">Produto:</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Produto:</span>
                 <button
                   type="button"
                   role="switch"
@@ -1787,12 +1787,12 @@ export const ProdutoCadastro: React.FC = () => {
                   className="flex items-center gap-2.5 cursor-pointer select-none group"
                   title={ativo ? 'Clique para inativar o produto' : 'Clique para ativar o produto'}
                 >
-                  <span className={`text-xs font-bold transition ${ativo ? 'text-emerald-400' : 'text-slate-400'}`}>
+                  <span className={`text-xs font-bold transition ${ativo ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
                     {ativo ? 'Ativo' : 'Inativo'}
                   </span>
                   <div
                     className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      ativo ? 'bg-emerald-500' : 'bg-slate-700'
+                      ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
                   >
                     <span
@@ -1809,17 +1809,17 @@ export const ProdutoCadastro: React.FC = () => {
             {/* Compactação do Tipo do Item (Posicionado logo abaixo do toggle de ativo em linha única) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 py-1">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block">Tipo do Item *</label>
-                <span className="text-[11px] text-slate-500">Mercadoria física ou serviço / cobrança de taxa</span>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">Tipo do Item *</label>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Mercadoria física ou serviço / cobrança de taxa</span>
               </div>
-              <div className="inline-flex p-1 bg-slate-950/70 rounded-xl border border-slate-800 gap-1 self-start sm:self-auto">
+              <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-950/70 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setTipoItem('produto')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     tipoItem === 'produto'
-                      ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-300 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60'
                   }`}
                 >
                   <Package className="w-3.5 h-3.5" />
@@ -1835,8 +1835,8 @@ export const ProdutoCadastro: React.FC = () => {
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     tipoItem === 'servico'
-                      ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-300 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60'
                   }`}
                 >
                   <Wrench className="w-3.5 h-3.5" />
@@ -2381,18 +2381,21 @@ export const ProdutoCadastro: React.FC = () => {
                       setDetectandoDimensoes(false);
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-emerald-400 text-xs font-semibold border border-slate-700 transition cursor-pointer self-start sm:self-auto shadow-sm"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-950 font-bold dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:border-emerald-700/60 dark:text-emerald-300 text-xs transition shadow-xs cursor-pointer self-start sm:self-auto group disabled:opacity-50"
                   title="Detectar ou estimar medidas e peso com inteligência artificial"
                 >
                   {detectandoDimensoes ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 animate-spin shrink-0" />
                       <span>Estimando com IA...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition shrink-0" />
                       <span>Auto-detectar com IA</span>
+                      <span className="text-[9px] bg-emerald-200 dark:bg-emerald-500/30 text-emerald-900 dark:text-emerald-200 px-1.5 py-0.2 rounded-full font-black">
+                        IA
+                      </span>
                     </>
                   )}
                 </button>
