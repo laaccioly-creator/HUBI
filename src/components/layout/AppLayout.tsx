@@ -493,10 +493,10 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-black hover:bg-black text-white font-bold border border-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)] shadow-inner translate-y-[1px]'
+                          ? 'bg-black hover:bg-black text-white font-bold border border-emerald-500 shadow-xs translate-y-[1px]'
                           : 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
                         : isDark
-                        ? 'bg-black text-slate-200 hover:bg-slate-900 hover:text-white border border-white/15 shadow-xs'
+                        ? 'bg-black text-slate-200 hover:bg-slate-900 hover:text-white border border-white/20 shadow-xs'
                         : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
                     }`}
                   >
@@ -526,10 +526,10 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-black hover:bg-black text-white font-bold border border-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)] shadow-inner translate-y-[1px]'
+                          ? 'bg-black hover:bg-black text-white font-bold border border-emerald-500 shadow-xs translate-y-[1px]'
                           : 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
                         : isDark
-                        ? 'bg-black text-slate-200 hover:bg-slate-900 hover:text-white border border-white/15 shadow-xs'
+                        ? 'bg-black text-slate-200 hover:bg-slate-900 hover:text-white border border-white/20 shadow-xs'
                         : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
                     }`}
                   >
@@ -549,7 +549,7 @@ export const AppLayout: React.FC = () => {
                 onClick={() => setUserMenuOpen(prev => !prev)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-left cursor-pointer shadow-xs ${
                   isDark
-                    ? 'bg-black hover:bg-slate-900 border border-white/15 text-white font-semibold'
+                    ? 'bg-black hover:bg-slate-900 border border-white/20 text-white font-semibold'
                     : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
                 }`}
               >
