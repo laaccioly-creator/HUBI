@@ -1135,11 +1135,15 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
-  // Preenchimento com Inteligência Artificial a partir da Foto
-  const handlePreencherComIA = async () => {
+  // Rotina Unificada de Preenchimento / Atualização com Inteligência Artificial
+  const handleExecutarPreenchimentoIA = async (modoAcao: 'atualizar' | 'preencher' = 'preencher') => {
+    const nomeInformado = nome.trim();
     const fotoAlvo = fotoPrincipal || fotosUrls[0];
-    if (!fotoAlvo) {
-      alert('Por favor, tire uma foto ou selecione uma imagem do produto primeiro.');
+
+    // 1. Validação Obrigatória de Entrada:
+    // Se o campo Nome do Produto estiver vazio E não houver nenhuma foto cadastrada, bloquear a chamada e disparar Toast
+    if (!nomeInformado && !fotoAlvo) {
+      mostrarAviso('Para usar a Inteligência Artificial, informe pelo menos o nome do produto ou adicione uma foto.');
       return;
     }
 
@@ -1147,106 +1151,52 @@ export const ProdutoCadastro: React.FC = () => {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
 
-      const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
-      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
+      // 2. Fluxo Unificado de Consulta:
+      // Priorizam primeiro o Nome e a Descrição existentes; caso ausentes ou insuficientes, utilizam a Foto Principal
+      if (nomeInformado || descricao.trim()) {
+        const catNome = categorias.find(c => c.id === categoriaId)?.nome;
+        const dadosAtualizados = await atualizarProdutoExistenteComIA({
+          nome: nomeInformado || 'Produto',
+          descricao: descricao.trim(),
+          categoriaNome: catNome,
+          codigoBarras: codigoBarras.trim(),
+          precoVendaAtual: Number(precoVendaVarejo) || undefined,
+          segmentoLoja,
+          loja
+        });
 
-      if (dadosSugeridos) {
-        if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
-          setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
-          setModalDuvidaAberto(true);
-        } else {
-          await aplicarDadosSugeridosIA(dadosSugeridos);
-          setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+        if (dadosAtualizados) {
+          await aplicarDadosSugeridosIA(dadosAtualizados);
+          setSucessoIAMsg(
+            modoAcao === 'atualizar'
+              ? '✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!'
+              : '✨ Informações comerciais preenchidas com sucesso a partir do nome/descrição!'
+          );
+        }
+      } else if (fotoAlvo) {
+        const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
+        const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
+
+        if (dadosSugeridos) {
+          if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
+            setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
+            setModalDuvidaAberto(true);
+          } else {
+            await aplicarDadosSugeridosIA(dadosSugeridos);
+            setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+          }
         }
       }
     } catch (err: any) {
-      console.error('Erro na identificação por IA:', err);
-      alert(`Não foi possível identificar o produto pela foto: ${err.message || 'Tente novamente'}`);
+      console.error('Erro na rotina de IA:', err);
+      mostrarErro(`Não foi possível processar com a IA: ${err.message || 'Tente novamente'}`);
     } finally {
       setAnalisandoIA(false);
     }
   };
 
-  // Preenchimento com Inteligência Artificial a partir da Descrição / Nome
-  const handlePreencherPorDescricaoIA = async () => {
-    const texto = textoDescricaoIA.trim() || nome.trim() || descricao.trim();
-    if (!texto) {
-      alert('Por favor, digite o nome ou uma descrição do produto para preenchimento inteligente.');
-      return;
-    }
-
-    try {
-      setAnalisandoIA(true);
-      setSucessoIAMsg(null);
-      const dadosSugeridos = await identificarProdutoPorTextoOuEan('descricao', texto, segmentoLoja, loja);
-      if (dadosSugeridos) {
-        await aplicarDadosSugeridosIA(dadosSugeridos);
-        setSucessoIAMsg('✨ Informações e ficha técnica preenchidas com sucesso a partir da descrição!');
-      }
-    } catch (err: any) {
-      console.error('Erro na identificação por IA:', err);
-      alert(`Não foi possível identificar o produto: ${err.message || 'Tente novamente'}`);
-    } finally {
-      setAnalisandoIA(false);
-    }
-  };
-
-  // Preenchimento com Inteligência Artificial a partir do Código de Barras / EAN
-  const handlePreencherPorCodigoBarrasIA = async () => {
-    const ean = codigoBarrasIA.trim() || codigoBarras.trim();
-    if (!ean) {
-      alert('Por favor, informe o Código de Barras / EAN do produto.');
-      return;
-    }
-
-    try {
-      setAnalisandoIA(true);
-      setSucessoIAMsg(null);
-      const dadosSugeridos = await identificarProdutoPorTextoOuEan('barcode', ean, segmentoLoja, loja);
-      if (dadosSugeridos) {
-        await aplicarDadosSugeridosIA(dadosSugeridos);
-        setSucessoIAMsg('✨ Informações do produto identificadas com sucesso pelo código de barras!');
-      }
-    } catch (err: any) {
-      console.error('Erro na identificação por IA:', err);
-      alert(`Não foi possível identificar o produto pelo código de barras: ${err.message || 'Tente novamente'}`);
-    } finally {
-      setAnalisandoIA(false);
-    }
-  };
-
-  // Atualizar Produto Existente com IA (focado 100% no Nome Comercial do produto)
-  const handleAtualizarComIA = async () => {
-    if (!nome.trim() && !descricao.trim()) {
-      alert('Informe ao menos o nome do produto para atualizar com IA.');
-      return;
-    }
-
-    try {
-      setAnalisandoIA(true);
-      setSucessoIAMsg(null);
-      const catNome = categorias.find(c => c.id === categoriaId)?.nome;
-      const dadosAtualizados = await atualizarProdutoExistenteComIA({
-        nome: nome.trim() || 'Produto',
-        descricao: descricao.trim(),
-        categoriaNome: catNome,
-        codigoBarras: codigoBarras.trim(),
-        precoVendaAtual: Number(precoVendaVarejo) || undefined,
-        segmentoLoja,
-        loja
-      });
-
-      if (dadosAtualizados) {
-        await aplicarDadosSugeridosIA(dadosAtualizados);
-        setSucessoIAMsg('✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!');
-      }
-    } catch (err: any) {
-      console.error('Erro na atualização por IA:', err);
-      alert(`Não foi possível atualizar o produto com IA: ${err.message || 'Tente novamente'}`);
-    } finally {
-      setAnalisandoIA(false);
-    }
-  };
+  const handlePreencherComIA = () => handleExecutarPreenchimentoIA('preencher');
+  const handleAtualizarComIA = () => handleExecutarPreenchimentoIA('atualizar');
 
   // Funções do Radar de Preços de Mercado
   const handleAbrirRadarPrecos = async () => {
@@ -1535,243 +1485,12 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={async () => {
-              const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
-              setTempApiKey(k);
-              setModalKeyGemini(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white text-xs font-semibold transition cursor-pointer"
-            title="Configurar Chave Google Gemini AI"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span className="hidden sm:inline">Chave Gemini IA</span>
-          </button>
         </div>
 
-        {/* CARD DE STATUS DO PRODUTO (ATIVO / INATIVO) - APENAS OWNER/ADMIN */}
-        {ehEdicao && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold ${
-                ativo ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
-              }`}>
-                <Package className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">Status do Produto</h3>
-                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                    ativo ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' : 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30'
-                  }`}>
-                    {ativo ? 'Ativo no Sistema' : 'Inativo / Oculto'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {ativo ? 'O produto está disponível para venda no PDV e visualização no catálogo.' : 'O produto está inativado e não poderá ser vendido no PDV nem exibido no catálogo.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {permissions.ehAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => setAtivo(!ativo)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow-xs ${
-                    ativo
-                      ? 'bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:border-rose-800/60 dark:text-rose-300'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs font-semibold'
-                  }`}
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>{ativo ? 'Inativar Produto' : 'Ativar Produto'}</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-500 text-xs">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Apenas Owner ou Admin podem ativar/inativar</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* ========================================================================= */}
-        {/* SEÇÃO 1: FOTOS DO PRODUTO & PREENCHIMENTO INTELIGENTE (FOTO / DESCRIÇÃO / EAN) */}
+        {/* SEÇÃO 1: FOTOS DO PRODUTO & AÇÕES INTELIGENTES                           */}
         {/* ========================================================================= */}
-        <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-5 shadow-xs relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-400 flex items-center justify-center font-bold">
-                <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-              </div>
-              <div>
-                <div className="flex flex-col">
-                  <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                    {ehEdicao ? 'Atualize o seu produto' : 'Cadastre o seu produto'}
-                  </h2>
-                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    usando a nossa IA
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                  {ehEdicao
-                    ? 'Atualize automaticamente os dados comerciais, cópia de vendas e preços com inteligência artificial.'
-                    : 'Preencha automaticamente os dados e preços pela Foto, pela Descrição/Nome ou pelo Código de Barras.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {ehEdicao && (
-                <button
-                  type="button"
-                  disabled={analisandoIA}
-                  onClick={handleAtualizarComIA}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
-                  title="Atualizar o produto com base nos dados atuais usando IA"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Atualizar o Produto</span>
-                </button>
-              )}
-
-              {/* SELETOR DE MODALIDADE DE IA */}
-              <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-950/80 p-1 rounded-2xl border border-slate-300 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setModoPreenchimentoIA('foto')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                    modoPreenchimentoIA === 'foto'
-                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-xs border border-slate-200 dark:border-slate-700'
-                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>Pela Foto</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setModoPreenchimentoIA('descricao')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                    modoPreenchimentoIA === 'descricao'
-                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-xs border border-slate-200 dark:border-slate-700'
-                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>Pela Descrição</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setModoPreenchimentoIA('barcode')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                    modoPreenchimentoIA === 'barcode'
-                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-xs border border-slate-200 dark:border-slate-700'
-                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Pelo Código de Barras</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* PAINEL DE PREENCHIMENTO POR DESCRIÇÃO */}
-          {modoPreenchimentoIA === 'descricao' && (
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 animate-in fade-in">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  placeholder="Digite o nome ou cole a descrição do produto (ex: Garrafa Térmica Inox 500ml Kouda)"
-                  value={textoDescricaoIA}
-                  onChange={(e) => setTextoDescricaoIA(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handlePreencherPorDescricaoIA();
-                    }
-                  }}
-                  className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-emerald-500/40 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
-                />
-                <button
-                  type="button"
-                  disabled={analisandoIA}
-                  onClick={handlePreencherPorDescricaoIA}
-                  className="px-4 py-2.5 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200/80 text-violet-900 font-bold dark:bg-violet-950/50 dark:hover:bg-violet-900/60 dark:border-violet-800/60 dark:text-violet-200 text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
-                  <span>Preencher com IA</span>
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-emerald-300/80">
-                A IA estruturará o nome comercial, categoria, ficha técnica, unidade e sugestão de preços de venda e custo.
-              </p>
-            </div>
-          )}
-
-          {/* PAINEL DE PREENCHIMENTO POR CÓDIGO DE BARRAS / EAN */}
-          {modoPreenchimentoIA === 'barcode' && (
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 animate-in fade-in">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  placeholder="Digite ou bipe o Código de Barras / EAN (ex: 7891234567890)"
-                  value={codigoBarrasIA}
-                  onChange={(e) => setCodigoBarrasIA(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handlePreencherPorCodigoBarrasIA();
-                    }
-                  }}
-                  className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-emerald-500/40 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
-                />
-                <button
-                  type="button"
-                  disabled={analisandoIA}
-                  onClick={handlePreencherPorCodigoBarrasIA}
-                  className="px-4 py-2.5 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200/80 text-violet-900 font-bold dark:bg-violet-950/50 dark:hover:bg-violet-900/60 dark:border-violet-800/60 dark:text-violet-200 text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
-                  <span>Identificar por Código</span>
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-emerald-300/80">
-                A IA consultará o código no catálogo de produtos e preencherá a ficha e o radar de preços de mercado.
-              </p>
-            </div>
-          )}
-
-          {/* PAINEL POR FOTO (BOTÃO PREENCHER PELA FOTO QUANDO FOTO ESTÁ SELECIONADA) */}
-          {modoPreenchimentoIA === 'foto' && (fotoPrincipal || fotosUrls.length > 0) && (
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                disabled={analisandoIA}
-                onClick={handlePreencherComIA}
-                className="px-5 py-3 rounded-2xl bg-violet-50 hover:bg-violet-100 border border-violet-200/80 text-violet-900 font-bold dark:bg-violet-950/50 dark:hover:bg-violet-900/60 dark:border-violet-800/60 dark:text-violet-200 text-xs shadow-xs flex items-center justify-center gap-2 transition transform active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                {analisandoIA ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analisando Foto com IA...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-300 animate-pulse" />
-                    <span>Preencher Ficha a partir da Foto</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
+        <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xs relative overflow-hidden">
           {/* Mensagem de Sucesso da IA */}
           {sucessoIAMsg && (
             <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-300 animate-in fade-in">
@@ -1802,12 +1521,12 @@ export const ProdutoCadastro: React.FC = () => {
             }}
           />
 
-          {/* Área de Visualização e Captura */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+          {/* Grid: Coluna Foto (Capa) + Coluna de Ações Verticais e Miniaturas */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
             {/* Foto Principal / Preview */}
             <div className="md:col-span-5 flex flex-col items-center justify-center">
               {fazendoUploadFoto ? (
-                <div className="w-full aspect-square max-w-[260px] rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-pulse">
+                <div className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-pulse">
                   <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
                   <div>
                     <span className="font-bold text-xs text-emerald-800 dark:text-emerald-200 block">
@@ -1819,24 +1538,21 @@ export const ProdutoCadastro: React.FC = () => {
                   </div>
                 </div>
               ) : fotoPrincipal ? (
-                <div className="relative w-full aspect-square max-w-[260px] rounded-2xl overflow-hidden border-2 border-slate-300 dark:border-emerald-500/40 bg-slate-950 shadow-xl group">
+                <div className="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-slate-300 dark:border-slate-700 bg-slate-950 shadow-xl group">
                   <img
                     src={fotoPrincipal}
-                    alt="Foto Principal do Produto"
+                    alt="Foto do Produto"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-2 left-2 bg-emerald-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-md">
-                    Foto Principal (Capa)
-                  </div>
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-xs">
                     {fotosUrls.length < 7 && (
                       <button
                         type="button"
-                        onClick={() => cameraInputRef.current?.click()}
-                        className="p-2 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition cursor-pointer"
-                        title="Tirar outra foto"
+                        onClick={() => galleryInputRef.current?.click()}
+                        className="p-2.5 rounded-xl bg-slate-800 text-emerald-400 hover:bg-slate-700 transition cursor-pointer"
+                        title="Adicionar outra foto da galeria"
                       >
-                        <Camera className="w-5 h-5" />
+                        <Upload className="w-5 h-5" />
                       </button>
                     )}
                     <button
@@ -1846,8 +1562,8 @@ export const ProdutoCadastro: React.FC = () => {
                         setFotosUrls(restantes);
                         setFotoPrincipal(restantes[0] || '');
                       }}
-                      className="p-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 transition cursor-pointer"
-                      title="Remover foto principal"
+                      className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 transition cursor-pointer"
+                      title="Remover foto"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -1855,113 +1571,135 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
               ) : (
                 <div
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="w-full aspect-square max-w-[260px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-emerald-500/40 bg-slate-100 hover:bg-slate-200 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10 flex flex-col items-center justify-center p-6 text-center space-y-3 cursor-pointer transition group"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-800/80 flex flex-col items-center justify-center p-6 text-center space-y-3 cursor-pointer transition group"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-sm">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-sm border border-emerald-300 dark:border-emerald-500/30">
                     <Camera className="w-7 h-7" />
                   </div>
                   <div>
                     <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200 block">
-                      Toque para Abrir a Câmera
+                      Toque para Selecionar Foto
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
-                      Bata a foto do produto agora mesmo
+                      JPG, PNG ou WebP até 7 fotos
                     </span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Botões de Ação de Captura & Galeria */}
-            <div className="md:col-span-7 space-y-3 flex flex-col justify-center h-full">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {/* Botão Câmera do Celular */}
-                <button
-                  type="button"
-                  disabled={fotosUrls.length >= 7}
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 font-semibold dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:border-slate-700 dark:text-slate-200 dark:hover:text-white text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40"
-                >
-                  <Camera className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-                  <span>Tirar Foto ({fotosUrls.length}/7)</span>
-                </button>
+            {/* Coluna de Ações Verticais e Miniaturas */}
+            <div className="md:col-span-7 flex flex-col gap-2.5">
+              {/* Botão Câmera (Mobile Only) */}
+              <button
+                type="button"
+                disabled={fotosUrls.length >= 7}
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 disabled:opacity-40"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Camera className="w-4 h-4 text-slate-300 shrink-0" />
+                  <span className="font-bold truncate">Tirar Foto</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                  ({fotosUrls.length}/7)
+                </span>
+              </button>
 
-                {/* Botão Escolher da Galeria */}
-                <button
-                  type="button"
-                  disabled={fotosUrls.length >= 7}
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 font-semibold dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:border-slate-700 dark:text-slate-200 dark:hover:text-white text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40"
-                >
-                  <Upload className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-                  <span>Galeria (Até 7 fotos)</span>
-                </button>
+              {/* 1. Chave Gemini IA */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
+                  setTempApiKey(k);
+                  setModalKeyGemini(true);
+                }}
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none group"
+                title="Configurar Chave Google Gemini AI"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="font-bold truncate">Chave Gemini IA</span>
+                </div>
+                <span className="text-[10px] text-slate-400 group-hover:text-emerald-300 font-normal shrink-0">
+                  Configurar
+                </span>
+              </button>
 
-                {/* Botão Pesquisar Fotos na Internet */}
-                <button
-                  type="button"
-                  disabled={fotosUrls.length >= 7}
-                  onClick={handleAbrirPesquisaFotos}
-                  className="py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 font-semibold dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:border-slate-700 dark:text-slate-200 dark:hover:text-white text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40 col-span-1 sm:col-span-2"
-                  title="Pesquisar fotos na internet com boa qualidade"
-                >
-                  <Globe className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-                  <span>Pesquisar Fotos na Internet</span>
-                </button>
-              </div>
+              {/* 2. Atualizar o Produto com nossa IA */}
+              <button
+                type="button"
+                disabled={analisandoIA}
+                onClick={() => handleExecutarPreenchimentoIA('atualizar')}
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                title="Atualizar o produto com nossa inteligência artificial"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {analisandoIA ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 text-emerald-400 shrink-0" />
+                  )}
+                  <span className="font-bold truncate">Atualizar o Produto com nossa IA</span>
+                </div>
+              </button>
 
-              {/* Opção de Link URL */}
-              <div>
-                {!mostrarUrlInput ? (
-                  fotosUrls.length < 7 && (
-                    <button
-                      type="button"
-                      onClick={() => setMostrarUrlInput(true)}
-                      className="text-[11px] text-slate-400 hover:text-indigo-400 font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <LinkIcon className="w-3.5 h-3.5" />
-                      <span>Ou colar o link de uma imagem da internet</span>
-                    </button>
-                  )
-                ) : (
-                  <div className="flex gap-2 animate-in fade-in">
-                    <input
-                      type="url"
-                      placeholder="Cole a URL da imagem (https://...)"
-                      value={novaFotoUrl}
-                      onChange={(e) => setNovaFotoUrl(e.target.value)}
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (novaFotoUrl.trim() && fotosUrls.length < 7) {
-                          const url = novaFotoUrl.trim();
-                          setFotosUrls(prev => [url, ...prev]);
-                          if (!fotoPrincipal) setFotoPrincipal(url);
-                          setNovaFotoUrl('');
-                          setMostrarUrlInput(false);
-                        }
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer"
-                    >
-                      Adicionar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMostrarUrlInput(false)}
-                      className="px-2.5 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* 3. Preencher com nossa IA (a partir da foto ou nome do produto) */}
+              <button
+                type="button"
+                disabled={analisandoIA}
+                onClick={() => handleExecutarPreenchimentoIA('preencher')}
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                title="Preencher com nossa IA (a partir da foto ou nome do produto)"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {analisandoIA ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  )}
+                  <span className="font-bold truncate">Preencher com nossa IA</span>
+                </div>
+                <span className="text-[10px] text-slate-400 group-hover:text-emerald-300 font-normal shrink-0 hidden sm:inline">
+                  (a partir da foto ou nome do produto)
+                </span>
+              </button>
 
-              {/* Galeria de Miniaturas (Até 7 Fotos) */}
+              {/* 4. Galeria (Até 7 fotos) */}
+              <button
+                type="button"
+                disabled={fotosUrls.length >= 7}
+                onClick={() => galleryInputRef.current?.click()}
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                title="Escolher fotos do dispositivo"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Upload className="w-4 h-4 text-slate-300 shrink-0" />
+                  <span className="font-bold truncate">Galeria (Até 7 fotos)</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                  ({fotosUrls.length}/7)
+                </span>
+              </button>
+
+              {/* 5. Pesquisar Fotos na Internet */}
+              <button
+                type="button"
+                disabled={fotosUrls.length >= 7}
+                onClick={handleAbrirPesquisaFotos}
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                title="Pesquisar fotos na internet com boa qualidade"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Globe className="w-4 h-4 text-slate-300 shrink-0" />
+                  <span className="font-bold truncate">Pesquisar Fotos na Internet</span>
+                </div>
+              </button>
+
+              {/* Miniaturas das Fotos Cadastradas e Botão + Foto */}
               {fotosUrls.length > 0 && (
-                <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                <div className="pt-2.5 mt-1 border-t border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
                     <span>Fotos Cadastradas ({fotosUrls.length}/7):</span>
                     <span className="text-[10px] text-slate-500">Clique para definir a foto principal</span>
@@ -2010,8 +1748,8 @@ export const ProdutoCadastro: React.FC = () => {
                     {fotosUrls.length < 7 && (
                       <button
                         type="button"
-                        onClick={() => cameraInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-slate-700 dark:hover:border-emerald-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/50 dark:hover:bg-emerald-500/10 flex flex-col items-center justify-center text-slate-700 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium transition cursor-pointer"
+                        onClick={() => galleryInputRef.current?.click()}
+                        className="aspect-square rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-400 bg-slate-900/50 hover:bg-emerald-500/10 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-300 font-medium transition cursor-pointer"
                         title="Adicionar mais foto"
                       >
                         <Plus className="w-4 h-4" />
@@ -2031,47 +1769,83 @@ export const ProdutoCadastro: React.FC = () => {
         <form onSubmit={salvarProduto} className="space-y-6">
           {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO (ORDEM AJUSTADA) */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
-            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-emerald-400" />
-              <span>2. Identificação do Produto</span>
-            </h2>
+            {/* Header da Seção com Toggle de Produto Ativo */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+              <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-400" />
+                <span>2. Identificação do Produto</span>
+              </h2>
+
+              {/* Interruptor (Toggle Switch) Produto Ativo */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-slate-300">Produto:</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={ativo}
+                  onClick={() => setAtivo(!ativo)}
+                  className="flex items-center gap-2.5 cursor-pointer select-none group"
+                  title={ativo ? 'Clique para inativar o produto' : 'Clique para ativar o produto'}
+                >
+                  <span className={`text-xs font-bold transition ${ativo ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {ativo ? 'Ativo' : 'Inativo'}
+                  </span>
+                  <div
+                    className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      ativo ? 'bg-emerald-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        ativo ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Compactação do Tipo do Item (Posicionado logo abaixo do toggle de ativo em linha única) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 py-1">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block">Tipo do Item *</label>
+                <span className="text-[11px] text-slate-500">Mercadoria física ou serviço / cobrança de taxa</span>
+              </div>
+              <div className="inline-flex p-1 bg-slate-950/70 rounded-xl border border-slate-800 gap-1 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setTipoItem('produto')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    tipoItem === 'produto'
+                      ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-300 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  <span>Produto Físico</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTipoItem('servico');
+                    setQuantidadeEstoque('0');
+                    setEstoqueMinimoAlerta('0');
+                    setTemVariacoes(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    tipoItem === 'servico'
+                      ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-300 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  <Wrench className="w-3.5 h-3.5" />
+                  <span>Serviço / Taxa</span>
+                </button>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Seletor Tipo de Item (Fase 1: Produto Físico vs Serviço / Taxa) */}
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 block">Tipo do Item *</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setTipoItem('produto')}
-                    className={`py-2.5 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                      tipoItem === 'produto'
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Package className="w-4 h-4" />
-                    <span>Produto Físico</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTipoItem('servico');
-                      setQuantidadeEstoque('0');
-                      setEstoqueMinimoAlerta('0');
-                      setTemVariacoes(false);
-                    }}
-                    className={`py-2.5 px-4 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                      tipoItem === 'servico'
-                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-sm'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Wrench className="w-4 h-4" />
-                    <span>Serviço / Taxa</span>
-                  </button>
-                </div>
-              </div>
 
               {/* Nome do Produto */}
               <div className="md:col-span-2 space-y-1">
