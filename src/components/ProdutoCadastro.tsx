@@ -1542,10 +1542,10 @@ export const ProdutoCadastro: React.FC = () => {
               setTempApiKey(k);
               setModalKeyGemini(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-emerald-700 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:text-emerald-400 text-xs font-semibold transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white text-xs font-semibold transition cursor-pointer"
             title="Configurar Chave Google Gemini AI"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+            <Sparkles className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             <span className="hidden sm:inline">Chave Gemini IA</span>
           </button>
         </div>
@@ -1579,10 +1579,10 @@ export const ProdutoCadastro: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setAtivo(!ativo)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm ${
+                  className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow-xs ${
                     ativo
-                      ? 'bg-rose-100 hover:bg-rose-200 border border-rose-300 text-slate-900 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:border-rose-800/60 dark:text-white'
-                      : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white'
+                      ? 'bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:border-rose-800/60 dark:text-rose-300'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs font-semibold'
                   }`}
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -1630,23 +1630,23 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={analisandoIA}
                   onClick={handleAtualizarComIA}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                   title="Atualizar o produto com base nos dados atuais usando IA"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-300 animate-pulse" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>Atualizar o Produto</span>
                 </button>
               )}
 
               {/* SELETOR DE MODALIDADE DE IA */}
-              <div className="flex items-center gap-1.5 bg-slate-200/70 dark:bg-slate-950/80 p-1 rounded-2xl border border-slate-300 dark:border-slate-800">
+              <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-950/80 p-1 rounded-2xl border border-slate-300 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setModoPreenchimentoIA('foto')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     modoPreenchimentoIA === 'foto'
-                      ? 'bg-emerald-400 border border-emerald-500 text-slate-950 font-bold shadow-xs dark:bg-emerald-600 dark:border-emerald-500 dark:text-white dark:font-bold'
-                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <Camera className="w-3.5 h-3.5" />
@@ -1658,8 +1658,8 @@ export const ProdutoCadastro: React.FC = () => {
                   onClick={() => setModoPreenchimentoIA('descricao')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     modoPreenchimentoIA === 'descricao'
-                      ? 'bg-emerald-400 border border-emerald-500 text-slate-950 font-bold shadow-xs dark:bg-emerald-600 dark:border-emerald-500 dark:text-white dark:font-bold'
-                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <Tag className="w-3.5 h-3.5" />
@@ -1671,8 +1671,8 @@ export const ProdutoCadastro: React.FC = () => {
                   onClick={() => setModoPreenchimentoIA('barcode')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     modoPreenchimentoIA === 'barcode'
-                      ? 'bg-emerald-400 border border-emerald-500 text-slate-950 font-bold shadow-xs dark:bg-emerald-600 dark:border-emerald-500 dark:text-white dark:font-bold'
-                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <Zap className="w-3.5 h-3.5" />
@@ -1703,9 +1703,9 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={analisandoIA}
                   onClick={handlePreencherPorDescricaoIA}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200/80 text-violet-900 font-bold dark:bg-violet-950/50 dark:hover:bg-violet-900/60 dark:border-violet-800/60 dark:text-violet-200 text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-300" />}
+                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
                   <span>Preencher com IA</span>
                 </button>
               </div>
@@ -1736,9 +1736,9 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={analisandoIA}
                   onClick={handlePreencherPorCodigoBarrasIA}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200/80 text-violet-900 font-bold dark:bg-violet-950/50 dark:hover:bg-violet-900/60 dark:border-violet-800/60 dark:text-violet-200 text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-300" />}
+                  {analisandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
                   <span>Identificar por Código</span>
                 </button>
               </div>
@@ -1755,7 +1755,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={handlePreencherComIA}
-                className="px-5 py-3 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-bold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-bold text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition transform active:scale-95 cursor-pointer disabled:opacity-50"
+                className="px-5 py-3 rounded-2xl bg-violet-50 hover:bg-violet-100 border border-violet-200/80 text-violet-900 font-bold dark:bg-violet-950/50 dark:hover:bg-violet-900/60 dark:border-violet-800/60 dark:text-violet-200 text-xs shadow-xs flex items-center justify-center gap-2 transition transform active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 {analisandoIA ? (
                   <>
@@ -1881,9 +1881,9 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={fotosUrls.length >= 7}
                   onClick={() => cameraInputRef.current?.click()}
-                  className="py-3 px-4 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-40"
+                  className="py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 font-semibold dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:border-slate-700 dark:text-slate-200 dark:hover:text-white text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40"
                 >
-                  <Camera className="w-4 h-4 text-emerald-800 dark:text-white" />
+                  <Camera className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                   <span>Tirar Foto ({fotosUrls.length}/7)</span>
                 </button>
 
@@ -1892,9 +1892,9 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={fotosUrls.length >= 7}
                   onClick={() => galleryInputRef.current?.click()}
-                  className="py-3 px-4 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-40"
+                  className="py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 font-semibold dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:border-slate-700 dark:text-slate-200 dark:hover:text-white text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40"
                 >
-                  <Upload className="w-4 h-4 text-emerald-800 dark:text-white" />
+                  <Upload className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                   <span>Galeria (Até 7 fotos)</span>
                 </button>
 
@@ -1903,10 +1903,10 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={fotosUrls.length >= 7}
                   onClick={handleAbrirPesquisaFotos}
-                  className="py-3 px-4 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-40 col-span-1 sm:col-span-2"
+                  className="py-3 px-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 font-semibold dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:border-slate-700 dark:text-slate-200 dark:hover:text-white text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-40 col-span-1 sm:col-span-2"
                   title="Pesquisar fotos na internet com boa qualidade"
                 >
-                  <Globe className="w-4 h-4 text-emerald-800 dark:text-white" />
+                  <Globe className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                   <span>Pesquisar Fotos na Internet</span>
                 </button>
               </div>
