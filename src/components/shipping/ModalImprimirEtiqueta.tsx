@@ -348,11 +348,11 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 {lojaNome}
               </p>
               {lojaDocumento && (
-                <p className="text-[10px] text-slate-600 font-semibold">
+                <p className="text-[10px] text-slate-900 font-bold">
                   CNPJ/CPF: {lojaDocumento}
                 </p>
               )}
-              <p className="text-[10px] text-slate-600 font-medium leading-tight">
+              <p className="text-[10px] text-slate-900 font-semibold leading-tight">
                 {lojaEndereco}
               </p>
             </div>
@@ -364,7 +364,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
           >
             Fechar
           </button>
@@ -374,7 +374,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
               type="button"
               disabled={obtendoEtiquetaOficial}
               onClick={handleAbrirMelhorEnvio}
-              className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer active:scale-95 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
             >
               {obtendoEtiquetaOficial ? (
                 <>
@@ -383,7 +383,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 </>
               ) : (
                 <>
-                  <FileText className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
                   <span>Etiqueta Melhor Envio</span>
                   <ExternalLink className="w-3 h-3 ml-0.5" />
                 </>
@@ -394,7 +394,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={handleImprimir}
-            className="px-6 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-semibold text-xs flex items-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
+            className="px-6 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4 text-slate-900 dark:text-white" />
             <span>Imprimir</span>

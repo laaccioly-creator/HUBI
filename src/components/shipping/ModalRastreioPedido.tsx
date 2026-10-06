@@ -628,24 +628,20 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               type="button"
               onClick={() => handleSincronizarRastreio(false)}
               disabled={atualizando}
-              className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
-                isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-xs'
-              }`}
+              className="py-2 px-3 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
               title="Consultar atualizações na transportadora"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin text-emerald-500' : isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin' : ''} text-slate-900 dark:text-white`} />
               <span>{atualizando ? 'Atualizando...' : 'Atualizar'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleCompartilharWhatsApp}
-              className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                isDark ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-              }`}
+              className="py-2 px-3 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
               title="Enviar rastreio no WhatsApp do cliente"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
+              <MessageCircle className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
               <span>WhatsApp</span>
             </button>
           </div>
@@ -841,10 +837,10 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                 window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
               }
             }}
-            className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             title="Imprimir Etiqueta de Envio"
           >
-            <Tag className="w-3.5 h-3.5 text-white" />
+            <Tag className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
             <span>Imprimir Etiqueta</span>
           </button>
 
@@ -854,9 +850,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={urlRastreioTransportadora}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 ${
-                isDark ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-xs'
-              }`}
+              className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>
@@ -873,9 +867,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 ${
-                isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border-slate-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-              }`}
+              className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Acompanhar Uber</span>
@@ -888,22 +880,18 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 ${
-                isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border-slate-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-              }`}
+              className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Acompanhar Corrida</span>
             </a>
           )}
 
-          {/* Botão Fechar em estilo outline verde */}
+          {/* Botão Fechar Padronizado */}
           <button
             type="button"
             onClick={onClose}
-            className={`py-2.5 px-5 rounded-xl border font-semibold text-xs transition cursor-pointer ${
-              isDark ? 'border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40' : 'border border-slate-300 text-slate-700 hover:bg-slate-100'
-            }`}
+            className="py-2.5 px-5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
           >
             Fechar
           </button>
