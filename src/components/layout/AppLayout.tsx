@@ -47,6 +47,8 @@ import { UsuarioLoja } from '../../types';
 export const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const origemVendas = searchParams.get('origem') === 'sales';
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
@@ -472,9 +474,16 @@ export const AppLayout: React.FC = () => {
             <div className="grid grid-cols-6 gap-1 lg:gap-1.5 w-full">
               {row1Buttons.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.path === '/pos'
-                  ? location.pathname === '/pos' || location.pathname === '/'
-                  : location.pathname.startsWith(item.path);
+                const isActive = (() => {
+                  if (item.path === '/pos') {
+                    return location.pathname === '/pos' || location.pathname === '/';
+                  }
+                  if (origemVendas) {
+                    if (item.path === '/sales') return true;
+                    if (item.path === '/orders') return false;
+                  }
+                  return location.pathname.startsWith(item.path);
+                })();
 
                 return (
                   <button
@@ -706,7 +715,7 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/orders"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition relative ${
-              location.pathname === '/orders' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              (location.pathname === '/orders' && !origemVendas) ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <div className="relative">
@@ -720,7 +729,7 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/sales"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/sales' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              (location.pathname === '/sales' || (location.pathname === '/orders' && origemVendas)) ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <Receipt className="w-5 h-5" />

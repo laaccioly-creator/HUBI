@@ -2630,19 +2630,48 @@ export const PedidosLista: React.FC = () => {
                       )}
 
                       {(() => {
-                        const codCorrida = pe?.codigo_corrida || (pedidoSelecionado as any)?.codigo_corrida || (pedidoSelecionado as any)?.metadados?.codigo_corrida;
-                        if (!codCorrida) return null;
+                        const ehUber = prov === 'uber' || (pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber'));
+                        const codCorridaRaw = pe?.codigo_corrida || (pedidoSelecionado as any)?.codigo_corrida || (pedidoSelecionado as any)?.metadados?.codigo_corrida;
+                        // Para Uber Direct, não expor hash técnico bruto iniciado por 'del_'
+                        const codCorridaExibir = codCorridaRaw && !String(codCorridaRaw).startsWith('del_') ? codCorridaRaw : null;
+                        
+                        if (ehUber) {
+                          if (!codCorridaExibir) return null;
+                          return (
+                            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                              <span className="text-slate-400">Código da Corrida:</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                                  {codCorridaExibir}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(codCorridaExibir);
+                                    mostrarSucesso('Código da corrida copiado!');
+                                  }}
+                                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                  title="Copiar código da corrida"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (!codCorridaRaw) return null;
                         return (
                           <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
                             <span className="text-slate-400">Código da Corrida:</span>
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                                {codCorrida}
+                                {codCorridaRaw}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(codCorrida);
+                                  navigator.clipboard.writeText(codCorridaRaw);
                                   mostrarSucesso('Código da corrida copiado!');
                                 }}
                                 className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
@@ -2655,59 +2684,68 @@ export const PedidosLista: React.FC = () => {
                         );
                       })()}
 
-                      {Boolean(codigoRastreio || (prov === 'melhor_envio' && (despachadoEm || pedidoSelecionado.status === 'enviado'))) && (
-                        <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-                          <span className="text-slate-400">Código de Rastreio:</span>
-                          {codigoRastreio ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                                {codigoRastreio}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(codigoRastreio);
-                                  mostrarSucesso('Código de rastreio copiado!');
-                                }}
-                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
-                                title="Copiar código de rastreio"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-amber-400 italic">
-                                Pendente de sincronização
-                              </span>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    mostrarSucesso('Sincronizando com a transportadora...');
-                                    await supabase.functions.invoke('melhor-envio-despacho', {
-                                      body: {
-                                        pedidoId: pedidoSelecionado.id,
-                                        loja_id: loja?.id || pedidoSelecionado.loja_id,
-                                        acao: 'sincronizar_rastreio',
-                                        isSandbox: true
-                                      }
-                                    });
-                                    await carregarPedidos();
-                                    mostrarSucesso('Rastreamento sincronizado com sucesso!');
-                                  } catch {
-                                    mostrarErro('Não foi possível sincronizar no momento.');
-                                  }
-                                }}
-                                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
-                                title="Sincronizar código de rastreio agora"
-                              >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {/* Código de Rastreio (Apenas para Correios / Transportadoras / Melhor Envio; oculto para Uber Direct) */}
+                      {(() => {
+                        const ehUber = prov === 'uber' || (pedidoSelecionado.nome_app && pedidoSelecionado.nome_app.toLowerCase().includes('uber'));
+                        if (ehUber) return null;
+
+                        const temRastreio = Boolean(codigoRastreio || (prov === 'melhor_envio' && (despachadoEm || pedidoSelecionado.status === 'enviado')));
+                        if (!temRastreio) return null;
+
+                        return (
+                          <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                            <span className="text-slate-400">Código de Rastreio:</span>
+                            {codigoRastreio ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                                  {codigoRastreio}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(codigoRastreio);
+                                    mostrarSucesso('Código de rastreio copiado!');
+                                  }}
+                                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                  title="Copiar código de rastreio"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-amber-400 italic">
+                                  Pendente de sincronização
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      mostrarSucesso('Sincronizando com a transportadora...');
+                                      await supabase.functions.invoke('melhor-envio-despacho', {
+                                        body: {
+                                          pedidoId: pedidoSelecionado.id,
+                                          loja_id: loja?.id || pedidoSelecionado.loja_id,
+                                          acao: 'sincronizar_rastreio',
+                                          isSandbox: true
+                                        }
+                                      });
+                                      await carregarPedidos();
+                                      mostrarSucesso('Rastreamento sincronizado com sucesso!');
+                                    } catch {
+                                      mostrarErro('Não foi possível sincronizar no momento.');
+                                    }
+                                  }}
+                                  className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                  title="Sincronizar código de rastreio agora"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {entregador && (
                         <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
@@ -2920,6 +2958,7 @@ export const PedidosLista: React.FC = () => {
                                   type="button"
                                   onClick={handleClicarRastrear}
                                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
+                                  title="Acompanhar corrida em tempo real"
                                 >
                                   <Navigation className="w-4 h-4" />
                                   <span>Rastrear</span>
@@ -2929,49 +2968,25 @@ export const PedidosLista: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
-                                  title="Imprimir Etiqueta Padrão HUBI"
+                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
+                                  title="Imprimir Etiqueta"
                                 >
-                                  <Tag className="w-3.5 h-3.5" />
-                                  <span>Imprimir Etiqueta</span>
+                                  <Tag className="w-4 h-4" />
+                                  <span>Etiqueta</span>
                                 </button>
-                              </div>
 
-                              {/* Ações adicionais se for Uber e possuir link */}
-                              {ehAppEntrega && linkAtual && (
-                                <div className="flex items-center gap-2 pt-1">
-                                  {prov === 'uber' && (
-                                    <button
-                                      type="button"
-                                      disabled={sincronizandoUberId === pedidoSelecionado.id}
-                                      onClick={() => handleSincronizarUber(pedidoSelecionado)}
-                                      className="flex-1 py-1.5 px-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                                      title="Consultar e sincronizar status atual na Uber Direct"
-                                    >
-                                      <RefreshCw className={`w-3.5 h-3.5 ${sincronizandoUberId === pedidoSelecionado.id ? 'animate-spin' : ''}`} />
-                                      <span>{sincronizandoUberId === pedidoSelecionado.id ? 'Sincronizando...' : 'Sincronizar'}</span>
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopiarRastreioUber(pedidoSelecionado)}
-                                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                    title="Copiar link de rastreio"
-                                  >
-                                    <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>Copiar Link</span>
-                                  </button>
+                                {ehAppEntrega && (
                                   <button
                                     type="button"
                                     onClick={() => handleCompartilharRastreioUber(pedidoSelecionado)}
-                                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
                                     title="Enviar link de rastreio para o cliente no WhatsApp"
                                   >
-                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <MessageCircle className="w-4 h-4" />
                                     <span>WhatsApp</span>
                                   </button>
-                                </div>
-                              )}
+                                )}
+                              </div>
 
                               {/* Edição / Inserção inline de link de acompanhamento */}
                               {linkRastreioEditando && (

@@ -244,10 +244,18 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             .filter((m) => m.visivel)
             .map((item) => {
               const Icone = item.icone;
-              const isAtivo =
-                item.caminho === '/pos'
-                  ? location.pathname === '/pos' || location.pathname === '/'
-                  : location.pathname.startsWith(item.caminho);
+              const searchParams = new URLSearchParams(location.search);
+              const origemVendas = searchParams.get('origem') === 'sales';
+              const isAtivo = (() => {
+                if (item.caminho === '/pos') {
+                  return location.pathname === '/pos' || location.pathname === '/';
+                }
+                if (origemVendas) {
+                  if (item.caminho === '/sales') return true;
+                  if (item.caminho === '/orders') return false;
+                }
+                return location.pathname.startsWith(item.caminho);
+              })();
 
               return (
                 <button
