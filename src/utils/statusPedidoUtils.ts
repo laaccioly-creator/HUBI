@@ -20,31 +20,51 @@ export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
 };
 
 /**
+ * Configuração padrão de fallback caso a loja ainda não possua o nó salvo
+ */
+export const STATUS_PEDIDOS_ATIVOS_PADRAO = {
+  em_separacao: true,
+  em_expedicao: true,
+  aguardando_envio: true,
+  enviado: true,
+  entregue: true,
+  pronto_para_retirar: true
+};
+
+/**
  * Verifica se um status de pedido está ativo nas configurações da loja.
- * - 'pendente', 'confirmado', 'aguardando_envio', 'enviado', 'entregue', 'concluido', 'vencido' e 'cancelado' são fixos e sempre ativos.
- * - 'em_producao', 'em_expedicao' e 'pronto_para_retirar'
- *   dependem das opções marcadas em Configurações > Pedidos e Vendas > Status de Pedido.
+ * - 'todos', 'pendente', 'confirmado', 'concluido', 'cancelado' e 'vencido' são fixos/obrigatórios e sempre ativos.
+ * - 'em_separacao', 'em_expedicao', 'aguardando_envio', 'enviado', 'entregue' e 'pronto_para_retirar'
+ *   são operacionais opcionais e dependem da chave status_pedidos_ativos nas configuracoes_extras da loja.
  */
 export function isStatusPedidoAtivo(
   statusId: string,
   loja?: Loja | null
 ): boolean {
-  if (['todos', 'pendente', 'confirmado', 'aguardando_envio', 'enviado', 'entregue', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
+  if (['todos', 'pendente', 'confirmado', 'concluido', 'vencido', 'cancelado'].includes(statusId)) {
     return true;
   }
 
   const configStatus = loja?.configuracoes_extras?.status_pedidos_ativos;
 
   switch (statusId) {
-    case 'em_producao':
-      return configStatus?.em_producao ?? true;
-    case 'em_expedicao':
-      return configStatus?.em_expedicao ?? true;
-    case 'pronto_para_retirar':
-      return configStatus?.pronto_para_retirar ?? true;
     case 'em_separacao':
-      // 'em_separacao' não faz parte dos fluxos configuráveis padrão do sistema
-      return false;
+      // Suporte direto a em_separacao ou fallback para legado em_producao se existir
+      return configStatus?.em_separacao ?? configStatus?.em_producao ?? STATUS_PEDIDOS_ATIVOS_PADRAO.em_separacao;
+    case 'em_producao':
+      return configStatus?.em_separacao ?? configStatus?.em_producao ?? true;
+    case 'em_expedicao':
+      return configStatus?.em_expedicao ?? STATUS_PEDIDOS_ATIVOS_PADRAO.em_expedicao;
+    case 'aguardando_envio':
+    case 'envio_pendente':
+      return configStatus?.aguardando_envio ?? STATUS_PEDIDOS_ATIVOS_PADRAO.aguardando_envio;
+    case 'enviado':
+    case 'saiu_para_entrega':
+      return configStatus?.enviado ?? configStatus?.saiu_para_entrega ?? STATUS_PEDIDOS_ATIVOS_PADRAO.enviado;
+    case 'entregue':
+      return configStatus?.entregue ?? STATUS_PEDIDOS_ATIVOS_PADRAO.entregue;
+    case 'pronto_para_retirar':
+      return configStatus?.pronto_para_retirar ?? STATUS_PEDIDOS_ATIVOS_PADRAO.pronto_para_retirar;
     default: {
       // Verificar se é um status personalizado ativo
       const custom = configStatus?.status_personalizados?.find((s) => s.id === statusId);
@@ -55,6 +75,8 @@ export function isStatusPedidoAtivo(
 
 /**
  * Retorna a lista de abas visíveis na tela de pedidos conforme a configuração da loja.
+ * - Fixas: 'todos', 'pendente', 'confirmado', 'vencido', 'cancelado'
+ * - Opcionais: 'em_separacao', 'em_expedicao', 'aguardando_envio', 'enviado', 'entregue', 'pronto_para_retirar'
  */
 export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label: string }[] {
   const abas: { id: string; label: string }[] = [
@@ -63,21 +85,29 @@ export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label
     { id: 'confirmado', label: 'Confirmado' }
   ];
 
-  if (isStatusPedidoAtivo('em_producao', loja)) {
-    abas.push({ id: 'em_producao', label: 'Em produção' });
+  if (isStatusPedidoAtivo('em_separacao', loja)) {
+    abas.push({ id: 'em_separacao', label: 'Em separação' });
   }
 
   if (isStatusPedidoAtivo('em_expedicao', loja)) {
     abas.push({ id: 'em_expedicao', label: 'Em expedição' });
   }
 
+  if (isStatusPedidoAtivo('aguardando_envio', loja)) {
+    abas.push({ id: 'aguardando_envio', label: 'Aguardando envio' });
+  }
+
+  if (isStatusPedidoAtivo('enviado', loja)) {
+    abas.push({ id: 'enviado', label: 'Enviado' });
+  }
+
+  if (isStatusPedidoAtivo('entregue', loja)) {
+    abas.push({ id: 'entregue', label: 'Entregue' });
+  }
+
   if (isStatusPedidoAtivo('pronto_para_retirar', loja)) {
     abas.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
   }
-
-  abas.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
-  abas.push({ id: 'enviado', label: 'Enviado' });
-  abas.push({ id: 'entregue', label: 'Entregue' });
 
   // Status personalizados ativos
   const customizados = loja?.configuracoes_extras?.status_pedidos_ativos?.status_personalizados || [];
@@ -87,7 +117,7 @@ export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label
     }
   });
 
-  // Aba para monitoramento de fiados vencidos
+  // Abas fixas finais: monitoramento de fiados vencidos e pedidos cancelados
   abas.push({ id: 'vencido', label: 'Vencido' });
   abas.push({ id: 'cancelado', label: 'Cancelado' });
 
@@ -136,8 +166,8 @@ export function obterOpcoesStatusAlteracao(
     opcoes.push({ id: 'confirmado', label: 'Confirmado' });
   }
 
-  if (isStatusPedidoAtivo('em_producao', loja) || statusAtual === 'em_producao') {
-    opcoes.push({ id: 'em_producao', label: 'Em produção' });
+  if (isStatusPedidoAtivo('em_separacao', loja) || statusAtual === 'em_separacao' || statusAtual === 'em_producao') {
+    opcoes.push({ id: 'em_separacao', label: 'Em separação' });
   }
 
   if (isStatusPedidoAtivo('em_expedicao', loja) || statusAtual === 'em_expedicao') {
@@ -253,7 +283,7 @@ export function validarTransicaoStatusPedido(
  *
  * Cenários permitidos:
  * 1. status === 'pendente'
- * 2. status === 'envio_pendente' OU status === 'aguardando_envio',
+ * 2. status === 'aguardando_envio',
  *    DESDE QUE status_pagamento === 'aguardando_pagamento'.
  *
  * Bloqueios mantidos:

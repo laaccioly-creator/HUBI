@@ -118,7 +118,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
       formaEntregaTexto = 'UBER FLASH';
     } else if (transp && transp.toLowerCase() !== 'entrega' && transp.toLowerCase() !== 'entrega padrão' && transp.toLowerCase() !== 'envio a definir') {
       formaEntregaTexto = transp.toUpperCase();
-    } else if (pedido.status === 'envio_pendente' && Number(pedido.valor_frete || 0) === 0) {
+    } else if ((pedido.status === 'aguardando_envio' || (pedido.status as string) === 'envio_pendente') && Number(pedido.valor_frete || 0) === 0) {
       formaEntregaTexto = 'ENVIO (A DEFINIR)';
     } else {
       formaEntregaTexto = 'ENTREGA';

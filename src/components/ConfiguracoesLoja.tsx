@@ -277,10 +277,12 @@ const gerarSnapshotConfig = (dados: any) => {
     tipoTaxaCatalogo: dados.tipoTaxaCatalogo || 'percentual',
     aplicarTaxaCatalogo: dados.aplicarTaxaCatalogo || 'adicionar',
     taxaCatalogoSomenteEntrega: Boolean(dados.taxaCatalogoSomenteEntrega),
-    statusEmProducao: Boolean(dados.statusEmProducao),
-    statusEmExpedicao: Boolean(dados.statusEmExpedicao),
-    statusSaiuEntrega: Boolean(dados.statusSaiuEntrega),
-    statusProntoRetirar: Boolean(dados.statusProntoRetirar),
+    statusEmSeparacao: Boolean(dados.statusEmSeparacao ?? dados.statusEmProducao ?? true),
+    statusEmExpedicao: Boolean(dados.statusEmExpedicao ?? true),
+    statusAguardandoEnvio: Boolean(dados.statusAguardandoEnvio ?? true),
+    statusEnviado: Boolean(dados.statusEnviado ?? dados.statusSaiuEntrega ?? true),
+    statusEntregue: Boolean(dados.statusEntregue ?? true),
+    statusProntoRetirar: Boolean(dados.statusProntoRetirar ?? true),
     trabalhoComEntregas: Boolean(dados.trabalhoComEntregas),
     descricaoEntregas: (dados.descricaoEntregas || '').trim(),
     trabalhoComRetirada: Boolean(dados.trabalhoComRetirada),
@@ -595,10 +597,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [aplicarTaxaCatalogo, setAplicarTaxaCatalogo] = useState<'adicionar' | 'incluida'>('adicionar');
   const [taxaCatalogoSomenteEntrega, setTaxaCatalogoSomenteEntrega] = useState<boolean>(true);
 
-  // Status de Pedidos
-  const [statusEmProducao, setStatusEmProducao] = useState<boolean>(true);
+  // Status de Pedidos (Opcionais com fallback padrão)
+  const [statusEmSeparacao, setStatusEmSeparacao] = useState<boolean>(true);
   const [statusEmExpedicao, setStatusEmExpedicao] = useState<boolean>(true);
-  const [statusSaiuEntrega, setStatusSaiuEntrega] = useState<boolean>(true);
+  const [statusAguardandoEnvio, setStatusAguardandoEnvio] = useState<boolean>(true);
+  const [statusEnviado, setStatusEnviado] = useState<boolean>(true);
+  const [statusEntregue, setStatusEntregue] = useState<boolean>(true);
   const [statusProntoRetirar, setStatusProntoRetirar] = useState<boolean>(true);
   const [statusCustomizados, setStatusCustomizados] = useState<StatusPedidoPersonalizado[]>([]);
   const [novoStatusNome, setNovoStatusNome] = useState<string>('');
@@ -793,10 +797,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setAplicarTaxaCatalogo(taxas.aplicar_taxa_catalogo || 'adicionar');
       setTaxaCatalogoSomenteEntrega(taxas.taxa_catalogo_somente_entrega ?? true);
 
-      // Status
-      setStatusEmProducao(statusAtivos.em_producao ?? true);
+      // Status Operacionais Opcionais (com fallback padrão)
+      setStatusEmSeparacao(statusAtivos.em_separacao ?? statusAtivos.em_producao ?? true);
       setStatusEmExpedicao(statusAtivos.em_expedicao ?? true);
-      setStatusSaiuEntrega(statusAtivos.saiu_para_entrega ?? true);
+      setStatusAguardandoEnvio(statusAtivos.aguardando_envio ?? true);
+      setStatusEnviado(statusAtivos.enviado ?? statusAtivos.saiu_para_entrega ?? true);
+      setStatusEntregue(statusAtivos.entregue ?? true);
       setStatusProntoRetirar(statusAtivos.pronto_para_retirar ?? true);
       setStatusCustomizados(statusAtivos.status_personalizados || []);
 
@@ -923,9 +929,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           tipoTaxaCatalogo: taxas.tipo_taxa_catalogo || 'percentual',
           aplicarTaxaCatalogo: taxas.aplicar_taxa_catalogo || 'adicionar',
           taxaCatalogoSomenteEntrega: taxas.taxa_catalogo_somente_entrega ?? true,
-          statusEmProducao: statusAtivos.em_producao ?? true,
+          statusEmSeparacao: statusAtivos.em_separacao ?? statusAtivos.em_producao ?? true,
           statusEmExpedicao: statusAtivos.em_expedicao ?? true,
-          statusSaiuEntrega: statusAtivos.saiu_para_entrega ?? true,
+          statusAguardandoEnvio: statusAtivos.aguardando_envio ?? true,
+          statusEnviado: statusAtivos.enviado ?? statusAtivos.saiu_para_entrega ?? true,
+          statusEntregue: statusAtivos.entregue ?? true,
           statusProntoRetirar: statusAtivos.pronto_para_retirar ?? true,
           trabalhoComEntregas: entregaRet.trabalho_com_entregas ?? true,
           trabalhoComRetirada: retBalcaoFinal,
@@ -1019,10 +1027,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           taxa_catalogo_somente_entrega: taxaCatalogoSomenteEntrega
         },
         status_pedidos_ativos: {
-          em_producao: statusEmProducao,
+          em_separacao: statusEmSeparacao,
           em_expedicao: statusEmExpedicao,
-          saiu_para_entrega: statusSaiuEntrega,
+          aguardando_envio: statusAguardandoEnvio,
+          enviado: statusEnviado,
+          entregue: statusEntregue,
           pronto_para_retirar: statusProntoRetirar,
+          // Retrocompatibilidade
+          em_producao: statusEmSeparacao,
+          saiu_para_entrega: statusEnviado,
           status_personalizados: statusCustomizados
         },
         entrega_retirada: {
@@ -1373,9 +1386,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       tipoTaxaCatalogo,
       aplicarTaxaCatalogo,
       taxaCatalogoSomenteEntrega,
-      statusEmProducao,
+      statusEmSeparacao,
       statusEmExpedicao,
-      statusSaiuEntrega,
+      statusAguardandoEnvio,
+      statusEnviado,
+      statusEntregue,
       statusProntoRetirar,
       trabalhoComEntregas,
       descricaoEntregas,
@@ -1467,9 +1482,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     tipoTaxaCatalogo,
     aplicarTaxaCatalogo,
     taxaCatalogoSomenteEntrega,
-    statusEmProducao,
+    statusEmSeparacao,
     statusEmExpedicao,
-    statusSaiuEntrega,
+    statusAguardandoEnvio,
+    statusEnviado,
+    statusEntregue,
     statusProntoRetirar,
     trabalhoComEntregas,
     descricaoEntregas,
@@ -3635,16 +3652,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             </div>
 
             <div className="space-y-3">
-              {/* Fixos */}
+              {/* Status Fixos Obrigatórios (Badge PADRÃO, sempre ativos, sem switch) */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2.5">
-                  <Clock className="w-4 h-4 text-slate-400" />
+                  <Clock className="w-4 h-4 text-amber-500" />
                   <div>
                     <span className="font-bold text-slate-900 dark:text-slate-200 block">Pendente</span>
-                    <span className="text-[10px] text-slate-500">Aparece quando o cliente faz o pedido (Não baixa estoque)</span>
+                    <span className="text-[10px] text-slate-500">Pedido recém-criado que aguarda confirmação comercial</span>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-500 font-bold">PADRÃO</span>
+                <span className="text-[10px] text-slate-500 font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">PADRÃO</span>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
@@ -3652,62 +3669,134 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   <div>
                     <span className="font-bold text-slate-900 dark:text-slate-200 block">Confirmado</span>
-                    <span className="text-[10px] text-slate-500">Vendedor confirma o pedido (Movimenta estoque)</span>
+                    <span className="text-[10px] text-slate-500">Pedido aceito e validado pela loja</span>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-500 font-bold">PADRÃO</span>
+                <span className="text-[10px] text-slate-500 font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">PADRÃO</span>
               </div>
 
-              {/* Toggles Customizáveis */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <X className="w-4 h-4 text-rose-500" />
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Cancelado</span>
+                    <span className="text-[10px] text-slate-500">Interrupção do fluxo com cancelamento operacional</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">PADRÃO</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500" />
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Concluído</span>
+                    <span className="text-[10px] text-slate-500">Pedido finalizado, pago e entregue</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">PADRÃO</span>
+              </div>
+
+              {/* Status Operacionais Opcionais (Cada um com Checkbox / Switch individual) */}
+              <div className="pt-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-2">
+                  Status Operacionais Opcionais
+                </span>
+              </div>
+
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                  <span className="font-bold text-slate-900 dark:text-slate-200">Em produção</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Em separação</span>
+                    <span className="text-[10px] text-slate-500">Separação de itens no estoque</span>
+                  </div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={statusEmProducao}
-                  onChange={(e) => setStatusEmProducao(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  checked={statusEmSeparacao}
+                  onChange={(e) => setStatusEmSeparacao(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
                 />
               </div>
 
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                  <span className="font-bold text-slate-900 dark:text-slate-200">Em expedição</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Em expedição</span>
+                    <span className="text-[10px] text-slate-500">Conferência interna e embalagem</span>
+                  </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={statusEmExpedicao}
                   onChange={(e) => setStatusEmExpedicao(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
                 />
               </div>
 
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                  <span className="font-bold text-slate-900 dark:text-slate-200">Saiu para entrega</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Aguardando envio</span>
+                    <span className="text-[10px] text-slate-500">Etapa intermediária de coleta/espera</span>
+                  </div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={statusSaiuEntrega}
-                  onChange={(e) => setStatusSaiuEntrega(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  checked={statusAguardandoEnvio}
+                  onChange={(e) => setStatusAguardandoEnvio(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
                 />
               </div>
 
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-sky-400"></div>
-                  <span className="font-bold text-slate-900 dark:text-slate-200">Pronto para retirar</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Enviado</span>
+                    <span className="text-[10px] text-slate-500">Mercadoria despachada em trânsito com transportadora, Correios ou motoboy</span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={statusEnviado}
+                  onChange={(e) => setStatusEnviado(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Entregue</span>
+                    <span className="text-[10px] text-slate-500">Mercadoria entregue ao cliente final</span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={statusEntregue}
+                  onChange={(e) => setStatusEntregue(e.target.checked)}
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-sky-400"></div>
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-200 block">Pronto para retirar</span>
+                    <span className="text-[10px] text-slate-500">Pacote disponível no balcão da loja física para retirada presencial</span>
+                  </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={statusProntoRetirar}
                   onChange={(e) => setStatusProntoRetirar(e.target.checked)}
-                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  className="rounded text-emerald-500 w-4 h-4 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
                 />
               </div>
             </div>

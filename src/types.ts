@@ -137,6 +137,19 @@ export interface IntegracoesParceiros {
   tiktok_catalog_feed_ativo?: boolean;
 }
 
+export interface StatusPedidosAtivosConfig {
+  em_separacao?: boolean;
+  em_expedicao?: boolean;
+  aguardando_envio?: boolean;
+  enviado?: boolean;
+  entregue?: boolean;
+  pronto_para_retirar?: boolean;
+  // Campos legados para retrocompatibilidade
+  em_producao?: boolean;
+  saiu_para_entrega?: boolean;
+  status_personalizados?: StatusPedidoPersonalizado[];
+}
+
 export interface ConfiguracoesExtrasLoja {
   geral?: ConfiguracaoGeralLoja;
   tipos_venda_ativos?: {
@@ -170,13 +183,7 @@ export interface ConfiguracoesExtrasLoja {
     aplicar_taxa_catalogo?: 'adicionar' | 'incluida';
     taxa_catalogo_somente_entrega?: boolean;
   };
-  status_pedidos_ativos?: {
-    em_producao?: boolean;
-    em_expedicao?: boolean;
-    saiu_para_entrega?: boolean;
-    pronto_para_retirar?: boolean;
-    status_personalizados?: StatusPedidoPersonalizado[];
-  };
+  status_pedidos_ativos?: StatusPedidosAtivosConfig;
   recibo?: {
     adicionar_cliente?: boolean;
     exibir_codigo_produto?: boolean;

@@ -2149,6 +2149,7 @@ export const PedidosLista: React.FC = () => {
       enviado: 0,
       entregue: 0,
       pronto_para_retirar: 0,
+      vencido: 0,
       cancelado: 0
     };
 
@@ -2169,6 +2170,14 @@ export const PedidosLista: React.FC = () => {
       if (p.status !== 'concluido') {
         counts.todos += 1;
       }
+
+      // Contagem para Vencido (compras fiado expiradas e não quitadas ou status === 'vencido')
+      const infoVenc = obterInfoVencimentoFiado(p);
+      const temFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+      if (p.status === 'vencido' || (temFiado && !p.fiado_quitado && infoVenc.estaVencido && p.status !== 'cancelado' && p.status !== 'concluido')) {
+        counts.vencido += 1;
+      }
+
       if (counts[p.status] !== undefined) {
         counts[p.status] += 1;
       } else if (p.status === 'saiu_para_entrega') {
@@ -3404,14 +3413,14 @@ export const PedidosLista: React.FC = () => {
         /* SE NENHUM PEDIDO ESTIVER SELECIONADO: EXIBIR A TABELA PRINCIPAL DE PEDIDOS (TELA001) */
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* HEADER DA LISTAGEM DE PEDIDOS (TELA001) */}
-          <div className="p-4 md:p-6 pb-2 space-y-4">
+          <div className={`p-4 md:p-6 pb-3 space-y-4 border-b ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl">
                   <Package className="w-6 h-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl md:text-2xl font-black text-slate-100 flex items-center gap-2">
+                  <h1 className={`text-xl md:text-2xl font-black flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                     <span>{pedidosAbertosCount} pedidos abertos</span>
                   </h1>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -3427,7 +3436,7 @@ export const PedidosLista: React.FC = () => {
                   className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                     somAtivo
                       ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                      : 'bg-slate-900 border-slate-800 text-slate-500'
+                      : isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-300 text-slate-600'
                   }`}
                   title={somAtivo ? 'Som de novos pedidos ativado' : 'Som desativado'}
                 >
@@ -3458,7 +3467,7 @@ export const PedidosLista: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+              <div className="flex-1 flex flex-wrap items-center gap-1.5 md:gap-2">
                 {abasStatus.map((f) => {
                   const count = contagensPorStatus[f.id] || 0;
                   const isActive = statusFiltro === f.id;
@@ -3488,7 +3497,7 @@ export const PedidosLista: React.FC = () => {
           </div>
 
           {/* TABELA DE PEDIDOS (TELA001) */}
-          <div className="flex-1 overflow-auto p-4 md:p-6">
+          <div className={`flex-1 overflow-auto px-4 md:px-6 pb-4 md:pb-6 ${isDark ? 'bg-slate-950' : 'bg-slate-50/50'}`}>
             {carregando ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
@@ -3502,7 +3511,7 @@ export const PedidosLista: React.FC = () => {
             ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className={`border-b uppercase font-bold text-[11px] tracking-wider sticky top-0 z-10 backdrop-blur ${isDark ? 'border-slate-700/80 text-slate-100 bg-slate-900' : 'border-slate-200 text-slate-900 bg-slate-100'}`}>
+                  <tr className={`border-b uppercase font-bold text-[11px] tracking-wider sticky top-0 z-20 shadow-xs ${isDark ? 'border-slate-800 text-slate-100 bg-slate-900' : 'border-slate-200 text-slate-900 bg-slate-100'}`}>
                     <th
                       className="py-2.5 px-2 font-bold cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('codigo')}
