@@ -1740,11 +1740,11 @@ export const FinancasCaixa: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* Entradas Totais */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
-              <div className="w-full flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Entradas Gerais
+              <div className="w-full flex items-center justify-between gap-1">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                  <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" /> Entradas Gerais
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={handleExportarEntradas}
@@ -1763,18 +1763,18 @@ export const FinancasCaixa: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white block truncate text-center pt-1">
                 {formatarMoeda(totalReceitas)}
               </span>
             </div>
 
             {/* Despesas */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
-              <div className="w-full flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <ArrowDownRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> Despesas Gerais
+              <div className="w-full flex items-center justify-between gap-1">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                  <ArrowDownRight className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" /> Despesas Gerais
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   {permissions.ehAdmin && (
                     <button
                       type="button"
@@ -1795,18 +1795,18 @@ export const FinancasCaixa: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white block truncate text-center pt-1">
                 {formatarMoeda(totalDespesasPagas)}
               </span>
             </div>
 
             {/* Contas a Pagar */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
-              <div className="w-full flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> A Pagar
+              <div className="w-full flex items-center justify-between gap-1">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" /> A Pagar
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   {permissions.ehAdmin && (
                     <button
                       type="button"
@@ -1827,17 +1827,17 @@ export const FinancasCaixa: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white block truncate text-center pt-1">
                 {formatarMoeda(totalDespesasPendentes)}
               </span>
             </div>
 
             {/* Resultado Acumulado */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
-              <div className="w-full flex items-center justify-between">
+              <div className="w-full flex items-center justify-between gap-1">
                 <div className="text-left">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate block">Resultado Acumulado</span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate block">Resultado Acumulado</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block">
                     {filtroPeriodoFluxo === 'sessao_atual' ? '• Turno Atual' : filtroPeriodoFluxo === 'hoje' ? '• Hoje' : filtroPeriodoFluxo === 'mes' ? '• Este Mês' : '• Todos'}
                   </span>
                 </div>
@@ -1849,7 +1849,7 @@ export const FinancasCaixa: React.FC = () => {
                   Detalhar
                 </button>
               </div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white block truncate text-center pt-1">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white block truncate text-center pt-1">
                 {formatarMoeda(lucroLiquido)}
               </span>
             </div>
@@ -1966,10 +1966,10 @@ export const FinancasCaixa: React.FC = () => {
                   )}
 
                   {abaAtiva === 'pagar' && (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-900/60 border border-slate-800/80 p-2.5 rounded-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 p-2.5 rounded-2xl shadow-xs">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-amber-400 font-bold flex items-center gap-1.5 px-2">
-                          <AlertTriangle className="w-4 h-4" />
+                        <span className="text-xs text-slate-900 dark:text-white font-bold flex items-center gap-1.5 px-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
                           <span>Contas e Despesas Pendentes a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length})</span>
                         </span>
                       </div>
@@ -1977,19 +1977,19 @@ export const FinancasCaixa: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleExportarContasPagar}
-                          className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
-                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                          <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
                         </button>
                         {permissions.ehAdmin && (
                           <button
                             type="button"
                             onClick={abrirModalNovaContaPagar}
-                            className="px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md shadow-amber-500/20 flex items-center gap-1 transition cursor-pointer"
+                            className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                           >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>+ Nova Conta a Pagar</span>
+                            <Plus className="w-4 h-4" />
+                            <span>Nova Conta a Pagar</span>
                           </button>
                         )}
                       </div>
@@ -2423,33 +2423,33 @@ export const FinancasCaixa: React.FC = () => {
               {abaAtiva === 'historico_caixas' && (
                 <div className="space-y-4 max-w-5xl mx-auto">
                   {/* BARRA DE FILTROS E RELATÓRIOS GERENCIAIS */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 space-y-3 shadow-xs">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Data Início</label>
+                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">Data Início</label>
                           <input
                             type="date"
                             value={filtrosHistorico.dataInicio}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, dataInicio: e.target.value }))}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                            className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Data Fim</label>
+                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">Data Fim</label>
                           <input
                             type="date"
                             value={filtrosHistorico.dataFim}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, dataFim: e.target.value }))}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                            className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Operador</label>
+                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">Operador</label>
                           <select
                             value={filtrosHistorico.usuarioId}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, usuarioId: e.target.value }))}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                            className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition cursor-pointer"
                           >
                             <option value="todos">Todos os Operadores</option>
                             {usuariosLoja.map(u => (
@@ -2458,11 +2458,11 @@ export const FinancasCaixa: React.FC = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-400 block mb-1">Diferença</label>
+                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">Diferença</label>
                           <select
                             value={filtrosHistorico.statusDiferenca}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, statusDiferenca: e.target.value as any }))}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200"
+                            className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition cursor-pointer"
                           >
                             <option value="todos">Todas</option>
                             <option value="com_diferenca">Com Divergência (Sobra/Falta)</option>
@@ -2479,9 +2479,9 @@ export const FinancasCaixa: React.FC = () => {
                             if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
                             setModalRelatorioConsolidado(true);
                           }}
-                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs rounded-xl border border-indigo-500/30 flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
-                          <FileText className="w-3.5 h-3.5" />
+                          <FileText className="w-4 h-4" />
                           <span>Meios de Pagamento</span>
                         </button>
                         <button
@@ -2491,9 +2491,9 @@ export const FinancasCaixa: React.FC = () => {
                             if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
                             setModalRelatorioSangriasDespesas(true);
                           }}
-                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs rounded-xl border border-rose-500/30 flex items-center gap-1.5 transition cursor-pointer"
+                          className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         >
-                          <SlidersHorizontal className="w-3.5 h-3.5" />
+                          <SlidersHorizontal className="w-4 h-4" />
                           <span>Sangrias & Despesas</span>
                         </button>
                       </div>
@@ -2515,18 +2515,18 @@ export const FinancasCaixa: React.FC = () => {
                       return (
                         <div
                           key={cx.id}
-                          className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition shadow-sm"
+                          className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-3xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition shadow-xs"
                         >
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-black text-sm text-slate-100">
+                              <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
                                 Terminal {cx.terminal_id}
                               </span>
                               <span
                                 className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
                                   cx.status === 'ABERTO'
-                                    ? 'bg-emerald-500/20 text-emerald-400'
-                                    : 'bg-slate-800 text-slate-400'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
+                                    : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                                 }`}
                               >
                                 {cx.status}
@@ -2535,38 +2535,38 @@ export const FinancasCaixa: React.FC = () => {
                                 <span
                                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                     isExato
-                                      ? 'bg-emerald-500/10 text-emerald-400'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
                                       : isSobra
-                                      ? 'bg-cyan-500/10 text-cyan-400'
-                                      : 'bg-rose-500/10 text-rose-400'
+                                      ? 'bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800/60'
+                                      : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60'
                                   }`}
                                 >
                                   {isExato
                                     ? '✓ Caixa Exato'
                                     : isSobra
-                                    ? `+ R$ ${dif.toFixed(2)} (Sobra)`
-                                    : `- R$ ${Math.abs(dif).toFixed(2)} (Falta)`}
+                                    ? `+ ${formatarMoeda(dif)} (Sobra)`
+                                    : `- ${formatarMoeda(Math.abs(dif))} (Falta)`}
                                 </span>
                               )}
                             </div>
 
-                            <p className="text-xs text-slate-400">
-                              Aberto em: <span className="text-slate-200">{new Date(cx.aberto_em).toLocaleString('pt-BR')}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
+                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                              Aberto em: <span className="text-slate-800 dark:text-slate-200 font-medium">{new Date(cx.aberto_em).toLocaleString('pt-BR')}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
                               {cx.fechado_em && (
                                 <>
-                                  {' '}• Fechado em: <span className="text-slate-200">{new Date(cx.fechado_em).toLocaleString('pt-BR')}</span>
+                                  {' '}• Fechado em: <span className="text-slate-800 dark:text-slate-200 font-medium">{new Date(cx.fechado_em).toLocaleString('pt-BR')}</span>
                                 </>
                               )}
                             </p>
 
-                            <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1 flex-wrap">
-                              <span>Faturamento Total: <strong className="text-slate-200">R$ {Number(cx.faturamento_total || 0).toFixed(2)}</strong></span>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 pt-1 flex-wrap">
+                              <span>Faturamento Total: <strong className="text-slate-800 dark:text-slate-200">{formatarMoeda(cx.faturamento_total || 0)}</strong></span>
                               <span>•</span>
-                              <span>Esperado Dinheiro: <strong className="text-slate-200">R$ {Number(cx.saldo_dinheiro_calculado || 0).toFixed(2)}</strong></span>
+                              <span>Esperado Dinheiro: <strong className="text-slate-800 dark:text-slate-200">{formatarMoeda(cx.saldo_dinheiro_calculado || 0)}</strong></span>
                               {(cx.saldo_declarado_dinheiro != null || cx.saldo_dinheiro_declarado != null) && (
                                 <>
                                   <span>•</span>
-                                  <span>Declarado Físico: <strong className="text-slate-200">R$ {Number(cx.saldo_declarado_dinheiro ?? cx.saldo_dinheiro_declarado).toFixed(2)}</strong></span>
+                                  <span>Declarado Físico: <strong className="text-slate-800 dark:text-slate-200">{formatarMoeda(cx.saldo_declarado_dinheiro ?? cx.saldo_dinheiro_declarado)}</strong></span>
                                 </>
                               )}
                             </div>
@@ -2576,9 +2576,9 @@ export const FinancasCaixa: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleAbrirDrillDown(cx)}
-                              className="px-4 py-2 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                              className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                             >
-                              <Search className="w-3.5 h-3.5 text-slate-700 dark:text-emerald-300" />
+                              <Search className="w-4 h-4 text-emerald-800 dark:text-emerald-300" />
                               <span>Inspecionar (Drill-Down)</span>
                             </button>
 
@@ -2586,7 +2586,7 @@ export const FinancasCaixa: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleReimprimirFechamento(cx)}
-                                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 cursor-pointer transition flex items-center gap-1.5"
+                                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer transition flex items-center gap-1.5 shadow-2xs"
                                 title="Imprimir Comprovante Oficial de Fechamento"
                               >
                                 <Printer className="w-4 h-4" />
