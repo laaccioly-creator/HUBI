@@ -358,7 +358,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               Catálogo Online
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Configure sua vitrine online, identidade visual e regras de pedidos</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-300">Configure sua vitrine online, identidade visual e regras de pedidos</p>
           </div>
         </div>
 
@@ -546,7 +546,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Modo de exibição principal</h3>
-                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">
                   Como seus clientes visualizarão a listagem de produtos no catálogo online.
                 </p>
               </div>
@@ -571,7 +571,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   </div>
                   <div>
                     <h4 className={`font-bold text-sm ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Lista</h4>
-                    <p className="text-sm text-slate-800 dark:text-slate-400 leading-normal mt-1">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-normal mt-1">
                       Navegação mais rápida, ideal para grandes quantidades de produtos.
                     </p>
                   </div>
@@ -596,7 +596,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   </div>
                   <div>
                     <h4 className={`font-bold text-sm ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Grade</h4>
-                    <p className="text-sm text-slate-800 dark:text-slate-400 leading-normal mt-1">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-normal mt-1">
                       Ideal para ver vários produtos com fotos e destaques visuais ao mesmo tempo.
                     </p>
                   </div>
@@ -621,7 +621,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   </div>
                   <div>
                     <h4 className={`font-bold text-sm ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Instaview</h4>
-                    <p className="text-sm text-slate-800 dark:text-slate-400 leading-normal mt-1">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-normal mt-1">
                       Estilo feed de fotos com imagens grandes e imersão total para moda e lifestyle.
                     </p>
                   </div>
@@ -687,7 +687,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Produtos sem estoque</h3>
-                <p className="text-sm text-slate-800 dark:text-slate-400 mt-0.5">
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">
                   Defina o comportamento do catálogo para produtos que zeraram no estoque físico.
                 </p>
               </div>
@@ -728,7 +728,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     />
                     <div>
                       <span className="font-bold text-sm text-slate-900 dark:text-slate-100 block">{opt.title}</span>
-                      <span className="text-sm text-slate-800 dark:text-slate-400 block mt-0.5">{opt.desc}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 block mt-0.5">{opt.desc}</span>
                     </div>
                   </label>
                 ))}

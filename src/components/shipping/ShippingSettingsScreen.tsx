@@ -1028,17 +1028,17 @@ export const ShippingSettingsScreen: React.FC = () => {
         <div className="p-6 rounded-3xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-black">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black border border-emerald-500/20">
                 <Navigation className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   Aplicativos de Corrida & Flash
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-emerald-100 text-slate-900 dark:bg-emerald-600 dark:text-white border border-emerald-300/60 dark:border-emerald-500">
                     Despacho Manual
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs sm:text-sm text-slate-300 font-medium mt-0.5">
                   Cadastre os apps que sua equipe utiliza para solicitar motoboys (Uber Flash, 99Entrega, Lalamove, etc.)
                 </p>
               </div>
@@ -1058,7 +1058,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   handleCriarApp(e);
                 }
               }}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 outline-none"
             />
             <button
               type="button"
@@ -1073,7 +1073,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           {/* Lista de Apps Cadastrados */}
           {appsEntrega.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
+            <p className="text-xs text-slate-400 italic py-2">
               Nenhum aplicativo cadastrado no momento. Cadastre acima para facilitar a seleção no despacho.
             </p>
           ) : (
@@ -1084,11 +1084,11 @@ export const ShippingSettingsScreen: React.FC = () => {
                   className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 ${
                     app.ativo
                       ? 'bg-slate-800/80 border-slate-700/80 text-white'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-500 opacity-60'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-400 opacity-60'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${app.ativo ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${app.ativo ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                     <span className="text-xs font-bold truncate">{app.nome}</span>
                   </div>
 
@@ -1097,10 +1097,10 @@ export const ShippingSettingsScreen: React.FC = () => {
                       type="button"
                       onClick={() => handleAlternarApp(app)}
                       title={app.ativo ? 'Desativar aplicativo' : 'Ativar aplicativo'}
-                      className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition cursor-pointer ${
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-xl border transition cursor-pointer ${
                         app.ativo
                           ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
                       }`}
                     >
                       {app.ativo ? 'Ativo' : 'Inativo'}
@@ -1109,7 +1109,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                       type="button"
                       onClick={() => handleExcluirApp(app)}
                       title="Excluir aplicativo"
-                      className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                      className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1124,18 +1124,18 @@ export const ShippingSettingsScreen: React.FC = () => {
         <div className="p-6 rounded-3xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-black">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-black border border-emerald-500/20">
                 <PackageCheck className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   Transportadoras Parceiras & Cargas
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-emerald-100 text-slate-900 dark:bg-emerald-600 dark:text-white border border-emerald-300/60 dark:border-emerald-500">
                     Rastreamento
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Cadastre empresas parceiras com link direto de rastreio usando <code className="text-purple-300 font-mono text-[11px] bg-purple-950/60 px-1 py-0.5 rounded">{'{{codigo}}'}</code>
+                <p className="text-xs sm:text-sm text-slate-300 font-medium mt-0.5">
+                  Cadastre empresas parceiras com link direto de rastreio usando <code className="text-emerald-300 font-mono text-xs bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">{'{{codigo}}'}</code>
                 </p>
               </div>
             </div>
@@ -1152,7 +1152,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           {/* Listagem de Transportadoras */}
           {transportadoras.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
+            <p className="text-xs text-slate-400 italic py-2">
               Nenhuma transportadora parceira cadastrada. Adicione para vincular despachos e gerar links automáticos de rastreio.
             </p>
           ) : (
@@ -1162,29 +1162,29 @@ export const ShippingSettingsScreen: React.FC = () => {
                   key={transp.id}
                   className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
                     transp.ativo
-                      ? 'bg-slate-800/60 border-slate-700/80 hover:border-purple-500/40'
+                      ? 'bg-slate-800/60 border-slate-700/80 hover:border-emerald-500/40'
                       : 'bg-slate-900/60 border-slate-800 opacity-60'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${transp.ativo ? 'bg-purple-400' : 'bg-slate-600'}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${transp.ativo ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                         <h4 className="text-sm font-bold text-white truncate">{transp.nome}</h4>
                       </div>
                       {transp.pessoa_contato && (
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Contato: <span className="text-slate-300 font-medium">{transp.pessoa_contato}</span>
+                        <p className="text-xs text-slate-300 mt-1">
+                          Contato: <span className="text-white font-medium">{transp.pessoa_contato}</span>
                         </p>
                       )}
                       {(transp.telefone || transp.whatsapp) && (
-                        <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                          <Phone className="w-3 h-3 text-slate-500" />
+                        <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
+                          <Phone className="w-3 h-3 text-emerald-400" />
                           <span>{transp.whatsapp || transp.telefone}</span>
                         </p>
                       )}
                       {transp.url_rastreio && (
-                        <p className="text-[11px] text-purple-300/80 truncate mt-1 font-mono">
+                        <p className="text-xs text-emerald-300/90 truncate mt-1 font-mono">
                           🔗 {transp.url_rastreio}
                         </p>
                       )}

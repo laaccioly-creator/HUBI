@@ -66,7 +66,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
       icon: Users,
       actionType: 'import',
       badge: '1º Passo',
-      badgeCor: 'bg-emerald-500 text-slate-950 font-black',
+      badgeCor: 'bg-emerald-200 text-slate-900 dark:bg-emerald-600 dark:text-white border border-emerald-300/60 dark:border-emerald-500 font-bold',
       iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
     },
     {
@@ -76,7 +76,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
       icon: Users,
       actionType: 'export',
       badge: 'Excel / CSV',
-      badgeCor: 'bg-slate-800 text-slate-300 font-bold',
+      badgeCor: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-semibold',
       iconBg: 'bg-slate-800 text-slate-300 border-slate-700'
     },
     {
@@ -86,7 +86,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
       icon: Package,
       actionType: 'import',
       badge: '2º Passo',
-      badgeCor: 'bg-emerald-500 text-slate-950 font-black',
+      badgeCor: 'bg-emerald-200 text-slate-900 dark:bg-emerald-600 dark:text-white border border-emerald-300/60 dark:border-emerald-500 font-bold',
       iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
     },
     {
@@ -96,7 +96,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
       icon: Package,
       actionType: 'export',
       badge: 'Excel / CSV',
-      badgeCor: 'bg-slate-800 text-slate-300 font-bold',
+      badgeCor: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-semibold',
       iconBg: 'bg-slate-800 text-slate-300 border-slate-700'
     },
     {
@@ -106,8 +106,8 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
       icon: ShoppingBag,
       actionType: 'import',
       badge: '3º Passo',
-      badgeCor: 'bg-amber-500 text-slate-950 font-black',
-      iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+      badgeCor: 'bg-emerald-200 text-slate-900 dark:bg-emerald-600 dark:text-white border border-emerald-300/60 dark:border-emerald-500 font-bold',
+      iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
     },
     {
       id: 'exportar-pedidos',
@@ -116,7 +116,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
       icon: ShoppingBag,
       actionType: 'export',
       badge: 'Excel / CSV',
-      badgeCor: 'bg-slate-800 text-slate-300 font-bold',
+      badgeCor: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-semibold',
       iconBg: 'bg-slate-800 text-slate-300 border-slate-700'
     }
   ];
@@ -135,11 +135,11 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h2 className="font-extrabold text-base sm:text-lg text-slate-800 md:text-slate-100 flex items-center gap-2">
+            <h2 className="font-extrabold text-base sm:text-xl text-slate-900 dark:text-white flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
               <span>Importar / Exportar</span>
             </h2>
-            <p className="text-xs text-slate-500 md:text-slate-400 mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-400 mt-0.5 font-medium">
               Gerencie a importação e exportação em massa de Clientes, Produtos e Pedidos via planilhas Excel (.xlsx) e CSV.
             </p>
           </div>
@@ -165,7 +165,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
         {/* Linha do Tempo da Sequência */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-1 relative">
-            <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-[9px] uppercase tracking-wider">
+            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
               1º Passo: Clientes
             </span>
             <p className="text-xs text-slate-200 font-bold pt-1">Pessoas & Compradores</p>
@@ -175,7 +175,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-1 relative">
-            <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-[9px] uppercase tracking-wider">
+            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
               2º Passo: Produtos
             </span>
             <p className="text-xs text-slate-200 font-bold pt-1">Catálogo & Estoque</p>
@@ -184,8 +184,8 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
             </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/30 space-y-1 relative">
-            <span className="inline-block px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black text-[9px] uppercase tracking-wider">
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-1 relative">
+            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
               3º Passo: Pedidos
             </span>
             <p className="text-xs text-slate-200 font-bold pt-1">Vendas & Histórico</p>
@@ -207,7 +207,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
               className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-lg hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative"
             >
               {btn.badge && (
-                <span className={`absolute top-3 right-3 text-[9px] px-2 py-0.5 rounded-full shadow-xs ${btn.badgeCor}`}>
+                <span className={`absolute top-3 right-3 text-[10px] px-2.5 py-1 rounded-xl shadow-xs ${btn.badgeCor}`}>
                   {btn.badge}
                 </span>
               )}

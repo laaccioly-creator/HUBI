@@ -167,9 +167,9 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           <span>Apenas administradores e gerentes da loja possuem permissão para alterar as metas.</span>
         </div>
       ) : (
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-sm text-slate-900 dark:text-slate-200 font-medium">
           <div className="flex items-center gap-2.5">
-            <Target className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <Target className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <p className="leading-relaxed">
               As metas cadastradas abaixo representam a projeção <strong>mensal</strong> da loja. O Dashboard Cockpit converte-as automaticamente para os filtros Diário, Semanal e Anual.
             </p>
@@ -187,18 +187,18 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
       {/* Grid com os 6 Cards de Metas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 1. Meta de Faturamento Mensal */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>1. Faturamento Mensal</span>
             </label>
-            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-              Moeda (R$)
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300/60 dark:border-emerald-500/30 px-2.5 py-1 rounded-xl">
+              Em Reais
             </span>
           </div>
 
-          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
+          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-snug font-medium">
             Faturamento bruto mensal total projetado para a loja.
           </p>
 
@@ -219,18 +219,18 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         </div>
 
         {/* 2. Meta de Pedidos / Vendas */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <ShoppingBag className="w-4 h-4 text-sky-600 dark:text-sky-400" />
               <span>2. Volume de Pedidos</span>
             </label>
-            <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-100 dark:bg-sky-950/60 border border-sky-300/60 dark:border-sky-500/30 px-2.5 py-1 rounded-xl">
               Unidades
             </span>
           </div>
 
-          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
+          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-snug font-medium">
             Quantidade de pedidos/vendas concluídas no mês.
           </p>
 
@@ -248,18 +248,18 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         </div>
 
         {/* 3. Meta de Lucro Líquido Real */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>3. Lucro Líquido Real</span>
             </label>
-            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-              Moeda (R$)
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300/60 dark:border-emerald-500/30 px-2.5 py-1 rounded-xl">
+              Em Reais
             </span>
           </div>
 
-          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
+          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-snug font-medium">
             Lucro após dedução de CMV, taxas financeiras e despesas operacionais pagas.
           </p>
 
@@ -280,18 +280,18 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         </div>
 
         {/* 4. Meta de Despesas Operacionais (Teto Orçamentário) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <DollarSign className="w-4 h-4 text-rose-600 dark:text-rose-400" />
               <span>4. Teto de Despesas Operacionais</span>
             </label>
-            <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-2 py-0.5 rounded-full font-bold">
-              Teto Mensal (R$)
+            <span className="text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/60 border border-rose-300/60 dark:border-rose-500/30 px-2.5 py-1 rounded-xl">
+              Em Reais
             </span>
           </div>
 
-          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
+          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-snug font-medium">
             Teto orçamentário mensal para saídas operacionais e despesas/sangrias de caixa.
           </p>
 
@@ -312,18 +312,18 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         </div>
 
         {/* 5. Meta de Inadimplência Máxima (Escala Invertida) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
               <span>5. Inadimplência Máxima</span>
             </label>
-            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 border border-amber-300/60 dark:border-amber-500/30 px-2.5 py-1 rounded-xl">
               Escala Invertida (%)
             </span>
           </div>
 
-          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
+          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-snug font-medium">
             Teto limite de tolerância para contas/fiados com atraso superior a 30 dias.
           </p>
 
@@ -345,18 +345,18 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         </div>
 
         {/* 6. Meta de Saúde do Estoque (Ruptura Máxima Tolerada) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 relative focus-within:border-emerald-500/60 shadow-xs transition">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 relative focus-within:border-emerald-500/60 shadow-xs transition">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
               <ShieldAlert className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>6. Saúde do Estoque</span>
             </label>
-            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300/60 dark:border-emerald-500/30 px-2.5 py-1 rounded-xl">
               Ruptura Máxima
             </span>
           </div>
 
-          <p className="text-xs text-slate-800 dark:text-slate-300 leading-snug font-medium">
+          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-snug font-medium">
             Teto máximo tolerável de produtos ativos com estoque zerado ou abaixo do mínimo configurado (ex: meta de 0 rupturas).
           </p>
 
@@ -379,17 +379,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
       </div>
 
       {/* Barra de Ações Inferior */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-        <button
-          type="button"
-          disabled={!podeEditar || carregando || salvando}
-          onClick={handleRestaurarPadroes}
-          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-200 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Restaurar Padrões de Mercado</span>
-        </button>
-
+      <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
           {onVoltar && (
             <button
