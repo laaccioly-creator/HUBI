@@ -25,6 +25,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Cupom, TipoCupom } from '../types';
 import { CupomService } from '../services/cupomService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
+import { formatarMoeda } from '../utils/formatters';
 
 type TelaCupomVisao = 'lista' | 'selecionar_tipo' | 'criar_frete_gratis' | 'criar_desconto';
 
@@ -164,15 +166,26 @@ export const CuponsGestao: React.FC = () => {
     }
   };
 
-  const handleExcluirCupom = async (cupomId: string) => {
-    if (!loja?.id) return;
-    if (!confirm('Deseja realmente excluir este cupom?')) return;
+  // Estado para Modal de Exclusão Customizado
+  const [cupomParaExcluir, setCupomParaExcluir] = useState<{ id: string; codigo: string } | null>(null);
+  const [excluindoCupom, setExcluindoCupom] = useState<boolean>(false);
+
+  const solicitarExcluirCupom = (cupom: Cupom) => {
+    setCupomParaExcluir({ id: cupom.id, codigo: cupom.codigo });
+  };
+
+  const handleConfirmarExcluirCupom = async () => {
+    if (!loja?.id || !cupomParaExcluir) return;
 
     try {
-      await CupomService.excluirCupom(loja.id, cupomId);
-      setCupons(prev => prev.filter(c => c.id !== cupomId));
+      setExcluindoCupom(true);
+      await CupomService.excluirCupom(loja.id, cupomParaExcluir.id);
+      setCupons(prev => prev.filter(c => c.id !== cupomParaExcluir.id));
+      setCupomParaExcluir(null);
     } catch (err) {
       console.error('Erro ao excluir cupom:', err);
+    } finally {
+      setExcluindoCupom(false);
     }
   };
 
@@ -313,7 +326,7 @@ export const CuponsGestao: React.FC = () => {
                             ? 'Frete Grátis'
                             : cupom.tipo === 'desconto_percentual'
                             ? `${cupom.valor}% OFF`
-                            : `R$ ${Number(cupom.valor || 0).toFixed(2)} OFF`}
+                            : `${formatarMoeda(cupom.valor || 0)} OFF`}
                         </span>
 
                         <div className="flex items-center gap-1">
@@ -327,8 +340,8 @@ export const CuponsGestao: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleExcluirCupom(cupom.id)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
+                            onClick={() => solicitarExcluirCupom(cupom)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
                             title="Excluir"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -613,7 +626,7 @@ export const CuponsGestao: React.FC = () => {
                                 ? 'Frete Grátis'
                                 : cupom.tipo === 'desconto_percentual'
                                 ? `${cupom.valor}% de desconto`
-                                : `R$ ${Number(cupom.valor).toFixed(2)} de desconto`}
+                                : `${formatarMoeda(cupom.valor || 0)} de desconto`}
                             </span>
                           </div>
                         </div>
@@ -636,7 +649,7 @@ export const CuponsGestao: React.FC = () => {
                       <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
                         <span>
                           {cupom.tem_valor_minimo && Number(cupom.valor_minimo_carrinho) > 0
-                            ? `Mínimo R$ ${Number(cupom.valor_minimo_carrinho).toFixed(2)}`
+                            ? `Mínimo ${formatarMoeda(cupom.valor_minimo_carrinho)}`
                             : 'Sem valor mínimo'}
                         </span>
 
@@ -644,7 +657,7 @@ export const CuponsGestao: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => abrirEdicaoCupom(cupom)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
                             title="Editar cupom"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -652,8 +665,8 @@ export const CuponsGestao: React.FC = () => {
 
                           <button
                             type="button"
-                            onClick={() => handleExcluirCupom(cupom.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                            onClick={() => solicitarExcluirCupom(cupom)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                             title="Excluir cupom"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -735,19 +748,33 @@ export const CuponsGestao: React.FC = () => {
           </div>
 
           {/* Ticket Visual Dinâmico (TELA003) */}
-          <div className="relative bg-gradient-to-r from-amber-200/90 via-amber-100 to-amber-200 text-slate-900 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center border border-amber-300 select-none overflow-hidden">
+          <div className={`relative p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center border select-none overflow-hidden transition-colors ${
+            isDark
+              ? 'bg-slate-850/90 border-slate-700/80 text-white'
+              : 'bg-emerald-50/70 border-emerald-200/80 text-slate-800'
+          }`}>
             {/* Recortes laterais do cupom */}
-            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-950 border border-amber-300"></div>
-            <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-950 border border-amber-300"></div>
+            <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border ${
+              isDark ? 'bg-slate-950 border-slate-700/80' : 'bg-white border-emerald-200/80'
+            }`}></div>
+            <div className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border ${
+              isDark ? 'bg-slate-950 border-slate-700/80' : 'bg-white border-emerald-200/80'
+            }`}></div>
 
-            <div className="border-2 border-dashed border-amber-400/60 rounded-xl px-6 py-2.5 mb-2 bg-white/40">
-              <span className="font-black text-base text-amber-700 tracking-wider">
+            <div className={`border-2 border-dashed rounded-xl px-6 py-2.5 mb-2 transition-colors ${
+              isDark
+                ? 'border-emerald-500/40 bg-slate-900/60 text-emerald-400'
+                : 'border-emerald-300 bg-white/80 text-emerald-700'
+            }`}>
+              <span className="font-mono font-black text-base tracking-wider">
                 {nomeCupomExibicao}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-              <Truck className="w-4 h-4" />
+            <div className={`flex items-center gap-1.5 text-xs font-bold ${
+              isDark ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              <Truck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
               <span>Frete grátis</span>
             </div>
           </div>
@@ -845,24 +872,38 @@ export const CuponsGestao: React.FC = () => {
           </div>
 
           {/* Ticket Visual Dinâmico (TELA004) */}
-          <div className="relative bg-gradient-to-r from-amber-200/90 via-amber-100 to-amber-200 text-slate-900 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center border border-amber-300 select-none overflow-hidden">
+          <div className={`relative p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center text-center border select-none overflow-hidden transition-colors ${
+            isDark
+              ? 'bg-slate-850/90 border-slate-700/80 text-white'
+              : 'bg-emerald-50/70 border-emerald-200/80 text-slate-800'
+          }`}>
             {/* Recortes laterais do cupom */}
-            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-950 border border-amber-300"></div>
-            <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-950 border border-amber-300"></div>
+            <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border ${
+              isDark ? 'bg-slate-950 border-slate-700/80' : 'bg-white border-emerald-200/80'
+            }`}></div>
+            <div className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border ${
+              isDark ? 'bg-slate-950 border-slate-700/80' : 'bg-white border-emerald-200/80'
+            }`}></div>
 
-            <div className="border-2 border-dashed border-amber-400/60 rounded-xl px-6 py-2.5 mb-2 bg-white/40">
-              <span className="font-black text-base text-amber-700 tracking-wider">
+            <div className={`border-2 border-dashed rounded-xl px-6 py-2.5 mb-2 transition-colors ${
+              isDark
+                ? 'border-emerald-500/40 bg-slate-900/60 text-emerald-400'
+                : 'border-emerald-300 bg-white/80 text-emerald-700'
+            }`}>
+              <span className="font-mono font-black text-base tracking-wider">
                 {nomeCupomExibicao}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-              <Tag className="w-4 h-4" />
+            <div className={`flex items-center gap-1.5 text-xs font-bold ${
+              isDark ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              <Tag className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
               <span>
                 {valorDesconto
                   ? tipoDesconto === 'percentual'
                     ? `${valorDesconto}% de desconto no carrinho`
-                    : `R$ ${valorDesconto} de desconto no carrinho`
+                    : `${formatarMoeda(valorDesconto)} de desconto no carrinho`
                   : 'de desconto no carrinho'}
               </span>
             </div>
@@ -998,6 +1039,17 @@ export const CuponsGestao: React.FC = () => {
         </div>
       )}
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ModalConfirmacaoExclusao
+        isOpen={Boolean(cupomParaExcluir)}
+        onClose={() => setCupomParaExcluir(null)}
+        onConfirmar={handleConfirmarExcluirCupom}
+        titulo="Excluir Cupom"
+        mensagem="Deseja realmente excluir este cupom? Esta ação não poderá ser desfeita e clientes não poderão mais utilizá-lo."
+        itemNome={cupomParaExcluir ? `Cupom: ${cupomParaExcluir.codigo}` : undefined}
+        carregando={excluindoCupom}
+      />
     </div>
   );
 };

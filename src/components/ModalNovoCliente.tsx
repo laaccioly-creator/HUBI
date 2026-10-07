@@ -23,6 +23,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Cliente, TabelaPreco } from '../types';
+import { formatarMoeda, formatarValorBRL } from '../utils/formatters';
 
 interface ModalNovoClienteProps {
   isOpen: boolean;
@@ -205,7 +206,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
   // Fiado e Tabela de Preço
   const [permiteFiado, setPermiteFiado] = useState(permissions.podeAtivarFiado);
-  const [limiteCredito, setLimiteCredito] = useState('500.00');
+  const [limiteCredito, setLimiteCredito] = useState('500,00');
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
 
   // Endereço
@@ -242,7 +243,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone2(clienteEditar.telefone2 || '');
         setTelefone2IsWhatsapp(clienteEditar.telefone2_is_whatsapp ?? false);
         setPermiteFiado(clienteEditar.permite_fiado ?? permissions.podeAtivarFiado);
-        setLimiteCredito(String(clienteEditar.limite_credito ?? '500.00'));
+        setLimiteCredito(formatarValorBRL(clienteEditar.limite_credito ?? 500));
         setTabelaPreco(clienteEditar.tabela_preco_padrao || 'varejo');
 
         // Endereço: se já tiver campos estruturados, usa-os
@@ -322,7 +323,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone2('');
         setTelefone2IsWhatsapp(false);
         setPermiteFiado(permissions.podeAtivarFiado);
-        setLimiteCredito(permissions.podeAtivarFiado ? '500.00' : '0.00');
+        setLimiteCredito(permissions.podeAtivarFiado ? '500,00' : '0,00');
         setTabelaPreco('varejo');
         setCep('');
         setRua('');
@@ -344,7 +345,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           telefone2: '',
           telefone2IsWhatsapp: false,
           permiteFiado: permissions.podeAtivarFiado,
-          limiteCredito: permissions.podeAtivarFiado ? '500.00' : '0.00',
+          limiteCredito: permissions.podeAtivarFiado ? '500,00' : '0,00',
           tabelaPreco: 'varejo',
           cep: '',
           rua: '',
@@ -586,6 +587,10 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       whatsappPrincipal = telefone1.replace(/\D/g, '');
     }
 
+    // Converter limite de crédito do formato pt-BR para número
+    const limCreditoLimpo = String(limiteCredito || '').trim().replace(/\./g, '').replace(',', '.');
+    const limiteCreditoNum = permiteFiado ? (parseFloat(limCreditoLimpo) || 0) : 0;
+
     const payloadCompleto: Record<string, any> = {
       loja_id: loja.id,
       nome: nome.trim(),
@@ -598,7 +603,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       telefone2_is_whatsapp: telefone2IsWhatsapp,
       whatsapp: whatsappPrincipal || null,
       permite_fiado: permiteFiado,
-      limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
+      limite_credito: limiteCreditoNum,
       saldo_devedor_fiado: clienteEditar ? (Number(clienteEditar.saldo_devedor_fiado) || 0) : 0,
       tabela_preco_padrao: tabelaPreco,
       observacoes: observacoes.trim() || null,
@@ -647,7 +652,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             telefone: telefone1.trim() || null,
             whatsapp: whatsappPrincipal || null,
             permite_fiado: permiteFiado,
-            limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
+            limite_credito: limiteCreditoNum,
             tabela_preco_padrao: tabelaPreco,
             observacoes: observacoes.trim() || null,
             endereco_principal: enderecoPrincipalFormatado || null
@@ -690,7 +695,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             telefone: telefone1.trim() || null,
             whatsapp: whatsappPrincipal || null,
             permite_fiado: permiteFiado,
-            limite_credito: permiteFiado ? (Number(limiteCredito) || 0) : 0,
+            limite_credito: limiteCreditoNum,
             saldo_devedor_fiado: 0,
             tabela_preco_padrao: tabelaPreco,
             observacoes: observacoes.trim() || null,
@@ -723,19 +728,19 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
-      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-800">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
+      <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700/80 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 dark:text-slate-100">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 bg-white flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1E293B] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shadow-xs">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-800">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
                 {clienteEditar ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {clienteEditar
                   ? 'Atualize os dados de contato, endereço e condições de crédito'
                   : 'Preencha os dados de contato, endereço e controle de crédito'}
@@ -744,7 +749,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           </div>
           <button
             onClick={handleFecharComConfirmacao}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition cursor-pointer"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -753,27 +758,29 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
         {/* Mensagem de Erro / Alerta */}
         {erroMsg && (
-          <div className="mx-4 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-xs text-rose-700">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span className="flex-1">{erroMsg}</span>
+          <div className="mx-4 sm:mx-6 mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl flex items-center gap-2.5 text-xs text-rose-700 dark:text-rose-300">
+            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span className="flex-1 font-medium">{erroMsg}</span>
           </div>
         )}
 
         {/* Formulário com Scroll */}
-        <form onSubmit={handleSubmeter} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <form onSubmit={handleSubmeter} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           {/* Status do Cliente (Ativo / Inativo) - Apenas em Edição e Restrito a Owner / Admin */}
           {clienteEditar && (
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-700">Status do Cadastro:</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Status do Cadastro:</span>
                   <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                    ativo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    ativo
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60'
                   }`}>
                     {ativo ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 block mt-0.5">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
                   {ativo ? 'Cliente ativo e disponível para vendas e emissão de fiado.' : 'Cliente inativado no sistema.'}
                 </span>
               </div>
@@ -784,14 +791,14 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                   onClick={() => setAtivo(!ativo)}
                   className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
                     ativo
-                      ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
-                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 dark:text-rose-400 dark:border-rose-800/60'
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70 dark:text-emerald-400 dark:border-emerald-800/60'
                   }`}
                 >
                   <span>{ativo ? 'Inativar Cliente' : 'Ativar Cliente'}</span>
                 </button>
               ) : (
-                <div className="flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
                   <Lock className="w-3.5 h-3.5" />
                   <span>Apenas Owner / Admin</span>
                 </div>
@@ -800,16 +807,16 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           )}
 
           {/* SEÇÃO 1: DADOS BÁSICOS */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+            <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" />
-              <span>Identificação do Cliente</span>
+              <span>1. Identificação do Cliente</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Nome */}
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                   Nome Completo <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
@@ -820,14 +827,14 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                     placeholder="Ex: João Carlos da Silva"
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 </div>
               </div>
 
               {/* CPF / CNPJ */}
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">CPF ou CNPJ</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">CPF ou CNPJ</label>
                 <div className="relative">
                   <FileText className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -835,28 +842,28 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                     placeholder="000.000.000-00 ou CNPJ"
                     value={cpfCnpj}
                     onChange={(e) => setCpfCnpj(formatarCpfCnpj(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 </div>
               </div>
 
               {/* Data de Aniversário */}
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Data de Aniversário</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Data de Aniversário</label>
                 <div className="relative">
                   <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="date"
                     value={dataAniversario}
                     onChange={(e) => setDataAniversario(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 </div>
               </div>
 
               {/* E-mail */}
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">E-mail</label>
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">E-mail</label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -864,7 +871,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                     placeholder="exemplo@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 </div>
               </div>
@@ -872,16 +879,16 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           </div>
 
           {/* SEÇÃO 2: TELEFONES & WHATSAPP */}
-          <div className="space-y-3 pt-2 border-t border-slate-200">
-            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+            <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5" />
-              <span>Contatos & WhatsApp</span>
+              <span>2. Contatos & WhatsApp</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Telefone 1 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 block">Telefone 1</label>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Telefone 1</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -889,26 +896,26 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                     placeholder="(00) 00000-0000"
                     value={telefone1}
                     onChange={(e) => setTelefone1(formatarTelefone(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setTelefone1IsWhatsapp(!telefone1IsWhatsapp)}
-                  className={`w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                  className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-[11px] font-semibold transition cursor-pointer shadow-2xs ${
                     telefone1IsWhatsapp
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold'
-                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60 font-bold'
+                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>{telefone1IsWhatsapp ? '✓ É WhatsApp' : 'Definir como WhatsApp'}</span>
                 </button>
               </div>
 
               {/* Telefone 2 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 block">Telefone 2</label>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Telefone 2</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -916,19 +923,19 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                     placeholder="(00) 00000-0000"
                     value={telefone2}
                     onChange={(e) => setTelefone2(formatarTelefone(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setTelefone2IsWhatsapp(!telefone2IsWhatsapp)}
-                  className={`w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg border text-[11px] font-medium transition cursor-pointer ${
+                  className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-[11px] font-semibold transition cursor-pointer shadow-2xs ${
                     telefone2IsWhatsapp
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold'
-                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60 font-bold'
+                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>{telefone2IsWhatsapp ? '✓ É WhatsApp' : 'Definir como WhatsApp'}</span>
                 </button>
               </div>
@@ -936,20 +943,20 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           </div>
 
           {/* SEÇÃO 3: CONTROLE DE FIADO & PREÇOS */}
-          <div className="space-y-3 pt-2 border-t border-slate-200">
-            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+            <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
               <DollarSign className="w-3.5 h-3.5" />
-              <span>Controle de Fiado & Tabela de Preço</span>
+              <span>3. Controle de Fiado & Tabela de Preço</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Tabela de Preço */}
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Tabela de Preço Padrão</label>
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Tabela de Preço Padrão</label>
                 <select
                   value={tabelaPreco}
                   onChange={(e) => setTabelaPreco(e.target.value as TabelaPreco)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 focus:bg-white transition capitalize"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition capitalize cursor-pointer"
                 >
                   <option value="varejo">Varejo (Preço Normal)</option>
                   <option value="atacado">Atacado</option>
@@ -960,14 +967,18 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
               {/* Indicador se Permite Fiado (Apenas se autorizado a ativar fiado) */}
               {permissions.podeAtivarFiado && (
                 <>
-                  <div className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="sm:col-span-2 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                     <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${permiteFiado ? 'bg-emerald-100/70 text-emerald-600' : 'bg-slate-200/70 text-slate-400'}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                        permiteFiado
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800/60 dark:text-emerald-400'
+                          : 'bg-slate-100 border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500'
+                      }`}>
                         <ShieldCheck className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-slate-800 block">Permite Venda no Fiado / A Prazo?</span>
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white block">Permite Venda no Fiado / A Prazo?</span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                           {permiteFiado
                             ? 'Cliente habilitado para compras a prazo com limite de crédito'
                             : 'Cliente bloqueado para fiado (apenas pagamentos à vista)'}
@@ -975,35 +986,56 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                       </div>
                     </div>
 
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={permiteFiado}
-                        onChange={(e) => setPermiteFiado(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={permiteFiado}
+                      onClick={() => setPermiteFiado(!permiteFiado)}
+                      className="flex items-center gap-2 cursor-pointer select-none shrink-0 self-start sm:self-auto"
+                      title={permiteFiado ? 'Desativar fiado' : 'Ativar fiado'}
+                    >
+                      <span className={`text-xs font-bold transition ${permiteFiado ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        {permiteFiado ? 'Habilitado' : 'Bloqueado'}
+                      </span>
+                      <div
+                        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                          permiteFiado ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            permiteFiado ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </div>
+                    </button>
                   </div>
 
                   {/* LIMITE DE FIADO: SÓ EXIBIDO/SOLICITADO SE PERMITE FIADO FOR VERDADEIRO */}
                   {permiteFiado && (
-                    <div className="sm:col-span-2 bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3.5 space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                      <label className="text-xs font-bold text-emerald-800 flex items-center justify-between">
-                        <span>Limite de Crédito / Fiado (R$) *</span>
-                        <span className="text-[10px] text-emerald-600 font-normal">Valor máximo de débito pendente</span>
-                      </label>
+                    <div className="sm:col-span-2 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/50 rounded-2xl p-4 space-y-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Limite de Crédito / Fiado (R$) <span className="text-rose-500">*</span>
+                        </label>
+                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          Valor máximo de débito pendente permitido
+                        </span>
+                      </div>
                       <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-600">R$</span>
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-600 dark:text-emerald-400">R$</span>
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                          type="text"
+                          inputMode="decimal"
                           required={permiteFiado}
                           placeholder="500,00"
                           value={limiteCredito}
-                          onChange={(e) => setLimiteCredito(e.target.value)}
-                          className="w-full bg-white border border-emerald-300 rounded-xl pl-10 pr-3 py-2.5 text-sm font-bold text-emerald-800 placeholder:text-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0,1-9.,]/g, '');
+                            setLimiteCredito(val);
+                          }}
+                          className="w-full bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                         />
                       </div>
                     </div>
@@ -1014,11 +1046,11 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           </div>
 
           {/* SEÇÃO 4: ENDEREÇO COMPLETO */}
-          <div className="space-y-3 pt-2 border-t border-slate-200">
+          <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" />
-                <span>Endereço Completo</span>
+                <span>4. Endereço Completo</span>
               </h3>
 
               {/* Botão de Localização Atual */}
@@ -1026,27 +1058,27 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                 type="button"
                 disabled={carregandoGeoloc}
                 onClick={usarLocalizacaoAtual}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 transition disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition disabled:opacity-50 cursor-pointer shadow-2xs"
               >
                 {carregandoGeoloc ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                  <Navigation className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 )}
                 <span>{carregandoGeoloc ? 'Buscando GPS...' : 'Usar Localização Atual'}</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3.5">
               {/* CEP com Botão Não Sei o CEP */}
               <div className="sm:col-span-3 space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">CEP</label>
+                  <label className="text-xs font-semibold text-slate-800 dark:text-slate-200">CEP</label>
                   <a
                     href="https://buscacepinter.correios.com.br/app/endereco/index.php"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                    className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                   >
                     <HelpCircle className="w-3 h-3" />
                     <span>Não sei o CEP</span>
@@ -1064,21 +1096,21 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                         buscarCep(formatado);
                       }
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                    className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                   />
                   {carregandoCep && (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400 absolute right-3 top-1/2 -translate-y-1/2" />
                   )}
                 </div>
               </div>
 
               {/* Estado (UF) */}
-              <div className="sm:col-span-3">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Estado (UF)</label>
+              <div className="sm:col-span-3 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Estado (UF)</label>
                 <select
                   value={estado}
                   onChange={(e) => setEstado(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition cursor-pointer"
                 >
                   <option value="">Selecione o Estado</option>
                   {ESTADOS_BRASIL.map((uf) => (
@@ -1090,89 +1122,89 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
               </div>
 
               {/* Rua / Logradouro */}
-              <div className="sm:col-span-4">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Rua / Logradouro</label>
+              <div className="sm:col-span-4 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Rua / Logradouro</label>
                 <input
                   type="text"
                   placeholder="Ex: Av. Santos Dumont, Rua das Flores"
                   value={rua}
                   onChange={(e) => setRua(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                 />
               </div>
 
               {/* Número */}
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Número</label>
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Número</label>
                 <input
                   type="text"
                   placeholder="Ex: 123, S/N"
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                 />
               </div>
 
               {/* Bairro */}
-              <div className="sm:col-span-3">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Bairro</label>
+              <div className="sm:col-span-3 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Bairro</label>
                 <input
                   type="text"
                   placeholder="Ex: Aldeota, Centro"
                   value={bairro}
                   onChange={(e) => setBairro(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                 />
               </div>
 
               {/* Cidade */}
-              <div className="sm:col-span-3">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Cidade</label>
+              <div className="sm:col-span-3 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Cidade</label>
                 <input
                   type="text"
                   placeholder="Ex: Fortaleza, São Paulo"
                   value={cidade}
                   onChange={(e) => setCidade(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                 />
               </div>
 
               {/* Complemento */}
-              <div className="sm:col-span-6">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Complemento / Ponto de Referência</label>
+              <div className="sm:col-span-6 space-y-1">
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Complemento / Ponto de Referência</label>
                 <input
                   type="text"
                   placeholder="Ex: Apto 204, Bloco B, Próximo ao supermercado"
                   value={complemento}
                   onChange={(e) => setComplemento(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                  className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition"
                 />
               </div>
             </div>
           </div>
 
           {/* SEÇÃO 5: OBSERVAÇÕES */}
-          <div className="space-y-2 pt-2 border-t border-slate-200">
-            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-xs">
+            <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" />
-              <span>Observações Gerais</span>
+              <span>5. Observações Gerais</span>
             </h3>
             <textarea
               rows={2}
               placeholder="Preferências de atendimento, notas de entrega, histórico ou detalhes importantes..."
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition resize-none"
+              className="w-full bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl p-3 text-xs font-medium focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500 transition resize-none"
             />
           </div>
         </form>
 
         {/* Rodapé com Ações */}
-        <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50/80 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
+        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-700/80 bg-slate-50/90 dark:bg-slate-900/80 flex flex-col-reverse sm:flex-row items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={handleFecharComConfirmacao}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition cursor-pointer shadow-2xs"
           >
             Cancelar
           </button>
@@ -1180,7 +1212,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             type="button"
             disabled={salvando}
             onClick={handleSubmeter}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-98 text-white text-xs font-bold shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
           >
             {salvando ? (
               <>
