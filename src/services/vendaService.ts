@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { SyncService } from './syncService';
 import { ShippingOrchestrator } from './shippingOrchestrator';
 import { caixaService } from './caixaService';
+import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from './estoquePedidoService';
 import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '../types';
 import { PedidoEntrega } from '../types/shipping';
 
@@ -395,8 +396,25 @@ export class VendaService {
       console.warn('[VendaService] Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
     }
 
+    // 8. Baixa idempotente de estoque (se status for operacional/concluído e ainda não baixado)
+    let estoqueBaixadoFlag = Boolean(pedidoGravado.estoque_baixado);
+    if (STATUS_QUE_BAIXAM_ESTOQUE.includes(statusFinal)) {
+      try {
+        const resEstoque = await EstoquePedidoService.baixarEstoquePedido({
+          pedidoId,
+          lojaId,
+          usuarioId,
+          itens: itensFormatados as any
+        });
+        estoqueBaixadoFlag = resEstoque.estoqueBaixado;
+      } catch (errEst) {
+        console.warn('[VendaService] Falha não-bloqueante ao processar baixa de estoque:', errEst);
+      }
+    }
+
     const pedidoCompleto: Pedido = {
       ...pedidoGravado,
+      estoque_baixado: estoqueBaixadoFlag,
       cliente: clienteSelecionado,
       vendedor: usuario,
       itens: itensFormatados as any,

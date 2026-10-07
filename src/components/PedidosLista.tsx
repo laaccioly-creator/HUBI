@@ -60,6 +60,7 @@ import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
 import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { audioService } from '../services/audioService';
+import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from '../services/estoquePedidoService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
@@ -228,8 +229,12 @@ export const PedidosLista: React.FC = () => {
 
   // Opções de status permitidas para alteração no pedido selecionado
   const opcoesStatusSelecionado = useMemo(() => {
-    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, false);
-  }, [loja, pedidoSelecionado?.status]);
+    const ehRetirada = (pedidoSelecionado as any)?.tipo_atendimento === 'retirada' ||
+      (pedidoSelecionado as any)?.tipo_entrega === 'retirada' ||
+      pedidoSelecionado?.forma_entrega?.tipo === 'retirada' ||
+      pedidoSelecionado?.pedido_entrega?.tipo_atendimento === 'retirada';
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada);
+  }, [loja, pedidoSelecionado?.status, pedidoSelecionado]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
   const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
@@ -237,6 +242,8 @@ export const PedidosLista: React.FC = () => {
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
   const [pedidoReceberFiadoModal, setPedidoReceberFiadoModal] = useState<Pedido | null>(null);
+  const [pedidoAlterarStatusModal, setPedidoAlterarStatusModal] = useState<Pedido | null>(null);
+  const [atualizandoStatusRapido, setAtualizandoStatusRapido] = useState<boolean>(false);
   const [concluirAposReceber, setConcluirAposReceber] = useState<boolean>(false);
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
@@ -1020,25 +1027,23 @@ export const PedidosLista: React.FC = () => {
         return;
       }
 
-      // Condicionamento estrito: Conclusão exige que o saldo devedor seja R$ 0,00
+      // Validação da quitação / condição financeira
       const saldoDevedor = Number(pedAlvo.saldo_devedor ?? (Number(pedAlvo.valor_total || 0) - Number(pedAlvo.valor_pago || 0)));
-      const estaQuitado = saldoDevedor <= 0.009;
+      const temFiadoValido = (pedAlvo.pagamentos || []).some(
+        (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
+      );
+      const estaQuitadoOuFiado = pedAlvo.status_pagamento === 'pago' || saldoDevedor <= 0.009 || temFiadoValido;
 
-      if (novoStatus === 'concluido' && !estaQuitado) {
-        setPedidoReceberModal(pedAlvo);
-        setConcluirAposReceber(true);
-        mostrarAviso(
-          `Para marcar o pedido #${pedAlvo.numero_pedido} como Concluído, liquide o saldo pendente de R$ ${saldoDevedor.toFixed(2)}.`,
-          'Recebimento Obrigatório'
-        );
-        return;
-      }
+      const ehRetirada = (pedAlvo as any).tipo_atendimento === 'retirada' ||
+        (pedAlvo as any).tipo_entrega === 'retirada' ||
+        pedAlvo.forma_entrega?.tipo === 'retirada' ||
+        pedAlvo.pedido_entrega?.tipo_atendimento === 'retirada';
 
-      const validacaoCiclo = validarTransicaoStatusPedido(pedAlvo.status, novoStatus, estaQuitado);
+      const validacaoCiclo = validarTransicaoStatusPedido(pedAlvo.status, novoStatus, estaQuitadoOuFiado, ehRetirada, loja);
       if (!validacaoCiclo.permitido) {
         if (validacaoCiclo.requerPagamento) {
           setPedidoReceberModal(pedAlvo);
-          setConcluirAposReceber(true);
+          setConcluirAposReceber(false);
         }
         mostrarAviso(validacaoCiclo.motivo || 'Transição de status não permitida.', 'Ação Bloqueada');
         return;
@@ -1167,10 +1172,46 @@ export const PedidosLista: React.FC = () => {
         }
       }
 
+      // 4. Gestão idempotente de estoque (Baixa única ou Estorno no cancelamento)
+      let novoEstoqueBaixado = Boolean(pedAlvo.estoque_baixado);
+      if (loja?.id) {
+        if (novoStatus === 'cancelado') {
+          // Gatilho de Estorno: se tinha baixado, estorna e marca estoque_baixado = false
+          if (pedAlvo.estoque_baixado === true) {
+            try {
+              const resEstorno = await EstoquePedidoService.estornarEstoquePedido({
+                pedidoId,
+                lojaId: loja.id,
+                usuarioId: usuario?.id || null,
+                itens: pedAlvo.itens || pedAlvo.itens_pedido
+              });
+              novoEstoqueBaixado = resEstorno.estoqueBaixado;
+            } catch (errEstornoEstoque) {
+              console.warn('Aviso ao estornar estoque do pedido cancelado:', errEstornoEstoque);
+            }
+          }
+        } else if (STATUS_QUE_BAIXAM_ESTOQUE.includes(novoStatus)) {
+          // Gatilho de Saída de Estoque (Baixa Única idempotente)
+          if (pedAlvo.estoque_baixado !== true) {
+            try {
+              const resBaixa = await EstoquePedidoService.baixarEstoquePedido({
+                pedidoId,
+                lojaId: loja.id,
+                usuarioId: usuario?.id || null,
+                itens: pedAlvo.itens || pedAlvo.itens_pedido
+              });
+              novoEstoqueBaixado = resBaixa.estoqueBaixado;
+            } catch (errBaixaEstoque) {
+              console.warn('Aviso ao baixar estoque do pedido:', errBaixaEstoque);
+            }
+          }
+        }
+      }
+
       setPedidos((prev) =>
         prev.map((p) =>
           p.id === pedidoId
-            ? { ...p, status: novoStatus, observacoes: obsLimpa || null }
+            ? { ...p, status: novoStatus, estoque_baixado: novoEstoqueBaixado, observacoes: obsLimpa || null }
             : p
         )
       );
@@ -1181,7 +1222,7 @@ export const PedidosLista: React.FC = () => {
         } else {
           setPedidoSelecionado((prev) =>
             prev
-              ? { ...prev, status: novoStatus, observacoes: obsLimpa || null }
+              ? { ...prev, status: novoStatus, estoque_baixado: novoEstoqueBaixado, observacoes: obsLimpa || null }
               : null
           );
         }
@@ -3643,27 +3684,28 @@ export const PedidosLista: React.FC = () => {
                             const infoVenc = obterInfoVencimentoFiado(pedido);
                             const temFiadoEmAberto = (pedido.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado') && !pedido.fiado_quitado;
                             const estaVencido = pedido.status === 'vencido' || (temFiadoEmAberto && pedido.status !== 'concluido' && pedido.status !== 'cancelado' && infoVenc.estaVencido);
-                            const formatarStatusTexto = (status: string) => {
-                              switch (status) {
-                                case 'pendente': return 'Pendente';
-                                case 'confirmado': return 'Confirmado';
-                                case 'em_producao': return 'Em produção';
-                                case 'em_expedicao': return 'Em expedição';
-                                case 'aguardando_envio': return 'Aguardando envio';
-                                case 'enviado': return 'Enviado';
-                                case 'saiu_para_entrega': return 'Saiu p/ entrega';
-                                case 'pronto_para_retirar': return 'Pronto retirada';
-                                case 'vencido': return 'Vencido';
-                                case 'entregue': return 'Entregue';
-                                case 'concluido': return 'Concluído';
-                                case 'cancelado': return 'Cancelado';
-                                default: return status.replace('_', ' ');
-                              }
-                            };
+                            const statusExibicao = estaVencido ? 'vencido' : pedido.status;
+                            const ehEstadoFinal = pedido.status === 'concluido' || pedido.status === 'cancelado';
+
                             return (
-                              <span className={`text-xs font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                {formatarStatusTexto(estaVencido ? 'vencido' : pedido.status)}
-                              </span>
+                              <button
+                                type="button"
+                                disabled={ehEstadoFinal}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!ehEstadoFinal) {
+                                    setPedidoAlterarStatusModal(pedido);
+                                  }
+                                }}
+                                title={ehEstadoFinal ? `Status final (${pedido.status})` : 'Clique para alterar o status do pedido'}
+                                className={`inline-flex items-center transition-all ${
+                                  ehEstadoFinal 
+                                    ? 'opacity-85 cursor-default' 
+                                    : 'cursor-pointer hover:scale-105 hover:brightness-110 active:scale-95'
+                                }`}
+                              >
+                                {getStatusBadge(statusExibicao as StatusPedido, pedido)}
+                              </button>
                             );
                           })()}
                         </td>
@@ -4289,6 +4331,184 @@ export const PedidosLista: React.FC = () => {
         produto={produtoDetalhesModal}
         onClose={() => setProdutoDetalhesModal(null)}
       />
+
+      {/* MODAL INTERATIVO DE TROCA DE STATUS DO PEDIDO (FASE 3) */}
+      {pedidoAlterarStatusModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => {
+            if (!atualizandoStatusRapido) setPedidoAlterarStatusModal(null);
+          }}
+        >
+          <div 
+            className={`w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl border transition-all ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-100' 
+                : 'bg-white border-slate-200 text-slate-900'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-center justify-between border-b border-slate-700/50 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                  <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base tracking-tight">
+                    Alterar Status do Pedido #{pedidoAlterarStatusModal.numero_pedido}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Cliente: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{pedidoAlterarStatusModal.cliente?.nome || pedidoAlterarStatusModal.cliente_nome_avulso || 'Cliente Balcão'}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={atualizandoStatusRapido}
+                onClick={() => setPedidoAlterarStatusModal(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status Atual */}
+            <div className={`p-3.5 rounded-2xl flex items-center justify-between border ${
+              isDark ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status Atual:</span>
+              <div className="flex items-center gap-2">
+                {getStatusBadge(pedidoAlterarStatusModal.status, pedidoAlterarStatusModal)}
+              </div>
+            </div>
+
+            {/* Verificação da Trava Financeira */}
+            {(() => {
+              const saldoDev = Number(pedidoAlterarStatusModal.saldo_devedor ?? (Number(pedidoAlterarStatusModal.valor_total || 0) - Number(pedidoAlterarStatusModal.valor_pago || 0)));
+              const temFiado = (pedidoAlterarStatusModal.pagamentos || []).some(
+                (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
+              );
+              const quitado = pedidoAlterarStatusModal.status_pagamento === 'pago' || saldoDev <= 0.009 || temFiado;
+
+              const ehRetiradaModal = (pedidoAlterarStatusModal as any).tipo_atendimento === 'retirada' ||
+                (pedidoAlterarStatusModal as any).tipo_entrega === 'retirada' ||
+                pedidoAlterarStatusModal.forma_entrega?.tipo === 'retirada' ||
+                pedidoAlterarStatusModal.pedido_entrega?.tipo_atendimento === 'retirada';
+
+              const opcoesDisponiveis = obterOpcoesStatusAlteracao(
+                loja,
+                pedidoAlterarStatusModal.status,
+                ehRetiradaModal
+              );
+
+              return (
+                <div className="space-y-4">
+                  {!quitado && (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2.5">
+                      <div className="flex items-start gap-2.5">
+                        <AlertCircle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+                        <div className="text-xs space-y-1">
+                          <p className="font-bold text-amber-300">Pagamento Pendente</p>
+                          <p className="text-amber-200/90 leading-relaxed">
+                            Este pedido ainda não foi pago. Efetue o recebimento antes de avançar para separação ou envio.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pAlvo = pedidoAlterarStatusModal;
+                          setPedidoAlterarStatusModal(null);
+                          setPedidoReceberModal(pAlvo);
+                          setConcluirAposReceber(false);
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      >
+                        <CreditCard className="w-4 h-4 stroke-[2.5]" />
+                        <span>Receber Pagamento (R$ {saldoDev.toFixed(2)})</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Lista de Ações de Transição Permitidas */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Selecione o Próximo Status:
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
+                      {opcoesDisponiveis.map((opcao) => {
+                        const ehCancelamento = opcao.id === 'cancelado';
+                        const requerQuitacao = !ehCancelamento && !quitado;
+                        const estaDesabilitado = atualizandoStatusRapido || requerQuitacao;
+
+                        return (
+                          <button
+                            key={opcao.id}
+                            type="button"
+                            disabled={estaDesabilitado}
+                            onClick={async () => {
+                              const ped = pedidoAlterarStatusModal;
+                              setPedidoAlterarStatusModal(null);
+                              if (ehCancelamento) {
+                                setPedidoSelecionado(ped);
+                                setModalCancelarPedidoAberto(true);
+                              } else {
+                                setAtualizandoStatusRapido(true);
+                                await atualizarStatus(ped.id, opcao.id);
+                                setAtualizandoStatusRapido(false);
+                              }
+                            }}
+                            className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer ${
+                              estaDesabilitado
+                                ? 'opacity-40 bg-slate-800/20 border-slate-800 cursor-not-allowed'
+                                : ehCancelamento
+                                ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-300 active:scale-98'
+                                : isDark
+                                ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700 hover:border-emerald-500/50 text-slate-100 active:scale-98'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-emerald-500/50 text-slate-900 active:scale-98'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              {getStatusBadge(opcao.id)}
+                            </div>
+
+                            {requerQuitacao ? (
+                              <span className="text-[11px] font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                                Requer Pagamento
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-400">
+                                Avançar &rarr;
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Rodapé do Modal */}
+            <div className="flex items-center justify-end pt-2 border-t border-slate-700/50 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setPedidoAlterarStatusModal(null)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL OFICIAL DE PAGAMENTO & FECHAMENTO */}
       <ModalPagamentoFechamento

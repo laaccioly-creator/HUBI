@@ -572,6 +572,7 @@ export interface Pedido {
   tabela_preco_aplicada: TabelaPreco;
   status: StatusPedido;
   status_pagamento?: StatusPagamento;
+  estoque_baixado?: boolean;
   subtotal: number;
   subtotal_produtos?: number;
   valor_desconto: number;
@@ -860,6 +861,23 @@ export interface QtdVendasPorMetodoResumo {
   cartao_credito: number;
   cartao_debito: number;
   outros: number;
+}
+
+export type TipoMovimentacaoEstoque = 'saida_venda' | 'entrada_estorno_cancelamento' | 'entrada_compra' | 'baixa_perda' | 'ajuste_inventario';
+
+export interface MovimentacaoEstoque {
+  id: string;
+  loja_id: string;
+  produto_id: string;
+  variacao_id?: string | null;
+  pedido_id?: string | null;
+  usuario_id?: string | null;
+  tipo_movimentacao: TipoMovimentacaoEstoque;
+  quantidade: number;
+  saldo_anterior?: number | null;
+  saldo_posterior?: number | null;
+  motivo?: string | null;
+  criado_em?: string;
 }
 
 export interface ResumoSessaoCaixa {

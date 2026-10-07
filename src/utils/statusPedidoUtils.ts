@@ -141,114 +141,166 @@ export function obterAbasStatusVisiveis(loja?: Loja | null): { id: string; label
 export function obterOpcoesStatusAlteracao(
   loja?: Loja | null,
   statusAtual?: string,
-  incluirConcluido: boolean = false
+  ehRetiradaBalcao: boolean = false
 ): { id: StatusPedido; label: string }[] {
-  // Pedidos cancelados são estritamente imutáveis (read-only)
-  if (statusAtual === 'cancelado') {
+  // Pedidos cancelados e concluídos são estados finais consolidados
+  if (!statusAtual || statusAtual === 'cancelado' || statusAtual === 'concluido') {
     return [];
   }
 
-  // Pedidos concluídos (Vendas): a única ação permitida é o cancelamento
-  if (statusAtual === 'concluido') {
-    return [
-      { id: 'concluido', label: 'Concluído' },
-      { id: 'cancelado', label: 'Cancelar Venda' }
-    ];
-  }
-
-  // 1. Ciclo estrito para pedidos Pendentes: status atual é Pendente, e só pode evoluir para Confirmado ou Cancelado
+  // De pendente: permite apenas Confirmado ou Cancelado
   if (statusAtual === 'pendente') {
     return [
-      { id: 'pendente', label: 'Pendente' },
       { id: 'confirmado', label: 'Confirmado' },
-      { id: 'cancelado', label: 'Cancelado' }
+      { id: 'cancelado', label: 'Cancelar Pedido' }
     ];
   }
 
   const opcoes: { id: StatusPedido; label: string }[] = [];
 
-  // Se o pedido for confirmado ou posterior, não permite voltar para pendente
+  // De confirmado: Permite transitar para Em separação (se ativo), Aguardando envio (se ativo), Pronto para retirar (se ativo e entrega balcão) ou Cancelado
   if (statusAtual === 'confirmado') {
-    opcoes.push({ id: 'confirmado', label: 'Confirmado' });
-  }
-
-  if (isStatusPedidoAtivo('em_separacao', loja) || statusAtual === 'em_separacao' || statusAtual === 'em_producao') {
-    opcoes.push({ id: 'em_separacao', label: 'Em separação' });
-  }
-
-  if (isStatusPedidoAtivo('em_expedicao', loja) || statusAtual === 'em_expedicao') {
-    opcoes.push({ id: 'em_expedicao', label: 'Em expedição' });
-  }
-
-  if (statusAtual === 'aguardando_envio' || statusAtual === 'confirmado' || statusAtual === 'em_expedicao') {
-    if (!opcoes.some(o => o.id === 'aguardando_envio')) {
-      opcoes.push({ id: 'aguardando_envio', label: 'Aguardando Envio' });
+    if (isStatusPedidoAtivo('em_separacao', loja)) {
+      opcoes.push({ id: 'em_separacao', label: 'Em separação' });
     }
+    if (isStatusPedidoAtivo('aguardando_envio', loja)) {
+      opcoes.push({ id: 'aguardando_envio', label: 'Aguardando envio' });
+    }
+    if (ehRetiradaBalcao && isStatusPedidoAtivo('pronto_para_retirar', loja)) {
+      opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
+    }
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
   }
 
-  if (statusAtual === 'enviado' || statusAtual === 'aguardando_envio') {
-    if (!opcoes.some(o => o.id === 'enviado')) {
+  // De em_separacao: Permite transitar para Em expedição (se ativo), Aguardando envio (se ativo), Pronto para retirar (se ativo) ou Cancelado
+  if (statusAtual === 'em_separacao' || statusAtual === 'em_producao') {
+    if (isStatusPedidoAtivo('em_expedicao', loja)) {
+      opcoes.push({ id: 'em_expedicao', label: 'Em expedição' });
+    }
+    if (isStatusPedidoAtivo('aguardando_envio', loja)) {
+      opcoes.push({ id: 'aguardando_envio', label: 'Aguardando envio' });
+    }
+    if (isStatusPedidoAtivo('pronto_para_retirar', loja)) {
+      opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
+    }
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
+  }
+
+  // De em_expedicao: Permite transitar para Aguardando envio (se ativo), Pronto para retirar (se ativo) ou Cancelado
+  if (statusAtual === 'em_expedicao') {
+    if (isStatusPedidoAtivo('aguardando_envio', loja)) {
+      opcoes.push({ id: 'aguardando_envio', label: 'Aguardando envio' });
+    }
+    if (isStatusPedidoAtivo('pronto_para_retirar', loja)) {
+      opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
+    }
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
+  }
+
+  // De aguardando_envio: Permite transitar para Enviado ou Cancelado
+  if (statusAtual === 'aguardando_envio' || statusAtual === 'envio_pendente') {
+    if (isStatusPedidoAtivo('enviado', loja)) {
       opcoes.push({ id: 'enviado', label: 'Enviado' });
     }
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
   }
 
-  if (statusAtual === 'entregue' || statusAtual === 'enviado') {
-    if (!opcoes.some(o => o.id === 'entregue')) {
+  // De enviado: Permite transitar para Entregue ou retornar para Aguardando envio (estorno operacional)
+  if (statusAtual === 'enviado' || statusAtual === 'saiu_para_entrega') {
+    if (isStatusPedidoAtivo('entregue', loja)) {
       opcoes.push({ id: 'entregue', label: 'Entregue' });
     }
+    if (isStatusPedidoAtivo('aguardando_envio', loja)) {
+      opcoes.push({ id: 'aguardando_envio', label: 'Retornar para Aguardando envio' });
+    }
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
   }
 
-  if (isStatusPedidoAtivo('pronto_para_retirar', loja) || statusAtual === 'pronto_para_retirar') {
-    opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
-  }
-
-  if (statusAtual === 'vencido') {
-    opcoes.push({ id: 'vencido', label: 'Vencido' });
-  }
-
-  if (incluirConcluido || statusAtual === 'concluido') {
+  // De pronto_para_retirar: Permite transitar para Entregue / Concluído ou Cancelado
+  if (statusAtual === 'pronto_para_retirar') {
+    if (isStatusPedidoAtivo('entregue', loja)) {
+      opcoes.push({ id: 'entregue', label: 'Entregue' });
+    }
     opcoes.push({ id: 'concluido', label: 'Concluído' });
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
   }
 
-  opcoes.push({ id: 'cancelado', label: 'Cancelado' });
+  // De entregue: Permite transitar para Concluído
+  if (statusAtual === 'entregue') {
+    opcoes.push({ id: 'concluido', label: 'Concluído' });
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
+  }
 
+  // Status especiais (vencido, etc.)
+  if (statusAtual === 'vencido') {
+    opcoes.push({ id: 'concluido', label: 'Concluído' });
+    opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
+    return opcoes;
+  }
+
+  opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
   return opcoes;
 }
 
 /**
- * Valida se uma transição de status é permitida pelo ciclo de vida do pedido.
+ * Valida se uma transição de status é permitida pela Máquina de Estados do pedido.
  */
 export function validarTransicaoStatusPedido(
   statusAtual?: string,
   novoStatus?: string,
-  estaQuitado: boolean = false
+  estaQuitado: boolean = false,
+  ehRetiradaBalcao: boolean = false,
+  loja?: Loja | null
 ): { permitido: boolean; motivo?: string; requerPagamento?: boolean } {
   if (!statusAtual || !novoStatus || statusAtual === novoStatus) {
     return { permitido: true };
   }
 
-  // Pedidos cancelados são estritamente imutáveis (read-only)
-  if (statusAtual === 'cancelado') {
+  // Pedidos cancelados e concluídos são estritamente imutáveis
+  if (statusAtual === 'cancelado' || statusAtual === 'concluido') {
     return {
       permitido: false,
-      motivo: 'Pedidos cancelados são imutáveis e não permitem alteração de status.'
+      motivo: `Pedidos com status "${ROTULOS_STATUS_PEDIDO[statusAtual] || statusAtual}" são definitivos e não permitem alteração.`
     };
   }
 
-  // Pedidos concluídos (Vendas): a única transição permitida é o cancelamento
-  if (statusAtual === 'concluido') {
-    if (novoStatus === 'cancelado') {
-      return { permitido: true };
-    }
-    return {
-      permitido: false,
-      motivo: 'Pedidos já concluídos (Vendas) são definitivos e não podem ter seu status alterado para outros fluxos, permitindo apenas o cancelamento.'
-    };
-  }
-
-  // Cancelamento é permitido a partir de qualquer status
+  // Cancelamento é permitido a partir de qualquer estado não final
   if (novoStatus === 'cancelado') {
     return { permitido: true };
+  }
+
+  // Validação do status ativo nas configurações da loja
+  if (loja && !isStatusPedidoAtivo(novoStatus, loja)) {
+    return {
+      permitido: false,
+      motivo: `O status "${ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus}" está desativado nas configurações da loja.`
+    };
+  }
+
+  // Trava financeira: avanços operacionais exigem quitação do pedido
+  const statusAvancoOperacional = [
+    'em_separacao',
+    'em_expedicao',
+    'aguardando_envio',
+    'enviado',
+    'pronto_para_retirar',
+    'entregue',
+    'concluido'
+  ];
+
+  if (statusAvancoOperacional.includes(novoStatus) && !estaQuitado) {
+    return {
+      permitido: false,
+      motivo: 'Este pedido ainda não foi pago. Efetue o recebimento antes de avançar para separação ou envio.',
+      requerPagamento: true
+    };
   }
 
   // 1. Status Pendente só pode evoluir para Confirmado (ou Cancelado)
@@ -256,27 +308,88 @@ export function validarTransicaoStatusPedido(
     if (novoStatus !== 'confirmado') {
       return {
         permitido: false,
-        motivo: 'Pedidos pendentes só podem evoluir para Confirmado. Confirme o pedido antes de avançar para outras etapas.'
+        motivo: 'Pedidos pendentes só podem evoluir para Confirmado. Confirme o pedido antes de avançar.'
       };
     }
     return { permitido: true };
   }
 
-  // 2. Status Confirmado e superiores não podem retornar para Pendente
+  // 2. Não permitir retornar para Pendente
   if (novoStatus === 'pendente') {
     return {
       permitido: false,
-      motivo: 'Pedidos confirmados não podem retornar para Pendente. Para corrigir itens, o pedido deve ser cancelado e recriado.'
+      motivo: 'Pedidos confirmados ou operacionais não podem retornar para Pendente.'
     };
   }
 
-  // 3. Status Concluído exige que o pedido esteja integralmente quitado
-  if (novoStatus === 'concluido') {
-    if (!estaQuitado) {
+  // 3. Regras de transição do fluxo
+  if (statusAtual === 'confirmado') {
+    const permitidos = ['em_separacao', 'aguardando_envio', 'cancelado'];
+    if (ehRetiradaBalcao) permitidos.push('pronto_para_retirar');
+    if (!permitidos.includes(novoStatus)) {
       return {
         permitido: false,
-        motivo: 'Para concluir o pedido, é necessário que ele esteja integralmente quitado.',
-        requerPagamento: true
+        motivo: 'A partir de Confirmado, o pedido pode avançar para Em separação, Aguardando envio ou Pronto para retirar.'
+      };
+    }
+  }
+
+  if (statusAtual === 'em_separacao' || statusAtual === 'em_producao') {
+    const permitidos = ['em_expedicao', 'aguardando_envio', 'pronto_para_retirar', 'cancelado'];
+    if (!permitidos.includes(novoStatus)) {
+      return {
+        permitido: false,
+        motivo: 'A partir de Em separação, o pedido pode avançar para Em expedição, Aguardando envio ou Pronto para retirar.'
+      };
+    }
+  }
+
+  if (statusAtual === 'em_expedicao') {
+    const permitidos = ['aguardando_envio', 'pronto_para_retirar', 'cancelado'];
+    if (!permitidos.includes(novoStatus)) {
+      return {
+        permitido: false,
+        motivo: 'A partir de Em expedição, o pedido pode avançar para Aguardando envio ou Pronto para retirar.'
+      };
+    }
+  }
+
+  if (statusAtual === 'aguardando_envio' || statusAtual === 'envio_pendente') {
+    const permitidos = ['enviado', 'cancelado'];
+    if (!permitidos.includes(novoStatus)) {
+      return {
+        permitido: false,
+        motivo: 'A partir de Aguardando envio, o pedido pode avançar para Enviado ou Cancelado.'
+      };
+    }
+  }
+
+  if (statusAtual === 'enviado' || statusAtual === 'saiu_para_entrega') {
+    const permitidos = ['entregue', 'aguardando_envio', 'cancelado'];
+    if (!permitidos.includes(novoStatus)) {
+      return {
+        permitido: false,
+        motivo: 'A partir de Enviado, o pedido pode avançar para Entregue ou retornar para Aguardando envio.'
+      };
+    }
+  }
+
+  if (statusAtual === 'pronto_para_retirar') {
+    const permitidos = ['entregue', 'concluido', 'cancelado'];
+    if (!permitidos.includes(novoStatus)) {
+      return {
+        permitido: false,
+        motivo: 'A partir de Pronto para retirar, o pedido pode avançar para Entregue, Concluído ou Cancelado.'
+      };
+    }
+  }
+
+  if (statusAtual === 'entregue') {
+    const permitidos = ['concluido', 'cancelado'];
+    if (!permitidos.includes(novoStatus)) {
+      return {
+        permitido: false,
+        motivo: 'A partir de Entregue, o pedido pode ser finalizado como Concluído.'
       };
     }
   }

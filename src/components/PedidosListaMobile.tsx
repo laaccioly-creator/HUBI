@@ -509,8 +509,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
   // Opções para o modal de alteração de status
   const opcoesStatusAlteracao = useMemo(() => {
-    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, true);
-  }, [loja, pedidoSelecionado?.status]);
+    const ehRetirada = (pedidoSelecionado as any)?.tipo_atendimento === 'retirada' ||
+      (pedidoSelecionado as any)?.tipo_entrega === 'retirada' ||
+      pedidoSelecionado?.forma_entrega?.tipo === 'retirada' ||
+      pedidoSelecionado?.pedido_entrega?.tipo_atendimento === 'retirada';
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada);
+  }, [loja, pedidoSelecionado?.status, pedidoSelecionado]);
 
   const alternarVoz = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
