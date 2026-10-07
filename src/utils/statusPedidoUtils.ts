@@ -35,7 +35,7 @@ export const STATUS_PEDIDOS_ATIVOS_PADRAO = {
  * Verifica se um status de pedido está ativo nas configurações da loja.
  * - 'todos', 'pendente', 'confirmado', 'concluido', 'cancelado' e 'vencido' são fixos/obrigatórios e sempre ativos.
  * - 'em_separacao', 'em_expedicao', 'aguardando_envio', 'enviado', 'entregue' e 'pronto_para_retirar'
- *   são operacionais opcionais e dependem da chave status_pedidos_ativos nas configuracoes_extras da loja.
+ *   são operacionais opcionais e dependem das colunas tipadas BOOLEAN na tabela lojas (ou fallback para status_pedidos_ativos).
  */
 export function isStatusPedidoAtivo(
   statusId: string,
@@ -49,22 +49,28 @@ export function isStatusPedidoAtivo(
 
   switch (statusId) {
     case 'em_separacao':
-      // Suporte direto a em_separacao ou fallback para legado em_producao se existir
-      return configStatus?.em_separacao ?? configStatus?.em_producao ?? STATUS_PEDIDOS_ATIVOS_PADRAO.em_separacao;
+      if (typeof loja?.status_em_separacao === 'boolean') return loja.status_em_separacao;
+      return configStatus?.em_separacao ?? configStatus?.em_producao ?? false;
     case 'em_producao':
-      return configStatus?.em_separacao ?? configStatus?.em_producao ?? true;
+      if (typeof loja?.status_em_separacao === 'boolean') return loja.status_em_separacao;
+      return configStatus?.em_separacao ?? configStatus?.em_producao ?? false;
     case 'em_expedicao':
-      return configStatus?.em_expedicao ?? STATUS_PEDIDOS_ATIVOS_PADRAO.em_expedicao;
+      if (typeof loja?.status_em_expedicao === 'boolean') return loja.status_em_expedicao;
+      return configStatus?.em_expedicao ?? false;
     case 'aguardando_envio':
     case 'envio_pendente':
-      return configStatus?.aguardando_envio ?? STATUS_PEDIDOS_ATIVOS_PADRAO.aguardando_envio;
+      if (typeof loja?.status_aguardando_envio === 'boolean') return loja.status_aguardando_envio;
+      return configStatus?.aguardando_envio ?? false;
     case 'enviado':
     case 'saiu_para_entrega':
-      return configStatus?.enviado ?? configStatus?.saiu_para_entrega ?? STATUS_PEDIDOS_ATIVOS_PADRAO.enviado;
+      if (typeof loja?.status_enviado === 'boolean') return loja.status_enviado;
+      return configStatus?.enviado ?? configStatus?.saiu_para_entrega ?? false;
     case 'entregue':
-      return configStatus?.entregue ?? STATUS_PEDIDOS_ATIVOS_PADRAO.entregue;
+      if (typeof loja?.status_entregue === 'boolean') return loja.status_entregue;
+      return configStatus?.entregue ?? false;
     case 'pronto_para_retirar':
-      return configStatus?.pronto_para_retirar ?? STATUS_PEDIDOS_ATIVOS_PADRAO.pronto_para_retirar;
+      if (typeof loja?.status_pronto_para_retirar === 'boolean') return loja.status_pronto_para_retirar;
+      return configStatus?.pronto_para_retirar ?? false;
     default: {
       // Verificar se é um status personalizado ativo
       const custom = configStatus?.status_personalizados?.find((s) => s.id === statusId);

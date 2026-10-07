@@ -821,9 +821,47 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       let freteGratisFinal = freteGratisAtivoIni;
       let freteMinimoFinal = freteGratisValorMinIni;
 
-      // Carga direta e prioritária da tabela loja_shipping_configs aguardada antes do snapshot
+      // Carga direta e prioritária das colunas booleanas de status da loja e shipping configs
       const inicializarConfiguracoesAsync = async () => {
+        let statusLojaData: {
+          status_em_separacao?: boolean | null;
+          status_em_expedicao?: boolean | null;
+          status_aguardando_envio?: boolean | null;
+          status_enviado?: boolean | null;
+          status_entregue?: boolean | null;
+          status_pronto_para_retirar?: boolean | null;
+        } | null = null;
+
         try {
+          const { data } = await supabase
+            .from('lojas')
+            .select('status_em_separacao, status_em_expedicao, status_aguardando_envio, status_enviado, status_entregue, status_pronto_para_retirar')
+            .eq('id', loja.id)
+            .single();
+
+          statusLojaData = data;
+
+          if (statusLojaData) {
+            if (typeof statusLojaData.status_em_separacao === 'boolean') {
+              setStatusEmSeparacao(statusLojaData.status_em_separacao);
+            }
+            if (typeof statusLojaData.status_em_expedicao === 'boolean') {
+              setStatusEmExpedicao(statusLojaData.status_em_expedicao);
+            }
+            if (typeof statusLojaData.status_aguardando_envio === 'boolean') {
+              setStatusAguardandoEnvio(statusLojaData.status_aguardando_envio);
+            }
+            if (typeof statusLojaData.status_enviado === 'boolean') {
+              setStatusEnviado(statusLojaData.status_enviado);
+            }
+            if (typeof statusLojaData.status_entregue === 'boolean') {
+              setStatusEntregue(statusLojaData.status_entregue);
+            }
+            if (typeof statusLojaData.status_pronto_para_retirar === 'boolean') {
+              setStatusProntoRetirar(statusLojaData.status_pronto_para_retirar);
+            }
+          }
+
           const { data: configData, error: errShip } = await supabase
             .from('loja_shipping_configs')
             .select('*')
@@ -929,12 +967,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           tipoTaxaCatalogo: taxas.tipo_taxa_catalogo || 'percentual',
           aplicarTaxaCatalogo: taxas.aplicar_taxa_catalogo || 'adicionar',
           taxaCatalogoSomenteEntrega: taxas.taxa_catalogo_somente_entrega ?? true,
-          statusEmSeparacao: statusAtivos.em_separacao ?? statusAtivos.em_producao ?? true,
-          statusEmExpedicao: statusAtivos.em_expedicao ?? true,
-          statusAguardandoEnvio: statusAtivos.aguardando_envio ?? true,
-          statusEnviado: statusAtivos.enviado ?? statusAtivos.saiu_para_entrega ?? true,
-          statusEntregue: statusAtivos.entregue ?? true,
-          statusProntoRetirar: statusAtivos.pronto_para_retirar ?? true,
+          statusEmSeparacao: typeof statusLojaData?.status_em_separacao === 'boolean' ? statusLojaData.status_em_separacao : (statusAtivos.em_separacao ?? statusAtivos.em_producao ?? false),
+          statusEmExpedicao: typeof statusLojaData?.status_em_expedicao === 'boolean' ? statusLojaData.status_em_expedicao : (statusAtivos.em_expedicao ?? false),
+          statusAguardandoEnvio: typeof statusLojaData?.status_aguardando_envio === 'boolean' ? statusLojaData.status_aguardando_envio : (statusAtivos.aguardando_envio ?? false),
+          statusEnviado: typeof statusLojaData?.status_enviado === 'boolean' ? statusLojaData.status_enviado : (statusAtivos.enviado ?? statusAtivos.saiu_para_entrega ?? false),
+          statusEntregue: typeof statusLojaData?.status_entregue === 'boolean' ? statusLojaData.status_entregue : (statusAtivos.entregue ?? false),
+          statusProntoRetirar: typeof statusLojaData?.status_pronto_para_retirar === 'boolean' ? statusLojaData.status_pronto_para_retirar : (statusAtivos.pronto_para_retirar ?? false),
           trabalhoComEntregas: entregaRet.trabalho_com_entregas ?? true,
           trabalhoComRetirada: retBalcaoFinal,
           descricaoRetirada: entregaRet.descricao_retirada || '',
@@ -1150,6 +1188,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
             ? freteGratisValorMinimo
             : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+          status_em_separacao: statusEmSeparacao,
+          status_em_expedicao: statusEmExpedicao,
+          status_aguardando_envio: statusAguardandoEnvio,
+          status_enviado: statusEnviado,
+          status_entregue: statusEntregue,
+          status_pronto_para_retirar: statusProntoRetirar,
           tipos_venda: {
             varejo: tipoVendaVarejo,
             atacado: tipoVendaAtacado,
@@ -1187,6 +1231,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
                 ? freteGratisValorMinimo
                 : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+              status_em_separacao: statusEmSeparacao,
+              status_em_expedicao: statusEmExpedicao,
+              status_aguardando_envio: statusAguardandoEnvio,
+              status_enviado: statusEnviado,
+              status_entregue: statusEntregue,
+              status_pronto_para_retirar: statusProntoRetirar,
               configuracoes_extras: novasExtras
             })
             .eq('id', loja.id);

@@ -267,6 +267,12 @@ export interface Loja {
   retirada_loja_ativa?: boolean;
   frete_gratis_ativo?: boolean;
   frete_gratis_valor_minimo?: number;
+  status_em_separacao?: boolean;
+  status_em_expedicao?: boolean;
+  status_aguardando_envio?: boolean;
+  status_enviado?: boolean;
+  status_entregue?: boolean;
+  status_pronto_para_retirar?: boolean;
   tipos_venda?: {
     varejo?: boolean;
     atacado?: boolean;
