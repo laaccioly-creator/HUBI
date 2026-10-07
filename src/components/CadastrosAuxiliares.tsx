@@ -45,6 +45,8 @@ import { SyncService } from '../services/syncService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
+import { formatarMoeda } from '../utils/formatters';
 
 export const UNIDADES_PADRAO: Array<{ sigla: string; nome: string; permite_fracionado: boolean; padrao?: boolean }> = [
   { sigla: 'un', nome: 'Unidade', permite_fracionado: false, padrao: true },
@@ -193,6 +195,27 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [transpTelefone, setTranspTelefone] = useState<string>('');
   const [transpWhatsapp, setTranspWhatsapp] = useState<string>('');
   const [transpObservacoes, setTranspObservacoes] = useState<string>('');
+
+  // Estado para Modal de Exclusão Padronizado (Design System HUBI)
+  const [modalExclusaoConfig, setModalExclusaoConfig] = useState<{
+    aberto: boolean;
+    titulo: string;
+    mensagem: string;
+    itemNome?: string;
+    descricao?: string;
+    carregando: boolean;
+    onConfirmar: () => Promise<void>;
+  }>({
+    aberto: false,
+    titulo: 'Confirmar Exclusão',
+    mensagem: '',
+    carregando: false,
+    onConfirmar: async () => {}
+  });
+
+  const fecharModalExclusao = () => {
+    setModalExclusaoConfig(prev => ({ ...prev, aberto: false, carregando: false }));
+  };
 
   // 1. Carregar Dados Iniciais
   const carregarDados = async () => {
@@ -465,6 +488,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setCatEditando(null);
       setCatNome('');
       setCatIcone('📦');
+      setModalSecaoAberta('categorias');
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar categoria:', err);
@@ -474,22 +498,40 @@ export const CadastrosAuxiliares: React.FC = () => {
     }
   };
 
-  const excluirCategoria = async (cat: Categoria) => {
+  const excluirCategoria = (cat: Categoria) => {
+    if (!loja?.id) return;
     const totalProds = contagemProdutosCat[cat.id] || 0;
     if (totalProds > 0) {
       mostrarAviso(`Não é possível excluir a categoria "${cat.nome}" pois ela possui ${totalProds} produto(s) vinculado(s). Reclassifique os produtos antes de excluir.`, 'Categoria em Uso');
       return;
     }
-    if (!confirm(`Deseja realmente excluir a categoria "${cat.nome}"?`)) return;
 
-    try {
-      const { error } = await supabase.from('categorias').delete().eq('id', cat.id);
-      if (error) throw error;
-      exibirAlertaSucesso('Categoria removida.');
-      setCategorias(prev => prev.filter(c => c.id !== cat.id));
-    } catch (err: any) {
-      mostrarErro(err.message, 'Erro ao excluir categoria');
-    }
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Categoria',
+      itemNome: cat.nome,
+      mensagem: `Deseja realmente excluir a categoria "${cat.nome}"?`,
+      descricao: 'Esta ação removerá a categoria do catálogo. Esta operação não poderá ser desfeita.',
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          const { error } = await supabase
+            .from('categorias')
+            .delete()
+            .eq('id', cat.id)
+            .eq('loja_id', loja.id);
+          if (error) throw error;
+          exibirAlertaSucesso('Categoria removida com sucesso.');
+          setCategorias(prev => prev.filter(c => c.id !== cat.id));
+          fecharModalExclusao();
+          setModalSecaoAberta('categorias');
+        } catch (err: any) {
+          mostrarErro(err.message, 'Erro ao excluir categoria');
+          fecharModalExclusao();
+        }
+      }
+    });
   };
 
   // ============================================================================
@@ -538,6 +580,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setUnidadeSigla('');
       setUnidadeNome('');
       setUnidadeFracionada(false);
+      setModalSecaoAberta('unidades');
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar unidade:', err);
@@ -552,17 +595,29 @@ export const CadastrosAuxiliares: React.FC = () => {
       mostrarAviso('A unidade padrão "UN" (Unidade) não pode ser excluída.', 'Ação Não Permitida');
       return;
     }
-    if (!confirm(`Deseja remover a unidade "${un.sigla.toUpperCase()} - ${un.nome}"?`)) return;
 
-    try {
-      if (!un.id.startsWith('padrao_')) {
-        await supabase.from('unidades_medida').delete().eq('id', un.id);
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Unidade de Medida',
+      mensagem: 'Esta ação não poderá ser desfeita e removerá a unidade do sistema.',
+      itemNome: `${un.sigla.toUpperCase()} - ${un.nome}`,
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          if (!un.id.startsWith('padrao_')) {
+            await supabase.from('unidades_medida').delete().eq('id', un.id);
+          }
+          setUnidades(prev => prev.filter(u => u.id !== un.id));
+          setModalSecaoAberta('unidades');
+          exibirAlertaSucesso('Unidade de medida removida.');
+        } catch (err: any) {
+          mostrarErro(err.message, 'Erro ao excluir unidade');
+        } finally {
+          fecharModalExclusao();
+        }
       }
-      setUnidades(prev => prev.filter(u => u.id !== un.id));
-      exibirAlertaSucesso('Unidade de medida removida.');
-    } catch (err: any) {
-      mostrarErro(err.message, 'Erro ao excluir unidade');
-    }
+    });
   };
 
   // ============================================================================
@@ -589,7 +644,8 @@ export const CadastrosAuxiliares: React.FC = () => {
         const { error } = await supabase
           .from('fornecedores')
           .update(payload)
-          .eq('id', fornecedorEditando.id);
+          .eq('id', fornecedorEditando.id)
+          .eq('loja_id', loja.id);
         if (error) throw error;
         sessionStorage.setItem('hubi_recem_criado_fornecedor', fornecedorEditando.id);
         exibirAlertaSucesso('Fornecedor atualizado com sucesso!');
@@ -614,6 +670,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setFornWhatsapp('');
       setFornEmail('');
       setFornObs('');
+      setModalSecaoAberta('fornecedores');
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar fornecedor:', err);
@@ -624,15 +681,32 @@ export const CadastrosAuxiliares: React.FC = () => {
   };
 
   const excluirFornecedor = async (forn: Fornecedor) => {
-    if (!confirm(`Deseja realmente excluir o fornecedor "${forn.nome}"?`)) return;
-    try {
-      const { error } = await supabase.from('fornecedores').delete().eq('id', forn.id);
-      if (error) throw error;
-      exibirAlertaSucesso('Fornecedor removido com sucesso.');
-      setFornecedores(prev => prev.filter(f => f.id !== forn.id));
-    } catch (err: any) {
-      mostrarErro(err.message, 'Erro ao excluir fornecedor');
-    }
+    if (!loja?.id) return;
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Fornecedor',
+      mensagem: 'Tem certeza que deseja remover este fornecedor? Esta ação não pode ser desfeita.',
+      itemNome: forn.nome,
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          const { error } = await supabase
+            .from('fornecedores')
+            .delete()
+            .eq('id', forn.id)
+            .eq('loja_id', loja.id);
+          if (error) throw error;
+          exibirAlertaSucesso('Fornecedor removido com sucesso.');
+          setFornecedores(prev => prev.filter(f => f.id !== forn.id));
+          setModalSecaoAberta('fornecedores');
+        } catch (err: any) {
+          mostrarErro(err.message, 'Erro ao excluir fornecedor');
+        } finally {
+          fecharModalExclusao();
+        }
+      }
+    });
   };
 
   // ============================================================================
@@ -722,6 +796,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
       setModalPagamentoAberta(false);
       setPagEditando(null);
+      setModalSecaoAberta('pagamentos');
       carregarDados();
     } catch (err: any) {
       console.error('Erro ao salvar forma de pagamento:', err);
@@ -740,7 +815,8 @@ export const CadastrosAuxiliares: React.FC = () => {
         await supabase
           .from('formas_pagamento')
           .update({ ativo: novoStatus })
-          .eq('id', fp.id);
+          .eq('id', fp.id)
+          .eq('loja_id', loja?.id);
       }
       exibirAlertaSucesso(`Forma de pagamento ${novoStatus ? 'ativada' : 'desativada'}.`);
     } catch (err: any) {
@@ -749,17 +825,33 @@ export const CadastrosAuxiliares: React.FC = () => {
   };
 
   const excluirFormaPagamento = async (fp: FormaPagamento) => {
-    if (!confirm(`Deseja realmente remover a forma de pagamento "${fp.nome}"?`)) return;
-    try {
-      if (!fp.id.startsWith('padrao_') && !fp.id.startsWith('fp_')) {
-        const { error } = await supabase.from('formas_pagamento').delete().eq('id', fp.id);
-        if (error) throw error;
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Forma de Pagamento',
+      mensagem: 'Esta forma de pagamento não estará mais disponível para novas vendas.',
+      itemNome: fp.nome,
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          if (!fp.id.startsWith('padrao_') && !fp.id.startsWith('fp_')) {
+            const { error } = await supabase
+              .from('formas_pagamento')
+              .delete()
+              .eq('id', fp.id)
+              .eq('loja_id', loja?.id);
+            if (error) throw error;
+          }
+          setFormasPagamento(prev => prev.filter(item => item.id !== fp.id));
+          setModalSecaoAberta('pagamentos');
+          exibirAlertaSucesso('Forma de pagamento removida com sucesso.');
+        } catch (err: any) {
+          mostrarErro(err.message, 'Erro ao excluir forma de pagamento');
+        } finally {
+          fecharModalExclusao();
+        }
       }
-      setFormasPagamento(prev => prev.filter(item => item.id !== fp.id));
-      exibirAlertaSucesso('Forma de pagamento removida com sucesso.');
-    } catch (err: any) {
-      mostrarErro(err.message, 'Erro ao excluir forma de pagamento');
-    }
+    });
   };
 
   // ============================================================================
@@ -839,6 +931,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setFormasEntrega(lista);
       setModalFormaAberta(false);
       setFormaEditando(null);
+      setModalSecaoAberta('formas_envio');
       exibirAlertaSucesso(formaEditando ? 'Forma de envio atualizada com sucesso!' : 'Forma de envio cadastrada com sucesso!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao salvar forma de envio.';
@@ -871,16 +964,28 @@ export const CadastrosAuxiliares: React.FC = () => {
       mostrarAviso('A modalidade de retirada não pode ser excluída.', 'Ação Não Permitida');
       return;
     }
-    if (!confirm(`Deseja realmente remover a modalidade de entrega "${forma.nome}"?`)) return;
 
-    try {
-      await ShippingOrchestrator.removerFormaEntrega(forma.id, loja.id);
-      setFormasEntrega(prev => prev.filter(f => f.id !== forma.id));
-      exibirAlertaSucesso('Forma de envio removida com sucesso.');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao remover modalidade.';
-      mostrarErro(msg, 'Erro ao excluir');
-    }
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Forma de Envio',
+      mensagem: 'Tem certeza que deseja remover esta modalidade de entrega?',
+      itemNome: forma.nome,
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          await ShippingOrchestrator.removerFormaEntrega(forma.id, loja.id);
+          setFormasEntrega(prev => prev.filter(f => f.id !== forma.id));
+          setModalSecaoAberta('formas_envio');
+          exibirAlertaSucesso('Forma de envio removida com sucesso.');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Erro ao remover modalidade.';
+          mostrarErro(msg, 'Erro ao excluir');
+        } finally {
+          fecharModalExclusao();
+        }
+      }
+    });
   };
 
   // ============================================================================
@@ -897,6 +1002,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setAppsEntrega(lista);
       setModalAppAberta(false);
       setAppNome('');
+      setModalSecaoAberta('apps_corrida');
       exibirAlertaSucesso('Aplicativo de corrida cadastrado com sucesso!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao cadastrar aplicativo.';
@@ -921,16 +1027,27 @@ export const CadastrosAuxiliares: React.FC = () => {
 
   const excluirApp = async (app: AppEntrega) => {
     if (!loja?.id) return;
-    if (!confirm(`Deseja realmente excluir o aplicativo "${app.nome}"?`)) return;
-
-    try {
-      await ShippingOrchestrator.excluirAppEntrega(app.id, loja.id);
-      setAppsEntrega(prev => prev.filter(a => a.id !== app.id));
-      exibirAlertaSucesso('Aplicativo excluído com sucesso!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao excluir aplicativo.';
-      mostrarErro(msg, 'Erro ao excluir aplicativo');
-    }
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Aplicativo de Corrida',
+      mensagem: 'Tem certeza que deseja remover este aplicativo de entrega rápida?',
+      itemNome: app.nome,
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          await ShippingOrchestrator.excluirAppEntrega(app.id, loja.id);
+          setAppsEntrega(prev => prev.filter(a => a.id !== app.id));
+          setModalSecaoAberta('apps_corrida');
+          exibirAlertaSucesso('Aplicativo excluído com sucesso!');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Erro ao excluir aplicativo.';
+          mostrarErro(msg, 'Erro ao excluir aplicativo');
+        } finally {
+          fecharModalExclusao();
+        }
+      }
+    });
   };
 
   // ============================================================================
@@ -989,6 +1106,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setTransportadoras(lista);
       setModalTranspAberta(false);
       setTranspEditando(null);
+      setModalSecaoAberta('transportadoras');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao salvar transportadora.';
       mostrarErro(msg, 'Erro ao salvar transportadora');
@@ -1012,16 +1130,27 @@ export const CadastrosAuxiliares: React.FC = () => {
 
   const excluirTransportadora = async (t: Transportadora) => {
     if (!loja?.id) return;
-    if (!confirm(`Deseja realmente remover a transportadora "${t.nome}"?`)) return;
-
-    try {
-      await ShippingOrchestrator.excluirTransportadora(t.id, loja.id);
-      setTransportadoras(prev => prev.filter(item => item.id !== t.id));
-      exibirAlertaSucesso('Transportadora removida com sucesso!');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao excluir transportadora.';
-      mostrarErro(msg, 'Erro ao excluir transportadora');
-    }
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Transportadora',
+      mensagem: 'Tem certeza que deseja remover esta empresa transportadora?',
+      itemNome: t.nome,
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          await ShippingOrchestrator.excluirTransportadora(t.id, loja.id);
+          setTransportadoras(prev => prev.filter(item => item.id !== t.id));
+          setModalSecaoAberta('transportadoras');
+          exibirAlertaSucesso('Transportadora removida com sucesso!');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Erro ao excluir transportadora.';
+          mostrarErro(msg, 'Erro ao excluir transportadora');
+        } finally {
+          fecharModalExclusao();
+        }
+      }
+    });
   };
 
   // ============================================================================
@@ -1086,6 +1215,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
       exibirAlertaSucesso('Regras de precificação salvas com sucesso!');
       setSnapshotPrecificacaoInicial(snapshotPrecificacaoAtual);
+      setModalSecaoAberta('precificacao');
     } catch (err: any) {
       mostrarErro(err.message, 'Erro ao salvar regras');
     } finally {
@@ -1173,6 +1303,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setCatEditando(null);
       setCatNome('');
       setCatIcone('📦');
+      setModalSecaoAberta('categorias');
     };
     if (isDirtyCategoria) {
       verificarSaidaComConfirmacao(fechar);
@@ -1188,6 +1319,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setUnidadeSigla('');
       setUnidadeNome('');
       setUnidadeFracionada(false);
+      setModalSecaoAberta('unidades');
     };
     if (isDirtyUnidade) {
       verificarSaidaComConfirmacao(fechar);
@@ -1206,6 +1338,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setFornWhatsapp('');
       setFornEmail('');
       setFornObs('');
+      setModalSecaoAberta('fornecedores');
     };
     if (isDirtyFornecedor) {
       verificarSaidaComConfirmacao(fechar);
@@ -1226,6 +1359,7 @@ export const CadastrosAuxiliares: React.FC = () => {
       setPagPrazoDias('30');
       setPagAtivo(true);
       setPagExibirCatalogo(true);
+      setModalSecaoAberta('pagamentos');
     };
     if (isDirtyPagamento) {
       verificarSaidaComConfirmacao(fechar);
@@ -1249,32 +1383,98 @@ export const CadastrosAuxiliares: React.FC = () => {
   const fecharModalForma = () => {
     setModalFormaAberta(false);
     setFormaEditando(null);
+    setModalSecaoAberta('formas_envio');
   };
 
   const fecharModalApp = () => {
     setModalAppAberta(false);
     setAppNome('');
+    setModalSecaoAberta('apps_corrida');
   };
 
   const fecharModalTransp = () => {
     setModalTranspAberta(false);
     setTranspEditando(null);
+    setModalSecaoAberta('transportadoras');
   };
 
   const fecharDrawerMenu = () => {
     setDrawerMenuAberto(false);
   };
 
-  // Registro na pilha de navegação global (Esc no Desktop e Popstate no Mobile)
-  useRegisterOverlay(modalCategoriaAberta, fecharModalCategoria, 'modal-categoria-aux');
-  useRegisterOverlay(modalUnidadeAberta, fecharModalUnidade, 'modal-unidade-aux');
-  useRegisterOverlay(modalFornecedorAberta, fecharModalFornecedor, 'modal-fornecedor-aux');
-  useRegisterOverlay(modalPagamentoAberta, fecharModalPagamento, 'modal-pagamento-aux');
-  useRegisterOverlay(modalFormaAberta, fecharModalForma, 'modal-forma-aux');
-  useRegisterOverlay(modalAppAberta, fecharModalApp, 'modal-app-aux');
-  useRegisterOverlay(modalTranspAberta, fecharModalTransp, 'modal-transp-aux');
+  // Flag indicando se algum formulário filho ou confirmação de exclusão está ativo
+  const temModalFilhoAberto = Boolean(
+    modalExclusaoConfig.aberto ||
+    modalCategoriaAberta ||
+    modalUnidadeAberta ||
+    modalFornecedorAberta ||
+    modalPagamentoAberta ||
+    modalFormaAberta ||
+    modalAppAberta ||
+    modalTranspAberta
+  );
+
+  // Tratamento de tecla Escape em pilha local (LIFO) para não colidir com o histórico do navegador
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+
+      if (modalExclusaoConfig.aberto) {
+        e.stopPropagation();
+        fecharModalExclusao();
+      } else if (modalCategoriaAberta) {
+        e.stopPropagation();
+        fecharModalCategoria();
+      } else if (modalUnidadeAberta) {
+        e.stopPropagation();
+        fecharModalUnidade();
+      } else if (modalFornecedorAberta) {
+        e.stopPropagation();
+        fecharModalFornecedor();
+      } else if (modalPagamentoAberta) {
+        e.stopPropagation();
+        fecharModalPagamento();
+      } else if (modalFormaAberta) {
+        e.stopPropagation();
+        fecharModalForma();
+      } else if (modalAppAberta) {
+        e.stopPropagation();
+        fecharModalApp();
+      } else if (modalTranspAberta) {
+        e.stopPropagation();
+        fecharModalTransp();
+      } else if (drawerMenuAberto) {
+        e.stopPropagation();
+        fecharDrawerMenu();
+      } else if (modalSecaoAberta) {
+        e.stopPropagation();
+        fecharModalSecao();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    modalExclusaoConfig.aberto,
+    modalCategoriaAberta,
+    modalUnidadeAberta,
+    modalFornecedorAberta,
+    modalPagamentoAberta,
+    modalFormaAberta,
+    modalAppAberta,
+    modalTranspAberta,
+    drawerMenuAberto,
+    modalSecaoAberta,
+    isDirtyCategoria,
+    isDirtyUnidade,
+    isDirtyFornecedor,
+    isDirtyPagamento,
+    isDirtyPrecificacao
+  ]);
+
+  // Registro na pilha global apenas do modal da seção e drawer de navegação
   useRegisterOverlay(drawerMenuAberto, fecharDrawerMenu, 'drawer-menu-aux');
-  useRegisterOverlay(Boolean(modalSecaoAberta), fecharModalSecao, 'modal-secao-aux');
+  useRegisterOverlay(Boolean(modalSecaoAberta && !temModalFilhoAberto), fecharModalSecao, 'modal-secao-aux');
 
   // Filtros de busca
   const categoriasFiltradas = categorias.filter(c =>
@@ -1508,7 +1708,7 @@ export const CadastrosAuxiliares: React.FC = () => {
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 z-40 animate-in fade-in"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
+            if (e.target === e.currentTarget && !temModalFilhoAberto) {
               setModalSecaoAberta(null);
               setBusca('');
             }
@@ -2458,7 +2658,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               </span>
                               {forma.valor_taxa !== undefined && forma.valor_taxa > 0 && (
                                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                                  • R$ {Number(forma.valor_taxa).toFixed(2).replace('.', ',')}
+                                  • {formatarMoeda(forma.valor_taxa)}
                                 </span>
                               )}
                               {forma.requer_entregador && (
@@ -3132,7 +3332,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setModalFormaAberta(false)}
+                onClick={fecharModalForma}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -3242,7 +3442,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalFormaAberta(false)}
+                  onClick={fecharModalForma}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
@@ -3284,7 +3484,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setModalAppAberta(false)}
+                onClick={fecharModalApp}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -3309,7 +3509,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalAppAberta(false)}
+                  onClick={fecharModalApp}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
@@ -3351,7 +3551,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setModalTranspAberta(false)}
+                onClick={fecharModalTransp}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -3461,7 +3661,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalTranspAberta(false)}
+                  onClick={fecharModalTransp}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
@@ -3485,6 +3685,18 @@ export const CadastrosAuxiliares: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (DESIGN SYSTEM HUBI) */}
+      <ModalConfirmacaoExclusao
+        isOpen={modalExclusaoConfig.aberto}
+        onClose={fecharModalExclusao}
+        onConfirmar={modalExclusaoConfig.onConfirmar}
+        titulo={modalExclusaoConfig.titulo}
+        mensagem={modalExclusaoConfig.mensagem}
+        itemNome={modalExclusaoConfig.itemNome}
+        descricao={modalExclusaoConfig.descricao}
+        carregando={modalExclusaoConfig.carregando}
+      />
     </div>
   );
 };

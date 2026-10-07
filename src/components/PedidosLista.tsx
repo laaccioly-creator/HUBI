@@ -64,6 +64,7 @@ import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from '../services/est
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
+import { ModalAlterarStatusPedido, getStatusBadgeElement } from './ModalAlterarStatusPedido';
 import { ModalItensPedido } from './ModalItensPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
@@ -2326,47 +2327,7 @@ export const PedidosLista: React.FC = () => {
   const logoLojaUrl = loja?.url_logo || (loja as any)?.logo_url;
 
   const getStatusBadge = (status: StatusPedido, pedido?: Pedido) => {
-    switch (status) {
-      case 'pendente':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">🟡 Pendente</span>;
-      case 'confirmado':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Confirmado</span>;
-      case 'em_producao':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">🔵 Em produção</span>;
-      case 'em_expedicao':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">📦 Em expedição</span>;
-      case 'aguardando_envio':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">📦 Aguardando Envio</span>;
-      case 'enviado':
-      case 'saiu_para_entrega':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">🚚 Enviado</span>;
-      case 'pronto_para_retirar':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/15 text-teal-400 border border-teal-500/30">🏪 Pronto Retirada</span>;
-      case 'vencido': {
-        const infoVenc = pedido ? obterInfoVencimentoFiado(pedido) : null;
-        return (
-          <div className="inline-flex flex-col items-center">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-              ⏰ Vencido
-            </span>
-            {infoVenc && (
-              <span className="text-[10px] text-rose-400/90 font-semibold mt-0.5 whitespace-nowrap">
-                Vencimento: {infoVenc.formatada}
-              </span>
-            )}
-          </div>
-        );
-      }
-      case 'entregue':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40">📍 Entregue</span>;
-      case 'concluido':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">✅ Concluído</span>;
-      case 'cancelado':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">❌ Cancelado</span>;
-      default:
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 capitalize">{status.replace('_', ' ')}</span>;
-    }
+    return getStatusBadgeElement(status, pedido);
   };
 
   const getStatusPagamentoBadge = (status: StatusPagamento) => {
@@ -3488,8 +3449,8 @@ export const PedidosLista: React.FC = () => {
             </div>
 
             {/* Barra de Pesquisa e Filtros Rápidos (TELA001) */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
-              <div className="relative w-full md:w-48 lg:w-56 shrink-0">
+            <div className="flex flex-col md:flex-row items-stretch md:items-start gap-2.5">
+              <div className="relative w-full md:w-48 lg:w-56 shrink-0 mt-0.5">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -3508,8 +3469,12 @@ export const PedidosLista: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex-1 flex flex-wrap items-center gap-1.5 md:gap-2">
-                {abasStatus.map((f) => {
+              {(() => {
+                const temMaisDeDez = abasStatus.length > 10;
+                const primeiraFileira = temMaisDeDez ? abasStatus.slice(0, 6) : abasStatus;
+                const segundaFileira = temMaisDeDez ? abasStatus.slice(6) : [];
+
+                const renderBotaoFiltro = (f: { id: string; label: string }) => {
                   const count = contagensPorStatus[f.id] || 0;
                   const isActive = statusFiltro === f.id;
                   return (
@@ -3532,8 +3497,21 @@ export const PedidosLista: React.FC = () => {
                       </span>
                     </button>
                   );
-                })}
-              </div>
+                };
+
+                return (
+                  <div className="flex-1 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                      {primeiraFileira.map(renderBotaoFiltro)}
+                    </div>
+                    {segundaFileira.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                        {segundaFileira.map(renderBotaoFiltro)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -4332,183 +4310,27 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setProdutoDetalhesModal(null)}
       />
 
-      {/* MODAL INTERATIVO DE TROCA DE STATUS DO PEDIDO (FASE 3) */}
-      {pedidoAlterarStatusModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
-          onClick={() => {
-            if (!atualizandoStatusRapido) setPedidoAlterarStatusModal(null);
-          }}
-        >
-          <div 
-            className={`w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl border transition-all ${
-              isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-100' 
-                : 'bg-white border-slate-200 text-slate-900'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Cabeçalho do Modal */}
-            <div className="flex items-center justify-between border-b border-slate-700/50 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                  <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base tracking-tight">
-                    Alterar Status do Pedido #{pedidoAlterarStatusModal.numero_pedido}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Cliente: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{pedidoAlterarStatusModal.cliente?.nome || pedidoAlterarStatusModal.cliente_nome_avulso || 'Cliente Balcão'}</strong>
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={atualizandoStatusRapido}
-                onClick={() => setPedidoAlterarStatusModal(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Status Atual */}
-            <div className={`p-3.5 rounded-2xl flex items-center justify-between border ${
-              isDark ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status Atual:</span>
-              <div className="flex items-center gap-2">
-                {getStatusBadge(pedidoAlterarStatusModal.status, pedidoAlterarStatusModal)}
-              </div>
-            </div>
-
-            {/* Verificação da Trava Financeira */}
-            {(() => {
-              const saldoDev = Number(pedidoAlterarStatusModal.saldo_devedor ?? (Number(pedidoAlterarStatusModal.valor_total || 0) - Number(pedidoAlterarStatusModal.valor_pago || 0)));
-              const temFiado = (pedidoAlterarStatusModal.pagamentos || []).some(
-                (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
-              );
-              const quitado = pedidoAlterarStatusModal.status_pagamento === 'pago' || saldoDev <= 0.009 || temFiado;
-
-              const ehRetiradaModal = (pedidoAlterarStatusModal as any).tipo_atendimento === 'retirada' ||
-                (pedidoAlterarStatusModal as any).tipo_entrega === 'retirada' ||
-                pedidoAlterarStatusModal.forma_entrega?.tipo === 'retirada' ||
-                pedidoAlterarStatusModal.pedido_entrega?.tipo_atendimento === 'retirada';
-
-              const opcoesDisponiveis = obterOpcoesStatusAlteracao(
-                loja,
-                pedidoAlterarStatusModal.status,
-                ehRetiradaModal
-              );
-
-              return (
-                <div className="space-y-4">
-                  {!quitado && (
-                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2.5">
-                      <div className="flex items-start gap-2.5">
-                        <AlertCircle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
-                        <div className="text-xs space-y-1">
-                          <p className="font-bold text-amber-300">Pagamento Pendente</p>
-                          <p className="text-amber-200/90 leading-relaxed">
-                            Este pedido ainda não foi pago. Efetue o recebimento antes de avançar para separação ou envio.
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const pAlvo = pedidoAlterarStatusModal;
-                          setPedidoAlterarStatusModal(null);
-                          setPedidoReceberModal(pAlvo);
-                          setConcluirAposReceber(false);
-                        }}
-                        className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
-                      >
-                        <CreditCard className="w-4 h-4 stroke-[2.5]" />
-                        <span>Receber Pagamento (R$ {saldoDev.toFixed(2)})</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Lista de Ações de Transição Permitidas */}
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Selecione o Próximo Status:
-                    </p>
-
-                    <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
-                      {opcoesDisponiveis.map((opcao) => {
-                        const ehCancelamento = opcao.id === 'cancelado';
-                        const requerQuitacao = !ehCancelamento && !quitado;
-                        const estaDesabilitado = atualizandoStatusRapido || requerQuitacao;
-
-                        return (
-                          <button
-                            key={opcao.id}
-                            type="button"
-                            disabled={estaDesabilitado}
-                            onClick={async () => {
-                              const ped = pedidoAlterarStatusModal;
-                              setPedidoAlterarStatusModal(null);
-                              if (ehCancelamento) {
-                                setPedidoSelecionado(ped);
-                                setModalCancelarPedidoAberto(true);
-                              } else {
-                                setAtualizandoStatusRapido(true);
-                                await atualizarStatus(ped.id, opcao.id);
-                                setAtualizandoStatusRapido(false);
-                              }
-                            }}
-                            className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer ${
-                              estaDesabilitado
-                                ? 'opacity-40 bg-slate-800/20 border-slate-800 cursor-not-allowed'
-                                : ehCancelamento
-                                ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-300 active:scale-98'
-                                : isDark
-                                ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700 hover:border-emerald-500/50 text-slate-100 active:scale-98'
-                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-emerald-500/50 text-slate-900 active:scale-98'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              {getStatusBadge(opcao.id)}
-                            </div>
-
-                            {requerQuitacao ? (
-                              <span className="text-[11px] font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
-                                Requer Pagamento
-                              </span>
-                            ) : (
-                              <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-400">
-                                Avançar &rarr;
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Rodapé do Modal */}
-            <div className="flex items-center justify-end pt-2 border-t border-slate-700/50 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setPedidoAlterarStatusModal(null)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                }`}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL INTERATIVO DE TROCA DE STATUS DO PEDIDO */}
+      <ModalAlterarStatusPedido
+        isOpen={Boolean(pedidoAlterarStatusModal)}
+        pedido={pedidoAlterarStatusModal}
+        loja={loja}
+        atualizandoStatusRapido={atualizandoStatusRapido}
+        onClose={() => setPedidoAlterarStatusModal(null)}
+        onAlterarStatus={async (pedidoId, novoStatus) => {
+          setAtualizandoStatusRapido(true);
+          await atualizarStatus(pedidoId, novoStatus);
+          setAtualizandoStatusRapido(false);
+        }}
+        onCancelarPedido={(ped) => {
+          setPedidoSelecionado(ped);
+          setModalCancelarPedidoAberto(true);
+        }}
+        onReceberPagamento={(ped) => {
+          setPedidoReceberModal(ped);
+          setConcluirAposReceber(false);
+        }}
+      />
 
       {/* MODAL OFICIAL DE PAGAMENTO & FECHAMENTO */}
       <ModalPagamentoFechamento

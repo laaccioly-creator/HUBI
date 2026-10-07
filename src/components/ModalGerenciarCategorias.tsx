@@ -12,6 +12,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Categoria } from '../types';
+import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
 
 interface ModalGerenciarCategoriasProps {
   isOpen: boolean;
@@ -36,6 +37,13 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
+  const [modalExclusao, setModalExclusao] = useState<{
+    aberto: boolean;
+    categoria: Categoria | null;
+  }>({
+    aberto: false,
+    categoria: null
+  });
 
   if (!isOpen) return null;
 
@@ -99,20 +107,30 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
     }
   };
 
-  const handleExcluirCategoria = async (catId: string) => {
-    if (!confirm('Deseja realmente remover esta categoria?')) return;
+  const abrirModalExclusao = (cat: Categoria) => {
+    setModalExclusao({
+      aberto: true,
+      categoria: cat
+    });
+  };
+
+  const confirmarExclusaoCategoria = async () => {
+    if (!loja?.id || !modalExclusao.categoria) return;
+    const cat = modalExclusao.categoria;
 
     try {
-      setExcluindoId(catId);
+      setExcluindoId(cat.id);
       setErroMsg(null);
 
       const { error } = await supabase
         .from('categorias')
         .delete()
-        .eq('id', catId);
+        .eq('id', cat.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
+      setModalExclusao({ aberto: false, categoria: null });
       onCategoriasAtualizadas();
     } catch (err: any) {
       setErroMsg(err.message || 'Erro ao excluir categoria.');
@@ -231,7 +249,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                         <button
                           type="button"
                           disabled={excluindoId === cat.id}
-                          onClick={() => handleExcluirCategoria(cat.id)}
+                          onClick={() => abrirModalExclusao(cat)}
                           className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded transition disabled:opacity-50 cursor-pointer"
                           title="Excluir Categoria"
                         >
@@ -259,6 +277,16 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
           Concluir
         </button>
       </div>
+
+      <ModalConfirmacaoExclusao
+        isOpen={modalExclusao.aberto}
+        onClose={() => setModalExclusao({ aberto: false, categoria: null })}
+        onConfirmar={confirmarExclusaoCategoria}
+        titulo="Excluir Categoria"
+        mensagem="Tem certeza que deseja remover esta categoria? Os produtos vinculados a ela não serão excluídos."
+        itemNome={modalExclusao.categoria?.nome}
+        carregando={Boolean(excluindoId)}
+      />
     </div>
   );
 };

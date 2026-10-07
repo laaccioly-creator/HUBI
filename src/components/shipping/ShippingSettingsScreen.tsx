@@ -33,6 +33,7 @@ import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { LojaShippingConfig, AppEntrega, Transportadora } from '../../types/shipping';
 import { ModalTutorialUberDirect } from './ModalTutorialUberDirect';
 import { ModalTutorialMelhorEnvio } from './ModalTutorialMelhorEnvio';
+import { ModalConfirmacaoExclusao } from '../ModalConfirmacaoExclusao';
 
 export const ShippingSettingsScreen: React.FC = () => {
   const { loja } = useAuth();
@@ -43,6 +44,19 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [salvando, setSalvando] = useState<boolean>(false);
   const [sucesso, setSucesso] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
+
+  const [modalExclusaoConfig, setModalExclusaoConfig] = useState<{
+    aberto: boolean;
+    titulo: string;
+    mensagem: string;
+    nomeItem?: string;
+    aoConfirmar: () => void | Promise<void>;
+  }>({
+    aberto: false,
+    titulo: '',
+    mensagem: '',
+    aoConfirmar: () => {}
+  });
 
   // Modais de tutorial
   const [modalUberAberto, setModalUberAberto] = useState<boolean>(false);
@@ -237,14 +251,23 @@ export const ShippingSettingsScreen: React.FC = () => {
 
   const handleExcluirApp = async (app: AppEntrega) => {
     if (!loja?.id) return;
-    if (!confirm(`Deseja realmente remover o aplicativo "${app.nome}"?`)) return;
-    try {
-      await ShippingOrchestrator.excluirAppEntrega(app.id, loja.id);
-      setAppsEntrega(prev => prev.filter(a => a.id !== app.id));
-      mostrarSucesso('Aplicativo excluído com sucesso!');
-    } catch (err) {
-      mostrarErro(err instanceof Error ? err.message : 'Erro ao excluir aplicativo.');
-    }
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Aplicativo de Corrida',
+      mensagem: 'Tem certeza que deseja remover este aplicativo de entrega rápida?',
+      nomeItem: app.nome,
+      aoConfirmar: async () => {
+        try {
+          await ShippingOrchestrator.excluirAppEntrega(app.id, loja.id);
+          setAppsEntrega(prev => prev.filter(a => a.id !== app.id));
+          mostrarSucesso('Aplicativo excluído com sucesso!');
+        } catch (err) {
+          mostrarErro(err instanceof Error ? err.message : 'Erro ao excluir aplicativo.');
+        } finally {
+          setModalExclusaoConfig(prev => ({ ...prev, aberto: false }));
+        }
+      }
+    });
   };
 
   // Funções CRUD de Transportadoras
@@ -321,14 +344,23 @@ export const ShippingSettingsScreen: React.FC = () => {
 
   const handleExcluirTransp = async (t: Transportadora) => {
     if (!loja?.id) return;
-    if (!confirm(`Deseja realmente remover a transportadora "${t.nome}"?`)) return;
-    try {
-      await ShippingOrchestrator.excluirTransportadora(t.id, loja.id);
-      setTransportadoras(prev => prev.filter(item => item.id !== t.id));
-      mostrarSucesso('Transportadora excluída com sucesso!');
-    } catch (err) {
-      mostrarErro(err instanceof Error ? err.message : 'Erro ao excluir transportadora.');
-    }
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Transportadora',
+      mensagem: 'Tem certeza que deseja remover esta empresa transportadora?',
+      nomeItem: t.nome,
+      aoConfirmar: async () => {
+        try {
+          await ShippingOrchestrator.excluirTransportadora(t.id, loja.id);
+          setTransportadoras(prev => prev.filter(item => item.id !== t.id));
+          mostrarSucesso('Transportadora excluída com sucesso!');
+        } catch (err) {
+          mostrarErro(err instanceof Error ? err.message : 'Erro ao excluir transportadora.');
+        } finally {
+          setModalExclusaoConfig(prev => ({ ...prev, aberto: false }));
+        }
+      }
+    });
   };
 
   const handleSalvar = async (e: React.FormEvent) => {
@@ -1373,11 +1405,15 @@ export const ShippingSettingsScreen: React.FC = () => {
         </div>
       )}
 
-
-
-
-
-
+      {/* Modal de confirmação de exclusão */}
+      <ModalConfirmacaoExclusao
+        isOpen={modalExclusaoConfig.aberto}
+        onClose={() => setModalExclusaoConfig(prev => ({ ...prev, aberto: false }))}
+        onConfirmar={modalExclusaoConfig.aoConfirmar}
+        titulo={modalExclusaoConfig.titulo}
+        mensagem={modalExclusaoConfig.mensagem}
+        itemNome={modalExclusaoConfig.nomeItem}
+      />
     </div>
   );
 };
