@@ -29,13 +29,16 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
     if (idsFaltantes.length > 0) {
       supabase
         .from('produtos')
-        .select('id, foto_url, fotos_urls')
+        .select('id, fotos_urls')
         .in('id', idsFaltantes)
-        .then(({ data }) => {
-          if (data && data.length > 0) {
+        .then(({ data, error }) => {
+          if (!error && data && data.length > 0) {
             const novasFotos: Record<string, string> = {};
             data.forEach((p: any) => {
-              const url = p.foto_url || (Array.isArray(p.fotos_urls) ? p.fotos_urls[0] : null);
+              const url = (Array.isArray(p.fotos_urls) && p.fotos_urls.length > 0 ? p.fotos_urls[0] : null) ||
+                          p.foto_url ||
+                          p.imagem_url ||
+                          null;
               if (url) novasFotos[p.id] = url;
             });
             setFotosPorProdutoId(prev => ({ ...prev, ...novasFotos }));
@@ -83,34 +86,34 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
               Nenhum item registrado neste pedido.
             </div>
           ) : (
-            itens.map((item) => (
-              <div
-                key={item.id}
-                className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  {(() => {
-                    const prod = item.produto as any;
-                    const foto = (item as any).foto_url || 
-                                 (item as any).imagem_url || 
-                                 prod?.foto_url || 
-                                 prod?.imagem_url || 
-                                 (item.produto_id ? fotosPorProdutoId[item.produto_id] : null) ||
-                                 (item as any).fotos_urls?.[0] || 
-                                 item.produto?.fotos_urls?.[0];
+            itens.map((item) => {
+              const prod = item.produto as any;
+              const itemFotoUrl =
+                (item as any).foto_url ||
+                (item as any).imagem_url ||
+                (Array.isArray((item as any).fotos_urls) && (item as any).fotos_urls[0]) ||
+                (prod && Array.isArray(prod.fotos_urls) && prod.fotos_urls[0]) ||
+                prod?.foto_url ||
+                prod?.imagem_url ||
+                (item.produto_id ? fotosPorProdutoId[item.produto_id] : null);
 
-                    return foto ? (
+              return (
+                <div
+                  key={item.id}
+                  className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {itemFotoUrl ? (
                       <img
-                        src={foto}
-                        alt={item.nome_produto || (item as any).nome || (item as any).descricao || 'Produto'}
+                        src={itemFotoUrl}
+                        alt={item.nome_produto || (item as any).nome || 'Produto'}
                         className="w-11 h-11 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                       />
                     ) : (
                       <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">
                         <Package className="w-5 h-5 text-slate-400" />
                       </div>
-                    );
-                  })()}
+                    )}
                   <div className="min-w-0">
                     <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 block truncate">
                       {item.nome_produto}
@@ -150,8 +153,8 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                   </button>
                 </div>
               </div>
-            ))
-          )}
+            );
+          }))}
         </div>
 
         {/* Rodapé com Resumo */}

@@ -375,44 +375,66 @@ export const ProdutosEstoque: React.FC = () => {
           const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
           return (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-                isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
+                isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
               }`}>
-                <span className={`text-xs block font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Total de Produtos</span>
-                <span className={`text-base font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{produtos.length} itens</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                  Total de Produtos
+                </span>
+                <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                  {produtos.length} itens
+                </span>
               </div>
 
-              <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-                isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
+                isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
               }`}>
-                <span className={`text-xs block font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Estoque Físico Total</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                  Estoque Físico Total
+                </span>
                 {controlaEstoque ? (
-                  <span className={`text-base font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalItensEstoque} un</span>
+                  <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                    {totalItensEstoque} un
+                  </span>
                 ) : (
-                  <span className={`text-xs font-semibold block pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Sem controle de estoque</span>
+                  <span className="text-xs font-semibold block pt-1 text-slate-400 dark:text-slate-500 text-center">
+                    Sem controle de estoque
+                  </span>
                 )}
               </div>
 
-              <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-                isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+              <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
+                isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
               }`}>
-                <span className={`text-xs block font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Valor em Venda (Varejo)</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                  Valor em Venda (Varejo)
+                </span>
                 {controlaEstoque ? (
-                  <span className={`text-base font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatarMoeda(valorTotalEstoque)}</span>
+                  <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                    {formatarMoeda(valorTotalEstoque)}
+                  </span>
                 ) : (
-                  <span className={`text-xs font-semibold block pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Sem controle de estoque</span>
+                  <span className="text-xs font-semibold block pt-1 text-slate-400 dark:text-slate-500 text-center">
+                    Sem controle de estoque
+                  </span>
                 )}
               </div>
 
               {permissions.podeVerPrecoCusto && (
-                <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
-                  isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-white border-slate-200'
+                <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
+                  isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
                 }`}>
-                  <span className={`text-xs block font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Valor em Custo</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                    Valor em Custo
+                  </span>
                   {controlaEstoque ? (
-                    <span className={`text-base font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatarMoeda(valorCustoEstoque)}</span>
+                    <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                      {formatarMoeda(valorCustoEstoque)}
+                    </span>
                   ) : (
-                    <span className={`text-xs font-semibold block pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Sem controle de estoque</span>
+                    <span className="text-xs font-semibold block pt-1 text-slate-400 dark:text-slate-500 text-center">
+                      Sem controle de estoque
+                    </span>
                   )}
                 </div>
               )}

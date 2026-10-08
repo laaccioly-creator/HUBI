@@ -1739,7 +1739,7 @@ export const FinancasCaixa: React.FC = () => {
           {/* CARDS DE RESUMO FINANCEIRO GERAL COM INFORMAÇÕES CENTRALIZADAS */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* Entradas Totais */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+            <div className="bg-slate-50/80 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
               <div className="w-full flex items-center justify-between gap-1">
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
                   <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" /> Entradas Gerais
@@ -1769,7 +1769,7 @@ export const FinancasCaixa: React.FC = () => {
             </div>
 
             {/* Despesas */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+            <div className="bg-slate-50/80 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
               <div className="w-full flex items-center justify-between gap-1">
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
                   <ArrowDownRight className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" /> Despesas Gerais
@@ -1801,7 +1801,7 @@ export const FinancasCaixa: React.FC = () => {
             </div>
 
             {/* Contas a Pagar */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+            <div className="bg-slate-50/80 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
               <div className="w-full flex items-center justify-between gap-1">
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" /> A Pagar
@@ -1833,7 +1833,7 @@ export const FinancasCaixa: React.FC = () => {
             </div>
 
             {/* Resultado Acumulado */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
+            <div className="bg-slate-50/80 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 shadow-xs text-center flex flex-col items-center justify-center transition space-y-1">
               <div className="w-full flex items-center justify-between gap-1">
                 <div className="text-left">
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate block">Resultado Acumulado</span>

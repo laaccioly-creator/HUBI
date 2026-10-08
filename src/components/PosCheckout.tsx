@@ -2307,9 +2307,7 @@ export const PosCheckout: React.FC = () => {
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento !== 'entrega'
-                      ? isDark
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-emerald-400 text-slate-950 shadow-sm'
+                      ? 'bg-emerald-600 text-white shadow-sm'
                       : isDark
                       ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                       : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
@@ -2332,9 +2330,7 @@ export const PosCheckout: React.FC = () => {
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
-                      ? isDark
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-emerald-400 text-slate-950 shadow-sm'
+                      ? 'bg-emerald-600 text-white shadow-sm'
                       : isDark
                       ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                       : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
