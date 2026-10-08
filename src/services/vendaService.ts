@@ -299,38 +299,46 @@ export class VendaService {
       }
     }
 
-    // 4. Gravar registro logístico em public.pedido_entregas
+    // 4. Executar operações complementares pós-pedido em paralelo (Entrega, Fiado, Caixa, Histórico, Estoque)
     let entregaGravada: PedidoEntrega | null = null;
-    try {
-      const entregaPayload: any = pedidoEntrega ? {
-        ...pedidoEntrega,
-        forma_entrega_id: formaEntregaIdSanitizada,
-        pedido_id: pedidoId,
-        valor_frete: taxaEntrega,
-        contato_entregador: pedidoEntrega.contato_entregador?.trim() || null,
-        entregador_nome: pedidoEntrega.entregador_nome?.trim() || null,
-        codigo_rastreio: pedidoEntrega.codigo_rastreio?.trim() || null,
-        link_rastreio: pedidoEntrega.link_rastreio?.trim() || null,
-        pin_entrega: pedidoEntrega.pin_entrega?.trim() || null,
-        nome_app: pedidoEntrega.nome_app?.trim() || null,
-        servico_correios: pedidoEntrega.servico_correios?.trim() || null,
-        nome_transportadora: (pedidoEntrega.nome_transportadora || pedidoEntrega.transportadora_nome)?.trim() || null,
-        tipo_operacao: pedidoEntrega.tipo_operacao || null
-      } : {
-        pedido_id: pedidoId,
-        tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
-        valor_frete: taxaEntrega,
-        forma_entrega_id: formaEntregaIdSanitizada,
-        provedor: (taxaEntrega > 0 ? 'frete_proprio' : 'retirada_loja') as any,
-        transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
-        status_envio: 'pendente'
-      };
-      entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
-    } catch (eEntrega) {
-      console.warn('[VendaService] Aviso não-bloqueante ao registrar pedido_entregas:', eEntrega);
-    }
+    let estoqueBaixadoFlag = Boolean(pedidoGravado.estoque_baixado);
+    const promessasPosVenda: Promise<unknown>[] = [];
 
-    // 5. Atualização de saldo devedor e limite de crédito se compra no Fiado
+    // 4a. Gravar registro logístico em public.pedido_entregas
+    const entregaPayload: any = pedidoEntrega ? {
+      ...pedidoEntrega,
+      forma_entrega_id: formaEntregaIdSanitizada,
+      pedido_id: pedidoId,
+      valor_frete: taxaEntrega,
+      contato_entregador: pedidoEntrega.contato_entregador?.trim() || null,
+      entregador_nome: pedidoEntrega.entregador_nome?.trim() || null,
+      codigo_rastreio: pedidoEntrega.codigo_rastreio?.trim() || null,
+      link_rastreio: pedidoEntrega.link_rastreio?.trim() || null,
+      pin_entrega: pedidoEntrega.pin_entrega?.trim() || null,
+      nome_app: pedidoEntrega.nome_app?.trim() || null,
+      servico_correios: pedidoEntrega.servico_correios?.trim() || null,
+      nome_transportadora: (pedidoEntrega.nome_transportadora || pedidoEntrega.transportadora_nome)?.trim() || null,
+      tipo_operacao: pedidoEntrega.tipo_operacao || null
+    } : {
+      pedido_id: pedidoId,
+      tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
+      valor_frete: taxaEntrega,
+      forma_entrega_id: formaEntregaIdSanitizada,
+      provedor: (taxaEntrega > 0 ? 'frete_proprio' : 'retirada_loja') as any,
+      transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
+      status_envio: 'pendente'
+    };
+
+    const taskEntrega = (async () => {
+      try {
+        entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
+      } catch (eEntrega) {
+        console.warn('[VendaService] Aviso não-bloqueante ao registrar pedido_entregas:', eEntrega);
+      }
+    })();
+    promessasPosVenda.push(taskEntrega);
+
+    // 4b. Atualização de saldo devedor e limite de crédito se compra no Fiado
     if (clienteSelecionado) {
       const valorFiadoAnterior = pedidoEmEdicao
         ? (pedidoEmEdicao.pagamentos || [])
@@ -340,77 +348,91 @@ export class VendaService {
 
       const diferencaFiado = valorFiadoTotal - valorFiadoAnterior;
       if (diferencaFiado !== 0) {
-        try {
-          const { data: cliDb } = await supabase
-            .from('clientes')
-            .select('saldo_devedor_fiado, limite_credito')
-            .eq('id', clienteSelecionado.id)
-            .single();
+        const taskFiado = (async () => {
+          try {
+            const { data: cliDb } = await supabase
+              .from('clientes')
+              .select('saldo_devedor_fiado, limite_credito')
+              .eq('id', clienteSelecionado.id)
+              .single();
 
-          const saldoAtual = Number(cliDb?.saldo_devedor_fiado || clienteSelecionado.saldo_devedor_fiado || 0);
-          const limiteAtual = Number(cliDb?.limite_credito || clienteSelecionado.limite_credito || 0);
+            const saldoAtual = Number(cliDb?.saldo_devedor_fiado || clienteSelecionado.saldo_devedor_fiado || 0);
+            const limiteAtual = Number(cliDb?.limite_credito || clienteSelecionado.limite_credito || 0);
 
-          await supabase.from('clientes').update({
-            limite_credito: Math.max(0, limiteAtual - diferencaFiado),
-            saldo_devedor_fiado: Math.max(0, saldoAtual + diferencaFiado)
-          }).eq('id', clienteSelecionado.id);
-        } catch (errCli) {
-          console.warn('[VendaService] Aviso ao atualizar saldo devedor do cliente:', errCli);
-        }
+            await supabase.from('clientes').update({
+              limite_credito: Math.max(0, limiteAtual - diferencaFiado),
+              saldo_devedor_fiado: Math.max(0, saldoAtual + diferencaFiado)
+            }).eq('id', clienteSelecionado.id);
+          } catch (errCli) {
+            console.warn('[VendaService] Aviso ao atualizar saldo devedor do cliente:', errCli);
+          }
+        })();
+        promessasPosVenda.push(taskFiado);
       }
     }
 
-    // 6. Registro na sessão de caixa ativa se houver pagamentos em dinheiro/pix/cartão
+    // 4c. Registro na sessão de caixa ativa se houver pagamentos em dinheiro/pix/cartão
     const pagamentosCaixa = linhasAtivas.filter(l => l.forma_tipo !== 'fiado' && Number(l.valor) > 0);
     if (pagamentosCaixa.length > 0) {
+      const taskCaixa = (async () => {
+        try {
+          await caixaService.registrarVendaPedido({
+            lojaId,
+            pedido: pedidoGravado,
+            pagamentos: pagamentosCaixa.map(l => ({
+              forma_nome: l.forma_nome,
+              forma_tipo: l.forma_tipo,
+              valor: Number(l.valor)
+            })),
+            usuarioId: usuarioId || ''
+          });
+        } catch (errCaixa) {
+          console.warn('[VendaService] Aviso ao registrar movimentação na sessão de caixa:', errCaixa);
+        }
+      })();
+      promessasPosVenda.push(taskCaixa);
+    }
+
+    // 4d. Auditoria no historico_pedidos
+    const taskAuditoria = (async () => {
       try {
-        await caixaService.registrarVendaPedido({
-          lojaId,
-          pedido: pedidoGravado,
-          pagamentos: pagamentosCaixa.map(l => ({
-            forma_nome: l.forma_nome,
-            forma_tipo: l.forma_tipo,
-            valor: Number(l.valor)
-          })),
-          usuarioId: usuarioId || ''
+        await supabase.from('historico_pedidos').insert({
+          loja_id: lojaId,
+          pedido_id: pedidoId,
+          usuario_id: usuarioId || null,
+          tipo_evento: pedidoEmEdicao ? 'edicao_pdv' : 'criacao',
+          status_anterior: pedidoEmEdicao?.status || null,
+          status_novo: statusFinal,
+          descricao: pedidoEmEdicao
+            ? (valorFiadoTotal > 0 ? 'Venda com parcela Fiado concluída no PDV' : 'Conclusão de pagamento no PDV')
+            : (valorFiadoTotal > 0 ? 'Venda realizada no PDV com parcela a prazo (Fiado)' : 'Venda finalizada no PDV')
         });
-      } catch (errCaixa) {
-        console.warn('[VendaService] Aviso ao registrar movimentação na sessão de caixa:', errCaixa);
+      } catch (errAudit) {
+        console.warn('[VendaService] Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
       }
-    }
+    })();
+    promessasPosVenda.push(taskAuditoria);
 
-    // 7. Auditoria no historico_pedidos
-    try {
-      await supabase.from('historico_pedidos').insert({
-        loja_id: lojaId,
-        pedido_id: pedidoId,
-        usuario_id: usuarioId || null,
-        tipo_evento: pedidoEmEdicao ? 'edicao_pdv' : 'criacao',
-        status_anterior: pedidoEmEdicao?.status || null,
-        status_novo: statusFinal,
-        descricao: pedidoEmEdicao
-          ? (valorFiadoTotal > 0 ? 'Venda com parcela Fiado concluída no PDV' : 'Conclusão de pagamento no PDV')
-          : (valorFiadoTotal > 0 ? 'Venda realizada no PDV com parcela a prazo (Fiado)' : 'Venda finalizada no PDV')
-      });
-    } catch (errAudit) {
-      console.warn('[VendaService] Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
-    }
-
-    // 8. Baixa idempotente de estoque (se status for operacional/concluído e ainda não baixado)
-    let estoqueBaixadoFlag = Boolean(pedidoGravado.estoque_baixado);
+    // 4e. Baixa idempotente de estoque (se status for operacional/concluído e ainda não baixado)
     if (STATUS_QUE_BAIXAM_ESTOQUE.includes(statusFinal)) {
-      try {
-        const resEstoque = await EstoquePedidoService.baixarEstoquePedido({
-          pedidoId,
-          lojaId,
-          usuarioId,
-          itens: itensFormatados as any
-        });
-        estoqueBaixadoFlag = resEstoque.estoqueBaixado;
-      } catch (errEst) {
-        console.warn('[VendaService] Falha não-bloqueante ao processar baixa de estoque:', errEst);
-      }
+      const taskEstoque = (async () => {
+        try {
+          const resEstoque = await EstoquePedidoService.baixarEstoquePedido({
+            pedidoId,
+            lojaId,
+            usuarioId,
+            itens: itensFormatados as any
+          });
+          estoqueBaixadoFlag = resEstoque.estoqueBaixado;
+        } catch (errEst) {
+          console.warn('[VendaService] Falha não-bloqueante ao processar baixa de estoque:', errEst);
+        }
+      })();
+      promessasPosVenda.push(taskEstoque);
     }
+
+    // Aguardar conclusão concorrente de todas as tarefas complementares
+    await Promise.allSettled(promessasPosVenda);
 
     const pedidoCompleto: Pedido = {
       ...pedidoGravado,

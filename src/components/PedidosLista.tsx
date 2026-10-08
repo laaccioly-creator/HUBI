@@ -2056,19 +2056,10 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleCompartilharReciboWhatsApp = (pedido: Pedido) => {
-    const origin = window.location.origin;
-    const link = `${origin}/recibo-publico/${pedido.numero_pedido || pedido.id}`;
-    const valorTotalFormatado = Number(pedido.valor_total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const texto = `🧾 Olá! Segue o recibo/comprovante da sua compra (Pedido #${pedido.numero_pedido}) na ${loja?.nome_fantasia || 'nossa loja'}:\n\n` +
-      `*Valor Total:* ${valorTotalFormatado}\n` +
-      `*Acesse o comprovante digital:* ${link}\n\n` +
-      `Agradecemos a sua preferência!`;
+    if (!loja) return;
+    const msg = PrintService.generateWhatsAppMessage(pedido, loja);
     const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
-    const cleanTel = tel.replace(/\D/g, '');
-    const url = cleanTel
-      ? `https://wa.me/55${cleanTel}?text=${encodeURIComponent(texto)}`
-      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
-    window.open(url, '_blank');
+    PrintService.openWhatsApp(tel, msg);
   };
 
   const handleSalvarLinkRastreio = async (pedidoId: string) => {
@@ -3481,31 +3472,24 @@ export const PedidosLista: React.FC = () => {
                     <button
                       key={f.id}
                       onClick={() => setStatusFiltro(f.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 flex items-center justify-center gap-1.5 ${
                         isActive
-                          ? 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-slate-950 font-bold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs'
-                          : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 font-semibold shadow-xs dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                          ? 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-bold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-medium shadow-xs dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-300 dark:hover:text-white'
                       }`}
                     >
-                      <span>{f.label}</span>
-                      <span className={`text-[10px] font-black min-w-[18px] h-[18px] px-1.5 rounded-full flex items-center justify-center shadow-xs ${
-                        isActive
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                          : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200'
-                      }`}>
-                        {count}
-                      </span>
+                      <span>{f.label} {count}</span>
                     </button>
                   );
                 };
 
                 return (
-                  <div className="flex-1 flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                  <div className="flex-1 flex flex-col gap-2 items-center">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       {primeiraFileira.map(renderBotaoFiltro)}
                     </div>
                     {segundaFileira.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                      <div className="flex flex-wrap items-center justify-center gap-2">
                         {segundaFileira.map(renderBotaoFiltro)}
                       </div>
                     )}

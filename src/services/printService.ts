@@ -1044,58 +1044,15 @@ export class PrintService {
    * Formata uma mensagem completa para envio direto ao WhatsApp do cliente
    */
   static generateWhatsAppMessage(pedido: Pedido, loja: Loja): string {
-    const itens = (pedido.itens || (pedido as any).itens_pedido || []) as ItemPedido[];
-    const totalQtd = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
-    const dataFormatada = formatarDataRecibo(pedido.data_venda || pedido.criado_em);
-    const vendedorInfo = formatarVendedorRecibo(pedido);
-    const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
-
-    const itensTexto = itens
-      ? itens.map((i: ItemPedido) => `▫️ *${i.quantidade}x* ${i.nome_produto} ${i.rotulo_variacao ? `(${i.rotulo_variacao})` : ''} - R$ ${Number(i.subtotal).toFixed(2)}`).join('\n')
-      : '';
-
-    let pagWhatsApp = '';
-    if (pagamentoInfo.foiPago) {
-      const detalhes = pagamentoInfo.pagamentosDetalhados.map(p =>
-        `💳 *Forma:* ${p.forma}${p.parcelas ? ` (${p.parcelas}x)` : ''}${p.origemGateway ? ` _[Origem: ${p.origemGateway}]_` : ''}\n💰 *Valor Pago:* R$ ${p.valor.toFixed(2)}`
-      ).join('\n');
-      pagWhatsApp = `\n✅ *Status do Pagamento:* PAGO\n${detalhes}\n💵 *Total Quitado:* R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
-    } else {
-      pagWhatsApp = `\n⏳ *Status do Pagamento:* AGUARDANDO PAGAMENTO\n`;
-    }
-
-    const {
-      ehRetirada,
-      formaEntregaTexto,
-      labelEndereco,
-      enderecoExibicao,
-      codigoRastreio,
-      codigoCorrida
-    } = obterInfoEntregaRecibo(pedido, loja);
-
-    const blocoEntrega = `📦 *Forma de Entrega:* ${formaEntregaTexto}\n${enderecoExibicao ? `📍 *${labelEndereco}* ${enderecoExibicao}\n` : ''}${codigoRastreio ? `🚚 *Rastreio:* ${codigoRastreio}\n` : ''}${codigoCorrida ? `🏍️ *Código da Corrida:* ${codigoCorrida}\n` : ''}`;
-
     const baseUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
     const idRecibo = pedido.id || pedido.numero_pedido;
     const urlReciboOficial = idRecibo ? `${baseUrl}/recibo/${idRecibo}` : '';
-    const blocoReciboDigital = urlReciboOficial ? `📄 *Acesse seu Recibo Oficial:*\n${urlReciboOficial}\n\n` : '';
+    const nomeLoja = loja.nome_fantasia || 'HUBI';
 
-    return `🧾 *RECIBO #${pedido.numero_pedido} - ${loja.nome_fantasia || 'HUBI'}*
+    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}
 
-*${loja.nome_fantasia || 'HUBI'}*
-${loja.whatsapp ? `Tel/Whats: +55 ${loja.whatsapp}` : ''}
-
-👤 *Vendedor:* ${vendedorInfo.valor}
-👤 *Cliente:* ${pedido.cliente?.nome || 'Cliente'}
-${pedido.cliente?.whatsapp ? `Tel: +55 ${pedido.cliente.whatsapp}\n` : ''}${blocoEntrega}
-
-*${itens.length} itens (Qtd.: ${totalQtd})*
-━━━━━━━━━━━━━━━━━━━━
-${itensTexto}
-━━━━━━━━━━━━━━━━━━━━
-${Number(pedido.valor_desconto) > 0 ? `🏷️ *Desconto:* - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : ''}${Number(pedido.valor_frete) > 0 ? `🛵 *Taxa de Entrega:* + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : ''}💵 *TOTAL:* R$ ${Number(pedido.valor_total).toFixed(2)}
-${pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `⚠️ *Saldo a Pagar (Fiado):* R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `📅 *Data de Vencimento:* ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : ''}${pagWhatsApp}━━━━━━━━━━━━━━━━━━━━
-${blocoReciboDigital}${dataFormatada}
+Acesse seu Recibo Oficial:
+${urlReciboOficial}
 
 Agradecemos a sua preferência! ✨`;
   }

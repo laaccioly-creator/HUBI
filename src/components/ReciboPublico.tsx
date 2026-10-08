@@ -223,6 +223,8 @@ export const ReciboPublico: React.FC = () => {
       <div className="w-full max-w-md print:max-w-full">
         <div
           ref={reciboRef}
+          data-recibo-root="true"
+          style={{ colorScheme: 'light', backgroundColor: '#ffffff', color: '#0f172a' }}
           className="bg-white text-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-300/80 text-xs space-y-3 shadow-xl font-mono print:shadow-none print:border-0 print:rounded-none"
         >
           {/* Logo da Loja */}

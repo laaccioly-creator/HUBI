@@ -80,104 +80,106 @@ export class EstoquePedidoService {
       return { estoqueBaixado: true, movimentou: false, mensagem: 'Pedido sem itens para baixar' };
     }
 
-    // 3. Processar decremento de estoque para cada item
+    // 3. Processar decremento de estoque para cada item concorrentemente
     const dataIso = new Date().toISOString();
     const logsMovimentacao: any[] = [];
 
-    for (const item of itensParaBaixar) {
-      const qtdVenda = Number(item.quantidade) || 0;
-      if (qtdVenda <= 0 || !item.produto_id) continue;
+    await Promise.all(
+      itensParaBaixar.map(async (item) => {
+        const qtdVenda = Number(item.quantidade) || 0;
+        if (qtdVenda <= 0 || !item.produto_id) return;
 
-      try {
-        if (item.variacao_id) {
-          // Variação de produto
-          const { data: varDb } = await supabase
-            .from('variacoes_produto')
-            .select('id, produto_id, quantidade_estoque')
-            .eq('id', item.variacao_id)
-            .single();
-
-          if (varDb) {
-            const saldoAnteriorVar = Number(varDb.quantidade_estoque || 0);
-            const saldoPosteriorVar = saldoAnteriorVar - qtdVenda;
-
-            await supabase
+        try {
+          if (item.variacao_id) {
+            // Variação de produto
+            const { data: varDb } = await supabase
               .from('variacoes_produto')
-              .update({ quantidade_estoque: saldoPosteriorVar })
-              .eq('id', item.variacao_id);
+              .select('id, produto_id, quantidade_estoque')
+              .eq('id', item.variacao_id)
+              .single();
 
-            // Recalcular saldo total do produto pai somando todas as variações
-            const { data: todasVars } = await supabase
-              .from('variacoes_produto')
-              .select('quantidade_estoque')
-              .eq('produto_id', item.produto_id);
+            if (varDb) {
+              const saldoAnteriorVar = Number(varDb.quantidade_estoque || 0);
+              const saldoPosteriorVar = saldoAnteriorVar - qtdVenda;
 
-            const saldoConsolidadoPai = (todasVars || []).reduce(
-              (acc, v) => acc + Number(v.quantidade_estoque || 0),
-              0
-            );
+              await supabase
+                .from('variacoes_produto')
+                .update({ quantidade_estoque: saldoPosteriorVar })
+                .eq('id', item.variacao_id);
 
-            await supabase
+              // Recalcular saldo total do produto pai somando todas as variações
+              const { data: todasVars } = await supabase
+                .from('variacoes_produto')
+                .select('quantidade_estoque')
+                .eq('produto_id', item.produto_id);
+
+              const saldoConsolidadoPai = (todasVars || []).reduce(
+                (acc, v) => acc + Number(v.quantidade_estoque || 0),
+                0
+              );
+
+              await supabase
+                .from('produtos')
+                .update({
+                  quantidade_estoque: saldoConsolidadoPai,
+                  atualizado_em: dataIso
+                })
+                .eq('id', item.produto_id);
+
+              logsMovimentacao.push({
+                loja_id: lojaId,
+                produto_id: item.produto_id,
+                variacao_id: item.variacao_id,
+                pedido_id: pedidoId,
+                usuario_id: usuarioId || null,
+                tipo_movimentacao: 'saida_venda',
+                quantidade: qtdVenda,
+                saldo_anterior: saldoAnteriorVar,
+                saldo_posterior: saldoPosteriorVar,
+                motivo: `Saída por venda - Pedido`,
+                criado_em: dataIso
+              });
+            }
+          } else {
+            // Produto simples sem variação
+            const { data: prodDb } = await supabase
               .from('produtos')
-              .update({
-                quantidade_estoque: saldoConsolidadoPai,
-                atualizado_em: dataIso
-              })
-              .eq('id', item.produto_id);
+              .select('id, quantidade_estoque')
+              .eq('id', item.produto_id)
+              .single();
 
-            logsMovimentacao.push({
-              loja_id: lojaId,
-              produto_id: item.produto_id,
-              variacao_id: item.variacao_id,
-              pedido_id: pedidoId,
-              usuario_id: usuarioId || null,
-              tipo_movimentacao: 'saida_venda',
-              quantidade: qtdVenda,
-              saldo_anterior: saldoAnteriorVar,
-              saldo_posterior: saldoPosteriorVar,
-              motivo: `Saída por venda - Pedido`,
-              criado_em: dataIso
-            });
+            if (prodDb) {
+              const saldoAnterior = Number(prodDb.quantidade_estoque || 0);
+              const saldoPosterior = saldoAnterior - qtdVenda;
+
+              await supabase
+                .from('produtos')
+                .update({
+                  quantidade_estoque: saldoPosterior,
+                  atualizado_em: dataIso
+                })
+                .eq('id', item.produto_id);
+
+              logsMovimentacao.push({
+                loja_id: lojaId,
+                produto_id: item.produto_id,
+                variacao_id: null,
+                pedido_id: pedidoId,
+                usuario_id: usuarioId || null,
+                tipo_movimentacao: 'saida_venda',
+                quantidade: qtdVenda,
+                saldo_anterior: saldoAnterior,
+                saldo_posterior: saldoPosterior,
+                motivo: `Saída por venda - Pedido`,
+                criado_em: dataIso
+              });
+            }
           }
-        } else {
-          // Produto simples sem variação
-          const { data: prodDb } = await supabase
-            .from('produtos')
-            .select('id, quantidade_estoque')
-            .eq('id', item.produto_id)
-            .single();
-
-          if (prodDb) {
-            const saldoAnterior = Number(prodDb.quantidade_estoque || 0);
-            const saldoPosterior = saldoAnterior - qtdVenda;
-
-            await supabase
-              .from('produtos')
-              .update({
-                quantidade_estoque: saldoPosterior,
-                atualizado_em: dataIso
-              })
-              .eq('id', item.produto_id);
-
-            logsMovimentacao.push({
-              loja_id: lojaId,
-              produto_id: item.produto_id,
-              variacao_id: null,
-              pedido_id: pedidoId,
-              usuario_id: usuarioId || null,
-              tipo_movimentacao: 'saida_venda',
-              quantidade: qtdVenda,
-              saldo_anterior: saldoAnterior,
-              saldo_posterior: saldoPosterior,
-              motivo: `Saída por venda - Pedido`,
-              criado_em: dataIso
-            });
-          }
+        } catch (errItem) {
+          console.warn(`[EstoquePedidoService] Erro ao abater estoque do produto ${item.produto_id}:`, errItem);
         }
-      } catch (errItem) {
-        console.warn(`[EstoquePedidoService] Erro ao abater estoque do produto ${item.produto_id}:`, errItem);
-      }
-    }
+      })
+    );
 
     // 4. Inserir logs na tabela movimentacoes_estoque (com tratamento seguro se tabela não existir)
     if (logsMovimentacao.length > 0) {

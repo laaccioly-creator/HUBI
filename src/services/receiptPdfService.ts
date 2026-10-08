@@ -32,6 +32,7 @@ export class ReceiptPdfService {
     const imageFileName = `recibo_pedido_${numId}.png`;
 
     // Captura com escala 2x para nitidez tipográfica superior sem atraso excessivo de ativação
+    // Força modo claro/papel impresso eliminando qualquer herança de tema escuro
     const canvas = await html2canvas(elemento, {
       scale: 2,
       useCORS: true,
@@ -40,7 +41,16 @@ export class ReceiptPdfService {
       logging: false,
       imageTimeout: 2000,
       width: elemento.scrollWidth || elemento.offsetWidth,
-      height: elemento.scrollHeight || elemento.offsetHeight
+      height: elemento.scrollHeight || elemento.offsetHeight,
+      onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.querySelector(`[data-recibo-root="true"]`) || clonedDoc.body;
+        if (clonedEl) {
+          (clonedEl as HTMLElement).style.backgroundColor = '#ffffff';
+          (clonedEl as HTMLElement).style.color = '#0f172a';
+        }
+        clonedDoc.documentElement.classList.remove('dark');
+        clonedDoc.body.classList.remove('dark');
+      }
     });
 
     // 1. Gera o Blob de Imagem (PNG)

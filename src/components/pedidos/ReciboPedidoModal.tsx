@@ -206,7 +206,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           isDark ? 'bg-slate-950' : 'bg-slate-100'
         }`}>
           {/* Bobina de Papel Autêntica (Branca com Tipografia Nítida em Preto/Slate) */}
-          <div ref={reciboRef} className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6">
+          <div
+            ref={reciboRef}
+            data-recibo-root="true"
+            style={{ colorScheme: 'light', backgroundColor: '#ffffff', color: '#0f172a' }}
+            className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6"
+          >
             {/* Logo e Cabeçalho do Recibo */}
             <div className="text-center space-y-1 border-b border-slate-200 border-dashed pb-3">
               {logoLojaUrl ? (

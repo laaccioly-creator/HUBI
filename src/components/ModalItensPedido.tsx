@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, X, Info, ShoppingBag } from 'lucide-react';
 import { Pedido, ItemPedido, Produto } from '../types';
 import { formatarMoeda } from '../utils/formatters';
+import { supabase } from '../lib/supabase';
 
 interface ModalItensPedidoProps {
   isOpen: boolean;
@@ -16,6 +17,33 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
   pedido,
   onConsultarProduto
 }) => {
+  const [fotosPorProdutoId, setFotosPorProdutoId] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!isOpen || !pedido) return;
+    const itens = pedido.itens || pedido.itens_pedido || [];
+    const idsFaltantes = itens
+      .map(it => it.produto_id)
+      .filter((id): id is string => Boolean(id) && !fotosPorProdutoId[id!]);
+
+    if (idsFaltantes.length > 0) {
+      supabase
+        .from('produtos')
+        .select('id, foto_url, fotos_urls')
+        .in('id', idsFaltantes)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const novasFotos: Record<string, string> = {};
+            data.forEach((p: any) => {
+              const url = p.foto_url || (Array.isArray(p.fotos_urls) ? p.fotos_urls[0] : null);
+              if (url) novasFotos[p.id] = url;
+            });
+            setFotosPorProdutoId(prev => ({ ...prev, ...novasFotos }));
+          }
+        });
+    }
+  }, [isOpen, pedido]);
+
   if (!isOpen || !pedido) return null;
 
   const itens = pedido.itens || pedido.itens_pedido || [];
@@ -64,29 +92,22 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                   {(() => {
                     const prod = item.produto as any;
                     const foto = (item as any).foto_url || 
-                                 (item as any).fotos_urls?.[0] || 
-                                 item.produto?.fotos_urls?.[0] || 
                                  (item as any).imagem_url || 
+                                 prod?.foto_url || 
                                  prod?.imagem_url || 
-                                 prod?.foto_url;
-                    if (foto) {
-                      return (
-                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 dark:bg-slate-900 flex items-center justify-center shadow-xs">
-                          <img
-                            src={foto}
-                            alt={item.nome_produto}
-                            className="w-full h-full object-cover rounded-xl"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = 'none';
-                              (e.currentTarget.parentElement as HTMLElement).innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>';
-                            }}
-                          />
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
-                        <Package className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                                 (item.produto_id ? fotosPorProdutoId[item.produto_id] : null) ||
+                                 (item as any).fotos_urls?.[0] || 
+                                 item.produto?.fotos_urls?.[0];
+
+                    return foto ? (
+                      <img
+                        src={foto}
+                        alt={item.nome_produto || (item as any).nome || (item as any).descricao || 'Produto'}
+                        className="w-11 h-11 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">
+                        <Package className="w-5 h-5 text-slate-400" />
                       </div>
                     );
                   })()}
