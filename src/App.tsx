@@ -47,29 +47,41 @@ const RedirecionamentoInicial: React.FC = () => {
   const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
   const telaPref = usuario?.tela_inicial;
 
-  if (telaPref === 'dashboard' && ehGestor) {
+  // Regra de Redirecionamento da Raiz ('/'):
+  // Se o perfil for 'owner', 'admin' ou 'gerente' (ou se a coluna tela_inicial === 'dashboard')
+  if (ehGestor || telaPref === 'dashboard') {
+    if (!permissions.podeAcessarDashboard) {
+      return <Navigate to="/pos" replace />;
+    }
+
+    if (telaPref === 'pos') {
+      return <Navigate to="/pos" replace />;
+    }
+    if (telaPref === 'pedidos' && permissions.podeAcessarPedidos) {
+      return <Navigate to="/orders" replace />;
+    }
+    if (telaPref === 'vendas' && permissions.podeAcessarVendas) {
+      return <Navigate to="/sales" replace />;
+    }
+
+    // Padrão mobile e desktop para gestores
     return <Navigate to="/dashboard" replace />;
   }
-  if (telaPref === 'pedidos') {
+
+  // Se o perfil for 'vendedor', 'comum' (ou qualquer perfil operacional sem acesso gerencial)
+  if (telaPref === 'pedidos' && permissions.podeAcessarPedidos) {
     return <Navigate to="/orders" replace />;
   }
   if (telaPref === 'vendas' && permissions.podeAcessarVendas) {
     return <Navigate to="/sales" replace />;
   }
-  if (telaPref === 'pos') {
-    return <Navigate to="/pos" replace />;
-  }
 
-  // Fallback padrão baseado no perfil
-  if (ehGestor) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Padrão operacional: PDV / Frente de Caixa
   return <Navigate to="/pos" replace />;
 };
 
 const AppRotasInternas: React.FC = () => {
   const permissions = usePermissions();
-  const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
 
   return (
     <Routes>
@@ -91,7 +103,7 @@ const AppRotasInternas: React.FC = () => {
           path="dashboard"
           element={
             <RotaProtegida
-              permitido={ehGestor}
+              permitido={permissions.podeAcessarDashboard}
               redirecionarPara="/pos"
             >
               <DashboardCockpit />

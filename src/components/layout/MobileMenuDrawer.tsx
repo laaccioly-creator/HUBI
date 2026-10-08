@@ -21,7 +21,7 @@ import {
   Calendar,
   Sun,
   Moon,
-  Gauge
+  LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -104,14 +104,12 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
     });
   };
 
-  const ehGestor = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
-
   const modulos = [
     {
-      nome: 'Dashboard Executivo',
+      nome: 'Dashboard',
       caminho: '/dashboard',
-      icone: Gauge,
-      visivel: ehGestor,
+      icone: LayoutDashboard,
+      visivel: permissions.podeAcessarDashboard,
       badge: undefined
     },
     {

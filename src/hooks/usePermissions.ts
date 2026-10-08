@@ -19,6 +19,7 @@ export interface PermissionsState {
   podeAbrirFecharCaixa: boolean;
 
   // Acessos aos módulos do sistema
+  podeAcessarDashboard: boolean;
   podeAcessarPdv: boolean;
   podeAcessarPedidos: boolean;
   podeAcessarVendas: boolean;
@@ -59,6 +60,7 @@ export const usePermissions = (): PermissionsState => {
   const podeAbrirFecharCaixa = ehAdmin || (usuario?.pode_abrir_fechar_caixa ?? false);
 
   // Módulos
+  const podeAcessarDashboard = ehGerente; // Gestores (Owner, Admin e Gerente)
   const podeAcessarPdv = true; // Todos os operadores autorizados podem vender no PDV
   const podeAcessarPedidos = true; // Todos os operadores podem acessar tela de pedidos (com escopo filtrado)
   const podeAcessarVendas = true; // Todos os operadores podem acessar histórico de vendas
@@ -97,6 +99,7 @@ export const usePermissions = (): PermissionsState => {
     podeExportarRelatorios,
     podeEditarVendasPassadas,
     podeAbrirFecharCaixa,
+    podeAcessarDashboard,
     podeAcessarPdv,
     podeAcessarPedidos,
     podeAcessarVendas,

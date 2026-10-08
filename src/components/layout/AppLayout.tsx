@@ -27,7 +27,7 @@ import {
   Moon,
   Laptop,
   Calendar,
-  Gauge
+  LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
@@ -293,9 +293,9 @@ export const AppLayout: React.FC = () => {
     {
       name: 'Dashboard',
       path: '/dashboard',
-      icon: Gauge,
+      icon: LayoutDashboard,
       badge: undefined,
-      visivel: ehGestor
+      visivel: permissions.podeAcessarDashboard
     },
     {
       name: 'Vender (PDV)',
@@ -389,6 +389,7 @@ export const AppLayout: React.FC = () => {
   const todosOsBotoes = [...row1Buttons, ...row2Buttons];
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
   const isCustomMobileRoute = true;
+  const isDashboardRoute = location.pathname === '/dashboard';
 
   const isDark = tema === 'dark';
 
@@ -450,7 +451,7 @@ export const AppLayout: React.FC = () => {
           <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">
             <button
               type="button"
-              onClick={(e) => handleNavegacaoMenu('/pos', e)}
+              onClick={(e) => handleNavegacaoMenu(permissions.podeAcessarDashboard ? '/dashboard' : '/pos', e)}
               className="flex items-center gap-2.5 group text-left cursor-pointer"
             >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
@@ -690,7 +691,7 @@ export const AppLayout: React.FC = () => {
       />
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
-      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} ${isCustomMobileRoute ? 'pb-0' : 'pb-16 md:pb-0'}`}>
+      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} ${isDashboardRoute ? 'pb-16 md:pb-0' : 'pb-0'}`}>
         <Outlet />
       </main>
 
@@ -698,12 +699,32 @@ export const AppLayout: React.FC = () => {
       <ChatAjudaIA />
 
       {/* BOTTOM NAVIGATION BAR MOBILE */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-xl border-t border-slate-200 flex items-center justify-around px-2 z-30 shadow-lg ${isCustomMobileRoute ? 'hidden' : ''}`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-14 ${isDark ? 'bg-slate-900/95 border-slate-800 text-slate-200' : 'bg-white/95 border-slate-200 text-slate-800'} backdrop-blur-xl border-t flex items-center justify-around px-2 z-30 shadow-lg ${isDashboardRoute ? '' : 'hidden'}`}>
+        {permissions.podeAcessarDashboard && (
+          <Link
+            to="/dashboard"
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
+              location.pathname === '/dashboard'
+                ? 'text-emerald-500 font-bold'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 font-semibold">Dashboard</span>
+          </Link>
+        )}
+
         {permissions.podeAcessarPdv && (
           <Link
             to="/pos"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/pos' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              location.pathname === '/pos'
+                ? 'text-emerald-500 font-bold'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <ShoppingCart className="w-5 h-5" />
@@ -715,7 +736,11 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/orders"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition relative ${
-              (location.pathname === '/orders' && !origemVendas) ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              (location.pathname === '/orders' && !origemVendas)
+                ? 'text-emerald-500 font-bold'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <div className="relative">
@@ -729,7 +754,11 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/sales"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              (location.pathname === '/sales' || (location.pathname === '/orders' && origemVendas)) ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              (location.pathname === '/sales' || (location.pathname === '/orders' && origemVendas))
+                ? 'text-emerald-500 font-bold'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <Receipt className="w-5 h-5" />
@@ -741,7 +770,11 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/products"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname.startsWith('/products') ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              location.pathname.startsWith('/products')
+                ? 'text-emerald-500 font-bold'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <Package className="w-5 h-5" />
@@ -753,7 +786,11 @@ export const AppLayout: React.FC = () => {
           <Link
             to="/finances"
             className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/finances' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              location.pathname === '/finances'
+                ? 'text-emerald-500 font-bold'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <DollarSign className="w-5 h-5" />

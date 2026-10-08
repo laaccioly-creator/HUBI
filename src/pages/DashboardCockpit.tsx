@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Gauge,
+  LayoutDashboard,
   RefreshCw,
   Settings,
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
   Check,
   Zap
 } from 'lucide-react';
+import { MobileMenuDrawer } from '../components/layout/MobileMenuDrawer';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useTheme } from '../contexts/ThemeContext';
@@ -61,6 +62,7 @@ export const DashboardCockpit: React.FC = () => {
   const [revalidando, setRevalidando] = useState<boolean>(false);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
+  const [menuDrawerAberto, setMenuDrawerAberto] = useState<boolean>(false);
 
   // Estados da Gaveta Lateral e Entrada de Estoque
   const [drawerMetrica, setDrawerMetrica] = useState<TipoMetricaCockpitDrawer | null>(null);
@@ -68,6 +70,7 @@ export const DashboardCockpit: React.FC = () => {
   const [produtoSelecionadoEntrada, setProdutoSelecionadoEntrada] = useState<Produto | null>(null);
 
   // Registro na pilha de navegação para tecla ESC e botão Voltar Mobile
+  useRegisterOverlay(menuDrawerAberto, () => setMenuDrawerAberto(false), 'cockpit-menu-drawer');
   useRegisterOverlay(drawerMetrica !== null, () => setDrawerMetrica(null), 'cockpit-metric-drawer');
   useRegisterOverlay(modalEntradaAberto, () => {
     setModalEntradaAberto(false);
@@ -172,18 +175,30 @@ export const DashboardCockpit: React.FC = () => {
   const nomeUsuario = usuario?.nome_completo ? usuario.nome_completo.split(' ')[0] : 'Gestor';
 
   return (
-    <div className={`min-h-full w-full flex flex-col font-sans ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-[#F8FAFC] text-slate-900'}`}>
+    <div className={`min-h-full w-full flex flex-col font-sans overflow-x-hidden ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-[#F8FAFC] text-slate-900'}`}>
       {/* ========================================================================= */}
       {/* CABEÇALHO EXECUTIVO */}
       {/* ========================================================================= */}
-      <header className={`sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-4 ${isDark ? 'bg-slate-900/80 border-slate-800/80' : 'bg-white/80 border-slate-200'}`}>
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <header className={`sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 ${isDark ? 'bg-slate-900/80 border-slate-800/80' : 'bg-white/80 border-slate-200'}`}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           
           {/* Título & Saudação */}
           <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-sm shadow-emerald-500/10">
-                <Gauge className="w-5 h-5" />
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <button
+                type="button"
+                onClick={() => setMenuDrawerAberto(true)}
+                className="p-1.5 -ml-1 rounded-xl hover:bg-slate-100 text-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition md:hidden cursor-pointer shrink-0"
+                title="Menu Principal"
+              >
+                <div className="space-y-1">
+                  <span className="block w-5 h-0.5 bg-slate-700 dark:bg-slate-200 rounded-full" />
+                  <span className="block w-5 h-0.5 bg-slate-700 dark:bg-slate-200 rounded-full" />
+                  <span className="block w-5 h-0.5 bg-slate-700 dark:bg-slate-200 rounded-full" />
+                </div>
+              </button>
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-sm shadow-emerald-500/10 shrink-0">
+                <LayoutDashboard className="w-5 h-5" />
               </div>
               <h1 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 <span>Dashboard Executivo</span>
@@ -264,7 +279,7 @@ export const DashboardCockpit: React.FC = () => {
 
             {/* Inputs de Data Customizada quando 'personalizado' */}
             {tipoPeriodo === 'personalizado' && (
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-xs">
+              <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-xs w-full sm:w-auto">
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">De:</span>
                   <input
@@ -310,10 +325,11 @@ export const DashboardCockpit: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalMetasAberto(true)}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer group dark:bg-black dark:hover:bg-slate-900 dark:border-white/15 dark:text-white"
+                className="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold text-xs flex items-center gap-1.5 sm:gap-2 shadow-xs transition cursor-pointer group dark:bg-black dark:hover:bg-slate-900 dark:border-white/15 dark:text-white"
               >
                 <Settings className="w-4 h-4 text-slate-800 group-hover:rotate-45 transition-transform duration-200 dark:text-white" />
-                <span>Configurar Metas</span>
+                <span className="hidden sm:inline">Configurar Metas</span>
+                <span className="sm:hidden">Metas</span>
               </button>
             )}
 
@@ -492,6 +508,14 @@ export const DashboardCockpit: React.FC = () => {
           }}
         />
       )}
+
+      {/* ========================================================================= */}
+      {/* DRAWER MENU UNIFICADO MOBILE */}
+      {/* ========================================================================= */}
+      <MobileMenuDrawer
+        aberto={menuDrawerAberto}
+        onFechar={() => setMenuDrawerAberto(false)}
+      />
 
     </div>
   );
