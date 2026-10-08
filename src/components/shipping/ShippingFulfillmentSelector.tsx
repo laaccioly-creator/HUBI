@@ -16,7 +16,8 @@ import {
   PenLine,
   Bike,
   Package,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 import {
   TipoAtendimento,
@@ -253,6 +254,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [larguraInput, setLarguraInput] = useState<string>('11');
   const [alturaInput, setAlturaInput] = useState<string>('4');
   const [pacoteManualEditado, setPacoteManualEditado] = useState<boolean>(false);
+  const [modalVolumesMobileAberto, setModalVolumesMobileAberto] = useState<boolean>(false);
 
   // Assinatura estável dos itens do carrinho para evitar disparo por recriação de array
   const itensSig = useMemo(() => {
@@ -1395,121 +1397,224 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
           ) : (
             <div className="space-y-2">
-              <span className={`text-xs font-bold block ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>Balcão da Loja Física</span>
-              <div
-                onClick={handleSelecionarRetirada}
-                className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
-                  modalidade === 'retirada'
-                    ? ehDark
-                      ? 'bg-emerald-950/60 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40'
-                      : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                    : ehDark
-                      ? 'bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200'
-                      : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 shadow-xs'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+              {/* VERSÃO DESKTOP (Inalterada) */}
+              <div className="hidden sm:block space-y-2">
+                <span className={`text-xs font-bold block ${ehDark ? 'text-slate-200' : 'text-slate-700'}`}>Balcão da Loja Física</span>
+                <div
+                  onClick={handleSelecionarRetirada}
+                  className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                     modalidade === 'retirada'
-                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      ? ehDark
+                        ? 'bg-emerald-950/60 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40'
+                        : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                       : ehDark
-                        ? 'bg-purple-950/40 text-purple-300 border-purple-800/60'
-                        : 'bg-purple-50 text-purple-700 border-purple-200'
-                  }`}>
-                    <Store className="w-4 h-4" />
+                        ? 'bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-200'
+                        : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                      modalidade === 'retirada'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : ehDark
+                          ? 'bg-purple-950/40 text-purple-300 border-purple-800/60'
+                          : 'bg-purple-50 text-purple-700 border-purple-200'
+                    }`}>
+                      <Store className="w-4 h-4" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-bold truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
+                          Retirar na Loja
+                        </span>
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                          ehDark
+                            ? 'bg-purple-950/50 text-purple-300 border-purple-700/60'
+                            : 'bg-purple-100 text-purple-800 border-purple-200'
+                        }`}>
+                          Balcão Físico
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
+                        <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className={ehDark ? 'text-slate-300' : 'text-slate-600'}>Disponibilidade Imediata</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-bold truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
-                        Retirar na Loja
-                      </span>
-                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                        ehDark
-                          ? 'bg-purple-950/50 text-purple-300 border-purple-700/60'
-                          : 'bg-purple-100 text-purple-800 border-purple-200'
-                      }`}>
-                        Balcão Físico
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <span className="font-extrabold text-sm text-emerald-500">
+                        Grátis (R$ 0,00)
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
-                      <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span className={ehDark ? 'text-slate-300' : 'text-slate-600'}>Disponibilidade Imediata</span>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      modalidade === 'retirada'
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                        : ehDark
+                          ? 'border-2 border-slate-600'
+                          : 'border-2 border-slate-300'
+                    }`}>
+                      {modalidade === 'retirada' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <span className="font-extrabold text-sm text-emerald-500">
-                      Grátis (R$ 0,00)
-                    </span>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                    modalidade === 'retirada'
-                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : ehDark
-                        ? 'border-2 border-slate-600'
-                        : 'border-2 border-slate-300'
+                {/* Informações detalhadas da retirada física quando selecionada no Desktop */}
+                {modalidade === 'retirada' && (
+                  <div className={`p-3.5 rounded-2xl border space-y-2.5 animate-in fade-in duration-200 text-xs shadow-xs ${
+                    ehDark
+                      ? 'bg-slate-900/80 border-slate-750 text-slate-200'
+                      : 'bg-white border-slate-200 text-slate-900'
                   }`}>
-                    {modalidade === 'retirada' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <div className={`leading-relaxed ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <strong className={ehDark ? 'text-white' : 'text-slate-800'}>Endereço da Loja:</strong>{' '}
+                      {[
+                        dadosLojaFormatados.endereco_logradouro,
+                        dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
+                        dadosLojaFormatados.endereco_bairro,
+                        dadosLojaFormatados.endereco_cidade && dadosLojaFormatados.endereco_estado
+                          ? `${dadosLojaFormatados.endereco_cidade}-${dadosLojaFormatados.endereco_estado}`
+                          : dadosLojaFormatados.endereco_cidade,
+                        dadosLojaFormatados.endereco_cep ? `(CEP: ${dadosLojaFormatados.endereco_cep})` : ''
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || 'Consulte o balcão da loja'}
+                    </div>
+
+                    <div className={`pt-2 border-t flex flex-wrap items-center gap-2 ${ehDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalMapaLojaAberto(true);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border ${
+                          ehDark
+                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <Navigation className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Ver no Mapa</span>
+                      </button>
+
+                      <a
+                        href={linkWhatsAppRetirada}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Enviar para o WhatsApp</span>
+                      </a>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Informações detalhadas da retirada física quando selecionada */}
-              {modalidade === 'retirada' && (
-                <div className={`p-3.5 rounded-2xl border space-y-2.5 animate-in fade-in duration-200 text-xs shadow-xs ${
-                  ehDark
-                    ? 'bg-slate-900/80 border-slate-750 text-slate-200'
-                    : 'bg-white border-slate-200 text-slate-900'
-                }`}>
-
-                  <div className={`leading-relaxed ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                    <strong className={ehDark ? 'text-white' : 'text-slate-800'}>Endereço da Loja:</strong>{' '}
-                    {[
-                      dadosLojaFormatados.endereco_logradouro,
-                      dadosLojaFormatados.endereco_numero ? `nº ${dadosLojaFormatados.endereco_numero}` : '',
-                      dadosLojaFormatados.endereco_bairro,
-                      dadosLojaFormatados.endereco_cidade && dadosLojaFormatados.endereco_estado
-                        ? `${dadosLojaFormatados.endereco_cidade}-${dadosLojaFormatados.endereco_estado}`
-                        : dadosLojaFormatados.endereco_cidade,
-                      dadosLojaFormatados.endereco_cep ? `(CEP: ${dadosLojaFormatados.endereco_cep})` : ''
-                    ]
-                      .filter(Boolean)
-                      .join(', ') || 'Consulte o balcão da loja'}
+              {/* VERSÃO MOBILE: Linha compacta com Toggle Switch liga/desliga */}
+              <div className="sm:hidden space-y-2">
+                <div
+                  onClick={() => {
+                    if (modalidade === 'retirada') {
+                      setModalidade('entrega');
+                    } else {
+                      handleSelecionarRetirada();
+                    }
+                  }}
+                  className={`px-3 py-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                    modalidade === 'retirada'
+                      ? ehDark
+                        ? 'bg-emerald-950/60 border-emerald-500/80 text-white'
+                        : 'bg-emerald-50/90 border-emerald-400 text-slate-900'
+                      : ehDark
+                        ? 'bg-slate-850 hover:bg-slate-800 border-slate-700 text-slate-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                      modalidade === 'retirada'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : ehDark
+                          ? 'bg-slate-800 text-slate-400 border-slate-700'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      <Store className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-xs font-bold truncate ${modalidade === 'retirada' ? (ehDark ? 'text-white' : 'text-slate-900') : (ehDark ? 'text-slate-300' : 'text-slate-700')}`}>
+                          Retirar na Loja
+                        </span>
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded border ${
+                          modalidade === 'retirada'
+                            ? ehDark
+                              ? 'bg-emerald-900/60 text-emerald-300 border-emerald-700/60'
+                              : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : ehDark
+                              ? 'bg-slate-800 text-slate-400 border-slate-700'
+                              : 'bg-slate-100 text-slate-500 border-slate-200'
+                        }`}>
+                          Grátis
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
+                        {modalidade === 'retirada' ? 'Retirada presencial ativa' : 'Clique para ativar retirada no balcão'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className={`pt-2 border-t flex flex-wrap items-center gap-2 ${ehDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModalMapaLojaAberto(true);
-                      }}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border ${
-                        ehDark
-                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  {/* Componente Toggle Switch liga/desliga */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div
+                      className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
+                        modalidade === 'retirada' ? 'bg-emerald-500 justify-end' : ehDark ? 'bg-slate-700 justify-start' : 'bg-slate-300 justify-start'
                       }`}
                     >
-                      <Navigation className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Ver no Mapa</span>
-                    </button>
-
-                    <a
-                      href={linkWhatsAppRetirada}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>Enviar para o WhatsApp</span>
-                    </a>
+                      <div className="bg-white w-5 h-5 rounded-full shadow-md transform transition-transform" />
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {/* Detalhes compactos de retirada no mobile quando ativada */}
+                {modalidade === 'retirada' && (
+                  <div className={`p-2.5 rounded-xl border text-[11px] space-y-1.5 ${
+                    ehDark ? 'bg-slate-900/80 border-slate-750 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}>
+                    <p className="truncate">
+                      <strong className={ehDark ? 'text-white' : 'text-slate-800'}>Loja:</strong>{' '}
+                      {[dadosLojaFormatados.endereco_logradouro, dadosLojaFormatados.endereco_numero].filter(Boolean).join(', ') || 'Balcão da Loja'}
+                    </p>
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalMapaLojaAberto(true);
+                        }}
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1"
+                      >
+                        <Navigation className="w-3 h-3 text-emerald-500" />
+                        Ver Mapa
+                      </button>
+                      <a
+                        href={linkWhatsAppRetirada}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 text-white flex items-center gap-1"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )
         )}
@@ -1517,7 +1622,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         {/* ========================================================================= */}
         {/* BLOCO 2: OPÇÕES DE ENTREGA                                                */}
         {/* ========================================================================= */}
-        <div className={`space-y-3 pt-2 border-t ${ehCatalogo ? 'border-slate-700/60' : 'border-slate-200'}`}>
+        <div className={`space-y-3 pt-2 border-t ${ehCatalogo ? 'border-slate-700/60' : 'border-slate-200'} ${modalidade === 'retirada' && !ehCatalogo ? 'hidden sm:block' : ''}`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-bold block ${ehCatalogo ? 'text-slate-200' : 'text-slate-700'}`}>
               {ehCatalogo ? 'Opções de Entrega' : 'Entrega no Endereço do Cliente'}
@@ -1602,11 +1707,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                 <div className="space-y-3">
                   {/* Painel de Conferência de Volumes e Dimensões do Pacote (Apenas lojista) */}
                   {(temMelhorEnvio || temUber) && !ehCatalogo && (
-                    <div className={`p-3.5 rounded-2xl border shadow-sm space-y-3 ${
-                      ehDark
-                        ? 'bg-slate-900 border-slate-800 text-white'
-                        : 'bg-white border-slate-200 text-slate-900'
-                    }`}>
+                    <>
+                      {/* VERSÃO DESKTOP: Painel Completo Aberto */}
+                      <div className={`hidden sm:block p-3.5 rounded-2xl border shadow-sm space-y-3 ${
+                        ehDark
+                          ? 'bg-slate-900 border-slate-800 text-white'
+                          : 'bg-white border-slate-200 text-slate-900'
+                      }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
@@ -1771,6 +1878,161 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         </span>
                       </div>
                     </div>
+
+                    {/* VERSÃO MOBILE: Linha única resumida com botão Alterar */}
+                      <div className={`sm:hidden p-3 rounded-xl border flex items-center justify-between gap-2 shadow-xs ${
+                        ehDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                            ehDark ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50' : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                          }`}>
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className={`text-xs font-bold block truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
+                              Conferência da Embalagem & Volumes
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
+                              {volumesCount} vol • {pesoInput} kg • {comprimentoInput}x{larguraInput}x{alturaInput} cm
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setModalVolumesMobileAberto(true)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition border cursor-pointer active:scale-95 ${
+                            ehDark
+                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          Alterar
+                        </button>
+                      </div>
+
+                      {/* MODAL / BOTTOM SHEET SECUNDÁRIO MOBILE: Ajuste de Medidas da Embalagem */}
+                      {modalVolumesMobileAberto && (
+                        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+                          <div
+                            className={`w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto ${
+                              ehDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                              <div className="flex items-center gap-2">
+                                <Package className="w-5 h-5 text-emerald-500" />
+                                <h3 className="font-bold text-sm">Conferência da Embalagem & Volumes</h3>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setModalVolumesMobileAberto(false)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                              >
+                                <X className="w-5 h-5" />
+                              </button>
+                            </div>
+
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Ajuste o peso e as medidas do pacote para calcular o valor de frete preciso com as transportadoras.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Volumes</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={volumesCount}
+                                  onChange={(e) => {
+                                    setPacoteManualEditado(true);
+                                    setVolumesCount(Math.max(1, parseInt(e.target.value) || 1));
+                                  }}
+                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Peso (kg)</label>
+                                <input
+                                  type="text"
+                                  value={pesoInput}
+                                  onChange={(e) => {
+                                    setPacoteManualEditado(true);
+                                    setPesoInput(e.target.value);
+                                  }}
+                                  placeholder="0.300"
+                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Comp. (cm)</label>
+                                <input
+                                  type="text"
+                                  value={comprimentoInput}
+                                  onChange={(e) => {
+                                    setPacoteManualEditado(true);
+                                    setComprimentoInput(e.target.value);
+                                  }}
+                                  placeholder="16"
+                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Largura (cm)</label>
+                                <input
+                                  type="text"
+                                  value={larguraInput}
+                                  onChange={(e) => {
+                                    setPacoteManualEditado(true);
+                                    setLarguraInput(e.target.value);
+                                  }}
+                                  placeholder="11"
+                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Altura (cm)</label>
+                                <input
+                                  type="text"
+                                  value={alturaInput}
+                                  onChange={(e) => {
+                                    setPacoteManualEditado(true);
+                                    setAlturaInput(e.target.value);
+                                  }}
+                                  placeholder="4"
+                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="pt-2 flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setModalVolumesMobileAberto(false)}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (enderecoSelecionado) {
+                                    executarCotacao(enderecoSelecionado, true);
+                                  }
+                                  setModalVolumesMobileAberto(false);
+                                }}
+                                disabled={cotando}
+                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50 cursor-pointer"
+                              >
+                                <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
+                                <span>Recalcular & Salvar</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   {!carregandoConfig && !temUber && !temMelhorEnvio ? (
                     ehCatalogo ? (

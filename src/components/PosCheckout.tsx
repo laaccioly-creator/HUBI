@@ -2708,29 +2708,29 @@ export const PosCheckout: React.FC = () => {
       {/* MODAL DE FECHAMENTO DE VENDA */}
       {modalFechamento && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          <div className="bg-white lg:dark:bg-slate-900 border border-slate-200 lg:dark:border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 lg:dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-slate-800 lg:dark:text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-600 lg:dark:text-emerald-400" />
                 <span>Pagamento & Fechamento</span>
               </h3>
-              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer">
+              <button onClick={() => setModalFechamento(false)} className="p-1 rounded-lg hover:bg-slate-100 lg:dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 lg:dark:hover:text-white transition cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-center space-y-0.5">
-              <span className="text-xs text-emerald-800/80 dark:text-emerald-400/80 block font-semibold">Valor Total da Venda</span>
-              <span className="text-3xl font-black text-emerald-700 dark:text-emerald-400">{formatarMoeda(total)}</span>
+            <div className="bg-emerald-50 lg:dark:bg-emerald-950/40 p-3.5 rounded-2xl border border-emerald-100 lg:dark:border-emerald-800 text-center space-y-0.5">
+              <span className="text-xs text-emerald-800/80 lg:dark:text-emerald-400/80 block font-semibold">Valor Total da Venda</span>
+              <span className="text-3xl font-bold text-emerald-600 lg:dark:text-emerald-400">{formatarMoeda(total)}</span>
             </div>
 
             {/* Linhas de Pagamento (Múltiplas formas de pagamento) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                <span className="text-xs font-bold text-slate-800 lg:dark:text-slate-200">
                   Meios de Pagamento ({(linhasPagamento || []).length}):
                 </span>
-                <span className="text-[11px] text-slate-700 dark:text-slate-300 font-medium">
+                <span className="text-[11px] text-slate-700 lg:dark:text-slate-300 font-medium">
                   Permite dividir o total em vários meios
                 </span>
               </div>
@@ -2740,10 +2740,10 @@ export const PosCheckout: React.FC = () => {
                 const maxParcelas = formaSelecionada?.maximo_parcelas || 12;
 
                 return (
-                  <div key={linha.id} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5 shadow-xs">
+                  <div key={linha.id} className="p-3 bg-slate-50 lg:dark:bg-slate-950 border border-slate-200 lg:dark:border-slate-800 rounded-2xl space-y-2.5 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">
+                      <span className="text-xs font-bold text-emerald-600 lg:dark:text-emerald-400 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 lg:dark:bg-emerald-950 border border-emerald-300 lg:dark:border-emerald-500/30 text-emerald-700 lg:dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">
                           {idx + 1}
                         </span>
                         Pagamento #{idx + 1}
@@ -2752,7 +2752,7 @@ export const PosCheckout: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleRemoverLinhaPagamento(linha.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 lg:dark:hover:text-rose-400 hover:bg-rose-50 lg:dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
                           title="Remover este pagamento"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2771,15 +2771,15 @@ export const PosCheckout: React.FC = () => {
                             onClick={() => handleAlterarFormaLinha(linha.id, fp)}
                             className={`p-2 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
                               estaSelecionado
-                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40 shadow-xs'
-                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                ? 'border-emerald-500 bg-emerald-50 lg:dark:bg-emerald-500/15 text-emerald-700 lg:dark:text-emerald-400 ring-1 ring-emerald-500/40 shadow-xs'
+                                : 'border-slate-200 lg:dark:border-slate-800 bg-white lg:dark:bg-slate-900 text-slate-700 lg:dark:text-slate-300 hover:bg-slate-100 lg:dark:hover:bg-slate-800 hover:border-slate-300 lg:dark:hover:border-slate-700'
                             }`}
                           >
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
-                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
-                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 lg:dark:text-emerald-400 shrink-0" />}
+                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 lg:dark:text-cyan-400 shrink-0" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 lg:dark:text-blue-400 shrink-0" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 lg:dark:text-purple-400 shrink-0" />}
+                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 lg:dark:text-amber-400 shrink-0" />}
                             {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && (
                               <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             )}
@@ -2790,42 +2790,42 @@ export const PosCheckout: React.FC = () => {
                     </div>
 
                     {/* Valor deste pagamento */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
-                      <span className="text-xs text-slate-800 dark:text-slate-200 font-bold">Valor a pagar:</span>
-                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 lg:dark:border-slate-800">
+                      <span className="text-xs text-slate-800 lg:dark:text-slate-200 font-bold">Valor a pagar:</span>
+                      <div className="flex items-center gap-1 bg-white lg:dark:bg-slate-900 border border-slate-300 lg:dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                        <span className="text-xs text-emerald-600 lg:dark:text-emerald-400 font-bold">R$</span>
                         <MoneyInput
                           autoFocus={idx === 0}
                           valor={linha.valor}
                           onChange={(novoValor) => handleAlterarValorLinha(linha.id, novoValor)}
                           placeholder="0,00"
-                          className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
+                          className="w-28 bg-transparent text-right text-xs font-semibold text-slate-900 lg:dark:text-white focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
 
                     {/* Dinheiro: Valor Entregue e Troco */}
                     {linha.forma_tipo === 'dinheiro' && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="space-y-1.5 pt-1.5 border-t border-slate-200 lg:dark:border-slate-800 text-xs">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-slate-800 dark:text-slate-200 font-bold">Valor Entregue pelo Cliente:</span>
-                          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
+                          <span className="text-slate-800 lg:dark:text-slate-200 font-bold">Valor Entregue pelo Cliente:</span>
+                          <div className="flex items-center gap-1 bg-white lg:dark:bg-slate-900 border border-slate-300 lg:dark:border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                            <span className="text-xs text-emerald-600 lg:dark:text-emerald-400 font-bold">R$</span>
                             <MoneyInput
                               valor={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : 0}
                               onChange={(novoValor) => handleAlterarEntregueLinha(linha.id, novoValor)}
                               placeholder="0,00"
-                              className="w-28 bg-transparent text-right text-xs font-bold text-slate-900 dark:text-white focus:outline-none placeholder:text-slate-400"
+                              className="w-28 bg-transparent text-right text-xs font-semibold text-slate-900 lg:dark:text-white focus:outline-none placeholder:text-slate-400"
                             />
                           </div>
                         </div>
 
                         {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
-                            <span className="text-slate-800 dark:text-slate-200 font-bold">Troco a devolver:</span>
-                            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5">
-                              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
-                              <span className="w-28 text-right text-xs font-bold text-slate-900 dark:text-white">
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 lg:dark:border-slate-800">
+                            <span className="text-slate-800 lg:dark:text-slate-200 font-bold">Troco a devolver:</span>
+                            <div className="flex items-center gap-1 bg-white lg:dark:bg-slate-900 border border-slate-300 lg:dark:border-slate-700 rounded-xl px-2.5 py-1.5">
+                              <span className="text-xs text-emerald-600 lg:dark:text-emerald-400 font-bold">R$</span>
+                              <span className="w-28 text-right text-xs font-semibold text-slate-900 lg:dark:text-white">
                                 {Number(linha.valor_entregue - linha.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>

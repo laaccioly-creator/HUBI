@@ -620,15 +620,15 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             <div className={`p-3.5 rounded-2xl border text-center space-y-0.5 ${
               isDark
                 ? 'bg-emerald-950/40 border-emerald-800'
-                : 'bg-emerald-50 border-emerald-200'
+                : 'bg-emerald-50 border-emerald-100'
             }`}>
               <span className={`text-xs block font-semibold ${
                 isDark ? 'text-emerald-400/80' : 'text-emerald-800/80'
               }`}>
                 {valorJaPago > 0 ? 'Saldo Restante a Quitar' : 'Valor Total da Venda'}
               </span>
-              <span className={`text-3xl font-black ${
-                isDark ? 'text-emerald-400' : 'text-emerald-700'
+              <span className={`text-3xl font-bold ${
+                isDark ? 'text-emerald-400' : 'text-emerald-600'
               }`}>
                 {formatarMoeda(saldoDevedorAtual)}
               </span>
