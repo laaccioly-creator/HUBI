@@ -32,15 +32,30 @@ export const ReciboPublico: React.FC = () => {
     const estavaDark = root.classList.contains('dark') || body.classList.contains('dark');
     const estavaLight = root.classList.contains('light');
 
-    root.classList.remove('dark');
-    root.classList.add('light');
-    root.style.colorScheme = 'light';
-    body.classList.remove('dark');
-    body.classList.add('light');
-    body.style.backgroundColor = '#f1f5f9';
-    body.style.color = '#0f172a';
+    const aplicarLightMode = () => {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.style.colorScheme = 'light';
+      body.classList.remove('dark');
+      body.classList.add('light');
+      body.style.backgroundColor = '#f1f5f9';
+      body.style.color = '#0f172a';
+    };
+
+    aplicarLightMode();
+
+    // Blindagem ativa com MutationObserver para impedir que outro script reinjete 'dark'
+    const observer = new MutationObserver(() => {
+      if (root.classList.contains('dark') || body.classList.contains('dark')) {
+        aplicarLightMode();
+      }
+    });
+
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(body, { attributes: true, attributeFilter: ['class'] });
 
     return () => {
+      observer.disconnect();
       body.style.backgroundColor = '';
       body.style.color = '';
       if (estavaDark) {
@@ -238,7 +253,12 @@ export const ReciboPublico: React.FC = () => {
   const totalQtdItens = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center p-3 sm:p-6 select-none print:p-0 print:bg-white" style={{ colorScheme: 'light' }}>
+    <div
+      data-theme="light"
+      data-recibo-root="true"
+      className="pagina-recibo-publico min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center p-3 sm:p-6 select-none print:p-0 print:bg-white"
+      style={{ colorScheme: 'light' }}
+    >
       {/* Ação Única do Cabeçalho: Baixar PDF */}
       <div className="w-full max-w-md mb-4 flex items-center justify-end print:hidden">
         <button
@@ -257,9 +277,10 @@ export const ReciboPublico: React.FC = () => {
       <div className="w-full max-w-md print:max-w-full">
         <div
           ref={reciboRef}
+          data-theme="light"
           data-recibo-root="true"
           style={{ colorScheme: 'light', backgroundColor: '#ffffff', color: '#0f172a' }}
-          className="bg-white text-slate-900 p-6 sm:p-7 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-lg font-mono print:shadow-none print:border-0 print:rounded-none"
+          className="manter-branco bg-white text-slate-900 p-6 sm:p-7 rounded-2xl border border-slate-200 text-xs space-y-3 shadow-lg font-mono print:shadow-none print:border-0 print:rounded-none"
         >
           {/* Logo da Loja */}
           {loja?.url_logo ? (

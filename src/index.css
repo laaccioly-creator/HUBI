@@ -424,49 +424,49 @@ html.light .bg-gradient-to-r.from-emerald-950 span.text-slate-300 {
    ========================================================================== */
 
 /* Containers principais, telas cheias e modais */
-html.dark .bg-white:not(#hubi-print-container *):not(.cupom-termico):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *):not(.manter-branco) {
+html.dark .bg-white:not(#hubi-print-container *):not(.cupom-termico):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico):not(.pagina-recibo-publico *):not(.manter-branco) {
   background-color: #0f172a !important; /* Navy/Slate 900 do Desktop */
   color: #f8fafc !important;
 }
 
 /* Superfícies secundárias de cartões no mobile */
-html.dark .bg-slate-50:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *) {
+html.dark .bg-slate-50:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico):not(.pagina-recibo-publico *) {
   background-color: #1e293b !important; /* Slate 800 do Desktop */
   color: #f1f5f9 !important;
 }
 
-html.dark .bg-slate-100:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *) {
+html.dark .bg-slate-100:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico):not(.pagina-recibo-publico *) {
   background-color: #334155 !important; /* Slate 700 */
   color: #f8fafc !important;
 }
 
-html.dark .bg-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *) {
+html.dark .bg-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not(.recibo-print *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico):not(.pagina-recibo-publico *) {
   background-color: #334155 !important;
   color: #cbd5e1 !important;
 }
 
 /* Bordas mobile no modo escuro */
-html.dark .border-slate-100:not(#hubi-print-container *):not(.cupom-termico *),
-html.dark .border-slate-200:not(#hubi-print-container *):not(.cupom-termico *),
-html.dark .border-slate-300:not(#hubi-print-container *):not(.cupom-termico *) {
+html.dark .border-slate-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .border-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .border-slate-300:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   border-color: #334155 !important;
 }
 
 /* Tipografia de alto contraste no mobile escuro */
-html.dark .text-slate-900:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *),
-html.dark .text-slate-800:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+html.dark .text-slate-900:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .text-slate-800:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #f8fafc !important;
 }
 
-html.dark .text-slate-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+html.dark .text-slate-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #e2e8f0 !important;
 }
 
-html.dark .text-slate-600:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+html.dark .text-slate-600:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #cbd5e1 !important;
 }
 
-html.dark .text-slate-500:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *) {
+html.dark .text-slate-500:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #94a3b8 !important;
 }
 

@@ -41,7 +41,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   useEffect(() => {
+    const pathname = typeof window !== 'undefined' ? (window.location.pathname || '') : '';
+    const isReciboRoute = pathname.includes('/recibo/') || pathname.includes('/recibo-publico/');
     const root = document.documentElement;
+
+    if (isReciboRoute) {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.style.colorScheme = 'light';
+      return;
+    }
+
     if (tema === 'dark') {
       root.classList.add('dark');
       root.classList.remove('light');
