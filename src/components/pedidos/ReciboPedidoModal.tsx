@@ -181,7 +181,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const obsLimpa = extrairObservacaoLimpa(pedido.observacoes);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
       <div className={`w-full max-w-md border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
         isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
       }`}>

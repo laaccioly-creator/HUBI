@@ -58,6 +58,7 @@ import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalDespacharPedido } from './shipping/ModalDespacharPedido';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
+import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
@@ -381,6 +382,152 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     } else {
       setModalDespachoAberto(true);
     }
+  };
+
+  const resolverProvedorEntrega = (
+    pedido: Pedido | null,
+    entregaState?: PedidoEntrega | null
+  ): {
+    prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja';
+    provNome: string;
+    pe: PedidoEntrega | null;
+    rawPe: any;
+    isRetirada: boolean;
+  } => {
+    if (!pedido) {
+      return {
+        prov: 'frete_proprio',
+        provNome: 'Frete Próprio / Entrega Local',
+        pe: null,
+        rawPe: null,
+        isRetirada: false
+      };
+    }
+
+    const rawPe = entregaState || (pedido as any).pedido_entregas || pedido.pedido_entrega;
+    const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+
+    const meta = (pedido as any)?.metadados || {};
+    const metaProvedor = String(meta.provedor_frete || '').toLowerCase();
+    const metaTransp = String(meta.transportadora_nome || '').trim();
+    const metaTipo = String(meta.tipo_atendimento || '').toLowerCase();
+
+    const diretoProvedor = String((pedido as any)?.entrega_provedor || '').toLowerCase();
+    const diretoTransp = String(
+      (pedido as any)?.transportadora_nome ||
+      (pedido as any)?.forma_entrega_nome ||
+      (pedido as any)?.forma_entrega?.nome ||
+      ''
+    ).trim();
+
+    const peProvedor = String(pe?.provedor || '').toLowerCase();
+    const peTransp = String(pe?.transportadora_nome || '').trim();
+    const peTipo = String(pe?.tipo_atendimento || '').toLowerCase();
+
+    const textoConsolidado = `${metaProvedor} ${metaTransp} ${diretoProvedor} ${diretoTransp} ${peProvedor} ${peTransp} ${pedido.observacoes || ''}`.toLowerCase();
+
+    const isRetirada =
+      peTipo === 'retirada' ||
+      metaTipo === 'retirada' ||
+      diretoProvedor === 'retirada_loja' ||
+      peProvedor === 'retirada_loja' ||
+      textoConsolidado.includes('retirada na loja') ||
+      textoConsolidado.includes('retirada') ||
+      (!pe && !metaTransp && !diretoTransp && Number(pedido.valor_frete || 0) === 0 && !pedido.endereco_entrega);
+
+    let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
+    let provNome = 'Frete Próprio / Entrega Local';
+
+    const ehMelhorEnvio =
+      peProvedor === 'melhor_envio' ||
+      metaProvedor === 'melhor_envio' ||
+      diretoProvedor === 'melhor_envio' ||
+      textoConsolidado.includes('melhor envio') ||
+      textoConsolidado.includes('melhorenvio');
+
+    const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
+    const ehAppEntrega =
+      pe?.tipo_operacao === 'app_entrega' ||
+      (pedido as any)?.tipo_operacao === 'app_entrega' ||
+      Boolean(pe?.app_entrega_id) ||
+      Boolean(nomeApp);
+
+    const ehUberDirect =
+      !ehMelhorEnvio &&
+      !ehAppEntrega &&
+      (peProvedor === 'uber' ||
+      metaProvedor === 'uber' ||
+      diretoProvedor === 'uber' ||
+      textoConsolidado.includes('uber direct'));
+
+    const ehTransportadoraPrivada =
+      !ehMelhorEnvio &&
+      !ehUberDirect &&
+      (pe?.tipo_operacao === 'transportadora' ||
+      (pedido as any)?.tipo_operacao === 'transportadora' ||
+      Boolean(pe?.transportadora_id) ||
+      peTransp.toLowerCase().includes('jadlog') ||
+      metaTransp.toLowerCase().includes('jadlog') ||
+      diretoTransp.toLowerCase().includes('jadlog') ||
+      ((peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) && !textoConsolidado.includes('correios')));
+
+    const servicoCorreios =
+      (pedido as any)?.servico_correios ||
+      pe?.servico_correios ||
+      (textoConsolidado.includes('sedex') && !ehTransportadoraPrivada ? 'SEDEX' : '') ||
+      (textoConsolidado.includes('pac') && !ehTransportadoraPrivada ? 'PAC' : '') ||
+      (!ehTransportadoraPrivada ? detectarServicoPorCodigo(pe?.codigo_rastreio || pedido.codigo_rastreio) : null);
+
+    const ehCorreios =
+      !ehMelhorEnvio &&
+      !ehUberDirect &&
+      !ehTransportadoraPrivada &&
+      (peProvedor === 'correios' ||
+      metaProvedor === 'correios' ||
+      diretoProvedor === 'correios' ||
+      pe?.tipo_operacao === 'correios' ||
+      (pedido as any)?.tipo_operacao === 'correios' ||
+      peTransp.toLowerCase().includes('correios') ||
+      metaTransp.toLowerCase().includes('correios') ||
+      diretoTransp.toLowerCase().includes('correios') ||
+      Boolean(servicoCorreios));
+
+    if (isRetirada) {
+      prov = 'retirada_loja';
+      provNome = 'Retirada na Loja';
+    } else if (ehMelhorEnvio) {
+      prov = 'melhor_envio';
+      const transpNomeBase = peTransp || metaTransp || diretoTransp || '';
+      if (transpNomeBase && !transpNomeBase.toLowerCase().includes('melhor envio')) {
+        provNome = `Melhor Envio (${formatarNomeTransportadora(transpNomeBase)})`;
+      } else {
+        provNome = transpNomeBase || 'Melhor Envio';
+      }
+    } else if (ehUberDirect) {
+      prov = 'uber';
+      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
+    } else if (ehAppEntrega) {
+      prov = 'frete_proprio';
+      provNome = nomeApp || (peTransp && peTransp.toLowerCase() !== 'entrega' && !peTransp.toLowerCase().includes('corrida') ? peTransp : 'Uber Flash');
+    } else if (ehTransportadoraPrivada) {
+      prov = 'frete_proprio';
+      provNome = formatarNomeTransportadora(peTransp || metaTransp || diretoTransp || 'Jadlog');
+    } else if (ehCorreios) {
+      prov = 'frete_proprio';
+      provNome = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
+    } else if (
+      peProvedor === 'frete_proprio' ||
+      metaProvedor === 'frete_proprio' ||
+      diretoProvedor === 'frete_proprio'
+    ) {
+      prov = 'frete_proprio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
+    } else if (Number(pedido.valor_frete || 0) > 0 || pedido.endereco_entrega) {
+      prov = 'frete_proprio';
+      provNome = peTransp || metaTransp || diretoTransp || 'Frete Próprio / Entrega Local';
+    }
+
+    return { prov, provNome, pe, rawPe, isRetirada };
   };
 
   const ehDespachoTransportadora = useMemo(() => {
@@ -1492,103 +1639,54 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 </button>
               </div>
 
-              {/* Informações Logísticas e Operacionais Resolvidas */}
+              {/* Informações Logísticas e Operacionais Resolvidas com Lógica Oficial do Desktop */}
               {(() => {
-                const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
-                const pedObj = pedidoSelecionado as unknown as Record<string, unknown>;
-                const meta = (pedObj.metadados && typeof pedObj.metadados === 'object') ? (pedObj.metadados as Record<string, unknown>) : {};
-                const peObj = (pe && typeof pe === 'object') ? (pe as unknown as Record<string, unknown>) : {};
+                const { prov, pe, provNome, isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const isUber = prov === 'uber';
+                const ehMelhorEnvio = prov === 'melhor_envio';
+                const isMelhorEnvio = ehMelhorEnvio;
 
-                const prov = pe?.provedor || (pedObj.entrega_provedor as string | undefined) || (Number(pedidoSelecionado.valor_frete || 0) > 0 ? 'frete_proprio' : null);
-                const codigoRastreio = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
-                const linkRastreio = (pe?.link_rastreio || pedidoSelecionado.link_rastreio || '').trim();
-                const linkEtiqueta = String(peObj.link_etiqueta || pedObj.link_etiqueta || peObj.etiqueta_url || pedObj.etiqueta_url || '').trim();
+                const linkRastreio = (pedidoSelecionado.link_rastreio || pe?.link_rastreio || '').trim();
+                const codigoRastreio = (pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '').trim();
+                const linkEtiqueta = String((pe as any)?.link_etiqueta || (pedidoSelecionado as any)?.link_etiqueta || (pe as any)?.etiqueta_url || (pedidoSelecionado as any)?.etiqueta_url || '').trim();
 
-                const transpRaw = String(pe?.transportadora_nome || pe?.nome_transportadora || pedObj.nome_transportadora || pedObj.forma_entrega_nome || '').trim();
-                const metaTransp = String(meta.transportadora_nome || '').trim();
-                const diretoTransp = String(pedObj.nome_transportadora || pedObj.transportadora_nome || pedObj.forma_entrega_nome || '').trim();
-                const tipoOperacao = String(pedObj.tipo_operacao || pe?.tipo_operacao || '');
+                const aguardaEnvio =
+                  pedidoSelecionado.status === 'aguardando_envio' ||
+                  (pedidoSelecionado.status === 'confirmado' && !isRetirada);
 
-                const ehMelhorEnvio =
-                  prov === 'melhor_envio' ||
-                  pe?.provedor === 'melhor_envio' ||
-                  meta.provedor_frete === 'melhor_envio' ||
-                  transpRaw.toLowerCase().includes('melhor envio');
+                const emTransitoOuEntregue =
+                  pedidoSelecionado.status === 'enviado' ||
+                  pedidoSelecionado.status === 'saiu_para_entrega' ||
+                  pedidoSelecionado.status === 'entregue';
 
-                const ehTransportadoraPrivada =
+                const prontoParaConcluir =
+                  emTransitoOuEntregue ||
+                  pedidoSelecionado.status === 'pronto_para_retirar';
+
+                const temRastreio = Boolean(codigoRastreio || linkRastreio || (ehMelhorEnvio && emTransitoOuEntregue));
+                const temEtiquetaEmitida = !isRetirada && Boolean(linkEtiqueta || (ehMelhorEnvio && emTransitoOuEntregue));
+
+                const ehTranspManual =
                   !ehMelhorEnvio &&
-                  (tipoOperacao === 'transportadora' ||
-                  Boolean(pe?.transportadora_id) ||
-                  Boolean(pedObj.transportadora_id) ||
-                  (Boolean(metaTransp) && !metaTransp.toLowerCase().includes('correios')) ||
-                  (Boolean(diretoTransp) && !diretoTransp.toLowerCase().includes('correios') && (diretoTransp.toLowerCase().includes('jadlog') || diretoTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('braspress') || diretoTransp.toLowerCase().includes('azul') || diretoTransp.toLowerCase().includes('latam') || diretoTransp.toLowerCase().includes('total express') || diretoTransp.toLowerCase().includes('rodonaves'))));
-
-                const servicoDetectado = ehTransportadoraPrivada ? null : detectarServicoPorCodigo(codigoRastreio);
-                const servicoCorreios = !ehTransportadoraPrivada
-                  ? ((pedObj.servico_correios as string | undefined) || pe?.servico_correios || (servicoDetectado && servicoDetectado !== 'OUTRO' ? servicoDetectado : null))
-                  : null;
+                  (provNome.toLowerCase().includes('transportadora') ||
+                   provNome.toLowerCase().includes('jadlog') ||
+                   pe?.tipo_operacao === 'transportadora' ||
+                   (pedidoSelecionado as any)?.tipo_operacao === 'transportadora' ||
+                   Boolean(pe?.transportadora_id));
 
                 const ehCorreios =
                   !ehMelhorEnvio &&
-                  !ehTransportadoraPrivada &&
-                  (pe?.tipo_operacao === 'correios' ||
-                  pedObj.tipo_operacao === 'correios' ||
-                  String(pe?.provedor) === 'correios' ||
-                  transpRaw.toLowerCase().includes('correios') ||
-                  Boolean(servicoCorreios));
-
-                const ehUber =
-                  prov === 'uber' ||
-                  pe?.provedor === 'uber' ||
-                  tipoOperacao === 'uber' ||
-                  transpRaw.toLowerCase().includes('uber');
-
-                const isRetirada =
-                  prov === 'retirada_loja' ||
-                  pe?.tipo_atendimento === 'retirada' ||
-                  pedObj.tipo_entrega === 'retirada' ||
-                  transpRaw.toLowerCase().includes('retirada');
-
-                const ordemId = pe?.servico_codigo || (pedObj.servico_codigo as string | undefined) || (codigoRastreio.startsWith('ORD-') ? codigoRastreio : undefined);
-
-                const temEtiquetaEmitida = Boolean(linkEtiqueta || (ehMelhorEnvio && ordemId));
-                const temRastreio = Boolean(codigoRastreio || linkRastreio);
-                const envioGerado = Boolean(temRastreio || temEtiquetaEmitida || (ehMelhorEnvio && ordemId));
-
-                const aguardaDespacho =
-                  (pedidoSelecionado.status === 'confirmado' ||
-                  pedidoSelecionado.status === 'em_separacao' ||
-                  pedidoSelecionado.status === 'em_producao' ||
-                  pedidoSelecionado.status === 'em_expedicao' ||
-                  pedidoSelecionado.status === 'aguardando_envio' ||
-                  pedidoSelecionado.status === 'envio_pendente') &&
-                  !isRetirada;
-
-                const prontoParaConcluir =
-                  pedidoSelecionado.status === 'enviado' ||
-                  pedidoSelecionado.status === 'saiu_para_entrega' ||
-                  pedidoSelecionado.status === 'pronto_para_retirar' ||
-                  pedidoSelecionado.status === 'entregue';
+                  !ehTranspManual &&
+                  (provNome.toLowerCase().includes('correios') ||
+                   pe?.tipo_operacao === 'correios' ||
+                   (pedidoSelecionado as any)?.tipo_operacao === 'correios' ||
+                   Boolean(pedidoSelecionado.servico_correios || pe?.servico_correios) ||
+                   detectarServicoPorCodigo(codigoRastreio) !== null);
 
                 return (
                   <div className="space-y-1.5">
-                    {/* Ação 1: Chamar Uber (se for frete Uber e aguardando despacho) */}
-                    {aguardaDespacho && ehUber && !envioGerado && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModalOpcoesPedido(false);
-                          handleAcionarDespacho(pedidoSelecionado);
-                        }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-950 hover:bg-black text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
-                      >
-                        <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span>Chamar Uber</span>
-                      </button>
-                    )}
-
-                    {/* Ação 2: Gerar Envio (se aguarda despacho e ainda não gerou envio) */}
-                    {aguardaDespacho && !ehUber && !envioGerado && (
+                    {/* Ação 1: Gerar Envio / Chamar Uber (se aguarda envio) */}
+                    {aguardaEnvio && !isUber && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1602,7 +1700,21 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 3: Concluir Pedido (se pronto para concluir e não finalizado/cancelado) */}
+                    {aguardaEnvio && isUber && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          handleAcionarDespacho(pedidoSelecionado);
+                        }}
+                        className="w-full h-11 px-3.5 rounded-xl bg-slate-950 hover:bg-black text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                      >
+                        <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Chamar Uber</span>
+                      </button>
+                    )}
+
+                    {/* Ação 2: Concluir Pedido (se pronto para concluir e não finalizado/cancelado) */}
                     {prontoParaConcluir && pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
                       <button
                         type="button"
@@ -1619,36 +1731,35 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 4: Recibo (sempre disponível) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setModalOpcoesPedido(false);
-                        setPedidoReciboModal(pedidoSelecionado);
-                      }}
-                      className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
-                    >
-                      <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Recibo</span>
-                    </button>
-
-                    {/* Ação 5: Alterar Frete (apenas se não cancelado, não concluído e envio ainda não gerado) */}
-                    {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && !envioGerado && (
+                    {/* Ação 3: Rastrear Envio (APENAS se já enviado/entregue e houver rastreio) */}
+                    {emTransitoOuEntregue && temRastreio && (
                       <button
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
-                          setModalDefinirEnvioAberto(true);
+                          if (ehMelhorEnvio) {
+                            setPedidoRastreioModal(pedidoSelecionado);
+                          } else if (ehCorreios) {
+                            if (codigoRastreio) {
+                              try { navigator.clipboard.writeText(codigoRastreio); } catch {}
+                            }
+                            mostrarToast('Código copiado! Abrindo Correios.');
+                            window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
+                          } else if (ehTranspManual) {
+                            handleRastrearTransportadora(pedidoSelecionado);
+                          } else if (linkRastreio) {
+                            window.open(linkRastreio, '_blank', 'noopener,noreferrer');
+                          }
                         }}
                         className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
                       >
-                        <Truck className="w-4 h-4 text-blue-600 shrink-0" />
-                        <span>Alterar Frete</span>
+                        <Package className="w-4 h-4 text-sky-600 shrink-0" />
+                        <span>Rastrear Envio</span>
                       </button>
                     )}
 
-                    {/* Ação 6: Imprimir Etiqueta (APENAS se houver link_etiqueta gravado ou ordem emitida) */}
-                    {temEtiquetaEmitida && (
+                    {/* Ação 4: Imprimir Etiqueta (APENAS se já enviado/entregue e houver etiqueta) */}
+                    {emTransitoOuEntregue && temEtiquetaEmitida && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1667,35 +1778,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 7: Rastrear Envio (APENAS se houver codigo_rastreio ou link de rastreamento) */}
-                    {temRastreio && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModalOpcoesPedido(false);
-                          if (ehMelhorEnvio) {
-                            setPedidoRastreioModal(pedidoSelecionado);
-                          } else if (ehCorreios) {
-                            if (codigoRastreio) {
-                              try { navigator.clipboard.writeText(codigoRastreio); } catch {}
-                            }
-                            mostrarToast('Código copiado! Abrindo Correios.');
-                            window.open('https://rastreamento.correios.com.br/app/index.php', '_blank');
-                          } else if (ehTransportadoraPrivada) {
-                            handleRastrearTransportadora(pedidoSelecionado);
-                          } else if (linkRastreio) {
-                            window.open(linkRastreio, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
-                      >
-                        <Package className="w-4 h-4 text-sky-600 shrink-0" />
-                        <span>Rastrear Envio</span>
-                      </button>
-                    )}
-
-                    {/* Ação 8: Declaração de Conteúdo (apenas se envio já gerado e Melhor Envio) */}
-                    {envioGerado && ehMelhorEnvio && (
+                    {/* Ação 5: Declaração de Conteúdo (APENAS se já enviado e Melhor Envio) */}
+                    {emTransitoOuEntregue && ehMelhorEnvio && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1710,8 +1794,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 9: Etiqueta HUBI (apenas se envio já gerado e não retirada) */}
-                    {envioGerado && !isRetirada && (
+                    {/* Ação 6: Etiqueta HUBI (APENAS se já enviado e não retirada) */}
+                    {emTransitoOuEntregue && !isRetirada && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1725,7 +1809,35 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 10: Alterar Vendedor (se não cancelado e não concluído) */}
+                    {/* Ação 7: Recibo (sempre disponível, fecha opções e abre Recibo oficial) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalOpcoesPedido(false);
+                        setPedidoReciboModal(pedidoSelecionado);
+                      }}
+                      className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                    >
+                      <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Recibo</span>
+                    </button>
+
+                    {/* Ação 8: Alterar Frete (apenas se não cancelado, não concluído e ainda não despachado) */}
+                    {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && !emTransitoOuEntregue && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          setModalDefinirEnvioAberto(true);
+                        }}
+                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                      >
+                        <Truck className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Alterar Frete</span>
+                      </button>
+                    )}
+
+                    {/* Ação 9: Alterar Vendedor (se não cancelado e não concluído) */}
                     {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
                       <button
                         type="button"
@@ -1740,7 +1852,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 11: Editar Pedido (apenas se podeEditarPedido) */}
+                    {/* Ação 10: Editar Pedido (apenas se podeEditarPedido) */}
                     {podeEditarPedido(pedidoSelecionado) && (
                       <button
                         type="button"
@@ -1756,7 +1868,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 12: Cancelar Pedido (ao final, em tom vermelho suave) */}
+                    {/* Ação 11: Cancelar Pedido (ao final, em tom vermelho suave) */}
                     {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
                       <button
                         type="button"
@@ -1938,6 +2050,53 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             onClienteAtualizado(c);
             if (onRecarregar) onRecarregar();
           }}
+        />
+
+        {/* MODAL OFICIAL DE RECIBO DO PEDIDO (REUTILIZADO DO DESKTOP) */}
+        <ReciboPedidoModal
+          isOpen={Boolean(pedidoReciboModal)}
+          pedido={pedidoReciboModal}
+          loja={loja}
+          onClose={() => setPedidoReciboModal(null)}
+        />
+
+        {/* MODAL DE RASTREAMENTO DE ENVIOS (CORREIOS / MELHOR ENVIO) */}
+        <ModalRastreioPedido
+          isOpen={Boolean(pedidoRastreioModal)}
+          onClose={() => setPedidoRastreioModal(null)}
+          pedido={pedidoRastreioModal}
+          entrega={entregaPedido}
+          loja={loja}
+          onAtualizarStatus={() => {
+            if (onRecarregar) onRecarregar();
+          }}
+        />
+
+        {/* MODAL DE IMPRESSÃO DE ETIQUETA DE ENVIO */}
+        {pedidoEtiquetaModal && loja && (
+          <ModalImprimirEtiqueta
+            isOpen={Boolean(pedidoEtiquetaModal)}
+            onClose={() => setPedidoEtiquetaModal(null)}
+            pedido={pedidoEtiquetaModal}
+            loja={loja}
+            entrega={entregaPedido}
+          />
+        )}
+
+        {/* MODAL DEFINIR / ALTERAR ENVIO DO PEDIDO (MOBILE) */}
+        <ModalDefinirEnvio
+          isOpen={modalDefinirEnvioAberto && Boolean(pedidoSelecionado)}
+          pedido={pedidoSelecionado}
+          loja={loja}
+          usuario={usuario}
+          onClose={() => setModalDefinirEnvioAberto(false)}
+          onSucesso={() => {
+            setModalDefinirEnvioAberto(false);
+            mostrarToast('Envio e entrega atualizados com sucesso!', 'sucesso');
+            if (onRecarregar) onRecarregar();
+          }}
+          onFeedbackSucesso={(msg) => mostrarToast(msg, 'sucesso')}
+          onFeedbackErro={(msg) => mostrarToast(msg, 'erro')}
         />
       </div>
     );
@@ -2524,168 +2683,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         }}
       />
 
-      {/* MODAL NEUTRO DE RECIBO DO PEDIDO (MOBILE) */}
-      {pedidoReciboModal && (() => {
-        const pagInfo = obterDadosPagamentoRecibo(pedidoReciboModal);
-        const subtotalValor = Number(pedidoReciboModal.subtotal || pedidoReciboModal.valor_total || 0);
-        const descontoValor = Number(pedidoReciboModal.valor_desconto || 0);
-        const freteValor = Number(pedidoReciboModal.valor_frete || 0);
-        const totalValor = Number(pedidoReciboModal.valor_total || 0);
-
-        return (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in">
-            <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
-              {/* Topo Neutro: Sem banner verde de 'Venda Concluída' */}
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center">
-                    <Receipt className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-800">
-                      Comprovante da Venda #{pedidoReciboModal.numero_pedido}
-                    </h3>
-                    <p className="text-[10px] text-slate-500">Recibo oficial do pedido</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPedidoReciboModal(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Corpo do Recibo Fiel e Formatado */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-8 space-y-3 font-mono text-xs text-slate-900 custom-scrollbar">
-                {/* Cabeçalho Estabelecimento */}
-                <div className="text-center space-y-0.5 border-b border-slate-200 border-dashed pb-2.5">
-                  <h4 className="font-black text-sm uppercase">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
-                  <p className="text-[10px] text-slate-500">
-                    {[loja?.endereco_logradouro, loja?.endereco_numero, loja?.endereco_bairro, loja?.endereco_cidade].filter(Boolean).join(', ')}
-                  </p>
-                  <p className="text-[10px] text-slate-500">
-                    {loja?.whatsapp ? `+55 ${loja.whatsapp}` : (loja?.telefone || '')}
-                  </p>
-                </div>
-
-                {/* Info Venda */}
-                <div className="flex justify-between items-center text-[10px] text-slate-500 border-b border-slate-200 border-dashed pb-2">
-                  <span className="font-bold text-slate-800">PEDIDO #{pedidoReciboModal.numero_pedido}</span>
-                  <span>{formatarDataRecibo(pedidoReciboModal.data_venda || pedidoReciboModal.criado_em)}</span>
-                </div>
-
-                {/* Cliente */}
-                <div className="space-y-0.5 border-b border-slate-200 border-dashed pb-2 text-[10px]">
-                  <span className="text-slate-400">Cliente:</span>
-                  <p className="font-bold text-slate-800">{pedidoReciboModal.cliente?.nome || pedidoReciboModal.cliente_nome_avulso || 'Cliente Balcão'}</p>
-                </div>
-
-                {/* Itens */}
-                <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2.5">
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
-                    <span>Item</span>
-                    <span>Qtd x Unit</span>
-                    <span>Total</span>
-                  </div>
-                  {pedidoReciboModal.itens?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-[11px] py-0.5">
-                      <span className="truncate max-w-[130px] font-medium">{item.nome_produto || item.produto?.nome}</span>
-                      <span className="text-slate-500 text-[10px]">{item.quantidade}x {Number(item.preco_unitario || item.preco_venda_unitario || 0).toFixed(2)}</span>
-                      <span className="font-bold">R$ {Number(item.subtotal).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Totais com Linha de Frete Explicita */}
-                <div className="space-y-1 text-xs pt-1 border-b border-slate-200 border-dashed pb-2.5">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Subtotal:</span>
-                    <span>R$ {subtotalValor.toFixed(2)}</span>
-                  </div>
-
-                  {descontoValor > 0 && (
-                    <div className="flex justify-between text-rose-600 font-bold">
-                      <span>Desconto:</span>
-                      <span>- R$ {descontoValor.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between text-slate-500">
-                    <span>Valor do Frete:</span>
-                    <span className={freteValor === 0 ? 'text-emerald-600 font-medium' : ''}>
-                      {freteValor > 0 ? `R$ ${freteValor.toFixed(2)}` : 'Grátis'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-sm font-black text-slate-900 pt-1 border-t border-slate-200">
-                    <span>TOTAL:</span>
-                    <span>R$ {totalValor.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Status e Pagamento */}
-                <div className={`p-2 rounded-xl border text-[11px] ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-600 uppercase text-[10px]">Pagamento:</span>
-                    <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ações do Recibo: Térmica 58mm/80mm, A4 e WhatsApp Livre */}
-              <div className="p-3 bg-slate-50 border-t border-slate-100 space-y-2 shrink-0">
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, '58mm')}
-                    className="py-2.5 px-1 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>58mm</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, '80mm')}
-                    className="py-2.5 px-1 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>80mm</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => PrintService.printReceipt(pedidoReciboModal, loja, 'a4')}
-                    className="py-2.5 px-1 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-slate-500" />
-                    <span>A4 (PDF)</span>
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (loja && pedidoReciboModal) {
-                      const msg = PrintService.generateWhatsAppMessage(pedidoReciboModal, loja);
-                      // Protocolo livre: whatsapp://send?text=... sem fixar o phone=
-                      PrintService.openWhatsApp('', msg);
-                    }
-                  }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-98"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>Compartilhar no WhatsApp</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* MODAL OFICIAL DE RECIBO DO PEDIDO (REUTILIZADO DO DESKTOP) */}
+      <ReciboPedidoModal
+        isOpen={Boolean(pedidoReciboModal)}
+        pedido={pedidoReciboModal}
+        loja={loja}
+        onClose={() => setPedidoReciboModal(null)}
+      />
 
       {/* MODAL DE RASTREAMENTO DE ENVIOS (CORREIOS / MELHOR ENVIO) */}
       <ModalRastreioPedido
