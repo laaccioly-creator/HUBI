@@ -25,18 +25,36 @@ export const ReciboPublico: React.FC = () => {
   const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
   const reciboRef = useRef<HTMLDivElement>(null);
 
-  // Forçar modo claro na rota pública do recibo
+  // Forçar modo claro irrestrito na rota pública do recibo
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
     const estavaDark = root.classList.contains('dark') || body.classList.contains('dark');
+    const estavaLight = root.classList.contains('light');
 
     root.classList.remove('dark');
+    root.classList.add('light');
+    root.style.colorScheme = 'light';
     body.classList.remove('dark');
+    body.classList.add('light');
+    body.style.backgroundColor = '#f1f5f9';
+    body.style.color = '#0f172a';
 
     return () => {
+      body.style.backgroundColor = '';
+      body.style.color = '';
       if (estavaDark) {
         root.classList.add('dark');
+        root.classList.remove('light');
+        root.style.colorScheme = 'dark';
+        body.classList.add('dark');
+        body.classList.remove('light');
+      } else if (estavaLight) {
+        root.classList.add('light');
+        root.classList.remove('dark');
+        root.style.colorScheme = 'light';
+        body.classList.add('light');
+        body.classList.remove('dark');
       }
     };
   }, []);
