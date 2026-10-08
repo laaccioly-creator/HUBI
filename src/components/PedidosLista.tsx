@@ -2358,6 +2358,7 @@ export const PedidosLista: React.FC = () => {
           onAbrirDrawerMenu={() => {}}
           onClienteAtualizado={() => carregarPedidos()}
           onRecarregar={carregarPedidos}
+          onDespacharPedido={handleDespacharPedido}
         />
       </div>
 
