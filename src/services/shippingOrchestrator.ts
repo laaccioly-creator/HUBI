@@ -837,6 +837,23 @@ export class ShippingOrchestrator {
       })
       .eq('id', pedido.id);
 
+    // Auditoria de despacho em historico_pedidos
+    try {
+      await supabase.from('historico_pedidos').insert({
+        loja_id: loja.id,
+        pedido_id: pedido.id,
+        usuario_id: usuarioId || null,
+        tipo_evento: 'despachado',
+        status_anterior: pedDbUber?.status || pedido.status,
+        status_novo: statusDestinoUber,
+        descricao: `Envio registrado via Uber Direct - Corrida ${resultado.delivery_id}${resultado.pin_entrega ? ` (PIN: ${resultado.pin_entrega})` : ''}`,
+        motivo: 'Despacho solicitado via Uber Direct',
+        criado_em: despachadoEm
+      });
+    } catch (errHist) {
+      console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (Uber Direct):', errHist);
+    }
+
     return resultado;
   }
 
@@ -903,6 +920,25 @@ export class ShippingOrchestrator {
         })
         .eq('id', pedido.id);
 
+      // Auditoria de despacho em historico_pedidos
+      const codRast = resultado.codigo_rastreio || pedido.codigo_rastreio || 'Gerado';
+      const transpNome = resultado.transportadora || (pedido as any)?.nome_transportadora || 'Melhor Envio';
+      try {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: loja.id,
+          pedido_id: pedido.id,
+          usuario_id: usuarioId || null,
+          tipo_evento: 'despachado',
+          status_anterior: pedDbME?.status || pedido.status,
+          status_novo: statusDestinoME,
+          descricao: `Envio registrado via Melhor Envio (${transpNome}) - Rastreio ${codRast}`,
+          motivo: 'Despacho gerado via Melhor Envio',
+          criado_em: despachadoEm
+        });
+      } catch (errHist) {
+        console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (Melhor Envio):', errHist);
+      }
+
       return resultado;
     } catch (err: any) {
       console.error('[MelhorEnvio-Front] Falha detalhada:', err);
@@ -950,6 +986,26 @@ export class ShippingOrchestrator {
         atualizado_em: despachadoEm
       })
       .eq('id', pedidoId);
+
+    // Auditoria de despacho em historico_pedidos
+    try {
+      const { data: pedAtual } = await supabase.from('pedidos').select('loja_id, status').eq('id', pedidoId).maybeSingle();
+      if (pedAtual?.loja_id) {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: pedAtual.loja_id,
+          pedido_id: pedidoId,
+          usuario_id: usuarioId || null,
+          tipo_evento: 'despachado',
+          status_anterior: pedDb?.status || pedAtual.status,
+          status_novo: statusDestinoProprio,
+          descricao: `Envio registrado via Frete Próprio${entregadorNome ? ` - Entregador: ${entregadorNome}` : ''}`,
+          motivo: 'Despacho com entregador da loja',
+          criado_em: despachadoEm
+        });
+      }
+    } catch (errHist) {
+      console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (Frete Próprio):', errHist);
+    }
   }
 
   /**
@@ -987,6 +1043,26 @@ export class ShippingOrchestrator {
         atualizado_em: agora
       })
       .eq('id', pedidoId);
+
+    // Auditoria de despacho em historico_pedidos
+    try {
+      const { data: pedAtual } = await supabase.from('pedidos').select('loja_id, status').eq('id', pedidoId).maybeSingle();
+      if (pedAtual?.loja_id) {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: pedAtual.loja_id,
+          pedido_id: pedidoId,
+          usuario_id: usuarioLojaId || null,
+          tipo_evento: 'despachado',
+          status_anterior: pedDb?.status || pedAtual.status,
+          status_novo: statusDestinoManual,
+          descricao: 'Despacho manual forçado no sistema',
+          motivo: 'Ação administrativa de despacho',
+          criado_em: agora
+        });
+      }
+    } catch (errHist) {
+      console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (Forçar Despacho):', errHist);
+    }
   }
 
   /**
@@ -1605,6 +1681,33 @@ export class ShippingOrchestrator {
         atualizado_em: despachadoEm
       })
       .eq('id', pedidoId);
+
+    // Auditoria de despacho em historico_pedidos
+    try {
+      const { data: pedAtual } = await supabase.from('pedidos').select('loja_id, status').eq('id', pedidoId).maybeSingle();
+      if (pedAtual?.loja_id) {
+        const modo = dados.tipoOperacao === 'transportadora'
+          ? `Transportadora (${dados.nomeTransportadora || 'Manual'})`
+          : dados.tipoOperacao === 'app_entrega'
+          ? `App de Corrida (${dados.nomeApp || 'Manual'})`
+          : dados.tipoOperacao === 'correios'
+          ? `Correios (${dados.servicoCorreios || 'Manual'})`
+          : 'Entrega Manual';
+        await supabase.from('historico_pedidos').insert({
+          loja_id: pedAtual.loja_id,
+          pedido_id: pedidoId,
+          usuario_id: dados.usuarioId || null,
+          tipo_evento: 'despachado',
+          status_anterior: pedDb?.status || pedAtual.status,
+          status_novo: statusDestinoTransp,
+          descricao: `Envio registrado via ${modo}${dados.entregadorNome ? ` - Entregador: ${dados.entregadorNome}` : ''}${dados.codigoRastreio ? ` - Rastreio: ${dados.codigoRastreio}` : ''}`,
+          motivo: 'Despacho registrado manualmente no sistema',
+          criado_em: despachadoEm
+        });
+      }
+    } catch (errHist) {
+      console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (Entrega Manual):', errHist);
+    }
   }
 
   /**

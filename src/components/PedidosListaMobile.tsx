@@ -159,7 +159,7 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
 
   const vistos = new Set<string>();
   const itensUnicos = itens.filter(item => {
-    const chave = `${item.data}_${item.status}_${item.usuario}`;
+    const chave = `${item.data}_${item.status}_${item.usuario}_${item.detalhes || ''}`;
     if (vistos.has(chave)) return false;
     vistos.add(chave);
     return true;
@@ -246,6 +246,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       return;
     }
     const pe = ped.pedido_entrega || entregaPedido;
+    const linkJaSalvo = String((pe as any)?.link_etiqueta || (ped as any)?.link_etiqueta || (pe as any)?.etiqueta_url || (ped as any)?.etiqueta_url || '').trim();
+    if (linkJaSalvo && !linkJaSalvo.includes('/painel/') && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
+      window.open(linkJaSalvo, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     const ordemId = pe?.servico_codigo || (ped as any)?.servico_codigo || (ped.codigo_rastreio?.startsWith('ORD-') ? ped.codigo_rastreio : undefined);
 
     setGerandoEtiquetaOficial(true);
@@ -1764,7 +1770,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
-                          if (linkEtiqueta) {
+                          if (linkEtiqueta && !linkEtiqueta.includes('/painel/') && (linkEtiqueta.startsWith('http://') || linkEtiqueta.startsWith('https://'))) {
                             window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
                           } else {
                             handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado);
@@ -1778,23 +1784,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 5: Declaração de Conteúdo (APENAS se já enviado e Melhor Envio) */}
-                    {emTransitoOuEntregue && ehMelhorEnvio && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModalOpcoesPedido(false);
-                          handleImprimirDeclaracaoConteudoMelhorEnvio(pedidoSelecionado);
-                        }}
-                        disabled={gerandoEtiquetaOficial}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
-                      >
-                        <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-                        <span>Declaração de Conteúdo</span>
-                      </button>
-                    )}
-
-                    {/* Ação 6: Etiqueta HUBI (APENAS se já enviado e não retirada) */}
+                    {/* Ação 5: Etiqueta HUBI (APENAS se já enviado e não retirada) */}
                     {emTransitoOuEntregue && !isRetirada && (
                       <button
                         type="button"
@@ -1809,7 +1799,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 7: Recibo (sempre disponível, fecha opções e abre Recibo oficial) */}
+                    {/* Ação 6: Recibo (sempre disponível, fecha opções e abre Recibo oficial) */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1822,8 +1812,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       <span>Recibo</span>
                     </button>
 
-                    {/* Ação 8: Alterar Frete (apenas se não cancelado, não concluído e ainda não despachado) */}
-                    {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && !emTransitoOuEntregue && (
+                    {/* Ação 7: Alterar Frete (sempre presente para pedidos não cancelados e não concluídos) */}
+                    {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
                       <button
                         type="button"
                         onClick={() => {

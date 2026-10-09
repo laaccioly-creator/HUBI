@@ -746,7 +746,7 @@ export const PedidosLista: React.FC = () => {
     // Remove duplicatas exatas se houver sobreposição entre tabela e metadados antigos
     const vistos = new Set<string>();
     const itensUnicos = itens.filter(item => {
-      const chave = `${item.data}_${item.status}_${item.usuario}`;
+      const chave = `${item.data}_${item.status}_${item.usuario}_${item.detalhes || ''}`;
       if (vistos.has(chave)) return false;
       vistos.add(chave);
       return true;
@@ -754,11 +754,11 @@ export const PedidosLista: React.FC = () => {
 
     const ordenados = itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 
-    // Não permitir transições consecutivas repetidas para o mesmo status (ex: múltiplos 'entregue')
+    // Não permitir transições consecutivas repetidas para o mesmo status quando não há observação distinta
     return ordenados.filter((item, idx, arr) => {
       if (idx === 0) return true;
       const anterior = arr[idx - 1];
-      if (item.tipo === 'status' && anterior.tipo === 'status' && item.status === anterior.status) {
+      if (item.tipo === 'status' && anterior.tipo === 'status' && item.status === anterior.status && (!item.detalhes || item.detalhes === anterior.detalhes)) {
         return false;
       }
       return true;
@@ -2784,16 +2784,6 @@ export const PedidosLista: React.FC = () => {
                               >
                                 <Package className="w-4 h-4" />
                                 <span>Rastrear</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleImprimirDeclaracaoConteudoMelhorEnvio(pedidoSelecionado)}
-                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
-                                title="Imprimir Declaração de Conteúdo Oficial"
-                              >
-                                <FileText className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-                                <span>Declaração</span>
                               </button>
 
                               <button

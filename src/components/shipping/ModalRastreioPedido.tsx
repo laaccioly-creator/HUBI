@@ -24,6 +24,7 @@ import { supabase } from '../../services/supabase';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 async function consultarMelhorRastreioGraphQL(codigoRastreio: string) {
   try {
@@ -85,6 +86,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   onImprimirEtiqueta
 }) => {
   const { mostrarSucesso, mostrarToast } = useFeedbackModal();
+  const { usuario } = useAuth();
   const { tema } = useTheme();
   const isDark = tema === 'dark';
   const [copiado, setCopiado] = useState(false);
@@ -225,6 +227,48 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         const evs = Array.isArray(dadosSinc.eventos_rastreio) ? dadosSinc.eventos_rastreio : [];
         setEventosRastreioLocal(evs);
 
+        if (statusMapeadoFinal === 'entregue') {
+          const agora = new Date().toISOString();
+          const lojaId = loja?.id || pedido.loja_id;
+
+          try {
+            if (pedido.status !== 'concluido' && pedido.status !== 'cancelado') {
+              await supabase
+                .from('pedidos')
+                .update({
+                  status: 'entregue',
+                  atualizado_em: agora
+                })
+                .eq('id', pedido.id)
+                .eq('loja_id', lojaId);
+            }
+
+            await supabase
+              .from('pedido_entregas')
+              .update({
+                status_envio: 'entregue',
+                atualizado_em: agora
+              })
+              .eq('pedido_id', pedido.id);
+
+            if (pedido.status !== 'entregue') {
+              await supabase.from('historico_pedidos').insert({
+                loja_id: lojaId,
+                pedido_id: pedido.id,
+                usuario_id: usuario?.id || null,
+                tipo_evento: 'entrega_concluida',
+                status_anterior: pedido.status,
+                status_novo: 'entregue',
+                descricao: `Pedido entregue com sucesso via ${transportadoraObj?.nome || peResolvido?.nome_transportadora || 'Melhor Envio'} (rastreamento sincronizado)`,
+                motivo: 'Entrega confirmada pelo rastreamento oficial',
+                criado_em: agora
+              });
+            }
+          } catch (errDb) {
+            console.warn('[ModalRastreioPedido] Aviso ao persistir entrega no banco:', errDb);
+          }
+        }
+
         if (!silencioso) {
           if (evs.length === 0 && statusMapeadoFinal !== 'entregue') {
             mostrarToast('Aguardando primeira postagem ou atualização na agência.', 'info');
@@ -256,7 +300,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         setTimeout(() => setMensagemFeedback(null), 4000);
       }
     }
-  }, [pedido?.id, pedido?.loja_id, pedido?.codigo_rastreio, loja?.id, codigoRastreioLocal, peResolvido?.codigo_rastreio, onAtualizarStatus, mostrarSucesso, mostrarToast]);
+  }, [pedido?.id, pedido?.loja_id, pedido?.codigo_rastreio, pedido?.status, loja?.id, codigoRastreioLocal, peResolvido?.codigo_rastreio, peResolvido?.nome_transportadora, transportadoraObj?.nome, usuario?.id, onAtualizarStatus, mostrarSucesso, mostrarToast]);
 
   // Sincroniza estados reativos locais apenas quando os identificadores das props mudarem
   React.useEffect(() => {
@@ -441,7 +485,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
   const ehPostado = Boolean(evPostado) || (Boolean(dataPostagemLocal) && temEventosReais) || ehTransito;
 
   // Definição das etapas da linha do tempo
-  const etapas = (ehCorreios && !temEventosReais) ? [
+  const etapas = (ehCorreios && !temEventosReais && !ehEntregue) ? [
     {
       id: 'criado',
       titulo: 'Pedido Realizado & Confirmado',
@@ -496,8 +540,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
       titulo: 'Etiqueta Emitida & Despachado',
       descricao: `Envio gerado via ${transportadora}`,
       data: evEtiqueta?.data || despachadoEm,
-      concluido: Boolean(despachadoEm || statusEnvio !== 'pendente' || evEtiqueta),
-      ativo: statusEnvio === 'pendente' && !despachadoEm
+      concluido: Boolean(despachadoEm || statusEnvio !== 'pendente' || evEtiqueta || ehEntregue),
+      ativo: statusEnvio === 'pendente' && !despachadoEm && !ehEntregue
     },
     {
       id: 'postado',
@@ -506,8 +550,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         ? (evPostado?.descricao || (evPostado?.local ? `Postado na agência (${evPostado.local})` : 'Objeto recebido e postado na agência'))
         : 'Pacote conferido e recebido pela transportadora',
       data: evPostado?.data || (ehPostado ? dataPostagemLocal : null),
-      concluido: ehPostado,
-      ativo: statusEnvio === 'postado' || (statusEnvio === 'despachado' && !ehTransito)
+      concluido: ehPostado || ehEntregue,
+      ativo: (statusEnvio === 'postado' || (statusEnvio === 'despachado' && !ehTransito)) && !ehEntregue
     },
     {
       id: 'transito',
@@ -516,8 +560,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         ? (evTransito?.descricao || 'Transferência entre centros operacionais dos Correios')
         : 'Transferência entre centros operacionais e de distribuição',
       data: evTransito?.data || null,
-      concluido: ehTransito,
-      ativo: statusEnvio === 'em_transito'
+      concluido: ehTransito || ehEntregue,
+      ativo: statusEnvio === 'em_transito' && !ehEntregue
     },
     {
       id: 'saiu_entrega',
@@ -526,8 +570,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         ? (evSaiu?.descricao || 'Carteiro dos Correios a caminho do endereço de entrega')
         : 'Motorista ou carteiro a caminho do endereço de entrega',
       data: evSaiu?.data || null,
-      concluido: ehSaiu,
-      ativo: statusEnvio === 'saiu_para_entrega'
+      concluido: ehSaiu || ehEntregue,
+      ativo: statusEnvio === 'saiu_para_entrega' && !ehEntregue
     },
     {
       id: 'entregue',
@@ -654,18 +698,6 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           </div>
         )}
 
-        {/* Alerta Realista para Correios sem movimentação registrada */}
-        {ehCorreios && !temEventosReais && (
-          <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-300 flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-bold block text-amber-200">Aguardando Atualização dos Correios</span>
-              <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                Aguardando postagem ou primeira atualização dos Correios.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Linha do Tempo (Stepper) */}
         <div className="space-y-4 pt-1">
