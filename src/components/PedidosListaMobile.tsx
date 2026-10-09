@@ -165,7 +165,7 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => 
     return true;
   });
 
-  return itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  return itensUnicos.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 };
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
@@ -230,6 +230,31 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       setPedidoSelecionado(pedidoSelecionadoInicial);
     }
   }, [pedidoSelecionadoInicial]);
+
+  // Sincronização reativa instantânea do pedido aberto com a lista de pedidos
+  useEffect(() => {
+    if (pedidoSelecionado) {
+      const match = pedidos.find(p => p.id === pedidoSelecionado.id);
+      if (match) {
+        setPedidoSelecionado(prev => {
+          if (!prev) return match;
+          return {
+            ...prev,
+            ...match,
+            status: match.status,
+            status_pagamento: match.status_pagamento,
+            valor_pago: match.valor_pago,
+            saldo_devedor: match.saldo_devedor,
+            valor_total: match.valor_total,
+            pagamentos: match.pagamentos || prev.pagamentos,
+            historico: match.historico || prev.historico,
+            pedido_entrega: match.pedido_entrega || prev.pedido_entrega,
+            ...((match as any)?.pedido_entregas ? { pedido_entregas: (match as any).pedido_entregas } : {})
+          };
+        });
+      }
+    }
+  }, [pedidos]);
   const [clientePerfilSelecionado, setClientePerfilSelecionado] = useState<Cliente | null>(null);
   const [drawerInternoAberto, setDrawerInternoAberto] = useState<boolean>(false);
   const [clienteHistoricoFiadoModal, setClienteHistoricoFiadoModal] = useState<Cliente | null>(null);
@@ -239,6 +264,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
   const [gerandoEtiquetaOficial, setGerandoEtiquetaOficial] = useState<boolean>(false);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
+  const [modalConfirmarCancelamentoAberto, setModalConfirmarCancelamentoAberto] = useState<boolean>(false);
 
   const handleImprimirEtiquetaOficialMelhorEnvio = async (ped: Pedido) => {
     if (!loja?.id) {
@@ -247,7 +273,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     }
     const pe = ped.pedido_entrega || entregaPedido;
     const linkJaSalvo = String((pe as any)?.link_etiqueta || (ped as any)?.link_etiqueta || (pe as any)?.etiqueta_url || (ped as any)?.etiqueta_url || '').trim();
-    if (linkJaSalvo && !linkJaSalvo.includes('/painel/') && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
+    
+    // Evita links do painel administrativo ou páginas de login do Melhor Envio
+    const ehLinkLoginOuPainel = linkJaSalvo.includes('/painel') || linkJaSalvo.includes('/portal') || linkJaSalvo.includes('/login');
+    const ehPdfOuPublico = (linkJaSalvo.endsWith('.pdf') || linkJaSalvo.includes('/print') || linkJaSalvo.includes('storage') || linkJaSalvo.includes('public')) && !ehLinkLoginOuPainel;
+
+    if (linkJaSalvo && ehPdfOuPublico && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
       window.open(linkJaSalvo, '_blank', 'noopener,noreferrer');
       return;
     }
@@ -1219,17 +1250,21 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 </div>
               ) : (
                 itensPedido.map((item: any, idx: number) => (
-                  <div key={item.id || idx} className="pt-2 first:pt-0 flex items-center justify-between">
-                    <div className="space-y-0.5 max-w-[220px]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-700 text-xs">{item.quantidade} x</span>
-                        <span className="font-bold text-xs uppercase text-slate-800 truncate">{item.nome_produto}</span>
+                  <div key={item.id || idx} className="pt-2 first:pt-0 flex items-center justify-between gap-2.5">
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-black text-slate-700 text-xs shrink-0 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded-md">
+                          {item.quantidade}x
+                        </span>
+                        <span className="font-bold text-xs uppercase text-slate-800 truncate block flex-1 min-w-0" title={item.nome_produto}>
+                          {item.nome_produto}
+                        </span>
                       </div>
                       {item.rotulo_variacao && (
-                        <span className="text-[10px] text-slate-400 block">Var: {item.rotulo_variacao}</span>
+                        <span className="text-[10px] text-slate-400 block truncate">Var: {item.rotulo_variacao}</span>
                       )}
                     </div>
-                    <span className="font-black text-xs text-slate-900">
+                    <span className="font-black text-xs text-slate-900 shrink-0 whitespace-nowrap">
                       R$ {Number(item.subtotal || (Number(item.preco_venda_unitario || 0) * Number(item.quantidade || 1))).toFixed(2)}
                     </span>
                   </div>
@@ -1439,11 +1474,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         </div>
 
         {/* Rodapé e Ações Inferiores (TELA005) */}
-        <div className="p-3 border-t border-slate-200 bg-white space-y-2 shrink-0">
-          <div className="text-[10px] text-slate-400 text-center">
-            ATENÇÃO: Aproveite para editar o pedido antes de confirmá-lo.
-          </div>
-
+        <div className="p-3 border-t border-slate-200 bg-white shrink-0">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1935,8 +1966,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
-                          onCancelarPedido(pedidoSelecionado);
-                          setPedidoSelecionado(null);
+                          setModalConfirmarCancelamentoAberto(true);
                         }}
                         className="w-full h-11 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs flex items-center gap-2.5 border border-rose-200/50 transition text-left cursor-pointer active:scale-98"
                       >
@@ -1947,6 +1977,49 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE CONFIRMAÇÃO DEFENSIVO PARA CANCELAMENTO DE PEDIDO */}
+        {modalConfirmarCancelamentoAberto && pedidoSelecionado && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900 border border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Cancelar Pedido #{pedidoSelecionado.numero_pedido}</h3>
+                  <span className="text-[11px] text-slate-400">Confirmação obrigatória</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-200/80 text-rose-800 text-xs leading-relaxed font-medium">
+                Tem certeza de que deseja cancelar este pedido? Esta ação não pode ser desfeita e os itens retornarão ao estoque.
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setModalConfirmarCancelamentoAberto(false)}
+                  className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalConfirmarCancelamentoAberto(false);
+                    onCancelarPedido(pedidoSelecionado);
+                    setPedidoSelecionado(null);
+                    mostrarToast('Pedido cancelado com sucesso!', 'sucesso');
+                  }}
+                  className="flex-1 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition cursor-pointer shadow-md active:scale-95"
+                >
+                  Sim, Cancelar
+                </button>
+              </div>
             </div>
           </div>
         )}

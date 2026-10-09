@@ -489,6 +489,16 @@ export class PrintService {
             <h2 style="margin: 0; font-size: ${isA4 ? '20px' : '16px'}; font-weight: 700; color: #334155; letter-spacing: 0.5px;">
               RECIBO #${pedido.numero_pedido}
             </h2>
+            ${pedido.status === 'cancelado' ? `
+            <div style="display: inline-block; margin-top: 8px; padding: 6px 14px; border: 2px dashed #e11d48; background: #fff1f2; border-radius: 8px; text-align: center;">
+              <span style="color: #e11d48; font-weight: 900; font-size: ${isA4 ? '16px' : '13px'}; letter-spacing: 1.5px; text-transform: uppercase; display: block;">
+                PEDIDO CANCELADO
+              </span>
+              <span style="color: #be123c; font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; text-transform: uppercase; display: block; margin-top: 2px;">
+                Venda anulada no sistema
+              </span>
+            </div>
+            ` : ''}
           </div>
 
           <!-- Informações da Loja -->
@@ -908,6 +918,12 @@ export class PrintService {
     text += `RECIBO #${pedido.numero_pedido}\n`;
     text += `${(loja.nome_fantasia || 'HUBI').toUpperCase()}\n`;
     text += '\x1B\x45\x00'; // Bold OFF
+    if (pedido.status === 'cancelado') {
+      text += '\x1B\x45\x01'; // Bold ON
+      text += `*** PEDIDO CANCELADO ***\n`;
+      text += `(VENDA ANULADA NO SISTEMA)\n`;
+      text += '\x1B\x45\x00'; // Bold OFF
+    }
     if (loja.telefone || loja.whatsapp) text += `Tel/Whats: ${loja.whatsapp || loja.telefone}\n`;
     if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
     text += divider;

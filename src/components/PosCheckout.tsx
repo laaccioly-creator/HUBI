@@ -2012,31 +2012,16 @@ export const PosCheckout: React.FC = () => {
       }`}>
         {/* Header do Carrinho & Seleção de Cliente */}
         <div className={`p-3.5 border-b space-y-2.5 ${isDark ? 'border-slate-800' : 'border-[#E2E8F0]'}`}>
-          {/* Seletor de Status e Fechar X ao Editar Pedido */}
+          {/* Identificação de Modo Edição de Pedido */}
           {pedidoEmEdicao && (
-            <div className={`p-2 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in border ${
-              isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+            <div className={`p-2 px-3 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in border ${
+              isDark ? 'bg-emerald-950/40 border-emerald-500/30' : 'bg-emerald-50/80 border-emerald-200'
             }`}>
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className={`text-[11px] font-semibold shrink-0 ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>Status:</span>
-                <select
-                  value={pedidoEmEdicao.status || 'pendente'}
-                  onChange={(e) => {
-                    const st = e.target.value;
-                    if (isStatusPedidoAtivo(st, loja) || st === pedidoEmEdicao.status) {
-                      atualizarStatusPedidoEmEdicao(st);
-                    }
-                  }}
-                  className={`flex-1 border text-emerald-500 font-bold text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer capitalize ${
-                    isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-[#CBD5E1]'
-                  }`}
-                >
-                  {opcoesStatusPdv.map((op) => (
-                    <option key={op.id} value={op.id}>
-                      {op.label}
-                    </option>
-                  ))}
-                </select>
+                <span className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0`} />
+                <span className={`text-xs font-bold truncate ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                  Editando Pedido #{pedidoEmEdicao.numero_pedido}
+                </span>
               </div>
               <button
                 type="button"

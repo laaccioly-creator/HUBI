@@ -230,6 +230,18 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               <span>{formatarData(pedido.data_venda || pedido.criado_em || '')}</span>
             </div>
 
+            {/* Carimbo Visual de Destaque PEDIDO CANCELADO */}
+            {pedido.status === 'cancelado' && (
+              <div className="py-2 px-3 border-2 border-dashed border-rose-600 bg-rose-50 text-rose-700 text-center rounded-xl select-none my-1 shadow-xs">
+                <span className="font-black text-sm tracking-widest uppercase block">
+                  PEDIDO CANCELADO
+                </span>
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wide block mt-0.5">
+                  Venda anulada no sistema
+                </span>
+              </div>
+            )}
+
             {/* Vendedor / Canal (Antes do Cliente) */}
             <div className="space-y-0.5 border-b border-slate-200 border-dashed pb-2 text-[11px]">
               <span className="text-slate-500 font-semibold">

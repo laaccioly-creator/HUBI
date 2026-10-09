@@ -2355,10 +2355,12 @@ export const PedidosLista: React.FC = () => {
           onAlterarStatus={atualizarStatus}
           onCancelarPedido={(ped) => atualizarStatus(ped.id, 'cancelado')}
           onAbrirReceberPagamento={(ped) => {
+            setPedidoSelecionado(ped);
             setPedidoReceberModal(ped);
             setConcluirAposReceber(true);
           }}
           onAbrirReceberFiado={(ped) => {
+            setPedidoSelecionado(ped);
             setPedidoReceberFiadoModal(ped);
           }}
           onAbrirDrawerMenu={() => {}}
@@ -4325,7 +4327,7 @@ export const PedidosLista: React.FC = () => {
         onPagamentoConcluido={(pedidoAtualizado) => {
           setPedidoReceberModal(null);
           setConcluirAposReceber(false);
-          if (pedidoAtualizado && pedidoSelecionado?.id === pedidoAtualizado.id) {
+          if (pedidoAtualizado) {
             setPedidoSelecionado(pedidoAtualizado);
           }
           carregarPedidos();
