@@ -451,6 +451,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Se a opção de envio ainda não foi cotada/selecionada ("A definir"), não aplicar subsídio implícito
+    if (pedidoEntrega.servico_codigo === 'pendente' || pedidoEntrega.transportadora_nome === 'Envio a Definir') {
+      return;
+    }
+
     const freteGratisAtivo = configFreteState.frete_gratis_ativo;
     const valorMinimo = configFreteState.frete_gratis_valor_minimo;
 
@@ -679,7 +684,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPedidoEntrega(fallbackEntrega);
       entregaFinal = fallbackEntrega;
     } else {
-      setPedidoEntrega(null);
+      setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+      entregaFinal = FORMA_ENTREGA_RETIRADA_PADRAO;
     }
     setTaxaEntrega(taxaFinal);
 

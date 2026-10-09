@@ -1920,9 +1920,10 @@ export class ShippingOrchestrator {
     }
 
     // 5. Atualizar snapshot relacional na tabela pedidos (preservando pedidos concluídos ou cancelados)
+    // Regra Rígida: NUNCA transicionar para aguardando_envio sem quitação formal prévia
     const statusDestinoEnvio = (pedAtual?.status === 'concluido' || pedAtual?.status === 'cancelado')
       ? pedAtual.status
-      : 'aguardando_envio';
+      : (pedidoJaPago ? 'aguardando_envio' : 'pendente');
 
     const { error: errPed } = await supabase
       .from('pedidos')

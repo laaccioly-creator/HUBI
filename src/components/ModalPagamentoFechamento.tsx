@@ -12,7 +12,8 @@ import {
   Trash2,
   Save,
   FileText,
-  Truck
+  Truck,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +25,7 @@ import { audioService } from '../services/audioService';
 import { caixaService } from '../services/caixaService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { formatarMoeda, formatarValorBRL } from '../utils/formatters';
+import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
 
 interface MoneyInputProps {
   valor: number;
@@ -138,7 +140,47 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const [erroMsg, setErroMsg] = useState<string | null>(null);
   const [sucessoModal, setSucessoModal] = useState<boolean>(false);
   const [pedidoAtualizado, setPedidoAtualizado] = useState<Pedido | null>(null);
+  const [pedidoLocal, setPedidoLocal] = useState<Pedido | null>(pedido);
+  const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
   const inputPrimeiroValorRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setPedidoLocal(pedido);
+  }, [pedido]);
+
+  const recarregarPedido = async () => {
+    if (!pedido?.id || !loja?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select(`
+          *,
+          cliente:clientes(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+          itens:itens_pedido(*),
+          pedido_entregas(*),
+          pagamentos:pagamentos_pedido(*)
+        `)
+        .eq('loja_id', loja.id)
+        .eq('id', pedido.id)
+        .single();
+
+      if (!error && data) {
+        const pe = Array.isArray(data.pedido_entregas) ? data.pedido_entregas[0] : (data.pedido_entregas || null);
+        const pedidoComEntrega = {
+          ...data,
+          pedido_entrega: pe
+        } as unknown as Pedido;
+        setPedidoLocal(pedidoComEntrega);
+        const nTot = Number(pedidoComEntrega.valor_total || 0);
+        const nPago = Number(pedidoComEntrega.valor_pago || 0);
+        const nSaldo = Math.max(0, Number(pedidoComEntrega.saldo_devedor ?? (nTot - nPago)));
+        setLinhasPagamento(prev => prev.map((l, idx) => idx === 0 ? { ...l, valor: Number(nSaldo.toFixed(2)) } : l));
+      }
+    } catch (e) {
+      console.warn('Erro ao recarregar pedido:', e);
+    }
+  };
 
   const FORMAS_PADRAO: FormaPagamento[] = [
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
@@ -220,9 +262,39 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
   if (!isOpen || !pedido) return null;
 
-  const valorTotal = Number(pedido.valor_total || 0);
-  const valorJaPago = Number(pedido.valor_pago || 0);
-  const saldoDevedorAtual = Math.max(0, Number(pedido.saldo_devedor ?? (valorTotal - valorJaPago)));
+  const pedAtivo = pedidoLocal || pedido;
+  const rawPe = (pedAtivo as any)?.pedido_entrega || (Array.isArray((pedAtivo as any)?.pedido_entregas) ? (pedAtivo as any)?.pedido_entregas[0] : null);
+  const meta = (pedAtivo as any)?.metadados || {};
+  const metaTipo = String(meta.tipo_atendimento || '').toLowerCase();
+  const peTipo = String(rawPe?.tipo_atendimento || '').toLowerCase();
+  const ehEnvio = (
+    peTipo === 'entrega' ||
+    metaTipo === 'entrega' ||
+    (pedAtivo as any)?.tipo_entrega === 'envio' ||
+    (pedAtivo as any)?.tipo_atendimento === 'entrega' ||
+    (Boolean(pedAtivo.endereco_entrega) && peTipo !== 'retirada' && metaTipo !== 'retirada')
+  );
+
+  const isFreteFormalizado = Boolean(
+    !ehEnvio ||
+    (
+      rawPe &&
+      rawPe.servico_codigo &&
+      rawPe.servico_codigo !== 'pendente' &&
+      rawPe.transportadora_nome &&
+      rawPe.transportadora_nome !== 'Envio a Definir'
+    ) ||
+    pedAtivo.forma_entrega_id ||
+    pedAtivo.nome_transportadora ||
+    pedAtivo.codigo_rastreio ||
+    pedAtivo.link_rastreio
+  );
+
+  const freteADefinir = ehEnvio && !isFreteFormalizado;
+
+  const valorTotal = Number(pedAtivo.valor_total || 0);
+  const valorJaPago = Number(pedAtivo.valor_pago || 0);
+  const saldoDevedorAtual = Math.max(0, Number(pedAtivo.saldo_devedor ?? (valorTotal - valorJaPago)));
 
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
@@ -347,6 +419,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const handleConfirmarRecebimento = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroMsg(null);
+
+    if (freteADefinir) {
+      setErroMsg('Para efetuar o pagamento, primeiro é necessário definir a opção de frete.');
+      return;
+    }
 
     const linhasAtivas = linhasPagamento.filter(l => Number(l.valor) > 0);
     if (linhasAtivas.length === 0) {
@@ -865,10 +942,36 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Taxa de Entrega / Frete:</span>
                 </span>
-                <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {Number(pedido.valor_frete || 0) > 0 ? formatarMoeda(Number(pedido.valor_frete || 0)) : 'Grátis'}
-                </span>
+                {freteADefinir ? (
+                  <button
+                    type="button"
+                    onClick={() => setModalDefinirEnvioAberto(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer active:scale-95 shadow-2xs"
+                    title="Definir opções de frete agora"
+                  >
+                    <span>A definir</span>
+                    <span className="text-[11px]">✏️</span>
+                  </button>
+                ) : (
+                  <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {Number(pedAtivo.valor_frete || 0) > 0 ? (
+                      formatarMoeda(Number(pedAtivo.valor_frete || 0))
+                    ) : rawPe?.is_frete_gratis ? (
+                      'Grátis'
+                    ) : (
+                      formatarMoeda(0)
+                    )}
+                  </span>
+                )}
               </div>
+
+              {/* Alerta de Frete a Definir no Fechamento */}
+              {freteADefinir && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Para efetuar o pagamento, primeiro é necessário definir a opção de frete.</span>
+                </div>
+              )}
 
               {/* TOTAL DA VENDA (EM DESTAQUE) */}
               <div className={`pt-2 border-t flex justify-between items-center font-bold text-sm ${
@@ -974,7 +1077,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
               <button
                 type="submit"
-                disabled={processando || salvando || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01}
+                disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01}
                 className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {processando ? (
@@ -991,6 +1094,21 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               </button>
             </div>
           </form>
+        )}
+
+        {/* Modal de Definição de Envio Integrado ao Fechamento */}
+        {modalDefinirEnvioAberto && pedAtivo && (
+          <ModalDefinirEnvio
+            isOpen={modalDefinirEnvioAberto}
+            pedido={pedAtivo}
+            loja={loja}
+            usuario={usuario}
+            onClose={() => setModalDefinirEnvioAberto(false)}
+            onSucesso={async () => {
+              setModalDefinirEnvioAberto(false);
+              await recarregarPedido();
+            }}
+          />
         )}
       </div>
     </div>

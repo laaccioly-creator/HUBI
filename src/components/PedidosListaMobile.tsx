@@ -382,7 +382,28 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
+    const temFiado = (pedido.pagamentos || []).some(
+      (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
+    );
+    if (temFiado && !pedido.fiado_quitado) {
+      return 'fiado';
+    }
+    if (pedido.status_pagamento === 'pago') return 'pago';
+    if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
+    if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
+    if (pedido.status_pagamento) return pedido.status_pagamento;
+    return 'aguardando_pagamento';
+  };
+
   const handleAcionarDespacho = (ped: Pedido) => {
+    const statusPag = resolverStatusPagamento(ped);
+    const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+    if (!estaPagoOuFiado) {
+      mostrarToast('Este pedido possui pagamento pendente. Efetue o recebimento antes de despachar.', 'aviso');
+      onAbrirReceberPagamento(ped);
+      return;
+    }
     if (onDespacharPedido) {
       onDespacharPedido(ped);
     } else {
@@ -1452,105 +1473,130 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <span>Confirmar Pedido</span>
               </button>
             ) : (() => {
-                const pagInfo = obterDadosPagamentoRecibo(pedidoSelecionado);
-                const ehFiado = pagInfo.ehFiado || (pedidoSelecionado.pagamentos || []).some((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
-                return ehFiado && pedidoSelecionado.status === 'confirmado';
-              })() ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  let cli = pedidoSelecionado.cliente_id ? (mapaClientes.get(pedidoSelecionado.cliente_id) || null) : ((pedidoSelecionado.cliente as Cliente) || null);
-                  if (!cli && pedidoSelecionado.cliente_id) {
-                    try {
-                      const { data } = await supabase.from('clientes').select('*').eq('id', pedidoSelecionado.cliente_id).single();
-                      if (data) cli = data as Cliente;
-                    } catch (e) {
-                      console.warn('Erro ao buscar cliente:', e);
-                    }
-                  }
+                const statusPag = resolverStatusPagamento(pedidoSelecionado);
+                const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                const ehFiado = statusPag === 'fiado';
+                const temPagamentoPendente = statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009;
 
-                  if (cli) {
-                    setFiltroHistoricoFiadoModal('a_vencer');
-                    setClienteHistoricoFiadoModal(cli);
-                  } else {
-                    if (onAbrirReceberFiado) {
-                      onAbrirReceberFiado(pedidoSelecionado);
-                    } else {
-                      onAbrirReceberPagamento(pedidoSelecionado);
-                    }
-                  }
-                }}
-                className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
-                title="Receber pagamento do fiado"
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Receber Fiado</span>
-              </button>
-            ) : pedidoSelecionado.status === 'aguardando_envio' ? (
-              (() => {
-                const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
-                const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor;
-                const ehParceiro = prov === 'uber' || prov === 'melhor_envio';
-
-                if (ehParceiro) {
+                // Prioridade 1: Se for fiado com saldo devedor
+                if (ehFiado && saldoDevedor > 0.009) {
                   return (
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <div className="h-11 px-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 font-bold text-[11px] uppercase flex items-center justify-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        let cli = pedidoSelecionado.cliente_id ? (mapaClientes.get(pedidoSelecionado.cliente_id) || null) : ((pedidoSelecionado.cliente as Cliente) || null);
+                        if (!cli && pedidoSelecionado.cliente_id) {
+                          try {
+                            const { data } = await supabase.from('clientes').select('*').eq('id', pedidoSelecionado.cliente_id).single();
+                            if (data) cli = data as Cliente;
+                          } catch (e) {
+                            console.warn('Erro ao buscar cliente:', e);
+                          }
+                        }
+
+                        if (cli) {
+                          setFiltroHistoricoFiadoModal('a_vencer');
+                          setClienteHistoricoFiadoModal(cli);
+                        } else {
+                          if (onAbrirReceberFiado) {
+                            onAbrirReceberFiado(pedidoSelecionado);
+                          } else {
+                            onAbrirReceberPagamento(pedidoSelecionado);
+                          }
+                        }
+                      }}
+                      className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      title="Receber pagamento do fiado"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      <span>Receber Fiado</span>
+                    </button>
+                  );
+                }
+
+                // Prioridade 2: Se tiver pagamento pendente (mesmo que status seja aguardando_envio ou outro)
+                if (temPagamentoPendente) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onAbrirReceberPagamento(pedidoSelecionado)}
+                      className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      title="Receber pagamento pendente"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      <span>Receber Pagamento</span>
+                    </button>
+                  );
+                }
+
+                // Prioridade 3: Se status for aguardando_envio e já estiver pago/fiado
+                if (pedidoSelecionado.status === 'aguardando_envio') {
+                  const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
+                  const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor;
+                  const ehParceiro = prov === 'uber' || prov === 'melhor_envio';
+
+                  if (ehParceiro) {
+                    return (
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <div className="h-11 px-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 font-bold text-[11px] uppercase flex items-center justify-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  }
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
+                        setContatoEntregadorDespacho(pedidoSelecionado.contato_entregador || pe?.contato_entregador || '');
+                        setCodigoRastreioDespacho(pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '');
+                        setLinkRastreioDespacho(pedidoSelecionado.link_rastreio || pe?.link_rastreio || '');
+                        setPinEntregaDespacho(pedidoSelecionado.pin_entrega || pe?.pin_entrega || '');
+                        setNomeAppDespacho(pedidoSelecionado.nome_app || pe?.nome_app || 'Uber');
+                        setServicoCorreiosDespacho((pedidoSelecionado.servico_correios as any) || (pe?.servico_correios as any) || 'SEDEX');
+                        setNomeTransportadoraDespacho(pedidoSelecionado.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
+                        setModalDespachoAberto(true);
+                      }}
+                      className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                    >
+                      <Truck className="w-4 h-4" />
+                      <span>Despachar / Concluir Entrega</span>
+                    </button>
+                  );
+                }
+
+                // Prioridade 4: Se não for concluído
+                if (pedidoSelecionado.status !== 'concluido') {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const saldoDevedorAtual = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                        const estaQuitado = saldoDevedorAtual <= 0.009;
+                        if (estaQuitado) {
+                          onAlterarStatus(pedidoSelecionado.id, 'concluido');
+                          setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
+                        } else {
+                          onAbrirReceberPagamento(pedidoSelecionado);
+                        }
+                      }}
+                      className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                    >
+                      <span>Concluir Pedido</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   );
                 }
 
                 return (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEntregadorNomeDespacho(pedidoSelecionado.entregador_nome || pe?.entregador_nome || '');
-                      setContatoEntregadorDespacho(pedidoSelecionado.contato_entregador || pe?.contato_entregador || '');
-                      setCodigoRastreioDespacho(pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '');
-                      setLinkRastreioDespacho(pedidoSelecionado.link_rastreio || pe?.link_rastreio || '');
-                      setPinEntregaDespacho(pedidoSelecionado.pin_entrega || pe?.pin_entrega || '');
-                      setNomeAppDespacho(pedidoSelecionado.nome_app || pe?.nome_app || 'Uber');
-                      setServicoCorreiosDespacho((pedidoSelecionado.servico_correios as any) || (pe?.servico_correios as any) || 'SEDEX');
-                      setNomeTransportadoraDespacho(pedidoSelecionado.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
-                      setModalDespachoAberto(true);
-                    }}
-                    className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
-                  >
-                    <Truck className="w-4 h-4" />
-                    <span>Despachar / Concluir Entrega</span>
-                  </button>
+                  <div className="flex-1 h-12 rounded-2xl bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center">
+                    Pedido Concluído
+                  </div>
                 );
-              })()
-            ) : pedidoSelecionado.status !== 'concluido' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
-                  const estaQuitado = saldoDevedor <= 0.009;
-                  if (estaQuitado) {
-                    onAlterarStatus(pedidoSelecionado.id, 'concluido');
-                    setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
-                  } else {
-                    onAbrirReceberPagamento(pedidoSelecionado);
-                  }
-                }}
-                className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
-              >
-                {(() => {
-                  const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
-                  const estaQuitado = saldoDevedor <= 0.009;
-                  return estaQuitado ? 'Concluir Pedido' : 'Receber e Concluir';
-                })()}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <div className="flex-1 h-12 rounded-2xl bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center">
-                Pedido {pedidoSelecionado.status}
-              </div>
-            )}
+              })()}
           </div>
         </div>
 
@@ -1656,9 +1702,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const codigoRastreio = (pedidoSelecionado.codigo_rastreio || pe?.codigo_rastreio || '').trim();
                 const linkEtiqueta = String((pe as any)?.link_etiqueta || (pedidoSelecionado as any)?.link_etiqueta || (pe as any)?.etiqueta_url || (pedidoSelecionado as any)?.etiqueta_url || '').trim();
 
+                const statusPag = resolverStatusPagamento(pedidoSelecionado);
+                const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+                const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                const precisaReceber = pedidoSelecionado.status !== 'cancelado' && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
+
                 const aguardaEnvio =
-                  pedidoSelecionado.status === 'aguardando_envio' ||
-                  (pedidoSelecionado.status === 'confirmado' && !isRetirada);
+                  estaPagoOuFiado &&
+                  (pedidoSelecionado.status === 'aguardando_envio' ||
+                  (pedidoSelecionado.status === 'confirmado' && !isRetirada));
 
                 const emTransitoOuEntregue =
                   pedidoSelecionado.status === 'enviado' ||
@@ -1691,7 +1743,26 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
                 return (
                   <div className="space-y-1.5">
-                    {/* Ação 1: Gerar Envio / Chamar Uber (se aguarda envio) */}
+                    {/* Ação 0: Receber Pagamento (se pendente de quitação) */}
+                    {precisaReceber && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          if (statusPag === 'fiado' && onAbrirReceberFiado) {
+                            onAbrirReceberFiado(pedidoSelecionado);
+                          } else {
+                            onAbrirReceberPagamento(pedidoSelecionado);
+                          }
+                        }}
+                        className="w-full h-11 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                      >
+                        <DollarSign className="w-4 h-4 text-white shrink-0" />
+                        <span>{statusPag === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
+                      </button>
+                    )}
+
+                    {/* Ação 1: Gerar Envio / Chamar Uber (se aguarda envio e está pago/fiado) */}
                     {aguardaEnvio && !isUber && (
                       <button
                         type="button"

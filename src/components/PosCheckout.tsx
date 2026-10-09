@@ -598,14 +598,6 @@ export const PosCheckout: React.FC = () => {
   const handleAbrirFechamento = () => {
     if ((itens?.length || 0) === 0) return;
 
-    if (ehEnvio && !isFreteConfirmado) {
-      mostrarAviso(
-        'Defina as opções de frete antes de prosseguir com o pagamento do pedido.',
-        'Aguardando Cotação de Frete'
-      );
-      return;
-    }
-
     if (!pedidoEntrega) {
       mostrarAviso(
         'Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de prosseguir com o pagamento.',
@@ -823,8 +815,8 @@ export const PosCheckout: React.FC = () => {
 
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 
-      const ehEnvioAtual = pedidoEntrega?.tipo_atendimento === 'entrega';
-      const statusFinal = pedidoEmEdicao?.status || (ehEnvioAtual ? 'aguardando_envio' : 'pendente');
+      // Regra Rígida: salvar sem quitação deve manter status = 'pendente' e status_pagamento = 'aguardando_pagamento'
+      const statusFinal: StatusPedido = 'pendente';
       const obsLimpa = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);
 
       let metaExistente: Record<string, any> = {};
@@ -1122,7 +1114,9 @@ export const PosCheckout: React.FC = () => {
         ];
       }
 
-      const statusFinal = pedidoEmEdicao?.status || 'pendente';
+      const statusFinal: StatusPedido = (pedidoEmEdicao?.status === 'concluido' || pedidoEmEdicao?.status === 'cancelado')
+        ? pedidoEmEdicao.status
+        : 'pendente';
 
       const historicoStatusExistente = Array.isArray(metaExistente.historico_status)
         ? metaExistente.historico_status
@@ -1412,12 +1406,16 @@ export const PosCheckout: React.FC = () => {
       delete metaExistente.pagamento_previsto;
 
       const ehEntrega = pedidoEntrega?.tipo_atendimento === 'entrega' || taxaEntrega > 0;
+      const estaTotalmentePago = valorFiadoTotal === 0;
       let statusFinal: StatusPedido = 'concluido';
 
       if (pedidoEmEdicao?.status && pedidoEmEdicao.status !== 'pendente') {
         statusFinal = pedidoEmEdicao.status;
       } else {
-        statusFinal = ehEntrega ? 'aguardando_envio' : 'concluido';
+        // Regra Rígida: aguardando_envio só é permitido se estiver cumulativamente PAGO e com frete formalizado
+        statusFinal = ehEntrega
+          ? (estaTotalmentePago ? 'aguardando_envio' : 'pendente')
+          : (estaTotalmentePago ? 'concluido' : 'pendente');
       }
 
       const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
@@ -2327,6 +2325,7 @@ export const PosCheckout: React.FC = () => {
                       servico_codigo: 'pendente'
                     });
                     setFreteConfirmado(false);
+                    setModalDefinirEnvioAberto(true);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
@@ -2640,8 +2639,7 @@ export const PosCheckout: React.FC = () => {
               type="button"
               disabled={
                 (itens?.length || 0) === 0 ||
-                salvandoPendente ||
-                (ehEnvio && !isFreteConfirmado)
+                salvandoPendente
               }
               onClick={handleAbrirFechamento}
               className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition text-center shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${
@@ -2649,11 +2647,7 @@ export const PosCheckout: React.FC = () => {
                   ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
                   : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
               }`}
-              title={
-                ehEnvio && !isFreteConfirmado
-                  ? 'Defina as opções de frete antes de finalizar a venda'
-                  : 'Abrir tela de pagamento e concluir venda'
-              }
+              title="Abrir tela de pagamento e concluir venda"
             >
               <span className="leading-tight">
                 Finalizar<br />Venda
@@ -2969,16 +2963,38 @@ export const PosCheckout: React.FC = () => {
                     })()}
                   </span>
                 </span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {taxaEntrega > 0 ? (
-                    formatarMoeda(taxaEntrega)
-                  ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
-                    'Grátis (Balcão)'
-                  ) : (
-                    'Grátis'
-                  )}
-                </span>
+                {ehEnvio && !isFreteConfirmado ? (
+                  <button
+                    type="button"
+                    onClick={() => setModalDefinirEnvioAberto(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer active:scale-95 shadow-2xs"
+                    title="Definir frete agora"
+                  >
+                    <span>A definir</span>
+                    <span className="text-[11px]">✏️</span>
+                  </button>
+                ) : (
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {taxaEntrega > 0 ? (
+                      formatarMoeda(taxaEntrega)
+                    ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
+                      'Grátis (Balcão)'
+                    ) : pedidoEntrega?.is_frete_gratis ? (
+                      'Grátis'
+                    ) : (
+                      formatarMoeda(0)
+                    )}
+                  </span>
+                )}
               </div>
+
+              {/* Alerta de Frete a Definir no Modal de Fechamento */}
+              {ehEnvio && !isFreteConfirmado && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Para efetuar o pagamento, primeiro é necessário definir a opção de frete.</span>
+                </div>
+              )}
 
               {/* TOTAL DA VENDA (EM DESTAQUE) */}
               <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center font-bold text-sm text-slate-900 dark:text-white">
@@ -3051,6 +3067,7 @@ export const PosCheckout: React.FC = () => {
                 disabled={
                   finalizandoVenda ||
                   salvandoPendente ||
+                  (ehEnvio && !isFreteConfirmado) ||
                   Math.abs(diferencaPagamento) >= 0.01 ||
                   linhasPagamento.some(l => l.forma_tipo === 'fiado' && l.valor > (Number(clienteSelecionado?.limite_credito || 0) + 0.01))
                 }

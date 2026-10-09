@@ -1240,6 +1240,12 @@ export const PedidosLista: React.FC = () => {
     const ped = (pedidoAlvo && typeof pedidoAlvo === 'object' && 'numero_pedido' in pedidoAlvo) ? (pedidoAlvo as Pedido) : pedidoSelecionado;
     if (!ped || !loja?.id || ped.status === 'cancelado') return;
 
+    const statusPagPed = resolverStatusPagamento(ped);
+    if (statusPagPed !== 'pago' && statusPagPed !== 'fiado') {
+      mostrarAviso('O pedido só pode ser despachado após a quitação do pagamento.', 'Pagamento Pendente');
+      return;
+    }
+
     // Guarda o pedido alvo para despacho manual sem sair da listagem caso chamado da tabela
     setPedidoParaDespacho(ped);
     const foiChamadoDaLista = Boolean(pedidoAlvo && typeof pedidoAlvo === 'object' && 'numero_pedido' in pedidoAlvo);
@@ -3071,8 +3077,8 @@ export const PedidosLista: React.FC = () => {
                         );
                       })()}
 
-                      {/* Ação Primária de Despacho (se ainda não despachado) */}
-                      {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && !(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
+                      {/* Ação Primária de Despacho (se ainda não despachado e pagamento já quitado) */}
+                      {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (resolverStatusPagamento(pedidoSelecionado) === 'pago' || resolverStatusPagamento(pedidoSelecionado) === 'fiado') && !(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
                         <div className="pt-2">
                           <button
                             type="button"
@@ -3764,7 +3770,7 @@ export const PedidosLista: React.FC = () => {
                                           </button>
                                         )}
 
-                                        {(estaPagoOuFiado || permiteDespachoSemPagamento) && (
+                                        {estaPagoOuFiado && (
                                           <button
                                             type="button"
                                             disabled={isGerando}

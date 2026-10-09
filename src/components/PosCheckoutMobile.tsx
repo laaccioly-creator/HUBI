@@ -53,7 +53,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { useCart } from '../contexts/CartContext';
+import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO } from '../contexts/CartContext';
 import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria, TabelaPreco } from '../types';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -134,7 +134,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     setDescontoPercentual,
     setTipoDesconto,
     limparCarrinho,
-    cancelarEdicaoPedido
+    cancelarEdicaoPedido,
+    setPedidoEntrega,
+    setTaxaEntrega
   } = cart || {};
 
   const itens = useMemo(() => (Array.isArray(rawItens) ? rawItens : []), [rawItens]);
@@ -1250,56 +1252,97 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               {desconto > 0 ? 'Alterar desconto' : 'Dar desconto'}
             </button>
 
-            {/* Linha de Forma de Entrega no Carrinho Mobile */}
-            <div
-              onClick={() => onAbrirFormaEntrega?.()}
-              className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/20 active:scale-[0.99] transition"
-              title="Toque para alterar forma de entrega ou retirada"
-            >
-              <div className="flex items-center gap-1.5 min-w-0">
-                {pedidoEntrega?.tipo_atendimento === 'entrega' && taxaEntrega > 0 ? (
-                  <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
-                  <Store className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                ) : (
-                  <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                )}
-                <span className="text-slate-700 font-semibold truncate">
-                  Forma de Entrega:
-                </span>
+            {/* Componente de Forma de Entrega no Mobile (Segmentado Retirada / Envio padrão Desktop) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
+                    <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  ) : (
+                    <Store className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  )}
+                  <span className="text-slate-700 font-semibold truncate">
+                    Forma de Entrega:
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTaxaEntrega?.(0);
+                      setPedidoEntrega?.(FORMA_ENTREGA_RETIRADA_PADRAO);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 ${
+                      pedidoEntrega?.tipo_atendimento !== 'entrega'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    <Store className="w-3 h-3" />
+                    <span>Retirada</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (pedidoEntrega?.tipo_atendimento !== 'entrega') {
+                        setTaxaEntrega?.(0);
+                        setPedidoEntrega?.({
+                          ...FORMA_ENTREGA_RETIRADA_PADRAO,
+                          tipo_atendimento: 'entrega',
+                          transportadora_nome: 'Envio a Definir',
+                          servico_codigo: 'pendente'
+                        });
+                      }
+                      onAbrirFormaEntrega?.();
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 ${
+                      pedidoEntrega?.tipo_atendimento === 'entrega'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    <Truck className="w-3 h-3" />
+                    <span>Envio</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {!pedidoEntrega ? (
-                  <span className="text-amber-600 font-bold text-xs">
-                    Não selecionada
+              {/* Informação e status do frete quando Envio estiver selecionado */}
+              {pedidoEntrega?.tipo_atendimento === 'entrega' && (
+                <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <span className="text-slate-600 font-medium truncate">
+                    {pedidoEntrega.transportadora_nome && pedidoEntrega.transportadora_nome !== 'Envio a Definir' && pedidoEntrega.servico_codigo !== 'pendente' ? (
+                      <span>{pedidoEntrega.transportadora_nome}</span>
+                    ) : (
+                      <span className="text-amber-700 font-semibold">Opção de frete:</span>
+                    )}
                   </span>
-                ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
-                  <span className="text-purple-700 font-bold text-xs">
-                    Retirada na Loja (Grátis)
-                  </span>
-                ) : (
-                  <span className="text-emerald-700 font-bold text-xs">
-                    {pedidoEntrega.transportadora_nome ? `${pedidoEntrega.transportadora_nome}: ` : ''}
-                    {taxaEntrega > 0 ? `+ ${formatarMoeda(taxaEntrega)}` : 'Grátis'}
-                  </span>
-                )}
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAbrirFormaEntrega?.();
-                  }}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer active:scale-95 ${
-                    !pedidoEntrega
-                      ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-xs'
-                      : 'text-emerald-600 hover:text-emerald-700 underline'
-                  }`}
-                >
-                  {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
-                </button>
-              </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {pedidoEntrega.transportadora_nome && pedidoEntrega.transportadora_nome !== 'Envio a Definir' && pedidoEntrega.servico_codigo !== 'pendente' ? (
+                      <span className="font-bold text-emerald-700">
+                        {taxaEntrega > 0 ? `+ ${formatarMoeda(taxaEntrega)}` : (pedidoEntrega.is_frete_gratis ? 'Grátis' : formatarMoeda(0))}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onAbrirFormaEntrega?.()}
+                        className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 font-bold text-[11px] border border-amber-500/30 cursor-pointer flex items-center gap-1"
+                      >
+                        <span>A definir</span>
+                        <span className="text-[10px]">✏️</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onAbrirFormaEntrega?.()}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer ml-1"
+                    >
+                      Alterar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200">
