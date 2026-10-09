@@ -337,7 +337,12 @@ serve(async (req: Request) => {
           body: JSON.stringify({ mode: "public", orders: [orderId] }),
         });
         const printData = await printRes.json().catch(() => ({}));
-        if (printData?.url && !printData.url.includes("/painel/envios")) {
+        if (
+          printData?.url &&
+          !printData.url.includes("/painel/envios") &&
+          !printData.url.includes("/portal/login") &&
+          !printData.url.includes("/login")
+        ) {
           urlEtiquetaFinal = printData.url;
         }
       } catch (ePrint) {

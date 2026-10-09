@@ -39,6 +39,7 @@ import { supabase } from '../lib/supabase';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
+import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
 
 interface VendasHistoricoMobileProps {
   vendas: Pedido[];
@@ -74,6 +75,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   const [vendaDetalhes, setVendaDetalhes] = useState<Pedido | null>(null);
   const [modalReciboAberto, setModalReciboAberto] = useState<boolean>(false);
   const [modalRastreioAberto, setModalRastreioAberto] = useState<boolean>(false);
+  const [modalEtiquetaAberto, setModalEtiquetaAberto] = useState<boolean>(false);
   const [modalConfirmarCancelamento, setModalConfirmarCancelamento] = useState<boolean>(false);
   const [gerandoEtiqueta, setGerandoEtiqueta] = useState<boolean>(false);
 
@@ -205,6 +207,38 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
     return <CreditCard className="w-3.5 h-3.5 text-sky-600" />;
   };
 
+  const handleRastrearEnvio = (ped: Pedido) => {
+    const rawPe = (ped as any)?.pedido_entrega || (ped as any)?.pedido_entregas;
+    const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+
+    const ehUber =
+      pe?.provedor === 'uber' ||
+      (ped as any)?.provedor_frete === 'uber' ||
+      (pe?.nome_app || '').toLowerCase().includes('uber') ||
+      ((ped as any)?.nome_app || '').toLowerCase().includes('uber') ||
+      (pe?.link_rastreio && pe.link_rastreio.includes('uber.com')) ||
+      (ped.link_rastreio && ped.link_rastreio.includes('uber.com')) ||
+      (pe?.codigo_corrida && pe.codigo_corrida.startsWith('del_')) ||
+      (ped.codigo_rastreio && ped.codigo_rastreio.startsWith('del_'));
+
+    if (ehUber) {
+      const linkRastreio = (pe?.link_rastreio || ped.link_rastreio || '').trim();
+      if (linkRastreio && (linkRastreio.startsWith('http://') || linkRastreio.startsWith('https://'))) {
+        window.open(linkRastreio, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const deliveryId = pe?.codigo_corrida || pe?.codigo_rastreio || ped.codigo_rastreio || '';
+      if (deliveryId) {
+        window.open(`https://track.uber.com/v1/deliveries/${deliveryId}`, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      mostrarToast('Link de rastreio ao vivo da Uber não disponível para este pedido.', 'aviso');
+      return;
+    }
+
+    setModalRastreioAberto(true);
+  };
+
   const handleAbrirEtiqueta = async (ped: Pedido) => {
     if (!loja?.id) {
       mostrarToast('Loja não identificada.', 'erro');
@@ -296,62 +330,58 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
         {/* Conteúdo com Scroll */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Card de Valor Total */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+          {/* Card de Valor Total (Frame Preto Sólido de Alto Contraste) */}
+          <div className="p-4 bg-black border border-slate-800 rounded-2xl space-y-2.5 text-white shadow-xs">
             <div className="flex items-baseline justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Valor Total</span>
-              <span className={`text-2xl font-black ${cancelado ? 'line-through text-rose-500' : 'text-slate-900'}`}>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Valor Total</span>
+              <span className={`text-2xl font-black ${cancelado ? 'line-through text-rose-500' : 'text-white'}`}>
                 R$ {Number(vendaDetalhes.valor_total).toFixed(2)}
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-              <span className="text-slate-500">Vendido por:</span>
-              <span className="font-bold text-slate-800">{nomeVendedor}</span>
+            <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-800/80">
+              <span className="text-slate-400">Vendido por:</span>
+              <span className="font-bold text-slate-200">{nomeVendedor}</span>
             </div>
 
             {cli && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">Cliente:</span>
-                <span className="font-bold text-slate-800">{cli.nome}</span>
+                <span className="text-slate-400">Cliente:</span>
+                <span className="font-bold text-slate-200">{cli.nome}</span>
               </div>
             )}
 
             {cancelado && (
-              <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-1.5 mt-2">
+              <div className="p-2.5 bg-rose-950/40 border border-rose-900/60 rounded-xl text-rose-400 text-xs font-bold flex items-center gap-1.5 mt-2">
                 <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
                 <span>Esta venda foi cancelada</span>
               </div>
             )}
           </div>
 
-          {/* Dados do Pagamento (Paridade com Desktop e Pedidos) */}
+          {/* Dados do Pagamento (Frame Preto Sólido de Alto Contraste) */}
           {(() => {
             const pagInfo = obterDadosPagamentoRecibo(vendaDetalhes);
             return (
               <>
                 {pagInfo.ehFiado && Number(vendaDetalhes.saldo_devedor) > 0 && (
-                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl text-center space-y-0.5">
-                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                  <div className="p-3 bg-black border border-amber-500/40 rounded-2xl text-center space-y-0.5 shadow-xs">
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
                       Saldo a Pagar (Fiado)
                     </span>
-                    <span className="text-base font-black text-amber-700">
+                    <span className="text-base font-black text-amber-300">
                       R$ {Number(vendaDetalhes.saldo_devedor).toFixed(2)}
                     </span>
                   </div>
                 )}
 
-                <div className={`p-3.5 rounded-2xl border text-xs space-y-2 ${
-                  pagInfo.foiPago
-                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                    : 'bg-amber-50/70 border-amber-200 text-amber-900'
-                }`}>
-                  <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
-                    <span className="font-bold text-[10px] text-slate-500 uppercase">Status Pagamento</span>
-                    <span className={`font-black text-[10px] px-2 py-0.5 rounded-full ${
+                <div className="p-4 bg-black border border-slate-800 rounded-2xl text-xs space-y-2.5 text-white shadow-xs">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-800/80">
+                    <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Status Pagamento</span>
+                    <span className={`font-black text-[10px] px-2.5 py-0.5 rounded-full border ${
                       pagInfo.foiPago
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                        : 'bg-amber-100 text-amber-800 border border-amber-300'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
                     }`}>
                       {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                     </span>
@@ -362,18 +392,18 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                       {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                         <div key={idx} className="flex justify-between items-start text-xs">
                           <div>
-                            <span className="font-bold text-slate-800">{pag.forma}</span>
+                            <span className="font-bold text-slate-200">{pag.forma}</span>
                             {pag.origemGateway && (
-                              <span className="text-[10px] text-sky-600 block font-semibold">
+                              <span className="text-[10px] text-sky-400 block font-semibold">
                                 Origem: {pag.origemGateway}
                               </span>
                             )}
                           </div>
-                          <span className="font-black text-slate-800">R$ {pag.valor.toFixed(2)}</span>
+                          <span className="font-black text-white">R$ {pag.valor.toFixed(2)}</span>
                         </div>
                       ))}
-                      <div className="flex justify-between font-extrabold text-emerald-700 pt-1.5 border-t border-emerald-200/60 text-xs">
-                        <span>Valor Pago:</span>
+                      <div className="flex justify-between font-extrabold text-emerald-400 pt-2 border-t border-slate-800 text-xs">
+                        <span className="text-slate-300">Valor Pago:</span>
                         <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
                       </div>
                     </div>
@@ -419,7 +449,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             </div>
           </div>
 
-          {/* Ações Padronizadas da Venda (Mobile) */}
+          {/* Ações Padronizadas da Venda (Mobile - Fundo Verde Esmeralda Sólido) */}
           <div className="space-y-2 pt-2">
             <div className="grid grid-cols-2 gap-2">
               {/* 1. WhatsApp */}
@@ -434,7 +464,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Enviar recibo via WhatsApp"
               >
-                <MessageCircle className="w-4 h-4 shrink-0" />
+                <MessageCircle className="w-4 h-4 text-white shrink-0" />
                 <span>WhatsApp</span>
               </button>
 
@@ -442,34 +472,33 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalReciboAberto(true)}
-                className="h-11 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200/80 shadow-xs transition cursor-pointer active:scale-95"
+                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Visualizar e imprimir recibo completo"
               >
-                <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
+                <Receipt className="w-4 h-4 text-white shrink-0" />
                 <span>Recibo</span>
               </button>
 
-              {/* 3. Rastrear */}
+              {/* 3. Rastrear (Contextual: Uber Direct ao vivo vs. Correios/Transportadora) */}
               <button
                 type="button"
-                onClick={() => setModalRastreioAberto(true)}
-                className="h-11 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold text-xs flex items-center justify-center gap-2 border border-sky-200/70 shadow-xs transition cursor-pointer active:scale-95"
+                onClick={() => handleRastrearEnvio(vendaDetalhes)}
+                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Rastrear envio da venda"
               >
-                <Truck className="w-4 h-4 text-sky-600 shrink-0" />
+                <Truck className="w-4 h-4 text-white shrink-0" />
                 <span>Rastrear</span>
               </button>
 
-              {/* 4. Etiqueta */}
+              {/* 4. Etiqueta (Aciona Modal Oficial de Etiqueta HUBI) */}
               <button
                 type="button"
-                disabled={gerandoEtiqueta}
-                onClick={() => handleAbrirEtiqueta(vendaDetalhes)}
-                className="h-11 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200/80 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60"
+                onClick={() => setModalEtiquetaAberto(true)}
+                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Abrir ou imprimir etiqueta de envio"
               >
-                <Tag className="w-4 h-4 text-slate-600 shrink-0" />
-                <span>{gerandoEtiqueta ? 'Buscando...' : 'Etiqueta'}</span>
+                <Tag className="w-4 h-4 text-white shrink-0" />
+                <span>Etiqueta</span>
               </button>
             </div>
 
@@ -506,6 +535,17 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             entrega={(vendaDetalhes as any)?.pedido_entrega || (Array.isArray((vendaDetalhes as any)?.pedido_entregas) ? (vendaDetalhes as any)?.pedido_entregas[0] : null)}
             loja={loja}
             onClose={() => setModalRastreioAberto(false)}
+          />
+        )}
+
+        {/* MODAL OFICIAL DE IMPRESSÃO DE ETIQUETA */}
+        {modalEtiquetaAberto && (
+          <ModalImprimirEtiqueta
+            isOpen={modalEtiquetaAberto}
+            pedido={vendaDetalhes}
+            loja={loja}
+            entrega={(vendaDetalhes as any)?.pedido_entrega || (Array.isArray((vendaDetalhes as any)?.pedido_entregas) ? (vendaDetalhes as any)?.pedido_entregas[0] : null)}
+            onClose={() => setModalEtiquetaAberto(false)}
           />
         )}
 

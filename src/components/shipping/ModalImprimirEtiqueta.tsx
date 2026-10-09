@@ -6,6 +6,7 @@ import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { ehUrlEtiquetaValida } from '../PedidosLista';
 import { MelhorEnvioService } from '../../services/melhorEnvioService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../lib/supabase';
 
 interface ModalImprimirEtiquetaProps {
   isOpen: boolean;
@@ -97,6 +98,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
       if (urlPdf) {
         mostrarSucesso('Etiqueta oficial pronta para impressão!');
         window.open(urlPdf, '_blank', 'noopener,noreferrer');
+        if (pe?.id) {
+          supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf }).eq('id', pe.id).then();
+        }
       }
     } catch (err: any) {
       mostrarErro(err.message || 'Etiqueta oficial ainda não liberada no Melhor Envio.');

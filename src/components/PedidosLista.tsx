@@ -107,8 +107,7 @@ export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
   if (!u || u === 'null' || u === 'undefined') return false;
   if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
   if (u.includes('404')) return false;
-  if (u.includes('/painel/envios') || u.includes('/painel/')) return false;
-  if (u.includes('sandbox.melhorenvio.com.br/imprimir')) return false;
+  if (u.includes('/painel/envios') || u.includes('/painel/') || u.includes('/portal/login') || u.includes('/login') || u.includes('/portal')) return false;
   if (u.endsWith('.com.br') || u.endsWith('.com.br/')) return false;
   return true;
 };
